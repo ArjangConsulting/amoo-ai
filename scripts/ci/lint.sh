@@ -21,7 +21,7 @@ if [[ "$swift_files_count" -eq 0 ]]; then
 fi
 
 echo "Running swiftformat lint..."
-swiftformat --lint . --config .swiftformat --cache ignore
+swiftformat --lint Sources/ Tests/ CompanionApps/iOS/Sources/ --config .swiftformat --cache ignore
 
 echo "Running swiftlint..."
 swiftlint lint --strict --no-cache
