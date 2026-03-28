@@ -47,6 +47,49 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(commands[3], ["xcrun", "simctl", "uninstall", "UDID-123", "com.example.app"])
     }
 
+    func testSimctlRunnerListAndInspectionHelpers() async throws {
+        let plist = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>com.example.first</key>
+            <dict/>
+            <key>com.example.second</key>
+            <dict/>
+        </dict>
+        </plist>
+        """
+        let mock = MockProcessRunner(results: [
+            .init(exitCode: 0, stdout: "devices-json", stderr: ""),
+            .init(exitCode: 0, stdout: "app-list", stderr: ""),
+            .init(exitCode: 0, stdout: plist, stderr: "")
+        ])
+        let runner = SimctlRunner(processRunner: mock)
+
+        let devices = try await runner.listDevices()
+        let apps = try await runner.listApps(device: "booted")
+        let appIDs = try await runner.listInstalledAppIDs(device: "booted")
+
+        XCTAssertEqual(devices, "devices-json")
+        XCTAssertEqual(apps, "app-list")
+        XCTAssertEqual(Set(appIDs), ["com.example.first", "com.example.second"])
+
+        let commands = await mock.recordedCommands()
+        XCTAssertEqual(commands[0], ["xcrun", "simctl", "list", "devices", "available", "-j"])
+        XCTAssertEqual(commands[1], ["xcrun", "simctl", "listapps", "booted"])
+        XCTAssertEqual(commands[2], ["xcrun", "simctl", "listapps", "booted"])
+    }
+
+    func testSimctlRunnerReturnsEmptyInstalledAppIDsForInvalidPlist() async throws {
+        let mock = MockProcessRunner(result: .init(exitCode: 0, stdout: "not-a-plist", stderr: ""))
+        let runner = SimctlRunner(processRunner: mock)
+
+        let appIDs = try await runner.listInstalledAppIDs(device: "booted")
+
+        XCTAssertEqual(appIDs, [])
+    }
+
     func testSimctlRunnerConfiguration() async throws {
         let mock = MockProcessRunner(result: .init(exitCode: 0, stdout: "", stderr: ""))
         let runner = SimctlRunner(processRunner: mock)
@@ -75,6 +118,54 @@ final class ProcessRunnerTests: XCTestCase {
         let commands = await mock.recordedCommands()
         XCTAssertEqual(commands[0], ["adb", "start-server"])
         XCTAssertEqual(commands[1], ["adb", "-s", "emulator-5554", "emu", "kill"])
+    }
+
+    func testADBRunnerListHelpersAndURLHandling() async throws {
+        let mock = MockProcessRunner(results: [
+            .init(exitCode: 0, stdout: "device-list", stderr: ""),
+            .init(exitCode: 0, stdout: "package:com.example\n", stderr: ""),
+            .init(exitCode: 0, stdout: "", stderr: "")
+        ])
+        let runner = ADBRunner(processRunner: mock)
+
+        let devices = try await runner.listDevices()
+        let packages = try await runner.listPackages(serial: "emulator-5554")
+        try await runner.openURL(serial: "emulator-5554", url: "myapp://details")
+
+        XCTAssertEqual(devices, "device-list")
+        XCTAssertEqual(packages, "package:com.example\n")
+
+        let commands = await mock.recordedCommands()
+        XCTAssertEqual(commands[0], ["adb", "devices", "-l"])
+        XCTAssertEqual(commands[1], ["adb", "-s", "emulator-5554", "shell", "pm", "list", "packages"])
+        XCTAssertEqual(
+            commands[2],
+            ["adb", "-s", "emulator-5554", "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "myapp://details"]
+        )
+    }
+
+    func testADBRunnerLaunchFallsBackWhenResolveActivityFails() async throws {
+        let mock = MockProcessRunner(results: [
+            .init(exitCode: 1, stdout: "", stderr: "missing"),
+            .init(exitCode: 0, stdout: "", stderr: "")
+        ])
+        let runner = ADBRunner(processRunner: mock)
+
+        try await runner.launch(serial: "emulator-5554", appID: "com.example.app", arguments: ["foo", "bar"])
+
+        let commands = await mock.recordedCommands()
+        XCTAssertEqual(
+            commands[0],
+            ["adb", "-s", "emulator-5554", "shell", "cmd", "package", "resolve-activity", "--brief", "com.example.app"]
+        )
+        XCTAssertEqual(
+            commands[1],
+            [
+                "adb", "-s", "emulator-5554", "shell", "am", "start", "-n", "com.example.app/.MainActivity",
+                "--es", "arg", "foo",
+                "--es", "arg", "bar"
+            ]
+        )
     }
 
     func testADBRunnerAppLifecycle() async throws {
