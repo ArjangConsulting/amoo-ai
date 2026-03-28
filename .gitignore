@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Coverage artifacts
+*.profdata
+*.profraw
+coverage.json
+
+# Logs and temp
+*.log
+.tmp/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# Android
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab

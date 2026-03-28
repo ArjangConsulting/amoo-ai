@@ -1,0 +1,14 @@
+--swiftversion 6.0
+--indent 4
+--linebreaks lf
+--maxwidth 120
+--trimwhitespace always
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--commas inline
+--self remove
+--stripunusedargs closure-only
+--ifdef no-indent
+
+--exclude .build,.swiftpm,DerivedData
