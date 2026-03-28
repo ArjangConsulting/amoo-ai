@@ -22,10 +22,27 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/protobuf
+            /usr/local/Cellar/swiftformat
+            /usr/local/Cellar/swiftlint
+          key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: brew-${{ runner.os }}-
+
       - name: Install tooling
         run: |
-          brew update
           brew install protobuf swiftformat swiftlint
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
 
       - name: Export protoc path
         run: |
