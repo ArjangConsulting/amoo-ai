@@ -55,6 +55,12 @@ identifier_name:
     - id
     - x
     - y
+    - i
+    - j
+    - p
+    - q
+    - a
+    - b
 
 function_body_length:
   warning: 60

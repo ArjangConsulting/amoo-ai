@@ -29,7 +29,7 @@ public protocol SimctlRunning: Sendable {
     func setAppearance(device: String, appearance: Appearance) async throws
     func openURL(device: String, url: String) async throws
 
-    // App inspection
+    /// App inspection
     func listInstalledAppIDs(device: String) async throws -> [String]
 }
 

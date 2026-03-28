@@ -68,6 +68,7 @@ private func replLoop(
 }
 
 // MARK: - Built-in commands
+
 // Returns true when the user wants to quit.
 
 private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) async -> Bool {
@@ -118,7 +119,13 @@ private func printHelp(definitions: [ToolDefinition]) {
 
 // MARK: - Dispatch
 
-private func dispatch(line: String, executor: DriverToolExecutor, driver: IOSDriver, toolDefinitions: [ToolDefinition]) async {
+// swiftlint:disable:next cyclomatic_complexity
+private func dispatch(
+    line: String,
+    executor: DriverToolExecutor,
+    driver: IOSDriver,
+    toolDefinitions: [ToolDefinition]
+) async {
     let (toolName, parts) = shellSplit(line)
     guard let toolName else { return }
 

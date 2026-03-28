@@ -83,7 +83,7 @@ final class ProcessRunnerTests: XCTestCase {
             .init(exitCode: 0, stdout: "com.example.app/.RealLauncherActivity\n", stderr: ""),
             .init(exitCode: 0, stdout: "", stderr: ""),
             .init(exitCode: 0, stdout: "", stderr: ""),
-            .init(exitCode: 0, stdout: "", stderr: ""),
+            .init(exitCode: 0, stdout: "", stderr: "")
         ])
         let runner = ADBRunner(processRunner: mock)
 
@@ -94,7 +94,10 @@ final class ProcessRunnerTests: XCTestCase {
 
         let commands = await mock.recordedCommands()
         XCTAssertEqual(commands[0], ["adb", "-s", "emulator-5554", "install", "-r", "/tmp/app.apk"])
-        XCTAssertEqual(commands[1], ["adb", "shell", "cmd", "package", "resolve-activity", "--brief", "com.example.app"])
+        XCTAssertEqual(
+            commands[1],
+            ["adb", "shell", "cmd", "package", "resolve-activity", "--brief", "com.example.app"]
+        )
         XCTAssertEqual(commands[2], ["adb", "shell", "am", "start", "-n", "com.example.app/.RealLauncherActivity"])
         XCTAssertEqual(commands[3], ["adb", "shell", "am", "force-stop", "com.example.app"])
         XCTAssertEqual(commands[4], ["adb", "uninstall", "com.example.app"])

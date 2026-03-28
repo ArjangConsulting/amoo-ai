@@ -10,5 +10,6 @@
 --self remove
 --stripunusedargs closure-only
 --ifdef no-indent
+--disable wrapMultilineStatementBraces
 
---exclude .build,.swiftpm,DerivedData
+--exclude .build,.swiftpm,DerivedData,CompanionApps/iOS/build,CompanionApps/iOS/GeneratedProtos,CompanionApps/Android/build

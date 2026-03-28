@@ -25,7 +25,7 @@ private final class ReachabilityBox: @unchecked Sendable {
 
 // MARK: - Configuration
 
-struct CompanionConfig: Sendable {
+struct CompanionConfig {
     var host: String
     var port: Int
     var companionDir: String
@@ -59,15 +59,15 @@ enum CompanionError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case let .buildFailed(reason):
-            return "Companion build failed: \(reason)"
+            "Companion build failed: \(reason)"
         case let .launchFailed(reason):
-            return "Companion launch failed: \(reason)"
+            "Companion launch failed: \(reason)"
         case let .readyTimeout(seconds):
-            return "Companion did not become reachable after \(seconds)s."
+            "Companion did not become reachable after \(seconds)s."
         case .unsupportedPlatform:
-            return "Companion management is only supported on macOS."
+            "Companion management is only supported on macOS."
         case .xcodegeneNotFound:
-            return "xcodegen not found. Install it with: brew install xcodegen"
+            "xcodegen not found. Install it with: brew install xcodegen"
         }
     }
 }
@@ -84,7 +84,7 @@ final class CompanionManager: @unchecked Sendable {
         self.processRunner = processRunner
     }
 
-    // Builds (installs) the companion test bundle without launching it.
+    /// Builds (installs) the companion test bundle without launching it.
     func install(config: CompanionConfig, force: Bool = false) async throws {
         let productsDir = config.companionDir + "/build/Build/Products"
         if !force, findXCTestRun(productsDir: productsDir) != nil {
@@ -98,7 +98,7 @@ final class CompanionManager: @unchecked Sendable {
         print(colored("Companion installed successfully.", .green))
     }
 
-    // Shuts down any running companion, then installs (using pre-built if available) and starts fresh.
+    /// Shuts down any running companion, then installs (using pre-built if available) and starts fresh.
     func reinstallAndStart(config: CompanionConfig) async throws {
         shutdown()
         print("Rebuilding companion app (this may take a moment)...")
@@ -115,12 +115,16 @@ final class CompanionManager: @unchecked Sendable {
         print("Installing and starting companion on port \(config.port)...")
         try launchCompanion(xctestrunPath: testrun, config: config)
         try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
-            try await waitUntilReachable(host: config.host, port: config.port, timeoutSeconds: config.readyTimeoutSeconds)
+            try await waitUntilReachable(
+                host: config.host,
+                port: config.port,
+                timeoutSeconds: config.readyTimeoutSeconds
+            )
         }
         print(colored("Companion ready.", .bold, .green))
     }
 
-    // Ensures the companion is running. Builds and launches it if necessary.
+    /// Ensures the companion is running. Builds and launches it if necessary.
     func ensureRunning(config: CompanionConfig) async throws {
         if await isReachable(host: config.host, port: config.port) {
             print("Companion already running on port \(config.port).")
@@ -146,7 +150,11 @@ final class CompanionManager: @unchecked Sendable {
         try launchCompanion(xctestrunPath: testrun, config: config)
 
         try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
-            try await waitUntilReachable(host: config.host, port: config.port, timeoutSeconds: config.readyTimeoutSeconds)
+            try await waitUntilReachable(
+                host: config.host,
+                port: config.port,
+                timeoutSeconds: config.readyTimeoutSeconds
+            )
         }
         print(colored("Companion ready.", .bold, .green))
     }
@@ -196,10 +204,8 @@ final class CompanionManager: @unchecked Sendable {
             options: .skipsSubdirectoryDescendants
         ) else { return nil }
 
-        for case let url as URL in enumerator {
-            if url.pathExtension == "xctestrun" {
-                return url.path
-            }
+        for case let url as URL in enumerator where url.pathExtension == "xctestrun" {
+            return url.path
         }
         return nil
     }

@@ -6,6 +6,7 @@ public protocol ToolExecutor: Sendable {
     func execute(toolName: String, arguments: [String: String]) async -> ToolResult
 }
 
+// swiftlint:disable:next type_body_length
 public actor DriverToolExecutor: ToolExecutor {
     private let driver: any PlatformDriver
     private let aiProvider: (any AIProvider)?
@@ -253,6 +254,7 @@ public actor DriverToolExecutor: ToolExecutor {
             return .error("Unknown tool: \(toolName)")
         }
     }
+
     // swiftlint:enable cyclomatic_complexity function_body_length
 
     private func executeAudit(arguments: [String: String], rulePacks: [any AuditRule]) async throws -> ToolResult {
@@ -260,11 +262,10 @@ public actor DriverToolExecutor: ToolExecutor {
             return .error("Missing required argument: app_id")
         }
 
-        let selectedRules: [any AuditRule]
-        if let packNames = arguments["rule_packs"] {
-            selectedRules = parseRulePacks(packNames)
+        let selectedRules: [any AuditRule] = if let packNames = arguments["rule_packs"] {
+            parseRulePacks(packNames)
         } else {
-            selectedRules = rulePacks
+            rulePacks
         }
 
         // Gather live screen data from the driver
@@ -308,12 +309,13 @@ public actor DriverToolExecutor: ToolExecutor {
             return .success("Audit passed: no findings for \(report.appID)")
         }
 
-        var lines: [String] = ["Audit report for \(report.appID): \(report.findings.count) finding(s)\n"]
+        var lines = ["Audit report for \(report.appID): \(report.findings.count) finding(s)\n"]
 
         let sorted = report.findings.sorted { severityOrder($0.severity) < severityOrder($1.severity) }
         for finding in sorted {
             lines.append("[\(finding.severity.rawValue.uppercased())] \(finding.summary)")
-            lines.append("  Rule: \(finding.ruleID) | Confidence: \(String(format: "%.0f%%", finding.confidence * 100))")
+            lines
+                .append("  Rule: \(finding.ruleID) | Confidence: \(String(format: "%.0f%%", finding.confidence * 100))")
             lines.append("  Fix: \(finding.remediation)")
             lines.append("")
         }

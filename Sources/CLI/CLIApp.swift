@@ -27,6 +27,7 @@ public struct CLIApp {
         self.auditRunner = auditRunner
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     public func run(args: [String]) async -> CLIResult {
         if args.contains("--tools") {
             return CLIResult(output: mcpServer.toolNames().joined(separator: ","), exitCode: 0)

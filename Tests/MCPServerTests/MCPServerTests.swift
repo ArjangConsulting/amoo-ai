@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import MCPServer
 import MobileTestingCore
 import XCTest
@@ -23,7 +24,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(names.contains("find_by_description"))
     }
 
-    func testToolDefinitionsHaveSchemas() {
+    func testToolDefinitionsHaveSchemas() throws {
         let server = MCPServer()
         let defs = server.toolDefinitions()
         XCTAssertFalse(defs.isEmpty)
@@ -32,7 +33,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertNotNil(tap)
         XCTAssertEqual(tap?.required, ["x", "y"])
         XCTAssertEqual(tap?.properties.count, 2)
-        XCTAssertFalse(tap!.description.isEmpty)
+        XCTAssertFalse(try XCTUnwrap(tap?.description.isEmpty))
     }
 
     func testHealthPassThrough() {
@@ -126,6 +127,7 @@ final class MCPServerTests: XCTestCase {
         let calls = await driver.calls
         XCTAssertEqual(calls, ["scroll:down:300.0", "typeText:hello"])
     }
+
     // MARK: - Audit Tool Tests
 
     func testAuditAppRequiresAppID() async {
@@ -183,7 +185,7 @@ final class MCPServerTests: XCTestCase {
     }
 
     func testAuditPassesCleanApp() async {
-        let driver = MockDriver()  // Clean mock with no problematic elements
+        let driver = MockDriver() // Clean mock with no problematic elements
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
@@ -226,7 +228,7 @@ final class MCPServerTests: XCTestCase {
     }
 
     func testSuggestActionsWithInteractableElements() async {
-        let driver = AuditMockDriver()  // Has interactable elements
+        let driver = AuditMockDriver() // Has interactable elements
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
@@ -260,7 +262,10 @@ final class MCPServerTests: XCTestCase {
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_find_by_description", arguments: ["description": "login button"])
+        let result = await server.execute(
+            toolName: "ai_find_by_description",
+            arguments: ["description": "login button"]
+        )
         XCTAssertFalse(result.isError)
         // MockDriver.findByDescription returns empty, so "No elements matched"
         XCTAssertTrue(result.content.contains("No elements matched"))
@@ -291,7 +296,10 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(suggestAlias.content, suggestCanonical.content)
 
         let findAlias = await server.execute(toolName: "find_by_description", arguments: ["description": "submit"])
-        let findCanonical = await server.execute(toolName: "ai_find_by_description", arguments: ["description": "submit"])
+        let findCanonical = await server.execute(
+            toolName: "ai_find_by_description",
+            arguments: ["description": "submit"]
+        )
         XCTAssertEqual(findAlias.content, findCanonical.content)
     }
 }
@@ -338,15 +346,28 @@ private actor AuditMockDriver: PlatformDriver {
             // Sensitive text field — triggers insecure text field rule
             ElementInfo(id: "password_field", label: "Password", type: .textField),
             // Normal button
-            ElementInfo(id: "submit_btn", label: "Submit", type: .button, frame: Rect(x: 0, y: 0, width: 100, height: 44)),
+            ElementInfo(
+                id: "submit_btn",
+                label: "Submit",
+                type: .button,
+                frame: Rect(x: 0, y: 0, width: 100, height: 44)
+            )
         ]
     }
 
-    func getViewHierarchy() async throws -> ViewNode { ViewNode(id: "root") }
-    func elementExists(_: ElementSelector) async throws -> Bool { true }
+    func getViewHierarchy() async throws -> ViewNode {
+        ViewNode(id: "root")
+    }
+
+    func elementExists(_: ElementSelector) async throws -> Bool {
+        true
+    }
+
     func waitForElement(_: ElementSelector, timeout _: Duration) async throws {}
     func waitForElementToDisappear(_: ElementSelector, timeout _: Duration) async throws {}
-    func isKeyboardVisible() async throws -> Bool { false }
+    func isKeyboardVisible() async throws -> Bool {
+        false
+    }
 
     func takeScreenshot(format _: ImageFormat) async throws -> ScreenshotData {
         ScreenshotData(bytes: [0xFF])
@@ -370,39 +391,78 @@ private actor AuditMockDriver: PlatformDriver {
     func getInteractableElements() async throws -> [ElementInfo] {
         [
             ElementInfo(id: "submit_btn", label: "Submit", type: .button),
-            ElementInfo(id: "cancel_btn", label: "Cancel", type: .button),
+            ElementInfo(id: "cancel_btn", label: "Cancel", type: .button)
         ]
     }
 
-    func findByDescription(_: String) async throws -> [ElementInfo] { [] }
-    func listApps() async throws -> [AppInfo] { [] }
-    func appState(appID _: String) async throws -> AppState { .notRunning }
+    func findByDescription(_: String) async throws -> [ElementInfo] {
+        []
+    }
+
+    func listApps() async throws -> [AppInfo] {
+        []
+    }
+
+    func appState(appID _: String) async throws -> AppState {
+        .notRunning
+    }
 }
 
 private actor MockDriver: PlatformDriver {
     var calls: [String] = []
 
-    func boot() async throws { calls.append("boot") }
-    func shutdown() async throws { calls.append("shutdown") }
+    func boot() async throws {
+        calls.append("boot")
+    }
+
+    func shutdown() async throws {
+        calls.append("shutdown")
+    }
+
     func deviceInfo() async throws -> DeviceInfo {
         DeviceInfo(id: "mock", name: "Mock", platform: .ios, osVersion: "17.0", state: .booted)
     }
 
-    func installApp(path: String) async throws { calls.append("install:\(path)") }
+    func installApp(path: String) async throws {
+        calls.append("install:\(path)")
+    }
+
     func launchApp(appID: String, arguments _: [String], environment _: [String: String]) async throws {
         calls.append("launch:\(appID)")
     }
 
-    func terminateApp(appID: String) async throws { calls.append("terminate:\(appID)") }
-    func uninstallApp(appID: String) async throws { calls.append("uninstall:\(appID)") }
+    func terminateApp(appID: String) async throws {
+        calls.append("terminate:\(appID)")
+    }
 
-    func tap(at point: Point) async throws { calls.append("tap:\(point.x),\(point.y)") }
-    func doubleTap(at point: Point) async throws { calls.append("doubleTap:\(point.x),\(point.y)") }
-    func longPress(at _: Point, duration _: Duration) async throws { calls.append("longPress") }
-    func tapElement(_: ElementSelector) async throws { calls.append("tapElement") }
+    func uninstallApp(appID: String) async throws {
+        calls.append("uninstall:\(appID)")
+    }
 
-    func swipe(from _: Point, to _: Point, duration _: Duration) async throws { calls.append("swipe") }
-    func swipe(direction _: Direction) async throws { calls.append("swipeDir") }
+    func tap(at point: Point) async throws {
+        calls.append("tap:\(point.x),\(point.y)")
+    }
+
+    func doubleTap(at point: Point) async throws {
+        calls.append("doubleTap:\(point.x),\(point.y)")
+    }
+
+    func longPress(at _: Point, duration _: Duration) async throws {
+        calls.append("longPress")
+    }
+
+    func tapElement(_: ElementSelector) async throws {
+        calls.append("tapElement")
+    }
+
+    func swipe(from _: Point, to _: Point, duration _: Duration) async throws {
+        calls.append("swipe")
+    }
+
+    func swipe(direction _: Direction) async throws {
+        calls.append("swipeDir")
+    }
+
     func scroll(direction: Direction, distance: Double) async throws {
         calls.append("scroll:\(direction):\(distance)")
     }
@@ -411,23 +471,45 @@ private actor MockDriver: PlatformDriver {
     func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
     func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {}
 
-    func typeText(_ text: String) async throws { calls.append("typeText:\(text)") }
-    func clearText(characterCount _: Int?) async throws { calls.append("clearText") }
+    func typeText(_ text: String) async throws {
+        calls.append("typeText:\(text)")
+    }
+
+    func clearText(characterCount _: Int?) async throws {
+        calls.append("clearText")
+    }
+
     func setText(_: ElementSelector, text _: String) async throws {}
 
-    func pressBack() async throws { calls.append("pressBack") }
-    func pressHome() async throws { calls.append("pressHome") }
-    func openURL(_ url: String) async throws { calls.append("openURL:\(url)") }
+    func pressBack() async throws {
+        calls.append("pressBack")
+    }
+
+    func pressHome() async throws {
+        calls.append("pressHome")
+    }
+
+    func openURL(_ url: String) async throws {
+        calls.append("openURL:\(url)")
+    }
 
     func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
         [ElementInfo(id: selector.id ?? "el", label: selector.label ?? "label")]
     }
 
-    func getViewHierarchy() async throws -> ViewNode { ViewNode(id: "root") }
-    func elementExists(_: ElementSelector) async throws -> Bool { true }
+    func getViewHierarchy() async throws -> ViewNode {
+        ViewNode(id: "root")
+    }
+
+    func elementExists(_: ElementSelector) async throws -> Bool {
+        true
+    }
+
     func waitForElement(_: ElementSelector, timeout _: Duration) async throws {}
     func waitForElementToDisappear(_: ElementSelector, timeout _: Duration) async throws {}
-    func isKeyboardVisible() async throws -> Bool { false }
+    func isKeyboardVisible() async throws -> Bool {
+        false
+    }
 
     func takeScreenshot(format _: ImageFormat) async throws -> ScreenshotData {
         ScreenshotData(bytes: [0xFF])
@@ -447,13 +529,31 @@ private actor MockDriver: PlatformDriver {
         calls.append("location:\(latitude),\(longitude)")
     }
 
-    func clearLocation() async throws { calls.append("clearLocation") }
-    func setAppearance(_ appearance: Appearance) async throws { calls.append("appearance:\(appearance.rawValue)") }
+    func clearLocation() async throws {
+        calls.append("clearLocation")
+    }
 
-    func getScreenContext() async throws -> ScreenContext { ScreenContext(summary: "Mock screen") }
-    func getInteractableElements() async throws -> [ElementInfo] { [] }
-    func findByDescription(_: String) async throws -> [ElementInfo] { [] }
+    func setAppearance(_ appearance: Appearance) async throws {
+        calls.append("appearance:\(appearance.rawValue)")
+    }
 
-    func listApps() async throws -> [AppInfo] { [] }
-    func appState(appID _: String) async throws -> AppState { .notRunning }
+    func getScreenContext() async throws -> ScreenContext {
+        ScreenContext(summary: "Mock screen")
+    }
+
+    func getInteractableElements() async throws -> [ElementInfo] {
+        []
+    }
+
+    func findByDescription(_: String) async throws -> [ElementInfo] {
+        []
+    }
+
+    func listApps() async throws -> [AppInfo] {
+        []
+    }
+
+    func appState(appID _: String) async throws -> AppState {
+        .notRunning
+    }
 }

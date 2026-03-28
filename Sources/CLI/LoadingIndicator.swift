@@ -18,7 +18,7 @@ actor CLILoadingIndicator {
         guard isEnabled, renderTask == nil else { return }
 
         hasRendered = false
-        let message = self.message
+        let message = message
         renderTask = Task {
             do {
                 try await Task.sleep(for: delay)
@@ -60,7 +60,8 @@ actor CLILoadingIndicator {
         hasRendered = true
     }
 
-    nonisolated private static func writeToStandardError(_ text: String) {
+    // swiftlint:disable:next modifier_order
+    private nonisolated static func writeToStandardError(_ text: String) {
         guard let data = text.data(using: .utf8) else { return }
         try? FileHandle.standardError.write(contentsOf: data)
     }

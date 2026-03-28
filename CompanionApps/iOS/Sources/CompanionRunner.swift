@@ -11,14 +11,13 @@ import XCTest
 /// 3. Send gRPC commands to port 22087
 /// 4. Terminate the test when done
 final class CompanionRunner: XCTestCase {
-
     private static let defaultPort = 22087
 
     @MainActor
     func testRunCompanion() async throws {
         let app = XCUIApplication()
         app.launch()
-        
+
         let bridge = XCUITestBridge(app: app)
         let port = Self.portFromEnvironment() ?? Self.defaultPort
         let server = CompanionServer(bridge: bridge, port: port)

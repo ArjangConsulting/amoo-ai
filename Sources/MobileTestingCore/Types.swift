@@ -17,8 +17,8 @@ public struct Duration: Sendable, Equatable {
         self.milliseconds = milliseconds
     }
 
-    public static let defaultSwipe = Duration(milliseconds: 300)
-    public static let defaultLongPress = Duration(milliseconds: 1000)
+    public static let defaultSwipe = Self(milliseconds: 300)
+    public static let defaultLongPress = Self(milliseconds: 1000)
 }
 
 public enum Direction: String, Sendable, Equatable {
@@ -95,7 +95,7 @@ public struct ViewNode: Sendable, Equatable {
     public var frame: Rect?
     public var isEnabled: Bool
     public var isVisible: Bool
-    public var children: [ViewNode]
+    public var children: [Self]
 
     public init(
         id: String,
@@ -105,7 +105,7 @@ public struct ViewNode: Sendable, Equatable {
         frame: Rect? = nil,
         isEnabled: Bool = true,
         isVisible: Bool = true,
-        children: [ViewNode] = []
+        children: [Self] = []
     ) {
         self.id = id
         self.label = label

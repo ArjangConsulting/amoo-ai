@@ -4,7 +4,7 @@ import MobileTestingCore
 import ProcessRunner
 
 public actor IOSDriver: PlatformDriver {
-    private struct ActiveRecording: Sendable {
+    private struct ActiveRecording {
         let pid: Int32
         let outputPath: String
     }
@@ -166,7 +166,11 @@ public actor IOSDriver: PlatformDriver {
 
     public func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
         let context = try await appQueryContext()
-        return try await companion.findElements(selector, appID: context.appID, candidateBundleIDs: context.candidateBundleIDs)
+        return try await companion.findElements(
+            selector,
+            appID: context.appID,
+            candidateBundleIDs: context.candidateBundleIDs
+        )
     }
 
     public func getViewHierarchy() async throws -> ViewNode {
@@ -321,8 +325,7 @@ extension IOSDriver {
             }
             if foundKey {
                 if let start = trimmed.range(of: "<string>"),
-                   let end = trimmed.range(of: "</string>")
-                {
+                   let end = trimmed.range(of: "</string>") {
                     let bundleID = String(trimmed[start.upperBound ..< end.lowerBound])
                     apps.append(AppInfo(appID: bundleID))
                 }

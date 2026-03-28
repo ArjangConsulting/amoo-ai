@@ -137,7 +137,7 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
         // Pinch delegates to companion — not yet in CompanionClient, return not implemented
-        return actionResponse(success: false, message: "pinch not implemented")
+        actionResponse(success: false, message: "pinch not implemented")
     }
 
     package func drag(
@@ -194,7 +194,7 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
         // pressHome is typically host-executed, but companion can handle on Android
-        return actionResponse(success: false, message: "pressHome not implemented via companion")
+        actionResponse(success: false, message: "pressHome not implemented via companion")
     }
 
     // MARK: - Accessibility
@@ -204,7 +204,10 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         context _: ServerContext
     ) async throws -> MobileTesting_ViewHierarchyResponse {
         let appID = request.appID.isEmpty ? nil : request.appID
-        let hierarchy = try await companion.getViewHierarchy(appID: appID, candidateBundleIDs: request.candidateBundleIds)
+        let hierarchy = try await companion.getViewHierarchy(
+            appID: appID,
+            candidateBundleIDs: request.candidateBundleIds
+        )
 
         var response = MobileTesting_ViewHierarchyResponse()
         response.root = hierarchy.protoViewNode

@@ -59,7 +59,7 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
             ("query.getViewHierarchy", .required),
             ("query.isKeyboardVisible", .required),
             ("capture.screenshot", .required),
-            ("ai.screenContext", .optional),
+            ("ai.screenContext", .optional)
         ]
 
         var response = MobileTesting_CapabilitiesResponse()

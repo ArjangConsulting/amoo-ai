@@ -60,7 +60,7 @@ final class AndroidDriverTests: XCTestCase {
             "install:com.example.app:/tmp/app.apk",
             "launch:com.example.app",
             "terminate:com.example.app",
-            "uninstall:com.example.app",
+            "uninstall:com.example.app"
         ])
     }
 
@@ -71,13 +71,21 @@ final class AndroidDriverTests: XCTestCase {
             adb: adb
         )
 
-        try await driver.setPermission(.init(appID: "com.example", permission: "android.permission.CAMERA", granted: true))
-        try await driver.setPermission(.init(appID: "com.example", permission: "android.permission.CAMERA", granted: false))
+        try await driver.setPermission(.init(
+            appID: "com.example",
+            permission: "android.permission.CAMERA",
+            granted: true
+        ))
+        try await driver.setPermission(.init(
+            appID: "com.example",
+            permission: "android.permission.CAMERA",
+            granted: false
+        ))
 
         let permCalls = await adb.permissionCalls()
         XCTAssertEqual(permCalls, [
             "grant:com.example:android.permission.CAMERA",
-            "revoke:com.example:android.permission.CAMERA",
+            "revoke:com.example:android.permission.CAMERA"
         ])
     }
 
@@ -120,7 +128,9 @@ private actor MockADBRunner: ADBRunning {
         killCalls.append(serial)
     }
 
-    func listDevices() async throws -> String { "List of devices attached\n" }
+    func listDevices() async throws -> String {
+        "List of devices attached\n"
+    }
 
     func install(serial _: String?, apkPath: String) async throws {
         _appCalls.append("install:com.example.app:\(apkPath)")
@@ -170,8 +180,15 @@ private actor MockADBRunner: ADBRunning {
         (startServerCalls, killCalls)
     }
 
-    func appCalls() -> [String] { _appCalls }
-    func permissionCalls() -> [String] { _permissionCalls }
+    func appCalls() -> [String] {
+        _appCalls
+    }
+
+    func permissionCalls() -> [String] {
+        _permissionCalls
+    }
+
+    // swiftlint:disable:next large_tuple
     func recordingCalls() -> (started: [String], stopped: Int, pulls: [(remotePath: String, localPath: String)]) {
         (_startedRecordings, _stoppedRecordings, _pulledFiles)
     }
@@ -179,7 +196,10 @@ private actor MockADBRunner: ADBRunning {
 
 private actor MockCompanionClient: CompanionClient {
     func startSession() async throws {}
-    func getCapabilities() async throws -> [CapabilityDescriptor] { [] }
+    func getCapabilities() async throws -> [CapabilityDescriptor] {
+        []
+    }
+
     func endSession() async throws {}
 
     func tap(at _: Point) async throws {}
@@ -195,7 +215,11 @@ private actor MockCompanionClient: CompanionClient {
     func pressBack() async throws {}
     func pressHome() async throws {}
 
-    func findElements(_: ElementSelector, appID _: String?, candidateBundleIDs _: [String]) async throws -> [ElementInfo] {
+    func findElements(
+        _: ElementSelector,
+        appID _: String?,
+        candidateBundleIDs _: [String]
+    ) async throws -> [ElementInfo] {
         []
     }
 
@@ -210,9 +234,23 @@ private actor MockCompanionClient: CompanionClient {
         candidateBundleIDs _: [String]
     ) async throws {}
 
-    func isKeyboardVisible() async throws -> Bool { false }
-    func takeScreenshot() async throws -> ScreenshotData { ScreenshotData(bytes: [0xAB]) }
-    func getScreenContext() async throws -> ScreenContext { ScreenContext(summary: "Empty screen context") }
-    func getInteractableElements() async throws -> [ElementInfo] { [] }
-    func findByDescription(_: String) async throws -> [ElementInfo] { [] }
+    func isKeyboardVisible() async throws -> Bool {
+        false
+    }
+
+    func takeScreenshot() async throws -> ScreenshotData {
+        ScreenshotData(bytes: [0xAB])
+    }
+
+    func getScreenContext() async throws -> ScreenContext {
+        ScreenContext(summary: "Empty screen context")
+    }
+
+    func getInteractableElements() async throws -> [ElementInfo] {
+        []
+    }
+
+    func findByDescription(_: String) async throws -> [ElementInfo] {
+        []
+    }
 }

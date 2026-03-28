@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2
@@ -41,10 +42,10 @@ package protocol CompanionRPCClient: Sendable {
     ) async throws -> MobileTesting_WaitForElementResponse
     func isKeyboardVisible(_ request: MobileTesting_Empty) async throws -> MobileTesting_KeyboardVisibleResponse
 
-    // Capture
+    /// Capture
     func takeScreenshot(_ request: MobileTesting_ScreenshotRequest) async throws -> MobileTesting_ScreenshotResponse
 
-    // AI
+    /// AI
     func getScreenContext(
         _ request: MobileTesting_ScreenContextRequest
     ) async throws -> MobileTesting_ScreenContextResponse
@@ -582,7 +583,11 @@ public actor GRPCCompanionClient: CompanionClient {
         try validate(response: response, action: "longPress")
     }
 
-    public func tapElement(_ selector: ElementSelector, appID: String? = nil, candidateBundleIDs: [String] = []) async throws {
+    public func tapElement(
+        _ selector: ElementSelector,
+        appID: String? = nil,
+        candidateBundleIDs: [String] = []
+    ) async throws {
         var request = MobileTesting_TapElementRequest()
         request.selector = selector.protoSelector
         request.appID = appID ?? ""
@@ -647,7 +652,11 @@ public actor GRPCCompanionClient: CompanionClient {
 
     // MARK: - Accessibility
 
-    public func findElements(_ selector: ElementSelector, appID: String? = nil, candidateBundleIDs: [String] = []) async throws
+    public func findElements(
+        _ selector: ElementSelector,
+        appID: String? = nil,
+        candidateBundleIDs: [String] = []
+    ) async throws
         -> [ElementInfo] {
         var request = MobileTesting_FindElementsRequest()
         request.selector = selector.protoSelector

@@ -28,7 +28,7 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .missingAction:
-            return """
+            """
             Usage: mobile-testing companion <action> [options]
 
             Actions:
@@ -40,13 +40,14 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
                            --force                 Force rebuild even if already built
             """
         case let .unknownAction(action):
-            return "Unknown companion action '\(action)'. Run 'mobile-testing companion' for usage."
+            "Unknown companion action '\(action)'. Run 'mobile-testing companion' for usage."
         case let .unknownPlatform(p):
-            return "Unknown platform '\(p)'. Expected 'ios' or 'android'."
+            "Unknown platform '\(p)'. Expected 'ios' or 'android'."
         }
     }
 }
 
+// swiftlint:disable:next cyclomatic_complexity
 func parseCompanionCommandOptions(
     args: [String]
 ) -> Result<CompanionCommandOptions, CompanionCommandParseError> {
@@ -114,9 +115,9 @@ func runCompanionCommand(options: CompanionCommandOptions) async -> CLIResult {
     case .install:
         switch options.platform {
         case .ios:
-            return await runIOSCompanionInstall(options: options)
+            await runIOSCompanionInstall(options: options)
         case .android:
-            return await runAndroidCompanionInstall(options: options)
+            await runAndroidCompanionInstall(options: options)
         }
     }
 }

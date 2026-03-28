@@ -38,11 +38,11 @@ public struct ToolResult: Sendable, Equatable {
         self.isError = isError
     }
 
-    public static func success(_ content: String) -> ToolResult {
-        ToolResult(content: content)
+    public static func success(_ content: String) -> Self {
+        Self(content: content)
     }
 
-    public static func error(_ content: String) -> ToolResult {
-        ToolResult(content: content, isError: true)
+    public static func error(_ content: String) -> Self {
+        Self(content: content, isError: true)
     }
 }

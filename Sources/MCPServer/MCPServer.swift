@@ -31,6 +31,7 @@ public struct MCPServer: Sendable {
     }
 
     private var allDefinitions: [ToolDefinition] {
-        DeviceTools.definitions + ActionTools.definitions + QueryTools.definitions + AuditTools.definitions + AITools.definitions
+        DeviceTools.definitions + ActionTools.definitions + QueryTools.definitions + AuditTools.definitions + AITools
+            .definitions
     }
 }
