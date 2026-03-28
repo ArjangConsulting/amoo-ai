@@ -1,0 +1,62 @@
+name: MobileTestingCompanion
+options:
+  bundleIdPrefix: com.mobiletesting
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  grpc-swift-2:
+    url: https://github.com/grpc/grpc-swift-2.git
+    from: "2.0.0"
+  grpc-swift-protobuf:
+    url: https://github.com/grpc/grpc-swift-protobuf.git
+    from: "2.0.0"
+  grpc-swift-nio-transport:
+    url: https://github.com/grpc/grpc-swift-nio-transport.git
+    from: "2.0.0"
+  swift-protobuf:
+    url: https://github.com/apple/swift-protobuf.git
+    from: "1.28.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+
+targets:
+  MobileTestingCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - path: HostApp
+    info:
+      path: HostApp/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mobiletesting.companion
+        INFOPLIST_FILE: HostApp/Info.plist
+
+  MobileTestingCompanionUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: GeneratedProtos
+        optional: true
+    dependencies:
+      - target: MobileTestingCompanion
+      - package: grpc-swift-2
+        product: GRPCCore
+      - package: grpc-swift-nio-transport
+        product: GRPCNIOTransportHTTP2
+      - package: grpc-swift-protobuf
+        product: GRPCProtobuf
+      - package: swift-protobuf
+        product: SwiftProtobuf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mobiletesting.companion.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: ""
+        TEST_TARGET_NAME: MobileTestingCompanion
