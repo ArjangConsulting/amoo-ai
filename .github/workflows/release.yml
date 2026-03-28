@@ -23,7 +23,11 @@ jobs:
       - name: Install tooling
         run: |
           brew update
-          brew install swiftformat swiftlint
+          brew install protobuf swiftformat swiftlint
+
+      - name: Export protoc path
+        run: |
+          echo "PROTOC_PATH=$(brew --prefix protobuf)/bin/protoc" >> "$GITHUB_ENV"
 
       - name: Lint
         run: ./scripts/ci/lint.sh
