@@ -7,7 +7,4 @@
   "generatedSource": {
     "accessLevel": "public"
   },
-  "protoc": {
-    "executablePath": "/opt/anaconda3/bin/protoc"
-  }
 }

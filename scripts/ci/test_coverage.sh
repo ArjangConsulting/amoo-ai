@@ -11,6 +11,24 @@ WORKSPACE_SWIFT_CACHE="${PWD}/.build/swift-module-cache"
 
 mkdir -p "$WORKSPACE_HOME" "$WORKSPACE_CLANG_CACHE" "$WORKSPACE_SWIFT_CACHE"
 
+if [[ -z "${PROTOC_PATH:-}" ]]; then
+  if command -v protoc >/dev/null 2>&1; then
+    PROTOC_PATH="$(command -v protoc)"
+  elif command -v brew >/dev/null 2>&1 && [[ -x "$(brew --prefix protobuf 2>/dev/null)/bin/protoc" ]]; then
+    PROTOC_PATH="$(brew --prefix protobuf)/bin/protoc"
+  else
+    echo "error: protoc is not installed or PROTOC_PATH is not set" >&2
+    exit 1
+  fi
+fi
+
+export PROTOC_PATH
+
+PROFILE_BASE_DIR="${TMPDIR:-/tmp}"
+PROFILE_BASE_DIR="${PROFILE_BASE_DIR%/}"
+LLVM_PROFILE_FILE="${LLVM_PROFILE_FILE:-$PROFILE_BASE_DIR/mobile-testing-%p.profraw}"
+export LLVM_PROFILE_FILE
+
 if [[ ! -f Package.swift ]]; then
   echo "No Package.swift found. Skipping tests and coverage gate for now."
   exit 0
