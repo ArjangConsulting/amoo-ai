@@ -1,0 +1,13 @@
+{
+  "generate": {
+    "clients": true,
+    "servers": true,
+    "messages": true
+  },
+  "generatedSource": {
+    "accessLevel": "public"
+  },
+  "protoc": {
+    "executablePath": "/opt/anaconda3/bin/protoc"
+  }
+}

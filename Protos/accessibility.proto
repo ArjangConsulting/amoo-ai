@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package mobile.testing.v1;
+
+option swift_prefix = "MobileTesting_";
+option java_multiple_files = true;
+option java_package = "mobile.testing.v1";
+
+import "common.proto";
+
+message ViewHierarchyRequest {
+  string app_id = 1;
+  // If app_id is empty, the companion checks each candidate bundle ID using
+  // XCUIApplication.state == .runningForeground and returns the first match.
+  repeated string candidate_bundle_ids = 2;
+}
+
+message ViewHierarchyResponse {
+  ViewNode root = 1;
+}
+
+message FindElementsRequest {
+  ElementSelector selector = 1;
+  string app_id = 2;
+  repeated string candidate_bundle_ids = 3;
+}
+
+message FindElementsResponse {
+  repeated ElementInfo elements = 1;
+}
+
+message WaitForElementRequest {
+  ElementSelector selector = 1;
+  Duration timeout = 2;
+  string app_id = 3;
+  repeated string candidate_bundle_ids = 4;
+}
+
+message WaitForElementResponse {
+  bool found = 1;
+}

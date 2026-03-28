@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package mobile.testing.v1;
+
+option swift_prefix = "MobileTesting_";
+option java_multiple_files = true;
+option java_package = "mobile.testing.v1";
+
+import "common.proto";
+
+service HostDeviceService {
+  rpc InstallApp (InstallAppRequest) returns (ActionResponse);
+  rpc LaunchApp (LaunchAppRequest) returns (ActionResponse);
+  rpc TerminateApp (TerminateAppRequest) returns (ActionResponse);
+  rpc UninstallApp (UninstallAppRequest) returns (ActionResponse);
+  rpc SetPermission (SetPermissionRequest) returns (ActionResponse);
+  rpc SetLocation (SetLocationRequest) returns (ActionResponse);
+  rpc ClearLocation (Empty) returns (ActionResponse);
+  rpc SetAppearance (SetAppearanceRequest) returns (ActionResponse);
+  rpc OpenURL (OpenURLRequest) returns (ActionResponse);
+}
+
+message InstallAppRequest {
+  string path = 1;
+}
+
+message LaunchAppRequest {
+  string app_id = 1;
+  repeated string arguments = 2;
+}
+
+message TerminateAppRequest {
+  string app_id = 1;
+}
+
+message UninstallAppRequest {
+  string app_id = 1;
+}
+
+message SetPermissionRequest {
+  string app_id = 1;
+  string permission = 2;
+  bool granted = 3;
+}
+
+message SetLocationRequest {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message SetAppearanceRequest {
+  string appearance = 1;
+}
+
+message OpenURLRequest {
+  string url = 1;
+}
