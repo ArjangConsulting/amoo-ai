@@ -281,6 +281,159 @@ final class CLITests: XCTestCase {
         }
     }
 
+    func testCompanionCommandParserDefaultsAndFlags() {
+        let parsed = parseCompanionCommandOptions(args: [
+            "install",
+            "--platform", "android",
+            "--device", "emulator-5554",
+            "--companion-dir", "/tmp/android-companion",
+            "--force"
+        ])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        XCTAssertEqual(options.platform, .android)
+        XCTAssertEqual(options.deviceID, "emulator-5554")
+        XCTAssertEqual(options.companionDir, "/tmp/android-companion")
+        XCTAssertTrue(options.force)
+    }
+
+    func testCompanionCommandParserRejectsUnknownAction() {
+        let parsed = parseCompanionCommandOptions(args: ["launch"])
+        guard case let .failure(error) = parsed else {
+            return XCTFail("Expected parser failure")
+        }
+
+        XCTAssertEqual(error.description, "Unknown companion action 'launch'. Run 'mobile-testing companion' for usage.")
+    }
+
+    func testCompanionCommandParserRejectsUnknownPlatform() {
+        let parsed = parseCompanionCommandOptions(args: ["install", "--platform", "desktop"])
+        guard case let .failure(error) = parsed else {
+            return XCTFail("Expected parser failure")
+        }
+
+        XCTAssertEqual(error.description, "Unknown platform 'desktop'. Expected 'ios' or 'android'.")
+    }
+
+    func testRunIOSCompanionInstallReturnsFailureDescription() async {
+        let companionDir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 1, stdout: "", stderr: ""))
+        ])
+        let result = await runIOSCompanionInstall(
+            options: CompanionCommandOptions(
+                action: .install,
+                platform: .ios,
+                deviceID: "SIM-123",
+                companionDir: companionDir,
+                force: true
+            ),
+            processRunner: runner
+        )
+
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertEqual(result.output, CompanionError.xcodegeneNotFound.description)
+    }
+
+    func testRunAndroidCompanionInstallBuildFailureUsesProcessOutput() async {
+        let companionDir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 1, stdout: "gradle failed", stderr: ""))
+        ])
+        let result = await runAndroidCompanionInstall(
+            options: CompanionCommandOptions(
+                action: .install,
+                platform: .android,
+                deviceID: "booted",
+                companionDir: companionDir,
+                force: true
+            ),
+            processRunner: runner,
+            currentDirectory: companionDir
+        )
+
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertTrue(result.output.contains("Android companion build failed:"))
+        XCTAssertTrue(result.output.contains("gradle failed"))
+    }
+
+    func testRunAndroidCompanionInstallFailsWhenAPKInstallFails() async {
+        let companionDir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        try? createAndroidAPKFixtures(at: companionDir)
+
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 1, stdout: "INSTALL_FAILED", stderr: ""))
+        ])
+        let result = await runAndroidCompanionInstall(
+            options: CompanionCommandOptions(
+                action: .install,
+                platform: .android,
+                deviceID: "emulator-5554",
+                companionDir: companionDir,
+                force: false
+            ),
+            processRunner: runner,
+            currentDirectory: companionDir
+        )
+
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertTrue(result.output.contains("Failed to install Android app APK:"))
+        XCTAssertEqual(commands.count, 1)
+        XCTAssertEqual(commands.first?.prefix(4), ["adb", "-s", "emulator-5554", "install"])
+    }
+
+    func testRunAndroidCompanionInstallSucceedsWithExistingArtifacts() async throws {
+        let companionDir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        try createAndroidAPKFixtures(at: companionDir)
+
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
+            .success(.init(exitCode: 0, stdout: "Success", stderr: ""))
+        ])
+        let result = await runAndroidCompanionInstall(
+            options: CompanionCommandOptions(
+                action: .install,
+                platform: .android,
+                deviceID: "booted",
+                companionDir: companionDir,
+                force: false
+            ),
+            processRunner: runner,
+            currentDirectory: companionDir
+        )
+
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.output, "")
+        XCTAssertEqual(commands.count, 2)
+        XCTAssertEqual(commands[0][0...2], ["adb", "install", "-r"])
+        XCTAssertEqual(commands[1][0...2], ["adb", "install", "-r"])
+    }
+
+    func testREPLShellSplitHandlesQuotedArguments() {
+        let split = test_shellSplit("tap_element \"Sign In\" label='Primary CTA'")
+
+        XCTAssertEqual(split.toolName, "tap_element")
+        XCTAssertEqual(split.parts, ["Sign In", "label=Primary CTA"])
+    }
+
+    func testREPLClosestToolSuggestsNearMatch() {
+        let suggestion = test_closestTool(to: "scrll", among: ["scroll", "tap", "type_text"])
+        let none = test_closestTool(to: "banana", among: ["scroll", "tap", "type_text"])
+
+        XCTAssertEqual(suggestion, "scroll")
+        XCTAssertNil(none)
+    }
+
     func testAuditCommandWritesArtifactsAndReturnsSuccess() async throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString,
@@ -372,6 +525,17 @@ private func makeTemporaryDirectory() -> String {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     return directory.path
+}
+
+private func createAndroidAPKFixtures(at companionDir: String) throws {
+    let appPath = URL(fileURLWithPath: companionDir)
+        .appendingPathComponent("app/build/outputs/apk/debug", isDirectory: true)
+    let testPath = URL(fileURLWithPath: companionDir)
+        .appendingPathComponent("app/build/outputs/apk/androidTest/debug", isDirectory: true)
+    try FileManager.default.createDirectory(at: appPath, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: testPath, withIntermediateDirectories: true)
+    FileManager.default.createFile(atPath: appPath.appendingPathComponent("app-debug.apk").path, contents: Data())
+    FileManager.default.createFile(atPath: testPath.appendingPathComponent("app-debug-androidTest.apk").path, contents: Data())
 }
 
 private actor MockCLIProcessRunner: ProcessRunner {

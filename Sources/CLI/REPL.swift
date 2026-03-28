@@ -265,3 +265,13 @@ private func editDistance(_ a: String, _ b: String) -> Int {
     }
     return dp[b.count]
 }
+
+#if DEBUG
+func test_shellSplit(_ line: String) -> (toolName: String?, parts: [String]) {
+    shellSplit(line)
+}
+
+func test_closestTool(to input: String, among candidates: [String]) -> String? {
+    closestTool(to: input, among: candidates)
+}
+#endif
