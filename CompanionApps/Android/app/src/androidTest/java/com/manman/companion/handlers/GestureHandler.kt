@@ -1,0 +1,16 @@
+package com.manman.companion.handlers
+
+import com.manman.companion.bridge.Direction
+import com.manman.companion.bridge.UIAutomatorBridge
+
+class GestureHandler(private val bridge: UIAutomatorBridge) {
+
+    fun swipe(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int): Boolean {
+        val steps = (durationMs / 5).coerceAtLeast(1)
+        return bridge.swipe(fromX, fromY, toX, toY, steps)
+    }
+
+    fun scroll(direction: Direction, distance: Int): Boolean {
+        return bridge.scroll(direction, distance)
+    }
+}
