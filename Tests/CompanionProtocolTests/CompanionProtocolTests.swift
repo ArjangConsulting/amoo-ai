@@ -93,6 +93,55 @@ final class CompanionProtocolTests: XCTestCase {
         XCTAssertEqual(calls, ["doubleTap", "longPress", "scroll", "clearText"])
     }
 
+    func testAdditionalRPCDelegationAndSessionReuse() async throws {
+        let rpcClient = MockRPCClient()
+        let client = GRPCCompanionClient(
+            connection: .init(host: "localhost", port: 22087),
+            rpcClient: rpcClient
+        )
+
+        try await client.startSession()
+        let firstRequest = await rpcClient.startRequest
+        try await client.startSession()
+        let secondRequest = await rpcClient.startRequest
+        try await client.tapElement(.init(id: "login"), appID: "com.example", candidateBundleIDs: ["com.example.beta"])
+        try await client.swipe(from: Point(x: 0, y: 0), to: Point(x: 4, y: 8), duration: Duration(milliseconds: 250))
+        try await client.typeText("hello")
+        try await client.pressBack()
+        try await client.pressHome()
+        try await client.waitForElement(.init(label: "Continue"), timeout: Duration(milliseconds: 500))
+        let keyboardVisible = try await client.isKeyboardVisible()
+        let screenshot = try await client.takeScreenshot()
+        await client.shutdown()
+
+        XCTAssertEqual(firstRequest?.requestedSessionID.isEmpty, false)
+        XCTAssertEqual(secondRequest?.requestedSessionID, "session-123")
+        XCTAssertTrue(keyboardVisible)
+        XCTAssertEqual(screenshot.format, .png)
+
+        let tapElementRequest = await rpcClient.tapElementRequest
+        XCTAssertEqual(tapElementRequest?.selector.id, "login")
+        XCTAssertEqual(tapElementRequest?.appID, "com.example")
+        XCTAssertEqual(tapElementRequest?.candidateBundleIds, ["com.example.beta"])
+
+        let swipeRequest = await rpcClient.swipeRequest
+        XCTAssertEqual(swipeRequest?.from.x, 0)
+        XCTAssertEqual(swipeRequest?.to.y, 8)
+
+        let typeTextRequest = await rpcClient.typeTextRequest
+        XCTAssertEqual(typeTextRequest?.text, "hello")
+
+        let clearTextRequest = await rpcClient.clearTextRequest
+        XCTAssertNil(clearTextRequest?.characterCount)
+
+        let waitRequest = await rpcClient.waitForElementRequest
+        XCTAssertEqual(waitRequest?.selector.label, "Continue")
+        XCTAssertEqual(waitRequest?.timeout.milliseconds, 500)
+
+        let calls = await rpcClient.actionCalls
+        XCTAssertEqual(calls, ["tapElement", "swipe", "typeText", "pressBack", "pressHome", "shutdown"])
+    }
+
     func testLiveFactoryBuildsClient() async throws {
         let client = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: 22087))
         await client.shutdown()
@@ -107,6 +156,11 @@ private actor MockRPCClient: CompanionRPCClient {
     var startRequest: MobileTesting_StartSessionRequest?
     var tapRequest: MobileTesting_TapRequest?
     var findElementsRequest: MobileTesting_FindElementsRequest?
+    var tapElementRequest: MobileTesting_TapElementRequest?
+    var swipeRequest: MobileTesting_SwipeRequest?
+    var typeTextRequest: MobileTesting_TypeTextRequest?
+    var clearTextRequest: MobileTesting_ClearTextRequest?
+    var waitForElementRequest: MobileTesting_WaitForElementRequest?
     var actionCalls: [String] = []
 
     func startSession(_ request: MobileTesting_StartSessionRequest) async throws -> MobileTesting_StartSessionResponse {
@@ -157,13 +211,13 @@ private actor MockRPCClient: CompanionRPCClient {
     }
 
     func tapElement(_ request: MobileTesting_TapElementRequest) async throws -> MobileTesting_ActionResponse {
-        _ = request
+        tapElementRequest = request
         actionCalls.append("tapElement")
         return successResponse()
     }
 
     func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
-        _ = request
+        swipeRequest = request
         actionCalls.append("swipe")
         return successResponse()
     }
@@ -175,13 +229,13 @@ private actor MockRPCClient: CompanionRPCClient {
     }
 
     func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse {
-        _ = request
+        typeTextRequest = request
         actionCalls.append("typeText")
         return successResponse()
     }
 
     func clearText(_ request: MobileTesting_ClearTextRequest) async throws -> MobileTesting_ActionResponse {
-        _ = request
+        clearTextRequest = request
         actionCalls.append("clearText")
         return successResponse()
     }
@@ -226,7 +280,7 @@ private actor MockRPCClient: CompanionRPCClient {
 
     func waitForElement(_ request: MobileTesting_WaitForElementRequest) async throws
         -> MobileTesting_WaitForElementResponse {
-        _ = request
+        waitForElementRequest = request
         var response = MobileTesting_WaitForElementResponse()
         response.found = true
         return response
@@ -235,7 +289,7 @@ private actor MockRPCClient: CompanionRPCClient {
     func isKeyboardVisible(_ request: MobileTesting_Empty) async throws -> MobileTesting_KeyboardVisibleResponse {
         _ = request
         var response = MobileTesting_KeyboardVisibleResponse()
-        response.visible = false
+        response.visible = true
         return response
     }
 
@@ -277,6 +331,10 @@ private actor MockRPCClient: CompanionRPCClient {
         var response = MobileTesting_InteractableElementsResponse()
         response.elements = [element]
         return response
+    }
+
+    func shutdown() async {
+        actionCalls.append("shutdown")
     }
 
     private func successResponse() -> MobileTesting_ActionResponse {

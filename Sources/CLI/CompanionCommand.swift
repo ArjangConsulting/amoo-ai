@@ -110,26 +110,37 @@ func parseCompanionCommandOptions(
 
 // MARK: - Execution
 
-func runCompanionCommand(options: CompanionCommandOptions) async -> CLIResult {
+func runCompanionCommand(
+    options: CompanionCommandOptions,
+    processRunner: any ProcessRunner = SystemProcessRunner(),
+    currentDirectory: String = FileManager.default.currentDirectoryPath
+) async -> CLIResult {
     switch options.action {
     case .install:
         switch options.platform {
         case .ios:
-            await runIOSCompanionInstall(options: options)
+            await runIOSCompanionInstall(options: options, processRunner: processRunner)
         case .android:
-            await runAndroidCompanionInstall(options: options)
+            await runAndroidCompanionInstall(
+                options: options,
+                processRunner: processRunner,
+                currentDirectory: currentDirectory
+            )
         }
     }
 }
 
 // MARK: - iOS Install
 
-private func runIOSCompanionInstall(options: CompanionCommandOptions) async -> CLIResult {
+func runIOSCompanionInstall(
+    options: CompanionCommandOptions,
+    processRunner: any ProcessRunner = SystemProcessRunner()
+) async -> CLIResult {
     let config = CompanionConfig(
         companionDir: options.companionDir,
         deviceUDID: options.deviceID
     )
-    let manager = CompanionManager()
+    let manager = CompanionManager(processRunner: processRunner)
 
     do {
         try await manager.install(config: config, force: options.force)
@@ -143,10 +154,13 @@ private func runIOSCompanionInstall(options: CompanionCommandOptions) async -> C
 
 // MARK: - Android Install
 
-private func runAndroidCompanionInstall(options: CompanionCommandOptions) async -> CLIResult {
+func runAndroidCompanionInstall(
+    options: CompanionCommandOptions,
+    processRunner: any ProcessRunner = SystemProcessRunner(),
+    currentDirectory: String = FileManager.default.currentDirectoryPath
+) async -> CLIResult {
     let companionDir = options.companionDir
-        ?? (FileManager.default.currentDirectoryPath + "/CompanionApps/Android")
-    let processRunner = SystemProcessRunner()
+        ?? (currentDirectory + "/CompanionApps/Android")
 
     let appApkPath = companionDir + "/app/build/outputs/apk/debug/app-debug.apk"
     let testApkPath = companionDir + "/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
