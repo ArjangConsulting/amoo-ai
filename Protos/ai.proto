@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package mobile.testing.v1;
+
+option swift_prefix = "MobileTesting_";
+option java_multiple_files = true;
+option java_package = "mobile.testing.v1";
+
+import "common.proto";
+
+message ScreenContextRequest {
+  string format = 1;
+}
+
+message ScreenContextResponse {
+  string summary = 1;
+}
+
+message FindByDescriptionRequest {
+  string description = 1;
+}
+
+message InteractableElementsResponse {
+  repeated ElementInfo elements = 1;
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package mobile.testing.v1;
+
+option swift_prefix = "MobileTesting_";
+option java_multiple_files = true;
+option java_package = "mobile.testing.v1";
+
+message Empty {}
+
+message Point {
+  double x = 1;
+  double y = 2;
+}
+
+message Rect {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message Duration {
+  int32 milliseconds = 1;
+}
+
+enum CapabilityTier {
+  CAPABILITY_TIER_UNSPECIFIED = 0;
+  CAPABILITY_TIER_REQUIRED = 1;
+  CAPABILITY_TIER_OPTIONAL = 2;
+}
+
+message CapabilityDescriptor {
+  string key = 1;
+  CapabilityTier tier = 2;
+  bool supported = 3;
+  string reason_if_unsupported = 4;
+}
+
+message ElementSelector {
+  string id = 1;
+  string label = 2;
+  string contains_text = 3;
+  string description = 4;
+  ElementSelector parent_selector = 5;
+  string type = 6;
+  string value = 7;
+  int32 index = 8;
+}
+
+message ElementInfo {
+  string id = 1;
+  string label = 2;
+  string value = 3;
+  string type = 4;
+  Rect frame = 5;
+  bool is_enabled = 6;
+  bool is_visible = 7;
+}
+
+message ViewNode {
+  string id = 1;
+  string label = 2;
+  repeated ViewNode children = 3;
+  string type = 4;
+  string value = 5;
+  Rect frame = 6;
+  bool is_enabled = 7;
+  bool is_visible = 8;
+}
+
+message ActionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_UP = 1;
+  DIRECTION_DOWN = 2;
+  DIRECTION_LEFT = 3;
+  DIRECTION_RIGHT = 4;
+}
