@@ -2,6 +2,7 @@
 import MCPServer
 import MobileTestingCore
 import XCTest
+@testable import MCPServer
 
 final class MCPServerTests: XCTestCase {
     func testToolNamesAreExposed() {
@@ -301,6 +302,144 @@ final class MCPServerTests: XCTestCase {
             arguments: ["description": "submit"]
         )
         XCTAssertEqual(findAlias.content, findCanonical.content)
+    }
+
+    func testLocalAIProviderResolveDescriptionMatchesLabelAndIDCaseInsensitively() async throws {
+        let provider = LocalAIProvider()
+        let elements = [
+            ElementInfo(id: "submit_btn", label: "Submit"),
+            ElementInfo(id: "cancel_btn", label: "Cancel")
+        ]
+
+        let labelMatches = try await provider.resolveDescription("SUBMIT", elements: elements)
+        let idMatches = try await provider.resolveDescription("cancel_btn", elements: elements)
+
+        XCTAssertEqual(labelMatches, [ElementInfo(id: "submit_btn", label: "Submit")])
+        XCTAssertEqual(idMatches, [ElementInfo(id: "cancel_btn", label: "Cancel")])
+    }
+
+    func testOllamaProviderDescribeScreenBuildsPromptAndTrimsResponse() async throws {
+        let captured = LockedBox<URLRequest?>(nil)
+        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
+            await captured.set(request)
+            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = try JSONSerialization.data(withJSONObject: ["response": "  concise summary  \n"])
+            return (data, response)
+        }
+
+        let summary = try await provider.describeScreen(
+            context: ScreenContext(summary: "Checkout", interactableCount: 2, screenTitle: "Cart"),
+            hierarchy: ViewNode(
+                id: "root",
+                children: [
+                    ViewNode(id: "title", label: "Cart", type: .staticText),
+                    ViewNode(id: "cta", label: "Pay", type: .button)
+                ]
+            )
+        )
+
+        let capturedRequest = await captured.value
+        let request = try XCTUnwrap(capturedRequest)
+        let body = try XCTUnwrap(request.httpBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let prompt = try XCTUnwrap(json["prompt"] as? String)
+
+        XCTAssertEqual(summary, "concise summary")
+        XCTAssertEqual(request.url?.absoluteString, "http://ollama.local/api/generate")
+        XCTAssertEqual(json["model"] as? String, "tiny-model")
+        XCTAssertEqual(json["stream"] as? Bool, false)
+        XCTAssertTrue(prompt.contains("Screen title: Cart"))
+        XCTAssertTrue(prompt.contains("button(Pay)"))
+    }
+
+    func testOllamaProviderSuggestActionsSplitsLinesAndTruncatesElementList() async throws {
+        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
+            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = try JSONSerialization.data(withJSONObject: ["response": "Tap Login\nScroll down\n"])
+            return (data, response)
+        }
+        let elements = (1...25).map { index in
+            ElementInfo(id: "id-\(index)", label: "Label \(index)", type: .button)
+        }
+
+        let actions = try await provider.suggestActions(
+            context: ScreenContext(summary: "Home"),
+            interactableElements: elements
+        )
+
+        XCTAssertEqual(actions, ["Tap Login", "Scroll down"])
+    }
+
+    func testOllamaProviderResolveDescriptionMatchesIDsAndLabelsFromResponse() async throws {
+        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
+            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = try JSONSerialization.data(withJSONObject: ["response": "Use submit1 and Settings for this action"])
+            return (data, response)
+        }
+        let elements = [
+            ElementInfo(id: "submit1", label: "Submit", type: .button),
+            ElementInfo(id: "settings", label: "Settings", type: .button),
+            ElementInfo(id: "help", label: "Help", type: .button)
+        ]
+
+        let matches = try await provider.resolveDescription("submit action", elements: elements)
+
+        XCTAssertEqual(matches, [
+            ElementInfo(id: "submit1", label: "Submit", type: .button),
+            ElementInfo(id: "settings", label: "Settings", type: .button)
+        ])
+    }
+
+    func testOllamaProviderThrowsHTTPAndJSONErrors() async {
+        let httpProvider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
+            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (Data("failure".utf8), response)
+        }
+        let jsonProvider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
+            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = try JSONSerialization.data(withJSONObject: ["unexpected": true])
+            return (data, response)
+        }
+
+        do {
+            _ = try await httpProvider.describeScreen(context: ScreenContext(summary: "Fail"), hierarchy: ViewNode(id: "root"))
+            XCTFail("Expected http error")
+        } catch let error as OllamaError {
+            guard case let .httpError(statusCode, body) = error else {
+                return XCTFail("Unexpected OllamaError: \(error)")
+            }
+            XCTAssertEqual(statusCode, 500)
+            XCTAssertEqual(body, "failure")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        do {
+            _ = try await jsonProvider.describeScreen(context: ScreenContext(summary: "Fail"), hierarchy: ViewNode(id: "root"))
+            XCTFail("Expected invalid JSON")
+        } catch let error as OllamaError {
+            guard case .invalidJSON = error else {
+                return XCTFail("Unexpected OllamaError: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+}
+
+private actor LockedBox<Value: Sendable> {
+    private var storage: Value
+
+    init(_ storage: Value) {
+        self.storage = storage
+    }
+
+    func set(_ value: Value) {
+        storage = value
+    }
+
+    var value: Value {
+        storage
     }
 }
 

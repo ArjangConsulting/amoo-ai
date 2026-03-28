@@ -17,10 +17,24 @@ public protocol AIProvider: Sendable {
 public actor OllamaProvider: AIProvider {
     private let baseURL: String
     private let model: String
+    private let transport: @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     public init(baseURL: String = "http://localhost:11434", model: String = "llama3.2") {
         self.baseURL = baseURL
         self.model = model
+        transport = { request in
+            try await URLSession.shared.data(for: request)
+        }
+    }
+
+    init(
+        baseURL: String = "http://localhost:11434",
+        model: String = "llama3.2",
+        transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    ) {
+        self.baseURL = baseURL
+        self.model = model
+        self.transport = transport
     }
 
     public func describeScreen(context: ScreenContext, hierarchy: ViewNode) async throws -> String {
@@ -59,7 +73,7 @@ public actor OllamaProvider: AIProvider {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await transport(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OllamaError.invalidResponse
