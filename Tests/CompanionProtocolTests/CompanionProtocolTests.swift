@@ -255,7 +255,8 @@ private actor MockRPCClient: CompanionRPCClient {
         return response
     }
 
-    func findByDescription(_ request: MobileTesting_FindByDescriptionRequest) async throws -> MobileTesting_FindElementsResponse {
+    func findByDescription(_ request: MobileTesting_FindByDescriptionRequest) async throws
+        -> MobileTesting_FindElementsResponse {
         var element = MobileTesting_ElementInfo()
         element.id = "description-1"
         element.label = request.description_p
@@ -265,7 +266,8 @@ private actor MockRPCClient: CompanionRPCClient {
         return response
     }
 
-    func getInteractableElements(_ request: MobileTesting_Empty) async throws -> MobileTesting_InteractableElementsResponse {
+    func getInteractableElements(_ request: MobileTesting_Empty) async throws
+        -> MobileTesting_InteractableElementsResponse {
         _ = request
 
         var element = MobileTesting_ElementInfo()

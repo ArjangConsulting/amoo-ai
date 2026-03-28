@@ -1,5 +1,5 @@
-import XCTest
 import ObjectiveC.runtime
+import XCTest
 
 /// Single point of contact with Apple's XCUITest framework.
 /// If Apple changes APIs, only this file changes.
@@ -169,14 +169,17 @@ final class XCUITestBridge: @unchecked Sendable {
 
     // MARK: - Private
 
-    private func buildHierarchyFromSnapshot(_ snapshot: XCUIElementSnapshot, depth: Int, maxDepth: Int) -> ViewNodeSnapshot {
-        let children: [ViewNodeSnapshot]
-        if depth < maxDepth {
-            children = snapshot.children.map {
+    private func buildHierarchyFromSnapshot(
+        _ snapshot: XCUIElementSnapshot,
+        depth: Int,
+        maxDepth: Int
+    ) -> ViewNodeSnapshot {
+        let children: [ViewNodeSnapshot] = if depth < maxDepth {
+            snapshot.children.map {
                 buildHierarchyFromSnapshot($0, depth: depth + 1, maxDepth: maxDepth)
             }
         } else {
-            children = []
+            []
         }
 
         return ViewNodeSnapshot(
@@ -191,13 +194,12 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     private func buildHierarchy(element: XCUIElement, depth: Int, maxDepth: Int) -> ViewNodeSnapshot {
-        let children: [ViewNodeSnapshot]
-        if depth < maxDepth {
-            children = element.children(matching: .any).allElementsBoundByIndex.map {
+        let children: [ViewNodeSnapshot] = if depth < maxDepth {
+            element.children(matching: .any).allElementsBoundByIndex.map {
                 buildHierarchy(element: $0, depth: depth + 1, maxDepth: maxDepth)
             }
         } else {
-            children = []
+            []
         }
 
         return ViewNodeSnapshot(
@@ -238,8 +240,8 @@ final class XCUITestBridge: @unchecked Sendable {
         return app
     }
 
-    // Prefer XCTest's active app list when available so we don't need a host-side
-    // scan across every installed bundle ID just to identify the frontmost app.
+    /// Prefer XCTest's active app list when available so we don't need a host-side
+    /// scan across every installed bundle ID just to identify the frontmost app.
     private func frontmostActiveApplication() -> XCUIApplication? {
         if let activeApps = invokeXCUIApplicationClassSelector(named: "activeApplications") as? [XCUIApplication],
            let frontmost = activeApps.first(where: { $0.state == .runningForeground }) {
@@ -263,7 +265,8 @@ final class XCUITestBridge: @unchecked Sendable {
     private func invokeXCUIApplicationClassSelector(named name: String) -> Any? {
         let selector = NSSelectorFromString(name)
         guard let applicationClass = NSClassFromString("XCUIApplication"),
-              let method = class_getClassMethod(applicationClass, selector) else {
+              let method = class_getClassMethod(applicationClass, selector)
+        else {
             return nil
         }
 
@@ -274,13 +277,12 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     private func extractBundleIDs(from rawValue: Any) -> [String] {
-        let values: [Any]
-        if let array = rawValue as? [Any] {
-            values = array
+        let values: [Any] = if let array = rawValue as? [Any] {
+            array
         } else if let array = rawValue as? NSArray {
-            values = array.compactMap { $0 }
+            array.compactMap(\.self)
         } else {
-            values = [rawValue]
+            [rawValue]
         }
 
         return values.compactMap { value in
@@ -296,7 +298,7 @@ final class XCUITestBridge: @unchecked Sendable {
                 return bundleID(from: [
                     valueForSelector(named: "bundleID", on: object),
                     valueForSelector(named: "bundleId", on: object),
-                    valueForSelector(named: "bundleIdentifier", on: object),
+                    valueForSelector(named: "bundleIdentifier", on: object)
                 ])
             }
 

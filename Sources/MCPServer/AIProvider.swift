@@ -55,7 +55,7 @@ public actor OllamaProvider: AIProvider {
         let body: [String: Any] = [
             "model": model,
             "prompt": prompt,
-            "stream": false,
+            "stream": false
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -90,7 +90,8 @@ public actor OllamaProvider: AIProvider {
         Interactable elements: \(context.interactableCount)
 
         View hierarchy root: \(hierarchy.id)
-        Top-level children: \(hierarchy.children.map { "\($0.type?.rawValue ?? "view")(\($0.label))" }.joined(separator: ", "))
+        Top-level children: \(hierarchy.children.map { "\($0.type?.rawValue ?? "view")(\($0.label))" }
+            .joined(separator: ", "))
 
         Describe the screen concisely:
         """

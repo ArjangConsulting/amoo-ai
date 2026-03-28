@@ -60,7 +60,7 @@ final class IOSDriverTests: XCTestCase {
             "install:booted:/tmp/App.app",
             "launch:booted:com.example.app",
             "terminate:booted:com.example.app",
-            "uninstall:booted:com.example.app",
+            "uninstall:booted:com.example.app"
         ])
     }
 
@@ -81,7 +81,7 @@ final class IOSDriverTests: XCTestCase {
             "permission:booted:grant:camera:com.example",
             "location:booted:37.77,-122.42",
             "clearLocation:booted",
-            "appearance:booted:dark",
+            "appearance:booted:dark"
         ])
     }
 
@@ -163,7 +163,9 @@ private actor MockSimctlRunner: SimctlRunning {
         shutdownCalls.append(device)
     }
 
-    func listDevices() async throws -> String { "{}" }
+    func listDevices() async throws -> String {
+        "{}"
+    }
 
     func install(device: String, appPath: String) async throws {
         _appCalls.append("install:\(device):\(appPath)")
@@ -181,7 +183,9 @@ private actor MockSimctlRunner: SimctlRunning {
         _appCalls.append("uninstall:\(device):\(appID)")
     }
 
-    func listApps(device _: String) async throws -> String { "[]" }
+    func listApps(device _: String) async throws -> String {
+        "[]"
+    }
 
     func screenshot(device _: String, format _: ImageFormat) async throws -> Data {
         Data([0xFF])
@@ -223,22 +227,35 @@ private actor MockSimctlRunner: SimctlRunning {
         (bootStatusCalls, shutdownCalls)
     }
 
-    func appCalls() -> [String] { _appCalls }
-    func configCalls() -> [String] { _configCalls }
-    func listInstalledAppIDsCallCount() -> Int { _listInstalledAppIDsCallCount }
+    func appCalls() -> [String] {
+        _appCalls
+    }
+
+    func configCalls() -> [String] {
+        _configCalls
+    }
+
+    func listInstalledAppIDsCallCount() -> Int {
+        _listInstalledAppIDsCallCount
+    }
+
     func recordingCalls() -> (started: [(device: String, outputPath: String)], stopped: [Int32]) {
         (_recordingStarts, _recordingStops)
     }
 }
 
 private actor MockCompanionClient: CompanionClient {
+    // swiftlint:disable large_tuple
     private(set) var lastTapElementContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
     private(set) var lastFindElementsContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
+    // swiftlint:enable large_tuple
     private(set) var lastHierarchyContext: (appID: String?, candidateBundleIDs: [String])?
 
     func startSession() async throws {}
     func endSession() async throws {}
-    func getCapabilities() async throws -> [CapabilityDescriptor] { [] }
+    func getCapabilities() async throws -> [CapabilityDescriptor] {
+        []
+    }
 
     func tap(at _: Point) async throws {}
     func doubleTap(at _: Point) async throws {}
@@ -259,19 +276,33 @@ private actor MockCompanionClient: CompanionClient {
         lastFindElementsContext = (selector, appID, candidateBundleIDs)
         return []
     }
+
     func getViewHierarchy(appID: String?, candidateBundleIDs: [String]) async throws -> ViewNode {
         lastHierarchyContext = (appID, candidateBundleIDs)
         return ViewNode(id: "root")
     }
+
     func waitForElement(_: ElementSelector, timeout _: Duration, appID _: String?, candidateBundleIDs _: [String])
         async throws {}
-    func isKeyboardVisible() async throws -> Bool { false }
+    func isKeyboardVisible() async throws -> Bool {
+        false
+    }
 
-    func takeScreenshot() async throws -> ScreenshotData { ScreenshotData(bytes: [0xFF], format: .png) }
+    func takeScreenshot() async throws -> ScreenshotData {
+        ScreenshotData(bytes: [0xFF], format: .png)
+    }
 
-    func getScreenContext() async throws -> ScreenContext { ScreenContext(summary: "Empty screen context") }
-    func getInteractableElements() async throws -> [ElementInfo] { [] }
-    func findByDescription(_: String) async throws -> [ElementInfo] { [] }
+    func getScreenContext() async throws -> ScreenContext {
+        ScreenContext(summary: "Empty screen context")
+    }
+
+    func getInteractableElements() async throws -> [ElementInfo] {
+        []
+    }
+
+    func findByDescription(_: String) async throws -> [ElementInfo] {
+        []
+    }
 
     func shutdown() async {}
 }

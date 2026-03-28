@@ -1,8 +1,8 @@
 import AuditEngine
+@testable import CLI
 import Foundation
 import MCPServer
 import XCTest
-@testable import CLI
 
 final class CLITests: XCTestCase {
     func testDefaultOutput() async {
@@ -23,7 +23,7 @@ final class CLITests: XCTestCase {
     func testREPLCompletionCatalogIncludesBuiltinsAndToolNames() {
         let catalog = REPLCompletionCatalog(toolDefinitions: [
             ToolDefinition(name: "tap", description: "Tap"),
-            ToolDefinition(name: "scroll", description: "Scroll"),
+            ToolDefinition(name: "scroll", description: "Scroll")
         ])
 
         XCTAssertEqual(catalog.rootCandidates, ["?", "exit", "help", "quit", "scroll", "tap", "tools"])
@@ -36,7 +36,7 @@ final class CLITests: XCTestCase {
                 description: "Capture a screenshot",
                 properties: [
                     "output": .init(type: "string", description: "Output path"),
-                    "format": .init(type: "string", description: "Image format"),
+                    "format": .init(type: "string", description: "Image format")
                 ]
             )
         ])

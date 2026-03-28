@@ -7,7 +7,7 @@ public enum ActionTools {
             description: "Tap at a screen coordinate",
             properties: [
                 "x": .init(type: "string", description: "X coordinate"),
-                "y": .init(type: "string", description: "Y coordinate"),
+                "y": .init(type: "string", description: "Y coordinate")
             ],
             required: ["x", "y"]
         ),
@@ -16,7 +16,7 @@ public enum ActionTools {
             description: "Double tap at a screen coordinate",
             properties: [
                 "x": .init(type: "string", description: "X coordinate"),
-                "y": .init(type: "string", description: "Y coordinate"),
+                "y": .init(type: "string", description: "Y coordinate")
             ],
             required: ["x", "y"]
         ),
@@ -26,7 +26,7 @@ public enum ActionTools {
             properties: [
                 "x": .init(type: "string", description: "X coordinate"),
                 "y": .init(type: "string", description: "Y coordinate"),
-                "duration_ms": .init(type: "string", description: "Hold duration in milliseconds. Defaults to 500."),
+                "duration_ms": .init(type: "string", description: "Hold duration in milliseconds. Defaults to 500.")
             ],
             required: ["x", "y"]
         ),
@@ -38,7 +38,7 @@ public enum ActionTools {
                 "from_y": .init(type: "string", description: "Start Y coordinate"),
                 "to_x": .init(type: "string", description: "End X coordinate"),
                 "to_y": .init(type: "string", description: "End Y coordinate"),
-                "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 300."),
+                "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 300.")
             ],
             required: ["from_x", "from_y", "to_x", "to_y"]
         ),
@@ -47,7 +47,7 @@ public enum ActionTools {
             description: "Scroll in a direction",
             properties: [
                 "direction": .init(type: "string", description: "Scroll direction: up, down, left, or right"),
-                "distance": .init(type: "string", description: "Scroll distance in points. Defaults to 300."),
+                "distance": .init(type: "string", description: "Scroll distance in points. Defaults to 300.")
             ],
             required: ["direction"]
         ),
@@ -55,7 +55,7 @@ public enum ActionTools {
             name: "type_text",
             description: "Type text using the keyboard",
             properties: [
-                "text": .init(type: "string", description: "The text to type"),
+                "text": .init(type: "string", description: "The text to type")
             ],
             required: ["text"]
         ),
@@ -63,7 +63,10 @@ public enum ActionTools {
             name: "clear_text",
             description: "Clear text from the focused text field",
             properties: [
-                "character_count": .init(type: "string", description: "Number of characters to delete. Omit to clear all."),
+                "character_count": .init(
+                    type: "string",
+                    description: "Number of characters to delete. Omit to clear all."
+                )
             ]
         ),
         ToolDefinition(
@@ -78,7 +81,7 @@ public enum ActionTools {
             name: "open_url",
             description: "Open a URL or deep link on the device",
             properties: [
-                "url": .init(type: "string", description: "The URL or deep link to open"),
+                "url": .init(type: "string", description: "The URL or deep link to open")
             ],
             required: ["url"]
         ),
@@ -88,8 +91,8 @@ public enum ActionTools {
             properties: [
                 "id": .init(type: "string", description: "Accessibility identifier of the element"),
                 "label": .init(type: "string", description: "Exact accessibility label of the element"),
-                "contains_text": .init(type: "string", description: "Partial text to match in the element label"),
+                "contains_text": .init(type: "string", description: "Partial text to match in the element label")
             ]
-        ),
+        )
     ]
 }

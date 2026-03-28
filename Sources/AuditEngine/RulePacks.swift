@@ -64,7 +64,8 @@ public struct InsecureTextFieldRule: AuditRule {
                     severity: metadata.defaultSeverity,
                     confidence: 0.85,
                     summary: "Text field '\(field.label)' appears sensitive but is not using secure text entry.",
-                    remediation: "Use SecureField (SwiftUI) or isSecureTextEntry (UIKit) for fields containing sensitive data.",
+                    remediation: "Use SecureField (SwiftUI) or isSecureTextEntry (UIKit)"
+                        + " for fields containing sensitive data.",
                     evidence: [AuditEvidence(
                         kind: .selector,
                         summary: "field=\(field.id) label=\(field.label) type=\(field.type?.rawValue ?? "unknown")",
@@ -100,7 +101,8 @@ public struct DeepLinkValidationRule: AuditRule {
             severity: metadata.defaultSeverity,
             confidence: 0.5,
             summary: "Found \(webViews.count) web view(s) that may load content from deep links without validation.",
-            remediation: "Validate and sanitize all URLs before loading in web views. Use allowlists for trusted domains.",
+            remediation: "Validate and sanitize all URLs before loading in web views."
+                + " Use allowlists for trusted domains.",
             evidence: webViews.map { wv in
                 AuditEvidence(
                     kind: .selector,
@@ -178,14 +180,15 @@ public struct NavigationDeadEndRule: AuditRule {
         let hasNavBar = containsType(input.hierarchy, type: .navigationBar)
         let hasTabBar = containsType(input.hierarchy, type: .tabBar)
 
-        if !hasNavBar && !hasTabBar {
+        if !hasNavBar, !hasTabBar {
             return [AuditFinding(
                 id: "finding-\(metadata.id)-\(input.appID.hashValue)",
                 ruleID: metadata.id,
                 severity: metadata.defaultSeverity,
                 confidence: 0.5,
                 summary: "Screen has no interactable elements and no navigation controls.",
-                remediation: "Ensure every screen has a way to navigate away (back button, tab bar, or dismiss gesture).",
+                remediation: "Ensure every screen has a way to navigate away"
+                    + " (back button, tab bar, or dismiss gesture).",
                 evidence: [AuditEvidence(
                     kind: .hierarchy,
                     summary: "root=\(input.hierarchy.id), interactable=0",
@@ -315,8 +318,10 @@ public struct MissingStableIdentifierRule: AuditRule {
             ruleID: metadata.id,
             severity: percentage > 50 ? .medium : metadata.defaultSeverity,
             confidence: 0.8,
-            summary: "\(missing)/\(total) (\(percentage)%) interactable elements lack stable accessibility identifiers.",
-            remediation: "Assign accessibilityIdentifier to all interactive controls for reliable test automation.",
+            summary: "\(missing)/\(total) (\(percentage)%)"
+                + " interactable elements lack stable accessibility identifiers.",
+            remediation: "Assign accessibilityIdentifier to all interactive controls"
+                + " for reliable test automation.",
             evidence: interactableWithoutID.prefix(5).map { el in
                 AuditEvidence(
                     kind: .selector,
@@ -353,7 +358,8 @@ public struct HierarchyDepthRule: AuditRule {
             severity: metadata.defaultSeverity,
             confidence: 0.75,
             summary: "View hierarchy depth is \(depth) levels (recommended max: \(maxRecommendedDepth)).",
-            remediation: "Deep hierarchies slow element queries and increase flakiness. Consider flattening the view structure.",
+            remediation: "Deep hierarchies slow element queries and increase flakiness."
+                + " Consider flattening the view structure.",
             evidence: [AuditEvidence(
                 kind: .hierarchy,
                 summary: "depth=\(depth), root=\(input.hierarchy.id)",

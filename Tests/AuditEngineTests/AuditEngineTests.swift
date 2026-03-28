@@ -22,7 +22,7 @@ private struct LowConfidenceRule: AuditRule {
                 remediation: "Validate manually",
                 evidence: [],
                 tags: []
-            ),
+            )
         ]
     }
 }
@@ -71,7 +71,7 @@ final class AuditEngineTests: XCTestCase {
             hierarchy: .init(id: "root"),
             elements: [
                 ElementInfo(id: "pw-field", label: "Password", type: .textField),
-                ElementInfo(id: "email-field", label: "Email", type: .textField),
+                ElementInfo(id: "email-field", label: "Email", type: .textField)
             ]
         )
         let report = try await engine.run(input)
@@ -87,7 +87,7 @@ final class AuditEngineTests: XCTestCase {
             screenContext: .init(summary: ""),
             hierarchy: .init(id: "root"),
             elements: [
-                ElementInfo(id: "wv-1", label: "WebContent", type: .webView),
+                ElementInfo(id: "wv-1", label: "WebContent", type: .webView)
             ]
         )
         let report = try await engine.run(input)
@@ -104,10 +104,10 @@ final class AuditEngineTests: XCTestCase {
             screenContext: .init(summary: ""),
             hierarchy: .init(id: "root"),
             elements: [
-                ElementInfo(id: "err", label: "Something went wrong", type: .staticText),
+                ElementInfo(id: "err", label: "Something went wrong", type: .staticText)
             ],
             interactableElements: [
-                ElementInfo(id: "ok-btn", label: "OK", type: .button),
+                ElementInfo(id: "ok-btn", label: "OK", type: .button)
             ]
         )
         let report = try await engine.run(input)
@@ -122,10 +122,10 @@ final class AuditEngineTests: XCTestCase {
             screenContext: .init(summary: ""),
             hierarchy: .init(id: "root"),
             elements: [
-                ElementInfo(id: "err", label: "Something went wrong", type: .staticText),
+                ElementInfo(id: "err", label: "Something went wrong", type: .staticText)
             ],
             interactableElements: [
-                ElementInfo(id: "retry-btn", label: "Retry", type: .button),
+                ElementInfo(id: "retry-btn", label: "Retry", type: .button)
             ]
         )
         let report = try await engine.run(input)
@@ -170,7 +170,7 @@ final class AuditEngineTests: XCTestCase {
             hierarchy: .init(id: "root"),
             interactableElements: [
                 ElementInfo(id: "", label: "", type: .button),
-                ElementInfo(id: "good-btn", label: "Submit", type: .button),
+                ElementInfo(id: "good-btn", label: "Submit", type: .button)
             ]
         )
         let report = try await engine.run(input)
@@ -187,7 +187,7 @@ final class AuditEngineTests: XCTestCase {
             hierarchy: .init(id: "root"),
             interactableElements: [
                 ElementInfo(id: "small", label: "X", type: .button, frame: Rect(x: 0, y: 0, width: 20, height: 20)),
-                ElementInfo(id: "good", label: "OK", type: .button, frame: Rect(x: 0, y: 0, width: 44, height: 44)),
+                ElementInfo(id: "good", label: "OK", type: .button, frame: Rect(x: 0, y: 0, width: 44, height: 44))
             ]
         )
         let report = try await engine.run(input)
@@ -206,7 +206,7 @@ final class AuditEngineTests: XCTestCase {
             interactableElements: [
                 ElementInfo(id: "", label: "Submit", type: .button),
                 ElementInfo(id: "", label: "Cancel", type: .button),
-                ElementInfo(id: "ok-btn", label: "OK", type: .button),
+                ElementInfo(id: "ok-btn", label: "OK", type: .button)
             ]
         )
         let report = try await engine.run(input)
@@ -219,8 +219,8 @@ final class AuditEngineTests: XCTestCase {
         let engine = AuditEngine(rules: [HierarchyDepthRule()])
         // Create a hierarchy 20 levels deep
         var node = ViewNode(id: "leaf")
-        for i in (0 ..< 19).reversed() {
-            node = ViewNode(id: "level-\(i)", children: [node])
+        for idx in (0 ..< 19).reversed() {
+            node = ViewNode(id: "level-\(idx)", children: [node])
         }
         let input = AuditInput(
             appID: "com.test",

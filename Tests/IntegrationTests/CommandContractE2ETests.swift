@@ -24,14 +24,15 @@ final class CommandContractE2ETests: XCTestCase {
     private static var deviceID: String? {
         switch platform {
         case .ios:
-            return ProcessInfo.processInfo.environment["E2E_DEVICE_ID"] ?? "booted"
+            ProcessInfo.processInfo.environment["E2E_DEVICE_ID"] ?? "booted"
         case .android:
-            return ProcessInfo.processInfo.environment["E2E_DEVICE_ID"]
+            ProcessInfo.processInfo.environment["E2E_DEVICE_ID"]
         }
     }
 
     private static var fixtureAppID: String {
-        ProcessInfo.processInfo.environment["E2E_APP_ID"] ?? (platform == .ios ? "com.mobiletesting.companion" : "com.manman.companion")
+        ProcessInfo.processInfo
+            .environment["E2E_APP_ID"] ?? (platform == .ios ? "com.mobiletesting.companion" : "com.manman.companion")
     }
 
     override func setUp() async throws {
@@ -62,7 +63,8 @@ final class CommandContractE2ETests: XCTestCase {
 
         let hierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(hierarchy.isError)
-        XCTAssertTrue(hierarchy.content.contains("Fixture") || hierarchy.content.contains("com.apple.springboard") || hierarchy.content.contains("com.android.launcher"))
+        XCTAssertTrue(hierarchy.content.contains("Fixture") || hierarchy.content
+            .contains("com.apple.springboard") || hierarchy.content.contains("com.android.launcher"))
 
         let screenContext = await server.execute(toolName: "get_screen_context", arguments: [:])
         XCTAssertFalse(screenContext.isError)
@@ -76,13 +78,19 @@ final class CommandContractE2ETests: XCTestCase {
         let openDetails = await server.execute(toolName: "tap_element", arguments: ["label": "Open Details"])
         XCTAssertFalse(openDetails.isError)
 
-        let beforeScroll = await server.execute(toolName: "find_elements", arguments: ["contains_text": "Details tail marker"])
+        let beforeScroll = await server.execute(
+            toolName: "find_elements",
+            arguments: ["contains_text": "Details tail marker"]
+        )
         XCTAssertFalse(beforeScroll.isError)
 
         let scroll = await server.execute(toolName: "scroll", arguments: ["direction": "down", "distance": "500"])
         XCTAssertFalse(scroll.isError)
 
-        let afterScroll = await server.execute(toolName: "find_elements", arguments: ["contains_text": "Details tail marker"])
+        let afterScroll = await server.execute(
+            toolName: "find_elements",
+            arguments: ["contains_text": "Details tail marker"]
+        )
         XCTAssertFalse(afterScroll.isError)
     }
 
@@ -95,7 +103,10 @@ final class CommandContractE2ETests: XCTestCase {
         let typeText = await server.execute(toolName: "type_text", arguments: ["text": "contract text"])
         XCTAssertFalse(typeText.isError)
 
-        let valueAfterTyping = await server.execute(toolName: "find_elements", arguments: ["contains_text": "contract text"])
+        let valueAfterTyping = await server.execute(
+            toolName: "find_elements",
+            arguments: ["contains_text": "contract text"]
+        )
         XCTAssertFalse(valueAfterTyping.isError)
         XCTAssertTrue(valueAfterTyping.content.contains("contract text"))
 
@@ -121,9 +132,15 @@ final class CommandContractE2ETests: XCTestCase {
         XCTAssertFalse(tap.isError)
         let doubleTap = await server.execute(toolName: "double_tap", arguments: ["x": centerX, "y": centerY])
         XCTAssertFalse(doubleTap.isError)
-        let longPress = await server.execute(toolName: "long_press", arguments: ["x": centerX, "y": centerY, "duration_ms": "800"])
+        let longPress = await server.execute(
+            toolName: "long_press",
+            arguments: ["x": centerX, "y": centerY, "duration_ms": "800"]
+        )
         XCTAssertFalse(longPress.isError)
-        let swipe = await server.execute(toolName: "swipe", arguments: ["from_x": centerX, "from_y": centerY, "to_x": centerX, "to_y": "120", "duration_ms": "300"])
+        let swipe = await server.execute(
+            toolName: "swipe",
+            arguments: ["from_x": centerX, "from_y": centerY, "to_x": centerX, "to_y": "120", "duration_ms": "300"]
+        )
         XCTAssertFalse(swipe.isError)
     }
 
@@ -137,7 +154,8 @@ final class CommandContractE2ETests: XCTestCase {
         let hierarchy = try await currentDriver().getViewHierarchy()
         switch Self.platform {
         case .ios:
-            XCTAssertTrue(hierarchy.label.contains("springboard") || hierarchy.id.contains("springboard") || !hierarchy.children.isEmpty)
+            XCTAssertTrue(hierarchy.label.contains("springboard") || hierarchy.id.contains("springboard") || !hierarchy
+                .children.isEmpty)
         case .android:
             XCTAssertNotEqual(hierarchy.label, Self.fixtureAppID)
         }
@@ -154,7 +172,10 @@ final class CommandContractE2ETests: XCTestCase {
         let openURL = await server.execute(toolName: "open_url", arguments: ["url": deepLink])
         XCTAssertFalse(openURL.isError)
 
-        let deepLinkResult = await server.execute(toolName: "find_elements", arguments: ["contains_text": "mobile-testing://"])
+        let deepLinkResult = await server.execute(
+            toolName: "find_elements",
+            arguments: ["contains_text": "mobile-testing://"]
+        )
         XCTAssertFalse(deepLinkResult.isError)
 
         let screenshot = await server.execute(toolName: "take_screenshot", arguments: [:])
@@ -167,14 +188,23 @@ final class CommandContractE2ETests: XCTestCase {
         _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
 
         for canonical in CommandCoverageMatrix.aiToolNames {
-            let result = await server.execute(toolName: canonical, arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:])
+            let result = await server.execute(
+                toolName: canonical,
+                arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:]
+            )
             XCTAssertFalse(result.isError, "Expected \(canonical) to succeed: \(result.content)")
             XCTAssertFalse(result.content.isEmpty)
         }
 
         for (alias, canonical) in CommandCoverageMatrix.deprecatedAIAliases {
-            let aliasResult = await server.execute(toolName: alias, arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:])
-            let canonicalResult = await server.execute(toolName: canonical, arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:])
+            let aliasResult = await server.execute(
+                toolName: alias,
+                arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:]
+            )
+            let canonicalResult = await server.execute(
+                toolName: canonical,
+                arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:]
+            )
             XCTAssertEqual(aliasResult.content, canonicalResult.content)
         }
     }

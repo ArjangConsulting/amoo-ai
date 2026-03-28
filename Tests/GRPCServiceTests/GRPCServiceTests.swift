@@ -19,7 +19,7 @@ final class GRPCServiceTests: XCTestCase {
             screenContext: .init(summary: "debug banner"),
             hierarchy: .init(id: "root"),
             interactableElements: [
-                ElementInfo(id: "", label: "Submit", type: .button),
+                ElementInfo(id: "", label: "Submit", type: .button)
             ]
         )
 
@@ -205,7 +205,7 @@ final class GRPCServiceTests: XCTestCase {
                 "location:37.77,-122.42",
                 "clearLocation",
                 "appearance:dark",
-                "openURL:myapp://test",
+                "openURL:myapp://test"
             ]
         )
     }
@@ -221,9 +221,11 @@ final class GRPCServiceTests: XCTestCase {
 }
 
 private actor MockCompanionClient: CompanionClient {
+    // swiftlint:disable large_tuple
     var lastTapElementContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
     var lastFindElementsContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
     var lastWaitForElementContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
+    // swiftlint:enable large_tuple
 
     func startSession() async throws {}
 

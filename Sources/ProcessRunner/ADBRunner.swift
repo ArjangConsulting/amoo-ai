@@ -149,7 +149,7 @@ public struct ADBRunner: ADBRunning {
         _ = try await run(serialArgs(serial) + [
             "shell", "am", "start",
             "-a", "android.intent.action.VIEW",
-            "-d", url,
+            "-d", url
         ])
     }
 
@@ -174,7 +174,14 @@ public struct ADBRunner: ADBRunning {
 
     private func resolveLaunchableActivity(serial: String?, appID: String) async throws -> String {
         do {
-            let result = try await run(serialArgs(serial) + ["shell", "cmd", "package", "resolve-activity", "--brief", appID])
+            let result = try await run(serialArgs(serial) + [
+                "shell",
+                "cmd",
+                "package",
+                "resolve-activity",
+                "--brief",
+                appID
+            ])
             let lines = result.stdout
                 .split(separator: "\n")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

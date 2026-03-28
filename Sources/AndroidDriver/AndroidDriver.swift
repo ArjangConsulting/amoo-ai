@@ -4,7 +4,7 @@ import MobileTestingCore
 import ProcessRunner
 
 public actor AndroidDriver: PlatformDriver {
-    private struct ActiveRecording: Sendable {
+    private struct ActiveRecording {
         let remotePath: String
         let localPath: String
     }
@@ -212,7 +212,7 @@ public actor AndroidDriver: PlatformDriver {
 
     public func setLocation(latitude: Double, longitude: Double) async throws {
         _ = try await adb.run(adbArgs() + [
-            "emu", "geo", "fix", String(longitude), String(latitude),
+            "emu", "geo", "fix", String(longitude), String(latitude)
         ])
     }
 
@@ -224,7 +224,7 @@ public actor AndroidDriver: PlatformDriver {
     public func setAppearance(_ appearance: Appearance) async throws {
         let mode = appearance == .dark ? "yes" : "no"
         _ = try await adb.run(adbArgs() + [
-            "shell", "cmd", "uimode", "night", mode,
+            "shell", "cmd", "uimode", "night", mode
         ])
     }
 

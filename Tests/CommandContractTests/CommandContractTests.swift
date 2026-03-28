@@ -21,7 +21,10 @@ final class CommandContractTests: XCTestCase {
 
     func testAllAIAliasesPointToKnownCanonicalTools() {
         for (alias, canonical) in CommandCoverageMatrix.deprecatedAIAliases {
-            XCTAssertNotNil(CommandCoverageMatrix.coverage(for: canonical), "Missing coverage for canonical tool \(canonical)")
+            XCTAssertNotNil(
+                CommandCoverageMatrix.coverage(for: canonical),
+                "Missing coverage for canonical tool \(canonical)"
+            )
             XCTAssertFalse(alias.isEmpty)
         }
     }

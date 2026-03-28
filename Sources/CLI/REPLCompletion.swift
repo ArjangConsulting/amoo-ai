@@ -16,7 +16,7 @@ struct REPLCompletionCatalog {
             commandCandidates[definition.name] = definition.properties.keys.sorted().map { "\($0)=" }
         }
 
-        self.rootCandidates = root.sorted()
+        rootCandidates = root.sorted()
         self.commandCandidates = commandCandidates
     }
 

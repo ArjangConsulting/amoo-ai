@@ -17,7 +17,8 @@ import GRPCProtobuf
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 public enum MobileTesting_HostDeviceService: Sendable {
     /// Service descriptor for the "mobile.testing.v1.HostDeviceService" service.
-    public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService")
+    public static let descriptor = GRPCCore
+        .ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService")
     /// Namespace for method metadata.
     public enum Method: Sendable {
         /// Namespace for "InstallApp" metadata.
@@ -32,6 +33,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "InstallApp"
             )
         }
+
         /// Namespace for "LaunchApp" metadata.
         public enum LaunchApp: Sendable {
             /// Request type for "LaunchApp".
@@ -44,6 +46,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "LaunchApp"
             )
         }
+
         /// Namespace for "TerminateApp" metadata.
         public enum TerminateApp: Sendable {
             /// Request type for "TerminateApp".
@@ -56,6 +59,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "TerminateApp"
             )
         }
+
         /// Namespace for "UninstallApp" metadata.
         public enum UninstallApp: Sendable {
             /// Request type for "UninstallApp".
@@ -68,6 +72,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "UninstallApp"
             )
         }
+
         /// Namespace for "SetPermission" metadata.
         public enum SetPermission: Sendable {
             /// Request type for "SetPermission".
@@ -80,6 +85,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "SetPermission"
             )
         }
+
         /// Namespace for "SetLocation" metadata.
         public enum SetLocation: Sendable {
             /// Request type for "SetLocation".
@@ -92,6 +98,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "SetLocation"
             )
         }
+
         /// Namespace for "ClearLocation" metadata.
         public enum ClearLocation: Sendable {
             /// Request type for "ClearLocation".
@@ -104,6 +111,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "ClearLocation"
             )
         }
+
         /// Namespace for "SetAppearance" metadata.
         public enum SetAppearance: Sendable {
             /// Request type for "SetAppearance".
@@ -116,6 +124,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "SetAppearance"
             )
         }
+
         /// Namespace for "OpenURL" metadata.
         public enum OpenURL: Sendable {
             /// Request type for "OpenURL".
@@ -128,6 +137,7 @@ public enum MobileTesting_HostDeviceService: Sendable {
                 method: "OpenURL"
             )
         }
+
         /// Descriptors for all methods in the "mobile.testing.v1.HostDeviceService" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             InstallApp.descriptor,
@@ -144,15 +154,16 @@ public enum MobileTesting_HostDeviceService: Sendable {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension GRPCCore.ServiceDescriptor {
+public extension GRPCCore.ServiceDescriptor {
     /// Service descriptor for the "mobile.testing.v1.HostDeviceService" service.
-    public static let mobileTesting_HostDeviceService = GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService")
+    static let mobileTesting_HostDeviceService = GRPCCore
+        .ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService")
 }
 
 // MARK: mobile.testing.v1.HostDeviceService (server)
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService {
+public extension MobileTesting_HostDeviceService {
     /// Streaming variant of the service protocol for the "mobile.testing.v1.HostDeviceService" service.
     ///
     /// This protocol is the lowest-level of the service protocols generated for this service
@@ -163,7 +174,7 @@ extension MobileTesting_HostDeviceService {
     ///
     /// Where possible, prefer using the stricter, less-verbose ``ServiceProtocol``
     /// or ``SimpleServiceProtocol`` instead.
-    public protocol StreamingServiceProtocol: GRPCCore.RegistrableRPCService {
+    protocol StreamingServiceProtocol: GRPCCore.RegistrableRPCService {
         /// Handle the "InstallApp" method.
         ///
         /// - Parameters:
@@ -298,7 +309,7 @@ extension MobileTesting_HostDeviceService {
     /// trailing response metadata. If you don't need these then consider using
     /// the ``SimpleServiceProtocol``. If you need fine grained control over your RPCs then
     /// use ``StreamingServiceProtocol``.
-    public protocol ServiceProtocol: MobileTesting_HostDeviceService.StreamingServiceProtocol {
+    protocol ServiceProtocol: MobileTesting_HostDeviceService.StreamingServiceProtocol {
         /// Handle the "InstallApp" method.
         ///
         /// - Parameters:
@@ -431,7 +442,7 @@ extension MobileTesting_HostDeviceService {
     /// This is the highest level protocol for the service. The API is the easiest to use but
     /// doesn't provide access to request or response metadata. If you need access to these
     /// then use ``ServiceProtocol`` instead.
-    public protocol SimpleServiceProtocol: MobileTesting_HostDeviceService.ServiceProtocol {
+    protocol SimpleServiceProtocol: MobileTesting_HostDeviceService.ServiceProtocol {
         /// Handle the "InstallApp" method.
         ///
         /// - Parameters:
@@ -560,10 +571,10 @@ extension MobileTesting_HostDeviceService {
     }
 }
 
-// Default implementation of 'registerMethods(with:)'.
+/// Default implementation of 'registerMethods(with:)'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
-    public func registerMethods<Transport>(with router: inout GRPCCore.RPCRouter<Transport>) where Transport: GRPCCore.ServerTransport {
+public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
+    func registerMethods(with router: inout GRPCCore.RPCRouter<some GRPCCore.ServerTransport>) {
         router.registerHandler(
             forMethod: MobileTesting_HostDeviceService.Method.InstallApp.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_InstallAppRequest>(),
@@ -666,102 +677,102 @@ extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
     }
 }
 
-// Default implementation of streaming methods from 'StreamingServiceProtocol'.
+/// Default implementation of streaming methods from 'StreamingServiceProtocol'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService.ServiceProtocol {
-    public func installApp(
+public extension MobileTesting_HostDeviceService.ServiceProtocol {
+    func installApp(
         request: GRPCCore.StreamingServerRequest<MobileTesting_InstallAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.installApp(
+        let response = try await installApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func launchApp(
+    func launchApp(
         request: GRPCCore.StreamingServerRequest<MobileTesting_LaunchAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.launchApp(
+        let response = try await launchApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func terminateApp(
+    func terminateApp(
         request: GRPCCore.StreamingServerRequest<MobileTesting_TerminateAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.terminateApp(
+        let response = try await terminateApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func uninstallApp(
+    func uninstallApp(
         request: GRPCCore.StreamingServerRequest<MobileTesting_UninstallAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.uninstallApp(
+        let response = try await uninstallApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func setPermission(
+    func setPermission(
         request: GRPCCore.StreamingServerRequest<MobileTesting_SetPermissionRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.setPermission(
+        let response = try await setPermission(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func setLocation(
+    func setLocation(
         request: GRPCCore.StreamingServerRequest<MobileTesting_SetLocationRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.setLocation(
+        let response = try await setLocation(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func clearLocation(
+    func clearLocation(
         request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.clearLocation(
+        let response = try await clearLocation(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func setAppearance(
+    func setAppearance(
         request: GRPCCore.StreamingServerRequest<MobileTesting_SetAppearanceRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.setAppearance(
+        let response = try await setAppearance(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    public func openURL(
+    func openURL(
         request: GRPCCore.StreamingServerRequest<MobileTesting_OpenURLRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await self.openURL(
+        let response = try await openURL(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -769,15 +780,15 @@ extension MobileTesting_HostDeviceService.ServiceProtocol {
     }
 }
 
-// Default implementation of methods from 'ServiceProtocol'.
+/// Default implementation of methods from 'ServiceProtocol'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
-    public func installApp(
+public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
+    func installApp(
         request: GRPCCore.ServerRequest<MobileTesting_InstallAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.installApp(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: installApp(
                 request: request.message,
                 context: context
             ),
@@ -785,12 +796,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func launchApp(
+    func launchApp(
         request: GRPCCore.ServerRequest<MobileTesting_LaunchAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.launchApp(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: launchApp(
                 request: request.message,
                 context: context
             ),
@@ -798,12 +809,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func terminateApp(
+    func terminateApp(
         request: GRPCCore.ServerRequest<MobileTesting_TerminateAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.terminateApp(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: terminateApp(
                 request: request.message,
                 context: context
             ),
@@ -811,12 +822,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func uninstallApp(
+    func uninstallApp(
         request: GRPCCore.ServerRequest<MobileTesting_UninstallAppRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.uninstallApp(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: uninstallApp(
                 request: request.message,
                 context: context
             ),
@@ -824,12 +835,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func setPermission(
+    func setPermission(
         request: GRPCCore.ServerRequest<MobileTesting_SetPermissionRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.setPermission(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: setPermission(
                 request: request.message,
                 context: context
             ),
@@ -837,12 +848,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func setLocation(
+    func setLocation(
         request: GRPCCore.ServerRequest<MobileTesting_SetLocationRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.setLocation(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: setLocation(
                 request: request.message,
                 context: context
             ),
@@ -850,12 +861,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func clearLocation(
+    func clearLocation(
         request: GRPCCore.ServerRequest<MobileTesting_Empty>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.clearLocation(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: clearLocation(
                 request: request.message,
                 context: context
             ),
@@ -863,12 +874,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func setAppearance(
+    func setAppearance(
         request: GRPCCore.ServerRequest<MobileTesting_SetAppearanceRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.setAppearance(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: setAppearance(
                 request: request.message,
                 context: context
             ),
@@ -876,12 +887,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    public func openURL(
+    func openURL(
         request: GRPCCore.ServerRequest<MobileTesting_OpenURLRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        return GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: try await self.openURL(
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: openURL(
                 request: request.message,
                 context: context
             ),
@@ -893,12 +904,12 @@ extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
 // MARK: mobile.testing.v1.HostDeviceService (client)
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService {
+public extension MobileTesting_HostDeviceService {
     /// Generated client protocol for the "mobile.testing.v1.HostDeviceService" service.
     ///
     /// You don't need to implement this protocol directly, use the generated
     /// implementation, ``Client``.
-    public protocol ClientProtocol: Sendable {
+    protocol ClientProtocol: Sendable {
         /// Call the "InstallApp" method.
         ///
         /// - Parameters:
@@ -910,13 +921,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func installApp<Result>(
+        func installApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_InstallAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "LaunchApp" method.
         ///
@@ -929,13 +941,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func launchApp<Result>(
+        func launchApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_LaunchAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "TerminateApp" method.
         ///
@@ -948,13 +961,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func terminateApp<Result>(
+        func terminateApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_TerminateAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "UninstallApp" method.
         ///
@@ -967,13 +981,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func uninstallApp<Result>(
+        func uninstallApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_UninstallAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "SetPermission" method.
         ///
@@ -986,13 +1001,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setPermission<Result>(
+        func setPermission<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SetPermissionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "SetLocation" method.
         ///
@@ -1005,13 +1021,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setLocation<Result>(
+        func setLocation<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SetLocationRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "ClearLocation" method.
         ///
@@ -1024,13 +1041,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func clearLocation<Result>(
+        func clearLocation<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_Empty>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "SetAppearance" method.
         ///
@@ -1043,13 +1061,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setAppearance<Result>(
+        func setAppearance<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SetAppearanceRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
 
         /// Call the "OpenURL" method.
         ///
@@ -1062,13 +1081,14 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func openURL<Result>(
+        func openURL<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_OpenURLRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result where Result: Sendable
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
     }
 
     /// Generated client for the "mobile.testing.v1.HostDeviceService" service.
@@ -1076,7 +1096,7 @@ extension MobileTesting_HostDeviceService {
     /// The ``Client`` provides an implementation of ``ClientProtocol`` which wraps
     /// a `GRPCCore.GRPCCClient`. The underlying `GRPCClient` provides the long-lived
     /// means of communication with the remote peer.
-    public struct Client<Transport>: ClientProtocol where Transport: GRPCCore.ClientTransport {
+    struct Client<Transport: GRPCCore.ClientTransport>: ClientProtocol {
         private let client: GRPCCore.GRPCClient<Transport>
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
@@ -1098,16 +1118,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func installApp<Result>(
+        public func installApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_InstallAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.InstallApp.descriptor,
                 serializer: serializer,
@@ -1128,16 +1149,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func launchApp<Result>(
+        public func launchApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_LaunchAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.LaunchApp.descriptor,
                 serializer: serializer,
@@ -1158,16 +1180,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func terminateApp<Result>(
+        public func terminateApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_TerminateAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.TerminateApp.descriptor,
                 serializer: serializer,
@@ -1188,16 +1211,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func uninstallApp<Result>(
+        public func uninstallApp<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_UninstallAppRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.UninstallApp.descriptor,
                 serializer: serializer,
@@ -1218,16 +1242,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setPermission<Result>(
+        public func setPermission<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SetPermissionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.SetPermission.descriptor,
                 serializer: serializer,
@@ -1248,16 +1273,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setLocation<Result>(
+        public func setLocation<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SetLocationRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.SetLocation.descriptor,
                 serializer: serializer,
@@ -1278,16 +1304,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func clearLocation<Result>(
+        public func clearLocation<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_Empty>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.ClearLocation.descriptor,
                 serializer: serializer,
@@ -1308,16 +1335,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setAppearance<Result>(
+        public func setAppearance<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SetAppearanceRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.SetAppearance.descriptor,
                 serializer: serializer,
@@ -1338,16 +1366,17 @@ extension MobileTesting_HostDeviceService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func openURL<Result>(
+        public func openURL<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_OpenURLRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result where Result: Sendable {
-            try await self.client.unary(
+        ) async throws -> Result {
+            try await client.unary(
                 request: request,
                 descriptor: MobileTesting_HostDeviceService.Method.OpenURL.descriptor,
                 serializer: serializer,
@@ -1359,9 +1388,9 @@ extension MobileTesting_HostDeviceService {
     }
 }
 
-// Helpers providing default arguments to 'ClientProtocol' methods.
+/// Helpers providing default arguments to 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService.ClientProtocol {
+public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "InstallApp" method.
     ///
     /// - Parameters:
@@ -1371,14 +1400,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func installApp<Result>(
+    func installApp<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.installApp(
+    ) async throws -> Result {
+        try await installApp(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_InstallAppRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1396,14 +1426,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func launchApp<Result>(
+    func launchApp<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.launchApp(
+    ) async throws -> Result {
+        try await launchApp(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_LaunchAppRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1421,14 +1452,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func terminateApp<Result>(
+    func terminateApp<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.terminateApp(
+    ) async throws -> Result {
+        try await terminateApp(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_TerminateAppRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1446,14 +1478,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func uninstallApp<Result>(
+    func uninstallApp<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.uninstallApp(
+    ) async throws -> Result {
+        try await uninstallApp(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_UninstallAppRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1471,14 +1504,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func setPermission<Result>(
+    func setPermission<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.setPermission(
+    ) async throws -> Result {
+        try await setPermission(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetPermissionRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1496,14 +1530,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func setLocation<Result>(
+    func setLocation<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.setLocation(
+    ) async throws -> Result {
+        try await setLocation(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetLocationRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1521,14 +1556,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func clearLocation<Result>(
+    func clearLocation<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_Empty>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.clearLocation(
+    ) async throws -> Result {
+        try await clearLocation(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_Empty>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1546,14 +1582,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func setAppearance<Result>(
+    func setAppearance<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.setAppearance(
+    ) async throws -> Result {
+        try await setAppearance(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetAppearanceRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1571,14 +1608,15 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func openURL<Result>(
+    func openURL<Result: Sendable>(
         request: GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
-        try await self.openURL(
+    ) async throws -> Result {
+        try await openURL(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_OpenURLRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
@@ -1588,9 +1626,9 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     }
 }
 
-// Helpers providing sugared APIs for 'ClientProtocol' methods.
+/// Helpers providing sugared APIs for 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-extension MobileTesting_HostDeviceService.ClientProtocol {
+public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "InstallApp" method.
     ///
     /// - Parameters:
@@ -1601,19 +1639,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func installApp<Result>(
+    func installApp<Result: Sendable>(
         _ message: MobileTesting_InstallAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.installApp(
+        return try await installApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1630,19 +1669,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func launchApp<Result>(
+    func launchApp<Result: Sendable>(
         _ message: MobileTesting_LaunchAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.launchApp(
+        return try await launchApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1659,19 +1699,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func terminateApp<Result>(
+    func terminateApp<Result: Sendable>(
         _ message: MobileTesting_TerminateAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.terminateApp(
+        return try await terminateApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1688,19 +1729,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func uninstallApp<Result>(
+    func uninstallApp<Result: Sendable>(
         _ message: MobileTesting_UninstallAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.uninstallApp(
+        return try await uninstallApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1717,19 +1759,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func setPermission<Result>(
+    func setPermission<Result: Sendable>(
         _ message: MobileTesting_SetPermissionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.setPermission(
+        return try await setPermission(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1746,19 +1789,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func setLocation<Result>(
+    func setLocation<Result: Sendable>(
         _ message: MobileTesting_SetLocationRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.setLocation(
+        return try await setLocation(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1775,19 +1819,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func clearLocation<Result>(
+    func clearLocation<Result: Sendable>(
         _ message: MobileTesting_Empty,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_Empty>(
             message: message,
             metadata: metadata
         )
-        return try await self.clearLocation(
+        return try await clearLocation(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1804,19 +1849,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func setAppearance<Result>(
+    func setAppearance<Result: Sendable>(
         _ message: MobileTesting_SetAppearanceRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.setAppearance(
+        return try await setAppearance(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1833,19 +1879,20 @@ extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    public func openURL<Result>(
+    func openURL<Result: Sendable>(
         _ message: MobileTesting_OpenURLRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result where Result: Sendable {
+    ) async throws -> Result {
         let request = GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>(
             message: message,
             metadata: metadata
         )
-        return try await self.openURL(
+        return try await openURL(
             request: request,
             options: options,
             onResponse: handleResponse

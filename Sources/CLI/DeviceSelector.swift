@@ -4,12 +4,14 @@ import ProcessRunner
 
 // MARK: - Types
 
-struct BootedDevice: Sendable {
+struct BootedDevice {
     let udid: String
     let name: String
     let osVersion: String
 
-    var displayName: String { "\(name) [iOS \(osVersion)] (\(udid))" }
+    var displayName: String {
+        "\(name) [iOS \(osVersion)] (\(udid))"
+    }
 }
 
 enum DeviceSelectionError: Error, CustomStringConvertible {
@@ -19,7 +21,7 @@ enum DeviceSelectionError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .noBootedSimulators:
-            return """
+            """
             No booted iOS simulator found.
             Boot one with:
               open -a Simulator
@@ -27,14 +29,14 @@ enum DeviceSelectionError: Error, CustomStringConvertible {
             Then re-run mobile-testing.
             """
         case let .invalidSelection(input):
-            return "Invalid selection '\(input)'. Enter a number from the list."
+            "Invalid selection '\(input)'. Enter a number from the list."
         }
     }
 }
 
 // MARK: - DeviceSelector
 
-struct DeviceSelector: Sendable {
+struct DeviceSelector {
     private let processRunner: any ProcessRunner
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
@@ -49,7 +51,8 @@ struct DeviceSelector: Sendable {
             if let match = booted.first(where: { $0.udid == hint || $0.name.lowercased() == hint.lowercased() }) {
                 return match
             }
-            // Hint given but not booted - return a minimal device entry so caller can proceed if companion is already up
+            // Hint given but not booted - return a minimal device entry so caller can proceed if companion is already
+            // up
             return BootedDevice(udid: hint, name: hint, osVersion: "unknown")
         }
 

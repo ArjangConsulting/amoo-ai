@@ -24,7 +24,7 @@ public protocol CompanionClient: Sendable {
     func pressBack() async throws
     func pressHome() async throws
 
-    // Accessibility
+    /// Accessibility
     func findElements(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws
         -> [ElementInfo]
     func getViewHierarchy(appID: String?, candidateBundleIDs: [String]) async throws -> ViewNode
@@ -32,7 +32,7 @@ public protocol CompanionClient: Sendable {
         async throws
     func isKeyboardVisible() async throws -> Bool
 
-    // Capture
+    /// Capture
     func takeScreenshot() async throws -> ScreenshotData
 
     // AI
@@ -41,7 +41,7 @@ public protocol CompanionClient: Sendable {
     func findByDescription(_ description: String) async throws -> [ElementInfo]
 }
 
-// Default implementations for methods that not every companion may support yet
+/// Default implementations for methods that not every companion may support yet
 public extension CompanionClient {
     func tapElement(_ selector: ElementSelector) async throws {
         try await tapElement(selector, appID: nil, candidateBundleIDs: [])

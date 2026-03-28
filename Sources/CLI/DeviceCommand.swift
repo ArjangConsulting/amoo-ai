@@ -1,5 +1,5 @@
-import CompanionProtocol
 import AndroidDriver
+import CompanionProtocol
 import IOSDriver
 import MCPServer
 import MobileTestingCore
@@ -25,7 +25,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .missingTool:
-            return """
+            """
             Usage: mobile-testing device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
 
             Common tools:
@@ -55,15 +55,16 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
               android port=22088
             """
         case let .malformedArgument(arg):
-            return "Malformed argument '\(arg)'. Expected key=value format."
+            "Malformed argument '\(arg)'. Expected key=value format."
         case let .invalidPort(value):
-            return "Invalid port '\(value)'. Expected a number."
+            "Invalid port '\(value)'. Expected a number."
         case let .unknownPlatform(value):
-            return "Unknown platform '\(value)'. Expected 'ios' or 'android'."
+            "Unknown platform '\(value)'. Expected 'ios' or 'android'."
         }
     }
 }
 
+// swiftlint:disable:next cyclomatic_complexity
 func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, DeviceCommandParseError> {
     var remaining = args
     var platform: Platform = .ios
