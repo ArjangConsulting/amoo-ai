@@ -171,11 +171,18 @@ func runAndroidCompanionInstall(
 
     if needsBuild {
         print("Building Android companion (this may take a moment)...")
+        // Invoke gradlew directly with the -p project flag instead of going through
+        // `bash -c "cd '<dir>' && …"`. The shell-quoted form was unsafe under any
+        // path containing a single quote and added no value over a direct argv invocation.
+        let gradlewPath = companionDir + "/gradlew"
         do {
             let result = try await withCLILoadingIndicator("Building Android companion") {
-                try await processRunner.run(
-                    ["bash", "-c", "cd '\(companionDir)' && ./gradlew assembleDebug assembleAndroidTest"]
-                )
+                try await processRunner.run([
+                    gradlewPath,
+                    "-p", companionDir,
+                    "assembleDebug",
+                    "assembleAndroidTest"
+                ])
             }
             if result.exitCode != 0 {
                 let message = result.stderr.isEmpty ? result.stdout : result.stderr

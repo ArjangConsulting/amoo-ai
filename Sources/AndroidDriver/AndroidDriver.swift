@@ -66,9 +66,11 @@ public actor AndroidDriver: PlatformDriver {
     public func listApps() async throws -> [AppInfo] {
         let output = try await adb.listPackages(serial: serial)
         return output
-            .split(separator: "\n")
+            .components(separatedBy: .newlines)
             .compactMap { line -> AppInfo? in
-                let pkg = line.replacingOccurrences(of: "package:", with: "").trimmingCharacters(in: .whitespaces)
+                let pkg = line
+                    .replacingOccurrences(of: "package:", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !pkg.isEmpty else { return nil }
                 return AppInfo(appID: pkg)
             }
@@ -146,7 +148,10 @@ public actor AndroidDriver: PlatformDriver {
         }
 
         let sessionID = UUID().uuidString
-        let remotePath = "/sdcard/recording_\(sessionID).mp4"
+        // /data/local/tmp is owned by the shell user — other apps on the device can't
+        // read recordings there. /sdcard is world-readable to apps with storage perms,
+        // and recordings can contain on-screen secrets typed during the test.
+        let remotePath = "/data/local/tmp/recording_\(sessionID).mp4"
         let localPath = NSTemporaryDirectory() + "recording_\(sessionID).mp4"
         try await adb.startRecording(serial: serial, outputPath: remotePath)
         activeRecordings[sessionID] = ActiveRecording(remotePath: remotePath, localPath: localPath)
@@ -163,7 +168,8 @@ public actor AndroidDriver: PlatformDriver {
 
         try await adb.stopRecording(serial: serial)
         _ = try await adb.run(adbArgs() + ["pull", recording.remotePath, recording.localPath])
-        _ = try await adb.run(adbArgs() + ["shell", "rm", recording.remotePath])
+        // Best-effort cleanup; don't fail the call if the device-side rm fails.
+        _ = try? await adb.run(adbArgs() + ["shell", "rm", recording.remotePath])
         return recording.localPath
     }
 

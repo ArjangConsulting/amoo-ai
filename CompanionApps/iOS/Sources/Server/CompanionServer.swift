@@ -28,9 +28,14 @@ final class CompanionServer: Sendable {
     }
 
     /// Start the gRPC server and block until shutdown.
+    ///
+    /// Binds to the loopback interface — the host driver reaches the simulator
+    /// via the shared host network, and on a real device the host port-forwards
+    /// over USB. Exposing the companion on every interface would let any device
+    /// on the network drive XCUITest gestures (taps, types, screenshots).
     func run() async throws {
         let transport = try HTTP2ServerTransport.Posix(
-            address: .ipv4(host: "0.0.0.0", port: port),
+            address: .ipv4(host: "127.0.0.1", port: port),
             transportSecurity: .plaintext
         )
 

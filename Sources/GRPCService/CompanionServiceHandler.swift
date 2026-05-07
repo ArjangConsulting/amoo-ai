@@ -7,7 +7,6 @@ import Protos
 package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServiceProtocol {
     private let companion: any CompanionClient
     private let screenshotProvider: (any ScreenCapture)?
-    private var currentSessionID: String?
 
     package init(companion: any CompanionClient, screenshotProvider: (any ScreenCapture)? = nil) {
         self.companion = companion
@@ -23,7 +22,6 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         try await companion.startSession()
 
         let sessionID = request.requestedSessionID.nonEmpty ?? UUID().uuidString
-        currentSessionID = sessionID
 
         var response = MobileTesting_StartSessionResponse()
         response.sessionID = sessionID
@@ -46,7 +44,6 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         context _: ServerContext
     ) async throws -> MobileTesting_EndSessionResponse {
         try await companion.endSession()
-        currentSessionID = nil
 
         var response = MobileTesting_EndSessionResponse()
         response.ended = true
@@ -116,12 +113,16 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         request: MobileTesting_ScrollToElementRequest,
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
-        // Scroll in direction until element is found, up to maxScrolls times
+        // Scroll in direction until element is found, up to maxScrolls times.
+        // Clamp the request value: an unbounded loop here is a remote-DoS vector
+        // (one find + one scroll per iteration, both gRPC round-trips).
         let direction = request.direction.coreDirection
         let selector = request.selector.coreSelector
-        let maxScrolls = Int(request.maxScrolls)
+        let requested = Int(request.maxScrolls)
+        let maxScrolls = max(0, min(requested, Self.maxScrollAttempts))
 
         for _ in 0 ..< maxScrolls {
+            try Task.checkCancellation()
             let elements = try await companion.findElements(selector)
             if !elements.isEmpty {
                 return actionResponse(success: true)
@@ -131,6 +132,10 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
 
         return actionResponse(success: false, message: "Element not found after \(maxScrolls) scrolls")
     }
+
+    /// Hard cap on `scrollToElement` iterations. Caller-supplied values above
+    /// this are clamped to prevent indefinite work on the companion.
+    private static let maxScrollAttempts = 100
 
     package func pinch(
         request: MobileTesting_PinchRequest,

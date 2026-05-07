@@ -20,7 +20,7 @@ public struct DebugBuildExposureRule: AuditRule {
         guard !matchedIndicators.isEmpty else { return [] }
 
         return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+            id: "finding-\(metadata.id)-\(input.appID)",
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.7,
@@ -96,7 +96,7 @@ public struct DeepLinkValidationRule: AuditRule {
         guard !webViews.isEmpty else { return [] }
 
         return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+            id: "finding-\(metadata.id)-\(input.appID)",
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.5,
@@ -146,7 +146,7 @@ public struct ErrorStateHandlingRule: AuditRule {
 
             if !hasRetryButton {
                 findings.append(AuditFinding(
-                    id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+                    id: "finding-\(metadata.id)-\(input.appID)",
                     ruleID: metadata.id,
                     severity: metadata.defaultSeverity,
                     confidence: 0.65,
@@ -182,7 +182,7 @@ public struct NavigationDeadEndRule: AuditRule {
 
         if !hasNavBar, !hasTabBar {
             return [AuditFinding(
-                id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+                id: "finding-\(metadata.id)-\(input.appID)",
                 ruleID: metadata.id,
                 severity: metadata.defaultSeverity,
                 confidence: 0.5,
@@ -201,9 +201,12 @@ public struct NavigationDeadEndRule: AuditRule {
         return []
     }
 
-    private func containsType(_ node: ViewNode, type: ElementType) -> Bool {
+    private func containsType(_ node: ViewNode, type: ElementType, depth: Int = 0) -> Bool {
+        // Hard depth cap: a hostile or malformed companion could hand us a cyclic
+        // hierarchy and a naive recursion would blow the stack.
+        if depth >= maxHierarchyDepth { return false }
         if node.type == type { return true }
-        return node.children.contains { containsType($0, type: type) }
+        return node.children.contains { containsType($0, type: type, depth: depth + 1) }
     }
 }
 
@@ -228,7 +231,7 @@ public struct MissingAccessibilityLabelRule: AuditRule {
         guard !unlabeled.isEmpty else { return [] }
 
         return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+            id: "finding-\(metadata.id)-\(input.appID)",
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.9,
@@ -269,14 +272,14 @@ public struct SmallTapTargetRule: AuditRule {
         guard !tooSmall.isEmpty else { return [] }
 
         return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+            id: "finding-\(metadata.id)-\(input.appID)",
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.85,
             summary: "\(tooSmall.count) interactive element(s) have tap targets smaller than \(Int(minimumSize))pt.",
             remediation: "Ensure all interactive elements have a minimum tap target of 44x44pt per Apple HIG.",
-            evidence: tooSmall.prefix(5).map { el in
-                let frame = el.frame!
+            evidence: tooSmall.prefix(5).compactMap { el -> AuditEvidence? in
+                guard let frame = el.frame else { return nil }
                 return AuditEvidence(
                     kind: .selector,
                     summary: "\(el.label.isEmpty ? el.id : el.label): \(Int(frame.width))x\(Int(frame.height))pt",
@@ -314,7 +317,7 @@ public struct MissingStableIdentifierRule: AuditRule {
         let percentage = total > 0 ? Int(Double(missing) / Double(total) * 100) : 0
 
         return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+            id: "finding-\(metadata.id)-\(input.appID)",
             ruleID: metadata.id,
             severity: percentage > 50 ? .medium : metadata.defaultSeverity,
             confidence: 0.8,
@@ -353,7 +356,7 @@ public struct HierarchyDepthRule: AuditRule {
         guard depth > maxRecommendedDepth else { return [] }
 
         return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID.hashValue)",
+            id: "finding-\(metadata.id)-\(input.appID)",
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.75,
@@ -370,11 +373,17 @@ public struct HierarchyDepthRule: AuditRule {
         )]
     }
 
-    private func measureDepth(_ node: ViewNode) -> Int {
+    private func measureDepth(_ node: ViewNode, depth: Int = 0) -> Int {
+        // Cap recursion: a malformed hierarchy from the companion could be cyclic.
+        if depth >= maxHierarchyDepth { return depth }
         if node.children.isEmpty { return 1 }
-        return 1 + (node.children.map { measureDepth($0) }.max() ?? 0)
+        return 1 + (node.children.map { measureDepth($0, depth: depth + 1) }.max() ?? 0)
     }
 }
+
+/// Hard cap on view hierarchy traversal depth. Prevents stack overflow when
+/// a companion sends a cyclic or pathologically deep tree.
+private let maxHierarchyDepth = 256
 
 // MARK: - Rule Pack Collections
 

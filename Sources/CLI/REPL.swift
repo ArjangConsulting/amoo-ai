@@ -37,14 +37,24 @@ func runREPL(device: BootedDevice, port: Int, companionManager: CompanionManager
 
 // MARK: - Main loop
 
+private func replHistoryPath() -> String? {
+    // Avoid falling back to "" + "/.mobile-testing-history" → "/.mobile-testing-history"
+    // when HOME is unset (sandboxed CI agents, launchd-managed processes).
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    guard !home.isEmpty, home != "/" else { return nil }
+    return home + "/.mobile-testing-history"
+}
+
 private func replLoop(
     executor: DriverToolExecutor,
     driver: IOSDriver,
     toolDefinitions: [ToolDefinition]
 ) async {
     // Load history from previous sessions
-    let historyPath = (ProcessInfo.processInfo.environment["HOME"] ?? "") + "/.mobile-testing-history"
-    cli_load_history(historyPath)
+    let historyPath = replHistoryPath()
+    if let historyPath {
+        cli_load_history(historyPath)
+    }
 
     while true {
         // cli_readline blocks — run off the cooperative thread pool
@@ -76,8 +86,9 @@ private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) as
 
     switch lower {
     case "quit", "exit":
-        let historyPath = (ProcessInfo.processInfo.environment["HOME"] ?? "") + "/.mobile-testing-history"
-        cli_save_history(historyPath)
+        if let historyPath = replHistoryPath() {
+            cli_save_history(historyPath)
+        }
         print(colored("Goodbye.", .cyan))
         return true
 
