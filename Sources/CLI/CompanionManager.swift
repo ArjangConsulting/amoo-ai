@@ -2,6 +2,9 @@ import Foundation
 import MobileTestingCore
 import Network
 import ProcessRunner
+import SwiftyShell
+import XcodeBuildKit
+import XcodeGenKit
 
 // MARK: - Thread-safe one-shot continuation box
 
@@ -41,7 +44,8 @@ struct CompanionConfig {
     ) {
         self.host = host
         self.port = port
-        self.companionDir = companionDir ?? (FileManager.default.currentDirectoryPath + "/CompanionApps/iOS")
+        self.companionDir =
+            companionDir ?? (FileManager.default.currentDirectoryPath + "/CompanionApps/iOS")
         self.deviceUDID = deviceUDID
         self.readyTimeoutSeconds = readyTimeoutSeconds
     }
@@ -78,17 +82,21 @@ final class CompanionManager: @unchecked Sendable {
     #if os(macOS)
     private var companionProcess: Process?
     #endif
-    private let processRunner: any ProcessRunner
+    private let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
-        self.processRunner = processRunner
+        shellContext = ShellContext(
+            executor: ProcessRunnerCommandExecutor(processRunner: processRunner)
+        )
     }
 
     /// Builds (installs) the companion test bundle without launching it.
     func install(config: CompanionConfig, force: Bool = false) async throws {
         let productsDir = config.companionDir + "/build/Build/Products"
         if !force, findXCTestRun(productsDir: productsDir) != nil {
-            print(colored("Companion already built.", .green) + colored(" Use --force to rebuild.", .gray))
+            print(
+                colored("Companion already built.", .green) + colored(" Use --force to rebuild.", .gray)
+            )
             return
         }
         print("Building companion app (this may take a moment)...")
@@ -198,11 +206,13 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     private func findXCTestRun(productsDir: String) -> String? {
-        guard let enumerator = FileManager.default.enumerator(
-            at: URL(fileURLWithPath: productsDir),
-            includingPropertiesForKeys: nil,
-            options: .skipsSubdirectoryDescendants
-        ) else { return nil }
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: URL(fileURLWithPath: productsDir),
+                includingPropertiesForKeys: nil,
+                options: .skipsSubdirectoryDescendants
+            )
+        else { return nil }
 
         for case let url as URL in enumerator where url.pathExtension == "xctestrun" {
             return url.path
@@ -211,27 +221,32 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     private func buildForTesting(config: CompanionConfig) async throws {
-        // Generate Xcode project
-        let xcodegen = try await processRunner.run(["which", "xcodegen"])
-        if xcodegen.exitCode != 0 {
-            throw CompanionError.xcodegeneNotFound
+        let genResult: ProcessResult
+        do {
+            genResult = try await XcodeGen(context: shellContext)
+                .generate()
+                .spec(config.companionDir + "/project.yml")
+                .run()
+                .processResult
+        } catch let error as ShellError {
+            if case .commandNotFound = error {
+                throw CompanionError.xcodegeneNotFound
+            }
+            throw error
         }
-
-        let genResult = try await processRunner.run(
-            ["xcodegen", "generate", "--spec", config.companionDir + "/project.yml"]
-        )
         if genResult.exitCode != 0 {
             throw CompanionError.buildFailed("xcodegen failed: \(genResult.stderr)")
         }
 
         // Build for testing
-        let buildResult = try await processRunner.run([
-            "xcodebuild", "build-for-testing",
-            "-scheme", "MobileTestingCompanion",
-            "-destination", "platform=iOS Simulator,id=\(config.deviceUDID)",
-            "-derivedDataPath", config.companionDir + "/build",
-            "-project", config.companionDir + "/MobileTestingCompanion.xcodeproj"
-        ])
+        let buildResult = try await XcodeBuild(context: shellContext)
+            .trailingArgument("build-for-testing")
+            .option(.scheme("MobileTestingCompanion"))
+            .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
+            .option(.derivedDataPath(config.companionDir + "/build"))
+            .option(.project(config.companionDir + "/MobileTestingCompanion.xcodeproj"))
+            .run()
+            .processResult
 
         if buildResult.exitCode != 0 {
             let message = buildResult.stderr.isEmpty ? buildResult.stdout : buildResult.stderr

@@ -1,6 +1,7 @@
 import Foundation
 import MobileTestingCore
 import ProcessRunner
+import SwiftyShell
 
 // MARK: - Types
 
@@ -44,11 +45,14 @@ struct DeviceSelector {
     }
 
     func selectDevice(hint: String? = nil) async throws -> BootedDevice {
-        let result = try await processRunner.run(["xcrun", "simctl", "list", "devices", "available", "-j"])
-        let booted = parseBootedDevices(json: result.stdout)
+        let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+        let devices = try await SimctlRunner(context: context).listDevices()
+        let booted = parseBootedDevices(json: devices)
 
         if let hint {
-            if let match = booted.first(where: { $0.udid == hint || $0.name.lowercased() == hint.lowercased() }) {
+            if let match = booted.first(where: {
+                $0.udid == hint || $0.name.lowercased() == hint.lowercased()
+            }) {
                 return match
             }
             // Hint given but not booted - return a minimal device entry so caller can proceed if companion is already
@@ -80,9 +84,10 @@ func parseBootedDevices(json: String) -> [BootedDevice] {
     var result: [BootedDevice] = []
     for (runtime, deviceList) in devices {
         guard runtime.contains("iOS") else { continue }
-        let osVersion = runtime
-            .components(separatedBy: "iOS-").last?
-            .replacingOccurrences(of: "-", with: ".") ?? ""
+        let osVersion =
+            runtime
+                .components(separatedBy: "iOS-").last?
+                .replacingOccurrences(of: "-", with: ".") ?? ""
 
         for device in deviceList {
             guard let udid = device["udid"] as? String,

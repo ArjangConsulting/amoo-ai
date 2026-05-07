@@ -18,6 +18,8 @@ let package = Package(
         .executable(name: "mobile-testing", targets: ["CLI"])
     ],
     dependencies: [
+        .package(path: "../SwiftyShell"),
+        .package(path: "../shipitswifty"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0")
@@ -49,7 +51,15 @@ let package = Package(
                 .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport")
             ]
         ),
-        .target(name: "ProcessRunner", dependencies: ["MobileTestingCore"]),
+        .target(
+            name: "ProcessRunner",
+            dependencies: [
+                "MobileTestingCore",
+                .product(name: "SwiftyShell", package: "SwiftyShell"),
+                .product(name: "ShipItKit", package: "ShipItSwifty"),
+                .product(name: "GradleKit", package: "ShipItSwifty")
+            ]
+        ),
         .target(name: "IOSDriver", dependencies: ["MobileTestingCore", "CompanionProtocol", "ProcessRunner"]),
         .target(name: "AndroidDriver", dependencies: ["MobileTestingCore", "CompanionProtocol", "ProcessRunner"]),
         .target(name: "AuditEngine", dependencies: ["MobileTestingCore"]),
@@ -76,18 +86,34 @@ let package = Package(
                 "AndroidDriver",
                 "MCPServer",
                 "AuditEngine",
-                "ProcessRunner"
+                "ProcessRunner",
+                .product(name: "GradleKit", package: "ShipItSwifty"),
+                .product(name: "XcodeBuildKit", package: "ShipItSwifty"),
+                .product(name: "XcodeGenKit", package: "ShipItSwifty"),
+                .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
         .testTarget(name: "MobileTestingCoreTests", dependencies: ["MobileTestingCore"]),
         .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"]),
         .testTarget(name: "IOSDriverTests", dependencies: ["IOSDriver"]),
         .testTarget(name: "AndroidDriverTests", dependencies: ["AndroidDriver"]),
-        .testTarget(name: "ProcessRunnerTests", dependencies: ["ProcessRunner"]),
+        .testTarget(
+            name: "ProcessRunnerTests",
+            dependencies: [
+                "ProcessRunner",
+                .product(name: "SwiftyShell", package: "SwiftyShell")
+            ]
+        ),
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
         .testTarget(name: "MCPServerTests", dependencies: ["MCPServer"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
-        .testTarget(name: "CLITests", dependencies: ["CLI"]),
+        .testTarget(
+            name: "CLITests",
+            dependencies: [
+                "CLI",
+                .product(name: "SwiftyShell", package: "SwiftyShell")
+            ]
+        ),
         .testTarget(name: "CommandContractTests", dependencies: ["CommandContract", "MCPServer"]),
         .testTarget(
             name: "IntegrationTests",

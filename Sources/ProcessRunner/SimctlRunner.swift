@@ -1,5 +1,7 @@
 import Foundation
 import MobileTestingCore
+import ShipItKit
+import SwiftyShell
 
 public protocol SimctlRunning: Sendable {
     @discardableResult
@@ -34,55 +36,65 @@ public protocol SimctlRunning: Sendable {
 }
 
 public struct SimctlRunner: SimctlRunning {
-    private let processRunner: any ProcessRunner
+    private let context: ShellContext
 
-    public init(processRunner: any ProcessRunner = SystemProcessRunner()) {
-        self.processRunner = processRunner
+    public init(context: ShellContext = .init()) {
+        self.context = context
     }
 
     @discardableResult
     public func run(_ arguments: [String]) async throws -> ProcessResult {
-        let command = ["xcrun", "simctl"] + arguments
-        let result = try await processRunner.run(command)
-        try ensureSuccessfulExit(result, command: command.joined(separator: " "))
-        return result
+        guard let subcommand = arguments.first else {
+            throw ProcessRunnerError.emptyCommand
+        }
+
+        do {
+            return try await Simctl(context: context)
+                .custom(subcommand, arguments: Array(arguments.dropFirst()))
+                .run()
+                .processResult
+        } catch let error as ShellError {
+            throw processRunnerError(
+                error, command: (["xcrun", "simctl"] + arguments).joined(separator: " ")
+            )
+        }
     }
 
     // MARK: - Device Lifecycle
 
     public func bootStatus(device: String = "booted") async throws {
-        _ = try await run(["bootstatus", device])
+        _ = try await run(.bootStatus(device))
     }
 
     public func shutdown(device: String = "booted") async throws {
-        _ = try await run(["shutdown", device])
+        _ = try await run(.shutdown([device]))
     }
 
     public func listDevices() async throws -> String {
-        let result = try await run(["list", "devices", "available", "-j"])
+        let result = try await run(.list(.devices, json: true, searchTerm: "available"))
         return result.stdout
     }
 
     // MARK: - App Management
 
     public func install(device: String, appPath: String) async throws {
-        _ = try await run(["install", device, appPath])
+        _ = try await run(.install(device, appAt: appPath))
     }
 
     public func launch(device: String, appID: String, arguments: [String] = []) async throws {
-        _ = try await run(["launch", device, appID] + arguments)
+        _ = try await run(.launch(device, bundleIdentifier: appID), trailingArguments: arguments)
     }
 
     public func terminate(device: String, appID: String) async throws {
-        _ = try await run(["terminate", device, appID])
+        _ = try await run(.terminate(device, bundleIdentifier: appID))
     }
 
     public func uninstall(device: String, appID: String) async throws {
-        _ = try await run(["uninstall", device, appID])
+        _ = try await run(.uninstall(device, bundleIdentifier: appID))
     }
 
     public func listApps(device: String) async throws -> String {
-        let result = try await run(["listapps", device])
+        let result = try await run(.custom("listapps", arguments: [device]))
         return result.stdout
     }
 
@@ -90,7 +102,9 @@ public struct SimctlRunner: SimctlRunning {
 
     public func screenshot(device: String, format: ImageFormat = .png) async throws -> Data {
         let tmpPath = NSTemporaryDirectory() + "screenshot_\(UUID().uuidString).\(format.rawValue)"
-        _ = try await run(["io", device, "screenshot", "--type=\(format.rawValue)", tmpPath])
+        _ = try await run(
+            .io(device, command: "screenshot", arguments: ["--type=\(format.rawValue)", tmpPath])
+        )
         let data = try Data(contentsOf: URL(fileURLWithPath: tmpPath))
         try? FileManager.default.removeItem(atPath: tmpPath)
         return data
@@ -99,7 +113,13 @@ public struct SimctlRunner: SimctlRunning {
     public func startRecording(device: String, outputPath: String) async throws -> Int32 {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["xcrun", "simctl", "io", device, "recordVideo", "--codec=h264", "--force", outputPath]
+        process.arguments =
+            ["xcrun", "simctl"]
+                + SimctlCommand.io(
+                    device,
+                    command: "recordVideo",
+                    arguments: ["--codec=h264", "--force", outputPath]
+                ).arguments
         process.standardOutput = Pipe()
         process.standardError = Pipe()
 
@@ -115,46 +135,71 @@ public struct SimctlRunner: SimctlRunning {
             return
         }
 
-        _ = try await processRunner.run(["kill", "-INT", String(pid)])
+        _ = try await SystemProcessRunner(context: context).run(["kill", "-INT", String(pid)])
     }
 
     // MARK: - Configuration
 
-    public func setPermission(device: String, action: String, permission: String, appID: String) async throws {
-        _ = try await run(["privacy", device, action, permission, appID])
+    public func setPermission(device: String, action: String, permission: String, appID: String)
+        async throws {
+        _ = try await run(
+            .privacy(device, action: action, service: permission, bundleIdentifier: appID)
+        )
     }
 
     public func setLocation(device: String, latitude: Double, longitude: Double) async throws {
-        _ = try await run(["location", device, "set", "\(latitude),\(longitude)"])
+        _ = try await run(.location(device, action: "set", arguments: ["\(latitude),\(longitude)"]))
     }
 
     public func clearLocation(device: String) async throws {
-        _ = try await run(["location", device, "clear"])
+        _ = try await run(.location(device, action: "clear"))
     }
 
     public func setAppearance(device: String, appearance: Appearance) async throws {
-        _ = try await run(["ui", device, "appearance", appearance.rawValue])
+        _ = try await run(.ui(device, arguments: ["appearance", appearance.rawValue]))
     }
 
     public func openURL(device: String, url: String) async throws {
-        _ = try await run(["openurl", device, url])
+        _ = try await run(.openURL(device, url))
     }
 
     // MARK: - App Inspection
 
     public func listInstalledAppIDs(device: String) async throws -> [String] {
-        let result = try await run(["listapps", device])
+        let result = try await run(.custom("listapps", arguments: [device]))
         guard let data = result.stdout.data(using: .utf8),
               let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil),
-              let dict = plist as? [String: Any] else { return [] }
+              let dict = plist as? [String: Any]
+        else { return [] }
         return Array(dict.keys)
+    }
+
+    private func run(_ command: SimctlCommand, trailingArguments: [String] = []) async throws
+        -> ProcessResult {
+        do {
+            return try await Simctl(context: context)
+                .command(command)
+                .args(trailingArguments)
+                .run()
+                .processResult
+        } catch let error as ShellError {
+            throw processRunnerError(
+                error,
+                command: (["xcrun", "simctl"] + command.arguments + trailingArguments).joined(
+                    separator: " "
+                )
+            )
+        }
     }
 }
 
-private func ensureSuccessfulExit(_ result: ProcessResult, command: String) throws {
-    guard result.exitCode == 0 else {
-        throw ProcessRunnerError.nonZeroExit(command: command, exitCode: result.exitCode, stderr: result.stderr)
+private func processRunnerError(_ error: ShellError, command: String) -> Error {
+    if case let .exitFailure(_, output) = error {
+        return ProcessRunnerError.nonZeroExit(
+            command: command, exitCode: output.exitCode, stderr: output.stderr
+        )
     }
+    return error
 }
 
 private actor SimctlRecordingRegistry {

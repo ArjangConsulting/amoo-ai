@@ -3,6 +3,7 @@ import AuditEngine
 import Foundation
 import MCPServer
 import ProcessRunner
+import SwiftyShell
 import XCTest
 
 final class CLITests: XCTestCase {
@@ -48,7 +49,9 @@ final class CLITests: XCTestCase {
     func testREPLCompletionCatalogIncludesTapElementTool() {
         let catalog = REPLCompletionCatalog(toolDefinitions: MCPServer().toolDefinitions())
         XCTAssertTrue(catalog.rootCandidates.contains("tap_element"))
-        XCTAssertEqual(catalog.argumentCandidates(for: "tap_element"), ["contains_text=", "id=", "label="])
+        XCTAssertEqual(
+            catalog.argumentCandidates(for: "tap_element"), ["contains_text=", "id=", "label="]
+        )
     }
 
     #if os(macOS)
@@ -56,26 +59,30 @@ final class CLITests: XCTestCase {
         let manager = CompanionManager()
         let config = CompanionConfig(port: 22111, deviceUDID: "SIM-123")
 
-        let process = manager.makeCompanionLaunchProcess(xctestrunPath: "/tmp/test.xctestrun", config: config)
+        let process = manager.makeCompanionLaunchProcess(
+            xctestrunPath: "/tmp/test.xctestrun", config: config
+        )
 
         XCTAssertEqual(process.environment?["COMPANION_PORT"], "22111")
     }
     #endif
 
     func testPreflightCommandWithFailureReturnsExitCode2() async {
-        let app = CLIApp(preflightChecker: MockPreflightChecker(
-            report: PreflightReport(
-                platform: .android,
-                checks: [
-                    .init(
-                        id: "android.adb",
-                        status: .fail,
-                        message: "adb not found",
-                        remediation: "install platform-tools"
-                    )
-                ]
+        let app = CLIApp(
+            preflightChecker: MockPreflightChecker(
+                report: PreflightReport(
+                    platform: .android,
+                    checks: [
+                        .init(
+                            id: "android.adb",
+                            status: .fail,
+                            message: "adb not found",
+                            remediation: "install platform-tools"
+                        )
+                    ]
+                )
             )
-        ))
+        )
 
         let result = await app.run(args: ["preflight", "--platform", "android"])
         XCTAssertEqual(result.exitCode, 2)
@@ -83,7 +90,9 @@ final class CLITests: XCTestCase {
     }
 
     func testPreflightCommandInvalidPlatformReturnsUsageError() async {
-        let app = CLIApp(preflightChecker: MockPreflightChecker(report: .init(platform: .all, checks: [])))
+        let app = CLIApp(
+            preflightChecker: MockPreflightChecker(report: .init(platform: .all, checks: []))
+        )
         let result = await app.run(args: ["preflight", "--platform", "desktop"])
         XCTAssertEqual(result.exitCode, 64)
         XCTAssertTrue(result.output.contains("Invalid platform"))
@@ -172,13 +181,15 @@ final class CLITests: XCTestCase {
     }
 
     func testRunDeviceCommandReturnsConnectionFailureForInvalidPort() async {
-        let result = await runDeviceCommand(options: DeviceCommandOptions(
-            platform: .ios,
-            port: -1,
-            deviceID: "booted",
-            tool: "tap",
-            arguments: ["x": "1", "y": "2"]
-        ))
+        let result = await runDeviceCommand(
+            options: DeviceCommandOptions(
+                platform: .ios,
+                port: -1,
+                deviceID: "booted",
+                tool: "tap",
+                arguments: ["x": "1", "y": "2"]
+            )
+        )
 
         XCTAssertEqual(result.exitCode, 1)
         XCTAssertFalse(result.output.isEmpty)
@@ -187,10 +198,13 @@ final class CLITests: XCTestCase {
     func testCompanionInstallSkipsBuildWhenXCTestRunExists() async throws {
         let companionDir = makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(atPath: companionDir) }
-        let productsDir = URL(fileURLWithPath: companionDir).appendingPathComponent("build/Build/Products", isDirectory: true)
+        let productsDir = URL(fileURLWithPath: companionDir).appendingPathComponent(
+            "build/Build/Products", isDirectory: true
+        )
         try FileManager.default.createDirectory(at: productsDir, withIntermediateDirectories: true)
         FileManager.default.createFile(
-            atPath: productsDir.appendingPathComponent("MobileTestingCompanion_iphonesimulator.xctestrun").path,
+            atPath: productsDir.appendingPathComponent("MobileTestingCompanion_iphonesimulator.xctestrun")
+                .path,
             contents: Data()
         )
 
@@ -210,7 +224,6 @@ final class CLITests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: companionDir) }
 
         let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 0, stdout: "/opt/homebrew/bin/xcodegen\n", stderr: "")),
             .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
             .success(.init(exitCode: 0, stdout: "built", stderr: ""))
         ])
@@ -221,17 +234,19 @@ final class CLITests: XCTestCase {
 
         let commands = await runner.recordedCommands()
 
-        XCTAssertEqual(commands, [
-            ["which", "xcodegen"],
-            ["xcodegen", "generate", "--spec", companionDir + "/project.yml"],
+        XCTAssertEqual(
+            commands,
             [
-                "xcodebuild", "build-for-testing",
-                "-scheme", "MobileTestingCompanion",
-                "-destination", "platform=iOS Simulator,id=SIM-123",
-                "-derivedDataPath", companionDir + "/build",
-                "-project", companionDir + "/MobileTestingCompanion.xcodeproj"
+                ["xcodegen", "generate", "--spec", companionDir + "/project.yml"],
+                [
+                    "xcodebuild", "build-for-testing",
+                    "-scheme", "MobileTestingCompanion",
+                    "-destination", "platform=iOS Simulator,id=SIM-123",
+                    "-derivedDataPath", companionDir + "/build",
+                    "-project", companionDir + "/MobileTestingCompanion.xcodeproj"
+                ]
             ]
-        ])
+        )
     }
 
     func testCompanionInstallThrowsWhenXcodegenIsMissing() async {
@@ -239,7 +254,7 @@ final class CLITests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: companionDir) }
 
         let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 1, stdout: "", stderr: ""))
+            .failure(ShellError.commandNotFound("xcodegen"))
         ])
         let manager = CompanionManager(processRunner: runner)
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
@@ -261,7 +276,6 @@ final class CLITests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: companionDir) }
 
         let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 0, stdout: "/opt/homebrew/bin/xcodegen\n", stderr: "")),
             .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
             .success(.init(exitCode: 65, stdout: "", stderr: "build log"))
         ])
@@ -305,7 +319,10 @@ final class CLITests: XCTestCase {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Unknown companion action 'launch'. Run 'mobile-testing companion' for usage.")
+        XCTAssertEqual(
+            error.description,
+            "Unknown companion action 'launch'. Run 'mobile-testing companion' for usage."
+        )
     }
 
     func testCompanionCommandParserRejectsUnknownPlatform() {
@@ -322,7 +339,7 @@ final class CLITests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: companionDir) }
 
         let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 1, stdout: "", stderr: ""))
+            .failure(ShellError.commandNotFound("xcodegen"))
         ])
         let result = await runIOSCompanionInstall(
             options: CompanionCommandOptions(
@@ -387,7 +404,7 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 1)
         XCTAssertTrue(result.output.contains("Failed to install Android app APK:"))
         XCTAssertEqual(commands.count, 1)
-        XCTAssertEqual(commands.first?.prefix(4), ["adb", "-s", "emulator-5554", "install"])
+        XCTAssertEqual(commands.first?.prefix(5), ["adb", "-s", "emulator-5554", "install", "-r"])
     }
 
     func testRunAndroidCompanionInstallSucceedsWithExistingArtifacts() async throws {
@@ -415,8 +432,8 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertEqual(result.output, "")
         XCTAssertEqual(commands.count, 2)
-        XCTAssertEqual(commands[0][0...2], ["adb", "install", "-r"])
-        XCTAssertEqual(commands[1][0...2], ["adb", "install", "-r"])
+        XCTAssertEqual(commands[0][0 ... 2], ["adb", "install", "-r"])
+        XCTAssertEqual(commands[1][0 ... 2], ["adb", "install", "-r"])
     }
 
     func testREPLShellSplitHandlesQuotedArguments() {
@@ -522,7 +539,9 @@ final class CLITests: XCTestCase {
 }
 
 private func makeTemporaryDirectory() -> String {
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+        UUID().uuidString, isDirectory: true
+    )
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     return directory.path
 }
@@ -534,8 +553,12 @@ private func createAndroidAPKFixtures(at companionDir: String) throws {
         .appendingPathComponent("app/build/outputs/apk/androidTest/debug", isDirectory: true)
     try FileManager.default.createDirectory(at: appPath, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: testPath, withIntermediateDirectories: true)
-    FileManager.default.createFile(atPath: appPath.appendingPathComponent("app-debug.apk").path, contents: Data())
-    FileManager.default.createFile(atPath: testPath.appendingPathComponent("app-debug-androidTest.apk").path, contents: Data())
+    FileManager.default.createFile(
+        atPath: appPath.appendingPathComponent("app-debug.apk").path, contents: Data()
+    )
+    FileManager.default.createFile(
+        atPath: testPath.appendingPathComponent("app-debug-androidTest.apk").path, contents: Data()
+    )
 }
 
 private actor MockCLIProcessRunner: ProcessRunner {
