@@ -1,5 +1,7 @@
 import Foundation
+import GradleKit
 import MobileTestingCore
+import SwiftyShell
 
 public protocol ADBRunning: Sendable {
     @discardableResult
@@ -33,62 +35,62 @@ public protocol ADBRunning: Sendable {
 }
 
 public struct ADBRunner: ADBRunning {
-    private let processRunner: any ProcessRunner
+    private let context: ShellContext
 
-    public init(processRunner: any ProcessRunner = SystemProcessRunner()) {
-        self.processRunner = processRunner
+    public init(context: ShellContext = .init()) {
+        self.context = context
     }
 
     @discardableResult
     public func run(_ arguments: [String]) async throws -> ProcessResult {
-        let command = ["adb"] + arguments
-        let result = try await processRunner.run(command)
-        try ensureSuccessfulExit(result, command: command.joined(separator: " "))
-        return result
+        do {
+            return try await Adb(context: context)
+                .rawArguments(arguments)
+                .run()
+                .processResult
+        } catch let error as ShellError {
+            throw processRunnerError(error, command: (["adb"] + arguments).joined(separator: " "))
+        }
     }
 
     // MARK: - Device Lifecycle
 
     public func startServer() async throws {
-        _ = try await run(["start-server"])
+        _ = try await run(Adb(context: context).startServer())
     }
 
     public func killEmulator(serial: String? = nil) async throws {
-        var arguments: [String] = serialArgs(serial)
-        arguments += ["emu", "kill"]
-        _ = try await run(arguments)
+        _ = try await run(adb(serial: serial).emuKill())
     }
 
     public func listDevices() async throws -> String {
-        let result = try await run(["devices", "-l"])
+        let result = try await run(Adb(context: context).devices(long: true))
         return result.stdout
     }
 
     // MARK: - App Management
 
     public func install(serial: String? = nil, apkPath: String) async throws {
-        _ = try await run(serialArgs(serial) + ["install", "-r", apkPath])
+        _ = try await run(adb(serial: serial).install(apk: apkPath, replace: true))
     }
 
     public func launch(serial: String? = nil, appID: String, arguments: [String] = []) async throws {
         let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
-        var cmd = serialArgs(serial) + ["shell", "am", "start", "-n", component]
-        for arg in arguments {
-            cmd += ["--es", "arg", arg]
-        }
-        _ = try await run(cmd)
+        _ = try await run(
+            adb(serial: serial).amStartActivity(component: component, arguments: arguments)
+        )
     }
 
     public func terminate(serial: String? = nil, appID: String) async throws {
-        _ = try await run(serialArgs(serial) + ["shell", "am", "force-stop", appID])
+        _ = try await run(adb(serial: serial).amForceStop(package: appID))
     }
 
     public func uninstall(serial: String? = nil, appID: String) async throws {
-        _ = try await run(serialArgs(serial) + ["uninstall", appID])
+        _ = try await run(adb(serial: serial).uninstall(package: appID))
     }
 
     public func listPackages(serial: String? = nil) async throws -> String {
-        let result = try await run(serialArgs(serial) + ["shell", "pm", "list", "packages"])
+        let result = try await run(adb(serial: serial).pmListPackages())
         return result.stdout
     }
 
@@ -97,9 +99,9 @@ public struct ADBRunner: ADBRunning {
     public func screenshot(serial: String? = nil) async throws -> Data {
         let remotePath = "/sdcard/screenshot_tmp.png"
         let localPath = NSTemporaryDirectory() + "screenshot_\(UUID().uuidString).png"
-        _ = try await run(serialArgs(serial) + ["shell", "screencap", "-p", remotePath])
-        _ = try await run(serialArgs(serial) + ["pull", remotePath, localPath])
-        _ = try await run(serialArgs(serial) + ["shell", "rm", remotePath])
+        _ = try await run(adb(serial: serial).screencap(remotePath: remotePath))
+        _ = try await run(adb(serial: serial).pull(remote: remotePath, local: localPath))
+        _ = try await run(adb(serial: serial).shell("rm \(remotePath)"))
         let data = try Data(contentsOf: URL(fileURLWithPath: localPath))
         try? FileManager.default.removeItem(atPath: localPath)
         return data
@@ -116,7 +118,8 @@ public struct ADBRunner: ADBRunning {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["adb"] + serialArgs(serial) + ["shell", "screenrecord", outputPath]
+        let command = adb(serial: serial).screenrecord(remotePath: outputPath).command()
+        process.arguments = [command.executableName] + command.arguments
         process.standardOutput = Pipe()
         process.standardError = Pipe()
 
@@ -132,56 +135,45 @@ public struct ADBRunner: ADBRunning {
             return
         }
 
-        _ = try await run(serialArgs(serial) + ["shell", "pkill", "-INT", "screenrecord"])
+        _ = try await run(adb(serial: serial).shellPkill(process: "screenrecord"))
     }
 
     // MARK: - Configuration
 
     public func grantPermission(serial: String? = nil, appID: String, permission: String) async throws {
-        _ = try await run(serialArgs(serial) + ["shell", "pm", "grant", appID, permission])
+        _ = try await run(adb(serial: serial).pmGrantPermission(package: appID, permission: permission))
     }
 
-    public func revokePermission(serial: String? = nil, appID: String, permission: String) async throws {
-        _ = try await run(serialArgs(serial) + ["shell", "pm", "revoke", appID, permission])
+    public func revokePermission(serial: String? = nil, appID: String, permission: String)
+        async throws {
+        _ = try await run(
+            adb(serial: serial).pmRevokePermission(package: appID, permission: permission)
+        )
     }
 
     public func openURL(serial: String? = nil, url: String) async throws {
-        _ = try await run(serialArgs(serial) + [
-            "shell", "am", "start",
-            "-a", "android.intent.action.VIEW",
-            "-d", url
-        ])
+        _ = try await run(adb(serial: serial).amStartViewURL(url))
     }
 
     // MARK: - Port Forwarding
 
     public func forwardPort(serial: String? = nil, localPort: Int, remotePort: Int) async throws {
-        _ = try await run(serialArgs(serial) + ["forward", "tcp:\(localPort)", "tcp:\(remotePort)"])
+        _ = try await run(adb(serial: serial).forwardTCP(localPort: localPort, remotePort: remotePort))
     }
 
     public func removeForward(serial: String? = nil, localPort: Int) async throws {
-        _ = try await run(serialArgs(serial) + ["forward", "--remove", "tcp:\(localPort)"])
+        _ = try await run(adb(serial: serial).removeForwardTCP(localPort: localPort))
     }
 
     // MARK: - Private
 
-    private func serialArgs(_ serial: String?) -> [String] {
-        if let serial {
-            return ["-s", serial]
-        }
-        return []
+    private func adb(serial: String?) -> Adb {
+        Adb(context: context).serial(serial)
     }
 
     private func resolveLaunchableActivity(serial: String?, appID: String) async throws -> String {
         do {
-            let result = try await run(serialArgs(serial) + [
-                "shell",
-                "cmd",
-                "package",
-                "resolve-activity",
-                "--brief",
-                appID
-            ])
+            let result = try await run(adb(serial: serial).resolveLaunchableActivity(package: appID))
             let lines = result.stdout
                 .split(separator: "\n")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -195,12 +187,23 @@ public struct ADBRunner: ADBRunning {
 
         return "\(appID)/.MainActivity"
     }
+
+    private func run(_ command: Adb) async throws -> ProcessResult {
+        do {
+            return try await command.run().processResult
+        } catch let error as ShellError {
+            throw processRunnerError(error, command: command.command().displayString())
+        }
+    }
 }
 
-private func ensureSuccessfulExit(_ result: ProcessResult, command: String) throws {
-    guard result.exitCode == 0 else {
-        throw ProcessRunnerError.nonZeroExit(command: command, exitCode: result.exitCode, stderr: result.stderr)
+private func processRunnerError(_ error: ShellError, command: String) -> Error {
+    if case let .exitFailure(_, output) = error {
+        return ProcessRunnerError.nonZeroExit(
+            command: command, exitCode: output.exitCode, stderr: output.stderr
+        )
     }
+    return error
 }
 
 private actor ADBRecordingRegistry {

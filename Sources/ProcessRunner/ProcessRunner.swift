@@ -1,4 +1,5 @@
 import Foundation
+import SwiftyShell
 
 public struct ProcessResult: Sendable, Equatable {
     public var exitCode: Int32
@@ -23,36 +24,53 @@ public protocol ProcessRunner: Sendable {
 }
 
 public struct SystemProcessRunner: ProcessRunner {
-    public init() {}
+    private let context: ShellContext
+
+    public init(context: ShellContext = .init()) {
+        self.context = context
+    }
 
     public func run(_ arguments: [String]) async throws -> ProcessResult {
         guard !arguments.isEmpty else {
             throw ProcessRunnerError.emptyCommand
         }
 
-        #if os(macOS) || os(Linux)
-        let process = Process()
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
+        let command = Command(arguments[0]).args(Array(arguments.dropFirst()))
+        do {
+            return try await command.run(in: context).processResult
+        } catch let error as ShellError {
+            if case let .exitFailure(_, output) = error {
+                return output.processResult
+            }
+            throw error
+        }
+    }
+}
 
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = arguments
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
+public struct ProcessRunnerCommandExecutor: CommandExecutor {
+    private let processRunner: any ProcessRunner
 
-        try process.run()
-        process.waitUntilExit()
+    public init(processRunner: any ProcessRunner) {
+        self.processRunner = processRunner
+    }
 
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+    public func execute(_ command: Command, in context: ShellContext) async throws -> ShellOutput {
+        let executable = command.executableOverride ?? command.executableName
+        let result = try await processRunner.run([executable] + command.arguments)
+        return ShellOutput(stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode)
+    }
 
-        return ProcessResult(
-            exitCode: process.terminationStatus,
-            stdout: String(data: stdoutData, encoding: .utf8) ?? "",
-            stderr: String(data: stderrData, encoding: .utf8) ?? ""
-        )
-        #else
-        throw ProcessRunnerError.unsupportedPlatform
-        #endif
+    public func execute(_ pipeline: Pipeline, in context: ShellContext) async throws -> ShellOutput {
+        var output = ShellOutput(stdout: "", stderr: "", exitCode: 0)
+        for command in pipeline.stages {
+            output = try await execute(command, in: context)
+        }
+        return output
+    }
+}
+
+public extension ShellOutput {
+    var processResult: ProcessResult {
+        ProcessResult(exitCode: exitCode, stdout: stdout, stderr: stderr)
     }
 }

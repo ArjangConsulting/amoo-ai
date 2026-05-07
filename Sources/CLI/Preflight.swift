@@ -1,6 +1,9 @@
 import Foundation
+import GradleKit
 import MobileTestingCore
 import ProcessRunner
+import SwiftyShell
+import XcodeBuildKit
 
 public enum PreflightPlatform: String, Sendable {
     case iOS = "ios"
@@ -46,34 +49,49 @@ public protocol PreflightChecking: Sendable {
 }
 
 public struct DefaultPreflightChecker: PreflightChecking {
-    private let processRunner: any ProcessRunner
+    private let shellContext: ShellContext
 
     public init(processRunner: any ProcessRunner = SystemProcessRunner()) {
-        self.processRunner = processRunner
+        shellContext = ShellContext(
+            executor: ProcessRunnerCommandExecutor(processRunner: processRunner)
+        )
     }
 
     public func run(platform: PreflightPlatform) async -> PreflightReport {
         var checks: [PreflightCheck] = []
 
         if platform == .all || platform == .iOS {
-            await checks.append(check(
-                id: "ios.xcode-select",
-                command: ["xcode-select", "-p"],
-                remediation: "Install Xcode Command Line Tools and select an active developer directory."
-            ))
-            await checks.append(check(
-                id: "ios.simctl",
-                command: ["xcrun", "simctl", "list", "devices", "available"],
-                remediation: "Install Xcode simulator runtimes and ensure `xcrun simctl` is available."
-            ))
+            await checks.append(
+                check(
+                    id: "ios.xcode-select",
+                    commandDescription: "xcode-select -p",
+                    remediation: "Install Xcode Command Line Tools and select an active developer directory."
+                ) {
+                    try await XcodeSelect(context: shellContext).printPath().run().processResult
+                }
+            )
+            await checks.append(
+                check(
+                    id: "ios.simctl",
+                    commandDescription: "xcrun simctl list devices available --json",
+                    remediation: "Install Xcode simulator runtimes and ensure `xcrun simctl` is available."
+                ) {
+                    let output = try await SimctlRunner(context: shellContext).listDevices()
+                    return ProcessResult(exitCode: 0, stdout: output, stderr: "")
+                }
+            )
         }
 
         if platform == .all || platform == .android {
-            await checks.append(check(
-                id: "android.adb",
-                command: ["adb", "version"],
-                remediation: "Install Android platform-tools and add `adb` to PATH."
-            ))
+            await checks.append(
+                check(
+                    id: "android.adb",
+                    commandDescription: "adb version",
+                    remediation: "Install Android platform-tools and add `adb` to PATH."
+                ) {
+                    try await Adb(context: shellContext).rawArguments(["version"]).run().processResult
+                }
+            )
         }
 
         return PreflightReport(platform: platform, checks: checks)
@@ -81,16 +99,17 @@ public struct DefaultPreflightChecker: PreflightChecking {
 
     private func check(
         id: String,
-        command: [String],
-        remediation: String
+        commandDescription: String,
+        remediation: String,
+        run: () async throws -> ProcessResult
     ) async -> PreflightCheck {
         do {
-            let result = try await processRunner.run(command)
+            let result = try await run()
             if result.exitCode == 0 {
                 return PreflightCheck(
                     id: id,
                     status: .pass,
-                    message: "Command succeeded: \(command.joined(separator: " "))",
+                    message: "Command succeeded: \(commandDescription)",
                     remediation: remediation
                 )
             }
@@ -99,7 +118,8 @@ public struct DefaultPreflightChecker: PreflightChecking {
             return PreflightCheck(
                 id: id,
                 status: .fail,
-                message: "Exit \(result.exitCode): \(detail.trimmingCharacters(in: .whitespacesAndNewlines))",
+                message:
+                "Exit \(result.exitCode): \(detail.trimmingCharacters(in: .whitespacesAndNewlines))",
                 remediation: remediation
             )
         } catch {
@@ -115,15 +135,17 @@ public struct DefaultPreflightChecker: PreflightChecking {
 
 public func renderPreflightReport(_ report: PreflightReport) -> String {
     var lines: [String] = []
-    let statusText = report.hasFailures
-        ? colored("FAIL", .bold, .red)
-        : colored("PASS", .bold, .green)
+    let statusText =
+        report.hasFailures
+            ? colored("FAIL", .bold, .red)
+            : colored("PASS", .bold, .green)
     lines.append("preflight \(statusText) [\(report.platform.rawValue)]")
 
     for check in report.checks {
-        let badge = check.status == .pass
-            ? colored("[PASS]", .green)
-            : colored("[FAIL]", .red)
+        let badge =
+            check.status == .pass
+                ? colored("[PASS]", .green)
+                : colored("[FAIL]", .red)
         lines.append("\(badge) \(check.id) - \(check.message)")
         if check.status == .fail {
             lines.append("  \(colored("remediation:", .yellow)) \(check.remediation)")
