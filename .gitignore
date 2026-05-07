@@ -34,3 +34,6 @@ tmp/
 local.properties
 *.apk
 *.aab
+
+# Claude
+.claude/settings.local.json

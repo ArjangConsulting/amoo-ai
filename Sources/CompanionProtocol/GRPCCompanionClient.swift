@@ -501,11 +501,15 @@ public actor GRPCCompanionClient: CompanionClient {
     private let connection: CompanionConnection
     private var sessionID: String?
 
+    /// Construct an in-memory stub client. Useful for tests and offline development —
+    /// it does **not** open a network connection. For a real gRPC client use
+    /// ``makeLive(connection:)``.
     public init(connection: CompanionConnection) {
         self.connection = connection
         rpcClient = InMemoryCompanionRPCClient()
     }
 
+    /// Construct a client backed by a live gRPC connection.
     public static func makeLive(connection: CompanionConnection) throws -> GRPCCompanionClient {
         let rpcClient = try LiveCompanionRPCClient(connection: connection)
         return GRPCCompanionClient(connection: connection, rpcClient: rpcClient)
@@ -739,8 +743,11 @@ public actor GRPCCompanionClient: CompanionClient {
 
     private func validate(response: MobileTesting_ActionResponse, action: String) throws {
         guard response.success else {
+            // Runtime action failures (element not found, tap missed) — these are not
+            // capability-negotiation problems. Surface them as commandFailed so callers
+            // catching MobileTestingError.commandFailed see them as expected.
             let reason = response.message.nonEmpty ?? "unknown"
-            throw MobileTestingError.unsupportedCapability(key: "action.\(action)", reason: reason)
+            throw MobileTestingError.commandFailed(command: action, output: reason)
         }
     }
 }

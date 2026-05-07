@@ -127,7 +127,9 @@ public actor DriverToolExecutor: ToolExecutor {
                 return .error("Missing required argument: text")
             }
             try await driver.typeText(text)
-            return .success("Typed: \(text)")
+            // Don't echo the typed text — it may contain passwords, PINs, or
+            // other secrets that the test injects into the app.
+            return .success("Typed \(text.count) character(s)")
 
         case "clear_text":
             let count = arguments["character_count"].flatMap(Int.init)
@@ -202,7 +204,14 @@ public actor DriverToolExecutor: ToolExecutor {
             else {
                 return .error("Missing required arguments: app_id, permission")
             }
-            let granted = arguments["granted"] != "false"
+            let grantedRaw = arguments["granted"]?.lowercased() ?? "true"
+            let granted: Bool
+            switch grantedRaw {
+            case "true", "1", "yes", "grant": granted = true
+            case "false", "0", "no", "revoke": granted = false
+            default:
+                return .error("Invalid value for granted: '\(grantedRaw)'. Use true or false.")
+            }
             try await driver.setPermission(PermissionChange(appID: appID, permission: permission, granted: granted))
             return .success("\(granted ? "Granted" : "Revoked") \(permission) for \(appID)")
 

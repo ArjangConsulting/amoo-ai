@@ -276,7 +276,8 @@ extension IOSDriver {
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let devices = root["devices"] as? [String: [[String: Any]]]
         else {
-            return DeviceInfo(id: deviceID, name: deviceID, platform: .ios, osVersion: "unknown", state: .booted)
+            // JSON parse failed — we genuinely don't know the device state.
+            return DeviceInfo(id: deviceID, name: deviceID, platform: .ios, osVersion: "unknown", state: .unknown)
         }
 
         for (runtime, deviceList) in devices {
@@ -286,17 +287,28 @@ extension IOSDriver {
                 let isMatch = udid == deviceID || (deviceID == "booted" && state == "Booted")
                 if isMatch {
                     let name = device["name"] as? String ?? deviceID
-                    // runtime format: "com.apple.CoreSimulator.SimRuntime.iOS-17-2"
-                    let osVersion = runtime
-                        .replacingOccurrences(of: "com.apple.CoreSimulator.SimRuntime.iOS-", with: "")
-                        .replacingOccurrences(of: "-", with: ".")
+                    let osVersion = parseRuntimeVersion(runtime)
                     let deviceState: DeviceState = state == "Booted" ? .booted : .shutdown
                     return DeviceInfo(id: udid, name: name, platform: .ios, osVersion: osVersion, state: deviceState)
                 }
             }
         }
 
-        return DeviceInfo(id: deviceID, name: deviceID, platform: .ios, osVersion: "unknown", state: .booted)
+        // Device not found in the list — we can't claim it's booted.
+        return DeviceInfo(id: deviceID, name: deviceID, platform: .ios, osVersion: "unknown", state: .unknown)
+    }
+
+    /// Strip the `com.apple.CoreSimulator.SimRuntime.<OS>-` prefix and convert the
+    /// remaining `<major>-<minor>` to a dotted version. Handles iOS, watchOS, tvOS,
+    /// and visionOS so callers see clean version strings rather than the raw bundle id.
+    private func parseRuntimeVersion(_ runtime: String) -> String {
+        let prefix = "com.apple.CoreSimulator.SimRuntime."
+        guard runtime.hasPrefix(prefix) else { return runtime }
+        let suffix = runtime.dropFirst(prefix.count)
+        // suffix looks like "iOS-17-2" / "watchOS-10-0" — drop the OS-name segment.
+        guard let dashIndex = suffix.firstIndex(of: "-") else { return String(suffix) }
+        let version = suffix[suffix.index(after: dashIndex)...]
+        return version.replacingOccurrences(of: "-", with: ".")
     }
 
     func parseAppList(plistOutput: String) -> [AppInfo] {

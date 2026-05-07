@@ -254,7 +254,17 @@ void cli_set_command_completions(const char *command, const char *items) {
     }
 
     g_command_items = resized;
-    g_command_items[g_command_count].command = strdup(command);
+
+    // strdup can return NULL under memory pressure; we must check before
+    // installing the entry, otherwise cli_find_command_items would later
+    // dereference NULL during strcmp.
+    char *command_copy = strdup(command);
+    if (!command_copy) {
+        cli_free_items(parsed_items, parsed_count);
+        return;
+    }
+
+    g_command_items[g_command_count].command = command_copy;
     g_command_items[g_command_count].items = parsed_items;
     g_command_items[g_command_count].count = parsed_count;
     g_command_count += 1;

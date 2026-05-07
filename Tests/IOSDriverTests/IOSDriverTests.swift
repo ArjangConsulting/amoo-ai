@@ -179,7 +179,7 @@ final class IOSDriverTests: XCTestCase {
         XCTAssertEqual(info.id, "custom-device")
         XCTAssertEqual(info.name, "custom-device")
         XCTAssertEqual(info.osVersion, "unknown")
-        XCTAssertEqual(info.state, .booted)
+        XCTAssertEqual(info.state, .unknown)
     }
 
     func testListAppsParsesJSONAndPlistFallback() async throws {

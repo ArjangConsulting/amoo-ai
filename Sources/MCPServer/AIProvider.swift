@@ -60,7 +60,9 @@ public actor OllamaProvider: AIProvider {
     // MARK: - Ollama API
 
     private func generate(prompt: String) async throws -> String {
-        let url = URL(string: "\(baseURL)/api/generate")!
+        guard let url = URL(string: "\(baseURL)/api/generate") else {
+            throw OllamaError.invalidBaseURL(baseURL)
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -146,6 +148,7 @@ public actor OllamaProvider: AIProvider {
 }
 
 public enum OllamaError: Error, Sendable {
+    case invalidBaseURL(String)
     case invalidResponse
     case httpError(statusCode: Int, body: String)
     case invalidJSON
