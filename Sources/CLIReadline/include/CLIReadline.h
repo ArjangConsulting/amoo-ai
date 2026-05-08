@@ -22,3 +22,7 @@ void cli_set_root_completions(const char *items);
 
 /// Configure argument completions for a command (newline-delimited values).
 void cli_set_command_completions(const char *command, const char *items);
+
+/// Returns non-zero when `candidate` should match `text` for completion.
+/// Prefix matches win; substring matches are only accepted when prefix mode is disabled.
+int cli_completion_candidate_matches(const char *candidate, const char *text, int prefer_prefix);
