@@ -382,12 +382,6 @@ public enum CommandCoverageMatrix {
         )
     ]
 
-    public static let deprecatedAIAliases: [String: String] = [
-        "describe_screen": "ai_describe_screen",
-        "suggest_actions": "ai_suggest_actions",
-        "find_by_description": "ai_find_by_description"
-    ]
-
     public static var publicMCPToolNames: [String] {
         mcpCommands.map(\.name)
     }

@@ -19,9 +19,6 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(names.contains("ai_describe_screen"))
         XCTAssertTrue(names.contains("ai_suggest_actions"))
         XCTAssertTrue(names.contains("ai_find_by_description"))
-        XCTAssertTrue(names.contains("describe_screen"))
-        XCTAssertTrue(names.contains("suggest_actions"))
-        XCTAssertTrue(names.contains("find_by_description"))
     }
 
     func testToolDefinitionsHaveSchemas() throws {
@@ -282,25 +279,22 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(result.content.contains("match") || result.content.contains("No elements"))
     }
 
-    func testDeprecatedAIAliasesMatchCanonicalTools() async {
+    func testRemovedAIAliasesReturnUnknownTool() async {
         let driver = AuditMockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
         let describeAlias = await server.execute(toolName: "describe_screen", arguments: [:])
-        let describeCanonical = await server.execute(toolName: "ai_describe_screen", arguments: [:])
-        XCTAssertEqual(describeAlias.content, describeCanonical.content)
+        XCTAssertTrue(describeAlias.isError)
+        XCTAssertTrue(describeAlias.content.contains("Unknown tool"))
 
         let suggestAlias = await server.execute(toolName: "suggest_actions", arguments: [:])
-        let suggestCanonical = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
-        XCTAssertEqual(suggestAlias.content, suggestCanonical.content)
+        XCTAssertTrue(suggestAlias.isError)
+        XCTAssertTrue(suggestAlias.content.contains("Unknown tool"))
 
         let findAlias = await server.execute(toolName: "find_by_description", arguments: ["description": "submit"])
-        let findCanonical = await server.execute(
-            toolName: "ai_find_by_description",
-            arguments: ["description": "submit"]
-        )
-        XCTAssertEqual(findAlias.content, findCanonical.content)
+        XCTAssertTrue(findAlias.isError)
+        XCTAssertTrue(findAlias.content.contains("Unknown tool"))
     }
 
     func testLocalAIProviderResolveDescriptionMatchesLabelAndIDCaseInsensitively() async throws {

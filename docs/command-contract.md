@@ -20,10 +20,6 @@ This repo now treats public commands as a release contract.
   - `ai_describe_screen`
   - `ai_suggest_actions`
   - `ai_find_by_description`
-- Deprecated aliases remain temporarily:
-  - `describe_screen`
-  - `suggest_actions`
-  - `find_by_description`
 
 ## Blocking vs Informational
 

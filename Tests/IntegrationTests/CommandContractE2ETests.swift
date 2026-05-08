@@ -183,7 +183,7 @@ final class CommandContractE2ETests: XCTestCase {
         XCTAssertTrue(screenshot.content.contains("bytes"))
     }
 
-    func testAICanonicalNamesAndAliases() async throws {
+    func testAICanonicalNames() async throws {
         let server = try makeServer()
         _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
 
@@ -194,18 +194,6 @@ final class CommandContractE2ETests: XCTestCase {
             )
             XCTAssertFalse(result.isError, "Expected \(canonical) to succeed: \(result.content)")
             XCTAssertFalse(result.content.isEmpty)
-        }
-
-        for (alias, canonical) in CommandCoverageMatrix.deprecatedAIAliases {
-            let aliasResult = await server.execute(
-                toolName: alias,
-                arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:]
-            )
-            let canonicalResult = await server.execute(
-                toolName: canonical,
-                arguments: canonical == "ai_find_by_description" ? ["description": "Fixture Home"] : [:]
-            )
-            XCTAssertEqual(aliasResult.content, canonicalResult.content)
         }
     }
 
