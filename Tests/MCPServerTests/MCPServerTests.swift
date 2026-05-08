@@ -1,8 +1,7 @@
-// swiftlint:disable file_length
-import MCPServer
+
+@testable import MCPServer
 import MobileTestingCore
 import XCTest
-@testable import MCPServer
 
 final class MCPServerTests: XCTestCase {
     func testToolNamesAreExposed() {
@@ -322,7 +321,12 @@ final class MCPServerTests: XCTestCase {
         let captured = LockedBox<URLRequest?>(nil)
         let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
             await captured.set(request)
-            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
             let data = try JSONSerialization.data(withJSONObject: ["response": "  concise summary  \n"])
             return (data, response)
         }
@@ -354,11 +358,16 @@ final class MCPServerTests: XCTestCase {
 
     func testOllamaProviderSuggestActionsSplitsLinesAndTruncatesElementList() async throws {
         let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
             let data = try JSONSerialization.data(withJSONObject: ["response": "Tap Login\nScroll down\n"])
             return (data, response)
         }
-        let elements = (1...25).map { index in
+        let elements = (1 ... 25).map { index in
             ElementInfo(id: "id-\(index)", label: "Label \(index)", type: .button)
         }
 
@@ -372,8 +381,14 @@ final class MCPServerTests: XCTestCase {
 
     func testOllamaProviderResolveDescriptionMatchesIDsAndLabelsFromResponse() async throws {
         let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = try JSONSerialization.data(withJSONObject: ["response": "Use submit1 and Settings for this action"])
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            let data = try JSONSerialization
+                .data(withJSONObject: ["response": "Use submit1 and Settings for this action"])
             return (data, response)
         }
         let elements = [
@@ -392,17 +407,30 @@ final class MCPServerTests: XCTestCase {
 
     func testOllamaProviderThrowsHTTPAndJSONErrors() async {
         let httpProvider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 500, httpVersion: nil, headerFields: nil)!
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 500,
+                httpVersion: nil,
+                headerFields: nil
+            )!
             return (Data("failure".utf8), response)
         }
         let jsonProvider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
             let data = try JSONSerialization.data(withJSONObject: ["unexpected": true])
             return (data, response)
         }
 
         do {
-            _ = try await httpProvider.describeScreen(context: ScreenContext(summary: "Fail"), hierarchy: ViewNode(id: "root"))
+            _ = try await httpProvider.describeScreen(
+                context: ScreenContext(summary: "Fail"),
+                hierarchy: ViewNode(id: "root")
+            )
             XCTFail("Expected http error")
         } catch let error as OllamaError {
             guard case let .httpError(statusCode, body) = error else {
@@ -415,7 +443,10 @@ final class MCPServerTests: XCTestCase {
         }
 
         do {
-            _ = try await jsonProvider.describeScreen(context: ScreenContext(summary: "Fail"), hierarchy: ViewNode(id: "root"))
+            _ = try await jsonProvider.describeScreen(
+                context: ScreenContext(summary: "Fail"),
+                hierarchy: ViewNode(id: "root")
+            )
             XCTFail("Expected invalid JSON")
         } catch let error as OllamaError {
             guard case .invalidJSON = error else {

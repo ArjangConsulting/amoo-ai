@@ -250,7 +250,10 @@ final class MobileTestingCoreTests: XCTestCase {
         XCTAssertEqual(ImageFormat.jpeg.rawValue, "jpeg")
         XCTAssertEqual(RecordingSession(id: "rec", deviceID: "booted"), RecordingSession(id: "rec", deviceID: "booted"))
         XCTAssertEqual(ElementType.switchControl.rawValue, "switch")
-        XCTAssertEqual(AppInfo(appID: "com.example", name: "Example", version: "1.0"), AppInfo(appID: "com.example", name: "Example", version: "1.0"))
+        XCTAssertEqual(
+            AppInfo(appID: "com.example", name: "Example", version: "1.0"),
+            AppInfo(appID: "com.example", name: "Example", version: "1.0")
+        )
         XCTAssertEqual(AppState.notInstalled.rawValue, "notInstalled")
         XCTAssertEqual(Appearance.dark.rawValue, "dark")
         XCTAssertEqual(

@@ -228,13 +228,12 @@ func parseADBDevices(output: String) -> [(serial: String, name: String)] {
         guard parts.count >= 2, parts[1] == "device" else { continue }
         let serial = parts[0]
         // Extract model name from "model:Pixel_7" token if present, else fall back to serial
-        let name: String
-        if let modelToken = parts.first(where: { $0.hasPrefix("model:") }) {
-            name = modelToken
+        let name: String = if let modelToken = parts.first(where: { $0.hasPrefix("model:") }) {
+            modelToken
                 .replacingOccurrences(of: "model:", with: "")
                 .replacingOccurrences(of: "_", with: " ")
         } else {
-            name = serial
+            serial
         }
         results.append((serial: serial, name: name))
     }

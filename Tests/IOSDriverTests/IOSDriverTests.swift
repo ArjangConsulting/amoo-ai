@@ -271,7 +271,10 @@ final class IOSDriverTests: XCTestCase {
         } catch let error as MobileTestingError {
             XCTAssertEqual(
                 error,
-                .commandFailed(command: "startRecording", output: "Only one active iOS recording is supported per driver.")
+                .commandFailed(
+                    command: "startRecording",
+                    output: "Only one active iOS recording is supported per driver."
+                )
             )
         }
 
@@ -473,7 +476,12 @@ private actor MockCompanionClient: CompanionClient {
     private var _pressBackCount = 0
     private var _pressHomeCount = 0
     private var _findElementsResponses: [[ElementInfo]] = []
-    private var _waitForElementCalls: [(selector: ElementSelector, timeout: Duration, appID: String?, candidateBundleIDs: [String])] = []
+    private var _waitForElementCalls: [(
+        selector: ElementSelector,
+        timeout: Duration,
+        appID: String?,
+        candidateBundleIDs: [String]
+    )] = []
     private var _keyboardVisible = false
     private var _interactableElements: [ElementInfo] = []
     private var _findByDescriptionResults: [ElementInfo] = []
@@ -493,6 +501,7 @@ private actor MockCompanionClient: CompanionClient {
     func longPress(at point: Point, duration: Duration) async throws {
         _longPresses.append((point, duration))
     }
+
     func tapElement(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws {
         lastTapElementContext = (selector, appID, candidateBundleIDs)
     }
@@ -541,8 +550,14 @@ private actor MockCompanionClient: CompanionClient {
         appID: String?,
         candidateBundleIDs: [String]
     ) async throws {
-        _waitForElementCalls.append((selector: selector, timeout: timeout, appID: appID, candidateBundleIDs: candidateBundleIDs))
+        _waitForElementCalls.append((
+            selector: selector,
+            timeout: timeout,
+            appID: appID,
+            candidateBundleIDs: candidateBundleIDs
+        ))
     }
+
     func isKeyboardVisible() async throws -> Bool {
         _keyboardVisible
     }
@@ -594,7 +609,12 @@ private actor MockCompanionClient: CompanionClient {
         _findElementsResponses = responses
     }
 
-    func waitForElementCalls() -> [(selector: ElementSelector, timeout: Duration, appID: String?, candidateBundleIDs: [String])] {
+    func waitForElementCalls() -> [(
+        selector: ElementSelector,
+        timeout: Duration,
+        appID: String?,
+        candidateBundleIDs: [String]
+    )] {
         _waitForElementCalls
     }
 
