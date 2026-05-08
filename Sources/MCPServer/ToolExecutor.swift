@@ -247,13 +247,13 @@ public actor DriverToolExecutor: ToolExecutor {
             return try await executeAudit(arguments: arguments, rulePacks: RulePacks.security)
 
         // AI tools
-        case "ai_describe_screen", "describe_screen":
+        case "ai_describe_screen":
             return try await executeDescribeScreen()
 
-        case "ai_suggest_actions", "suggest_actions":
+        case "ai_suggest_actions":
             return try await executeSuggestActions()
 
-        case "ai_find_by_description", "find_by_description":
+        case "ai_find_by_description":
             guard let description = arguments["description"] else {
                 return .error("Missing required argument: description")
             }

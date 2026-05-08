@@ -8,7 +8,7 @@ final class CommandContractTests: XCTestCase {
 
         XCTAssertEqual(
             Set(server.toolNames()),
-            Set(CommandCoverageMatrix.publicMCPToolNames + Array(CommandCoverageMatrix.deprecatedAIAliases.keys)),
+            Set(CommandCoverageMatrix.publicMCPToolNames),
             "Every public MCP tool must declare contract coverage."
         )
     }
@@ -19,13 +19,9 @@ final class CommandContractTests: XCTestCase {
         }
     }
 
-    func testAllAIAliasesPointToKnownCanonicalTools() {
-        for (alias, canonical) in CommandCoverageMatrix.deprecatedAIAliases {
-            XCTAssertNotNil(
-                CommandCoverageMatrix.coverage(for: canonical),
-                "Missing coverage for canonical tool \(canonical)"
-            )
-            XCTAssertFalse(alias.isEmpty)
+    func testAllAIToolCoverageEntriesAreCanonical() {
+        for toolName in CommandCoverageMatrix.aiToolNames {
+            XCTAssertTrue(toolName.hasPrefix("ai_"), "AI tools must use the ai_* prefix: \(toolName)")
         }
     }
 }

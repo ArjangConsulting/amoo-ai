@@ -17,22 +17,6 @@ public enum AITools {
                 "description": .init(type: "string", description: "Natural language description of the element to find")
             ],
             required: ["description"]
-        ),
-        ToolDefinition(
-            name: "describe_screen",
-            description: "Deprecated alias for ai_describe_screen"
-        ),
-        ToolDefinition(
-            name: "suggest_actions",
-            description: "Deprecated alias for ai_suggest_actions"
-        ),
-        ToolDefinition(
-            name: "find_by_description",
-            description: "Deprecated alias for ai_find_by_description",
-            properties: [
-                "description": .init(type: "string", description: "Natural language description of the element to find")
-            ],
-            required: ["description"]
         )
     ]
 }
