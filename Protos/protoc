@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+if [ -n "${PROTOC_PATH:-}" ]; then
+  exec "$PROTOC_PATH" "$@"
+fi
+
+if command -v protoc >/dev/null 2>&1; then
+  exec protoc "$@"
+fi
+
+echo "error: protoc is required for protobuf code generation." >&2
+echo "Install protobuf or set PROTOC_PATH to a protoc executable." >&2
+exit 1
