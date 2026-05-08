@@ -1,3 +1,4 @@
+import AndroidDriver
 import CLIReadline
 import CompanionProtocol
 import Darwin
@@ -8,7 +9,26 @@ import MobileTestingCore
 
 // MARK: - REPL entry point
 
-func runREPL(device: BootedDevice, port: Int, companionManager: CompanionManager) async {
+func runREPL(device: AvailableDevice, port: Int) async {
+    switch device {
+    case let .ios(bootedDevice):
+        await runIOSREPL(device: bootedDevice, port: port)
+    case let .android(serial, name):
+        await runAndroidREPL(serial: serial, name: name, port: port)
+    }
+}
+
+private func runIOSREPL(device: BootedDevice, port: Int) async {
+    let manager = CompanionManager()
+    let config = CompanionConfig(port: port, deviceUDID: device.udid)
+
+    do {
+        try await manager.ensureRunning(config: config)
+    } catch {
+        print("Failed to install/start companion: \(error)")
+        return
+    }
+
     let connection = CompanionConnection(host: "127.0.0.1", port: port)
     let companion: GRPCCompanionClient
     do {
@@ -29,10 +49,41 @@ func runREPL(device: BootedDevice, port: Int, companionManager: CompanionManager
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
-    await replLoop(executor: executor, driver: driver, toolDefinitions: toolDefinitions)
+    await replLoop(executor: executor, screenshotHandler: { args in
+        await handleIOSScreenshot(driver: driver, arguments: args)
+    }, toolDefinitions: toolDefinitions)
 
     await companion.shutdown()
-    await companionManager.shutdown()
+    await manager.shutdown()
+}
+
+private func runAndroidREPL(serial: String, name: String, port: Int) async {
+    let connection = CompanionConnection(host: "127.0.0.1", port: port)
+    let companion: GRPCCompanionClient
+    do {
+        companion = try GRPCCompanionClient.makeLive(connection: connection)
+    } catch {
+        print("Failed to connect to Android companion on port \(port): \(error)")
+        print(colored("Hint: ensure the Android companion is running and port \(port) is forwarded via adb.", .gray))
+        return
+    }
+
+    let driver = AndroidDriver(companion: companion, serial: serial.isEmpty ? nil : serial)
+    let executor = DriverToolExecutor(driver: driver)
+    let mcpServer = MCPServer()
+    let toolDefinitions = mcpServer.toolDefinitions()
+    REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
+
+    print("")
+    print(colored("Connected to \(name) (\(serial))", .bold, .green) + " on port \(port)")
+    print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
+    print("")
+
+    await replLoop(executor: executor, screenshotHandler: { args in
+        await handleAndroidScreenshot(driver: driver, arguments: args)
+    }, toolDefinitions: toolDefinitions)
+
+    await companion.shutdown()
 }
 
 // MARK: - Main loop
@@ -47,7 +98,7 @@ private func replHistoryPath() -> String? {
 
 private func replLoop(
     executor: DriverToolExecutor,
-    driver: IOSDriver,
+    screenshotHandler: @escaping @Sendable ([String: String]) async -> Void,
     toolDefinitions: [ToolDefinition]
 ) async {
     // Load history from previous sessions
@@ -73,7 +124,12 @@ private func replLoop(
             break // quit/exit
         }
 
-        await dispatch(line: trimmed, executor: executor, driver: driver, toolDefinitions: toolDefinitions)
+        await dispatch(
+            line: trimmed,
+            executor: executor,
+            screenshotHandler: screenshotHandler,
+            toolDefinitions: toolDefinitions
+        )
     }
 }
 
@@ -134,7 +190,7 @@ private func printHelp(definitions: [ToolDefinition]) {
 private func dispatch(
     line: String,
     executor: DriverToolExecutor,
-    driver: IOSDriver,
+    screenshotHandler: @escaping @Sendable ([String: String]) async -> Void,
     toolDefinitions: [ToolDefinition]
 ) async {
     let (toolName, parts) = shellSplit(line)
@@ -173,7 +229,7 @@ private func dispatch(
     // Screenshot: save bytes to a file
     if toolName == "take_screenshot" {
         await withCLILoadingIndicator("Capturing screenshot") {
-            await handleScreenshot(driver: driver, arguments: arguments)
+            await screenshotHandler(arguments)
         }
         return
     }
@@ -196,7 +252,7 @@ private func dispatch(
     }
 }
 
-private func handleScreenshot(driver: IOSDriver, arguments: [String: String]) async {
+private func handleIOSScreenshot(driver: IOSDriver, arguments: [String: String]) async {
     do {
         let requestedFormat = arguments["format"]?.lowercased()
         let format: ImageFormat = requestedFormat == "jpeg" ? .jpeg : .png
@@ -208,6 +264,23 @@ private func handleScreenshot(driver: IOSDriver, arguments: [String: String]) as
         } else {
             let timestamp = Int(Date().timeIntervalSince1970)
             outputPath = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).\(fileExtension)"
+        }
+        try Data(data.bytes).write(to: URL(fileURLWithPath: outputPath))
+        print(colored("Screenshot saved: \(outputPath)", .green))
+    } catch {
+        print(colored("Screenshot failed: \(error)", .red))
+    }
+}
+
+private func handleAndroidScreenshot(driver: AndroidDriver, arguments: [String: String]) async {
+    do {
+        let data = try await driver.takeScreenshot(format: .png)
+        let outputPath: String
+        if let path = arguments["output"] {
+            outputPath = path
+        } else {
+            let timestamp = Int(Date().timeIntervalSince1970)
+            outputPath = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).png"
         }
         try Data(data.bytes).write(to: URL(fileURLWithPath: outputPath))
         print(colored("Screenshot saved: \(outputPath)", .green))
