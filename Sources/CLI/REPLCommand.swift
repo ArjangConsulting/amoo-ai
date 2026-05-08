@@ -7,6 +7,7 @@ struct REPLOptions {
     var port: Int
     var deviceHint: String?
     var platform: Platform?
+    var enableAI: Bool
 }
 
 func parseREPLOptions(args: [String]) -> REPLOptions {
@@ -35,6 +36,14 @@ func parseREPLOptions(args: [String]) -> REPLOptions {
                 platform = Platform(rawValue: value.lowercased())
                 remaining.removeFirst()
             }
+        case "--enable-ai":
+            remaining.removeFirst()
+            return REPLOptions(
+                port: port ?? (platform == .android ? 22088 : 22087),
+                deviceHint: deviceHint,
+                platform: platform,
+                enableAI: true
+            )
         default:
             remaining.removeFirst()
         }
@@ -50,7 +59,7 @@ func parseREPLOptions(args: [String]) -> REPLOptions {
         22087 // will be overridden after device selection when Android is chosen
     }
 
-    return REPLOptions(port: resolvedPort, deviceHint: deviceHint, platform: platform)
+    return REPLOptions(port: resolvedPort, deviceHint: deviceHint, platform: platform, enableAI: false)
 }
 
 // MARK: - REPL mode entry point
@@ -80,5 +89,21 @@ func startREPLMode(args: [String]) async {
         }
     }
 
-    await runREPL(device: device, port: options.port)
+    let oneTimeAIConfiguration: AIProviderConfiguration?
+    if options.enableAI {
+        let wizard = AISetupWizard()
+        do {
+            oneTimeAIConfiguration = try await wizard.runOneTimeSetup()
+        } catch let error as AISetupError {
+            print(error.description)
+            return
+        } catch {
+            print("AI setup failed: \(error)")
+            return
+        }
+    } else {
+        oneTimeAIConfiguration = nil
+    }
+
+    await runREPL(device: device, port: options.port, oneTimeAIConfiguration: oneTimeAIConfiguration)
 }

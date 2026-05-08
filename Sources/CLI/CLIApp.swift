@@ -17,17 +17,26 @@ public struct CLIApp {
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
     private let aiStatusChecker: any AIStatusChecking
+    private let aiSetupWizard: AISetupWizard
+    private let aiResolver: AIConfigurationResolver
+    private let aiSettingsStore: any AISettingsStore
 
     public init(
         mcpServer: MCPServer = .init(),
         preflightChecker: any PreflightChecking = DefaultPreflightChecker(),
         auditRunner: any AuditRunning = DefaultAuditRunner(),
-        aiStatusChecker: any AIStatusChecking = DefaultAIStatusChecker()
+        aiStatusChecker: any AIStatusChecking = DefaultAIStatusChecker(),
+        aiSetupWizard: AISetupWizard = AISetupWizard(),
+        aiResolver: AIConfigurationResolver = AIConfigurationResolver(),
+        aiSettingsStore: any AISettingsStore = FileAISettingsStore()
     ) {
         self.mcpServer = mcpServer
         self.preflightChecker = preflightChecker
         self.auditRunner = auditRunner
         self.aiStatusChecker = aiStatusChecker
+        self.aiSetupWizard = aiSetupWizard
+        self.aiResolver = aiResolver
+        self.aiSettingsStore = aiSettingsStore
     }
 
     // swiftlint:disable:next cyclomatic_complexity
@@ -82,8 +91,36 @@ public struct CLIApp {
             switch parseAICommand(args: Array(args.dropFirst())) {
             case let .failure(error):
                 return CLIResult(output: error.description, exitCode: 64)
-            case .success:
+            case .success(.status):
                 return await runAIStatusCommand(checker: aiStatusChecker)
+            case .success(.setup):
+                do {
+                    let result = try await aiSetupWizard.runPersistentSetup()
+                    let output = if result.shouldPersist {
+                        if let fileStore = aiSettingsStore as? FileAISettingsStore {
+                            "Saved AI settings to \(fileStore.path)\nprovider: \(result.configuration.provider.rawValue)"
+                        } else {
+                            "Saved AI settings.\nprovider: \(result.configuration.provider.rawValue)"
+                        }
+                    } else {
+                        "No AI settings were saved."
+                    }
+                    return CLIResult(output: output, exitCode: 0)
+                } catch let error as AISetupError {
+                    return CLIResult(output: error.description, exitCode: 1)
+                } catch {
+                    return CLIResult(output: "AI setup failed: \(error)", exitCode: 1)
+                }
+            case .success(.config):
+                let configuration = (try? aiResolver.resolve()) ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
+                return CLIResult(output: renderAIConfig(configuration), exitCode: 0)
+            case .success(.reset):
+                do {
+                    try aiSettingsStore.reset()
+                    return CLIResult(output: "AI settings reset.", exitCode: 0)
+                } catch {
+                    return CLIResult(output: "Failed to reset AI settings: \(error)", exitCode: 1)
+                }
             }
         }
 

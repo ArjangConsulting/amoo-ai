@@ -16,10 +16,10 @@ public struct AIStatusCheck: Sendable, Equatable {
 }
 
 public struct AIStatusReport: Sendable, Equatable {
-    public var provider: ConfiguredAIProvider
+    public var provider: ResolvedAIConfiguration
     public var checks: [AIStatusCheck]
 
-    public init(provider: ConfiguredAIProvider, checks: [AIStatusCheck]) {
+    public init(provider: ResolvedAIConfiguration, checks: [AIStatusCheck]) {
         self.provider = provider
         self.checks = checks
     }
@@ -35,22 +35,28 @@ public protocol AIStatusChecking: Sendable {
 
 public struct DefaultAIStatusChecker: AIStatusChecking {
     private let transport: @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    private let resolver: AIConfigurationResolver
 
-    public init() {
+    public init(resolver: AIConfigurationResolver = AIConfigurationResolver()) {
+        self.resolver = resolver
         transport = { request in
             try await URLSession.shared.data(for: request)
         }
     }
 
-    init(transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) {
+    init(
+        resolver: AIConfigurationResolver = AIConfigurationResolver(),
+        transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    ) {
+        self.resolver = resolver
         self.transport = transport
     }
 
     public func run(environment: [String: String]) async -> AIStatusReport {
-        let provider = resolveAIProviderConfiguration(environment: environment)
+        let provider = (try? resolver.resolve(environment: environment)) ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
 
-        switch provider {
-        case .none:
+        switch provider.provider {
+        case .disabled:
             return AIStatusReport(provider: provider, checks: [
                 AIStatusCheck(
                     id: "ai.provider",
@@ -65,22 +71,26 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
                 AIStatusCheck(
                     id: "ai.provider",
                     status: .pass,
-                    message: "Using the local deterministic provider.",
+                    message: "Using the local deterministic provider from \(provider.source).",
                     remediation: "Set MOBILE_TESTING_AI_PROVIDER=ollama to use a real model."
                 )
             ])
 
-        case let .ollama(baseURL, model):
-            return await checkOllama(baseURL: baseURL, model: model, provider: provider)
+        case .ollama:
+            return await checkOllama(
+                baseURL: provider.baseURL ?? defaultOllamaBaseURL,
+                model: provider.model ?? defaultOllamaModel,
+                provider: provider
+            )
         }
     }
 
-    private func checkOllama(baseURL: String, model: String, provider: ConfiguredAIProvider) async -> AIStatusReport {
+    private func checkOllama(baseURL: String, model: String, provider: ResolvedAIConfiguration) async -> AIStatusReport {
         var checks: [AIStatusCheck] = [
             AIStatusCheck(
                 id: "ai.provider",
                 status: .pass,
-                message: "Using Ollama at \(baseURL) with model \(model).",
+                message: "Using Ollama at \(baseURL) with model \(model) from \(provider.source).",
                 remediation: "Adjust MOBILE_TESTING_AI_OLLAMA_BASE_URL or MOBILE_TESTING_AI_OLLAMA_MODEL if needed."
             )
         ]
@@ -156,21 +166,34 @@ enum AICommandParseError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .missingAction:
-            "Usage: mobile-testing ai status"
+            "Usage: mobile-testing ai <setup|status|config|reset>"
         case let .unknownAction(action):
             "Unknown ai action '\(action)'. Run 'mobile-testing ai' for usage."
         }
     }
 }
 
-func parseAICommand(args: [String]) -> Result<String, AICommandParseError> {
+enum AICommandAction: String, Equatable {
+    case setup
+    case status
+    case config
+    case reset
+}
+
+func parseAICommand(args: [String]) -> Result<AICommandAction, AICommandParseError> {
     guard let action = args.first else {
         return .failure(.missingAction)
     }
 
     switch action {
+    case "setup":
+        return .success(.setup)
     case "status":
-        return .success(action)
+        return .success(.status)
+    case "config":
+        return .success(.config)
+    case "reset":
+        return .success(.reset)
     default:
         return .failure(.unknownAction(action))
     }
@@ -182,6 +205,22 @@ func runAIStatusCommand(
 ) async -> CLIResult {
     let report = await checker.run(environment: environment)
     return CLIResult(output: renderAIStatusReport(report), exitCode: report.hasFailures ? 1 : 0)
+}
+
+func renderAIConfig(_ configuration: ResolvedAIConfiguration) -> String {
+    var lines = [
+        "provider: \(configuration.provider.rawValue)",
+        "source: \(configuration.source)"
+    ]
+
+    if let baseURL = configuration.baseURL {
+        lines.append("base_url: \(baseURL)")
+    }
+    if let model = configuration.model {
+        lines.append("model: \(model)")
+    }
+
+    return lines.joined(separator: "\n")
 }
 
 func renderAIStatusReport(_ report: AIStatusReport) -> String {
