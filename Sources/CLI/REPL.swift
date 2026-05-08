@@ -32,7 +32,7 @@ func runREPL(device: BootedDevice, port: Int, companionManager: CompanionManager
     await replLoop(executor: executor, driver: driver, toolDefinitions: toolDefinitions)
 
     await companion.shutdown()
-    companionManager.shutdown()
+    await companionManager.shutdown()
 }
 
 // MARK: - Main loop

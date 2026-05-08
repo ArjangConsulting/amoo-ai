@@ -111,27 +111,19 @@ public struct SimctlRunner: SimctlRunning {
     }
 
     public func startRecording(device: String, outputPath: String) async throws -> Int32 {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments =
-            ["xcrun", "simctl"]
-                + SimctlCommand.io(
-                    device,
-                    command: "recordVideo",
-                    arguments: ["--codec=h264", "--force", outputPath]
-                ).arguments
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
-
-        try process.run()
+        let process = try await Simctl(context: context)
+            .command(
+                .io(device, command: "recordVideo", arguments: ["--codec=h264", "--force", outputPath])
+            )
+            .spawn(teardown: .interruptThenTerminate)
         await SimctlRecordingRegistry.shared.register(process)
         return process.processIdentifier
     }
 
     public func stopRecording(pid: Int32) async throws {
         if let process = await SimctlRecordingRegistry.shared.remove(pid: pid) {
-            process.interrupt()
-            process.waitUntilExit()
+            try await process.interrupt()
+            _ = await process.waitForExit()
             return
         }
 
@@ -205,13 +197,13 @@ private func processRunnerError(_ error: ShellError, command: String) -> Error {
 private actor SimctlRecordingRegistry {
     static let shared = SimctlRecordingRegistry()
 
-    private var processes: [Int32: Process] = [:]
+    private var processes: [Int32: any SpawnedProcess] = [:]
 
-    func register(_ process: Process) {
+    func register(_ process: any SpawnedProcess) {
         processes[process.processIdentifier] = process
     }
 
-    func remove(pid: Int32) -> Process? {
+    func remove(pid: Int32) -> (any SpawnedProcess)? {
         processes.removeValue(forKey: pid)
     }
 }

@@ -67,6 +67,23 @@ public struct ProcessRunnerCommandExecutor: CommandExecutor {
         }
         return output
     }
+
+    public func spawn(
+        _ command: Command,
+        in context: ShellContext,
+        teardown: TeardownStrategy
+    ) async throws -> any SpawnedProcess {
+        if processRunner is SystemProcessRunner {
+            return try await SubprocessExecutor().spawn(command, in: context, teardown: teardown)
+        }
+
+        let executable = command.executableOverride ?? command.executableName
+        let result = try await processRunner.run([executable] + command.arguments)
+        return MockSpawnedProcess(
+            processIdentifier: 1,
+            output: ShellOutput(stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode)
+        )
+    }
 }
 
 public extension ShellOutput {

@@ -79,9 +79,7 @@ enum CompanionError: Error, CustomStringConvertible {
 // MARK: - CompanionManager
 
 final class CompanionManager: @unchecked Sendable {
-    #if os(macOS)
-    private var companionProcess: Process?
-    #endif
+    private var companionProcess: (any SpawnedProcess)?
     private let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
@@ -108,7 +106,7 @@ final class CompanionManager: @unchecked Sendable {
 
     /// Shuts down any running companion, then installs (using pre-built if available) and starts fresh.
     func reinstallAndStart(config: CompanionConfig) async throws {
-        shutdown()
+        await shutdown()
         print("Rebuilding companion app (this may take a moment)...")
         try await withCLILoadingIndicator("Building companion app") {
             try await buildForTesting(config: config)
@@ -121,7 +119,7 @@ final class CompanionManager: @unchecked Sendable {
         }
 
         print("Installing and starting companion on port \(config.port)...")
-        try launchCompanion(xctestrunPath: testrun, config: config)
+        try await launchCompanion(xctestrunPath: testrun, config: config)
         try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
                 host: config.host,
@@ -155,7 +153,7 @@ final class CompanionManager: @unchecked Sendable {
         }
 
         print("Starting companion on port \(config.port)...")
-        try launchCompanion(xctestrunPath: testrun, config: config)
+        try await launchCompanion(xctestrunPath: testrun, config: config)
 
         try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
@@ -167,13 +165,10 @@ final class CompanionManager: @unchecked Sendable {
         print(colored("Companion ready.", .bold, .green))
     }
 
-    func shutdown() {
-        #if os(macOS)
-        guard let process = companionProcess, process.isRunning else { return }
-        process.terminate()
-        process.waitUntilExit()
+    func shutdown() async {
+        guard let process = companionProcess else { return }
+        _ = await process.teardownAndWait()
         companionProcess = nil
-        #endif
     }
 
     // MARK: - Private
@@ -254,45 +249,33 @@ final class CompanionManager: @unchecked Sendable {
         }
     }
 
-    private func launchCompanion(xctestrunPath: String, config: CompanionConfig) throws {
+    private func launchCompanion(xctestrunPath: String, config: CompanionConfig) async throws {
         #if os(macOS)
         let logPath = NSTemporaryDirectory() + "companion-launch.log"
-        let process = makeCompanionLaunchProcess(xctestrunPath: xctestrunPath, config: config)
         FileManager.default.createFile(atPath: logPath, contents: nil)
-        let logHandle = FileHandle(forWritingAtPath: logPath)
-        process.standardOutput = logHandle
-        process.standardError = logHandle
 
         do {
-            try process.run()
+            companionProcess = try await XcodeBuild(context: shellContext)
+                .trailingArgument("test-without-building")
+                .option(.xctestrun(xctestrunPath))
+                .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
+                .trailingArguments([
+                    "-only-testing",
+                    "MobileTestingCompanionUITests/CompanionRunner/testRunCompanion"
+                ])
+                .env("COMPANION_PORT", String(config.port))
+                .stdout(.file(path: logPath, append: false))
+                .stderr(.file(path: logPath, append: true))
+                .spawn(teardown: .graceful)
         } catch {
             throw CompanionError.launchFailed(error.localizedDescription)
         }
-
-        companionProcess = process
         #else
         _ = xctestrunPath
         _ = config
         throw CompanionError.unsupportedPlatform
         #endif
     }
-
-    #if os(macOS)
-    func makeCompanionLaunchProcess(xctestrunPath: String, config: CompanionConfig) -> Process {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [
-            "xcodebuild", "test-without-building",
-            "-xctestrun", xctestrunPath,
-            "-destination", "platform=iOS Simulator,id=\(config.deviceUDID)",
-            "-only-testing", "MobileTestingCompanionUITests/CompanionRunner/testRunCompanion"
-        ]
-        process.environment = ProcessInfo.processInfo.environment.merging(
-            ["COMPANION_PORT": String(config.port)]
-        ) { _, new in new }
-        return process
-    }
-    #endif
 
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
