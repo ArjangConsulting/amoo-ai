@@ -21,9 +21,13 @@ public struct ConsoleAISetupPrompter: AISetupPrompting {
         case .disabled: "3"
         }
 
-        guard let value = readLineWithPrompt("Provider [\(defaultText)]: ") else { return nil }
+        let prompt = "Provider [\(defaultText)]: "
+        guard let value = readLineWithPrompt(prompt) else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let choice = trimmed.isEmpty ? defaultText : trimmed
+        if trimmed.isEmpty {
+            rewritePrompt(prompt: prompt, answer: choice)
+        }
 
         switch choice {
         case "1", "ollama", "Ollama": return .ollama
@@ -43,6 +47,9 @@ public struct ConsoleAISetupPrompter: AISetupPrompting {
         guard let value = readLineWithPrompt(rendered) else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
+            if let defaultValue {
+                rewritePrompt(prompt: rendered, answer: defaultValue)
+            }
             return defaultValue
         }
         return trimmed
@@ -52,7 +59,10 @@ public struct ConsoleAISetupPrompter: AISetupPrompting {
         let rendered = "\(prompt) [\(defaultValue ? "Y/n" : "y/N")]: "
         guard let value = readLineWithPrompt(rendered) else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if trimmed.isEmpty { return defaultValue }
+        if trimmed.isEmpty {
+            rewritePrompt(prompt: rendered, answer: defaultValue ? "Y" : "N")
+            return defaultValue
+        }
         switch trimmed {
         case "y", "yes": return true
         case "n", "no": return false
@@ -65,6 +75,11 @@ public struct ConsoleAISetupPrompter: AISetupPrompting {
         fflush(stdout)
         return readLine()
     }
+
+    private func rewritePrompt(prompt: String, answer: String) {
+        Swift.print("\u{001B}[1A\r\u{001B}[2K\(prompt)\(answer)")
+        fflush(stdout)
+    }
 }
 
 public struct AISetupResult: Sendable, Equatable {
@@ -75,6 +90,7 @@ public struct AISetupResult: Sendable, Equatable {
 public enum AISetupError: Error, CustomStringConvertible {
     case cancelled
     case invalidSelection
+    case validationFailed(String)
 
     public var description: String {
         switch self {
@@ -82,6 +98,8 @@ public enum AISetupError: Error, CustomStringConvertible {
             "AI setup cancelled."
         case .invalidSelection:
             "Invalid setup selection. Please try again."
+        case let .validationFailed(message):
+            message
         }
     }
 }
@@ -90,15 +108,20 @@ public struct AISetupWizard: Sendable {
     let prompt: any AISetupPrompting
     let registry: AIProviderRegistry
     let settingsStore: any AISettingsStore
+    private let transport: @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     public init(
         prompt: any AISetupPrompting = ConsoleAISetupPrompter(),
         registry: AIProviderRegistry = AIProviderRegistry(),
-        settingsStore: any AISettingsStore = FileAISettingsStore()
+        settingsStore: any AISettingsStore = FileAISettingsStore(),
+        transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse) = { request in
+            try await URLSession.shared.data(for: request)
+        }
     ) {
         self.prompt = prompt
         self.registry = registry
         self.settingsStore = settingsStore
+        self.transport = transport
     }
 
     public func runPersistentSetup(environment: [String: String] = ProcessInfo.processInfo.environment) async throws -> AISetupResult {
@@ -143,8 +166,17 @@ public struct AISetupWizard: Sendable {
         let configuration = AIProviderConfiguration(provider: provider, baseURL: baseURL, model: model)
 
         if provider == .ollama {
-            guard let _ = await prompt.askBool(prompt: "Validate connection now?", defaultValue: true) else {
+            guard let shouldValidate = await prompt.askBool(prompt: "Validate connection now?", defaultValue: true) else {
                 throw AISetupError.invalidSelection
+            }
+            if shouldValidate {
+                do {
+                    try await validateOllamaConfiguration(configuration)
+                } catch let error as AISetupValidationError {
+                    throw AISetupError.validationFailed(error.description)
+                } catch {
+                    throw AISetupError.validationFailed("AI setup validation failed: \(error)")
+                }
             }
         }
 
@@ -174,5 +206,26 @@ public struct AISetupWizard: Sendable {
             return nil
         }
         return answer
+    }
+
+    private func validateOllamaConfiguration(_ configuration: AIProviderConfiguration) async throws {
+        let baseURL = configuration.baseURL ?? defaultOllamaBaseURL
+        let model = configuration.model ?? defaultOllamaModel
+        let models = try await loadOllamaModels(baseURL: baseURL, transport: transport)
+
+        guard models.contains(model) else {
+            throw AISetupValidationError.modelMissing(model: model, baseURL: baseURL)
+        }
+    }
+}
+
+enum AISetupValidationError: Error, CustomStringConvertible {
+    case modelMissing(model: String, baseURL: String)
+
+    var description: String {
+        switch self {
+        case let .modelMissing(model, baseURL):
+            "AI setup validation failed: model \(model) is not available at \(baseURL)."
+        }
     }
 }
