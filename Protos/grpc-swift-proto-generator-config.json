@@ -7,4 +7,7 @@
   "generatedSource": {
     "accessLevel": "public"
   },
+  "protoc": {
+    "executablePath": "Protos/protoc"
+  },
 }
