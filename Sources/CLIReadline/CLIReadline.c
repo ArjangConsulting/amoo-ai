@@ -25,8 +25,30 @@ static CLICommandCompletion *g_command_items = NULL;
 static size_t g_command_count = 0;
 static char **g_active_items = NULL;
 static size_t g_active_count = 0;
+static bool g_active_prefer_prefix = true;
 static char g_completion_append_character = '\0';
 static bool g_completion_configured = false;
+
+int cli_completion_candidate_matches(const char *candidate, const char *text, int prefer_prefix) {
+    if (!candidate || !text) {
+        return 0;
+    }
+
+    size_t text_length = strlen(text);
+    if (text_length == 0) {
+        return 1;
+    }
+
+    if (strncmp(candidate, text, text_length) == 0) {
+        return 1;
+    }
+
+    if (prefer_prefix) {
+        return 0;
+    }
+
+    return strstr(candidate, text) != NULL;
+}
 
 static void cli_free_items(char **items, size_t count) {
     if (!items) {
@@ -125,7 +147,7 @@ static char *cli_completion_generator(const char *text, int state) {
 
     while (index < g_active_count) {
         const char *candidate = g_active_items[index++];
-        if (strncmp(candidate, text, strlen(text)) == 0) {
+        if (cli_completion_candidate_matches(candidate, text, g_active_prefer_prefix ? 1 : 0)) {
             return strdup(candidate);
         }
     }
@@ -183,6 +205,14 @@ static char **cli_attempted_completion(const char *text, int start, int end) {
     }
 
     rl_completion_append_character = g_completion_append_character;
+
+    g_active_prefer_prefix = true;
+    char **matches = rl_completion_matches(text, cli_completion_generator);
+    if (matches) {
+        return matches;
+    }
+
+    g_active_prefer_prefix = false;
     return rl_completion_matches(text, cli_completion_generator);
 }
 
@@ -271,6 +301,27 @@ void cli_set_command_completions(const char *command, const char *items) {
 }
 
 #else
+
+int cli_completion_candidate_matches(const char *candidate, const char *text, int prefer_prefix) {
+    if (!candidate || !text) {
+        return 0;
+    }
+
+    size_t text_length = strlen(text);
+    if (text_length == 0) {
+        return 1;
+    }
+
+    if (strncmp(candidate, text, text_length) == 0) {
+        return 1;
+    }
+
+    if (prefer_prefix) {
+        return 0;
+    }
+
+    return strstr(candidate, text) != NULL;
+}
 
 char *cli_readline(const char *prompt) {
     if (prompt && *prompt) {
