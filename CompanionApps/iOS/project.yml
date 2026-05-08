@@ -5,24 +5,26 @@ options:
     iOS: "18.0"
   xcodeVersion: "16.0"
   createIntermediateGroups: true
+  useBaseInternationalization: false
+  packageResolutionPolicy: lockFile
 
 packages:
   grpc-swift-2:
     url: https://github.com/grpc/grpc-swift-2.git
-    from: "2.0.0"
+    exactVersion: "2.3.0"
   grpc-swift-protobuf:
     url: https://github.com/grpc/grpc-swift-protobuf.git
-    from: "2.0.0"
+    exactVersion: "2.2.0"
   grpc-swift-nio-transport:
     url: https://github.com/grpc/grpc-swift-nio-transport.git
-    from: "2.0.0"
+    exactVersion: "2.4.4"
   swift-protobuf:
     url: https://github.com/apple/swift-protobuf.git
-    from: "1.28.0"
+    exactVersion: "1.36.0"
 
 settings:
   base:
-    SWIFT_VERSION: "6.0"
+    SWIFT_VERSION: "6.3"
 
 targets:
   MobileTestingCompanion:

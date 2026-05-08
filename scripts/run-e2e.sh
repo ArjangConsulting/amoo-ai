@@ -383,6 +383,18 @@ cleanup() {
     log "Cleaning up..."
     if [[ -n "$XCTESTRUN_PID" ]]; then
         kill "$XCTESTRUN_PID" 2>/dev/null || true
+
+        local waited=0
+        while kill -0 "$XCTESTRUN_PID" 2>/dev/null; do
+            if [[ $waited -ge 10 ]]; then
+                warn "Companion process did not exit after 10s; forcing termination."
+                kill -9 "$XCTESTRUN_PID" 2>/dev/null || true
+                break
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+
         wait "$XCTESTRUN_PID" 2>/dev/null || true
     fi
     log "Done."

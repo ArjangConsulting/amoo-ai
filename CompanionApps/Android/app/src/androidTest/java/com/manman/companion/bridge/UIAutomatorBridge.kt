@@ -37,10 +37,10 @@ class UIAutomatorBridge {
         val steps = 20
 
         return when (direction) {
-            Direction.UP -> device.swipe(cx, cy, cx, cy - distance, steps)
-            Direction.DOWN -> device.swipe(cx, cy, cx, cy + distance, steps)
-            Direction.LEFT -> device.swipe(cx, cy, cx - distance, cy, steps)
-            Direction.RIGHT -> device.swipe(cx, cy, cx + distance, cy, steps)
+            Direction.UP -> device.swipe(cx, cy, cx, cy + distance, steps)
+            Direction.DOWN -> device.swipe(cx, cy, cx, cy - distance, steps)
+            Direction.LEFT -> device.swipe(cx, cy, cx + distance, cy, steps)
+            Direction.RIGHT -> device.swipe(cx, cy, cx - distance, cy, steps)
         }
     }
 
@@ -69,20 +69,11 @@ class UIAutomatorBridge {
         text: String?,
         containsText: String?
     ): List<ElementSnapshot> {
-        val results = mutableListOf<ElementSnapshot>()
-
-        val selector = when {
-            resourceId != null -> By.res(resourceId)
-            text != null -> By.text(text)
-            containsText != null -> By.textContains(containsText)
-            else -> By.pkg(currentPackageName())
-        }
-
-        device.findObjects(selector).forEach { element ->
-            results.add(element.toSnapshot())
-        }
-
-        return results
+        return device.findObjects(By.pkg(currentPackageName()))
+            .filter { element ->
+                matches(element, resourceId, text, containsText)
+            }
+            .map { it.toSnapshot() }
     }
 
     fun getAllElements(): List<ElementSnapshot> {
@@ -133,5 +124,30 @@ class UIAutomatorBridge {
             isEnabled = isEnabled,
             isVisible = true
         )
+    }
+
+    private fun matches(
+        element: UiObject2,
+        resourceId: String?,
+        text: String?,
+        containsText: String?
+    ): Boolean {
+        val elementText = element.text?.toString().orEmpty()
+        val contentDescription = element.contentDescription?.toString().orEmpty()
+        val resourceName = element.resourceName.orEmpty()
+
+        if (resourceId != null && resourceId != resourceName && resourceId != contentDescription) {
+            return false
+        }
+
+        if (text != null && text != elementText && text != contentDescription) {
+            return false
+        }
+
+        if (containsText != null && !elementText.contains(containsText) && !contentDescription.contains(containsText)) {
+            return false
+        }
+
+        return resourceId != null || text != null || containsText != null
     }
 }

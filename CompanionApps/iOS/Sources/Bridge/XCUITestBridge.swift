@@ -48,13 +48,13 @@ final class XCUITestBridge: @unchecked Sendable {
     func scroll(direction: ScrollDirection, distance: Double) {
         switch direction {
         case .up:
-            app.swipeUp(velocity: .init(distance))
-        case .down:
             app.swipeDown(velocity: .init(distance))
+        case .down:
+            app.swipeUp(velocity: .init(distance))
         case .left:
-            app.swipeLeft(velocity: .init(distance))
-        case .right:
             app.swipeRight(velocity: .init(distance))
+        case .right:
+            app.swipeLeft(velocity: .init(distance))
         }
     }
 
@@ -147,13 +147,15 @@ final class XCUITestBridge: @unchecked Sendable {
 
     func getViewHierarchy(bundleID: String? = nil, candidateBundleIDs: [String] = []) -> ViewNodeSnapshot {
         let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
+        let viewport = visibleViewport(for: target)
+        let maxDepth = 25
         // Use snapshot() to fetch the entire element tree in a single IPC call.
         // This is dramatically faster than querying individual XCUIElement properties,
         // where each .identifier, .label, .frame etc. is a separate round-trip.
         if let snapshot = try? target.snapshot() {
-            return buildHierarchyFromSnapshot(snapshot, depth: 0, maxDepth: 10)
+            return buildHierarchyFromSnapshot(snapshot, depth: 0, maxDepth: maxDepth, viewport: viewport, isRoot: true)
         }
-        return buildHierarchy(element: target, depth: 0, maxDepth: 10)
+        return buildHierarchy(element: target, depth: 0, maxDepth: maxDepth, viewport: viewport, isRoot: true)
     }
 
     func isKeyboardVisible() -> Bool {
@@ -172,15 +174,22 @@ final class XCUITestBridge: @unchecked Sendable {
     private func buildHierarchyFromSnapshot(
         _ snapshot: XCUIElementSnapshot,
         depth: Int,
-        maxDepth: Int
+        maxDepth: Int,
+        viewport: CGRect,
+        isRoot: Bool = false
     ) -> ViewNodeSnapshot {
         let children: [ViewNodeSnapshot] = if depth < maxDepth {
             snapshot.children.map {
-                buildHierarchyFromSnapshot($0, depth: depth + 1, maxDepth: maxDepth)
+                buildHierarchyFromSnapshot($0, depth: depth + 1, maxDepth: maxDepth, viewport: viewport)
+            }.compactMap { child in
+                child.isVisible || !child.children.isEmpty ? child : nil
             }
         } else {
             []
         }
+
+        let visibleFrame = snapshotVisibleFrame(snapshot)
+        let isVisible = isRoot || isSnapshotVisible(snapshot, visibleFrame: visibleFrame, viewport: viewport)
 
         return ViewNodeSnapshot(
             id: stableNodeID(identifier: snapshot.identifier, label: snapshot.label),
@@ -188,19 +197,29 @@ final class XCUITestBridge: @unchecked Sendable {
             type: "\(snapshot.elementType)",
             frame: snapshot.frame,
             isEnabled: snapshot.isEnabled,
-            isVisible: true,
+            isVisible: isVisible,
             children: children
         )
     }
 
-    private func buildHierarchy(element: XCUIElement, depth: Int, maxDepth: Int) -> ViewNodeSnapshot {
+    private func buildHierarchy(
+        element: XCUIElement,
+        depth: Int,
+        maxDepth: Int,
+        viewport: CGRect,
+        isRoot: Bool = false
+    ) -> ViewNodeSnapshot {
         let children: [ViewNodeSnapshot] = if depth < maxDepth {
             element.children(matching: .any).allElementsBoundByIndex.map {
-                buildHierarchy(element: $0, depth: depth + 1, maxDepth: maxDepth)
+                buildHierarchy(element: $0, depth: depth + 1, maxDepth: maxDepth, viewport: viewport)
+            }.compactMap { child in
+                child.isVisible || !child.children.isEmpty ? child : nil
             }
         } else {
             []
         }
+
+        let isVisible = isRoot || isElementVisible(element, viewport: viewport)
 
         return ViewNodeSnapshot(
             id: stableNodeID(identifier: element.identifier, label: element.label),
@@ -208,9 +227,59 @@ final class XCUITestBridge: @unchecked Sendable {
             type: "\(element.elementType)",
             frame: element.frame,
             isEnabled: element.isEnabled,
-            isVisible: element.exists,
+            isVisible: isVisible,
             children: children
         )
+    }
+
+    private func visibleViewport(for target: XCUIApplication) -> CGRect {
+        let targetFrame = target.frame.standardized
+        if !targetFrame.isNull, !targetFrame.isEmpty {
+            return targetFrame
+        }
+
+        return CGRect(origin: .zero, size: XCUIScreen.main.screenshot().image.size).standardized
+    }
+
+    private func isElementVisible(_ element: XCUIElement, viewport: CGRect) -> Bool {
+        guard element.exists else {
+            return false
+        }
+
+        let frame = element.frame.standardized
+        guard !frame.isNull, !frame.isEmpty else {
+            return false
+        }
+
+        return frame.intersects(viewport)
+    }
+
+    private func isSnapshotVisible(
+        _ snapshot: XCUIElementSnapshot,
+        visibleFrame: CGRect?,
+        viewport: CGRect
+    ) -> Bool {
+        if let visibleFrame {
+            let frame = visibleFrame.standardized
+            return !frame.isNull && !frame.isEmpty && frame.intersects(viewport)
+        }
+
+        let frame = snapshot.frame.standardized
+        return !frame.isNull && !frame.isEmpty && frame.intersects(viewport)
+    }
+
+    private func snapshotVisibleFrame(_ snapshot: XCUIElementSnapshot) -> CGRect? {
+        guard let object = snapshot as? NSObject,
+              let rawFrame = valueForSelector(named: "visibleFrame", on: object)
+        else {
+            return nil
+        }
+
+        if let value = rawFrame as? NSValue {
+            return value.cgRectValue
+        }
+
+        return nil
     }
 
     private func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
@@ -296,9 +365,9 @@ final class XCUITestBridge: @unchecked Sendable {
 
             if let object = value as? NSObject {
                 return bundleID(from: [
-                    valueForSelector(named: "bundleID", on: object),
-                    valueForSelector(named: "bundleId", on: object),
-                    valueForSelector(named: "bundleIdentifier", on: object)
+                    valueForSelector(named: "bundleID", on: object) as Any,
+                    valueForSelector(named: "bundleId", on: object) as Any,
+                    valueForSelector(named: "bundleIdentifier", on: object) as Any
                 ])
             }
 
