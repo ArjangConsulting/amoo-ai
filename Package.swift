@@ -18,7 +18,7 @@ let package = Package(
         .executable(name: "mobile-testing", targets: ["CLI"])
     ],
     dependencies: [
-        .package(path: "../SwiftyShell"),
+        .package(url: "https://github.com/maniramezan/SwiftyShell.git", branch: "main"),
         .package(path: "../shipitswifty"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
