@@ -8,7 +8,7 @@ lint:
 
 test:
 	@if [ -f Package.swift ]; then \
-		swift test; \
+		./scripts/with-protoc.sh swift test; \
 	else \
 		echo "No Package.swift found. Skipping tests."; \
 	fi
@@ -21,7 +21,7 @@ ci: lint coverage
 build: swift-build companion-build
 
 swift-build:
-	swift build
+	./scripts/with-protoc.sh swift build
 
 companion-ios-project:
 	cd CompanionApps/iOS && xcodegen generate
