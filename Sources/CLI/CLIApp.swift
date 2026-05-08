@@ -16,15 +16,18 @@ public struct CLIApp {
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
+    private let aiStatusChecker: any AIStatusChecking
 
     public init(
         mcpServer: MCPServer = .init(),
         preflightChecker: any PreflightChecking = DefaultPreflightChecker(),
-        auditRunner: any AuditRunning = DefaultAuditRunner()
+        auditRunner: any AuditRunning = DefaultAuditRunner(),
+        aiStatusChecker: any AIStatusChecking = DefaultAIStatusChecker()
     ) {
         self.mcpServer = mcpServer
         self.preflightChecker = preflightChecker
         self.auditRunner = auditRunner
+        self.aiStatusChecker = aiStatusChecker
     }
 
     // swiftlint:disable:next cyclomatic_complexity
@@ -72,6 +75,15 @@ public struct CLIApp {
                 return CLIResult(output: error.description, exitCode: 64)
             } catch {
                 return CLIResult(output: "Audit command failed: \(error)", exitCode: 1)
+            }
+        }
+
+        if args.first == "ai" {
+            switch parseAICommand(args: Array(args.dropFirst())) {
+            case let .failure(error):
+                return CLIResult(output: error.description, exitCode: 64)
+            case .success:
+                return await runAIStatusCommand(checker: aiStatusChecker)
             }
         }
 
