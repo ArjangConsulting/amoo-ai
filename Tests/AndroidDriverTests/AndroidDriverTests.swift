@@ -172,7 +172,10 @@ final class AndroidDriverTests: XCTestCase {
         } catch let error as MobileTestingError {
             XCTAssertEqual(
                 error,
-                .commandFailed(command: "startRecording", output: "Only one active Android recording is supported per driver.")
+                .commandFailed(
+                    command: "startRecording",
+                    output: "Only one active Android recording is supported per driver."
+                )
             )
         }
 
@@ -329,6 +332,7 @@ private actor MockADBRunner: ADBRunning {
     func openURL(serial _: String?, url: String) async throws {
         _openURLCalls.append(url)
     }
+
     func forwardPort(serial _: String?, localPort _: Int, remotePort _: Int) async throws {}
     func removeForward(serial _: String?, localPort _: Int) async throws {}
 
@@ -420,6 +424,7 @@ private actor MockCompanionClient: CompanionClient {
     func pressBack() async throws {
         _pressBackCount += 1
     }
+
     func pressHome() async throws {}
 
     func findElements(

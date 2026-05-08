@@ -42,13 +42,12 @@ func parseREPLOptions(args: [String]) -> REPLOptions {
 
     // Resolve default port based on explicit platform flag, or leave nil so REPL can
     // pick it up after device selection.
-    let resolvedPort: Int
-    if let port {
-        resolvedPort = port
+    let resolvedPort: Int = if let port {
+        port
     } else if let platform {
-        resolvedPort = platform == .android ? 22088 : 22087
+        platform == .android ? 22088 : 22087
     } else {
-        resolvedPort = 22087 // will be overridden after device selection when Android is chosen
+        22087 // will be overridden after device selection when Android is chosen
     }
 
     return REPLOptions(port: resolvedPort, deviceHint: deviceHint, platform: platform)

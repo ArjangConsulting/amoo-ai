@@ -60,7 +60,12 @@ final class CompanionClientDefaultsTests: XCTestCase {
             _ = try await client.findElements(.init(id: "login"), appID: nil, candidateBundleIDs: [])
         }
         await assertNotImplemented("waitForElement") {
-            try await client.waitForElement(.init(id: "login"), timeout: Duration(milliseconds: 250), appID: nil, candidateBundleIDs: [])
+            try await client.waitForElement(
+                .init(id: "login"),
+                timeout: Duration(milliseconds: 250),
+                appID: nil,
+                candidateBundleIDs: []
+            )
         }
         await assertNotImplemented("isKeyboardVisible") {
             _ = try await client.isKeyboardVisible()
@@ -78,24 +83,49 @@ final class CompanionClientDefaultsTests: XCTestCase {
 }
 
 private actor DelegatingCompanionClient: CompanionClient {
-    private var recordedTapElementCalls: [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] = []
-    private var recordedFindElementCalls: [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] = []
-    private var recordedWaitCalls: [(selector: ElementSelector, timeout: Duration, appID: String?, candidateBundleIDs: [String])] = []
+    private var recordedTapElementCalls: [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] =
+        []
+    private var recordedFindElementCalls: [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] =
+        []
+    private var recordedWaitCalls: [(
+        selector: ElementSelector,
+        timeout: Duration,
+        appID: String?,
+        candidateBundleIDs: [String]
+    )] = []
 
     func startSession() async throws {}
-    func getCapabilities() async throws -> [CapabilityDescriptor] { [] }
+    func getCapabilities() async throws -> [CapabilityDescriptor] {
+        []
+    }
+
     func endSession() async throws {}
-    func tap(at point: Point) async throws { _ = point }
-    func swipe(from: Point, to: Point, duration: Duration) async throws { _ = (from, to, duration) }
-    func typeText(_ text: String) async throws { _ = text }
+    func tap(at point: Point) async throws {
+        _ = point
+    }
+
+    func swipe(from: Point, to: Point, duration: Duration) async throws {
+        _ = (from, to, duration)
+    }
+
+    func typeText(_ text: String) async throws {
+        _ = text
+    }
+
     func pressBack() async throws {}
-    func getScreenContext() async throws -> ScreenContext { ScreenContext(summary: "mock") }
+    func getScreenContext() async throws -> ScreenContext {
+        ScreenContext(summary: "mock")
+    }
 
     func tapElement(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws {
         recordedTapElementCalls.append((selector, appID, candidateBundleIDs))
     }
 
-    func findElements(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws -> [ElementInfo] {
+    func findElements(
+        _ selector: ElementSelector,
+        appID: String?,
+        candidateBundleIDs: [String]
+    ) async throws -> [ElementInfo] {
         recordedFindElementCalls.append((selector, appID, candidateBundleIDs))
         return [ElementInfo(id: "match", label: selector.label ?? "")]
     }
@@ -124,13 +154,27 @@ private actor DelegatingCompanionClient: CompanionClient {
 
 private actor MinimalCompanionClient: CompanionClient {
     func startSession() async throws {}
-    func getCapabilities() async throws -> [CapabilityDescriptor] { [] }
+    func getCapabilities() async throws -> [CapabilityDescriptor] {
+        []
+    }
+
     func endSession() async throws {}
-    func tap(at point: Point) async throws { _ = point }
-    func swipe(from: Point, to: Point, duration: Duration) async throws { _ = (from, to, duration) }
-    func typeText(_ text: String) async throws { _ = text }
+    func tap(at point: Point) async throws {
+        _ = point
+    }
+
+    func swipe(from: Point, to: Point, duration: Duration) async throws {
+        _ = (from, to, duration)
+    }
+
+    func typeText(_ text: String) async throws {
+        _ = text
+    }
+
     func pressBack() async throws {}
-    func getScreenContext() async throws -> ScreenContext { ScreenContext(summary: "mock") }
+    func getScreenContext() async throws -> ScreenContext {
+        ScreenContext(summary: "mock")
+    }
 }
 
 private func assertNotImplemented(
