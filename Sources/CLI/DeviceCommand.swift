@@ -44,6 +44,9 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
               get_screen_context
               is_keyboard_visible
               take_screenshot
+              ai_describe_screen
+              ai_suggest_actions
+              ai_find_by_description description=<text>
               device_launch_app app_id=<id>
               device_terminate_app app_id=<id>
               device_install_app path=<path>
@@ -150,7 +153,7 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
     case .android:
         AndroidDriver(companion: companion, serial: options.deviceID)
     }
-    let executor = DriverToolExecutor(driver: driver)
+    let executor = DriverToolExecutor(driver: driver, aiProvider: makeAIProvider())
 
     let result = await withCLILoadingIndicator("Running \(options.tool)") {
         await executor.execute(toolName: options.tool, arguments: options.arguments)

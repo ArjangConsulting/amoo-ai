@@ -23,6 +23,144 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
     }
 
+    func testResolveAIProviderConfigurationDefaultsToNone() {
+        XCTAssertEqual(resolveAIProviderConfiguration(environment: [:]), .none)
+    }
+
+    func testResolveAIProviderConfigurationUsesOllamaDefaults() {
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"]),
+            .ollama(baseURL: "http://localhost:11434", model: "qwen3.6:latest")
+        )
+    }
+
+    func testResolveAIProviderConfigurationUsesExplicitOllamaOverrides() {
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(environment: [
+                "MOBILE_TESTING_AI_PROVIDER": "ollama",
+                "MOBILE_TESTING_AI_OLLAMA_BASE_URL": "http://ollama.internal:4242",
+                "MOBILE_TESTING_AI_OLLAMA_MODEL": "custom-model:latest"
+            ]),
+            .ollama(baseURL: "http://ollama.internal:4242", model: "custom-model:latest")
+        )
+    }
+
+    func testResolveAIProviderConfigurationInfersOllamaFromOverrides() {
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(environment: ["MOBILE_TESTING_AI_OLLAMA_MODEL": "qwen3.6:latest"]),
+            .ollama(baseURL: "http://localhost:11434", model: "qwen3.6:latest")
+        )
+    }
+
+    func testResolveAIProviderConfigurationSupportsLocalProvider() {
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(environment: ["MOBILE_TESTING_AI_PROVIDER": "local"]),
+            .local
+        )
+    }
+
+    func testParseAICommandRequiresStatusAction() {
+        guard case let .failure(error) = parseAICommand(args: []) else {
+            return XCTFail("Expected parser failure")
+        }
+
+        XCTAssertEqual(error.description, "Usage: mobile-testing ai status")
+    }
+
+    func testParseAICommandRejectsUnknownAction() {
+        guard case let .failure(error) = parseAICommand(args: ["ping"]) else {
+            return XCTFail("Expected parser failure")
+        }
+
+        XCTAssertEqual(error.description, "Unknown ai action 'ping'. Run 'mobile-testing ai' for usage.")
+    }
+
+    func testAIStatusCommandReturnsSuccessForDisabledProvider() async {
+        let app = CLIApp(aiStatusChecker: MockAIStatusChecker(report: AIStatusReport(provider: .none, checks: [
+            AIStatusCheck(
+                id: "ai.provider",
+                status: .pass,
+                message: "AI provider is disabled.",
+                remediation: "Enable a provider."
+            )
+        ])))
+
+        let result = await app.run(args: ["ai", "status"])
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("ai status"))
+        XCTAssertTrue(result.output.contains("provider: disabled"))
+    }
+
+    func testAIStatusCommandReturnsFailureWhenChecksFail() async {
+        let app = CLIApp(aiStatusChecker: MockAIStatusChecker(report: AIStatusReport(provider: .ollama(
+            baseURL: "http://localhost:11434",
+            model: "qwen3.6:latest"
+        ), checks: [
+            AIStatusCheck(
+                id: "ai.ollama.model",
+                status: .fail,
+                message: "Model missing.",
+                remediation: "Pull it."
+            )
+        ])))
+
+        let result = await app.run(args: ["ai", "status"])
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertTrue(result.output.contains("provider: Ollama"))
+        XCTAssertTrue(result.output.contains("Model missing"))
+    }
+
+    func testDefaultAIStatusCheckerPassesWhenOllamaModelExists() async throws {
+        let checker = DefaultAIStatusChecker { request in
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            let data = try JSONSerialization.data(withJSONObject: [
+                "models": [
+                    ["name": "qwen3.6:latest"],
+                    ["name": "other:latest"]
+                ]
+            ])
+            return (data, response)
+        }
+
+        let report = await checker.run(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"])
+        XCTAssertFalse(report.hasFailures)
+        XCTAssertEqual(report.provider, .ollama(baseURL: "http://localhost:11434", model: "qwen3.6:latest"))
+    }
+
+    func testDefaultAIStatusCheckerFailsWhenOllamaModelMissing() async throws {
+        let checker = DefaultAIStatusChecker { request in
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            let data = try JSONSerialization.data(withJSONObject: [
+                "models": [["name": "other:latest"]]
+            ])
+            return (data, response)
+        }
+
+        let report = await checker.run(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"])
+        XCTAssertTrue(report.hasFailures)
+        XCTAssertTrue(report.checks.contains { $0.id == "ai.ollama.model" && $0.status == .fail })
+    }
+
+    func testDefaultAIStatusCheckerFailsWhenOllamaIsUnreachable() async {
+        let checker = DefaultAIStatusChecker { _ in
+            throw URLError(.cannotConnectToHost)
+        }
+
+        let report = await checker.run(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"])
+        XCTAssertTrue(report.hasFailures)
+        XCTAssertTrue(report.checks.contains { $0.id == "ai.ollama.reachable" && $0.status == .fail })
+    }
+
     func testREPLCompletionCatalogIncludesBuiltinsAndToolNames() {
         let catalog = REPLCompletionCatalog(toolDefinitions: [
             ToolDefinition(name: "tap", description: "Tap"),
@@ -593,6 +731,14 @@ private struct MockAuditRunner: AuditRunning {
     let report: AuditReport
 
     func runAudit(options _: AuditCommandOptions) async throws -> AuditReport {
+        report
+    }
+}
+
+private struct MockAIStatusChecker: AIStatusChecking {
+    let report: AIStatusReport
+
+    func run(environment _: [String: String]) async -> AIStatusReport {
         report
     }
 }

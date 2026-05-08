@@ -39,13 +39,15 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
     }
 
     let driver = IOSDriver(companion: companion, deviceID: device.udid)
-    let executor = DriverToolExecutor(driver: driver)
+    let aiConfiguration = resolveAIProviderConfiguration()
+    let executor = DriverToolExecutor(driver: driver, aiProvider: makeAIProvider())
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
     print(colored("Connected to \(device.displayName)", .bold, .green) + " on port \(port)")
+    print(colored("AI provider: \(aiConfiguration.summary)", .gray))
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
@@ -69,13 +71,15 @@ private func runAndroidREPL(serial: String, name: String, port: Int) async {
     }
 
     let driver = AndroidDriver(companion: companion, serial: serial.isEmpty ? nil : serial)
-    let executor = DriverToolExecutor(driver: driver)
+    let aiConfiguration = resolveAIProviderConfiguration()
+    let executor = DriverToolExecutor(driver: driver, aiProvider: makeAIProvider())
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
     print(colored("Connected to \(name) (\(serial))", .bold, .green) + " on port \(port)")
+    print(colored("AI provider: \(aiConfiguration.summary)", .gray))
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
@@ -179,6 +183,9 @@ private func printHelp(definitions: [ToolDefinition]) {
     print("  \(colored("help", .green))        Show this help")
     print("  \(colored("tools", .green))       List tool names only")
     print("  \(colored("quit/exit", .green))   Exit the session")
+    print("")
+    print(colored("AI setup:", .bold, .cyan))
+    print("  Run \(colored("mobile-testing ai status", .green)) outside the REPL to verify the configured AI provider and Ollama model.")
     print("")
     print(colored("Press Tab to complete the tool command or argument key.", .gray))
     print("")

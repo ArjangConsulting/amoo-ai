@@ -34,6 +34,40 @@ The gRPC Swift protobuf build plugin needs a `protoc` executable. Install it wit
 export PROTOC_PATH="$(command -v protoc)"
 ```
 
+## AI Provider Setup
+
+The `ai_*` tools use deterministic fallback behavior by default. To enable a real model in the CLI or REPL, set an AI provider in your environment before launching `mobile-testing`.
+
+Use local Ollama:
+
+```bash
+export MOBILE_TESTING_AI_PROVIDER=ollama
+export MOBILE_TESTING_AI_OLLAMA_MODEL=qwen3.6:latest
+mobile-testing
+```
+
+Optional Ollama overrides:
+
+```bash
+export MOBILE_TESTING_AI_OLLAMA_BASE_URL=http://localhost:11434
+export MOBILE_TESTING_AI_OLLAMA_MODEL=qwen3.6:latest
+```
+
+Notes:
+
+- If `MOBILE_TESTING_AI_PROVIDER=ollama` is set and no model is provided, the default is `qwen3.6:latest`.
+- If you only set `MOBILE_TESTING_AI_OLLAMA_MODEL` or `MOBILE_TESTING_AI_OLLAMA_BASE_URL`, the CLI infers the Ollama provider automatically.
+- Set `MOBILE_TESTING_AI_PROVIDER=local` to force the deterministic local provider.
+- Leave `MOBILE_TESTING_AI_PROVIDER` unset, or set it to `none`, to keep AI tools in fallback mode.
+
+Verify AI setup:
+
+```bash
+mobile-testing ai status
+```
+
+For Ollama, this checks both server reachability and whether the configured model is installed.
+
 Run only the protocol tests:
 
 ```bash
