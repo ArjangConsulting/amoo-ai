@@ -132,30 +132,7 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
     }
 
     private func fetchOllamaModels(baseURL: String) async throws -> Set<String> {
-        guard let url = makeOllamaTagsURL(baseURL: baseURL) else {
-            throw OllamaStatusError.invalidBaseURL(baseURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 5
-
-        let (data, response) = try await transport(request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OllamaStatusError.invalidResponse
-        }
-        guard httpResponse.statusCode == 200 else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            throw OllamaStatusError.httpError(statusCode: httpResponse.statusCode, body: body)
-        }
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let models = json["models"] as? [[String: Any]]
-        else {
-            throw OllamaStatusError.invalidJSON
-        }
-
-        return Set(models.compactMap { $0["name"] as? String })
+        try await loadOllamaModels(baseURL: baseURL, transport: transport)
     }
 }
 
@@ -239,6 +216,36 @@ func renderAIStatusReport(_ report: AIStatusReport) -> String {
     }
 
     return lines.joined(separator: "\n")
+}
+
+func loadOllamaModels(
+    baseURL: String,
+    transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
+) async throws -> Set<String> {
+    guard let url = makeOllamaTagsURL(baseURL: baseURL) else {
+        throw OllamaStatusError.invalidBaseURL(baseURL)
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.timeoutInterval = 5
+
+    let (data, response) = try await transport(request)
+    guard let httpResponse = response as? HTTPURLResponse else {
+        throw OllamaStatusError.invalidResponse
+    }
+    guard httpResponse.statusCode == 200 else {
+        let body = String(data: data, encoding: .utf8) ?? ""
+        throw OllamaStatusError.httpError(statusCode: httpResponse.statusCode, body: body)
+    }
+
+    guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let models = json["models"] as? [[String: Any]]
+    else {
+        throw OllamaStatusError.invalidJSON
+    }
+
+    return Set(models.compactMap { $0["name"] as? String })
 }
 
 private func makeOllamaTagsURL(baseURL: String) -> URL? {

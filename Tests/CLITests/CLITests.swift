@@ -24,12 +24,18 @@ final class CLITests: XCTestCase {
     }
 
     func testResolveAIProviderConfigurationDefaultsToNone() {
-        XCTAssertEqual(resolveAIProviderConfiguration(environment: [:]).provider, .disabled)
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(environment: [:], settingsStore: InMemoryAISettingsStore()).provider,
+            .disabled
+        )
     }
 
     func testResolveAIProviderConfigurationUsesOllamaDefaults() {
         XCTAssertEqual(
-            resolveAIProviderConfiguration(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"]),
+            resolveAIProviderConfiguration(
+                environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"],
+                settingsStore: InMemoryAISettingsStore()
+            ),
             ResolvedAIConfiguration(
                 provider: .ollama,
                 baseURL: "http://localhost:11434",
@@ -41,11 +47,14 @@ final class CLITests: XCTestCase {
 
     func testResolveAIProviderConfigurationUsesExplicitOllamaOverrides() {
         XCTAssertEqual(
-            resolveAIProviderConfiguration(environment: [
-                "MOBILE_TESTING_AI_PROVIDER": "ollama",
-                "MOBILE_TESTING_AI_OLLAMA_BASE_URL": "http://ollama.internal:4242",
-                "MOBILE_TESTING_AI_OLLAMA_MODEL": "custom-model:latest"
-            ]),
+            resolveAIProviderConfiguration(
+                environment: [
+                    "MOBILE_TESTING_AI_PROVIDER": "ollama",
+                    "MOBILE_TESTING_AI_OLLAMA_BASE_URL": "http://ollama.internal:4242",
+                    "MOBILE_TESTING_AI_OLLAMA_MODEL": "custom-model:latest"
+                ],
+                settingsStore: InMemoryAISettingsStore()
+            ),
             ResolvedAIConfiguration(
                 provider: .ollama,
                 baseURL: "http://ollama.internal:4242",
@@ -57,7 +66,10 @@ final class CLITests: XCTestCase {
 
     func testResolveAIProviderConfigurationInfersOllamaFromOverrides() {
         XCTAssertEqual(
-            resolveAIProviderConfiguration(environment: ["MOBILE_TESTING_AI_OLLAMA_MODEL": "qwen3.6:latest"]),
+            resolveAIProviderConfiguration(
+                environment: ["MOBILE_TESTING_AI_OLLAMA_MODEL": "qwen3.6:latest"],
+                settingsStore: InMemoryAISettingsStore()
+            ),
             ResolvedAIConfiguration(
                 provider: .ollama,
                 baseURL: "http://localhost:11434",
@@ -69,7 +81,10 @@ final class CLITests: XCTestCase {
 
     func testResolveAIProviderConfigurationSupportsLocalProvider() {
         XCTAssertEqual(
-            resolveAIProviderConfiguration(environment: ["MOBILE_TESTING_AI_PROVIDER": "local"]),
+            resolveAIProviderConfiguration(
+                environment: ["MOBILE_TESTING_AI_PROVIDER": "local"],
+                settingsStore: InMemoryAISettingsStore()
+            ),
             ResolvedAIConfiguration(provider: .local, source: "environment")
         )
     }
@@ -233,7 +248,8 @@ final class CLITests: XCTestCase {
                 strings: ["http://localhost:11434", "qwen3.6:latest"],
                 bools: [true, true]
             ),
-            settingsStore: settingsStore
+            settingsStore: settingsStore,
+            transport: mockOllamaTransport(models: ["qwen3.6:latest"])
         )
         let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
 
@@ -245,6 +261,25 @@ final class CLITests: XCTestCase {
             baseURL: "http://localhost:11434",
             model: "qwen3.6:latest"
         ))
+    }
+
+    func testAISetupFailsWhenOllamaModelIsMissingDuringValidation() async {
+        let settingsStore = InMemoryAISettingsStore()
+        let wizard = AISetupWizard(
+            prompt: MockAISetupPrompter(
+                provider: .ollama,
+                strings: ["http://localhost:11434", "missing-model"],
+                bools: [true, true]
+            ),
+            settingsStore: settingsStore,
+            transport: mockOllamaTransport(models: ["qwen3.6:latest"])
+        )
+        let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
+
+        let result = await app.run(args: ["ai", "setup"])
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertTrue(result.output.contains("model missing-model is not available"))
+        XCTAssertNil(try? settingsStore.load())
     }
 
     func testAISetupCanDeclinePersistence() async {
@@ -914,5 +949,20 @@ private final class MockAISetupPrompter: AISetupPrompting, @unchecked Sendable {
 
     func askBool(prompt _: String, defaultValue _: Bool) async -> Bool? {
         await state.nextBool()
+    }
+}
+
+private func mockOllamaTransport(models: [String]) -> @Sendable (URLRequest) async throws -> (Data, URLResponse) {
+    { request in
+        let response = try HTTPURLResponse(
+            url: XCTUnwrap(request.url),
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        )!
+        let data = try JSONSerialization.data(withJSONObject: [
+            "models": models.map { ["name": $0] }
+        ])
+        return (data, response)
     }
 }
