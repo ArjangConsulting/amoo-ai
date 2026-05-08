@@ -1,15 +1,18 @@
 import Foundation
+import MobileTestingCore
 
 // MARK: - REPL startup options
 
 struct REPLOptions {
     var port: Int
     var deviceHint: String?
+    var platform: Platform?
 }
 
 func parseREPLOptions(args: [String]) -> REPLOptions {
-    var port = 22087
+    var port: Int?
     var deviceHint: String?
+    var platform: Platform?
     var remaining = args
 
     while let first = remaining.first, first.hasPrefix("--") {
@@ -26,23 +29,40 @@ func parseREPLOptions(args: [String]) -> REPLOptions {
                 deviceHint = value
                 remaining.removeFirst()
             }
+        case "--platform":
+            remaining.removeFirst()
+            if let value = remaining.first {
+                platform = Platform(rawValue: value.lowercased())
+                remaining.removeFirst()
+            }
         default:
             remaining.removeFirst()
         }
     }
 
-    return REPLOptions(port: port, deviceHint: deviceHint)
+    // Resolve default port based on explicit platform flag, or leave nil so REPL can
+    // pick it up after device selection.
+    let resolvedPort: Int
+    if let port {
+        resolvedPort = port
+    } else if let platform {
+        resolvedPort = platform == .android ? 22088 : 22087
+    } else {
+        resolvedPort = 22087 // will be overridden after device selection when Android is chosen
+    }
+
+    return REPLOptions(port: resolvedPort, deviceHint: deviceHint, platform: platform)
 }
 
 // MARK: - REPL mode entry point
 
 func startREPLMode(args: [String]) async {
-    let options = parseREPLOptions(args: args)
-    let selector = DeviceSelector()
+    var options = parseREPLOptions(args: args)
+    let selector = PlatformDeviceSelector()
 
-    let device: BootedDevice
+    let device: AvailableDevice
     do {
-        device = try await selector.selectDevice(hint: options.deviceHint)
+        device = try await selector.selectDevice(hint: options.deviceHint, platform: options.platform)
     } catch let error as DeviceSelectionError {
         print(error.description)
         return
@@ -51,18 +71,15 @@ func startREPLMode(args: [String]) async {
         return
     }
 
-    let manager = CompanionManager()
-    let config = CompanionConfig(
-        port: options.port,
-        deviceUDID: device.udid
-    )
-
-    do {
-        try await manager.ensureRunning(config: config)
-    } catch {
-        print("Failed to install/start companion: \(error)")
-        return
+    // Adjust port to match the selected platform when the user didn't explicitly set one
+    if options.deviceHint == nil, args.allSatisfy({ $0 != "--port" }) {
+        switch device.platform {
+        case .ios:
+            options.port = 22087
+        case .android:
+            options.port = 22088
+        }
     }
 
-    await runREPL(device: device, port: options.port, companionManager: manager)
+    await runREPL(device: device, port: options.port)
 }
