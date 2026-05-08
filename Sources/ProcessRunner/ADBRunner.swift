@@ -116,22 +116,17 @@ public struct ADBRunner: ADBRunning {
             )
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        let command = adb(serial: serial).screenrecord(remotePath: outputPath).command()
-        process.arguments = [command.executableName] + command.arguments
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
-
-        try process.run()
+        let process = try await adb(serial: serial)
+            .screenrecord(remotePath: outputPath)
+            .spawn(teardown: .interruptThenTerminate)
         await ADBRecordingRegistry.shared.register(process, serialKey: serialKey)
     }
 
     public func stopRecording(serial: String? = nil) async throws {
         let serialKey = serial ?? "__default__"
         if let process = await ADBRecordingRegistry.shared.remove(serialKey: serialKey) {
-            process.interrupt()
-            process.waitUntilExit()
+            try await process.interrupt()
+            _ = await process.waitForExit()
             return
         }
 
@@ -209,17 +204,17 @@ private func processRunnerError(_ error: ShellError, command: String) -> Error {
 private actor ADBRecordingRegistry {
     static let shared = ADBRecordingRegistry()
 
-    private var processes: [String: Process] = [:]
+    private var processes: [String: any SpawnedProcess] = [:]
 
-    func lookup(serialKey: String) -> Process? {
+    func lookup(serialKey: String) -> (any SpawnedProcess)? {
         processes[serialKey]
     }
 
-    func register(_ process: Process, serialKey: String) {
+    func register(_ process: any SpawnedProcess, serialKey: String) {
         processes[serialKey] = process
     }
 
-    func remove(serialKey: String) -> Process? {
+    func remove(serialKey: String) -> (any SpawnedProcess)? {
         processes.removeValue(forKey: serialKey)
     }
 }

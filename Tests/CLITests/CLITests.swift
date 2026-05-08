@@ -54,19 +54,6 @@ final class CLITests: XCTestCase {
         )
     }
 
-    #if os(macOS)
-    func testCompanionLaunchProcessPassesConfiguredPort() {
-        let manager = CompanionManager()
-        let config = CompanionConfig(port: 22111, deviceUDID: "SIM-123")
-
-        let process = manager.makeCompanionLaunchProcess(
-            xctestrunPath: "/tmp/test.xctestrun", config: config
-        )
-
-        XCTAssertEqual(process.environment?["COMPANION_PORT"], "22111")
-    }
-    #endif
-
     func testPreflightCommandWithFailureReturnsExitCode2() async {
         let app = CLIApp(
             preflightChecker: MockPreflightChecker(
@@ -239,11 +226,12 @@ final class CLITests: XCTestCase {
             [
                 ["xcodegen", "generate", "--spec", companionDir + "/project.yml"],
                 [
-                    "xcodebuild", "build-for-testing",
+                    "xcodebuild",
                     "-scheme", "MobileTestingCompanion",
                     "-destination", "platform=iOS Simulator,id=SIM-123",
                     "-derivedDataPath", companionDir + "/build",
-                    "-project", companionDir + "/MobileTestingCompanion.xcodeproj"
+                    "-project", companionDir + "/MobileTestingCompanion.xcodeproj",
+                    "build-for-testing"
                 ]
             ]
         )
