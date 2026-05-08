@@ -21,15 +21,23 @@ The high-level design lives in [Instruction.md](Instruction.md) and [Architectur
 From the repo root:
 
 ```bash
-swift test
+make test
 make lint
 make format
+```
+
+The gRPC Swift protobuf build plugin needs a `protoc` executable. Install it with
+`brew install protobuf`, then either use the Make targets, which run through
+`scripts/with-protoc.sh`, or export it once in your shell:
+
+```bash
+export PROTOC_PATH="$(command -v protoc)"
 ```
 
 Run only the protocol tests:
 
 ```bash
-swift test --filter CompanionProtocolTests
+scripts/with-protoc.sh swift test --filter CompanionProtocolTests
 ```
 
 Run the iOS companion end-to-end flow:
