@@ -153,7 +153,8 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
     case .android:
         AndroidDriver(companion: companion, serial: options.deviceID)
     }
-    let executor = DriverToolExecutor(driver: driver, aiProvider: makeAIProvider())
+    let aiProvider = try? makeAIProvider().provider
+    let executor = DriverToolExecutor(driver: driver, aiProvider: aiProvider)
 
     let result = await withCLILoadingIndicator("Running \(options.tool)") {
         await executor.execute(toolName: options.tool, arguments: options.arguments)

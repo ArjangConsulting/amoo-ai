@@ -36,34 +36,76 @@ export PROTOC_PATH="$(command -v protoc)"
 
 ## AI Provider Setup
 
-The `ai_*` tools use deterministic fallback behavior by default. To enable a real model in the CLI or REPL, set an AI provider in your environment before launching `mobile-testing`.
+The `ai_*` tools use deterministic fallback behavior by default. The CLI now supports both persistent AI setup and one-time REPL setup.
 
-Use local Ollama:
+Persistent setup across sessions:
+
+```bash
+swift run mobile-testing ai setup
+```
+
+This launches an interactive setup flow and stores non-secret settings in:
+
+```text
+~/Library/Application Support/mobile-testing/ai-settings.json
+```
+
+One-time interactive setup for a REPL session:
+
+```bash
+swift run mobile-testing --enable-ai
+```
+
+This prompts for provider details and launches the REPL with that in-memory configuration only. It does not save settings.
+
+The current provider options are:
+
+- Ollama
+- Local deterministic fallback
+- Disable AI
+
+Environment variables are still supported, but in interactive setup they are used as defaults the user can accept or override.
+
+Useful Ollama env defaults:
 
 ```bash
 export MOBILE_TESTING_AI_PROVIDER=ollama
-export MOBILE_TESTING_AI_OLLAMA_MODEL=qwen3.6:latest
-mobile-testing
-```
-
-Optional Ollama overrides:
-
-```bash
 export MOBILE_TESTING_AI_OLLAMA_BASE_URL=http://localhost:11434
 export MOBILE_TESTING_AI_OLLAMA_MODEL=qwen3.6:latest
+```
+
+For normal non-interactive runs, env vars still override saved settings.
+
+Direct one-shot usage with saved or env-based settings:
+
+```bash
+swift run mobile-testing device --platform ios ai_describe_screen
 ```
 
 Notes:
 
 - If `MOBILE_TESTING_AI_PROVIDER=ollama` is set and no model is provided, the default is `qwen3.6:latest`.
-- If you only set `MOBILE_TESTING_AI_OLLAMA_MODEL` or `MOBILE_TESTING_AI_OLLAMA_BASE_URL`, the CLI infers the Ollama provider automatically.
+- If you only set `MOBILE_TESTING_AI_OLLAMA_MODEL` or `MOBILE_TESTING_AI_OLLAMA_BASE_URL`, non-interactive commands infer the Ollama provider automatically.
 - Set `MOBILE_TESTING_AI_PROVIDER=local` to force the deterministic local provider.
 - Leave `MOBILE_TESTING_AI_PROVIDER` unset, or set it to `none`, to keep AI tools in fallback mode.
+- Interactive setup uses env vars only as prompt defaults, not hidden config.
 
 Verify AI setup:
 
 ```bash
-mobile-testing ai status
+swift run mobile-testing ai status
+```
+
+Show the active non-secret AI configuration:
+
+```bash
+swift run mobile-testing ai config
+```
+
+Reset saved AI settings:
+
+```bash
+swift run mobile-testing ai reset
 ```
 
 For Ollama, this checks both server reachability and whether the configured model is installed.

@@ -9,16 +9,21 @@ import MobileTestingCore
 
 // MARK: - REPL entry point
 
-func runREPL(device: AvailableDevice, port: Int) async {
+func runREPL(device: AvailableDevice, port: Int, oneTimeAIConfiguration: AIProviderConfiguration? = nil) async {
     switch device {
     case let .ios(bootedDevice):
-        await runIOSREPL(device: bootedDevice, port: port)
+        await runIOSREPL(device: bootedDevice, port: port, oneTimeAIConfiguration: oneTimeAIConfiguration)
     case let .android(serial, name):
-        await runAndroidREPL(serial: serial, name: name, port: port)
+        await runAndroidREPL(
+            serial: serial,
+            name: name,
+            port: port,
+            oneTimeAIConfiguration: oneTimeAIConfiguration
+        )
     }
 }
 
-private func runIOSREPL(device: BootedDevice, port: Int) async {
+private func runIOSREPL(device: BootedDevice, port: Int, oneTimeAIConfiguration: AIProviderConfiguration?) async {
     let manager = CompanionManager()
     let config = CompanionConfig(port: port, deviceUDID: device.udid)
 
@@ -39,8 +44,9 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
     }
 
     let driver = IOSDriver(companion: companion, deviceID: device.udid)
-    let aiConfiguration = resolveAIProviderConfiguration()
-    let executor = DriverToolExecutor(driver: driver, aiProvider: makeAIProvider())
+    let aiRuntime = try? makeAIProvider(oneTimeConfiguration: oneTimeAIConfiguration)
+    let aiConfiguration = aiRuntime?.configuration ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
+    let executor = DriverToolExecutor(driver: driver, aiProvider: aiRuntime?.provider)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
@@ -59,7 +65,12 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
     await manager.shutdown()
 }
 
-private func runAndroidREPL(serial: String, name: String, port: Int) async {
+private func runAndroidREPL(
+    serial: String,
+    name: String,
+    port: Int,
+    oneTimeAIConfiguration: AIProviderConfiguration?
+) async {
     let connection = CompanionConnection(host: "127.0.0.1", port: port)
     let companion: GRPCCompanionClient
     do {
@@ -71,8 +82,9 @@ private func runAndroidREPL(serial: String, name: String, port: Int) async {
     }
 
     let driver = AndroidDriver(companion: companion, serial: serial.isEmpty ? nil : serial)
-    let aiConfiguration = resolveAIProviderConfiguration()
-    let executor = DriverToolExecutor(driver: driver, aiProvider: makeAIProvider())
+    let aiRuntime = try? makeAIProvider(oneTimeConfiguration: oneTimeAIConfiguration)
+    let aiConfiguration = aiRuntime?.configuration ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
+    let executor = DriverToolExecutor(driver: driver, aiProvider: aiRuntime?.provider)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
