@@ -49,6 +49,46 @@ class UIAutomatorBridge {
         }
     }
 
+    fun swipeInDirection(
+        direction: Direction,
+        distance: Int,
+        durationMs: Int,
+        resourceId: String?,
+        text: String?
+    ): Boolean {
+        val steps = (durationMs / 5).coerceAtLeast(1)
+        val (w, h) = device.displayWidth to device.displayHeight
+
+        if (resourceId != null || text != null) {
+            val selector = androidx.test.uiautomator.UiSelector().let { s ->
+                var result = s
+                if (resourceId != null) result = result.resourceId(resourceId)
+                if (text != null) result = result.text(text)
+                result
+            }
+            val obj = device.findObject(selector)
+            if (obj != null && obj.exists()) {
+                val bounds = obj.bounds
+                val cx = bounds.centerX()
+                val cy = bounds.centerY()
+                val (dx, dy) = directionDelta(direction, distance)
+                return device.swipe(cx, cy, cx + dx, cy + dy, steps)
+            }
+        }
+
+        val cx = w / 2
+        val cy = h / 2
+        val (dx, dy) = directionDelta(direction, distance)
+        return device.swipe(cx, cy, cx + dx, cy + dy, steps)
+    }
+
+    private fun directionDelta(direction: Direction, distance: Int): Pair<Int, Int> = when (direction) {
+        Direction.UP -> 0 to -distance
+        Direction.DOWN -> 0 to distance
+        Direction.LEFT -> -distance to 0
+        Direction.RIGHT -> distance to 0
+    }
+
     // -- Text --
 
     fun typeText(text: String) {

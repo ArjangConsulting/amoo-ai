@@ -13,4 +13,14 @@ class GestureHandler(private val bridge: UIAutomatorBridge) {
     fun scroll(direction: Direction, distance: Int): Boolean {
         return bridge.scroll(direction, distance)
     }
+
+    fun swipeInDirection(
+        direction: Direction,
+        distance: Int,
+        durationMs: Int,
+        resourceId: String?,
+        text: String?
+    ): Boolean {
+        return bridge.swipeInDirection(direction, distance, durationMs, resourceId, text)
+    }
 }
