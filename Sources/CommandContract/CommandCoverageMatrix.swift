@@ -192,6 +192,15 @@ public enum CommandCoverageMatrix {
             expectedAssertion: "swipe command navigates or updates the gesture screen"
         ),
         .init(
+            name: "swipe_in_direction",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .gesture,
+            expectedAssertion: "directional swipe navigates or updates the gesture screen"
+        ),
+        .init(
             name: "scroll",
             channel: .mcp,
             kind: .deterministic,

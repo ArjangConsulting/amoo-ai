@@ -110,6 +110,30 @@ public actor DriverToolExecutor: ToolExecutor {
             )
             return .success("Swiped from (\(fromX),\(fromY)) to (\(toX),\(toY))")
 
+        case "swipe_in_direction":
+            guard let dirStr = arguments["direction"] else {
+                return .error("Missing required argument: direction (up|down|left|right)")
+            }
+            guard let direction = parseDirection(dirStr) else {
+                return .error("Invalid direction: \(dirStr). Use up, down, left, or right.")
+            }
+            let distance = arguments["distance"].flatMap(Double.init) ?? 300
+            let ms = arguments["duration_ms"].flatMap(Int.init) ?? 400
+            let element: ElementSelector? = if let id = arguments["element_id"] {
+                ElementSelector(id: id)
+            } else if let label = arguments["element_label"] {
+                ElementSelector(label: label)
+            } else {
+                nil
+            }
+            try await driver.swipe(
+                direction: direction,
+                distance: distance,
+                duration: Duration(milliseconds: ms),
+                element: element
+            )
+            return .success("Swiped \(dirStr) by \(distance) pts")
+
         case "scroll":
             guard let dirStr = arguments["direction"] else {
                 return .error("Missing required argument: direction (up|down|left|right)")
