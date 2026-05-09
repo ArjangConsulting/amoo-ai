@@ -58,6 +58,35 @@ final class XCUITestBridge: @unchecked Sendable {
         }
     }
 
+    func swipeInDirection(
+        _ direction: ScrollDirection,
+        id: String?,
+        label: String?,
+        containsText: String?
+    ) {
+        if id != nil || label != nil || containsText != nil {
+            let allElements = collectedElements(in: app)
+            for element in allElements
+                where matches(element: element, id: id, label: label, containsText: containsText)
+            {
+                guard element.exists else { continue }
+                switch direction {
+                case .up: element.swipeUp()
+                case .down: element.swipeDown()
+                case .left: element.swipeLeft()
+                case .right: element.swipeRight()
+                }
+                return
+            }
+        }
+        switch direction {
+        case .up: app.swipeUp()
+        case .down: app.swipeDown()
+        case .left: app.swipeLeft()
+        case .right: app.swipeRight()
+        }
+    }
+
     // MARK: - Text
 
     func typeText(_ text: String) {
