@@ -17,4 +17,13 @@ final class GestureHandler: @unchecked Sendable {
     func scroll(direction: ScrollDirection, distance: Double) async {
         await bridge.scroll(direction: direction, distance: distance)
     }
+
+    func swipeInDirection(
+        direction: ScrollDirection,
+        id: String?,
+        label: String?,
+        containsText: String?
+    ) async {
+        await bridge.swipeInDirection(direction, id: id, label: label, containsText: containsText)
+    }
 }

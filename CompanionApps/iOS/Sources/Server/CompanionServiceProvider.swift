@@ -52,6 +52,7 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
             ("action.longPress", .required),
             ("action.swipe", .required),
             ("action.scroll", .required),
+            ("action.swipeInDirection", .required),
             ("action.typeText", .required),
             ("action.clearText", .required),
             ("action.pressBack", .required),
@@ -137,6 +138,29 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
             fromX: request.from.x, fromY: request.from.y,
             toX: request.to.x, toY: request.to.y,
             durationMs: Int(request.duration.milliseconds)
+        )
+        return successResponse()
+    }
+
+    func swipeInDirection(
+        request: MobileTesting_SwipeDirectionRequest,
+        context _: ServerContext
+    ) async throws -> MobileTesting_ActionResponse {
+        let direction: ScrollDirection = switch request.direction {
+        case .up: .up
+        case .down: .down
+        case .left: .left
+        case .right: .right
+        default: .down
+        }
+        let id = request.selector.id.isEmpty ? nil : request.selector.id
+        let label = request.selector.label.isEmpty ? nil : request.selector.label
+        let containsText = request.selector.containsText.isEmpty ? nil : request.selector.containsText
+        await gesture.swipeInDirection(
+            direction: direction,
+            id: request.hasSelector ? id : nil,
+            label: request.hasSelector ? label : nil,
+            containsText: request.hasSelector ? containsText : nil
         )
         return successResponse()
     }
