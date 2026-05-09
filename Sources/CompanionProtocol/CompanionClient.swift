@@ -14,6 +14,7 @@ public protocol CompanionClient: Sendable {
 
     // Gestures
     func swipe(from: Point, to: Point, duration: Duration) async throws
+    func swipeInDirection(_ direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws
     func scroll(direction: Direction, distance: Double) async throws
 
     // Text
@@ -61,6 +62,10 @@ public extension CompanionClient {
 
     func pressHome() async throws {
         throw MobileTestingError.notImplemented("pressHome")
+    }
+
+    func swipeInDirection(_: Direction, distance _: Double, duration _: Duration, element _: ElementSelector?) async throws {
+        throw MobileTestingError.notImplemented("swipeInDirection")
     }
 
     func scroll(direction _: Direction, distance _: Double) async throws {

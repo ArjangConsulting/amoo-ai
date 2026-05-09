@@ -10,6 +10,7 @@ public protocol TouchActions: Sendable {
 public protocol GestureActions: Sendable {
     func swipe(from: Point, to: Point, duration: Duration) async throws
     func swipe(direction: Direction, distance: Double, duration: Duration) async throws
+    func swipe(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws
     func scroll(direction: Direction, distance: Double) async throws
     func scrollToElement(_ selector: ElementSelector, direction: Direction, maxScrolls: Int) async throws
     func pinch(center: Point, scale: Double, velocity: Double) async throws
@@ -122,8 +123,12 @@ public extension GestureActions {
         throw MobileTestingError.notImplemented("swipe")
     }
 
-    func swipe(direction _: Direction, distance _: Double, duration _: Duration) async throws {
-        throw MobileTestingError.notImplemented("swipe(direction:)")
+    func swipe(direction: Direction, distance: Double, duration: Duration) async throws {
+        try await swipe(direction: direction, distance: distance, duration: duration, element: nil)
+    }
+
+    func swipe(direction _: Direction, distance _: Double, duration _: Duration, element _: ElementSelector?) async throws {
+        throw MobileTestingError.notImplemented("swipe(direction:element:)")
     }
 
     func scroll(direction _: Direction, distance _: Double) async throws {

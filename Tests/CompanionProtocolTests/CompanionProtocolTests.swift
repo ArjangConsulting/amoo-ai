@@ -142,6 +142,45 @@ final class CompanionProtocolTests: XCTestCase {
         XCTAssertEqual(calls, ["tapElement", "swipe", "typeText", "pressBack", "pressHome", "shutdown"])
     }
 
+    func testSwipeInDirectionDelegatesToRPC() async throws {
+        let rpcClient = MockRPCClient()
+        let client = GRPCCompanionClient(
+            connection: .init(host: "localhost", port: 22087),
+            rpcClient: rpcClient
+        )
+
+        try await client.swipeInDirection(.left, distance: 250, duration: Duration(milliseconds: 350), element: nil)
+
+        let req = await rpcClient.swipeDirectionRequest
+        XCTAssertEqual(req?.direction, .left)
+        XCTAssertEqual(req?.distance, 250)
+        XCTAssertEqual(req?.durationMs, 350)
+        XCTAssertFalse(req?.hasSelector ?? true)
+
+        let calls = await rpcClient.actionCalls
+        XCTAssertTrue(calls.contains("swipeInDirection"))
+    }
+
+    func testSwipeInDirectionWithElementSelector() async throws {
+        let rpcClient = MockRPCClient()
+        let client = GRPCCompanionClient(
+            connection: .init(host: "localhost", port: 22087),
+            rpcClient: rpcClient
+        )
+
+        try await client.swipeInDirection(
+            .right,
+            distance: 200,
+            duration: Duration(milliseconds: 300),
+            element: ElementSelector(id: "card-list")
+        )
+
+        let req = await rpcClient.swipeDirectionRequest
+        XCTAssertEqual(req?.direction, .right)
+        XCTAssertTrue(req?.hasSelector ?? false)
+        XCTAssertEqual(req?.selector.id, "card-list")
+    }
+
     func testLiveFactoryBuildsClient() async throws {
         let client = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: 22087))
         await client.shutdown()
@@ -158,6 +197,7 @@ private actor MockRPCClient: CompanionRPCClient {
     var findElementsRequest: MobileTesting_FindElementsRequest?
     var tapElementRequest: MobileTesting_TapElementRequest?
     var swipeRequest: MobileTesting_SwipeRequest?
+    var swipeDirectionRequest: MobileTesting_SwipeDirectionRequest?
     var typeTextRequest: MobileTesting_TypeTextRequest?
     var clearTextRequest: MobileTesting_ClearTextRequest?
     var waitForElementRequest: MobileTesting_WaitForElementRequest?
@@ -219,6 +259,12 @@ private actor MockRPCClient: CompanionRPCClient {
     func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
         swipeRequest = request
         actionCalls.append("swipe")
+        return successResponse()
+    }
+
+    func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws -> MobileTesting_ActionResponse {
+        swipeDirectionRequest = request
+        actionCalls.append("swipeInDirection")
         return successResponse()
     }
 
