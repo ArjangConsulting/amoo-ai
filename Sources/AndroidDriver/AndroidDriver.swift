@@ -52,7 +52,11 @@ public actor AndroidDriver: PlatformDriver {
     }
 
     public func launchApp(appID: String, arguments: [String] = [], environment _: [String: String] = [:]) async throws {
-        try await adb.launch(serial: serial, appID: appID, arguments: arguments)
+        if arguments.isEmpty {
+            try await adb.launchResetting(serial: serial, appID: appID)
+        } else {
+            try await adb.launch(serial: serial, appID: appID, arguments: arguments)
+        }
     }
 
     public func terminateApp(appID: String) async throws {

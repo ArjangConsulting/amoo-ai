@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="fixture_home_title" type="id" />
+    <item name="fixture_open_details" type="id" />
+    <item name="fixture_open_text" type="id" />
+    <item name="fixture_open_gesture" type="id" />
+    <item name="fixture_detail_row_0" type="id" />
+    <item name="fixture_details_tail" type="id" />
+    <item name="fixture_text_input" type="id" />
+    <item name="fixture_gesture_pad" type="id" />
+</resources>

@@ -184,15 +184,12 @@ private struct FixtureGestureView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color.orange.gradient)
+                Text("Gesture Pad")
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 220)
-                    .overlay(
-                        Text("Gesture Pad")
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-                    )
-                    .accessibilityIdentifier("fixture-gesture-pad")
+                    .background(Color.orange.gradient, in: RoundedRectangle(cornerRadius: 24))
                     .contentShape(Rectangle())
                     .onTapGesture {
                         tapCount += 1
@@ -203,6 +200,9 @@ private struct FixtureGestureView: View {
                     .onLongPressGesture {
                         longPressState = "completed"
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Gesture Pad")
+                    .accessibilityIdentifier("fixture-gesture-pad")
 
                 Text("Scroll target")
                     .font(.headline)

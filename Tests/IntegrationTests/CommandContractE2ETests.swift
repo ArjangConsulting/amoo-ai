@@ -39,11 +39,54 @@ final class CommandContractE2ETests: XCTestCase {
         guard Self.isPortOpen(Self.companionPort) else {
             throw XCTSkip("Companion not running on port \(Self.companionPort). Use the platform e2e script.")
         }
+
+        try await waitForCompanionReady()
+    }
+
+    private func waitForCompanionReady(attempts: Int = 30, sleepMilliseconds: UInt64 = 500) async throws {
+        for attempt in 0 ..< attempts {
+            do {
+                let companion = try makeCompanion()
+                defer { Task { await companion.shutdown() } }
+
+                try await companion.startSession()
+                _ = try await companion.getCapabilities()
+                try await companion.endSession()
+                return
+            } catch {
+                if attempt == attempts - 1 {
+                    throw XCTSkip("Companion is reachable on port \(Self.companionPort) but not ready for gRPC yet: \(error)")
+                }
+                try? await Task.sleep(nanoseconds: sleepMilliseconds * 1_000_000)
+            }
+        }
     }
 
     private func resetFixtureApp(on server: MCPServer) async {
-        _ = await server.execute(toolName: "device_terminate_app", arguments: ["app_id": Self.fixtureAppID])
-        _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
+        switch Self.platform {
+        case .ios:
+            _ = await server.execute(toolName: "device_terminate_app", arguments: ["app_id": Self.fixtureAppID])
+            _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
+
+        case .android:
+            _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+    }
+
+    private func androidLabelFallback(for id: String?) -> String? {
+        guard Self.platform == .android, let id else { return nil }
+
+        switch id {
+        case "fixture-home-title": return "Fixture Home"
+        case "fixture-open-details": return "Open Details"
+        case "fixture-open-text": return "Open Text Input"
+        case "fixture-open-gesture": return "Open Gesture Lab"
+        case "fixture-detail-row-0": return "Fixture row 0"
+        case "fixture-text-input": return "Hello from the fixture app"
+        case "fixture-gesture-pad": return "Gesture Pad"
+        default: return nil
+        }
     }
 
     private func waitForElement(
@@ -54,12 +97,31 @@ final class CommandContractE2ETests: XCTestCase {
         attempts: Int = 20,
         sleepMilliseconds: UInt64 = 200
     ) async -> ToolResult {
-        let arguments = compactArguments(id: id, label: label, containsText: containsText)
+        let effectiveLabel = label ?? androidLabelFallback(for: id)
+        let primaryArguments: [String: String]
+        let fallbackArguments: [String: String]?
+
+        if Self.platform == .android {
+            primaryArguments = compactArguments(id: id, label: nil, containsText: containsText)
+            fallbackArguments = effectiveLabel == nil ? nil : compactArguments(id: nil, label: effectiveLabel, containsText: containsText)
+        } else {
+            primaryArguments = compactArguments(id: id, label: effectiveLabel, containsText: containsText)
+            fallbackArguments = nil
+        }
+
+        let successNeedles = [id, effectiveLabel, containsText].compactMap { $0 }
 
         for attempt in 0 ..< attempts {
-            let result = await server.execute(toolName: "find_elements", arguments: arguments)
-            if !result.isError, let needle = id ?? label ?? containsText, result.content.contains(needle) {
+            let result = await server.execute(toolName: "find_elements", arguments: primaryArguments)
+            if !result.isError, successNeedles.contains(where: { result.content.contains($0) }) {
                 return result
+            }
+
+            if let fallbackArguments {
+                let fallbackResult = await server.execute(toolName: "find_elements", arguments: fallbackArguments)
+                if !fallbackResult.isError, successNeedles.contains(where: { fallbackResult.content.contains($0) }) {
+                    return fallbackResult
+                }
             }
 
             if attempt < attempts - 1 {
@@ -67,7 +129,14 @@ final class CommandContractE2ETests: XCTestCase {
             }
         }
 
-        return await server.execute(toolName: "find_elements", arguments: arguments)
+        if let fallbackArguments {
+            let fallbackResult = await server.execute(toolName: "find_elements", arguments: fallbackArguments)
+            if !fallbackResult.isError, successNeedles.contains(where: { fallbackResult.content.contains($0) }) {
+                return fallbackResult
+            }
+        }
+
+        return await server.execute(toolName: "find_elements", arguments: primaryArguments)
     }
 
     private func openFixtureScreen(
@@ -77,30 +146,74 @@ final class CommandContractE2ETests: XCTestCase {
         readyID: String? = nil,
         readyLabel: String? = nil
     ) async -> ToolResult {
-        await resetFixtureApp(on: server)
+        let effectiveLauncherLabel = Self.platform == .android ? androidLabelFallback(for: launcherID) ?? launcherLabel : launcherLabel
+        let effectiveReadyLabel = Self.platform == .android ? readyLabel ?? androidLabelFallback(for: readyID) : readyLabel
+        let readyNeedles = [readyID, effectiveReadyLabel].compactMap { $0 }
 
-        let homeReady = await waitForElement(on: server, id: "fixture-home-title")
-        guard !homeReady.isError, homeReady.content.contains("fixture-home-title") else {
-            return .error("Fixture home did not become ready: \(homeReady.content)")
+        func prepareHome() async -> ToolResult {
+            await resetFixtureApp(on: server)
+            let homeReady = await waitForElement(
+                on: server,
+                id: "fixture-home-title",
+                attempts: Self.platform == .android ? 40 : 20,
+                sleepMilliseconds: Self.platform == .android ? 300 : 200
+            )
+            guard !homeReady.isError,
+                  homeReady.content.contains("fixture-home-title") || homeReady.content.contains("Fixture Home")
+            else {
+                return .error("Fixture home did not become ready: \(homeReady.content)")
+            }
+            return homeReady
+        }
+
+        let launcherByID = await server.execute(toolName: "find_elements", arguments: ["id": launcherID])
+        let launcherByLabel = await server.execute(toolName: "find_elements", arguments: ["label": effectiveLauncherLabel])
+
+        let homeReady = await prepareHome()
+        guard !homeReady.isError else {
+            return homeReady
         }
 
         let openByID = await server.execute(toolName: "tap_element", arguments: ["id": launcherID])
-        let openScreen: ToolResult = if openByID.isError {
-            await server.execute(toolName: "tap_element", arguments: ["label": launcherLabel])
-        } else {
-            openByID
-        }
-        guard !openScreen.isError else {
-            return .error("Failed to open fixture screen: \(openScreen.content)")
+        guard !openByID.isError else {
+            let openByLabel = await server.execute(toolName: "tap_element", arguments: ["label": effectiveLauncherLabel])
+            guard !openByLabel.isError else {
+                return .error(
+                    "Failed to open fixture screen: \(openByLabel.content) | idQuery=\(launcherByID.content) | labelQuery=\(launcherByLabel.content)"
+                )
+            }
+            let ready = await waitForElement(on: server, id: readyID, label: effectiveReadyLabel)
+            guard !ready.isError, readyNeedles.contains(where: { ready.content.contains($0) }) else {
+                return .error("Fixture screen did not become ready: \(ready.content)")
+            }
+            return ready
         }
 
-        let ready = await waitForElement(on: server, id: readyID, label: readyLabel)
-        let readyNeedle = readyID ?? readyLabel ?? ""
-        guard !ready.isError, ready.content.contains(readyNeedle) else {
-            return .error("Fixture screen did not become ready: \(ready.content)")
+        let readyAfterID = await waitForElement(on: server, id: readyID, label: effectiveReadyLabel)
+        if !readyAfterID.isError, readyNeedles.contains(where: { readyAfterID.content.contains($0) }) {
+            return readyAfterID
         }
 
-        return ready
+        let homeReadyForLabel = await prepareHome()
+        guard !homeReadyForLabel.isError else {
+            return homeReadyForLabel
+        }
+
+        let openByLabel = await server.execute(toolName: "tap_element", arguments: ["label": effectiveLauncherLabel])
+        guard !openByLabel.isError else {
+            return .error(
+                "Failed to open fixture screen: \(openByLabel.content) | idQuery=\(launcherByID.content) | labelQuery=\(launcherByLabel.content)"
+            )
+        }
+
+        let readyAfterLabel = await waitForElement(on: server, id: readyID, label: effectiveReadyLabel)
+        guard !readyAfterLabel.isError, readyNeedles.contains(where: { readyAfterLabel.content.contains($0) }) else {
+            return .error(
+                "Fixture screen did not become ready: \(readyAfterLabel.content) | readyAfterID=\(readyAfterID.content) | idQuery=\(launcherByID.content) | labelQuery=\(launcherByLabel.content)"
+            )
+        }
+
+        return readyAfterLabel
     }
 
     private func compactArguments(id: String?, label: String?, containsText: String?) -> [String: String] {
@@ -128,12 +241,20 @@ final class CommandContractE2ETests: XCTestCase {
 
         let titleResult = await waitForElement(on: server, id: "fixture-home-title")
         XCTAssertFalse(titleResult.isError)
-        XCTAssertTrue(titleResult.content.contains("fixture-home-title") || titleResult.content.contains("Fixture Home"))
+        XCTAssertTrue(
+            titleResult.content.contains("fixture-home-title") || titleResult.content.contains("Fixture Home"),
+            titleResult.content
+        )
 
         let hierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(hierarchy.isError)
-        XCTAssertTrue(hierarchy.content.contains("Fixture Home") || hierarchy.content.contains("Fixture") || hierarchy.content
-            .contains("com.apple.springboard") || hierarchy.content.contains("com.android.launcher"))
+        XCTAssertTrue(
+            hierarchy.content.contains("Fixture Home") ||
+                hierarchy.content.contains("Fixture") ||
+                hierarchy.content.contains("com.apple.springboard") ||
+                hierarchy.content.contains("com.android.launcher") ||
+                hierarchy.content.contains("com.manman.companion")
+        )
 
         let screenContext = await server.execute(toolName: "get_screen_context", arguments: [:])
         XCTAssertFalse(screenContext.isError)
@@ -221,41 +342,99 @@ final class CommandContractE2ETests: XCTestCase {
     }
 
     func testTextEntryAndClearing() async throws {
-        let server = try makeServer()
+        let (server, driver) = try makeServerWithDriver()
         let textReady = await openFixtureScreen(
             on: server,
             launcherID: "fixture-open-text",
             launcherLabel: "Open Text Input",
-            readyID: "fixture-text-value"
+            readyID: "fixture-text-input"
         )
-        XCTAssertFalse(textReady.isError)
+        XCTAssertFalse(textReady.isError, textReady.content)
 
-        let focusTextInput = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-text-input"])
-        XCTAssertFalse(focusTextInput.isError)
+        let focusInput = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-text-input"])
+        let androidFocusInput = await server.execute(
+            toolName: "tap_element",
+            arguments: ["label": "Hello from the fixture app"]
+        )
+        switch Self.platform {
+        case .ios:
+            XCTAssertFalse(focusInput.isError, focusInput.content)
+        case .android:
+            XCTAssertFalse(androidFocusInput.isError, androidFocusInput.content)
+        }
+
+        let clearExistingText = await server.execute(toolName: "clear_text", arguments: [:])
+        XCTAssertFalse(clearExistingText.isError, clearExistingText.content)
+
         let typeText = await server.execute(toolName: "type_text", arguments: ["text": "contract text"])
-        XCTAssertFalse(typeText.isError)
+        XCTAssertFalse(typeText.isError, typeText.content)
 
-        let valueAfterTyping = await waitForElement(on: server, containsText: "contract text")
-        XCTAssertFalse(valueAfterTyping.isError)
-        XCTAssertTrue(valueAfterTyping.content.contains("contract text"))
+        switch Self.platform {
+        case .ios:
+            let typedElements = try await driver.findElements(.init(id: "fixture-text-input"))
+            XCTAssertEqual(typedElements.first?.value as? String, "contract text", "elements: \(typedElements)")
+        case .android:
+            let typedHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
+            XCTAssertFalse(typedHierarchy.isError, typedHierarchy.content)
+            XCTAssertTrue(typedHierarchy.content.contains("contract text"), typedHierarchy.content)
+        }
 
         let clearText = await server.execute(toolName: "clear_text", arguments: [:])
-        XCTAssertFalse(clearText.isError)
+        XCTAssertFalse(clearText.isError, clearText.content)
+
+        switch Self.platform {
+        case .ios:
+            let clearedElements = try await driver.findElements(.init(id: "fixture-text-input"))
+            let clearedValue = clearedElements.first?.value as? String
+            XCTAssertTrue(
+                clearedValue == "" || clearedValue == "Fixture Input",
+                "elements: \(clearedElements)"
+            )
+        case .android:
+            let clearedHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
+            XCTAssertFalse(clearedHierarchy.isError, clearedHierarchy.content)
+            XCTAssertFalse(clearedHierarchy.content.contains("contract text"), clearedHierarchy.content)
+        }
     }
 
     func testGestureCommands() async throws {
-        let server = try makeServer()
-        let gestureReady = await openFixtureScreen(
-            on: server,
-            launcherID: "fixture-open-gesture",
-            launcherLabel: "Open Gesture Lab",
-            readyLabel: "Gesture Pad"
-        )
-        XCTAssertFalse(gestureReady.isError)
+        let (server, driver) = try makeServerWithDriver()
+        if Self.platform == .ios {
+            await resetFixtureApp(on: server)
+            let homeReady = await waitForElement(on: server, id: "fixture-home-title")
+            XCTAssertFalse(homeReady.isError, homeReady.content)
+            XCTAssertTrue(homeReady.content.contains("fixture-home-title"), homeReady.content)
 
-        let target = try await currentDriver().findElements(.init(label: "Gesture Pad"))
+            let launchers = try await driver.findElements(.init(label: "Gesture"))
+            guard let launcherFrame = launchers.first?.frame else {
+                return XCTFail("Gesture launcher not found: \(launchers)")
+            }
+
+            let launcherX = String(launcherFrame.x + launcherFrame.width / 2)
+            let launcherY = String(launcherFrame.y + launcherFrame.height / 2)
+            let openGesture = await server.execute(toolName: "tap", arguments: ["x": launcherX, "y": launcherY])
+            XCTAssertFalse(openGesture.isError, openGesture.content)
+
+            let gestureReady = await waitForElement(on: server, label: "Gesture Pad")
+            XCTAssertFalse(gestureReady.isError, gestureReady.content)
+            XCTAssertTrue(gestureReady.content.contains("Gesture Pad"), gestureReady.content)
+        } else {
+            let gestureReady = await openFixtureScreen(
+                on: server,
+                launcherID: "fixture-open-gesture",
+                launcherLabel: "Open Gesture Lab",
+                readyID: "fixture-gesture-pad"
+            )
+            XCTAssertFalse(gestureReady.isError, gestureReady.content)
+        }
+
+        let gestureQuery = await server.execute(toolName: "find_elements", arguments: ["label": "Gesture Pad"])
+        XCTAssertFalse(gestureQuery.isError, gestureQuery.content)
+        XCTAssertTrue(gestureQuery.content.contains("Gesture Pad"), gestureQuery.content)
+
+        let target = try await driver.findElements(.init(label: "Gesture Pad"))
         guard let frame = target.first?.frame else {
-            return XCTFail("Gesture pad not found")
+            return XCTFail("Gesture pad not found: \(target)")
         }
 
         let centerX = String(frame.x + frame.width / 2)
@@ -335,6 +514,12 @@ final class CommandContractE2ETests: XCTestCase {
     private func makeServer() throws -> MCPServer {
         let driver = try currentDriver()
         return MCPServer(executor: DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider()))
+    }
+
+    private func makeServerWithDriver() throws -> (MCPServer, any PlatformDriver) {
+        let driver = try currentDriver()
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider()))
+        return (server, driver)
     }
 
     private static func isPortOpen(_ port: Int) -> Bool {

@@ -61,28 +61,19 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Text
 
     func typeText(_ text: String) {
-        let focusedElement = app.textFields.element(boundBy: 0)
-        if focusedElement.exists {
-            focusedElement.typeText(text)
-        } else {
-            let textView = app.textViews.element(boundBy: 0)
-            if textView.exists {
-                textView.typeText(text)
-            }
-        }
+        guard let textInput = resolvedTextInput() else { return }
+        focusForTextEntry(textInput)
+        app.typeText(text)
     }
 
     func clearText(characterCount: Int?) {
-        let focusedElement = app.textFields.element(boundBy: 0).exists
-            ? app.textFields.element(boundBy: 0)
-            : app.textViews.element(boundBy: 0)
+        guard let textInput = resolvedTextInput() else { return }
+        focusForTextEntry(textInput)
 
-        guard focusedElement.exists else { return }
-
-        let currentText = (focusedElement.value as? String) ?? ""
+        let currentText = (textInput.value as? String) ?? ""
         let deleteCount = characterCount ?? currentText.count
         let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: deleteCount)
-        focusedElement.typeText(deleteString)
+        app.typeText(deleteString)
     }
 
     // MARK: - Navigation
@@ -107,7 +98,7 @@ final class XCUITestBridge: @unchecked Sendable {
         var results: [ElementSnapshot] = []
 
         let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
-        let allElements = target.descendants(matching: .any).allElementsBoundByAccessibilityElement
+        let allElements = collectedElements(in: target)
 
         for element in allElements {
             if matches(element: element, id: id, label: label, containsText: containsText) {
@@ -134,11 +125,21 @@ final class XCUITestBridge: @unchecked Sendable {
         candidateBundleIDs: [String] = []
     ) -> Bool {
         let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
-        let allElements = target.descendants(matching: .any).allElementsBoundByAccessibilityElement
+        let allElements = collectedElements(in: target)
 
         for element in allElements where matches(element: element, id: id, label: label, containsText: containsText) {
-            guard element.exists, element.isHittable else { continue }
-            element.tap()
+            guard element.exists else { continue }
+            if element.isHittable {
+                element.tap()
+                return true
+            }
+
+            let frame = element.frame.standardized
+            guard !frame.isNull, !frame.isEmpty else { continue }
+
+            let coordinate = target.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
+            coordinate.tap()
             return true
         }
 
@@ -413,6 +414,106 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return isMatch
+    }
+
+    private func resolvedTextInput() -> XCUIElement? {
+        let primaryCandidates = textInputCandidates(in: app)
+        for candidate in primaryCandidates where candidate.exists && candidate.isHittable {
+            return candidate
+        }
+
+        for candidate in primaryCandidates where candidate.exists {
+            return candidate
+        }
+
+        let target = resolvedTargetApp(bundleID: nil, candidateBundleIDs: [])
+        let candidates = textInputCandidates(in: target)
+
+        for candidate in candidates where candidate.exists && candidate.isHittable {
+            return candidate
+        }
+
+        for candidate in candidates where candidate.exists {
+            return candidate
+        }
+
+        return nil
+    }
+
+    private func textInputCandidates(in target: XCUIApplication) -> [XCUIElement] {
+        target.descendants(matching: .textField).allElementsBoundByIndex +
+            target.descendants(matching: .textView).allElementsBoundByIndex +
+            target.descendants(matching: .secureTextField).allElementsBoundByIndex
+    }
+
+    private func focus(_ element: XCUIElement) {
+        if element.isHittable {
+            element.tap()
+            return
+        }
+
+        let frame = element.frame.standardized
+        guard !frame.isNull, !frame.isEmpty else { return }
+
+        let target = resolvedTargetApp(bundleID: nil, candidateBundleIDs: [])
+        let coordinate = target.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
+        coordinate.tap()
+    }
+
+    private func focusForTextEntry(_ element: XCUIElement) {
+        guard element.exists else { return }
+
+        if element.isHittable {
+            let coordinate = element.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
+            coordinate.tap()
+            return
+        }
+
+        let frame = element.frame.standardized
+        guard !frame.isNull, !frame.isEmpty else {
+            focus(element)
+            return
+        }
+
+        let target = app
+        let coordinate = target.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.maxX - 8, dy: frame.midY))
+        coordinate.tap()
+    }
+
+    private func collectedElements(in target: XCUIApplication) -> [XCUIElement] {
+        let queries: [XCUIElementQuery] = [
+            target.buttons,
+            target.staticTexts,
+            target.textFields,
+            target.textViews,
+            target.secureTextFields,
+            target.cells,
+            target.links,
+            target.images,
+            target.switches,
+            target.sliders,
+        ]
+
+        var elements: [XCUIElement] = []
+        var seen = Set<String>()
+
+        for query in queries {
+            for element in query.allElementsBoundByAccessibilityElement {
+                let key = [
+                    String(element.elementType.rawValue),
+                    element.identifier,
+                    element.label,
+                    NSCoder.string(for: element.frame.standardized),
+                ].joined(separator: "|")
+                if seen.insert(key).inserted {
+                    elements.append(element)
+                }
+            }
+        }
+
+        return elements
     }
 
     private func stableNodeID(identifier: String, label: String?) -> String {

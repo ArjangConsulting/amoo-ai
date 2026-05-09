@@ -11,10 +11,15 @@ import androidx.test.uiautomator.UiObject2
  * If UIAutomator APIs change, only this file changes.
  */
 class UIAutomatorBridge {
-    private val device: UiDevice = UiDevice.getInstance(
+    private val instrumentation by lazy(LazyThreadSafetyMode.NONE) {
         InstrumentationRegistry.getInstrumentation()
-    )
-    private val targetPackageName: String = InstrumentationRegistry.getInstrumentation().targetContext.packageName
+    }
+    private val device by lazy(LazyThreadSafetyMode.NONE) {
+        UiDevice.getInstance(instrumentation)
+    }
+    private val targetPackageName by lazy(LazyThreadSafetyMode.NONE) {
+        instrumentation.targetContext.packageName
+    }
 
     // -- Touch --
 
@@ -47,12 +52,16 @@ class UIAutomatorBridge {
     // -- Text --
 
     fun typeText(text: String) {
+        device.waitForIdle(2000)
         val focused = device.findObject(By.focused(true))
+            ?: device.findObject(By.clazz("android.widget.EditText"))
         focused?.text = text
     }
 
     fun clearText() {
+        device.waitForIdle(2000)
         val focused = device.findObject(By.focused(true))
+            ?: device.findObject(By.clazz("android.widget.EditText"))
         focused?.clear()
     }
 
@@ -69,7 +78,7 @@ class UIAutomatorBridge {
         text: String?,
         containsText: String?
     ): List<ElementSnapshot> {
-        return device.findObjects(By.pkg(currentPackageName()))
+        return currentElements()
             .filter { element ->
                 matches(element, resourceId, text, containsText)
             }
@@ -77,11 +86,11 @@ class UIAutomatorBridge {
     }
 
     fun getAllElements(): List<ElementSnapshot> {
-        return device.findObjects(By.pkg(currentPackageName())).map { it.toSnapshot() }
+        return currentElements().map { it.toSnapshot() }
     }
 
     fun getInteractableElements(): List<ElementSnapshot> {
-        return device.findObjects(By.pkg(currentPackageName()))
+        return currentElements()
             .filter { it.isClickable || it.isLongClickable || it.className?.contains("EditText") == true }
             .map { it.toSnapshot() }
     }
@@ -115,10 +124,15 @@ class UIAutomatorBridge {
 
     private fun UiObject2.toSnapshot(): ElementSnapshot {
         val bounds = visibleBounds ?: Rect()
+        val contentDescription = contentDescription?.toString().orEmpty()
+        val resourceName = resourceName.orEmpty()
+        val textValue = text?.toString().orEmpty()
+        val normalizedID = normalizedElementID(resourceName, contentDescription)
+
         return ElementSnapshot(
-            id = resourceName ?: "",
-            label = text ?: contentDescription ?: "",
-            value = text ?: "",
+            id = normalizedID,
+            label = textValue.ifBlank { contentDescription },
+            value = textValue,
             type = className ?: "",
             frame = FrameRect(bounds.left, bounds.top, bounds.width(), bounds.height()),
             isEnabled = isEnabled,
@@ -135,8 +149,9 @@ class UIAutomatorBridge {
         val elementText = element.text?.toString().orEmpty()
         val contentDescription = element.contentDescription?.toString().orEmpty()
         val resourceName = element.resourceName.orEmpty()
+        val normalizedID = normalizedElementID(resourceName, contentDescription)
 
-        if (resourceId != null && resourceId != resourceName && resourceId != contentDescription) {
+        if (resourceId != null && resourceId != normalizedID && resourceId != contentDescription && resourceId != resourceName) {
             return false
         }
 
@@ -149,5 +164,24 @@ class UIAutomatorBridge {
         }
 
         return resourceId != null || text != null || containsText != null
+    }
+
+    private fun normalizedElementID(resourceName: String, contentDescription: String): String {
+        if (contentDescription.isNotBlank()) {
+            return contentDescription
+        }
+
+        val resourceEntry = resourceName.substringAfterLast(':', resourceName).substringAfterLast('/')
+        return resourceEntry.replace('_', '-')
+    }
+
+    private fun currentElements(): List<UiObject2> {
+        return device.findObjects(By.depth(0))
+            .flatMap { root -> sequenceOf(root) + root.children.asSequence().flatMap { collectDescendants(it) } }
+            .toList()
+    }
+
+    private fun collectDescendants(node: UiObject2): Sequence<UiObject2> {
+        return sequenceOf(node) + node.children.asSequence().flatMap { child -> collectDescendants(child) }
     }
 }
