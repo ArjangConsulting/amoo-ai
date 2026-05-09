@@ -31,6 +31,7 @@ import mobile.testing.v1.ScreenshotResponse
 import mobile.testing.v1.ScrollRequest
 import mobile.testing.v1.StartSessionRequest
 import mobile.testing.v1.StartSessionResponse
+import mobile.testing.v1.SwipeDirectionRequest
 import mobile.testing.v1.SwipeRequest
 import mobile.testing.v1.TapElementRequest
 import mobile.testing.v1.TapRequest
@@ -67,6 +68,7 @@ class CompanionServiceImpl(
             capability("action.longPress", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.swipe", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.scroll", CapabilityTier.CAPABILITY_TIER_REQUIRED),
+            capability("action.swipeInDirection", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.typeText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.clearText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.tapElement", CapabilityTier.CAPABILITY_TIER_REQUIRED),
@@ -135,6 +137,20 @@ class CompanionServiceImpl(
         return actionResponse(
             gesture.scroll(request.direction.coreDirection(), request.distance.toInt()),
             "scroll failed"
+        )
+    }
+
+    override suspend fun swipeInDirection(request: SwipeDirectionRequest): ActionResponse {
+        val direction = request.direction.coreDirection()
+        val distance = if (request.distance > 0) request.distance.toInt() else 300
+        val durationMs = if (request.durationMs > 0) request.durationMs else 400
+        val resourceId = if (request.hasSelector() && request.selector.id.isNotBlank())
+            request.selector.id else null
+        val label = if (request.hasSelector() && request.selector.label.isNotBlank())
+            request.selector.label else null
+        return actionResponse(
+            gesture.swipeInDirection(direction, distance, durationMs, resourceId, label),
+            "swipeInDirection failed"
         )
     }
 
