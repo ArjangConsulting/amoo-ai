@@ -24,6 +24,7 @@ service CompanionService {
 
   // Gesture actions
   rpc Swipe (SwipeRequest) returns (ActionResponse);
+  rpc SwipeInDirection (SwipeDirectionRequest) returns (ActionResponse);
   rpc Scroll (ScrollRequest) returns (ActionResponse);
   rpc ScrollToElement (ScrollToElementRequest) returns (ActionResponse);
   rpc Pinch (PinchRequest) returns (ActionResponse);
@@ -99,6 +100,13 @@ message SwipeRequest {
   Point from = 1;
   Point to = 2;
   Duration duration = 3;
+}
+
+message SwipeDirectionRequest {
+  Direction direction = 1;
+  float distance = 2;
+  int32 duration_ms = 3;
+  ElementSelector selector = 4;
 }
 
 message ScrollRequest {
