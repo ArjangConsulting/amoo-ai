@@ -144,10 +144,12 @@ class CompanionServiceImpl(
         val direction = request.direction.coreDirection()
         val distance = if (request.distance > 0) request.distance.toInt() else 300
         val durationMs = if (request.durationMs > 0) request.durationMs else 400
-        val resourceId = if (request.hasSelector() && request.selector.id.isNotBlank())
-            request.selector.id else null
-        val label = if (request.hasSelector() && request.selector.label.isNotBlank())
-            request.selector.label else null
+        val resourceId = if (request.hasSelector())
+            request.selector.id.takeUnless { it.isBlank() } else null
+        val label = if (request.hasSelector())
+            request.selector.label.takeUnless { it.isBlank() }
+                ?: request.selector.containsText.takeUnless { it.isBlank() }
+            else null
         return actionResponse(
             gesture.swipeInDirection(direction, distance, durationMs, resourceId, label),
             "swipeInDirection failed"
