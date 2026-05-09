@@ -101,6 +101,15 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         return actionResponse(success: true)
     }
 
+    package func swipeInDirection(
+        request: MobileTesting_SwipeDirectionRequest,
+        context _: ServerContext
+    ) async throws -> MobileTesting_ActionResponse {
+        // SwipeInDirection is a direction-based swipe, delegated to scroll
+        try await companion.scroll(direction: request.direction.coreDirection, distance: Double(request.distance))
+        return actionResponse(success: true)
+    }
+
     package func scroll(
         request: MobileTesting_ScrollRequest,
         context _: ServerContext
