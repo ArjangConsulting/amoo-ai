@@ -261,6 +261,8 @@ final class AndroidDriverTests: XCTestCase {
         let swipes = await companion.swipeDirections
         XCTAssertEqual(swipes.count, 1)
         XCTAssertEqual(swipes[0].direction, .up)
+        XCTAssertEqual(swipes[0].distance, 250)
+        XCTAssertEqual(swipes[0].duration, Duration(milliseconds: 350))
         XCTAssertNil(swipes[0].element)
     }
 }

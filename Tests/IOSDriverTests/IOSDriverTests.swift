@@ -364,6 +364,8 @@ final class IOSDriverTests: XCTestCase {
         let swipes = await companion.swipeDirections
         XCTAssertEqual(swipes.count, 1)
         XCTAssertEqual(swipes[0].direction, .right)
+        XCTAssertEqual(swipes[0].distance, 200)
+        XCTAssertEqual(swipes[0].duration, Duration(milliseconds: 300))
         XCTAssertEqual(swipes[0].element?.id, "scroll-view")
     }
 }

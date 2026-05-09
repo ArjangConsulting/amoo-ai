@@ -107,11 +107,7 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     ) async throws -> MobileTesting_ActionResponse {
         let distance = request.distance > 0 ? Double(request.distance) : 300
         let duration = request.durationMs > 0 ? Duration(milliseconds: Int(request.durationMs)) : Duration(milliseconds: 400)
-        let element: ElementSelector? = request.hasSelector ? ElementSelector(
-            id: request.selector.id.isEmpty ? nil : request.selector.id,
-            label: request.selector.label.isEmpty ? nil : request.selector.label,
-            containsText: request.selector.containsText.isEmpty ? nil : request.selector.containsText
-        ) : nil
+        let element: ElementSelector? = request.hasSelector ? request.selector.coreSelector : nil
         try await companion.swipeInDirection(request.direction.coreDirection, distance: distance, duration: duration, element: element)
         return actionResponse(success: true)
     }
