@@ -340,6 +340,32 @@ final class IOSDriverTests: XCTestCase {
         XCTAssertEqual(described, [ElementInfo(id: "settings", label: "Settings")])
         XCTAssertEqual(appState, .unknown)
     }
+
+    func testSwipeDirectionDelegatesToCompanion() async throws {
+        let companion = MockCompanionClient()
+        let driver = IOSDriver(companion: companion)
+        try await driver.swipe(direction: .left, distance: 300, duration: Duration(milliseconds: 400))
+        let swipes = await companion.swipeDirections
+        XCTAssertEqual(swipes.count, 1)
+        XCTAssertEqual(swipes[0].direction, .left)
+        XCTAssertEqual(swipes[0].distance, 300)
+        XCTAssertNil(swipes[0].element)
+    }
+
+    func testSwipeDirectionWithElementDelegatesToCompanion() async throws {
+        let companion = MockCompanionClient()
+        let driver = IOSDriver(companion: companion)
+        try await driver.swipe(
+            direction: .right,
+            distance: 200,
+            duration: Duration(milliseconds: 300),
+            element: ElementSelector(id: "scroll-view")
+        )
+        let swipes = await companion.swipeDirections
+        XCTAssertEqual(swipes.count, 1)
+        XCTAssertEqual(swipes[0].direction, .right)
+        XCTAssertEqual(swipes[0].element?.id, "scroll-view")
+    }
 }
 
 private actor MockSimctlRunner: SimctlRunning {
@@ -508,6 +534,21 @@ private actor MockCompanionClient: CompanionClient {
 
     func swipe(from: Point, to: Point, duration: Duration) async throws {
         _swipes.append((from, to, duration))
+    }
+
+    private var _swipeDirections: [(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?)] = []
+
+    var swipeDirections: [(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?)] {
+        _swipeDirections
+    }
+
+    func swipeInDirection(
+        _ direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    ) async throws {
+        _swipeDirections.append((direction, distance, duration, element))
     }
 
     func scroll(direction: Direction, distance: Double) async throws {

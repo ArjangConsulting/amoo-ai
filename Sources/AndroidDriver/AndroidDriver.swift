@@ -108,6 +108,14 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.swipe(from: from, to: to, duration: duration)
     }
 
+    public func swipe(direction: Direction, distance: Double, duration: Duration) async throws {
+        try await companion.swipeInDirection(direction, distance: distance, duration: duration, element: nil)
+    }
+
+    public func swipe(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws {
+        try await companion.swipeInDirection(direction, distance: distance, duration: duration, element: element)
+    }
+
     public func scroll(direction: Direction, distance: Double) async throws {
         try await companion.scroll(direction: direction, distance: distance)
     }
