@@ -105,11 +105,11 @@ private func runAndroidREPL(
 // MARK: - Main loop
 
 private func replHistoryPath() -> String? {
-    // Avoid falling back to "" + "/.mobile-testing-history" → "/.mobile-testing-history"
+    // Avoid falling back to "" + "/.amoo-history" → "/.amoo-history"
     // when HOME is unset (sandboxed CI agents, launchd-managed processes).
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     guard !home.isEmpty, home != "/" else { return nil }
-    return home + "/.mobile-testing-history"
+    return home + "/.amoo-history"
 }
 
 private func replLoop(
@@ -197,7 +197,7 @@ private func printHelp(definitions: [ToolDefinition]) {
     print("  \(colored("quit/exit", .green))   Exit the session")
     print("")
     print(colored("AI setup:", .bold, .cyan))
-    print("  Run \(colored("mobile-testing ai status", .green)) outside the REPL to verify the configured AI provider and Ollama model.")
+    print("  Run \(colored("amoo ai status", .green)) outside the REPL to verify the configured AI provider and Ollama model.")
     print("")
     print(colored("Press Tab to complete the tool command or argument key.", .gray))
     print("")

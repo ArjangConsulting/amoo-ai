@@ -143,9 +143,9 @@ enum AICommandParseError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .missingAction:
-            "Usage: mobile-testing ai <setup|status|config|reset>"
+            "Usage: amoo ai <setup|status|config|reset>"
         case let .unknownAction(action):
-            "Unknown ai action '\(action)'. Run 'mobile-testing ai' for usage."
+            "Unknown ai action '\(action)'. Run 'amoo ai' for usage."
         }
     }
 }

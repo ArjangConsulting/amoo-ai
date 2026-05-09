@@ -1,4 +1,4 @@
-name: MobileTestingCompanion
+name: AmooCompanion
 options:
   bundleIdPrefix: com.mobiletesting
   deploymentTarget:
@@ -27,7 +27,7 @@ settings:
     SWIFT_VERSION: "6.3"
 
 targets:
-  MobileTestingCompanion:
+  AmooCompanion:
     type: application
     platform: iOS
     sources:
@@ -39,7 +39,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.mobiletesting.companion
         INFOPLIST_FILE: HostApp/Info.plist
 
-  MobileTestingCompanionUITests:
+  AmooCompanionUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
@@ -47,7 +47,7 @@ targets:
       - path: GeneratedProtos
         optional: true
     dependencies:
-      - target: MobileTestingCompanion
+      - target: AmooCompanion
       - package: grpc-swift-2
         product: GRPCCore
       - package: grpc-swift-nio-transport
@@ -61,4 +61,4 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.mobiletesting.companion.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: ""
-        TEST_TARGET_NAME: MobileTestingCompanion
+        TEST_TARGET_NAME: AmooCompanion

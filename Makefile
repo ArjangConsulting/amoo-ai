@@ -31,8 +31,8 @@ companion-ios-protos:
 
 companion-ios-build: companion-ios-project
 	cd CompanionApps/iOS && xcodebuild build-for-testing \
-		-project MobileTestingCompanion.xcodeproj \
-		-scheme MobileTestingCompanion \
+		-project AmooCompanion.xcodeproj \
+		-scheme AmooCompanion \
 		-destination 'generic/platform=iOS Simulator' \
 		-derivedDataPath build 2>&1 | tail -5
 

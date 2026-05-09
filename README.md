@@ -1,4 +1,4 @@
-# Mobile Testing
+# Amoo Mobile Testing
 
 Swift-first mobile testing infrastructure for iOS and Android, with:
 
@@ -41,19 +41,19 @@ The `ai_*` tools use deterministic fallback behavior by default. The CLI now sup
 Persistent setup across sessions:
 
 ```bash
-swift run mobile-testing ai setup
+swift run amoo ai setup
 ```
 
 This launches an interactive setup flow and stores non-secret settings in:
 
 ```text
-~/Library/Application Support/mobile-testing/ai-settings.json
+~/Library/Application Support/amoo/ai-settings.json
 ```
 
 One-time interactive setup for a REPL session:
 
 ```bash
-swift run mobile-testing --enable-ai
+swift run amoo --enable-ai
 ```
 
 This prompts for provider details and launches the REPL with that in-memory configuration only. It does not save settings.
@@ -79,7 +79,7 @@ For normal non-interactive runs, env vars still override saved settings.
 Direct one-shot usage with saved or env-based settings:
 
 ```bash
-swift run mobile-testing device --platform ios ai_describe_screen
+swift run amoo device --platform ios ai_describe_screen
 ```
 
 Notes:
@@ -93,19 +93,19 @@ Notes:
 Verify AI setup:
 
 ```bash
-swift run mobile-testing ai status
+swift run amoo ai status
 ```
 
 Show the active non-secret AI configuration:
 
 ```bash
-swift run mobile-testing ai config
+swift run amoo ai config
 ```
 
 Reset saved AI settings:
 
 ```bash
-swift run mobile-testing ai reset
+swift run amoo ai reset
 ```
 
 For Ollama, this checks both server reachability and whether the configured model is installed.

@@ -50,14 +50,14 @@ enum DeviceSelectionError: Error, CustomStringConvertible {
             Boot one with:
               open -a Simulator
               xcrun simctl boot "<name-or-udid>"
-            Then re-run mobile-testing.
+            Then re-run amoo.
             """
         case .noDevicesAvailable:
             """
             No iOS simulators or Android emulators/devices found.
             - iOS: open -a Simulator  (or xcrun simctl boot "<name-or-udid>")
             - Android: start an emulator in Android Studio or connect a device
-            Then re-run mobile-testing.
+            Then re-run amoo.
             """
         case let .invalidSelection(input):
             "Invalid selection '\(input)'. Enter a number from the list."

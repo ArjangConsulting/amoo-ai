@@ -16,7 +16,7 @@
 ## Module Map
 
 ```
-mobile-testing/
+amoo-mobile-testing/
 ├── Package.swift
 │
 ├── .github/

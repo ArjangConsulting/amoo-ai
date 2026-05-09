@@ -82,11 +82,11 @@ ADB_BASE=(adb -s "$DEVICE_SERIAL")
 log "Selected device: $DEVICE_SERIAL"
 
 log "Running Android preflight..."
-(cd "$REPO_ROOT" && swift run mobile-testing preflight --platform android)
+(cd "$REPO_ROOT" && swift run amoo preflight --platform android)
 
 if [[ "$SKIP_BUILD" == false ]]; then
     log "Installing Android companion via CLI..."
-    (cd "$REPO_ROOT" && swift run mobile-testing companion install --platform android --device "$DEVICE_SERIAL")
+    (cd "$REPO_ROOT" && swift run amoo companion install --platform android --device "$DEVICE_SERIAL")
 else
     log "Skipping build/install (--skip-build)."
 fi

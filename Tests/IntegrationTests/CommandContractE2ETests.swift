@@ -480,11 +480,11 @@ final class CommandContractE2ETests: XCTestCase {
         let server = try makeServer()
         await resetFixtureApp(on: server)
 
-        let deepLink = "mobile-testing://deep-link?source=contract"
+        let deepLink = "amoo://deep-link?source=contract"
         let openURL = await server.execute(toolName: "open_url", arguments: ["url": deepLink])
         XCTAssertFalse(openURL.isError)
 
-        let deepLinkResult = await waitForElement(on: server, containsText: "mobile-testing://")
+        let deepLinkResult = await waitForElement(on: server, containsText: "amoo://")
         XCTAssertFalse(deepLinkResult.isError)
 
         let screenshot = await server.execute(toolName: "take_screenshot", arguments: [:])

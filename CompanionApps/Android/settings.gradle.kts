@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MobileTestingCompanion"
+rootProject.name = "AmooCompanion"
 include(":app")

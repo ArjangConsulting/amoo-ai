@@ -62,12 +62,12 @@ class MainActivity : Activity() {
 
     private fun handleIntent(intent: Intent?) {
         val data = intent?.data ?: return
-        if (data.scheme != "mobile-testing") {
+        if (data.scheme != "amoo") {
             return
         }
 
         val normalizedURL = data.toString().lowercase()
-        if (normalizedURL.startsWith("mobile-testing://home") || normalizedURL.startsWith("mobile-testing://reset")) {
+        if (normalizedURL.startsWith("amoo://home") || normalizedURL.startsWith("amoo://reset")) {
             resetFixtureState()
             navigateTo(FixtureScreen.HOME, replaceStack = true)
             return
@@ -93,7 +93,7 @@ class MainActivity : Activity() {
 
     private fun routeFor(data: Uri): String? {
         val rawRoute = data.toString()
-            .removePrefix("mobile-testing://")
+            .removePrefix("amoo://")
             .trimStart('/')
             .substringBefore('?')
             .substringBefore('#')

@@ -31,7 +31,7 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
         switch self {
         case .missingAction:
             """
-            Usage: mobile-testing companion <action> [options]
+            Usage: amoo companion <action> [options]
 
             Actions:
               install    Build and install the companion app on a device/simulator
@@ -42,7 +42,7 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
                            --force                 Force rebuild even if already built
             """
         case let .unknownAction(action):
-            "Unknown companion action '\(action)'. Run 'mobile-testing companion' for usage."
+            "Unknown companion action '\(action)'. Run 'amoo companion' for usage."
         case let .unknownPlatform(p):
             "Unknown platform '\(p)'. Expected 'ios' or 'android'."
         }
