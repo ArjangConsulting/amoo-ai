@@ -450,6 +450,41 @@ final class MCPServerTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
     }
+
+    func testSwipeInDirectionTool() async throws {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(
+            toolName: "swipe_in_direction",
+            arguments: ["direction": "left", "distance": "300", "duration_ms": "400"]
+        )
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("left"))
+
+        let resultWithElement = await server.execute(
+            toolName: "swipe_in_direction",
+            arguments: ["direction": "up", "element_id": "scroll-view"]
+        )
+        XCTAssertFalse(resultWithElement.isError)
+
+        let missing = await server.execute(
+            toolName: "swipe_in_direction",
+            arguments: [:]
+        )
+        XCTAssertTrue(missing.isError)
+        XCTAssertTrue(missing.content.contains("direction"))
+
+        let calls = await driver.calls
+        XCTAssertTrue(calls.contains(where: { $0.hasPrefix("swipeInDirection:left") }))
+        XCTAssertTrue(calls.contains(where: { $0.hasPrefix("swipeInDirection:up") }))
+    }
+
+    func testSwipeInDirectionToolNameExposed() {
+        let server = MCPServer()
+        XCTAssertTrue(server.toolNames().contains("swipe_in_direction"))
+    }
 }
 
 private actor LockedBox<Value: Sendable> {
@@ -487,7 +522,8 @@ private actor AuditMockDriver: PlatformDriver {
     func tapElement(_: ElementSelector) async throws {}
 
     func swipe(from _: Point, to _: Point, duration _: Duration) async throws {}
-    func swipe(direction _: Direction) async throws {}
+    func swipe(direction _: Direction, distance _: Double, duration _: Duration) async throws {}
+    func swipe(direction _: Direction, distance _: Double, duration _: Duration, element _: ElementSelector?) async throws {}
     func scroll(direction _: Direction, distance _: Double) async throws {}
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {}
     func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
@@ -623,8 +659,13 @@ private actor MockDriver: PlatformDriver {
         calls.append("swipe")
     }
 
-    func swipe(direction _: Direction) async throws {
-        calls.append("swipeDir")
+    func swipe(direction: Direction, distance: Double, duration _: Duration) async throws {
+        calls.append("swipeInDirection:\(direction):\(distance)")
+    }
+
+    func swipe(direction: Direction, distance: Double, duration _: Duration, element: ElementSelector?) async throws {
+        let suffix = element.flatMap { $0.id }.map { ":\($0)" } ?? ""
+        calls.append("swipeInDirection:\(direction):\(distance)\(suffix)")
     }
 
     func scroll(direction: Direction, distance: Double) async throws {

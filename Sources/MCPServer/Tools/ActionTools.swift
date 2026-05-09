@@ -43,6 +43,18 @@ public enum ActionTools {
             required: ["from_x", "from_y", "to_x", "to_y"]
         ),
         ToolDefinition(
+            name: "swipe_in_direction",
+            description: "Swipe in a direction from screen center or a specific element",
+            properties: [
+                "direction": .init(type: "string", description: "Swipe direction: up, down, left, or right"),
+                "distance": .init(type: "string", description: "Swipe distance in points. Defaults to 300."),
+                "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 400."),
+                "element_id": .init(type: "string", description: "Accessibility ID of element to swipe on. Omit for screen-center swipe."),
+                "element_label": .init(type: "string", description: "Accessibility label of element to swipe on.")
+            ],
+            required: ["direction"]
+        ),
+        ToolDefinition(
             name: "scroll",
             description: "Scroll in a direction",
             properties: [
