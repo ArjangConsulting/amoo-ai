@@ -105,8 +105,14 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         request: MobileTesting_SwipeDirectionRequest,
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
-        // SwipeInDirection is a direction-based swipe, delegated to scroll
-        try await companion.scroll(direction: request.direction.coreDirection, distance: Double(request.distance))
+        let distance = request.distance > 0 ? Double(request.distance) : 300
+        let duration = request.durationMs > 0 ? Duration(milliseconds: Int(request.durationMs)) : Duration(milliseconds: 400)
+        let element: ElementSelector? = request.hasSelector ? ElementSelector(
+            id: request.selector.id.isEmpty ? nil : request.selector.id,
+            label: request.selector.label.isEmpty ? nil : request.selector.label,
+            containsText: request.selector.containsText.isEmpty ? nil : request.selector.containsText
+        ) : nil
+        try await companion.swipeInDirection(request.direction.coreDirection, distance: distance, duration: duration, element: element)
         return actionResponse(success: true)
     }
 

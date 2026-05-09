@@ -253,6 +253,16 @@ final class AndroidDriverTests: XCTestCase {
             ["-s", "emulator-5554", "shell", "cmd", "uimode", "night", "no"]
         ])
     }
+
+    func testSwipeDirectionDelegatesToCompanion() async throws {
+        let companion = MockCompanionClient()
+        let driver = AndroidDriver(companion: companion)
+        try await driver.swipe(direction: .up, distance: 250, duration: Duration(milliseconds: 350))
+        let swipes = await companion.swipeDirections
+        XCTAssertEqual(swipes.count, 1)
+        XCTAssertEqual(swipes[0].direction, .up)
+        XCTAssertNil(swipes[0].element)
+    }
 }
 
 private actor MockADBRunner: ADBRunning {
@@ -411,6 +421,21 @@ private actor MockCompanionClient: CompanionClient {
 
     func swipe(from: Point, to: Point, duration: Duration) async throws {
         _swipes.append((from, to, duration))
+    }
+
+    private var _swipeDirections: [(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?)] = []
+
+    var swipeDirections: [(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?)] {
+        _swipeDirections
+    }
+
+    func swipeInDirection(
+        _ direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    ) async throws {
+        _swipeDirections.append((direction, distance, duration, element))
     }
 
     func scroll(direction: Direction, distance: Double) async throws {
