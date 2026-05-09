@@ -140,7 +140,7 @@ public struct FileAISettingsStore: AISettingsStore {
             self.configURL = configURL
         } else {
             let appSupport = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent("Library/Application Support/mobile-testing", isDirectory: true)
+                .appendingPathComponent("Library/Application Support/amoo", isDirectory: true)
             self.configURL = appSupport.appendingPathComponent("ai-settings.json")
         }
     }

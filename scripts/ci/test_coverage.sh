@@ -26,7 +26,7 @@ export PROTOC_PATH
 
 PROFILE_BASE_DIR="${TMPDIR:-/tmp}"
 PROFILE_BASE_DIR="${PROFILE_BASE_DIR%/}"
-LLVM_PROFILE_FILE="${LLVM_PROFILE_FILE:-$PROFILE_BASE_DIR/mobile-testing-%p.profraw}"
+LLVM_PROFILE_FILE="${LLVM_PROFILE_FILE:-$PROFILE_BASE_DIR/amoo-%p.profraw}"
 export LLVM_PROFILE_FILE
 
 if [[ ! -f Package.swift ]]; then

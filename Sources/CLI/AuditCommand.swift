@@ -47,7 +47,7 @@ public enum AuditCommandParseError: Error, CustomStringConvertible {
         switch self {
         case .usage:
             """
-            Usage: mobile-testing audit --app-id <bundle-id> \
+            Usage: amoo audit --app-id <bundle-id> \
             [--screen-summary <text>] [--root-id <id>] \
             [--fail-on none|info|low|medium|high|critical] \
             [--out-json <path>] [--out-md <path>]

@@ -26,7 +26,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
         switch self {
         case .missingTool:
             """
-            Usage: mobile-testing device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
+            Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
 
             Common tools:
               tap x=<n> y=<n>

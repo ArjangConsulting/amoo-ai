@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="MobileTestingCompanion"
+        android:label="AmooCompanion"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
@@ -15,7 +15,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="mobile-testing" />
+                <data android:scheme="amoo" />
             </intent-filter>
         </activity>
     </application>

@@ -27,7 +27,7 @@
 			<string>com.mobiletesting.companion.deeplink</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>mobile-testing</string>
+				<string>amoo</string>
 			</array>
 		</dict>
 	</array>

@@ -94,7 +94,7 @@ final class CLITests: XCTestCase {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Usage: mobile-testing ai <setup|status|config|reset>")
+        XCTAssertEqual(error.description, "Usage: amoo ai <setup|status|config|reset>")
     }
 
     func testParseAICommandRejectsUnknownAction() {
@@ -102,7 +102,7 @@ final class CLITests: XCTestCase {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Unknown ai action 'ping'. Run 'mobile-testing ai' for usage.")
+        XCTAssertEqual(error.description, "Unknown ai action 'ping'. Run 'amoo ai' for usage.")
     }
 
     func testAIStatusCommandReturnsSuccessForDisabledProvider() async {
@@ -598,7 +598,7 @@ final class CLITests: XCTestCase {
 
         XCTAssertEqual(
             error.description,
-            "Unknown companion action 'launch'. Run 'mobile-testing companion' for usage."
+            "Unknown companion action 'launch'. Run 'amoo companion' for usage."
         )
     }
 

@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "MobileTesting",
+    name: "AmooMobileTesting",
     platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "MobileTestingCore", targets: ["MobileTestingCore"]),
@@ -15,7 +15,7 @@ let package = Package(
         .library(name: "MCPServer", targets: ["MCPServer"]),
         .library(name: "AuditEngine", targets: ["AuditEngine"]),
         .library(name: "CommandContract", targets: ["CommandContract"]),
-        .executable(name: "mobile-testing", targets: ["CLI"])
+        .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", branch: "main"),

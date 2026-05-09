@@ -16,7 +16,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPANION_DIR="$REPO_ROOT/CompanionApps/iOS"
-COMPANION_PROJECT="$COMPANION_DIR/MobileTestingCompanion.xcodeproj"
+COMPANION_PROJECT="$COMPANION_DIR/AmooCompanion.xcodeproj"
 DERIVED_DATA="$COMPANION_DIR/build"
 COMPANION_PORT="${COMPANION_PORT:-22087}"
 DEVICE="${DEVICE:-booted}"
@@ -409,7 +409,7 @@ if [[ "$SKIP_BUILD" == false ]]; then
     xcodegen generate 2>&1 | sed 's/^/  /'
     xcodebuild build-for-testing \
         -project "$COMPANION_PROJECT" \
-        -scheme MobileTestingCompanion \
+        -scheme AmooCompanion \
         -destination "$DESTINATION" \
         -derivedDataPath "$DERIVED_DATA" \
         2>&1 | tail -5
@@ -431,7 +431,7 @@ log "Starting companion on port $COMPANION_PORT..."
 xcodebuild test-without-building \
     -xctestrun "$XCTESTRUN" \
     -destination "$DESTINATION" \
-    -only-testing "MobileTestingCompanionUITests/CompanionRunner/testRunCompanion" \
+    -only-testing "AmooCompanionUITests/CompanionRunner/testRunCompanion" \
     2>&1 | sed 's/^/  [companion] /' &
 XCTESTRUN_PID=$!
 

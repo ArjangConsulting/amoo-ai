@@ -141,7 +141,7 @@ private func parsePreflightPlatform(args: [String]) -> ParsedPreflightPlatform {
     }
 
     guard args.count == 2, args[0] == "--platform" else {
-        return .failure("Usage: mobile-testing preflight [--platform ios|android|all]")
+        return .failure("Usage: amoo preflight [--platform ios|android|all]")
     }
 
     guard let platform = PreflightPlatform(rawValue: args[1].lowercased()) else {

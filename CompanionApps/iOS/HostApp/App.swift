@@ -67,7 +67,7 @@ struct CompanionHostApp: App {
     }
 
     private func handle(url: URL) {
-        guard url.scheme == "mobile-testing" else { return }
+        guard url.scheme == "amoo" else { return }
 
         switch url.host {
         case "details":
