@@ -22,6 +22,7 @@ package protocol CompanionRPCClient: Sendable {
 
     // Gestures
     func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse
+    func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws -> MobileTesting_ActionResponse
     func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse
 
     // Text
@@ -106,6 +107,11 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
 
     package func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
         try await client.swipe(request)
+    }
+
+    package func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws
+        -> MobileTesting_ActionResponse {
+        try await client.swipeInDirection(request)
     }
 
     package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
@@ -236,6 +242,12 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
     }
 
     package func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
+        _ = request
+        return successActionResponse()
+    }
+
+    package func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws
+        -> MobileTesting_ActionResponse {
         _ = request
         return successActionResponse()
     }
@@ -420,6 +432,11 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
         try await client.swipe(request)
+    }
+
+    package func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws
+        -> MobileTesting_ActionResponse {
+        try await client.swipeInDirection(request)
     }
 
     package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
@@ -613,6 +630,24 @@ public actor GRPCCompanionClient: CompanionClient {
 
         let response = try await rpcClient.swipe(request)
         try validate(response: response, action: "swipe")
+    }
+
+    public func swipeInDirection(
+        _ direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    ) async throws {
+        var request = MobileTesting_SwipeDirectionRequest()
+        request.direction = direction.protoDirection
+        request.distance = Float(distance)
+        request.durationMs = Int32(duration.milliseconds)
+        if let element {
+            request.selector = element.protoSelector
+        }
+
+        let response = try await rpcClient.swipeInDirection(request)
+        try validate(response: response, action: "swipeInDirection")
     }
 
     public func scroll(direction: Direction, distance: Double) async throws {

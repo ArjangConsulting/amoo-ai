@@ -58,7 +58,7 @@ final class AndroidDriverTests: XCTestCase {
         let appCalls = await adb.appCalls()
         XCTAssertEqual(appCalls, [
             "install:com.example.app:/tmp/app.apk",
-            "launch:com.example.app",
+            "launchResetting:com.example.app",
             "terminate:com.example.app",
             "uninstall:com.example.app"
         ])
@@ -295,6 +295,10 @@ private actor MockADBRunner: ADBRunning {
 
     func launch(serial _: String?, appID: String, arguments _: [String]) async throws {
         _appCalls.append("launch:\(appID)")
+    }
+
+    func launchResetting(serial _: String?, appID: String) async throws {
+        _appCalls.append("launchResetting:\(appID)")
     }
 
     func terminate(serial _: String?, appID: String) async throws {
