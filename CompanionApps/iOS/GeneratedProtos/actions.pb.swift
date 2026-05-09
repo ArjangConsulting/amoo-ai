@@ -257,6 +257,21 @@ public struct MobileTesting_SwipeRequest: Sendable {
     fileprivate var _duration: MobileTesting_Duration?
 }
 
+public struct MobileTesting_SwipeDirectionRequest: Sendable {
+    public var direction: MobileTesting_Direction = .unspecified
+    public var distance: Float = 0
+    public var durationMs: Int32 = 0
+    public var selector: MobileTesting_ElementSelector {
+        get { _selector ?? MobileTesting_ElementSelector() }
+        set { _selector = newValue }
+    }
+    public var hasSelector: Bool { _selector != nil }
+    public mutating func clearSelector() { _selector = nil }
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+    public init() {}
+    fileprivate var _selector: MobileTesting_ElementSelector?
+}
+
 public struct MobileTesting_ScrollRequest: Sendable {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -852,6 +867,53 @@ extension MobileTesting_SwipeRequest: SwiftProtobuf.Message, SwiftProtobuf._Mess
         if lhs._from != rhs._from { return false }
         if lhs._to != rhs._to { return false }
         if lhs._duration != rhs._duration { return false }
+        if lhs.unknownFields != rhs.unknownFields { return false }
+        return true
+    }
+}
+
+extension MobileTesting_SwipeDirectionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase,
+    SwiftProtobuf._ProtoNameProviding
+{
+    public static let protoMessageName: String = _protobuf_package + ".SwipeDirectionRequest"
+    public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}direction\0\u{1}distance\0\u{2}duration_ms\0\u{1}selector\0")
+
+    public mutating func decodeMessage(decoder: inout some SwiftProtobuf.Decoder) throws {
+        while let fieldNumber = try decoder.nextFieldNumber() {
+            switch fieldNumber {
+            case 1: try decoder.decodeSingularEnumField(value: &direction)
+            case 2: try decoder.decodeSingularFloatField(value: &distance)
+            case 3: try decoder.decodeSingularInt32Field(value: &durationMs)
+            case 4: try decoder.decodeSingularMessageField(value: &_selector)
+            default: break
+            }
+        }
+    }
+
+    public func traverse(visitor: inout some SwiftProtobuf.Visitor) throws {
+        if direction != .unspecified {
+            try visitor.visitSingularEnumField(value: direction, fieldNumber: 1)
+        }
+        if distance.bitPattern != 0 {
+            try visitor.visitSingularFloatField(value: distance, fieldNumber: 2)
+        }
+        if durationMs != 0 {
+            try visitor.visitSingularInt32Field(value: durationMs, fieldNumber: 3)
+        }
+        if let v = _selector {
+            try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+        }
+        try unknownFields.traverse(visitor: &visitor)
+    }
+
+    public static func == (
+        lhs: MobileTesting_SwipeDirectionRequest,
+        rhs: MobileTesting_SwipeDirectionRequest
+    ) -> Bool {
+        if lhs.direction != rhs.direction { return false }
+        if lhs.distance != rhs.distance { return false }
+        if lhs.durationMs != rhs.durationMs { return false }
+        if lhs._selector != rhs._selector { return false }
         if lhs.unknownFields != rhs.unknownFields { return false }
         return true
     }

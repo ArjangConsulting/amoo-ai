@@ -177,6 +177,16 @@ public enum MobileTesting_CompanionService: Sendable {
             )
         }
 
+        /// Namespace for "SwipeInDirection" metadata.
+        public enum SwipeInDirection: Sendable {
+            public typealias Input = MobileTesting_SwipeDirectionRequest
+            public typealias Output = MobileTesting_ActionResponse
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
+                method: "SwipeInDirection"
+            )
+        }
+
         /// Namespace for "TypeText" metadata.
         public enum TypeText: Sendable {
             /// Request type for "TypeText".
@@ -360,6 +370,7 @@ public enum MobileTesting_CompanionService: Sendable {
             ScrollToElement.descriptor,
             Pinch.descriptor,
             Drag.descriptor,
+            SwipeInDirection.descriptor,
             TypeText.descriptor,
             ClearText.descriptor,
             SetText.descriptor,
@@ -520,6 +531,11 @@ public extension MobileTesting_CompanionService {
         /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
         func swipe(
             request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+
+        func swipeInDirection(
+            request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeDirectionRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
 
@@ -914,6 +930,11 @@ public extension MobileTesting_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
 
+        func swipeInDirection(
+            request: GRPCCore.ServerRequest<MobileTesting_SwipeDirectionRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+
         /// Handle the "Scroll" method.
         ///
         /// - Parameters:
@@ -1303,6 +1324,11 @@ public extension MobileTesting_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> MobileTesting_ActionResponse
 
+        func swipeInDirection(
+            request: MobileTesting_SwipeDirectionRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> MobileTesting_ActionResponse
+
         /// Handle the "Scroll" method.
         ///
         /// - Parameters:
@@ -1656,6 +1682,14 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: MobileTesting_CompanionService.Method.SwipeInDirection.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SwipeDirectionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            handler: { request, context in
+                try await self.swipeInDirection(request: request, context: context)
+            }
+        )
+        router.registerHandler(
             forMethod: MobileTesting_CompanionService.Method.Scroll.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScrollRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
@@ -1930,6 +1964,17 @@ public extension MobileTesting_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
         let response = try await swipe(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    func swipeInDirection(
+        request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeDirectionRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
+        let response = try await swipeInDirection(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2227,6 +2272,16 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
                 request: request.message,
                 context: context
             ),
+            metadata: [:]
+        )
+    }
+
+    func swipeInDirection(
+        request: GRPCCore.ServerRequest<MobileTesting_SwipeDirectionRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
+        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
+            message: swipeInDirection(request: request.message, context: context),
             metadata: [:]
         )
     }
@@ -2628,6 +2683,15 @@ public extension MobileTesting_CompanionService {
         func swipe<Result: Sendable>(
             request: GRPCCore.ClientRequest<MobileTesting_SwipeRequest>,
             serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
+        ) async throws -> Result
+
+        func swipeInDirection<Result: Sendable>(
+            request: GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>,
+            serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeDirectionRequest>,
             deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore
@@ -3264,6 +3328,26 @@ public extension MobileTesting_CompanionService {
             try await client.unary(
                 request: request,
                 descriptor: MobileTesting_CompanionService.Method.Swipe.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        public func swipeInDirection<Result: Sendable>(
+            request: GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>,
+            serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeDirectionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore
+                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result {
+            try await client.unary(
+                request: request,
+                descriptor: MobileTesting_CompanionService.Method.SwipeInDirection.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -4043,6 +4127,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
         )
     }
 
+    func swipeInDirection<Result: Sendable>(
+        request: GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result {
+        try await swipeInDirection(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SwipeDirectionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "Scroll" method.
     ///
     /// - Parameters:
@@ -4755,6 +4856,26 @@ public extension MobileTesting_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await swipe(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    func swipeInDirection<Result: Sendable>(
+        _ message: MobileTesting_SwipeDirectionRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore
+            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result {
+        let request = GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await swipeInDirection(
             request: request,
             options: options,
             onResponse: handleResponse
