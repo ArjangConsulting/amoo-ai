@@ -158,9 +158,9 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
         let containsText = request.selector.containsText.isEmpty ? nil : request.selector.containsText
         await gesture.swipeInDirection(
             direction: direction,
-            id: request.hasSelector ? id : nil,
-            label: request.hasSelector ? label : nil,
-            containsText: request.hasSelector ? containsText : nil
+            id: id,
+            label: label,
+            containsText: containsText
         )
         return successResponse()
     }
