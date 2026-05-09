@@ -125,6 +125,16 @@ public enum MobileTesting_CompanionService: Sendable {
             )
         }
 
+        /// Namespace for "SwipeInDirection" metadata.
+        public enum SwipeInDirection: Sendable {
+            public typealias Input = MobileTesting_SwipeDirectionRequest
+            public typealias Output = MobileTesting_ActionResponse
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
+                method: "SwipeInDirection"
+            )
+        }
+
         /// Namespace for "Scroll" metadata.
         public enum Scroll: Sendable {
             /// Request type for "Scroll".
@@ -174,16 +184,6 @@ public enum MobileTesting_CompanionService: Sendable {
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
                 method: "Drag"
-            )
-        }
-
-        /// Namespace for "SwipeInDirection" metadata.
-        public enum SwipeInDirection: Sendable {
-            public typealias Input = MobileTesting_SwipeDirectionRequest
-            public typealias Output = MobileTesting_ActionResponse
-            public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "SwipeInDirection"
             )
         }
 
@@ -366,11 +366,11 @@ public enum MobileTesting_CompanionService: Sendable {
             LongPress.descriptor,
             TapElement.descriptor,
             Swipe.descriptor,
+            SwipeInDirection.descriptor,
             Scroll.descriptor,
             ScrollToElement.descriptor,
             Pinch.descriptor,
             Drag.descriptor,
-            SwipeInDirection.descriptor,
             TypeText.descriptor,
             ClearText.descriptor,
             SetText.descriptor,
