@@ -876,7 +876,7 @@ extension MobileTesting_SwipeDirectionRequest: SwiftProtobuf.Message, SwiftProto
     SwiftProtobuf._ProtoNameProviding
 {
     public static let protoMessageName: String = _protobuf_package + ".SwipeDirectionRequest"
-    public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}direction\0\u{1}distance\0\u{2}duration_ms\0\u{1}selector\0")
+    public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}direction\0\u{1}distance\0\u{3}duration_ms\0\u{1}selector\0")
 
     public mutating func decodeMessage(decoder: inout some SwiftProtobuf.Decoder) throws {
         while let fieldNumber = try decoder.nextFieldNumber() {
