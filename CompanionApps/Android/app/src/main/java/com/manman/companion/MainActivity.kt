@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -28,12 +29,14 @@ private enum class FixtureScreen {
 }
 
 class MainActivity : Activity() {
+    private val defaultTextValue = "Hello from the fixture app"
+    private val defaultDeepLinkValue = "No URL opened yet"
     private val screenStack = mutableListOf(FixtureScreen.HOME)
-    private var textValue: String = "Hello from the fixture app"
+    private var textValue: String = defaultTextValue
     private var tapCount = 0
     private var doubleTapCount = 0
     private var longPressState = "idle"
-    private var deepLinkValue = "No URL opened yet"
+    private var deepLinkValue = defaultDeepLinkValue
     private var lastTapTimestamp = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,7 +66,18 @@ class MainActivity : Activity() {
             return
         }
 
-        when (data.host) {
+        val normalizedURL = data.toString().lowercase()
+        if (normalizedURL.startsWith("mobile-testing://home") || normalizedURL.startsWith("mobile-testing://reset")) {
+            resetFixtureState()
+            navigateTo(FixtureScreen.HOME, replaceStack = true)
+            return
+        }
+
+        when (routeFor(data)) {
+            "home", "reset" -> {
+                resetFixtureState()
+                navigateTo(FixtureScreen.HOME, replaceStack = true)
+            }
             "details" -> navigateTo(FixtureScreen.DETAILS, replaceStack = true)
             "text" -> navigateTo(FixtureScreen.TEXT, replaceStack = true)
             "gesture" -> navigateTo(FixtureScreen.GESTURE, replaceStack = true)
@@ -75,6 +89,41 @@ class MainActivity : Activity() {
                 navigateTo(FixtureScreen.DEEP_LINK, replaceStack = true)
             }
         }
+    }
+
+    private fun routeFor(data: Uri): String? {
+        val rawRoute = data.toString()
+            .removePrefix("mobile-testing://")
+            .trimStart('/')
+            .substringBefore('?')
+            .substringBefore('#')
+            .substringBefore('/')
+
+        return sequenceOf(
+            data.host,
+            data.authority,
+            data.pathSegments.firstOrNull(),
+            data.lastPathSegment,
+            data.schemeSpecificPart
+                ?.removePrefix("//")
+                ?.substringBefore('?')
+                ?.substringBefore('#')
+                ?.substringBefore('/'),
+            rawRoute,
+        )
+            .mapNotNull { it?.takeIf(String::isNotBlank) }
+            .firstOrNull()
+    }
+
+    private fun resetFixtureState() {
+        screenStack.clear()
+        screenStack += FixtureScreen.HOME
+        textValue = defaultTextValue
+        tapCount = 0
+        doubleTapCount = 0
+        longPressState = "idle"
+        deepLinkValue = defaultDeepLinkValue
+        lastTapTimestamp = 0L
     }
 
     private fun navigateTo(screen: FixtureScreen, replaceStack: Boolean = false) {
@@ -142,22 +191,25 @@ class MainActivity : Activity() {
     private fun renderText(parent: LinearLayout) {
         parent.addView(titleView("Text Input", "fixture-text-screen"))
 
+        val textValueLabel = bodyView("Current text: $textValue", "fixture-text-value")
+
         val input = EditText(this).apply {
             hint = "Fixture Input"
             setText(textValue)
             contentDescription = "fixture-text-input"
+            applyFixtureID(this, "fixture-text-input")
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
                 override fun afterTextChanged(s: Editable?) {
                     textValue = s?.toString().orEmpty()
-                    renderCurrentScreen()
+                    textValueLabel.text = "Current text: $textValue"
                 }
             })
         }
 
         parent.addView(input, matchWidthParams())
-        parent.addView(bodyView(textValue, "fixture-text-value"))
+        parent.addView(textValueLabel)
     }
 
     private fun renderGesture(parent: LinearLayout) {
@@ -171,6 +223,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.parseColor("#F97316"))
             setTextColor(Color.WHITE)
             contentDescription = "fixture-gesture-pad"
+            applyFixtureID(this, "fixture-gesture-pad")
             setPadding(24, 120, 24, 120)
             setOnClickListener {
                 val now = System.currentTimeMillis()
@@ -229,6 +282,7 @@ class MainActivity : Activity() {
             textSize = 30f
             setTypeface(typeface, Typeface.BOLD)
             contentDescription = id
+            applyFixtureID(this, id)
         }
     }
 
@@ -238,6 +292,7 @@ class MainActivity : Activity() {
             textSize = 18f
             setPadding(0, 0, 0, 16)
             contentDescription = id
+            applyFixtureID(this, id)
         }
     }
 
@@ -245,7 +300,26 @@ class MainActivity : Activity() {
         return Button(this).apply {
             text = label
             contentDescription = id
+            applyFixtureID(this, id)
             setOnClickListener { onClick() }
+        }
+    }
+
+    private fun applyFixtureID(view: View, id: String) {
+        val viewID = when (id) {
+            "fixture-home-title" -> R.id.fixture_home_title
+            "fixture-open-details" -> R.id.fixture_open_details
+            "fixture-open-text" -> R.id.fixture_open_text
+            "fixture-open-gesture" -> R.id.fixture_open_gesture
+            "fixture-detail-row-0" -> R.id.fixture_detail_row_0
+            "fixture-details-tail" -> R.id.fixture_details_tail
+            "fixture-text-input" -> R.id.fixture_text_input
+            "fixture-gesture-pad" -> R.id.fixture_gesture_pad
+            else -> View.NO_ID
+        }
+
+        if (viewID != View.NO_ID) {
+            view.id = viewID
         }
     }
 

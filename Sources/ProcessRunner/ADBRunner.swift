@@ -15,6 +15,7 @@ public protocol ADBRunning: Sendable {
     // App management
     func install(serial: String?, apkPath: String) async throws
     func launch(serial: String?, appID: String, arguments: [String]) async throws
+    func launchResetting(serial: String?, appID: String) async throws
     func terminate(serial: String?, appID: String) async throws
     func uninstall(serial: String?, appID: String) async throws
     func listPackages(serial: String?) async throws -> String
@@ -78,6 +79,17 @@ public struct ADBRunner: ADBRunning {
         let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
         _ = try await run(
             adb(serial: serial).amStartActivity(component: component, arguments: arguments)
+        )
+    }
+
+    public func launchResetting(serial: String? = nil, appID: String) async throws {
+        let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
+        _ = try await run(
+            adb(serial: serial).rawArguments([
+                "shell", "am", "start",
+                "--activity-clear-top",
+                "-n", component,
+            ])
         )
     }
 
