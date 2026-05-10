@@ -301,6 +301,73 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(options.enableAI)
     }
 
+    func testAvailablePlatformsIncludesOnlyLaunchablePlatforms() {
+        XCTAssertEqual(
+            test_availablePlatforms(
+                iosSimulators: [IOSSimulatorDevice(udid: "SIM-1", name: "iPhone 16", osVersion: "18.0")],
+                androidVirtualDevices: []
+            ),
+            [.ios]
+        )
+
+        XCTAssertEqual(
+            test_availablePlatforms(
+                iosSimulators: [],
+                androidVirtualDevices: [AndroidVirtualDevice(name: "Pixel_9")]
+            ),
+            [.android]
+        )
+
+        XCTAssertEqual(
+            test_availablePlatforms(
+                iosSimulators: [IOSSimulatorDevice(udid: "SIM-1", name: "iPhone 16", osVersion: "18.0")],
+                androidVirtualDevices: [AndroidVirtualDevice(name: "Pixel_9")]
+            ),
+            [.ios, .android]
+        )
+    }
+
+    func testParseAvailableIOSSimulatorsIncludesShutdownDevices() {
+        let simulators = test_parseAvailableIOSSimulators(json: """
+        {
+          "devices": {
+            "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
+              {
+                "name": "iPhone 16 Pro",
+                "udid": "SIM-NEW",
+                "state": "Shutdown"
+              }
+            ],
+            "com.apple.CoreSimulator.SimRuntime.iOS-17-5": [
+              {
+                "name": "iPhone 15",
+                "udid": "SIM-OLD",
+                "state": "Booted"
+              }
+            ]
+          }
+        }
+        """)
+
+        XCTAssertEqual(
+            simulators,
+            [
+                IOSSimulatorDevice(udid: "SIM-OLD", name: "iPhone 15", osVersion: "17.5"),
+                IOSSimulatorDevice(udid: "SIM-NEW", name: "iPhone 16 Pro", osVersion: "18.0")
+            ]
+        )
+    }
+
+    func testParseAndroidVirtualDevicesSkipsBlankLines() {
+        XCTAssertEqual(
+            test_parseAndroidVirtualDevices(output: "\nPixel_9\n\nPixel_Tablet_API_35\n"),
+            [
+                AndroidVirtualDevice(name: "Pixel_9"),
+                AndroidVirtualDevice(name: "Pixel_Tablet_API_35")
+            ]
+        )
+    }
+
     func testREPLCompletionCatalogIncludesBuiltinsAndToolNames() {
         let catalog = REPLCompletionCatalog(toolDefinitions: [
             ToolDefinition(name: "tap", description: "Tap"),
