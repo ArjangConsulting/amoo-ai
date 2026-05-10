@@ -25,38 +25,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .missingTool:
-            """
-            Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
-
-            Common tools:
-              tap x=<n> y=<n>
-              double_tap x=<n> y=<n>
-              long_press x=<n> y=<n> [duration_ms=<n>]
-              swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n>
-              scroll direction=<up|down|left|right> [distance=<n>]
-              type_text text=<text>
-              clear_text [character_count=<n>]
-              press_back
-              press_home
-              tap_element [id=<id>] [label=<label>] [contains_text=<text>]
-              find_elements [id=<id>] [label=<label>] [contains_text=<text>]
-              get_view_hierarchy
-              get_screen_context
-              is_keyboard_visible
-              take_screenshot
-              ai_describe_screen
-              ai_suggest_actions
-              ai_find_by_description description=<text>
-              device_launch_app app_id=<id>
-              device_terminate_app app_id=<id>
-              device_install_app path=<path>
-              open_url url=<url>
-
-            Defaults:
-              platform=ios
-              ios port=22087
-              android port=22088
-            """
+            renderDeviceHelp()
         case let .malformedArgument(arg):
             "Malformed argument '\(arg)'. Expected key=value format."
         case let .invalidPort(value):
@@ -65,6 +34,41 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
             "Unknown platform '\(value)'. Expected 'ios' or 'android'."
         }
     }
+}
+
+func renderDeviceHelp() -> String {
+    """
+    Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
+
+    Common tools:
+      tap x=<n> y=<n>
+      double_tap x=<n> y=<n>
+      long_press x=<n> y=<n> [duration_ms=<n>]
+      swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n>
+      scroll direction=<up|down|left|right> [distance=<n>]
+      type_text text=<text>
+      clear_text [character_count=<n>]
+      press_back
+      press_home
+      tap_element [id=<id>] [label=<label>] [contains_text=<text>]
+      find_elements [id=<id>] [label=<label>] [contains_text=<text>]
+      get_view_hierarchy
+      get_screen_context
+      is_keyboard_visible
+      take_screenshot
+      ai_describe_screen
+      ai_suggest_actions
+      ai_find_by_description description=<text>
+      device_launch_app app_id=<id>
+      device_terminate_app app_id=<id>
+      device_install_app path=<path>
+      open_url url=<url>
+
+    Defaults:
+      platform=ios
+      ios port=22087
+      android port=22088
+    """
 }
 
 // swiftlint:disable:next cyclomatic_complexity

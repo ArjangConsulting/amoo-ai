@@ -50,6 +50,63 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(result.output.contains("amoo --help"))
     }
 
+    func testDeviceSubcommandHelpFlagReturnsDeviceHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["device", "--help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo device"))
+        XCTAssertFalse(result.output.contains("Usage: amoo <command> [options]"))
+    }
+
+    func testDeviceSubcommandShortHelpReturnsDeviceHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["device", "-h"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo device"))
+    }
+
+    func testCompanionSubcommandHelpCommandReturnsCompanionHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["companion", "help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo companion"))
+    }
+
+    func testAuditSubcommandHelpFlagReturnsAuditHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["audit", "--help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo audit"))
+    }
+
+    func testAISubcommandShortHelpReturnsAIHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["ai", "-h"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.output, "Usage: amoo ai <setup|status|config|reset>")
+    }
+
+    func testPreflightSubcommandHelpFlagReturnsPreflightHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["preflight", "--help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.output, "Usage: amoo preflight [--platform ios|android|all]")
+    }
+
+    func testNestedHelpAfterSubcommandActionReturnsSubcommandHelp() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["ai", "status", "--help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.output, "Usage: amoo ai <setup|status|config|reset>")
+    }
+
     func testResolveAIProviderConfigurationDefaultsToNone() {
         XCTAssertEqual(
             resolveAIProviderConfiguration(environment: [:], settingsStore: InMemoryAISettingsStore()).provider,

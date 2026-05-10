@@ -47,7 +47,7 @@ public struct CLIApp {
             return CLIResult(output: "", exitCode: 0)
         }
 
-        if args.contains("--help") || args.contains("-h") || args.first == "help" {
+        if isHelpToken(args.first) {
             return CLIResult(output: renderCLIHelp(), exitCode: 0)
         }
 
@@ -56,6 +56,9 @@ public struct CLIApp {
         }
 
         if args.first == "preflight" {
+            if isHelpRequest(Array(args.dropFirst())) {
+                return CLIResult(output: renderPreflightHelp(), exitCode: 0)
+            }
             let parsed = parsePreflightPlatform(args: Array(args.dropFirst()))
             switch parsed {
             case let .failure(message):
@@ -68,6 +71,9 @@ public struct CLIApp {
         }
 
         if args.first == "device" {
+            if isHelpRequest(Array(args.dropFirst())) {
+                return CLIResult(output: renderDeviceHelp(), exitCode: 0)
+            }
             switch parseDeviceCommandOptions(args: Array(args.dropFirst())) {
             case let .failure(error):
                 return CLIResult(output: error.description, exitCode: 64)
@@ -77,6 +83,9 @@ public struct CLIApp {
         }
 
         if args.first == "companion" {
+            if isHelpRequest(Array(args.dropFirst())) {
+                return CLIResult(output: renderCompanionHelp(), exitCode: 0)
+            }
             switch parseCompanionCommandOptions(args: Array(args.dropFirst())) {
             case let .failure(error):
                 return CLIResult(output: error.description, exitCode: 64)
@@ -86,6 +95,9 @@ public struct CLIApp {
         }
 
         if args.first == "audit" {
+            if isHelpRequest(Array(args.dropFirst())) {
+                return CLIResult(output: renderAuditHelp(), exitCode: 0)
+            }
             do {
                 let options = try parseAuditOptions(args: Array(args.dropFirst()))
                 let execution = try await runAuditCommand(options: options, runner: auditRunner)
@@ -98,6 +110,9 @@ public struct CLIApp {
         }
 
         if args.first == "ai" {
+            if isHelpRequest(Array(args.dropFirst())) {
+                return CLIResult(output: renderAIHelp(), exitCode: 0)
+            }
             switch parseAICommand(args: Array(args.dropFirst())) {
             case let .failure(error):
                 return CLIResult(output: error.description, exitCode: 64)
@@ -138,6 +153,24 @@ public struct CLIApp {
         await startREPLMode(args: args)
         return CLIResult(output: "", exitCode: 0)
     }
+}
+
+func isHelpToken(_ token: String?) -> Bool {
+    matchesHelpToken(token)
+}
+
+func isHelpRequest(_ args: [String]) -> Bool {
+    guard let first = args.first else { return false }
+    if matchesHelpToken(first) {
+        return true
+    }
+
+    return args.count == 2 && matchesHelpToken(args[1])
+}
+
+private func matchesHelpToken(_ token: String?) -> Bool {
+    guard let token else { return false }
+    return token == "help" || token == "-h" || token == "--help"
 }
 
 func renderCLIHelp() -> String {
@@ -181,4 +214,8 @@ private func parsePreflightPlatform(args: [String]) -> ParsedPreflightPlatform {
     }
 
     return .success(platform)
+}
+
+func renderPreflightHelp() -> String {
+    "Usage: amoo preflight [--platform ios|android|all]"
 }
