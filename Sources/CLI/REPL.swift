@@ -53,7 +53,7 @@ private func runIOSREPL(device: BootedDevice, port: Int, oneTimeAIConfiguration:
 
     print("")
     print(colored("Connected to \(device.displayName)", .bold, .green) + " on port \(port)")
-    print(colored("AI provider: \(aiConfiguration.summary)", .gray))
+    print(renderREPLAIBanner(aiConfiguration))
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
@@ -91,7 +91,7 @@ private func runAndroidREPL(
 
     print("")
     print(colored("Connected to \(name) (\(serial))", .bold, .green) + " on port \(port)")
-    print(colored("AI provider: \(aiConfiguration.summary)", .gray))
+    print(renderREPLAIBanner(aiConfiguration))
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
@@ -147,6 +147,107 @@ private func replLoop(
             toolDefinitions: toolDefinitions
         )
     }
+}
+
+private func renderREPLAIBanner(_ configuration: ResolvedAIConfiguration) -> String {
+    let lines: [String]
+
+    switch configuration.provider {
+    case .disabled:
+        lines = [
+            "Provider : disabled",
+            "Mode     : deterministic fallback",
+            "Source   : \(configuration.source)"
+        ]
+    case .local:
+        lines = [
+            "Provider : local",
+            "Mode     : deterministic fallback",
+            "Source   : \(configuration.source)"
+        ]
+    case .ollama:
+        let model = configuration.model ?? defaultOllamaModel
+        let baseURL = configuration.baseURL ?? defaultOllamaBaseURL
+        lines = [
+            "Provider : Ollama",
+            "Model    : \(model)",
+            "Endpoint : \(baseURL)"
+        ]
+    }
+
+    let width = max("AI Session".count, lines.map(\.count).max() ?? 0)
+    let style = replBannerStyle()
+    let top = style.topLeft + String(repeating: style.horizontal, count: width + 2) + style.topRight
+    let bottom = style.bottomLeft + String(repeating: style.horizontal, count: width + 2) + style.bottomRight
+    let title = style.vertical + " " + padRight("AI Session", to: width) + " " + style.vertical
+    let body = lines.map { style.vertical + " " + padRight($0, to: width) + " " + style.vertical }
+
+    let accentColor: ANSIColor = switch configuration.provider {
+    case .disabled:
+        .brightYellow
+    case .local:
+        .brightCyan
+    case .ollama:
+        .brightGreen
+    }
+
+    return ([
+        colored(top, .gray),
+        colored(title, .bold, accentColor),
+    ] + body.map { colored($0, accentColor) } + [
+        colored(bottom, .gray)
+    ]).joined(separator: "\n")
+}
+
+private struct REPLBannerStyle {
+    let topLeft: String
+    let topRight: String
+    let bottomLeft: String
+    let bottomRight: String
+    let horizontal: String
+    let vertical: String
+}
+
+private func replBannerStyle(environment: [String: String] = ProcessInfo.processInfo.environment) -> REPLBannerStyle {
+    if supportsUnicodeBanner(environment: environment) {
+        return REPLBannerStyle(
+            topLeft: "╭",
+            topRight: "╮",
+            bottomLeft: "╰",
+            bottomRight: "╯",
+            horizontal: "─",
+            vertical: "│"
+        )
+    }
+
+    return REPLBannerStyle(
+        topLeft: "+",
+        topRight: "+",
+        bottomLeft: "+",
+        bottomRight: "+",
+        horizontal: "-",
+        vertical: "|"
+    )
+}
+
+private func supportsUnicodeBanner(environment: [String: String]) -> Bool {
+    if environment["TERM"]?.lowercased() == "dumb" {
+        return false
+    }
+
+    let localeValues = [environment["LC_ALL"], environment["LC_CTYPE"], environment["LANG"]]
+        .compactMap { $0?.uppercased() }
+
+    if localeValues.contains(where: { $0.contains("UTF-8") || $0.contains("UTF8") }) {
+        return true
+    }
+
+    return false
+}
+
+private func padRight(_ value: String, to width: Int) -> String {
+    guard value.count < width else { return value }
+    return value + String(repeating: " ", count: width - value.count)
 }
 
 // MARK: - Built-in commands
@@ -376,5 +477,13 @@ func test_shellSplit(_ line: String) -> (toolName: String?, parts: [String]) {
 
 func test_closestTool(to input: String, among candidates: [String]) -> String? {
     closestTool(to: input, among: candidates)
+}
+
+func test_renderREPLAIBanner(_ configuration: ResolvedAIConfiguration) -> String {
+    renderREPLAIBanner(configuration)
+}
+
+func test_replBannerStyle(environment: [String: String]) -> String {
+    replBannerStyle(environment: environment).topLeft
 }
 #endif

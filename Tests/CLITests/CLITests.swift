@@ -879,6 +879,25 @@ final class CLITests: XCTestCase {
         XCTAssertNil(none)
     }
 
+    func testREPLAIBannerIncludesProviderDetails() {
+        let banner = test_renderREPLAIBanner(.init(
+            provider: .ollama,
+            baseURL: "http://localhost:11434",
+            model: "qwen3.6:latest",
+            source: "environment"
+        ))
+
+        XCTAssertTrue(banner.contains("AI"))
+        XCTAssertTrue(banner.contains("Ollama"))
+        XCTAssertTrue(banner.contains("qwen3.6:latest"))
+        XCTAssertTrue(banner.contains("http://localhost:11434"))
+    }
+
+    func testREPLBannerStyleFallsBackForDumbTerminal() {
+        XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "dumb", "LANG": "en_US.UTF-8"]), "+")
+        XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "xterm-256color", "LANG": "en_US.UTF-8"]), "╭")
+    }
+
     func testAuditCommandWritesArtifactsAndReturnsSuccess() async throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString,
