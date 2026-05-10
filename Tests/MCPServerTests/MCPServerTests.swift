@@ -359,10 +359,39 @@ final class MCPServerTests: XCTestCase {
 
         XCTAssertEqual(summary, "concise summary")
         XCTAssertEqual(request.url?.absoluteString, "http://ollama.local/api/generate")
+        XCTAssertEqual(request.timeoutInterval, 600)
         XCTAssertEqual(json["model"] as? String, "tiny-model")
         XCTAssertEqual(json["stream"] as? Bool, false)
         XCTAssertTrue(prompt.contains("Screen title: Cart"))
         XCTAssertTrue(prompt.contains("button(Pay)"))
+    }
+
+    func testOllamaProviderSupportsCustomRequestTimeout() async throws {
+        let captured = LockedBox<URLRequest?>(nil)
+        let provider = OllamaProvider(
+            baseURL: "http://ollama.local",
+            model: "tiny-model",
+            requestTimeout: 120
+        ) { request in
+            await captured.set(request)
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            let data = try JSONSerialization.data(withJSONObject: ["response": "ok"])
+            return (data, response)
+        }
+
+        _ = try await provider.describeScreen(
+            context: ScreenContext(summary: "Checkout"),
+            hierarchy: ViewNode(id: "root")
+        )
+
+        let capturedRequest = await captured.value
+        let request = try XCTUnwrap(capturedRequest)
+        XCTAssertEqual(request.timeoutInterval, 120)
     }
 
     func testOllamaProviderSuggestActionsSplitsLinesAndTruncatesElementList() async throws {

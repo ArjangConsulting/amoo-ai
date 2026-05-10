@@ -86,13 +86,20 @@ private func preferredElementName(label: String, id: String) -> String? {
 
 /// AI provider that uses a local Ollama instance for inference.
 public actor OllamaProvider: AIProvider {
+    static let defaultRequestTimeout: TimeInterval = 600
     private let baseURL: String
     private let model: String
+    private let requestTimeout: TimeInterval
     private let transport: @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    public init(baseURL: String = "http://localhost:11434", model: String = "llama3.2") {
+    public init(
+        baseURL: String = "http://localhost:11434",
+        model: String = "llama3.2",
+        requestTimeout: TimeInterval = 600
+    ) {
         self.baseURL = baseURL
         self.model = model
+        self.requestTimeout = requestTimeout
         transport = { request in
             try await URLSession.shared.data(for: request)
         }
@@ -101,10 +108,12 @@ public actor OllamaProvider: AIProvider {
     init(
         baseURL: String = "http://localhost:11434",
         model: String = "llama3.2",
+        requestTimeout: TimeInterval = OllamaProvider.defaultRequestTimeout,
         transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
     ) {
         self.baseURL = baseURL
         self.model = model
+        self.requestTimeout = requestTimeout
         self.transport = transport
     }
 
@@ -137,7 +146,7 @@ public actor OllamaProvider: AIProvider {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = requestTimeout
 
         let body: [String: Any] = [
             "model": model,

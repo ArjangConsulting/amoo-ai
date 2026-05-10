@@ -69,9 +69,10 @@ Environment variables are still supported, but in interactive setup they are use
 Useful Ollama env defaults:
 
 ```bash
-export MOBILE_TESTING_AI_PROVIDER=ollama
-export MOBILE_TESTING_AI_OLLAMA_BASE_URL=http://localhost:11434
-export MOBILE_TESTING_AI_OLLAMA_MODEL=qwen3.6:latest
+export AMOO_AI_PROVIDER=ollama
+export AMOO_AI_BASE_URL=http://localhost:11434
+export AMOO_AI_MODEL=qwen3.6:latest
+export AMOO_AI_TIMEOUT=600
 ```
 
 For normal non-interactive runs, env vars still override saved settings.
@@ -84,10 +85,12 @@ swift run amoo device --platform ios ai_describe_screen
 
 Notes:
 
-- If `MOBILE_TESTING_AI_PROVIDER=ollama` is set and no model is provided, the default is `qwen3.6:latest`.
-- If you only set `MOBILE_TESTING_AI_OLLAMA_MODEL` or `MOBILE_TESTING_AI_OLLAMA_BASE_URL`, non-interactive commands infer the Ollama provider automatically.
-- Set `MOBILE_TESTING_AI_PROVIDER=local` to force the deterministic local provider.
-- Leave `MOBILE_TESTING_AI_PROVIDER` unset, or set it to `none`, to keep AI tools in fallback mode.
+- If `AMOO_AI_PROVIDER=ollama` is set and no model is provided, the default is `qwen3.6:latest`.
+- If you only set `AMOO_AI_MODEL`, `AMOO_AI_BASE_URL`, or `AMOO_AI_TIMEOUT`, non-interactive commands infer the Ollama provider automatically.
+- Set `AMOO_AI_PROVIDER=local` to force the deterministic local provider.
+- Leave `AMOO_AI_PROVIDER` unset, or set it to `none`, to keep AI tools in fallback mode.
+- `AMOO_AI_TIMEOUT` sets the Ollama request timeout in seconds. The default is `600`.
+- `AMOO_AI_BASE_URL` and `AMOO_AI_MODEL` are the canonical provider-agnostic keys. `AMOO_AI_OLLAMA_BASE_URL` and `AMOO_AI_OLLAMA_MODEL` still work as compatibility fallbacks.
 - Interactive setup uses env vars only as prompt defaults, not hidden config.
 
 Verify AI setup:

@@ -117,13 +117,14 @@ final class CLITests: XCTestCase {
     func testResolveAIProviderConfigurationUsesOllamaDefaults() {
         XCTAssertEqual(
             resolveAIProviderConfiguration(
-                environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"],
+                environment: ["AMOO_AI_PROVIDER": "ollama"],
                 settingsStore: InMemoryAISettingsStore()
             ),
             ResolvedAIConfiguration(
                 provider: .ollama,
                 baseURL: "http://localhost:11434",
                 model: "qwen3.6:latest",
+                timeoutSeconds: 600,
                 source: "environment"
             )
         )
@@ -133,9 +134,10 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(
             resolveAIProviderConfiguration(
                 environment: [
-                    "MOBILE_TESTING_AI_PROVIDER": "ollama",
-                    "MOBILE_TESTING_AI_OLLAMA_BASE_URL": "http://ollama.internal:4242",
-                    "MOBILE_TESTING_AI_OLLAMA_MODEL": "custom-model:latest"
+                    "AMOO_AI_PROVIDER": "ollama",
+                    "AMOO_AI_BASE_URL": "http://ollama.internal:4242",
+                    "AMOO_AI_MODEL": "custom-model:latest",
+                    "AMOO_AI_TIMEOUT": "120"
                 ],
                 settingsStore: InMemoryAISettingsStore()
             ),
@@ -143,6 +145,7 @@ final class CLITests: XCTestCase {
                 provider: .ollama,
                 baseURL: "http://ollama.internal:4242",
                 model: "custom-model:latest",
+                timeoutSeconds: 120,
                 source: "environment"
             )
         )
@@ -151,13 +154,54 @@ final class CLITests: XCTestCase {
     func testResolveAIProviderConfigurationInfersOllamaFromOverrides() {
         XCTAssertEqual(
             resolveAIProviderConfiguration(
-                environment: ["MOBILE_TESTING_AI_OLLAMA_MODEL": "qwen3.6:latest"],
+                environment: ["AMOO_AI_MODEL": "qwen3.6:latest"],
                 settingsStore: InMemoryAISettingsStore()
             ),
             ResolvedAIConfiguration(
                 provider: .ollama,
                 baseURL: "http://localhost:11434",
                 model: "qwen3.6:latest",
+                timeoutSeconds: 600,
+                source: "environment"
+            )
+        )
+    }
+
+    func testResolveAIProviderConfigurationSupportsLegacyEnvironmentKeys() {
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(
+                environment: [
+                    "MOBILE_TESTING_AI_PROVIDER": "ollama",
+                    "MOBILE_TESTING_AI_OLLAMA_BASE_URL": "http://legacy.internal:4242",
+                    "MOBILE_TESTING_AI_OLLAMA_MODEL": "legacy-model:latest"
+                ],
+                settingsStore: InMemoryAISettingsStore()
+            ),
+            ResolvedAIConfiguration(
+                provider: .ollama,
+                baseURL: "http://legacy.internal:4242",
+                model: "legacy-model:latest",
+                timeoutSeconds: 600,
+                source: "environment"
+            )
+        )
+    }
+
+    func testResolveAIProviderConfigurationSupportsAmooOllamaFallbackKeys() {
+        XCTAssertEqual(
+            resolveAIProviderConfiguration(
+                environment: [
+                    "AMOO_AI_PROVIDER": "ollama",
+                    "AMOO_AI_OLLAMA_BASE_URL": "http://fallback.internal:4242",
+                    "AMOO_AI_OLLAMA_MODEL": "fallback-model:latest"
+                ],
+                settingsStore: InMemoryAISettingsStore()
+            ),
+            ResolvedAIConfiguration(
+                provider: .ollama,
+                baseURL: "http://fallback.internal:4242",
+                model: "fallback-model:latest",
+                timeoutSeconds: 600,
                 source: "environment"
             )
         )
@@ -166,10 +210,10 @@ final class CLITests: XCTestCase {
     func testResolveAIProviderConfigurationSupportsLocalProvider() {
         XCTAssertEqual(
             resolveAIProviderConfiguration(
-                environment: ["MOBILE_TESTING_AI_PROVIDER": "local"],
+                environment: ["AMOO_AI_PROVIDER": "local"],
                 settingsStore: InMemoryAISettingsStore()
             ),
-            ResolvedAIConfiguration(provider: .local, source: "environment")
+            ResolvedAIConfiguration(provider: .local, timeoutSeconds: 600, source: "environment")
         )
     }
 
@@ -210,6 +254,7 @@ final class CLITests: XCTestCase {
             provider: .ollama,
             baseURL: "http://localhost:11434",
             model: "qwen3.6:latest",
+            timeoutSeconds: 600,
             source: "saved settings"
         ), checks: [
             AIStatusCheck(
@@ -243,12 +288,13 @@ final class CLITests: XCTestCase {
             return (data, response)
         })
 
-        let report = await checker.run(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"])
+        let report = await checker.run(environment: ["AMOO_AI_PROVIDER": "ollama"])
         XCTAssertFalse(report.hasFailures)
         XCTAssertEqual(report.provider, .init(
             provider: .ollama,
             baseURL: "http://localhost:11434",
             model: "qwen3.6:latest",
+            timeoutSeconds: 600,
             source: "environment"
         ))
     }
@@ -267,7 +313,7 @@ final class CLITests: XCTestCase {
             return (data, response)
         })
 
-        let report = await checker.run(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"])
+        let report = await checker.run(environment: ["AMOO_AI_PROVIDER": "ollama"])
         XCTAssertTrue(report.hasFailures)
         XCTAssertTrue(report.checks.contains { $0.id == "ai.ollama.model" && $0.status == .fail })
     }
@@ -277,7 +323,7 @@ final class CLITests: XCTestCase {
             throw URLError(.cannotConnectToHost)
         })
 
-        let report = await checker.run(environment: ["MOBILE_TESTING_AI_PROVIDER": "ollama"])
+        let report = await checker.run(environment: ["AMOO_AI_PROVIDER": "ollama"])
         XCTAssertTrue(report.hasFailures)
         XCTAssertTrue(report.checks.contains { $0.id == "ai.ollama.reachable" && $0.status == .fail })
     }
@@ -302,7 +348,8 @@ final class CLITests: XCTestCase {
         let settingsStore = InMemoryAISettingsStore(configuration: .init(
             provider: .ollama,
             baseURL: "http://saved.example",
-            model: "saved-model"
+            model: "saved-model",
+            timeoutSeconds: 45
         ))
         let resolver = AIConfigurationResolver(settingsStore: settingsStore)
         let app = CLIApp(aiResolver: resolver, aiSettingsStore: settingsStore)
@@ -312,6 +359,7 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(result.output.contains("provider: ollama"))
         XCTAssertTrue(result.output.contains("source: saved settings"))
         XCTAssertTrue(result.output.contains("model: saved-model"))
+        XCTAssertTrue(result.output.contains("timeout_seconds: 45"))
     }
 
     func testAIResetClearsSavedSettings() async {
@@ -329,7 +377,7 @@ final class CLITests: XCTestCase {
         let wizard = AISetupWizard(
             prompt: MockAISetupPrompter(
                 provider: .ollama,
-                strings: ["http://localhost:11434", "qwen3.6:latest"],
+                strings: ["http://localhost:11434", "qwen3.6:latest", "90"],
                 bools: [true, true]
             ),
             settingsStore: settingsStore,
@@ -343,7 +391,8 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(try? settingsStore.load(), .init(
             provider: .ollama,
             baseURL: "http://localhost:11434",
-            model: "qwen3.6:latest"
+            model: "qwen3.6:latest",
+            timeoutSeconds: 90
         ))
     }
 
@@ -352,7 +401,7 @@ final class CLITests: XCTestCase {
         let wizard = AISetupWizard(
             prompt: MockAISetupPrompter(
                 provider: .ollama,
-                strings: ["http://localhost:11434", "missing-model"],
+                strings: ["http://localhost:11434", "missing-model", "90"],
                 bools: [true, true]
             ),
             settingsStore: settingsStore,
@@ -364,6 +413,23 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 1)
         XCTAssertTrue(result.output.contains("model missing-model is not available"))
         XCTAssertNil(try? settingsStore.load())
+    }
+
+    func testAISetupFailsWhenTimeoutIsInvalid() async {
+        let settingsStore = InMemoryAISettingsStore()
+        let wizard = AISetupWizard(
+            prompt: MockAISetupPrompter(
+                provider: .ollama,
+                strings: ["http://localhost:11434", "qwen3.6:latest", "0"],
+                bools: []
+            ),
+            settingsStore: settingsStore
+        )
+        let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
+
+        let result = await app.run(args: ["ai", "setup"])
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertTrue(result.output.contains("Request timeout must be a positive whole number of seconds"))
     }
 
     func testAISetupCanDeclinePersistence() async {
