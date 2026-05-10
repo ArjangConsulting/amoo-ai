@@ -41,6 +41,16 @@ public struct CLIApp {
 
     // swiftlint:disable:next cyclomatic_complexity
     public func run(args: [String]) async -> CLIResult {
+        if args.isEmpty {
+            // Default interactive mode when no arguments are provided.
+            await startREPLMode(args: args)
+            return CLIResult(output: "", exitCode: 0)
+        }
+
+        if args.contains("--help") || args.contains("-h") || args.first == "help" {
+            return CLIResult(output: renderCLIHelp(), exitCode: 0)
+        }
+
         if args.contains("--tools") {
             return CLIResult(output: mcpServer.toolNames().joined(separator: ","), exitCode: 0)
         }
@@ -128,6 +138,28 @@ public struct CLIApp {
         await startREPLMode(args: args)
         return CLIResult(output: "", exitCode: 0)
     }
+}
+
+func renderCLIHelp() -> String {
+    """
+    Usage: amoo <command> [options]
+
+    Commands:
+      help                         Show this help
+      preflight [--platform ...]   Check local tooling and environment
+      device ...                   Run a device tool against iOS or Android
+      companion ...                Build or install a companion app
+      audit ...                    Run app audit rules
+      ai ...                       Configure or inspect AI provider settings
+
+    Shortcuts:
+      amoo --help                  Show top-level help
+      amoo --tools                 List MCP tool names
+
+    Guidance:
+      Run 'amoo <command>' without enough arguments to see command-specific usage.
+      Examples: 'amoo device', 'amoo companion', 'amoo ai'
+    """
 }
 
 private enum ParsedPreflightPlatform {

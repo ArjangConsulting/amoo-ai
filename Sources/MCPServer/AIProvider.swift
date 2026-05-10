@@ -13,6 +13,77 @@ public protocol AIProvider: Sendable {
     func resolveDescription(_ description: String, elements: [ElementInfo]) async throws -> [ElementInfo]
 }
 
+func formatScreenDescription(
+    context: ScreenContext,
+    hierarchy: ViewNode,
+    interactableElements: [ElementInfo]
+) -> String {
+    let topLevelSummary = hierarchy.children
+        .prefix(5)
+        .compactMap(screenNodeSummary)
+    let interactableSummary = interactableElements
+        .prefix(7)
+        .compactMap(interactableElementSummary)
+
+    var lines: [String] = []
+    lines.append(context.screenTitle.flatMap { $0.isEmpty ? nil : "Screen title: \($0)" } ?? "Screen summary: \(context.summary)")
+
+    if context.screenTitle?.isEmpty != false, !context.summary.isEmpty {
+        lines.append("Context: \(context.summary)")
+    }
+
+    lines.append("Interactable elements: \(interactableElements.count)")
+
+    if !topLevelSummary.isEmpty {
+        lines.append("Visible structure: \(topLevelSummary.joined(separator: ", "))")
+    } else if !hierarchy.label.isEmpty || hierarchy.type != nil {
+        let rootDescription = screenNodeSummary(hierarchy) ?? hierarchy.id
+        lines.append("Visible structure: \(rootDescription)")
+    }
+
+    if !interactableSummary.isEmpty {
+        lines.append("Key actions: \(interactableSummary.joined(separator: "; "))")
+    }
+
+    return lines.joined(separator: "\n")
+}
+
+private func screenNodeSummary(_ node: ViewNode) -> String? {
+    let name = preferredElementName(label: node.label, id: node.id)
+    let type = node.type?.rawValue ?? "view"
+
+    if let name, !name.isEmpty {
+        return "\(type)(\(name))"
+    }
+
+    guard !node.id.isEmpty else { return nil }
+    return "\(type)(id=\(node.id))"
+}
+
+private func interactableElementSummary(_ element: ElementInfo) -> String? {
+    let name = preferredElementName(label: element.label, id: element.id)
+    let type = element.type?.rawValue ?? "element"
+
+    if let name, !name.isEmpty {
+        return "\(type) \(name)"
+    }
+
+    guard !element.id.isEmpty else { return nil }
+    return "\(type) id=\(element.id)"
+}
+
+private func preferredElementName(label: String, id: String) -> String? {
+    if !label.isEmpty {
+        return label
+    }
+
+    if !id.isEmpty {
+        return id
+    }
+
+    return nil
+}
+
 /// AI provider that uses a local Ollama instance for inference.
 public actor OllamaProvider: AIProvider {
     private let baseURL: String
@@ -160,8 +231,8 @@ public enum OllamaError: Error, Sendable {
 public struct LocalAIProvider: AIProvider {
     public init() {}
 
-    public func describeScreen(context: ScreenContext, hierarchy _: ViewNode) async throws -> String {
-        context.summary
+    public func describeScreen(context: ScreenContext, hierarchy: ViewNode) async throws -> String {
+        formatScreenDescription(context: context, hierarchy: hierarchy, interactableElements: [])
     }
 
     public func suggestActions(context _: ScreenContext, interactableElements: [ElementInfo]) async throws -> [String] {

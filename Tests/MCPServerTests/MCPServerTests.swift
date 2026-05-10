@@ -200,7 +200,8 @@ final class MCPServerTests: XCTestCase {
 
         let result = await server.execute(toolName: "ai_describe_screen", arguments: [:])
         XCTAssertFalse(result.isError)
-        XCTAssertEqual(result.content, "Mock screen")
+        XCTAssertTrue(result.content.contains("Screen summary: Mock screen"))
+        XCTAssertTrue(result.content.contains("Interactable elements: 0"))
     }
 
     func testDescribeScreenWithLocalAIProvider() async {
@@ -210,7 +211,21 @@ final class MCPServerTests: XCTestCase {
 
         let result = await server.execute(toolName: "ai_describe_screen", arguments: [:])
         XCTAssertFalse(result.isError)
-        XCTAssertEqual(result.content, "Mock screen")
+        XCTAssertTrue(result.content.contains("Screen summary: Mock screen"))
+        XCTAssertTrue(result.content.contains("Interactable elements: 0"))
+    }
+
+    func testDescribeScreenIncludesVisibleStructureAndActions() async {
+        let driver = AuditMockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "ai_describe_screen", arguments: [:])
+
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("Screen summary: Debug mode enabled - Test screen"))
+        XCTAssertTrue(result.content.contains("Interactable elements: 2"))
+        XCTAssertTrue(result.content.contains("Key actions: button Submit; button Cancel"))
     }
 
     func testSuggestActionsWithoutAIProvider() async {
@@ -556,7 +571,14 @@ private actor AuditMockDriver: PlatformDriver {
     }
 
     func getViewHierarchy() async throws -> ViewNode {
-        ViewNode(id: "root")
+        ViewNode(
+            id: "root",
+            children: [
+                ViewNode(id: "title", label: "Test screen", type: .staticText),
+                ViewNode(id: "submit_btn", label: "Submit", type: .button),
+                ViewNode(id: "cancel_btn", label: "Cancel", type: .button)
+            ]
+        )
     }
 
     func elementExists(_: ElementSelector) async throws -> Bool {

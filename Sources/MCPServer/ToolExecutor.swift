@@ -389,12 +389,29 @@ public actor DriverToolExecutor: ToolExecutor {
     private func executeDescribeScreen() async throws -> ToolResult {
         let context = try await driver.getScreenContext()
         let hierarchy = try await driver.getViewHierarchy()
+        let interactable = try await driver.getInteractableElements()
+        let fallbackDescription = formatScreenDescription(
+            context: context,
+            hierarchy: hierarchy,
+            interactableElements: interactable
+        )
+        let localDescription = formatScreenDescription(
+            context: context,
+            hierarchy: hierarchy,
+            interactableElements: []
+        )
 
         if let ai = aiProvider {
             let description = try await ai.describeScreen(context: context, hierarchy: hierarchy)
+            let normalizedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if normalizedDescription == context.summary || normalizedDescription == localDescription {
+                return .success(fallbackDescription)
+            }
+
             return .success(description)
         }
-        return .success(context.summary)
+        return .success(fallbackDescription)
     }
 
     private func executeSuggestActions() async throws -> ToolResult {
