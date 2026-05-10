@@ -30,23 +30,27 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .missingAction:
-            """
-            Usage: amoo companion <action> [options]
-
-            Actions:
-              install    Build and install the companion app on a device/simulator
-                         Options:
-                           --platform ios|android  Target platform (default: ios)
-                           --device <id>           Simulator UDID or ADB serial (default: booted)
-                           --companion-dir <path>  Override companion app directory
-                           --force                 Force rebuild even if already built
-            """
+            renderCompanionHelp()
         case let .unknownAction(action):
             "Unknown companion action '\(action)'. Run 'amoo companion' for usage."
         case let .unknownPlatform(p):
             "Unknown platform '\(p)'. Expected 'ios' or 'android'."
         }
     }
+}
+
+func renderCompanionHelp() -> String {
+    """
+    Usage: amoo companion <action> [options]
+
+    Actions:
+      install    Build and install the companion app on a device/simulator
+                 Options:
+                   --platform ios|android  Target platform (default: ios)
+                   --device <id>           Simulator UDID or ADB serial (default: booted)
+                   --companion-dir <path>  Override companion app directory
+                   --force                 Force rebuild even if already built
+    """
 }
 
 // swiftlint:disable:next cyclomatic_complexity

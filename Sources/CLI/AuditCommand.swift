@@ -46,12 +46,7 @@ public enum AuditCommandParseError: Error, CustomStringConvertible {
     public var description: String {
         switch self {
         case .usage:
-            """
-            Usage: amoo audit --app-id <bundle-id> \
-            [--screen-summary <text>] [--root-id <id>] \
-            [--fail-on none|info|low|medium|high|critical] \
-            [--out-json <path>] [--out-md <path>]
-            """
+            renderAuditHelp()
         case let .missingValue(flag):
             "Missing value for \(flag)."
         case let .missingRequiredFlag(flag):
@@ -62,6 +57,15 @@ public enum AuditCommandParseError: Error, CustomStringConvertible {
             "Unexpected argument '\(arg)'."
         }
     }
+}
+
+func renderAuditHelp() -> String {
+    """
+    Usage: amoo audit --app-id <bundle-id> \
+    [--screen-summary <text>] [--root-id <id>] \
+    [--fail-on none|info|low|medium|high|critical] \
+    [--out-json <path>] [--out-md <path>]
+    """
 }
 
 public protocol AuditRunning: Sendable {
