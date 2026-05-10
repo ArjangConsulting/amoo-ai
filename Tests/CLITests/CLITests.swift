@@ -23,6 +23,33 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
     }
 
+    func testHelpCommandReturnsGuidance() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo <command> [options]"))
+        XCTAssertTrue(result.output.contains("Run 'amoo <command>' without enough arguments to see command-specific usage."))
+    }
+
+    func testHelpFlagReturnsGuidance() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["--help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Commands:"))
+        XCTAssertTrue(result.output.contains("amoo device"))
+    }
+
+    func testShortHelpFlagReturnsGuidance() async {
+        let app = CLIApp()
+        let result = await app.run(args: ["-h"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo <command> [options]"))
+        XCTAssertTrue(result.output.contains("amoo --help"))
+    }
+
     func testResolveAIProviderConfigurationDefaultsToNone() {
         XCTAssertEqual(
             resolveAIProviderConfiguration(environment: [:], settingsStore: InMemoryAISettingsStore()).provider,
