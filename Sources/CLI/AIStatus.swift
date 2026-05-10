@@ -62,7 +62,7 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
                     id: "ai.provider",
                     status: .pass,
                     message: "AI provider is disabled. ai_* tools will use deterministic fallback behavior.",
-                    remediation: "Set MOBILE_TESTING_AI_PROVIDER=ollama or local to enable an AI provider."
+                    remediation: "Set AMOO_AI_PROVIDER=ollama or local to enable an AI provider."
                 )
             ])
 
@@ -72,7 +72,7 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
                     id: "ai.provider",
                     status: .pass,
                     message: "Using the local deterministic provider from \(provider.source).",
-                    remediation: "Set MOBILE_TESTING_AI_PROVIDER=ollama to use a real model."
+                    remediation: "Set AMOO_AI_PROVIDER=ollama to use a real model."
                 )
             ])
 
@@ -90,8 +90,8 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
             AIStatusCheck(
                 id: "ai.provider",
                 status: .pass,
-                message: "Using Ollama at \(baseURL) with model \(model) from \(provider.source).",
-                remediation: "Adjust MOBILE_TESTING_AI_OLLAMA_BASE_URL or MOBILE_TESTING_AI_OLLAMA_MODEL if needed."
+                message: "Using Ollama at \(baseURL) with model \(model), timeout \(provider.timeoutSeconds ?? defaultAITimeoutSeconds)s, from \(provider.source).",
+                remediation: "Adjust AMOO_AI_BASE_URL, AMOO_AI_MODEL, or AMOO_AI_TIMEOUT if needed."
             )
         ]
 
@@ -116,7 +116,7 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
                     id: "ai.ollama.model",
                     status: .fail,
                     message: "Model \(model) is not available in Ollama.",
-                    remediation: "Run `ollama pull \(model)` or change MOBILE_TESTING_AI_OLLAMA_MODEL."
+                    remediation: "Run `ollama pull \(model)` or change AMOO_AI_MODEL."
                 ))
             }
         } catch {
@@ -124,7 +124,7 @@ public struct DefaultAIStatusChecker: AIStatusChecking {
                 id: "ai.ollama.reachable",
                 status: .fail,
                 message: "Failed to reach Ollama: \(error)",
-                remediation: "Start Ollama and verify MOBILE_TESTING_AI_OLLAMA_BASE_URL points to a running server."
+                remediation: "Start Ollama and verify AMOO_AI_BASE_URL points to a running server."
             ))
         }
 
@@ -199,6 +199,9 @@ func renderAIConfig(_ configuration: ResolvedAIConfiguration) -> String {
     }
     if let model = configuration.model {
         lines.append("model: \(model)")
+    }
+    if let timeoutSeconds = configuration.timeoutSeconds {
+        lines.append("timeout_seconds: \(timeoutSeconds)")
     }
 
     return lines.joined(separator: "\n")

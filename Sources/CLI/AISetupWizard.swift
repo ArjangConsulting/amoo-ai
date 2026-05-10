@@ -162,8 +162,18 @@ public struct AISetupWizard: Sendable {
             defaultValue: descriptor.defaultModel,
             environment: environment
         )
+        let timeoutSeconds = try await collectTimeoutSeconds(
+            provider: provider,
+            savedValue: saved?.provider == provider ? saved?.timeoutSeconds : nil,
+            environment: environment
+        )
 
-        let configuration = AIProviderConfiguration(provider: provider, baseURL: baseURL, model: model)
+        let configuration = AIProviderConfiguration(
+            provider: provider,
+            baseURL: baseURL,
+            model: model,
+            timeoutSeconds: timeoutSeconds
+        )
 
         if provider == .ollama {
             guard let shouldValidate = await prompt.askBool(prompt: "Validate connection now?", defaultValue: true) else {
@@ -206,6 +216,24 @@ public struct AISetupWizard: Sendable {
             return nil
         }
         return answer
+    }
+
+    private func collectTimeoutSeconds(
+        provider: AIProviderKind,
+        savedValue: Int?,
+        environment: [String: String]
+    ) async throws -> Int? {
+        guard provider == .ollama else { return nil }
+
+        let effectiveDefault = firstEnvironmentValue(environment, keys: [amooAITimeoutEnvironmentKey])
+            .flatMap(Int.init)
+            ?? savedValue
+            ?? defaultAITimeoutSeconds
+        let answer = await prompt.askString(prompt: "Request timeout (seconds)", defaultValue: String(effectiveDefault))
+        guard let answer, let timeoutSeconds = Int(answer), timeoutSeconds > 0 else {
+            throw AISetupError.validationFailed("Request timeout must be a positive whole number of seconds.")
+        }
+        return timeoutSeconds
     }
 
     private func validateOllamaConfiguration(_ configuration: AIProviderConfiguration) async throws {

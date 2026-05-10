@@ -3,6 +3,17 @@ import MCPServer
 
 public let defaultOllamaBaseURL = "http://localhost:11434"
 public let defaultOllamaModel = "qwen3.6:latest"
+public let defaultAITimeoutSeconds = 600
+
+let amooAIProviderEnvironmentKey = "AMOO_AI_PROVIDER"
+let legacyAIProviderEnvironmentKey = "MOBILE_TESTING_AI_PROVIDER"
+let amooAIBaseURLEnvironmentKey = "AMOO_AI_BASE_URL"
+let amooOllamaBaseURLEnvironmentKey = "AMOO_AI_OLLAMA_BASE_URL"
+let legacyOllamaBaseURLEnvironmentKey = "MOBILE_TESTING_AI_OLLAMA_BASE_URL"
+let amooAIModelEnvironmentKey = "AMOO_AI_MODEL"
+let amooOllamaModelEnvironmentKey = "AMOO_AI_OLLAMA_MODEL"
+let legacyOllamaModelEnvironmentKey = "MOBILE_TESTING_AI_OLLAMA_MODEL"
+let amooAITimeoutEnvironmentKey = "AMOO_AI_TIMEOUT"
 
 public enum AIProviderKind: String, Sendable, Codable, CaseIterable {
     case disabled
@@ -14,11 +25,13 @@ public struct AIProviderConfiguration: Sendable, Equatable, Codable {
     public var provider: AIProviderKind
     public var baseURL: String?
     public var model: String?
+    public var timeoutSeconds: Int?
 
-    public init(provider: AIProviderKind, baseURL: String? = nil, model: String? = nil) {
+    public init(provider: AIProviderKind, baseURL: String? = nil, model: String? = nil, timeoutSeconds: Int? = nil) {
         self.provider = provider
         self.baseURL = baseURL
         self.model = model
+        self.timeoutSeconds = timeoutSeconds
     }
 }
 
@@ -26,12 +39,20 @@ public struct ResolvedAIConfiguration: Sendable, Equatable {
     public var provider: AIProviderKind
     public var baseURL: String?
     public var model: String?
+    public var timeoutSeconds: Int?
     public var source: String
 
-    public init(provider: AIProviderKind, baseURL: String? = nil, model: String? = nil, source: String) {
+    public init(
+        provider: AIProviderKind,
+        baseURL: String? = nil,
+        model: String? = nil,
+        timeoutSeconds: Int? = nil,
+        source: String
+    ) {
         self.provider = provider
         self.baseURL = baseURL
         self.model = model
+        self.timeoutSeconds = timeoutSeconds
         self.source = source
     }
 
@@ -42,7 +63,7 @@ public struct ResolvedAIConfiguration: Sendable, Equatable {
         case .local:
             "local deterministic fallback"
         case .ollama:
-            "Ollama (\(model ?? defaultOllamaModel) @ \(baseURL ?? defaultOllamaBaseURL))"
+            "Ollama (\(model ?? defaultOllamaModel) @ \(baseURL ?? defaultOllamaBaseURL), timeout \(timeoutSeconds ?? defaultAITimeoutSeconds)s)"
         }
     }
 }
@@ -102,12 +123,13 @@ public struct AIProviderRegistry: Sendable {
             displayName: "Ollama",
             defaultBaseURL: defaultOllamaBaseURL,
             defaultModel: defaultOllamaModel,
-            baseURLEnvironmentKey: "MOBILE_TESTING_AI_OLLAMA_BASE_URL",
-            modelEnvironmentKey: "MOBILE_TESTING_AI_OLLAMA_MODEL",
+            baseURLEnvironmentKey: "AMOO_AI_BASE_URL",
+            modelEnvironmentKey: "AMOO_AI_MODEL",
             buildProvider: { configuration in
                 OllamaProvider(
                     baseURL: configuration.baseURL ?? defaultOllamaBaseURL,
-                    model: configuration.model ?? defaultOllamaModel
+                    model: configuration.model ?? defaultOllamaModel,
+                    requestTimeout: TimeInterval(configuration.timeoutSeconds ?? defaultAITimeoutSeconds)
                 )
             }
         )
@@ -200,27 +222,34 @@ public struct AIConfigurationResolver: Sendable {
     }
 
     private func environmentConfiguration(environment: [String: String]) -> AIProviderConfiguration? {
-        let providerValue = normalizedEnvironmentValue(environment["MOBILE_TESTING_AI_PROVIDER"])?.lowercased()
+        let providerValue = firstEnvironmentValue(
+            environment,
+            keys: [amooAIProviderEnvironmentKey, legacyAIProviderEnvironmentKey]
+        )?.lowercased()
         let explicitProvider = providerValue.flatMap { mapProvider($0) }
+        let timeoutSeconds = parseTimeoutSeconds(environment: environment)
 
         if let explicitProvider {
             let descriptor = registry.descriptor(for: explicitProvider)
             return AIProviderConfiguration(
                 provider: explicitProvider,
-                baseURL: descriptor.baseURLEnvironmentKey.flatMap { normalizedEnvironmentValue(environment[$0]) },
-                model: descriptor.modelEnvironmentKey.flatMap { normalizedEnvironmentValue(environment[$0]) }
+                baseURL: environmentValue(for: descriptor.baseURLEnvironmentKey, environment: environment),
+                model: environmentValue(for: descriptor.modelEnvironmentKey, environment: environment),
+                timeoutSeconds: timeoutSeconds
             )
         }
 
         let ollamaDescriptor = registry.descriptor(for: .ollama)
-        let hasOllamaOverrides = ollamaDescriptor.baseURLEnvironmentKey.flatMap { normalizedEnvironmentValue(environment[$0]) } != nil ||
-            ollamaDescriptor.modelEnvironmentKey.flatMap { normalizedEnvironmentValue(environment[$0]) } != nil
+        let hasOllamaOverrides = environmentValue(for: ollamaDescriptor.baseURLEnvironmentKey, environment: environment) != nil ||
+            environmentValue(for: ollamaDescriptor.modelEnvironmentKey, environment: environment) != nil ||
+            timeoutSeconds != nil
 
         if hasOllamaOverrides {
             return AIProviderConfiguration(
                 provider: .ollama,
-                baseURL: ollamaDescriptor.baseURLEnvironmentKey.flatMap { normalizedEnvironmentValue(environment[$0]) },
-                model: ollamaDescriptor.modelEnvironmentKey.flatMap { normalizedEnvironmentValue(environment[$0]) }
+                baseURL: environmentValue(for: ollamaDescriptor.baseURLEnvironmentKey, environment: environment),
+                model: environmentValue(for: ollamaDescriptor.modelEnvironmentKey, environment: environment),
+                timeoutSeconds: timeoutSeconds
             )
         }
 
@@ -233,6 +262,7 @@ public struct AIConfigurationResolver: Sendable {
             provider: configuration.provider,
             baseURL: normalizedEnvironmentValue(configuration.baseURL) ?? descriptor.defaultBaseURL,
             model: normalizedEnvironmentValue(configuration.model) ?? descriptor.defaultModel,
+            timeoutSeconds: configuration.timeoutSeconds ?? defaultAITimeoutSeconds,
             source: source
         )
     }
@@ -249,6 +279,49 @@ public struct AIConfigurationResolver: Sendable {
             nil
         }
     }
+}
+
+func environmentValue(for key: String?, environment: [String: String]) -> String? {
+    guard let key else { return nil }
+
+    switch key {
+    case amooAIBaseURLEnvironmentKey:
+        return firstEnvironmentValue(environment, keys: [
+            amooAIBaseURLEnvironmentKey,
+            amooOllamaBaseURLEnvironmentKey,
+            legacyOllamaBaseURLEnvironmentKey
+        ])
+    case amooAIModelEnvironmentKey:
+        return firstEnvironmentValue(environment, keys: [
+            amooAIModelEnvironmentKey,
+            amooOllamaModelEnvironmentKey,
+            legacyOllamaModelEnvironmentKey
+        ])
+    default:
+        return normalizedEnvironmentValue(environment[key])
+    }
+}
+
+func firstEnvironmentValue(_ environment: [String: String], keys: [String]) -> String? {
+    for key in keys {
+        if let value = normalizedEnvironmentValue(environment[key]) {
+            return value
+        }
+    }
+
+    return nil
+}
+
+func parseTimeoutSeconds(environment: [String: String]) -> Int? {
+    guard let value = firstEnvironmentValue(environment, keys: [amooAITimeoutEnvironmentKey]) else {
+        return nil
+    }
+
+    guard let parsed = Int(value), parsed > 0 else {
+        return nil
+    }
+
+    return parsed
 }
 
 func makeAIProvider(

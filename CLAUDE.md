@@ -1,6 +1,6 @@
-# amoo-mobile-testing
+# amoo
 
-AI-driven mobile testing framework providing drivers and libraries for automating tests on iOS and Android simulators/emulators and real devices.
+AI-driven mobile testing framework providing drivers and libraries for automating tests on iOS and Android simulators/emulators and real devices. Use `AMOO_AI_*` environment variables for AI provider configuration.
 
 ## Project Status
 
