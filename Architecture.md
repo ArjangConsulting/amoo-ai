@@ -771,4 +771,4 @@ CI quality gates are mandatory:
 | 8 | AuditEngine target + v1 rule packs + report schema | Swift | Phase 6, 7 |
 | 9 | CLI + REPL + preflight environment checks + audit command | Swift | Phase 8 |
 | 10 | gRPC host service layer + audit report APIs | Swift | Phase 9 |
-| 11 | MCP server + AI provider adapters (Ollama first, cloud providers after) | Swift | Phase 10 |
+| 11 | MCP stdio server + assistant-facing tools for local AI clients | Swift | Phase 10 |

@@ -34,84 +34,37 @@ The gRPC Swift protobuf build plugin needs a `protoc` executable. Install it wit
 export PROTOC_PATH="$(command -v protoc)"
 ```
 
-## AI Provider Setup
+## MCP For Local AI
 
-The `ai_*` tools use deterministic fallback behavior by default. The CLI now supports both persistent AI setup and one-time REPL setup.
+Amoo exposes AI-facing automation through MCP, implemented in Swift over the standard `stdio` transport.
+The CLI does not configure or run an AI provider; local AI clients provide the reasoning and call Amoo tools.
 
-Persistent setup across sessions:
-
-```bash
-swift run amoo ai setup
-```
-
-This launches an interactive setup flow and stores non-secret settings in:
-
-```text
-~/Library/Application Support/amoo/ai-settings.json
-```
-
-One-time interactive setup for a REPL session:
+Start the local MCP server:
 
 ```bash
-swift run amoo --enable-ai
+swift run amoo mcp serve
 ```
 
-This prompts for provider details and launches the REPL with that in-memory configuration only. It does not save settings.
-
-The current provider options are:
-
-- Ollama
-- Local deterministic fallback
-- Disable AI
-
-Environment variables are still supported, but in interactive setup they are used as defaults the user can accept or override.
-
-Useful Ollama env defaults:
+By default this connects to the iOS companion on port `22087`. For Android or custom ports:
 
 ```bash
-export AMOO_AI_PROVIDER=ollama
-export AMOO_AI_BASE_URL=http://localhost:11434
-export AMOO_AI_MODEL=qwen3.6:latest
-export AMOO_AI_TIMEOUT=600
+swift run amoo mcp serve --platform android --port 22088
 ```
 
-For normal non-interactive runs, env vars still override saved settings.
-
-Direct one-shot usage with saved or env-based settings:
+Inspect the server during development:
 
 ```bash
-swift run amoo device --platform ios ai_describe_screen
+npx @modelcontextprotocol/inspector swift run amoo mcp serve
 ```
 
-Notes:
+Useful assistant-facing tools include:
 
-- If `AMOO_AI_PROVIDER=ollama` is set and no model is provided, the default is `qwen3.6:latest`.
-- If you only set `AMOO_AI_MODEL`, `AMOO_AI_BASE_URL`, or `AMOO_AI_TIMEOUT`, non-interactive commands infer the Ollama provider automatically.
-- Set `AMOO_AI_PROVIDER=local` to force the deterministic local provider.
-- Leave `AMOO_AI_PROVIDER` unset, or set it to `none`, to keep AI tools in fallback mode.
-- `AMOO_AI_TIMEOUT` sets the Ollama request timeout in seconds. The default is `600`.
-- `AMOO_AI_BASE_URL` and `AMOO_AI_MODEL` are the canonical provider-agnostic keys. `AMOO_AI_OLLAMA_BASE_URL` and `AMOO_AI_OLLAMA_MODEL` still work as compatibility fallbacks.
-- Interactive setup uses env vars only as prompt defaults, not hidden config.
+- `describe_screen`
+- `suggest_test_actions`
+- `find_element_by_description`
+- `analyze_ai_testability`
 
-Verify AI setup:
-
-```bash
-swift run amoo ai status
-```
-
-Show the active non-secret AI configuration:
-
-```bash
-swift run amoo ai config
-```
-
-Reset saved AI settings:
-
-```bash
-swift run amoo ai reset
-```
-
-For Ollama, this checks both server reachability and whether the configured model is installed.
+Use `analyze_ai_testability` to understand what developers can improve for better AI-driven testing: labels, identifiers, duplicate controls, hidden enabled elements, and missing primary actions.
 
 Run only the protocol tests:
 

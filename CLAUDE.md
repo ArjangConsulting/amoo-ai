@@ -1,6 +1,6 @@
 # amoo
 
-AI-driven mobile testing framework providing drivers and libraries for automating tests on iOS and Android simulators/emulators and real devices. Use `AMOO_AI_*` environment variables for AI provider configuration.
+AI-driven mobile testing framework providing drivers and libraries for automating tests on iOS and Android simulators/emulators and real devices. Local AI integration is exposed through MCP via `amoo mcp serve`.
 
 ## Project Status
 
@@ -10,7 +10,7 @@ Greenfield project — no code yet. See `Instruction.md` for the full vision.
 
 - **Primary language**: Swift (other languages where appropriate)
 - **Communication**: gRPC (language-agnostic, high-performance)
-- **AI integration**: MCP + Skills (hybrid approach), Ollama for local LLMs
+- **AI integration**: MCP + Skills (hybrid approach), with external local AI clients using the MCP stdio server
 - **Platforms**: iOS (simulators + devices), Android (emulators + devices)
 
 ## Architecture

@@ -340,42 +340,42 @@ public enum CommandCoverageMatrix {
             expectedAssertion: "security audit report is produced"
         ),
 
-        // AI
+        // Assistant support
         .init(
-            name: "ai_describe_screen",
+            name: "describe_screen",
             channel: .mcp,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .home,
-            expectedAssertion: "AI screen description is non-empty"
+            expectedAssertion: "screen description is non-empty"
         ),
         .init(
-            name: "ai_suggest_actions",
+            name: "suggest_test_actions",
             channel: .mcp,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .details,
-            expectedAssertion: "AI suggests relevant fixture actions"
+            expectedAssertion: "MCP returns relevant fixture action suggestions"
         ),
         .init(
-            name: "ai_suggest_actions_json",
+            name: "analyze_ai_testability",
             channel: .mcp,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .details,
-            expectedAssertion: "AI returns structured fixture actions with confidence and accessibility guidance"
+            expectedAssertion: "MCP returns structured AI testability diagnostics and developer feedback"
         ),
         .init(
-            name: "ai_find_by_description",
+            name: "find_element_by_description",
             channel: .mcp,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .home,
-            expectedAssertion: "AI resolves a natural-language description to fixture elements"
+            expectedAssertion: "MCP resolves a natural-language description to fixture elements"
         )
     ]
 
@@ -397,6 +397,15 @@ public enum CommandCoverageMatrix {
             platforms: allPlatforms,
             fixtureScreen: .companionInstall,
             expectedAssertion: "companion app artifacts are installed for the target platform"
+        ),
+        .init(
+            name: "mcp serve",
+            channel: .cli,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "local MCP stdio server starts for AI clients"
         )
     ]
 

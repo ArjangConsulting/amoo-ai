@@ -19,9 +19,9 @@ final class CommandContractTests: XCTestCase {
         }
     }
 
-    func testAllAIToolCoverageEntriesAreCanonical() {
+    func testAssistantToolCoverageEntriesAreProviderNeutral() {
         for toolName in CommandCoverageMatrix.aiToolNames {
-            XCTAssertTrue(toolName.hasPrefix("ai_"), "AI tools must use the ai_* prefix: \(toolName)")
+            XCTAssertFalse(toolName.hasPrefix("ai_"), "Assistant tools must not use the removed ai_* prefix: \(toolName)")
         }
     }
 }

@@ -56,10 +56,10 @@ func renderDeviceHelp() -> String {
       get_screen_context
       is_keyboard_visible
       take_screenshot
-      ai_describe_screen
-      ai_suggest_actions
-      ai_suggest_actions_json
-      ai_find_by_description description=<text>
+      describe_screen
+      suggest_test_actions
+      analyze_ai_testability
+      find_element_by_description description=<text>
       device_launch_app app_id=<id>
       device_terminate_app app_id=<id>
       device_install_app path=<path>
@@ -158,8 +158,7 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
     case .android:
         AndroidDriver(companion: companion, serial: options.deviceID)
     }
-    let aiProvider = try? makeAIProvider().provider
-    let executor = DriverToolExecutor(driver: driver, aiProvider: aiProvider)
+    let executor = DriverToolExecutor(driver: driver)
 
     let result = await withCLILoadingIndicator("Running \(options.tool)") {
         await executor.execute(toolName: options.tool, arguments: options.arguments)

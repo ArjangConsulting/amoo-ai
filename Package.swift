@@ -20,6 +20,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", branch: "main"),
         .package(path: "../shipitswifty"),
+        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0")
@@ -76,7 +77,15 @@ let package = Package(
                 "Protos"
             ]
         ),
-        .target(name: "MCPServer", dependencies: ["MobileTestingCore", "GRPCService", "AuditEngine"]),
+        .target(
+            name: "MCPServer",
+            dependencies: [
+                "MobileTestingCore",
+                "GRPCService",
+                "AuditEngine",
+                .product(name: "MCP", package: "swift-sdk")
+            ]
+        ),
         .executableTarget(
             name: "CLI",
             dependencies: [

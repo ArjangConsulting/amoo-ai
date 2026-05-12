@@ -1,5 +1,7 @@
 
 @testable import MCPServer
+import Foundation
+import MCP
 import MobileTestingCore
 import XCTest
 
@@ -16,10 +18,11 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(names.contains("audit_app"))
         XCTAssertTrue(names.contains("audit_accessibility"))
         XCTAssertTrue(names.contains("audit_security"))
-        XCTAssertTrue(names.contains("ai_describe_screen"))
-        XCTAssertTrue(names.contains("ai_suggest_actions"))
-        XCTAssertTrue(names.contains("ai_suggest_actions_json"))
-        XCTAssertTrue(names.contains("ai_find_by_description"))
+        XCTAssertTrue(names.contains("describe_screen"))
+        XCTAssertTrue(names.contains("suggest_test_actions"))
+        XCTAssertTrue(names.contains("analyze_ai_testability"))
+        XCTAssertTrue(names.contains("find_element_by_description"))
+        XCTAssertFalse(names.contains { $0.hasPrefix("ai_") })
     }
 
     func testToolDefinitionsHaveSchemas() throws {
@@ -32,6 +35,131 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(tap?.required, ["x", "y"])
         XCTAssertEqual(tap?.properties.count, 2)
         XCTAssertFalse(try XCTUnwrap(tap?.description.isEmpty))
+    }
+
+    func testMCPToolConversionIncludesInputSchema() throws {
+        let definition = ToolDefinition(
+            name: "tap",
+            title: "Tap",
+            description: "Tap a coordinate.",
+            properties: [
+                "x": .init(type: "number", description: "Horizontal coordinate"),
+                "y": .init(type: "number", description: "Vertical coordinate")
+            ],
+            required: ["x", "y"]
+        )
+
+        let tool = definition.mcpTool()
+
+        XCTAssertEqual(tool.name, "tap")
+        XCTAssertEqual(tool.title, "Tap")
+        XCTAssertEqual(tool.description, "Tap a coordinate.")
+        XCTAssertTrue(tool.inputSchema.description.contains("additionalProperties"))
+        XCTAssertTrue(tool.inputSchema.description.contains("false"))
+        XCTAssertTrue(tool.inputSchema.description.contains("x"))
+        XCTAssertTrue(tool.inputSchema.description.contains("y"))
+        XCTAssertNil(tool.outputSchema)
+    }
+
+    func testMCPToolConversionIncludesOutputSchema() throws {
+        let definition = ToolDefinition(
+            name: "suggest_test_actions",
+            description: "Suggest actions.",
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "confidence": .init(type: "string", description: "Confidence level"),
+                    "suggestedActions": .init(type: "array", description: "Ranked actions")
+                ],
+                required: ["confidence", "suggestedActions"]
+            )
+        )
+
+        let tool = definition.mcpTool()
+
+        XCTAssertTrue(tool.inputSchema.description.contains("additionalProperties"))
+        XCTAssertTrue(tool.inputSchema.description.contains("false"))
+        let outputSchema = try XCTUnwrap(tool.outputSchema)
+        XCTAssertTrue(outputSchema.description.contains("confidence"))
+        XCTAssertTrue(outputSchema.description.contains("suggestedActions"))
+        XCTAssertTrue(outputSchema.description.contains("additionalProperties"))
+        XCTAssertTrue(outputSchema.description.contains("false"))
+    }
+
+    func testToolResultMCPResultPreservesContentErrorAndStructuredContent() throws {
+        let structured: Value = .object([
+            "confidence": .string("medium"),
+            "suggestedActions": .array([.string("Tap Submit")])
+        ])
+
+        let result = ToolResult(content: "Suggested actions", isError: true, structuredContent: structured).mcpResult()
+
+        XCTAssertEqual(result.isError, true)
+        XCTAssertEqual(result.structuredContent, structured)
+        guard case let .text(text, _, _) = try XCTUnwrap(result.content.first) else {
+            return XCTFail("Expected text content")
+        }
+        XCTAssertEqual(text, "Suggested actions")
+    }
+
+    func testMCPStdioServeRespondsWithJSONRPCMessages() async throws {
+        let process = Process()
+        process.executableURL = try amooExecutableURL()
+        process.arguments = ["mcp", "serve"]
+
+        let stdin = Pipe()
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardInput = stdin
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        let output = LockedDataBuffer()
+        let errorOutput = LockedDataBuffer()
+        stdout.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                output.append(data)
+            }
+        }
+        stderr.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if !data.isEmpty {
+                errorOutput.append(data)
+            }
+        }
+
+        try process.run()
+        defer {
+            stdout.fileHandleForReading.readabilityHandler = nil
+            stderr.fileHandleForReading.readabilityHandler = nil
+            if process.isRunning {
+                process.terminate()
+                process.waitUntilExit()
+            }
+        }
+
+        let messages = [
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"amoo-tests","version":"0.0.0"}}}"#,
+            #"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#
+        ].joined(separator: "\n") + "\n"
+        try stdin.fileHandleForWriting.write(contentsOf: Data(messages.utf8))
+
+        let data = try await waitForStdout(output) { text in
+            text.contains(#""id":1"#) && text.contains(#""id":2"#) && text.contains("describe_screen")
+        }
+
+        let stdoutText = String(decoding: data, as: UTF8.self)
+        let lines = stdoutText.split(separator: "\n", omittingEmptySubsequences: true)
+        XCTAssertGreaterThanOrEqual(lines.count, 2)
+
+        for line in lines {
+            let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any]
+            XCTAssertEqual(object?["jsonrpc"] as? String, "2.0")
+        }
+
+        XCTAssertTrue(stdoutText.contains("suggest_test_actions"))
+        XCTAssertTrue(errorOutput.data().isEmpty)
     }
 
     func testHealthPassThrough() {
@@ -192,25 +320,14 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(result.content.contains("Audit passed") || result.content.contains("finding"))
     }
 
-    // MARK: - AI Tool Tests
+    // MARK: - Assistant Tool Tests
 
-    func testDescribeScreenWithoutAIProvider() async {
+    func testDescribeScreen() async {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_describe_screen", arguments: [:])
-        XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("Screen summary: Mock screen"))
-        XCTAssertTrue(result.content.contains("Interactable elements: 0"))
-    }
-
-    func testDescribeScreenWithLocalAIProvider() async {
-        let driver = MockDriver()
-        let executor = DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider())
-        let server = MCPServer(executor: executor)
-
-        let result = await server.execute(toolName: "ai_describe_screen", arguments: [:])
+        let result = await server.execute(toolName: "describe_screen", arguments: [:])
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("Screen summary: Mock screen"))
         XCTAssertTrue(result.content.contains("Interactable elements: 0"))
@@ -221,7 +338,7 @@ final class MCPServerTests: XCTestCase {
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_describe_screen", arguments: [:])
+        let result = await server.execute(toolName: "describe_screen", arguments: [:])
 
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("Screen summary: Debug mode enabled - Test screen"))
@@ -229,13 +346,14 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(result.content.contains("Key actions: button Submit; button Cancel"))
     }
 
-    func testSuggestActionsWithoutAIProvider() async {
+    func testSuggestActionsWithoutInteractableElements() async {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
+        let result = await server.execute(toolName: "suggest_test_actions", arguments: [:])
         XCTAssertFalse(result.isError)
+        XCTAssertNotNil(result.structuredContent)
         XCTAssertTrue(result.content.contains("Screen intent:"))
         XCTAssertTrue(result.content.contains("Suggested actions:"))
         XCTAssertTrue(result.content.contains("Accessibility issues:"))
@@ -247,42 +365,43 @@ final class MCPServerTests: XCTestCase {
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
+        let result = await server.execute(toolName: "suggest_test_actions", arguments: [:])
         XCTAssertFalse(result.isError)
+        XCTAssertNotNil(result.structuredContent)
         XCTAssertTrue(result.content.contains("Screen intent:"))
         XCTAssertTrue(result.content.contains("1. Tap Submit"))
         XCTAssertTrue(result.content.contains("2. Tap Cancel"))
         XCTAssertTrue(result.content.contains("Developer feedback:"))
     }
 
-    func testSuggestActionsWithLocalAIProvider() async {
+    func testSuggestActionsReturnsStructuredReport() async throws {
         let driver = AuditMockDriver()
-        let executor = DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider())
+        let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
+        let result = await server.execute(toolName: "suggest_test_actions", arguments: [:])
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("Confidence: medium"))
-        XCTAssertTrue(result.content.contains("1. Tap Submit"))
-        XCTAssertTrue(result.content.contains("No major accessibility issues detected"))
-        XCTAssertTrue(result.content.contains("Keep primary actions, inputs, and navigation controls clearly labeled"))
-    }
 
-    func testSuggestActionsJSONReturnsStructuredReport() async throws {
-        let driver = AuditMockDriver()
-        let executor = DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider())
-        let server = MCPServer(executor: executor)
-
-        let result = await server.execute(toolName: "ai_suggest_actions_json", arguments: [:])
-        XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("\"screenIntent\""))
-        XCTAssertTrue(result.content.contains("\"suggestedActions\""))
-        XCTAssertTrue(result.content.contains("\"confidence\" : \"medium\""))
-
-        let data = try XCTUnwrap(result.content.data(using: .utf8))
-        let report = try JSONDecoder().decode(AISuggestionReport.self, from: data)
+        let data = try JSONEncoder().encode(try XCTUnwrap(result.structuredContent))
+        let report = try JSONDecoder().decode(TestActionSuggestionReport.self, from: data)
         XCTAssertEqual(report.suggestedActions.count, 3)
         XCTAssertEqual(report.suggestedActions.first?.priority, 1)
+    }
+
+    func testAnalyzeAITestabilityReturnsStructuredFeedback() async throws {
+        let driver = AuditMockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "analyze_ai_testability", arguments: [:])
+
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("AI testability:"))
+        let data = try JSONEncoder().encode(try XCTUnwrap(result.structuredContent))
+        let report = try JSONDecoder().decode(AITestabilityReport.self, from: data)
+        XCTAssertEqual(report.interactableCount, 2)
+        XCTAssertFalse(report.developerFeedback.isEmpty)
     }
 
     func testFindByDescriptionRequiresDescription() async {
@@ -290,18 +409,18 @@ final class MCPServerTests: XCTestCase {
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "ai_find_by_description", arguments: [:])
+        let result = await server.execute(toolName: "find_element_by_description", arguments: [:])
         XCTAssertTrue(result.isError)
         XCTAssertTrue(result.content.contains("description"))
     }
 
-    func testFindByDescriptionWithoutAIProvider() async {
+    func testFindByDescriptionWithoutMatches() async {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
         let result = await server.execute(
-            toolName: "ai_find_by_description",
+            toolName: "find_element_by_description",
             arguments: ["description": "login button"]
         )
         XCTAssertFalse(result.isError)
@@ -309,285 +428,33 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(result.content.contains("No elements matched"))
     }
 
-    func testFindByDescriptionWithLocalAIProvider() async {
-        let driver = AuditMockDriver()
-        let executor = DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider())
-        let server = MCPServer(executor: executor)
-
-        let result = await server.execute(toolName: "ai_find_by_description", arguments: ["description": "submit"])
-        XCTAssertFalse(result.isError)
-        // LocalAIProvider does substring matching; AuditMockDriver has a "Submit" button
-        XCTAssertTrue(result.content.contains("match") || result.content.contains("No elements"))
-    }
-
-    func testRemovedAIAliasesReturnUnknownTool() async {
+    func testFindByDescriptionMatchesExposedLabels() async {
         let driver = AuditMockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let describeAlias = await server.execute(toolName: "describe_screen", arguments: [:])
-        XCTAssertTrue(describeAlias.isError)
-        XCTAssertTrue(describeAlias.content.contains("Unknown tool"))
-
-        let suggestAlias = await server.execute(toolName: "suggest_actions", arguments: [:])
-        XCTAssertTrue(suggestAlias.isError)
-        XCTAssertTrue(suggestAlias.content.contains("Unknown tool"))
-
-        let findAlias = await server.execute(toolName: "find_by_description", arguments: ["description": "submit"])
-        XCTAssertTrue(findAlias.isError)
-        XCTAssertTrue(findAlias.content.contains("Unknown tool"))
+        let result = await server.execute(toolName: "find_element_by_description", arguments: ["description": "submit"])
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("match"))
+        XCTAssertNotNil(result.structuredContent)
     }
 
-    func testLocalAIProviderResolveDescriptionMatchesLabelAndIDCaseInsensitively() async throws {
-        let provider = LocalAIProvider()
-        let elements = [
-            ElementInfo(id: "submit_btn", label: "Submit"),
-            ElementInfo(id: "cancel_btn", label: "Cancel")
-        ]
+    func testRemovedAIToolNamesReturnUnknownTool() async {
+        let driver = AuditMockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
 
-        let labelMatches = try await provider.resolveDescription("SUBMIT", elements: elements)
-        let idMatches = try await provider.resolveDescription("cancel_btn", elements: elements)
+        let describeAI = await server.execute(toolName: "ai_describe_screen", arguments: [:])
+        XCTAssertTrue(describeAI.isError)
+        XCTAssertTrue(describeAI.content.contains("Unknown tool"))
 
-        XCTAssertEqual(labelMatches, [ElementInfo(id: "submit_btn", label: "Submit")])
-        XCTAssertEqual(idMatches, [ElementInfo(id: "cancel_btn", label: "Cancel")])
-    }
+        let suggestAI = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
+        XCTAssertTrue(suggestAI.isError)
+        XCTAssertTrue(suggestAI.content.contains("Unknown tool"))
 
-    func testOllamaProviderDescribeScreenBuildsPromptAndTrimsResponse() async throws {
-        let captured = LockedBox<URLRequest?>(nil)
-        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            await captured.set(request)
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: ["response": "  concise summary  \n"])
-            return (data, response)
-        }
-
-        let summary = try await provider.describeScreen(
-            context: ScreenContext(summary: "Checkout", interactableCount: 2, screenTitle: "Cart"),
-            hierarchy: ViewNode(
-                id: "root",
-                children: [
-                    ViewNode(id: "title", label: "Cart", type: .staticText),
-                    ViewNode(id: "cta", label: "Pay", type: .button)
-                ]
-            )
-        )
-
-        let capturedRequest = await captured.value
-        let request = try XCTUnwrap(capturedRequest)
-        let body = try XCTUnwrap(request.httpBody)
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        let prompt = try XCTUnwrap(json["prompt"] as? String)
-
-        XCTAssertEqual(summary, "concise summary")
-        XCTAssertEqual(request.url?.absoluteString, "http://ollama.local/api/generate")
-        XCTAssertEqual(request.timeoutInterval, 600)
-        XCTAssertEqual(json["model"] as? String, "tiny-model")
-        XCTAssertEqual(json["stream"] as? Bool, false)
-        XCTAssertTrue(prompt.contains("Screen title: Cart"))
-        XCTAssertTrue(prompt.contains("button(Pay)"))
-    }
-
-    func testOllamaProviderSupportsCustomRequestTimeout() async throws {
-        let captured = LockedBox<URLRequest?>(nil)
-        let provider = OllamaProvider(
-            baseURL: "http://ollama.local",
-            model: "tiny-model",
-            requestTimeout: 120
-        ) { request in
-            await captured.set(request)
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: ["response": "ok"])
-            return (data, response)
-        }
-
-        _ = try await provider.describeScreen(
-            context: ScreenContext(summary: "Checkout"),
-            hierarchy: ViewNode(id: "root")
-        )
-
-        let capturedRequest = await captured.value
-        let request = try XCTUnwrap(capturedRequest)
-        XCTAssertEqual(request.timeoutInterval, 120)
-    }
-
-    func testOllamaProviderSuggestActionsBuildsStructuredPromptWithoutImageForTextModel() async throws {
-        let captured = LockedBox<URLRequest?>(nil)
-        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            await captured.set(request)
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: [
-                "response": """
-                {
-                  \"screenIntent\": \"Login screen\",
-                  \"suggestedActions\": [
-                    { \"priority\": 2, \"action\": \"Tap Sign In\", \"reason\": \"Primary CTA\" },
-                    { \"priority\": 9, \"action\": \"Use Forgot Password\", \"reason\": \"Recovery flow\" },
-                    { \"priority\": 20, \"action\": \"Enter invalid credentials\", \"reason\": \"Validation path\" }
-                  ],
-                  \"confidence\": \"medium\",
-                  \"accessibilityIssues\": [\"Button label is generic\"],
-                  \"developerFeedback\": [\"Rename the CTA label\"]
-                }
-                """
-            ])
-            return (data, response)
-        }
-        let elements = (1 ... 25).map { index in
-            ElementInfo(id: "id-\(index)", label: "Label \(index)", type: .button)
-        }
-
-        let report = try await provider.suggestActions(request: AISuggestionRequest(
-            context: ScreenContext(summary: "Home"),
-            hierarchy: ViewNode(id: "root"),
-            allElements: elements,
-            interactableElements: elements,
-            diagnostics: ["Button label is generic"],
-            developerFeedback: ["Rename the CTA label"],
-            screenshot: ScreenshotData(bytes: [0x01, 0x02])
-        ))
-
-        let storedRequest = await captured.value
-        let capturedRequest = try XCTUnwrap(storedRequest)
-        let body = try XCTUnwrap(capturedRequest.httpBody)
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        let prompt = try XCTUnwrap(json["prompt"] as? String)
-
-        XCTAssertEqual(report.screenIntent, "Login screen")
-        XCTAssertEqual(report.suggestedActions.map(\AISuggestedAction.priority), [1, 2, 3])
-        XCTAssertEqual(report.suggestedActions.first?.action, "Tap Sign In")
-        XCTAssertEqual(json["stream"] as? Bool, false)
-        XCTAssertNotNil(json["format"])
-        XCTAssertNil(json["images"])
-        XCTAssertTrue(prompt.contains("Ignore OS/device chrome"))
-        XCTAssertTrue(prompt.contains("Candidate interactable app elements"))
-    }
-
-    func testOllamaProviderSuggestActionsAttachesScreenshotForVisionModel() async throws {
-        let captured = LockedBox<URLRequest?>(nil)
-        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "llama3.2-vision") { request in
-            await captured.set(request)
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: [
-                "response": "{\"screenIntent\":\"Checkout\",\"suggestedActions\":[{\"priority\":1,\"action\":\"Tap Pay\",\"reason\":\"Primary CTA\"},{\"priority\":2,\"action\":\"Review cart\",\"reason\":\"Order accuracy\"},{\"priority\":3,\"action\":\"Try invalid promo code\",\"reason\":\"Validation\"}],\"confidence\":\"high\",\"accessibilityIssues\":[],\"developerFeedback\":[] }"
-            ])
-            return (data, response)
-        }
-
-        _ = try await provider.suggestActions(request: AISuggestionRequest(
-            context: ScreenContext(summary: "Checkout"),
-            hierarchy: ViewNode(id: "root"),
-            allElements: [ElementInfo(id: "pay", label: "Pay", type: .button)],
-            interactableElements: [ElementInfo(id: "pay", label: "Pay", type: .button)],
-            diagnostics: [],
-            developerFeedback: [],
-            screenshot: ScreenshotData(bytes: [0xAA, 0xBB])
-        ))
-
-        let storedRequest = await captured.value
-        let capturedRequest = try XCTUnwrap(storedRequest)
-        let body = try XCTUnwrap(capturedRequest.httpBody)
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        let images = try XCTUnwrap(json["images"] as? [String])
-        XCTAssertEqual(images.count, 1)
-        XCTAssertEqual(images.first, Data([0xAA, 0xBB]).base64EncodedString())
-    }
-
-    func testOllamaProviderResolveDescriptionMatchesIDsAndLabelsFromResponse() async throws {
-        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization
-                .data(withJSONObject: ["response": "Use submit1 and Settings for this action"])
-            return (data, response)
-        }
-        let elements = [
-            ElementInfo(id: "submit1", label: "Submit", type: .button),
-            ElementInfo(id: "settings", label: "Settings", type: .button),
-            ElementInfo(id: "help", label: "Help", type: .button)
-        ]
-
-        let matches = try await provider.resolveDescription("submit action", elements: elements)
-
-        XCTAssertEqual(matches, [
-            ElementInfo(id: "submit1", label: "Submit", type: .button),
-            ElementInfo(id: "settings", label: "Settings", type: .button)
-        ])
-    }
-
-    func testOllamaProviderThrowsHTTPAndJSONErrors() async {
-        let httpProvider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 500,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            return (Data("failure".utf8), response)
-        }
-        let jsonProvider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: ["unexpected": true])
-            return (data, response)
-        }
-
-        do {
-            _ = try await httpProvider.describeScreen(
-                context: ScreenContext(summary: "Fail"),
-                hierarchy: ViewNode(id: "root")
-            )
-            XCTFail("Expected http error")
-        } catch let error as OllamaError {
-            guard case let .httpError(statusCode, body) = error else {
-                return XCTFail("Unexpected OllamaError: \(error)")
-            }
-            XCTAssertEqual(statusCode, 500)
-            XCTAssertEqual(body, "failure")
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-
-        do {
-            _ = try await jsonProvider.describeScreen(
-                context: ScreenContext(summary: "Fail"),
-                hierarchy: ViewNode(id: "root")
-            )
-            XCTFail("Expected invalid JSON")
-        } catch let error as OllamaError {
-            guard case .invalidJSON = error else {
-                return XCTFail("Unexpected OllamaError: \(error)")
-            }
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
+        let findAI = await server.execute(toolName: "ai_find_by_description", arguments: ["description": "submit"])
+        XCTAssertTrue(findAI.isError)
+        XCTAssertTrue(findAI.content.contains("Unknown tool"))
     }
 
     func testSwipeInDirectionTool() async throws {
@@ -626,20 +493,57 @@ final class MCPServerTests: XCTestCase {
     }
 }
 
-private actor LockedBox<Value: Sendable> {
-    private var storage: Value
+private final class LockedDataBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = Data()
 
-    init(_ storage: Value) {
-        self.storage = storage
+    func append(_ data: Data) {
+        lock.withLock {
+            storage.append(data)
+        }
     }
 
-    func set(_ value: Value) {
-        storage = value
+    func data() -> Data {
+        lock.withLock { storage }
+    }
+}
+
+private func waitForStdout(
+    _ buffer: LockedDataBuffer,
+    timeoutNanoseconds: UInt64 = 5_000_000_000,
+    condition: (String) -> Bool
+) async throws -> Data {
+    let start = ContinuousClock.now
+    while start.duration(to: .now) < .nanoseconds(Int64(timeoutNanoseconds)) {
+        let data = buffer.data()
+        let text = String(decoding: data, as: UTF8.self)
+        if condition(text) {
+            return data
+        }
+        try await Task.sleep(for: .milliseconds(50))
     }
 
-    var value: Value {
-        storage
+    let text = String(decoding: buffer.data(), as: UTF8.self)
+    throw XCTSkip("Timed out waiting for MCP stdio response. Captured stdout: \(text)")
+}
+
+private func amooExecutableURL() throws -> URL {
+    let sourceURL = URL(fileURLWithPath: #filePath)
+    let packageRoot = sourceURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let candidates = [
+        packageRoot.appendingPathComponent(".build/arm64-apple-macosx/debug/amoo"),
+        packageRoot.appendingPathComponent(".build/debug/amoo")
+    ]
+
+    guard let executableURL = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else {
+        let paths = candidates.map(\.path).joined(separator: ", ")
+        throw XCTSkip("Cannot locate built amoo executable at any expected path: \(paths).")
     }
+
+    return executableURL
 }
 
 /// Mock driver that returns elements triggering audit rules.

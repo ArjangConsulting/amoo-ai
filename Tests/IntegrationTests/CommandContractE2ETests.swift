@@ -501,8 +501,8 @@ final class CommandContractE2ETests: XCTestCase {
         XCTAssertTrue(screenshot.content.contains("bytes"))
     }
 
-    func testAICanonicalNames() async throws {
-        throw XCTSkip("AI command coverage is currently verified separately from core companion e2e stability")
+    func testAssistantToolCanonicalNames() async throws {
+        throw XCTSkip("Assistant command coverage is currently verified separately from core companion e2e stability")
     }
 
     private func makeCompanion() throws -> GRPCCompanionClient {
@@ -522,12 +522,12 @@ final class CommandContractE2ETests: XCTestCase {
 
     private func makeServer() throws -> MCPServer {
         let driver = try currentDriver()
-        return MCPServer(executor: DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider()))
+        return MCPServer(executor: DriverToolExecutor(driver: driver))
     }
 
     private func makeServerWithDriver() throws -> (MCPServer, any PlatformDriver) {
         let driver = try currentDriver()
-        let server = MCPServer(executor: DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider()))
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
         return (server, driver)
     }
 
