@@ -15,12 +15,14 @@ This repo now treats public commands as a release contract.
 
 ## Naming Rules
 
-- AI-facing tools must use the `ai_*` prefix.
-- Current canonical AI tools are:
-  - `ai_describe_screen`
-  - `ai_suggest_actions`
-  - `ai_suggest_actions_json`
-  - `ai_find_by_description`
+- Assistant-facing tools are exposed through MCP and must use provider-neutral names.
+- Tool names must not use the removed `ai_*` prefix.
+- Current canonical assistant tools are:
+  - `describe_screen`
+  - `suggest_test_actions`
+  - `analyze_ai_testability`
+  - `find_element_by_description`
+- The local MCP server is launched with `amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]`.
 
 ## Blocking vs Informational
 
@@ -36,7 +38,7 @@ When adding a new public command:
 2. Add a `CommandCoverageMatrix` entry.
 3. Add or reuse a fixture screen/assertion path.
 4. Add at least one regression or e2e assertion.
-5. If the command is AI-related, use the `ai_*` prefix.
+5. If the command is assistant-facing, keep it MCP-only and provider-neutral.
 
 ## Entry Points
 

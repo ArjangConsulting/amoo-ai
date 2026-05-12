@@ -9,21 +9,20 @@ import MobileTestingCore
 
 // MARK: - REPL entry point
 
-func runREPL(device: AvailableDevice, port: Int, oneTimeAIConfiguration: AIProviderConfiguration? = nil) async {
+func runREPL(device: AvailableDevice, port: Int) async {
     switch device {
     case let .ios(bootedDevice):
-        await runIOSREPL(device: bootedDevice, port: port, oneTimeAIConfiguration: oneTimeAIConfiguration)
+        await runIOSREPL(device: bootedDevice, port: port)
     case let .android(serial, name):
         await runAndroidREPL(
             serial: serial,
             name: name,
-            port: port,
-            oneTimeAIConfiguration: oneTimeAIConfiguration
+            port: port
         )
     }
 }
 
-private func runIOSREPL(device: BootedDevice, port: Int, oneTimeAIConfiguration: AIProviderConfiguration?) async {
+private func runIOSREPL(device: BootedDevice, port: Int) async {
     let manager = CompanionManager()
     let config = CompanionConfig(port: port, deviceUDID: device.udid)
 
@@ -44,16 +43,13 @@ private func runIOSREPL(device: BootedDevice, port: Int, oneTimeAIConfiguration:
     }
 
     let driver = IOSDriver(companion: companion, deviceID: device.udid)
-    let aiRuntime = try? makeAIProvider(oneTimeConfiguration: oneTimeAIConfiguration)
-    let aiConfiguration = aiRuntime?.configuration ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
-    let executor = DriverToolExecutor(driver: driver, aiProvider: aiRuntime?.provider)
+    let executor = DriverToolExecutor(driver: driver)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
     print(colored("Connected to \(device.displayName)", .bold, .green) + " on port \(port)")
-    print(renderREPLAIBanner(aiConfiguration))
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
@@ -68,8 +64,7 @@ private func runIOSREPL(device: BootedDevice, port: Int, oneTimeAIConfiguration:
 private func runAndroidREPL(
     serial: String,
     name: String,
-    port: Int,
-    oneTimeAIConfiguration: AIProviderConfiguration?
+    port: Int
 ) async {
     let connection = CompanionConnection(host: "127.0.0.1", port: port)
     let companion: GRPCCompanionClient
@@ -82,16 +77,13 @@ private func runAndroidREPL(
     }
 
     let driver = AndroidDriver(companion: companion, serial: serial.isEmpty ? nil : serial)
-    let aiRuntime = try? makeAIProvider(oneTimeConfiguration: oneTimeAIConfiguration)
-    let aiConfiguration = aiRuntime?.configuration ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
-    let executor = DriverToolExecutor(driver: driver, aiProvider: aiRuntime?.provider)
+    let executor = DriverToolExecutor(driver: driver)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
     print(colored("Connected to \(name) (\(serial))", .bold, .green) + " on port \(port)")
-    print(renderREPLAIBanner(aiConfiguration))
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
@@ -147,56 +139,6 @@ private func replLoop(
             toolDefinitions: toolDefinitions
         )
     }
-}
-
-private func renderREPLAIBanner(_ configuration: ResolvedAIConfiguration) -> String {
-    let lines: [String]
-
-    switch configuration.provider {
-    case .disabled:
-        lines = [
-            "Provider : disabled",
-            "Mode     : deterministic fallback",
-            "Source   : \(configuration.source)"
-        ]
-    case .local:
-        lines = [
-            "Provider : local",
-            "Mode     : deterministic fallback",
-            "Source   : \(configuration.source)"
-        ]
-    case .ollama:
-        let model = configuration.model ?? defaultOllamaModel
-        let baseURL = configuration.baseURL ?? defaultOllamaBaseURL
-        lines = [
-            "Provider : Ollama",
-            "Model    : \(model)",
-            "Endpoint : \(baseURL)"
-        ]
-    }
-
-    let width = max("AI Session".count, lines.map(\.count).max() ?? 0)
-    let style = replBannerStyle()
-    let top = style.topLeft + String(repeating: style.horizontal, count: width + 2) + style.topRight
-    let bottom = style.bottomLeft + String(repeating: style.horizontal, count: width + 2) + style.bottomRight
-    let title = style.vertical + " " + padRight("AI Session", to: width) + " " + style.vertical
-    let body = lines.map { style.vertical + " " + padRight($0, to: width) + " " + style.vertical }
-
-    let accentColor: ANSIColor = switch configuration.provider {
-    case .disabled:
-        .brightYellow
-    case .local:
-        .brightCyan
-    case .ollama:
-        .brightGreen
-    }
-
-    return ([
-        colored(top, .gray),
-        colored(title, .bold, accentColor),
-    ] + body.map { colored($0, accentColor) } + [
-        colored(bottom, .gray)
-    ]).joined(separator: "\n")
 }
 
 private struct REPLBannerStyle {
@@ -296,9 +238,6 @@ private func printHelp(definitions: [ToolDefinition]) {
     print("  \(colored("help", .green))        Show this help")
     print("  \(colored("tools", .green))       List tool names only")
     print("  \(colored("quit/exit", .green))   Exit the session")
-    print("")
-    print(colored("AI setup:", .bold, .cyan))
-    print("  Run \(colored("amoo ai status", .green)) outside the REPL to verify the configured AI provider and Ollama model.")
     print("")
     print(colored("Press Tab to complete the tool command or argument key.", .gray))
     print("")
@@ -477,10 +416,6 @@ func test_shellSplit(_ line: String) -> (toolName: String?, parts: [String]) {
 
 func test_closestTool(to input: String, among candidates: [String]) -> String? {
     closestTool(to: input, among: candidates)
-}
-
-func test_renderREPLAIBanner(_ configuration: ResolvedAIConfiguration) -> String {
-    renderREPLAIBanner(configuration)
 }
 
 func test_replBannerStyle(environment: [String: String]) -> String {

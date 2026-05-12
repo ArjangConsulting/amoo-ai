@@ -76,7 +76,7 @@ Host side responsibilities:
 - device lifecycle (boot/shutdown/connect/disconnect)
 - app lifecycle (install/uninstall/launch/terminate where platform tools are best source)
 - orchestration, retries, sessions, logs, artifact management
-- CLI, REPL, MCP tooling, AI providers, policy enforcement
+- CLI, REPL, MCP tooling, policy enforcement
 
 Companion side responsibilities:
 
@@ -116,9 +116,9 @@ Compatibility guarantees:
 - Platform-native bridges:
 - iOS: XCUITest-based companion bridge
 - Android: UIAutomator/Espresso-compatible companion bridge
-- AI provider interfaces:
-- local-first via Ollama
-- pluggable cloud providers (OpenAI, Anthropic, others) via provider protocol
+- MCP stdio server for local AI clients:
+- Swift implementation
+- provider-neutral tools; AI reasoning lives in the external MCP client
 
 Where another language is chosen (for example Android instrumentation internals), it must be hidden behind stable cross-language contracts.
 
@@ -163,7 +163,7 @@ This project should combine those strengths while prioritizing Swift-first modul
 - MCP tools for core actions and queries
 - skill-compatible command surfaces/workflows
 - AI-assisted test case generation from app state + user intent
-- local LLM support via Ollama first; cloud providers via provider adapter
+- local AI client support through MCP stdio; model/provider choice lives outside the CLI
 
 ### 8.5 Audit Features
 
@@ -253,7 +253,7 @@ Exit criteria:
 ### Milestone 2: AI + MCP
 
 - MCP server with stable tools
-- local LLM integration (Ollama)
+- local AI client integration through MCP stdio
 - AI-assisted flow generation and action suggestions
 
 Exit criteria:

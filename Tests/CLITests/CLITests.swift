@@ -39,6 +39,8 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("Commands:"))
         XCTAssertTrue(result.output.contains("amoo device"))
+        XCTAssertTrue(result.output.contains("mcp serve"))
+        XCTAssertFalse(result.output.contains("amoo ai"))
     }
 
     func testShortHelpFlagReturnsGuidance() async {
@@ -65,7 +67,7 @@ final class CLITests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("Usage: amoo device"))
-        XCTAssertTrue(result.output.contains("ai_suggest_actions_json"))
+        XCTAssertTrue(result.output.contains("suggest_test_actions"))
     }
 
     func testCompanionSubcommandHelpCommandReturnsCompanionHelp() async {
@@ -84,12 +86,12 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(result.output.contains("Usage: amoo audit"))
     }
 
-    func testAISubcommandShortHelpReturnsAIHelp() async {
+    func testMCPSubcommandShortHelpReturnsMCPHelp() async {
         let app = CLIApp()
-        let result = await app.run(args: ["ai", "-h"])
+        let result = await app.run(args: ["mcp", "-h"])
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "Usage: amoo ai <setup|status|config|reset>")
+        XCTAssertEqual(result.output, "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]")
     }
 
     func testPreflightSubcommandHelpFlagReturnsPreflightHelp() async {
@@ -102,354 +104,68 @@ final class CLITests: XCTestCase {
 
     func testNestedHelpAfterSubcommandActionReturnsSubcommandHelp() async {
         let app = CLIApp()
-        let result = await app.run(args: ["ai", "status", "--help"])
+        let result = await app.run(args: ["mcp", "serve", "--help"])
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "Usage: amoo ai <setup|status|config|reset>")
+        XCTAssertEqual(result.output, "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]")
     }
 
-    func testResolveAIProviderConfigurationDefaultsToNone() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(environment: [:], settingsStore: InMemoryAISettingsStore()).provider,
-            .disabled
-        )
+    func testMCPServeOptionsDefaultsToIOS() {
+        let parsed = parseMCPServeOptions(args: [])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        XCTAssertEqual(options.platform, .ios)
+        XCTAssertEqual(options.port, 22087)
+        XCTAssertEqual(options.deviceID, "booted")
     }
 
-    func testResolveAIProviderConfigurationUsesOllamaDefaults() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(
-                environment: ["AMOO_AI_PROVIDER": "ollama"],
-                settingsStore: InMemoryAISettingsStore()
-            ),
-            ResolvedAIConfiguration(
-                provider: .ollama,
-                baseURL: "http://localhost:11434",
-                model: "qwen3.6:latest",
-                timeoutSeconds: 600,
-                source: "environment"
-            )
-        )
+    func testMCPServeOptionsParsesAndroid() {
+        let parsed = parseMCPServeOptions(args: ["--platform", "android", "--port", "22099", "--device", "emulator-5554"])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        XCTAssertEqual(options.platform, .android)
+        XCTAssertEqual(options.port, 22099)
+        XCTAssertEqual(options.deviceID, "emulator-5554")
     }
 
-    func testResolveAIProviderConfigurationUsesExplicitOllamaOverrides() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(
-                environment: [
-                    "AMOO_AI_PROVIDER": "ollama",
-                    "AMOO_AI_BASE_URL": "http://ollama.internal:4242",
-                    "AMOO_AI_MODEL": "custom-model:latest",
-                    "AMOO_AI_TIMEOUT": "120"
-                ],
-                settingsStore: InMemoryAISettingsStore()
-            ),
-            ResolvedAIConfiguration(
-                provider: .ollama,
-                baseURL: "http://ollama.internal:4242",
-                model: "custom-model:latest",
-                timeoutSeconds: 120,
-                source: "environment"
-            )
-        )
-    }
-
-    func testResolveAIProviderConfigurationInfersOllamaFromOverrides() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(
-                environment: ["AMOO_AI_MODEL": "qwen3.6:latest"],
-                settingsStore: InMemoryAISettingsStore()
-            ),
-            ResolvedAIConfiguration(
-                provider: .ollama,
-                baseURL: "http://localhost:11434",
-                model: "qwen3.6:latest",
-                timeoutSeconds: 600,
-                source: "environment"
-            )
-        )
-    }
-
-    func testResolveAIProviderConfigurationSupportsLegacyEnvironmentKeys() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(
-                environment: [
-                    "MOBILE_TESTING_AI_PROVIDER": "ollama",
-                    "MOBILE_TESTING_AI_OLLAMA_BASE_URL": "http://legacy.internal:4242",
-                    "MOBILE_TESTING_AI_OLLAMA_MODEL": "legacy-model:latest"
-                ],
-                settingsStore: InMemoryAISettingsStore()
-            ),
-            ResolvedAIConfiguration(
-                provider: .ollama,
-                baseURL: "http://legacy.internal:4242",
-                model: "legacy-model:latest",
-                timeoutSeconds: 600,
-                source: "environment"
-            )
-        )
-    }
-
-    func testResolveAIProviderConfigurationSupportsAmooOllamaFallbackKeys() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(
-                environment: [
-                    "AMOO_AI_PROVIDER": "ollama",
-                    "AMOO_AI_OLLAMA_BASE_URL": "http://fallback.internal:4242",
-                    "AMOO_AI_OLLAMA_MODEL": "fallback-model:latest"
-                ],
-                settingsStore: InMemoryAISettingsStore()
-            ),
-            ResolvedAIConfiguration(
-                provider: .ollama,
-                baseURL: "http://fallback.internal:4242",
-                model: "fallback-model:latest",
-                timeoutSeconds: 600,
-                source: "environment"
-            )
-        )
-    }
-
-    func testResolveAIProviderConfigurationSupportsLocalProvider() {
-        XCTAssertEqual(
-            resolveAIProviderConfiguration(
-                environment: ["AMOO_AI_PROVIDER": "local"],
-                settingsStore: InMemoryAISettingsStore()
-            ),
-            ResolvedAIConfiguration(provider: .local, timeoutSeconds: 600, source: "environment")
-        )
-    }
-
-    func testParseAICommandRequiresStatusAction() {
-        guard case let .failure(error) = parseAICommand(args: []) else {
+    func testMCPServeOptionsRejectsUnknownPlatform() {
+        let parsed = parseMCPServeOptions(args: ["--platform", "web"])
+        guard case let .failure(error) = parsed else {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Usage: amoo ai <setup|status|config|reset>")
+        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios' or 'android'.")
     }
 
-    func testParseAICommandRejectsUnknownAction() {
-        guard case let .failure(error) = parseAICommand(args: ["ping"]) else {
+    func testMCPServeOptionsRejectsInvalidPort() {
+        let parsed = parseMCPServeOptions(args: ["--port", "not-a-port"])
+        guard case let .failure(error) = parsed else {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Unknown ai action 'ping'. Run 'amoo ai' for usage.")
+        XCTAssertEqual(error.description, "Invalid port 'not-a-port'. Expected a number.")
     }
 
-    func testAIStatusCommandReturnsSuccessForDisabledProvider() async {
-        let app = CLIApp(aiStatusChecker: MockAIStatusChecker(report: AIStatusReport(provider: .init(provider: .disabled, source: "default"), checks: [
-            AIStatusCheck(
-                id: "ai.provider",
-                status: .pass,
-                message: "AI provider is disabled.",
-                remediation: "Enable a provider."
-            )
-        ])))
-
-        let result = await app.run(args: ["ai", "status"])
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertTrue(result.output.contains("ai status"))
-        XCTAssertTrue(result.output.contains("provider: disabled"))
-    }
-
-    func testAIStatusCommandReturnsFailureWhenChecksFail() async {
-        let app = CLIApp(aiStatusChecker: MockAIStatusChecker(report: AIStatusReport(provider: .init(
-            provider: .ollama,
-            baseURL: "http://localhost:11434",
-            model: "qwen3.6:latest",
-            timeoutSeconds: 600,
-            source: "saved settings"
-        ), checks: [
-            AIStatusCheck(
-                id: "ai.ollama.model",
-                status: .fail,
-                message: "Model missing.",
-                remediation: "Pull it."
-            )
-        ])))
-
-        let result = await app.run(args: ["ai", "status"])
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertTrue(result.output.contains("provider: Ollama"))
-        XCTAssertTrue(result.output.contains("Model missing"))
-    }
-
-    func testDefaultAIStatusCheckerPassesWhenOllamaModelExists() async throws {
-        let checker = DefaultAIStatusChecker(transport: { request in
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: [
-                "models": [
-                    ["name": "qwen3.6:latest"],
-                    ["name": "other:latest"]
-                ]
-            ])
-            return (data, response)
-        })
-
-        let report = await checker.run(environment: ["AMOO_AI_PROVIDER": "ollama"])
-        XCTAssertFalse(report.hasFailures)
-        XCTAssertEqual(report.provider, .init(
-            provider: .ollama,
-            baseURL: "http://localhost:11434",
-            model: "qwen3.6:latest",
-            timeoutSeconds: 600,
-            source: "environment"
-        ))
-    }
-
-    func testDefaultAIStatusCheckerFailsWhenOllamaModelMissing() async throws {
-        let checker = DefaultAIStatusChecker(transport: { request in
-            let response = try HTTPURLResponse(
-                url: XCTUnwrap(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            let data = try JSONSerialization.data(withJSONObject: [
-                "models": [["name": "other:latest"]]
-            ])
-            return (data, response)
-        })
-
-        let report = await checker.run(environment: ["AMOO_AI_PROVIDER": "ollama"])
-        XCTAssertTrue(report.hasFailures)
-        XCTAssertTrue(report.checks.contains { $0.id == "ai.ollama.model" && $0.status == .fail })
-    }
-
-    func testDefaultAIStatusCheckerFailsWhenOllamaIsUnreachable() async {
-        let checker = DefaultAIStatusChecker(transport: { _ in
-            throw URLError(.cannotConnectToHost)
-        })
-
-        let report = await checker.run(environment: ["AMOO_AI_PROVIDER": "ollama"])
-        XCTAssertTrue(report.hasFailures)
-        XCTAssertTrue(report.checks.contains { $0.id == "ai.ollama.reachable" && $0.status == .fail })
-    }
-
-    func testParseAICommandSupportsSetupConfigAndReset() {
-        guard case let .success(setup) = parseAICommand(args: ["setup"]) else {
-            return XCTFail("Expected setup parse success")
-        }
-        guard case let .success(config) = parseAICommand(args: ["config"]) else {
-            return XCTFail("Expected config parse success")
-        }
-        guard case let .success(reset) = parseAICommand(args: ["reset"]) else {
-            return XCTFail("Expected reset parse success")
+    func testMCPServeOptionsRejectsMissingOptionValue() {
+        let parsed = parseMCPServeOptions(args: ["--device"])
+        guard case let .failure(error) = parsed else {
+            return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(setup, .setup)
-        XCTAssertEqual(config, .config)
-        XCTAssertEqual(reset, .reset)
+        XCTAssertEqual(error.description, "Missing value for --device.")
     }
 
-    func testAIConfigCommandUsesResolvedConfiguration() async {
-        let settingsStore = InMemoryAISettingsStore(configuration: .init(
-            provider: .ollama,
-            baseURL: "http://saved.example",
-            model: "saved-model",
-            timeoutSeconds: 45
-        ))
-        let resolver = AIConfigurationResolver(settingsStore: settingsStore)
-        let app = CLIApp(aiResolver: resolver, aiSettingsStore: settingsStore)
+    func testMCPServeOptionsRejectsUnknownFlag() {
+        let parsed = parseMCPServeOptions(args: ["--transport", "http"])
+        guard case let .failure(error) = parsed else {
+            return XCTFail("Expected parser failure")
+        }
 
-        let result = await app.run(args: ["ai", "config"])
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertTrue(result.output.contains("provider: ollama"))
-        XCTAssertTrue(result.output.contains("source: saved settings"))
-        XCTAssertTrue(result.output.contains("model: saved-model"))
-        XCTAssertTrue(result.output.contains("timeout_seconds: 45"))
-    }
-
-    func testAIResetClearsSavedSettings() async {
-        let settingsStore = InMemoryAISettingsStore(configuration: .init(provider: .local))
-        let app = CLIApp(aiSettingsStore: settingsStore)
-
-        let result = await app.run(args: ["ai", "reset"])
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "AI settings reset.")
-        XCTAssertNil(try? settingsStore.load())
-    }
-
-    func testAISetupSavesConfigurationWhenConfirmed() async {
-        let settingsStore = InMemoryAISettingsStore()
-        let wizard = AISetupWizard(
-            prompt: MockAISetupPrompter(
-                provider: .ollama,
-                strings: ["http://localhost:11434", "qwen3.6:latest", "90"],
-                bools: [true, true]
-            ),
-            settingsStore: settingsStore,
-            transport: mockOllamaTransport(models: ["qwen3.6:latest"])
-        )
-        let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
-
-        let result = await app.run(args: ["ai", "setup"])
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertTrue(result.output.contains("Saved AI settings"))
-        XCTAssertEqual(try? settingsStore.load(), .init(
-            provider: .ollama,
-            baseURL: "http://localhost:11434",
-            model: "qwen3.6:latest",
-            timeoutSeconds: 90
-        ))
-    }
-
-    func testAISetupFailsWhenOllamaModelIsMissingDuringValidation() async {
-        let settingsStore = InMemoryAISettingsStore()
-        let wizard = AISetupWizard(
-            prompt: MockAISetupPrompter(
-                provider: .ollama,
-                strings: ["http://localhost:11434", "missing-model", "90"],
-                bools: [true, true]
-            ),
-            settingsStore: settingsStore,
-            transport: mockOllamaTransport(models: ["qwen3.6:latest"])
-        )
-        let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
-
-        let result = await app.run(args: ["ai", "setup"])
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertTrue(result.output.contains("model missing-model is not available"))
-        XCTAssertNil(try? settingsStore.load())
-    }
-
-    func testAISetupFailsWhenTimeoutIsInvalid() async {
-        let settingsStore = InMemoryAISettingsStore()
-        let wizard = AISetupWizard(
-            prompt: MockAISetupPrompter(
-                provider: .ollama,
-                strings: ["http://localhost:11434", "qwen3.6:latest", "0"],
-                bools: []
-            ),
-            settingsStore: settingsStore
-        )
-        let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
-
-        let result = await app.run(args: ["ai", "setup"])
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertTrue(result.output.contains("Request timeout must be a positive whole number of seconds"))
-    }
-
-    func testAISetupCanDeclinePersistence() async {
-        let settingsStore = InMemoryAISettingsStore()
-        let wizard = AISetupWizard(
-            prompt: MockAISetupPrompter(provider: .local, strings: [], bools: [false]),
-            settingsStore: settingsStore
-        )
-        let app = CLIApp(aiSetupWizard: wizard, aiSettingsStore: settingsStore)
-
-        let result = await app.run(args: ["ai", "setup"])
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "No AI settings were saved.")
-        XCTAssertNil(try? settingsStore.load())
-    }
-
-    func testParseREPLOptionsTracksEnableAIFlag() {
-        let options = parseREPLOptions(args: ["--enable-ai", "--platform", "ios"])
-        XCTAssertTrue(options.enableAI)
+        XCTAssertEqual(error.description, "Unknown option '--transport'.")
     }
 
     func testAvailablePlatformsIncludesOnlyLaunchablePlatforms() {
@@ -946,20 +662,6 @@ final class CLITests: XCTestCase {
         XCTAssertNil(none)
     }
 
-    func testREPLAIBannerIncludesProviderDetails() {
-        let banner = test_renderREPLAIBanner(.init(
-            provider: .ollama,
-            baseURL: "http://localhost:11434",
-            model: "qwen3.6:latest",
-            source: "environment"
-        ))
-
-        XCTAssertTrue(banner.contains("AI"))
-        XCTAssertTrue(banner.contains("Ollama"))
-        XCTAssertTrue(banner.contains("qwen3.6:latest"))
-        XCTAssertTrue(banner.contains("http://localhost:11434"))
-    }
-
     func testREPLBannerStyleFallsBackForDumbTerminal() {
         XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "dumb", "LANG": "en_US.UTF-8"]), "+")
         XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "xterm-256color", "LANG": "en_US.UTF-8"]), "╭")
@@ -1109,97 +811,5 @@ private struct MockAuditRunner: AuditRunning {
 
     func runAudit(options _: AuditCommandOptions) async throws -> AuditReport {
         report
-    }
-}
-
-private struct MockAIStatusChecker: AIStatusChecking {
-    let report: AIStatusReport
-
-    func run(environment _: [String: String]) async -> AIStatusReport {
-        report
-    }
-}
-
-private final class InMemoryAISettingsStore: AISettingsStore, @unchecked Sendable {
-    private let lock = NSLock()
-    private var configuration: AIProviderConfiguration?
-
-    init(configuration: AIProviderConfiguration? = nil) {
-        self.configuration = configuration
-    }
-
-    func load() throws -> AIProviderConfiguration? {
-        lock.lock()
-        defer { lock.unlock() }
-        return configuration
-    }
-
-    func save(_ configuration: AIProviderConfiguration) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        self.configuration = configuration
-    }
-
-    func reset() throws {
-        lock.lock()
-        defer { lock.unlock() }
-        configuration = nil
-    }
-}
-
-private actor MockAISetupState {
-    var strings: [String?]
-    var bools: [Bool?]
-
-    init(strings: [String?], bools: [Bool?]) {
-        self.strings = strings
-        self.bools = bools
-    }
-
-    func nextString() -> String? {
-        guard !strings.isEmpty else { return nil }
-        return strings.removeFirst()
-    }
-
-    func nextBool() -> Bool? {
-        guard !bools.isEmpty else { return nil }
-        return bools.removeFirst()
-    }
-}
-
-private final class MockAISetupPrompter: AISetupPrompting, @unchecked Sendable {
-    private let provider: AIProviderKind?
-    private let state: MockAISetupState
-
-    init(provider: AIProviderKind?, strings: [String?], bools: [Bool?]) {
-        self.provider = provider
-        state = MockAISetupState(strings: strings, bools: bools)
-    }
-
-    func chooseProvider(defaultProvider _: AIProviderKind) async -> AIProviderKind? {
-        provider
-    }
-
-    func askString(prompt _: String, defaultValue _: String?) async -> String? {
-        await state.nextString()
-    }
-
-    func askBool(prompt _: String, defaultValue _: Bool) async -> Bool? {
-        await state.nextBool()
-    }
-}
-
-private func mockOllamaTransport(models: [String]) -> @Sendable (URLRequest) async throws -> (Data, URLResponse) {
-    { request in
-        let response = try HTTPURLResponse(
-            url: XCTUnwrap(request.url),
-            statusCode: 200,
-            httpVersion: nil,
-            headerFields: nil
-        )!
-        let data = try JSONSerialization.data(withJSONObject: [
-            "models": models.map { ["name": $0] }
-        ])
-        return (data, response)
     }
 }

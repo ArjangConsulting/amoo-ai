@@ -16,27 +16,15 @@ public struct CLIApp {
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
-    private let aiStatusChecker: any AIStatusChecking
-    private let aiSetupWizard: AISetupWizard
-    private let aiResolver: AIConfigurationResolver
-    private let aiSettingsStore: any AISettingsStore
 
     public init(
         mcpServer: MCPServer = .init(),
         preflightChecker: any PreflightChecking = DefaultPreflightChecker(),
-        auditRunner: any AuditRunning = DefaultAuditRunner(),
-        aiStatusChecker: any AIStatusChecking = DefaultAIStatusChecker(),
-        aiSetupWizard: AISetupWizard = AISetupWizard(),
-        aiResolver: AIConfigurationResolver = AIConfigurationResolver(),
-        aiSettingsStore: any AISettingsStore = FileAISettingsStore()
+        auditRunner: any AuditRunning = DefaultAuditRunner()
     ) {
         self.mcpServer = mcpServer
         self.preflightChecker = preflightChecker
         self.auditRunner = auditRunner
-        self.aiStatusChecker = aiStatusChecker
-        self.aiSetupWizard = aiSetupWizard
-        self.aiResolver = aiResolver
-        self.aiSettingsStore = aiSettingsStore
     }
 
     // swiftlint:disable:next cyclomatic_complexity
@@ -109,44 +97,11 @@ public struct CLIApp {
             }
         }
 
-        if args.first == "ai" {
+        if args.first == "mcp" {
             if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderAIHelp(), exitCode: 0)
+                return CLIResult(output: renderMCPHelp(), exitCode: 0)
             }
-            switch parseAICommand(args: Array(args.dropFirst())) {
-            case let .failure(error):
-                return CLIResult(output: error.description, exitCode: 64)
-            case .success(.status):
-                return await runAIStatusCommand(checker: aiStatusChecker)
-            case .success(.setup):
-                do {
-                    let result = try await aiSetupWizard.runPersistentSetup()
-                    let output = if result.shouldPersist {
-                        if let fileStore = aiSettingsStore as? FileAISettingsStore {
-                            "Saved AI settings to \(fileStore.path)\nprovider: \(result.configuration.provider.rawValue)"
-                        } else {
-                            "Saved AI settings.\nprovider: \(result.configuration.provider.rawValue)"
-                        }
-                    } else {
-                        "No AI settings were saved."
-                    }
-                    return CLIResult(output: output, exitCode: 0)
-                } catch let error as AISetupError {
-                    return CLIResult(output: error.description, exitCode: 1)
-                } catch {
-                    return CLIResult(output: "AI setup failed: \(error)", exitCode: 1)
-                }
-            case .success(.config):
-                let configuration = (try? aiResolver.resolve()) ?? ResolvedAIConfiguration(provider: .disabled, source: "default")
-                return CLIResult(output: renderAIConfig(configuration), exitCode: 0)
-            case .success(.reset):
-                do {
-                    try aiSettingsStore.reset()
-                    return CLIResult(output: "AI settings reset.", exitCode: 0)
-                } catch {
-                    return CLIResult(output: "Failed to reset AI settings: \(error)", exitCode: 1)
-                }
-            }
+            return await runMCPCommand(args: Array(args.dropFirst()), server: mcpServer)
         }
 
         // Default: interactive REPL mode
@@ -183,7 +138,7 @@ func renderCLIHelp() -> String {
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       audit ...                    Run app audit rules
-      ai ...                       Configure or inspect AI provider settings
+      mcp serve                    Run the local MCP stdio server for AI clients
 
     Shortcuts:
       amoo --help                  Show top-level help
@@ -191,7 +146,7 @@ func renderCLIHelp() -> String {
 
     Guidance:
       Run 'amoo <command>' without enough arguments to see command-specific usage.
-      Examples: 'amoo device', 'amoo companion', 'amoo ai'
+      Examples: 'amoo device', 'amoo companion', 'amoo mcp serve'
     """
 }
 

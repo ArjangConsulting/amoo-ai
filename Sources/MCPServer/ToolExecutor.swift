@@ -1,5 +1,6 @@
 import AuditEngine
 import Foundation
+import MCP
 import MobileTestingCore
 
 public protocol ToolExecutor: Sendable {
@@ -9,11 +10,9 @@ public protocol ToolExecutor: Sendable {
 // swiftlint:disable:next type_body_length
 public actor DriverToolExecutor: ToolExecutor {
     private let driver: any PlatformDriver
-    private let aiProvider: (any AIProvider)?
 
-    public init(driver: any PlatformDriver, aiProvider: (any AIProvider)? = nil) {
+    public init(driver: any PlatformDriver) {
         self.driver = driver
-        self.aiProvider = aiProvider
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
@@ -270,17 +269,17 @@ public actor DriverToolExecutor: ToolExecutor {
         case "audit_security":
             return try await executeAudit(arguments: arguments, rulePacks: RulePacks.security)
 
-        // AI tools
-        case "ai_describe_screen":
+        // Assistant-facing MCP tools
+        case "describe_screen":
             return try await executeDescribeScreen()
 
-        case "ai_suggest_actions":
+        case "suggest_test_actions":
             return try await executeSuggestActions()
 
-        case "ai_suggest_actions_json":
-            return try await executeSuggestActionsJSON()
+        case "analyze_ai_testability":
+            return try await executeAnalyzeAITestability()
 
-        case "ai_find_by_description":
+        case "find_element_by_description":
             guard let description = arguments["description"] else {
                 return .error("Missing required argument: description")
             }
@@ -387,47 +386,26 @@ public actor DriverToolExecutor: ToolExecutor {
         }
     }
 
-    // MARK: - AI Tool Execution
+    // MARK: - Assistant Tool Execution
 
     private func executeDescribeScreen() async throws -> ToolResult {
         let context = try await driver.getScreenContext()
         let hierarchy = try await driver.getViewHierarchy()
         let interactable = try await driver.getInteractableElements()
-        let fallbackDescription = formatScreenDescription(
+        let description = formatScreenDescription(
             context: context,
             hierarchy: hierarchy,
             interactableElements: interactable
         )
-        let localDescription = formatScreenDescription(
-            context: context,
-            hierarchy: hierarchy,
-            interactableElements: []
-        )
-
-        if let ai = aiProvider {
-            let description = try await ai.describeScreen(context: context, hierarchy: hierarchy)
-            let normalizedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if normalizedDescription == context.summary || normalizedDescription == localDescription {
-                return .success(fallbackDescription)
-            }
-
-            return .success(description)
-        }
-        return .success(fallbackDescription)
+        return .success(description)
     }
 
     private func executeSuggestActions() async throws -> ToolResult {
         let report = try await buildSuggestionReport()
-        return .success(formatSuggestionReport(report))
+        return .success(formatSuggestionReport(report), structuredContent: try Value(report))
     }
 
-    private func executeSuggestActionsJSON() async throws -> ToolResult {
-        let report = try await buildSuggestionReport()
-        return .success(try encodeSuggestionReport(report))
-    }
-
-    private func buildSuggestionReport() async throws -> AISuggestionReport {
+    private func buildSuggestionReport() async throws -> TestActionSuggestionReport {
         let context = try await driver.getScreenContext()
         let hierarchy = try await driver.getViewHierarchy()
         let screenshot = try await driver.takeScreenshot(format: .png)
@@ -436,7 +414,7 @@ public actor DriverToolExecutor: ToolExecutor {
         let filteredElements = filterAppRelevantElements(interactable)
         let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: filteredElements)
         let developerFeedback = developerFeedback(for: diagnostics)
-        let request = AISuggestionRequest(
+        let request = TestActionSuggestionRequest(
             context: enrichedScreenContext(context: context, allElements: allElements, interactableElements: filteredElements, hierarchy: hierarchy),
             hierarchy: hierarchy,
             allElements: filterAppRelevantElements(allElements),
@@ -446,31 +424,42 @@ public actor DriverToolExecutor: ToolExecutor {
             screenshot: screenshot
         )
 
-        if let ai = aiProvider {
-            return try await ai.suggestActions(request: request)
-        }
-
         return deterministicSuggestionReport(for: request)
     }
 
-    private func executeFindByDescription(_ description: String) async throws -> ToolResult {
-        if let ai = aiProvider {
-            let allElements = try await driver.findElements(ElementSelector())
-            let matches = try await ai.resolveDescription(description, elements: allElements)
-            if matches.isEmpty {
-                return .success("No elements matched: \(description)")
-            }
-            let descriptions = matches.map { "[\($0.id)] \($0.label)" }
-            return .success("Found \(matches.count) match(es):\n\(descriptions.joined(separator: "\n"))")
-        }
+    private func executeAnalyzeAITestability() async throws -> ToolResult {
+        let context = try await driver.getScreenContext()
+        let allElements = try await driver.findElements(ElementSelector())
+        let interactable = filterAppRelevantElements(try await driver.getInteractableElements())
+        let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: interactable)
+        let report = AITestabilityReport(
+            screenSummary: context.summary,
+            interactableCount: interactable.count,
+            confidence: testabilityConfidence(diagnostics: diagnostics, interactableCount: interactable.count),
+            diagnostics: diagnostics,
+            developerFeedback: developerFeedback(for: diagnostics)
+        )
 
-        // Fallback: use driver's built-in description search
-        let matches = try await driver.findByDescription(description)
+        return .success(formatAITestabilityReport(report), structuredContent: try Value(report))
+    }
+
+    private func executeFindByDescription(_ description: String) async throws -> ToolResult {
+        let allElements = try await driver.findElements(ElementSelector())
+        let lowered = description.lowercased()
+        let directMatches = allElements.filter { element in
+            element.label.lowercased().contains(lowered) || element.id.lowercased().contains(lowered)
+        }
+        let matches = directMatches.isEmpty ? try await driver.findByDescription(description) : directMatches
+        let report = ElementDescriptionMatchReport(
+            query: description,
+            matches: matches.map { ElementMatch(id: $0.id, label: $0.label, type: $0.type?.rawValue) }
+        )
+
         if matches.isEmpty {
-            return .success("No elements matched: \(description)")
+            return .success("No elements matched: \(description)", structuredContent: try Value(report))
         }
         let descriptions = matches.map { "[\($0.id)] \($0.label)" }
-        return .success("Found \(matches.count) match(es):\n\(descriptions.joined(separator: "\n"))")
+        return .success("Found \(matches.count) match(es):\n\(descriptions.joined(separator: "\n"))", structuredContent: try Value(report))
     }
 
     private func parseDirection(_ value: String) -> Direction? {
@@ -483,7 +472,7 @@ public actor DriverToolExecutor: ToolExecutor {
         }
     }
 
-    private func formatSuggestionReport(_ report: AISuggestionReport) -> String {
+    private func formatSuggestionReport(_ report: TestActionSuggestionReport) -> String {
         var lines = [
             "Screen intent: \(report.screenIntent)",
             "Confidence: \(report.confidence)",
@@ -514,14 +503,26 @@ public actor DriverToolExecutor: ToolExecutor {
         return lines.joined(separator: "\n")
     }
 
-    private func encodeSuggestionReport(_ report: AISuggestionReport) throws -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(report)
-        guard let json = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "MCPServer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to encode suggestion report"])
+    private func formatAITestabilityReport(_ report: AITestabilityReport) -> String {
+        var lines = [
+            "AI testability: \(report.confidence)",
+            "Screen summary: \(report.screenSummary)",
+            "Interactable elements: \(report.interactableCount)",
+            "",
+            "Diagnostics:"
+        ]
+
+        if report.diagnostics.isEmpty {
+            lines.append("- none")
+        } else {
+            lines.append(contentsOf: report.diagnostics.map { "- \($0)" })
         }
-        return json
+
+        lines.append("")
+        lines.append("Developer feedback:")
+        lines.append(contentsOf: report.developerFeedback.map { "- \($0)" })
+
+        return lines.joined(separator: "\n")
     }
 
     private func filterAppRelevantElements(_ elements: [ElementInfo]) -> [ElementInfo] {
