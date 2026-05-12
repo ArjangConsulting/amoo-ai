@@ -359,7 +359,7 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
         let interactable = elements.filter { $0.isEnabled && $0.isVisible }
 
         var response = MobileTesting_ScreenContextResponse()
-        response.summary = "Screen: \(elements.count) elements (\(interactable.count) interactable), root: \(hierarchy.id)"
+        response.summary = summarizeScreen(hierarchy: hierarchy, elements: elements, interactable: interactable)
         return response
     }
 
@@ -410,6 +410,93 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
         response.success = false
         response.message = message
         return response
+    }
+
+    private func summarizeScreen(
+        hierarchy: ViewNodeSnapshot,
+        elements: [ElementSnapshot],
+        interactable: [ElementSnapshot]
+    ) -> String {
+        let title = inferredScreenTitle(from: elements, hierarchy: hierarchy)
+        let primaryActions = appRelevantInteractables(interactable)
+            .prefix(3)
+            .compactMap { preferredText(label: $0.label, id: normalizedIdentifier($0.id)) }
+        let textHighlights = elements
+            .filter { $0.isVisible && $0.type == "staticText" }
+            .prefix(4)
+            .compactMap { preferredText(label: $0.label, id: nil) }
+        let formFields = elements
+            .filter { $0.isVisible && $0.type == "textField" }
+            .prefix(3)
+            .compactMap { preferredText(label: $0.label, id: normalizedIdentifier($0.id)) }
+
+        let parts = [
+            title.map { "title=\($0)" },
+            !primaryActions.isEmpty ? "primary_actions=\(primaryActions.joined(separator: ", "))" : nil,
+            !formFields.isEmpty ? "form_fields=\(formFields.joined(separator: ", "))" : nil,
+            !textHighlights.isEmpty ? "visible_text=\(textHighlights.joined(separator: ", "))" : nil,
+            "interactable=\(appRelevantInteractables(interactable).count)",
+            "visible_elements=\(elements.filter(\\.isVisible).count)",
+            hierarchy.id.isEmpty ? nil : "root=\(hierarchy.id)"
+        ].compactMap { $0 }
+
+        return parts.joined(separator: " | ")
+    }
+
+    private func inferredScreenTitle(from elements: [ElementSnapshot], hierarchy: ViewNodeSnapshot) -> String? {
+        if let navigationTitle = hierarchy.children.first(where: {
+            $0.type == "navigationBar" && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        })?.label, !navigationTitle.isEmpty {
+            return navigationTitle
+        }
+
+        if let firstTitle = elements.first(where: {
+            $0.isVisible && $0.type == "staticText" && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        })?.label, !firstTitle.isEmpty {
+            return firstTitle
+        }
+
+        if !hierarchy.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return hierarchy.label
+        }
+
+        return nil
+    }
+
+    private func appRelevantInteractables(_ elements: [ElementSnapshot]) -> [ElementSnapshot] {
+        elements.filter {
+            $0.isVisible && $0.isEnabled && !isLikelySystemElement($0)
+        }
+    }
+
+    private func isLikelySystemElement(_ element: ElementSnapshot) -> Bool {
+        let raw = "\(element.id) \(element.label) \(element.value)".lowercased()
+        let systemTerms = [
+            "wifi", "wi-fi", "battery", "signal", "carrier", "clock", "time", "status bar", "cellular"
+        ]
+        return systemTerms.contains(where: { raw.contains($0) }) || raw.hasPrefix("status") || raw.contains("system")
+    }
+
+    private func preferredText(label: String, id: String?) -> String? {
+        let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedLabel.isEmpty {
+            return trimmedLabel
+        }
+        guard let id else { return nil }
+        return id.isEmpty ? nil : id
+    }
+
+    private func normalizedIdentifier(_ id: String) -> String? {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let lowered = trimmed.lowercased()
+        let genericTerms = ["button", "view", "cell", "image", "label", "text"]
+        if genericTerms.contains(where: { lowered == $0 || lowered.hasPrefix($0) && lowered.count <= $0.count + 2 }) {
+            return nil
+        }
+
+        return trimmed
     }
 }
 

@@ -277,6 +277,9 @@ public actor DriverToolExecutor: ToolExecutor {
         case "ai_suggest_actions":
             return try await executeSuggestActions()
 
+        case "ai_suggest_actions_json":
+            return try await executeSuggestActionsJSON()
+
         case "ai_find_by_description":
             guard let description = arguments["description"] else {
                 return .error("Missing required argument: description")
@@ -415,19 +418,39 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     private func executeSuggestActions() async throws -> ToolResult {
+        let report = try await buildSuggestionReport()
+        return .success(formatSuggestionReport(report))
+    }
+
+    private func executeSuggestActionsJSON() async throws -> ToolResult {
+        let report = try await buildSuggestionReport()
+        return .success(try encodeSuggestionReport(report))
+    }
+
+    private func buildSuggestionReport() async throws -> AISuggestionReport {
         let context = try await driver.getScreenContext()
+        let hierarchy = try await driver.getViewHierarchy()
+        let screenshot = try await driver.takeScreenshot(format: .png)
+        let allElements = try await driver.findElements(ElementSelector())
         let interactable = try await driver.getInteractableElements()
+        let filteredElements = filterAppRelevantElements(interactable)
+        let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: filteredElements)
+        let developerFeedback = developerFeedback(for: diagnostics)
+        let request = AISuggestionRequest(
+            context: enrichedScreenContext(context: context, allElements: allElements, interactableElements: filteredElements, hierarchy: hierarchy),
+            hierarchy: hierarchy,
+            allElements: filterAppRelevantElements(allElements),
+            interactableElements: filteredElements,
+            diagnostics: diagnostics,
+            developerFeedback: developerFeedback,
+            screenshot: screenshot
+        )
 
         if let ai = aiProvider {
-            let suggestions = try await ai.suggestActions(context: context, interactableElements: interactable)
-            return .success(suggestions.joined(separator: "\n"))
+            return try await ai.suggestActions(request: request)
         }
 
-        // Fallback: deterministic suggestions based on interactable elements
-        let suggestions = interactable.prefix(5).map { el in
-            "Tap \(el.label.isEmpty ? el.id : el.label)"
-        }
-        return .success(suggestions.isEmpty ? "No interactable elements found" : suggestions.joined(separator: "\n"))
+        return deterministicSuggestionReport(for: request)
     }
 
     private func executeFindByDescription(_ description: String) async throws -> ToolResult {
@@ -458,6 +481,193 @@ public actor DriverToolExecutor: ToolExecutor {
         case "right": .right
         default: nil
         }
+    }
+
+    private func formatSuggestionReport(_ report: AISuggestionReport) -> String {
+        var lines = [
+            "Screen intent: \(report.screenIntent)",
+            "Confidence: \(report.confidence)",
+            "",
+            "Suggested actions:"
+        ]
+
+        for action in report.suggestedActions.sorted(by: { $0.priority < $1.priority }) {
+            lines.append("\(action.priority). \(action.action) - \(action.reason)")
+        }
+
+        lines.append("")
+        lines.append("Accessibility issues:")
+        if report.accessibilityIssues.isEmpty {
+            lines.append("- none")
+        } else {
+            lines.append(contentsOf: report.accessibilityIssues.map { "- \($0)" })
+        }
+
+        lines.append("")
+        lines.append("Developer feedback:")
+        if report.developerFeedback.isEmpty {
+            lines.append("- none")
+        } else {
+            lines.append(contentsOf: report.developerFeedback.map { "- \($0)" })
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func encodeSuggestionReport(_ report: AISuggestionReport) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(report)
+        guard let json = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "MCPServer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to encode suggestion report"])
+        }
+        return json
+    }
+
+    private func filterAppRelevantElements(_ elements: [ElementInfo]) -> [ElementInfo] {
+        elements.filter { element in
+            guard element.isVisible, element.isEnabled else { return false }
+            return !isLikelySystemElement(element)
+        }
+    }
+
+    private func isLikelySystemElement(_ element: ElementInfo) -> Bool {
+        let raw = "\(element.id) \(element.label) \(element.value ?? "")".lowercased()
+        let systemTerms = [
+            "wifi", "wi-fi", "battery", "signal", "carrier", "clock", "time", "cellular", "status bar",
+            "home indicator", "dynamic island", "control center"
+        ]
+
+        if systemTerms.contains(where: { raw.contains($0) }) {
+            return true
+        }
+
+        if element.type == .navigationBar, raw.contains("back") {
+            return false
+        }
+
+        return raw.hasPrefix("status") || raw.contains("system")
+    }
+
+    private func collectAccessibilityDiagnostics(allElements: [ElementInfo], interactableElements: [ElementInfo]) -> [String] {
+        var diagnostics: [String] = []
+
+        let unlabeledInteractables = interactableElements.filter { preferredElementName(label: $0.label, id: normalizedElementID($0.id)) == nil }
+        if !unlabeledInteractables.isEmpty {
+            diagnostics.append("\(unlabeledInteractables.count) interactable element(s) are missing a meaningful accessibility label or identifier.")
+        }
+
+        let genericLabels = interactableElements.filter {
+            let label = $0.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return ["button", "image", "text field", "text", "label", "item", "view"].contains(label)
+        }
+        if !genericLabels.isEmpty {
+            diagnostics.append("\(genericLabels.count) interactable element(s) use generic labels such as 'Button' or 'Text field'.")
+        }
+
+        let duplicateLabels = Dictionary(grouping: interactableElements) {
+            $0.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        let duplicatedNames = duplicateLabels.filter { key, value in !key.isEmpty && value.count > 1 }
+        if !duplicatedNames.isEmpty {
+            let names = duplicatedNames.keys.sorted().prefix(3).joined(separator: ", ")
+            diagnostics.append("Duplicate interactable labels detected: \(names).")
+        }
+
+        let hiddenInteractables = allElements.filter { !$0.isVisible && $0.isEnabled && !isLikelySystemElement($0) }
+        if !hiddenInteractables.isEmpty {
+            diagnostics.append("\(hiddenInteractables.count) enabled element(s) are hidden, which can confuse screen understanding.")
+        }
+
+        if interactableElements.isEmpty {
+            diagnostics.append("No app-relevant interactable elements were exposed after filtering system UI.")
+        }
+
+        return diagnostics
+    }
+
+    private func developerFeedback(for diagnostics: [String]) -> [String] {
+        var feedback: [String] = []
+
+        for diagnostic in diagnostics {
+            let lowered = diagnostic.lowercased()
+            if lowered.contains("missing a meaningful accessibility label") {
+                feedback.append("Add explicit accessibility labels or stable identifiers to every tappable control and input.")
+            }
+            if lowered.contains("generic labels") {
+                feedback.append("Replace generic labels like 'Button' or 'Text field' with semantic names that reflect the user-visible purpose.")
+            }
+            if lowered.contains("duplicate interactable labels") {
+                feedback.append("Make repeated controls distinguishable with unique accessibility labels, values, or identifiers.")
+            }
+            if lowered.contains("enabled element") && lowered.contains("hidden") {
+                feedback.append("Ensure hidden elements are not exposed as enabled accessibility nodes unless they are intentionally interactive.")
+            }
+            if lowered.contains("no app-relevant interactable elements") {
+                feedback.append("Expose the primary CTA, form fields, and navigation targets through accessibility so AI can identify the main flow.")
+            }
+        }
+
+        if feedback.isEmpty {
+            feedback.append("Keep primary actions, inputs, and navigation controls clearly labeled to preserve high-confidence AI suggestions.")
+        }
+
+        var seen = Set<String>()
+        return feedback.filter { seen.insert($0).inserted }
+    }
+
+    private func enrichedScreenContext(
+        context: ScreenContext,
+        allElements: [ElementInfo],
+        interactableElements: [ElementInfo],
+        hierarchy: ViewNode
+    ) -> ScreenContext {
+        let title = context.screenTitle?.isEmpty == false
+            ? context.screenTitle
+            : inferredScreenTitle(from: allElements, hierarchy: hierarchy)
+
+        let primaryTargets = interactableElements.prefix(3).compactMap { preferredElementName(label: $0.label, id: normalizedElementID($0.id)) }
+        let visibleText = allElements
+            .filter { $0.type == .staticText }
+            .prefix(4)
+            .compactMap { preferredElementName(label: $0.label, id: nil) }
+
+        let summaryParts = [
+            title.map { "title=\($0)" },
+            !primaryTargets.isEmpty ? "primary_actions=\(primaryTargets.joined(separator: ", "))" : nil,
+            !visibleText.isEmpty ? "visible_text=\(visibleText.joined(separator: ", "))" : nil,
+            context.summary.isEmpty ? nil : context.summary
+        ].compactMap { $0 }
+
+        return ScreenContext(
+            summary: summaryParts.joined(separator: " | "),
+            interactableCount: interactableElements.count,
+            screenTitle: title
+        )
+    }
+
+    private func inferredScreenTitle(from elements: [ElementInfo], hierarchy: ViewNode) -> String? {
+        if let textTitle = elements.first(where: { $0.type == .staticText && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })?.label,
+           !textTitle.isEmpty {
+            return textTitle
+        }
+
+        if !hierarchy.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return hierarchy.label
+        }
+
+        return nil
+    }
+
+    private func normalizedElementID(_ id: String) -> String? {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let lowered = trimmed.lowercased()
+        let genericPatterns = ["button", "text", "label", "image", "view", "cell"]
+        if genericPatterns.contains(where: { lowered == $0 || lowered.hasPrefix("\($0)") && lowered.count <= $0.count + 2 }) {
+            return nil
+        }
+        return trimmed
     }
 }
 

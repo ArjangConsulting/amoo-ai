@@ -360,6 +360,15 @@ public enum CommandCoverageMatrix {
             expectedAssertion: "AI suggests relevant fixture actions"
         ),
         .init(
+            name: "ai_suggest_actions_json",
+            channel: .mcp,
+            kind: .ai,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .details,
+            expectedAssertion: "AI returns structured fixture actions with confidence and accessibility guidance"
+        ),
+        .init(
             name: "ai_find_by_description",
             channel: .mcp,
             kind: .ai,

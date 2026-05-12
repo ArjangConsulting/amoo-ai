@@ -65,6 +65,7 @@ final class CLITests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("Usage: amoo device"))
+        XCTAssertTrue(result.output.contains("ai_suggest_actions_json"))
     }
 
     func testCompanionSubcommandHelpCommandReturnsCompanionHelp() async {

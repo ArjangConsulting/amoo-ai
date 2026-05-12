@@ -19,6 +19,7 @@ This repo now treats public commands as a release contract.
 - Current canonical AI tools are:
   - `ai_describe_screen`
   - `ai_suggest_actions`
+  - `ai_suggest_actions_json`
   - `ai_find_by_description`
 
 ## Blocking vs Informational
