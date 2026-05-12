@@ -18,6 +18,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(names.contains("audit_security"))
         XCTAssertTrue(names.contains("ai_describe_screen"))
         XCTAssertTrue(names.contains("ai_suggest_actions"))
+        XCTAssertTrue(names.contains("ai_suggest_actions_json"))
         XCTAssertTrue(names.contains("ai_find_by_description"))
     }
 
@@ -235,8 +236,10 @@ final class MCPServerTests: XCTestCase {
 
         let result = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
         XCTAssertFalse(result.isError)
-        // MockDriver returns empty interactables, so fallback returns "No interactable elements found"
-        XCTAssertTrue(result.content.contains("No interactable"))
+        XCTAssertTrue(result.content.contains("Screen intent:"))
+        XCTAssertTrue(result.content.contains("Suggested actions:"))
+        XCTAssertTrue(result.content.contains("Accessibility issues:"))
+        XCTAssertTrue(result.content.contains("No app-relevant interactable elements"))
     }
 
     func testSuggestActionsWithInteractableElements() async {
@@ -246,7 +249,10 @@ final class MCPServerTests: XCTestCase {
 
         let result = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
         XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("Tap"))
+        XCTAssertTrue(result.content.contains("Screen intent:"))
+        XCTAssertTrue(result.content.contains("1. Tap Submit"))
+        XCTAssertTrue(result.content.contains("2. Tap Cancel"))
+        XCTAssertTrue(result.content.contains("Developer feedback:"))
     }
 
     func testSuggestActionsWithLocalAIProvider() async {
@@ -256,7 +262,27 @@ final class MCPServerTests: XCTestCase {
 
         let result = await server.execute(toolName: "ai_suggest_actions", arguments: [:])
         XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("Tap"))
+        XCTAssertTrue(result.content.contains("Confidence: medium"))
+        XCTAssertTrue(result.content.contains("1. Tap Submit"))
+        XCTAssertTrue(result.content.contains("No major accessibility issues detected"))
+        XCTAssertTrue(result.content.contains("Keep primary actions, inputs, and navigation controls clearly labeled"))
+    }
+
+    func testSuggestActionsJSONReturnsStructuredReport() async throws {
+        let driver = AuditMockDriver()
+        let executor = DriverToolExecutor(driver: driver, aiProvider: LocalAIProvider())
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "ai_suggest_actions_json", arguments: [:])
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("\"screenIntent\""))
+        XCTAssertTrue(result.content.contains("\"suggestedActions\""))
+        XCTAssertTrue(result.content.contains("\"confidence\" : \"medium\""))
+
+        let data = try XCTUnwrap(result.content.data(using: .utf8))
+        let report = try JSONDecoder().decode(AISuggestionReport.self, from: data)
+        XCTAssertEqual(report.suggestedActions.count, 3)
+        XCTAssertEqual(report.suggestedActions.first?.priority, 1)
     }
 
     func testFindByDescriptionRequiresDescription() async {
@@ -394,27 +420,96 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(request.timeoutInterval, 120)
     }
 
-    func testOllamaProviderSuggestActionsSplitsLinesAndTruncatesElementList() async throws {
+    func testOllamaProviderSuggestActionsBuildsStructuredPromptWithoutImageForTextModel() async throws {
+        let captured = LockedBox<URLRequest?>(nil)
         let provider = OllamaProvider(baseURL: "http://ollama.local", model: "tiny-model") { request in
+            await captured.set(request)
             let response = try HTTPURLResponse(
                 url: XCTUnwrap(request.url),
                 statusCode: 200,
                 httpVersion: nil,
                 headerFields: nil
             )!
-            let data = try JSONSerialization.data(withJSONObject: ["response": "Tap Login\nScroll down\n"])
+            let data = try JSONSerialization.data(withJSONObject: [
+                "response": """
+                {
+                  \"screenIntent\": \"Login screen\",
+                  \"suggestedActions\": [
+                    { \"priority\": 2, \"action\": \"Tap Sign In\", \"reason\": \"Primary CTA\" },
+                    { \"priority\": 9, \"action\": \"Use Forgot Password\", \"reason\": \"Recovery flow\" },
+                    { \"priority\": 20, \"action\": \"Enter invalid credentials\", \"reason\": \"Validation path\" }
+                  ],
+                  \"confidence\": \"medium\",
+                  \"accessibilityIssues\": [\"Button label is generic\"],
+                  \"developerFeedback\": [\"Rename the CTA label\"]
+                }
+                """
+            ])
             return (data, response)
         }
         let elements = (1 ... 25).map { index in
             ElementInfo(id: "id-\(index)", label: "Label \(index)", type: .button)
         }
 
-        let actions = try await provider.suggestActions(
+        let report = try await provider.suggestActions(request: AISuggestionRequest(
             context: ScreenContext(summary: "Home"),
-            interactableElements: elements
-        )
+            hierarchy: ViewNode(id: "root"),
+            allElements: elements,
+            interactableElements: elements,
+            diagnostics: ["Button label is generic"],
+            developerFeedback: ["Rename the CTA label"],
+            screenshot: ScreenshotData(bytes: [0x01, 0x02])
+        ))
 
-        XCTAssertEqual(actions, ["Tap Login", "Scroll down"])
+        let storedRequest = await captured.value
+        let capturedRequest = try XCTUnwrap(storedRequest)
+        let body = try XCTUnwrap(capturedRequest.httpBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let prompt = try XCTUnwrap(json["prompt"] as? String)
+
+        XCTAssertEqual(report.screenIntent, "Login screen")
+        XCTAssertEqual(report.suggestedActions.map(\AISuggestedAction.priority), [1, 2, 3])
+        XCTAssertEqual(report.suggestedActions.first?.action, "Tap Sign In")
+        XCTAssertEqual(json["stream"] as? Bool, false)
+        XCTAssertNotNil(json["format"])
+        XCTAssertNil(json["images"])
+        XCTAssertTrue(prompt.contains("Ignore OS/device chrome"))
+        XCTAssertTrue(prompt.contains("Candidate interactable app elements"))
+    }
+
+    func testOllamaProviderSuggestActionsAttachesScreenshotForVisionModel() async throws {
+        let captured = LockedBox<URLRequest?>(nil)
+        let provider = OllamaProvider(baseURL: "http://ollama.local", model: "llama3.2-vision") { request in
+            await captured.set(request)
+            let response = try HTTPURLResponse(
+                url: XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            let data = try JSONSerialization.data(withJSONObject: [
+                "response": "{\"screenIntent\":\"Checkout\",\"suggestedActions\":[{\"priority\":1,\"action\":\"Tap Pay\",\"reason\":\"Primary CTA\"},{\"priority\":2,\"action\":\"Review cart\",\"reason\":\"Order accuracy\"},{\"priority\":3,\"action\":\"Try invalid promo code\",\"reason\":\"Validation\"}],\"confidence\":\"high\",\"accessibilityIssues\":[],\"developerFeedback\":[] }"
+            ])
+            return (data, response)
+        }
+
+        _ = try await provider.suggestActions(request: AISuggestionRequest(
+            context: ScreenContext(summary: "Checkout"),
+            hierarchy: ViewNode(id: "root"),
+            allElements: [ElementInfo(id: "pay", label: "Pay", type: .button)],
+            interactableElements: [ElementInfo(id: "pay", label: "Pay", type: .button)],
+            diagnostics: [],
+            developerFeedback: [],
+            screenshot: ScreenshotData(bytes: [0xAA, 0xBB])
+        ))
+
+        let storedRequest = await captured.value
+        let capturedRequest = try XCTUnwrap(storedRequest)
+        let body = try XCTUnwrap(capturedRequest.httpBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let images = try XCTUnwrap(json["images"] as? [String])
+        XCTAssertEqual(images.count, 1)
+        XCTAssertEqual(images.first, Data([0xAA, 0xBB]).base64EncodedString())
     }
 
     func testOllamaProviderResolveDescriptionMatchesIDsAndLabelsFromResponse() async throws {

@@ -58,6 +58,7 @@ func renderDeviceHelp() -> String {
       take_screenshot
       ai_describe_screen
       ai_suggest_actions
+      ai_suggest_actions_json
       ai_find_by_description description=<text>
       device_launch_app app_id=<id>
       device_terminate_app app_id=<id>

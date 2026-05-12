@@ -11,6 +11,10 @@ public enum AITools {
             description: "Get AI-suggested test actions based on the current screen state"
         ),
         ToolDefinition(
+            name: "ai_suggest_actions_json",
+            description: "Get AI-suggested test actions as structured JSON including confidence and accessibility feedback"
+        ),
+        ToolDefinition(
             name: "ai_find_by_description",
             description: "Find a UI element by natural language description (e.g. 'the login button', 'email field')",
             properties: [

@@ -76,7 +76,7 @@ final class MobileTestingCoreTests: XCTestCase {
 
     func testRemainingDefaultGestureImplementationsThrow() async {
         let gesture = UnimplementedGesture()
-        await assertNotImplemented("swipe(direction:)") {
+        await assertNotImplemented("swipe(direction:element:)") {
             try await gesture.swipe(direction: .left, distance: 100, duration: .defaultSwipe)
         }
         await assertNotImplemented("scroll") {
