@@ -45,3 +45,32 @@ When adding a new public command:
 - iOS: `bash scripts/run-e2e-ios.sh`
 - Android: `bash scripts/run-e2e-android.sh`
 - Both: `bash scripts/run-e2e-all.sh`
+
+## Adding a New MCP Tool
+
+Touch four files plus tests:
+
+1. **Declare the tool** in the appropriate group under `Sources/MCPServer/Tools/`
+   (`DeviceTools`, `ActionTools`, `QueryTools`, `AuditTools`, or `AssistantTools`).
+   Set `name`, optional `title`, `description`, `properties`/`required` for inputs,
+   and an `outputSchema` for any tool that returns structured content.
+2. **Route the call** in `Sources/MCPServer/ToolExecutor.swift` — add a `case` to
+   `DriverToolExecutor.execute(toolName:arguments:)` that dispatches to a private
+   `execute…()` helper. Return `.success(prose, structuredContent: try Value(report))`
+   when the tool has a declared output schema so MCP clients can validate against it.
+3. **Register the contract** in `Sources/CommandContract/CommandCoverageMatrix.swift`
+   with the right `channel` (`.mcp` for assistant tools, `.cli` for `amoo …`
+   commands), `kind`, `releaseTier`, fixture screen, and expected assertion.
+4. **Update tests**:
+   - Tool name and schema assertions in `Tests/MCPServerTests/MCPServerTests.swift`
+     (`testToolNamesAreExposed`, `testToolDefinitionsHaveSchemas`).
+   - Driver-level execution test in the same file, using `MockDriver` or
+     `AuditMockDriver` depending on what the tool touches.
+   - For end-to-end stdio coverage, extend
+     `testMCPStdioServeRespondsWithJSONRPCMessages` — it boots the real `amoo`
+     binary, pipes JSON-RPC `initialize` + `tools/list`, and is the canonical
+     template for stdio assertions.
+
+For assistant-facing tools, also add the prose formatter in
+`Sources/MCPServer/AssistantReports.swift` alongside the matching `Codable` report
+struct so structured content stays in sync with the declared `outputSchema`.

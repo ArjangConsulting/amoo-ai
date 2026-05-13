@@ -44,7 +44,7 @@ func renderMCPHelp() -> String {
     "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]"
 }
 
-func runMCPCommand(args: [String], server _: MCPServer) async -> CLIResult {
+func runMCPCommand(args: [String]) async -> CLIResult {
     guard let action = args.first else {
         return CLIResult(output: MCPCommandParseError.missingAction.description, exitCode: 64)
     }

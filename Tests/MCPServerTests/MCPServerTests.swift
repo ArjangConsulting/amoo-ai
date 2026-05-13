@@ -85,6 +85,42 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(outputSchema.description.contains("false"))
     }
 
+    func testArrayOutputPropertyEmitsItemsSchema() throws {
+        let definition = ToolDefinition(
+            name: "suggest_test_actions",
+            description: "Suggest actions.",
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "suggestedActions": .init(
+                        type: "array",
+                        description: "Ranked actions",
+                        items: .object(
+                            properties: [
+                                "priority": .init(type: "integer", description: "Priority"),
+                                "action": .init(type: "string", description: "Action")
+                            ],
+                            required: ["priority", "action"]
+                        )
+                    ),
+                    "labels": .init(
+                        type: "array",
+                        description: "Labels",
+                        items: .scalar(type: "string")
+                    )
+                ],
+                required: ["suggestedActions", "labels"]
+            )
+        )
+
+        let tool = definition.mcpTool()
+        let outputSchema = try XCTUnwrap(tool.outputSchema)
+        let description = outputSchema.description
+        XCTAssertTrue(description.contains("items"))
+        XCTAssertTrue(description.contains("priority"))
+        XCTAssertTrue(description.contains("action"))
+        XCTAssertTrue(description.contains("string"))
+    }
+
     func testToolResultMCPResultPreservesContentErrorAndStructuredContent() throws {
         let structured: Value = .object([
             "confidence": .string("medium"),
@@ -99,6 +135,17 @@ final class MCPServerTests: XCTestCase {
             return XCTFail("Expected text content")
         }
         XCTAssertEqual(text, "Suggested actions")
+    }
+
+    func testStringifyArgumentValueHandlesAllCases() {
+        XCTAssertEqual(stringifyArgumentValue(.null), "")
+        XCTAssertEqual(stringifyArgumentValue(.bool(true)), "true")
+        XCTAssertEqual(stringifyArgumentValue(.bool(false)), "false")
+        XCTAssertEqual(stringifyArgumentValue(.int(42)), "42")
+        XCTAssertEqual(stringifyArgumentValue(.double(1.5)), "1.5")
+        XCTAssertEqual(stringifyArgumentValue(.string("hello")), "hello")
+        XCTAssertEqual(stringifyArgumentValue(.array([.string("a"), .int(1)])), #"["a",1]"#)
+        XCTAssertEqual(stringifyArgumentValue(.object(["k": .string("v")])), #"{"k":"v"}"#)
     }
 
     func testMCPStdioServeRespondsWithJSONRPCMessages() async throws {
@@ -160,6 +207,10 @@ final class MCPServerTests: XCTestCase {
 
         XCTAssertTrue(stdoutText.contains("suggest_test_actions"))
         XCTAssertTrue(errorOutput.data().isEmpty)
+
+        try stdin.fileHandleForWriting.close()
+        let exited = await waitForProcessExit(process, timeoutNanoseconds: 5_000_000_000)
+        XCTAssertTrue(exited, "MCP stdio server should exit when stdin closes")
     }
 
     func testHealthPassThrough() {
@@ -331,6 +382,19 @@ final class MCPServerTests: XCTestCase {
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("Screen summary: Mock screen"))
         XCTAssertTrue(result.content.contains("Interactable elements: 0"))
+        XCTAssertNotNil(result.structuredContent)
+    }
+
+    func testDescribeScreenStructuredContentMatchesSchema() async throws {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "describe_screen", arguments: [:])
+        let structured = try XCTUnwrap(result.structuredContent)
+        let fields = try XCTUnwrap(structured.objectValue)
+        XCTAssertEqual(fields["summary"]?.stringValue, "Mock screen")
+        XCTAssertEqual(fields["interactableCount"]?.intValue, 0)
     }
 
     func testDescribeScreenIncludesVisibleStructureAndActions() async {
@@ -525,6 +589,17 @@ private func waitForStdout(
 
     let text = String(decoding: buffer.data(), as: UTF8.self)
     throw XCTSkip("Timed out waiting for MCP stdio response. Captured stdout: \(text)")
+}
+
+private func waitForProcessExit(_ process: Process, timeoutNanoseconds: UInt64) async -> Bool {
+    let start = ContinuousClock.now
+    while process.isRunning {
+        if start.duration(to: .now) >= .nanoseconds(Int64(timeoutNanoseconds)) {
+            return false
+        }
+        try? await Task.sleep(for: .milliseconds(50))
+    }
+    return true
 }
 
 private func amooExecutableURL() throws -> URL {

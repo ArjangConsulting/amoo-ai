@@ -5,7 +5,15 @@ public enum AssistantTools {
         ToolDefinition(
             name: "describe_screen",
             title: "Describe Screen",
-            description: "Describe the current app screen using accessibility context and visible structure."
+            description: "Describe the current app screen using accessibility context and visible structure.",
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "summary": .init(type: "string", description: "Human-readable screen summary"),
+                    "screenTitle": .init(type: "string", description: "Detected screen title, when available"),
+                    "interactableCount": .init(type: "integer", description: "Number of interactable elements")
+                ],
+                required: ["summary", "interactableCount"]
+            )
         ),
         ToolDefinition(
             name: "suggest_test_actions",
@@ -14,10 +22,29 @@ public enum AssistantTools {
             outputSchema: ToolOutputSchema(
                 properties: [
                     "screenIntent": .init(type: "string", description: "Inferred purpose of the current screen"),
-                    "suggestedActions": .init(type: "array", description: "Ranked suggested test actions"),
+                    "suggestedActions": .init(
+                        type: "array",
+                        description: "Ranked suggested test actions",
+                        items: .object(
+                            properties: [
+                                "priority": .init(type: "integer", description: "1 = highest priority"),
+                                "action": .init(type: "string", description: "Recommended action to perform"),
+                                "reason": .init(type: "string", description: "Why this action is valuable")
+                            ],
+                            required: ["priority", "action", "reason"]
+                        )
+                    ),
                     "confidence": .init(type: "string", description: "Confidence level: high, medium, or low"),
-                    "accessibilityIssues": .init(type: "array", description: "Issues limiting reliable AI testing"),
-                    "developerFeedback": .init(type: "array", description: "Concrete improvements for better AI support")
+                    "accessibilityIssues": .init(
+                        type: "array",
+                        description: "Issues limiting reliable AI testing",
+                        items: .scalar(type: "string")
+                    ),
+                    "developerFeedback": .init(
+                        type: "array",
+                        description: "Concrete improvements for better AI support",
+                        items: .scalar(type: "string")
+                    )
                 ],
                 required: ["screenIntent", "suggestedActions", "confidence", "accessibilityIssues", "developerFeedback"]
             )
@@ -31,8 +58,16 @@ public enum AssistantTools {
                     "screenSummary": .init(type: "string", description: "Current screen summary"),
                     "interactableCount": .init(type: "integer", description: "Number of app-relevant interactable elements"),
                     "confidence": .init(type: "string", description: "Confidence level: high, medium, or low"),
-                    "diagnostics": .init(type: "array", description: "Detected testability issues"),
-                    "developerFeedback": .init(type: "array", description: "Recommended developer improvements")
+                    "diagnostics": .init(
+                        type: "array",
+                        description: "Detected testability issues",
+                        items: .scalar(type: "string")
+                    ),
+                    "developerFeedback": .init(
+                        type: "array",
+                        description: "Recommended developer improvements",
+                        items: .scalar(type: "string")
+                    )
                 ],
                 required: ["screenSummary", "interactableCount", "confidence", "diagnostics", "developerFeedback"]
             )
@@ -47,7 +82,18 @@ public enum AssistantTools {
             required: ["description"],
             outputSchema: ToolOutputSchema(
                 properties: [
-                    "matches": .init(type: "array", description: "Matching elements with id, label, and type"),
+                    "matches": .init(
+                        type: "array",
+                        description: "Matching elements with id, label, and type",
+                        items: .object(
+                            properties: [
+                                "id": .init(type: "string", description: "Element identifier"),
+                                "label": .init(type: "string", description: "Element label"),
+                                "type": .init(type: "string", description: "Element type, when known")
+                            ],
+                            required: ["id", "label"]
+                        )
+                    ),
                     "query": .init(type: "string", description: "Original natural language description")
                 ],
                 required: ["matches", "query"]
