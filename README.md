@@ -39,19 +39,73 @@ export PROTOC_PATH="$(command -v protoc)"
 Amoo exposes AI-facing automation through MCP, implemented in Swift over the standard `stdio` transport.
 The CLI does not configure or run an AI provider; local AI clients provide the reasoning and call Amoo tools.
 
-Start the local MCP server:
+### Prerequisites
+
+The MCP server is a thin wrapper around the platform driver — it requires a running
+companion app on the loopback gRPC port:
+
+- iOS companion on `127.0.0.1:22087` (default)
+- Android companion on `127.0.0.1:22088` (default)
+
+Boot a companion before sending tool calls — for example with
+`scripts/run-e2e-ios.sh --skip-build` or `scripts/run-e2e-android.sh --skip-build`,
+or by running the companion app from `CompanionApps/`.
+
+### Start the server manually
 
 ```bash
 swift run amoo mcp serve
 ```
 
-By default this connects to the iOS companion on port `22087`. For Android or custom ports:
+By default this targets the iOS companion on port `22087`. For Android or custom ports:
 
 ```bash
 swift run amoo mcp serve --platform android --port 22088
 ```
 
-Inspect the server during development:
+The server speaks JSON-RPC over `stdio` and exits cleanly when the client closes
+stdin.
+
+### Connecting an MCP client
+
+Add an entry to your MCP client's configuration. For Claude Desktop
+(`~/Library/Application Support/Claude/claude_desktop_config.json`) and Cursor
+(`~/.cursor/mcp.json`), the shape is the same:
+
+```json
+{
+  "mcpServers": {
+    "amoo": {
+      "command": "swift",
+      "args": [
+        "run",
+        "--package-path", "/absolute/path/to/mobile-testing",
+        "amoo", "mcp", "serve",
+        "--platform", "ios"
+      ]
+    }
+  }
+}
+```
+
+For a faster startup, build once and point the client at the binary:
+
+```bash
+swift build -c release
+```
+
+```json
+{
+  "mcpServers": {
+    "amoo": {
+      "command": "/absolute/path/to/mobile-testing/.build/release/amoo",
+      "args": ["mcp", "serve", "--platform", "ios"]
+    }
+  }
+}
+```
+
+### Inspect the server during development
 
 ```bash
 npx @modelcontextprotocol/inspector swift run amoo mcp serve

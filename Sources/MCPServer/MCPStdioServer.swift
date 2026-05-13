@@ -1,4 +1,6 @@
+import Foundation
 import MCP
+import MobileTestingCore
 
 public struct MCPStdioServer: Sendable {
     private let server: MCPServer
@@ -10,7 +12,7 @@ public struct MCPStdioServer: Sendable {
     public func run() async throws {
         let mcp = Server(
             name: "amoo",
-            version: "0.1.0",
+            version: AmooVersion.current,
             title: "Amoo Mobile Testing",
             instructions: "Use these tools to inspect and control a local iOS simulator or Android emulator through amoo. Prefer accessibility identifiers and labels over coordinates when possible.",
             capabilities: .init(tools: .init(listChanged: false))
@@ -22,14 +24,36 @@ public struct MCPStdioServer: Sendable {
         }
 
         await mcp.withMethodHandler(CallTool.self) { params in
-            let arguments = params.arguments?.mapValues { String(describing: $0) } ?? [:]
+            let arguments = params.arguments?.mapValues(stringifyArgumentValue) ?? [:]
             let result = await server.execute(toolName: params.name, arguments: arguments)
             return result.mcpResult()
         }
 
         try await mcp.start(transport: StdioTransport())
-        while !Task.isCancelled {
-            try await Task.sleep(for: .seconds(3_600))
+        await mcp.waitUntilCompleted()
+        await mcp.stop()
+    }
+}
+
+func stringifyArgumentValue(_ value: Value) -> String {
+    switch value {
+    case .null:
+        return ""
+    case let .bool(bool):
+        return bool ? "true" : "false"
+    case let .int(int):
+        return String(int)
+    case let .double(double):
+        return String(double)
+    case let .string(string):
+        return string
+    case .array, .object, .data:
+        guard
+            let data = try? JSONEncoder().encode(value),
+            let json = String(data: data, encoding: .utf8)
+        else {
+            return ""
         }
+        return json
     }
 }

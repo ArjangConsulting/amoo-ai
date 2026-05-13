@@ -4,11 +4,18 @@ import MCP
 public struct ToolInputProperty: Sendable, Equatable {
     public var type: String
     public var description: String
+    public var items: ToolItemsSchema?
 
-    public init(type: String, description: String) {
+    public init(type: String, description: String, items: ToolItemsSchema? = nil) {
         self.type = type
         self.description = description
+        self.items = items
     }
+}
+
+public indirect enum ToolItemsSchema: Sendable, Equatable {
+    case scalar(type: String)
+    case object(properties: [String: ToolInputProperty], required: [String])
 }
 
 public struct ToolOutputSchema: Sendable, Equatable {
@@ -65,12 +72,7 @@ public struct ToolDefinition: Sendable {
 
         return .object([
             "type": .string("object"),
-            "properties": .object(properties.mapValues { property in
-                .object([
-                    "type": .string(property.type),
-                    "description": .string(property.description)
-                ])
-            }),
+            "properties": .object(properties.mapValues(toolPropertyValue)),
             "required": .array(required.map { .string($0) }),
             "additionalProperties": .bool(false)
         ])
@@ -80,13 +82,33 @@ public struct ToolDefinition: Sendable {
         guard let outputSchema else { return nil }
         return .object([
             "type": .string("object"),
-            "properties": .object(outputSchema.properties.mapValues { property in
-                .object([
-                    "type": .string(property.type),
-                    "description": .string(property.description)
-                ])
-            }),
+            "properties": .object(outputSchema.properties.mapValues(toolPropertyValue)),
             "required": .array(outputSchema.required.map { .string($0) }),
+            "additionalProperties": .bool(false)
+        ])
+    }
+}
+
+private func toolPropertyValue(_ property: ToolInputProperty) -> Value {
+    var fields: [String: Value] = [
+        "type": .string(property.type),
+        "description": .string(property.description)
+    ]
+    if let items = property.items {
+        fields["items"] = itemsSchemaValue(items)
+    }
+    return .object(fields)
+}
+
+private func itemsSchemaValue(_ schema: ToolItemsSchema) -> Value {
+    switch schema {
+    case let .scalar(type):
+        return .object(["type": .string(type)])
+    case let .object(properties, required):
+        return .object([
+            "type": .string("object"),
+            "properties": .object(properties.mapValues(toolPropertyValue)),
+            "required": .array(required.map { .string($0) }),
             "additionalProperties": .bool(false)
         ])
     }

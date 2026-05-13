@@ -85,6 +85,18 @@ public struct AITestabilityReport: Sendable, Equatable, Codable {
     }
 }
 
+public struct ScreenDescriptionReport: Sendable, Equatable, Codable {
+    public var summary: String
+    public var screenTitle: String?
+    public var interactableCount: Int
+
+    public init(summary: String, screenTitle: String?, interactableCount: Int) {
+        self.summary = summary
+        self.screenTitle = screenTitle
+        self.interactableCount = interactableCount
+    }
+}
+
 public struct ElementMatch: Sendable, Equatable, Codable {
     public var id: String
     public var label: String

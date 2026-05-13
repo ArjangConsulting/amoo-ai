@@ -101,7 +101,7 @@ public struct CLIApp {
             if isHelpRequest(Array(args.dropFirst())) {
                 return CLIResult(output: renderMCPHelp(), exitCode: 0)
             }
-            return await runMCPCommand(args: Array(args.dropFirst()), server: mcpServer)
+            return await runMCPCommand(args: Array(args.dropFirst()))
         }
 
         // Default: interactive REPL mode

@@ -397,7 +397,12 @@ public actor DriverToolExecutor: ToolExecutor {
             hierarchy: hierarchy,
             interactableElements: interactable
         )
-        return .success(description)
+        let report = ScreenDescriptionReport(
+            summary: context.summary,
+            screenTitle: context.screenTitle?.isEmpty == false ? context.screenTitle : nil,
+            interactableCount: interactable.count
+        )
+        return .success(description, structuredContent: try Value(report))
     }
 
     private func executeSuggestActions() async throws -> ToolResult {
