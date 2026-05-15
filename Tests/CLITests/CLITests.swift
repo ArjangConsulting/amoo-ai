@@ -262,8 +262,11 @@ final class CLITests: XCTestCase {
     func testREPLCompletionCatalogIncludesTapElementTool() {
         let catalog = REPLCompletionCatalog(toolDefinitions: MCPServer().toolDefinitions())
         XCTAssertTrue(catalog.rootCandidates.contains("tap_element"))
+        // session_id is auto-injected on every driver-routed tool so MCP
+        // clients can scope the call to a specific start_session result.
         XCTAssertEqual(
-            catalog.argumentCandidates(for: "tap_element"), ["contains_text=", "id=", "label="]
+            catalog.argumentCandidates(for: "tap_element"),
+            ["contains_text=", "id=", "label=", "session_id="]
         )
     }
 

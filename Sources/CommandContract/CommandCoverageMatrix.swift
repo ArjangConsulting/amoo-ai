@@ -376,6 +376,93 @@ public enum CommandCoverageMatrix {
             platforms: allPlatforms,
             fixtureScreen: .home,
             expectedAssertion: "MCP resolves a natural-language description to fixture elements"
+        ),
+
+        // Session management
+        .init(
+            name: "start_session",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "session is created and fixture app launches under the new session_id"
+        ),
+        .init(
+            name: "end_session",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .confirmation,
+            expectedAssertion: "session is closed and fixture app is terminated"
+        ),
+        .init(
+            name: "list_sessions",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "active sessions are listed"
+        ),
+        .init(
+            name: "get_session_report",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "session report contains recorded actions"
+        ),
+
+        // Device & app inventory
+        .init(
+            name: "list_devices",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "available devices for the platform are enumerated"
+        ),
+        .init(
+            name: "list_apps",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "installed apps are listed for the active device"
+        ),
+
+        // Intent-level tools
+        .init(
+            name: "navigate_to",
+            channel: .mcp,
+            kind: .ai,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .home,
+            expectedAssertion: "MCP taps a matching element and reports the new screen context"
+        ),
+        .init(
+            name: "fill_field",
+            channel: .mcp,
+            kind: .ai,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .textInput,
+            expectedAssertion: "MCP sets the text of a matching field via setText"
+        ),
+        .init(
+            name: "assert_visible",
+            channel: .mcp,
+            kind: .ai,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .home,
+            expectedAssertion: "MCP polls for a matching element and returns a pass/fail result"
         )
     ]
 

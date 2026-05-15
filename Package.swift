@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "MCPServer", targets: ["MCPServer"]),
         .library(name: "AuditEngine", targets: ["AuditEngine"]),
         .library(name: "CommandContract", targets: ["CommandContract"]),
+        .library(name: "TestSession", targets: ["TestSession"]),
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
@@ -66,6 +67,7 @@ let package = Package(
         .target(name: "AndroidDriver", dependencies: ["MobileTestingCore", "CompanionProtocol", "ProcessRunner"]),
         .target(name: "AuditEngine", dependencies: ["MobileTestingCore"]),
         .target(name: "CommandContract", dependencies: ["MobileTestingCore"]),
+        .target(name: "TestSession", dependencies: ["MobileTestingCore"]),
         .target(
             name: "GRPCService",
             dependencies: [
@@ -83,6 +85,7 @@ let package = Package(
                 "MobileTestingCore",
                 "GRPCService",
                 "AuditEngine",
+                "TestSession",
                 .product(name: "MCP", package: "swift-sdk")
             ]
         ),
@@ -97,6 +100,7 @@ let package = Package(
                 "MCPServer",
                 "AuditEngine",
                 "ProcessRunner",
+                "TestSession",
                 .product(name: "GradleKit", package: "ShipItSwifty"),
                 .product(name: "XcodeBuildKit", package: "ShipItSwifty"),
                 .product(name: "XcodeGenKit", package: "ShipItSwifty"),
@@ -117,6 +121,7 @@ let package = Package(
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
         .testTarget(name: "MCPServerTests", dependencies: ["MCPServer"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
+        .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "MobileTestingCore"]),
         .testTarget(
             name: "CLITests",
             dependencies: [

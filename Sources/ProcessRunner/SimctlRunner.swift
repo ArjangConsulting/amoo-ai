@@ -14,7 +14,12 @@ public protocol SimctlRunning: Sendable {
 
     // App management
     func install(device: String, appPath: String) async throws
-    func launch(device: String, appID: String, arguments: [String]) async throws
+    func launch(
+        device: String,
+        appID: String,
+        arguments: [String],
+        environment: [String: String]
+    ) async throws
     func terminate(device: String, appID: String) async throws
     func uninstall(device: String, appID: String) async throws
     func listApps(device: String) async throws -> String
@@ -81,8 +86,23 @@ public struct SimctlRunner: SimctlRunning {
         _ = try await run(.install(device, appAt: appPath))
     }
 
-    public func launch(device: String, appID: String, arguments: [String] = []) async throws {
-        _ = try await run(.launch(device, bundleIdentifier: appID), trailingArguments: arguments)
+    public func launch(
+        device: String,
+        appID: String,
+        arguments: [String] = [],
+        environment: [String: String] = [:]
+    ) async throws {
+        // `simctl` reads `SIMCTL_CHILD_<KEY>` from its own environment and
+        // re-exports them as `<KEY>` to the launched app. This is Apple's
+        // documented way to pass environment variables through `simctl launch`.
+        let childEnv = Dictionary(uniqueKeysWithValues: environment.map {
+            ("SIMCTL_CHILD_\($0.key)", $0.value)
+        })
+        _ = try await run(
+            .launch(device, bundleIdentifier: appID),
+            trailingArguments: arguments,
+            environment: childEnv
+        )
     }
 
     public func terminate(device: String, appID: String) async throws {
@@ -166,14 +186,19 @@ public struct SimctlRunner: SimctlRunning {
         return Array(dict.keys)
     }
 
-    private func run(_ command: SimctlCommand, trailingArguments: [String] = []) async throws
-        -> ProcessResult {
+    private func run(
+        _ command: SimctlCommand,
+        trailingArguments: [String] = [],
+        environment: [String: String] = [:]
+    ) async throws -> ProcessResult {
         do {
-            return try await Simctl(context: context)
+            var builder = Simctl(context: context)
                 .command(command)
                 .args(trailingArguments)
-                .run()
-                .processResult
+            if !environment.isEmpty {
+                builder = builder.env(environment)
+            }
+            return try await builder.run().processResult
         } catch let error as ShellError {
             throw processRunnerError(
                 error,

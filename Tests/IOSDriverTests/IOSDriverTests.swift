@@ -64,6 +64,27 @@ final class IOSDriverTests: XCTestCase {
         ])
     }
 
+    func testLaunchAppPassesEnvironmentThroughSimctl() async throws {
+        let simctl = MockSimctlRunner()
+        let driver = IOSDriver(
+            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087)),
+            simctl: simctl
+        )
+
+        try await driver.launchApp(
+            appID: "com.example.app",
+            arguments: [],
+            environment: ["STAGE": "test", "VERBOSE": "1"]
+        )
+
+        let calls = await simctl.appCalls()
+        XCTAssertEqual(
+            calls,
+            ["launch:booted:com.example.app:env=STAGE=test,VERBOSE=1"],
+            "Environment must be forwarded to simctl (which re-exports SIMCTL_CHILD_* vars to the app)"
+        )
+    }
+
     func testConfigurationDelegatesToSimctl() async throws {
         let simctl = MockSimctlRunner()
         let driver = IOSDriver(
@@ -402,8 +423,17 @@ private actor MockSimctlRunner: SimctlRunning {
         _appCalls.append("install:\(device):\(appPath)")
     }
 
-    func launch(device: String, appID: String, arguments _: [String]) async throws {
-        _appCalls.append("launch:\(device):\(appID)")
+    func launch(
+        device: String,
+        appID: String,
+        arguments _: [String],
+        environment: [String: String]
+    ) async throws {
+        let envSuffix = environment.isEmpty
+            ? ""
+            : ":env=" + environment.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" }
+                .joined(separator: ",")
+        _appCalls.append("launch:\(device):\(appID)\(envSuffix)")
     }
 
     func terminate(device: String, appID: String) async throws {

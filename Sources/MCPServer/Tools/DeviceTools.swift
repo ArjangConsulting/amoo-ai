@@ -25,6 +25,19 @@ public enum DeviceTools {
                 "app_id": .init(
                     type: "string",
                     description: "The app's bundle identifier (iOS) or package name (Android)"
+                ),
+                "launch_args": .init(
+                    type: "string",
+                    description: "Comma-separated arguments passed to the app at launch (e.g. '-uitest,fast')"
+                ),
+                "environment": .init(
+                    type: "string",
+                    description: "Comma-separated key=value pairs added to the app's environment"
+                        + " (e.g. 'STAGE=test,VERBOSE=1')"
+                ),
+                "session_id": .init(
+                    type: "string",
+                    description: "Optional session id; routes the call to the session's driver"
                 )
             ],
             required: ["app_id"]
@@ -78,6 +91,65 @@ public enum DeviceTools {
                 "appearance": .init(type: "string", description: "Appearance mode: light or dark")
             ],
             required: ["appearance"]
+        ),
+        ToolDefinition(
+            name: "list_devices",
+            title: "List Devices",
+            description: "Enumerate booted simulators and online Android emulators/devices."
+                + " Optionally filter by platform.",
+            properties: [
+                "platform": .init(
+                    type: "string",
+                    description: "Optional platform filter: 'ios' or 'android'. Omit for both."
+                )
+            ],
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "devices": .init(
+                        type: "array",
+                        description: "Available devices",
+                        items: .object(
+                            properties: [
+                                "id": .init(type: "string", description: "UDID or ADB serial"),
+                                "name": .init(type: "string", description: "Device name"),
+                                "platform": .init(type: "string", description: "ios or android"),
+                                "os_version": .init(type: "string", description: "OS version when known"),
+                                "state": .init(type: "string", description: "Device state, e.g. booted")
+                            ],
+                            required: ["id", "name", "platform", "os_version", "state"]
+                        )
+                    )
+                ],
+                required: ["devices"]
+            )
+        ),
+        ToolDefinition(
+            name: "list_apps",
+            title: "List Apps",
+            description: "List apps installed on the current session's device (or the default driver's device).",
+            properties: [
+                "session_id": .init(
+                    type: "string",
+                    description: "Optional session id; defaults to the server's default driver"
+                )
+            ],
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "apps": .init(
+                        type: "array",
+                        description: "Installed apps",
+                        items: .object(
+                            properties: [
+                                "app_id": .init(type: "string", description: "Bundle id or package name"),
+                                "name": .init(type: "string", description: "Display name when known"),
+                                "version": .init(type: "string", description: "Version string when known")
+                            ],
+                            required: ["app_id"]
+                        )
+                    )
+                ],
+                required: ["apps"]
+            )
         )
     ]
 }

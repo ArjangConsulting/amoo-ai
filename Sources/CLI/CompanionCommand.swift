@@ -171,66 +171,18 @@ func runAndroidCompanionInstall(
         options.companionDir
             ?? (currentDirectory + "/CompanionApps/Android")
 
-    let appApkPath = companionDir + "/app/build/outputs/apk/debug/app-debug.apk"
-    let testApkPath =
-        companionDir + "/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+    let config = AndroidCompanionConfig(
+        companionDir: companionDir,
+        serial: options.deviceID
+    )
+    let manager = AndroidCompanionManager(processRunner: processRunner)
 
-    let needsBuild =
-        options.force
-            || !FileManager.default.fileExists(atPath: appApkPath)
-            || !FileManager.default.fileExists(atPath: testApkPath)
-
-    if needsBuild {
-        print("Building Android companion (this may take a moment)...")
-        let gradlewPath = companionDir + "/gradlew"
-        do {
-            let result = try await withCLILoadingIndicator("Building Android companion") {
-                try await Gradle(context: shellContext(processRunner: processRunner))
-                    .settingGradlewPath(gradlewPath)
-                    .updatingConfiguration { $0.workingDirectory(companionDir) }
-                    .task(.assembleDebug)
-                    .task(.custom("assembleAndroidTest"))
-                    .run()
-                    .processResult
-            }
-            if result.exitCode != 0 {
-                let message = result.stderr.isEmpty ? result.stdout : result.stderr
-                return CLIResult(output: "Android companion build failed:\n\(message)", exitCode: 1)
-            }
-        } catch {
-            return CLIResult(output: "Android companion build failed: \(error)", exitCode: 1)
-        }
+    do {
+        try await manager.install(config: config, force: options.force)
+        return CLIResult(output: "", exitCode: 0)
+    } catch let error as AndroidCompanionError {
+        return CLIResult(output: error.description, exitCode: 1)
+    } catch {
+        return CLIResult(output: "Android companion install failed: \(error)", exitCode: 1)
     }
-
-    print("Installing Android companion APKs...")
-    let installFailure = await withCLILoadingIndicator("Installing Android companion APKs") {
-        () async -> String? in
-        for (label, apkPath) in [("app", appApkPath), ("test", testApkPath)] {
-            let result: ProcessResult
-            do {
-                result = try await Adb(context: shellContext(processRunner: processRunner))
-                    .serial(options.deviceID == "booted" ? nil : options.deviceID)
-                    .install(apk: apkPath, replace: true)
-                    .run()
-                    .processResult
-            } catch {
-                return "Android install failed: \(error)"
-            }
-            if result.exitCode != 0 {
-                let message = result.stderr.isEmpty ? result.stdout : result.stderr
-                return "Failed to install Android \(label) APK:\n\(message)"
-            }
-        }
-        return nil
-    }
-    if let installFailure {
-        return CLIResult(output: installFailure, exitCode: 1)
-    }
-
-    print("Android companion installed successfully.")
-    return CLIResult(output: "", exitCode: 0)
-}
-
-private func shellContext(processRunner: any ProcessRunner) -> ShellContext {
-    ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
 }
