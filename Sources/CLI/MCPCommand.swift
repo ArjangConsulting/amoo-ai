@@ -4,6 +4,7 @@ import Foundation
 import IOSDriver
 import MCPServer
 import MobileTestingCore
+import TestSession
 
 enum MCPCommandParseError: Error, CustomStringConvertible {
     case missingAction
@@ -112,13 +113,32 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
         case .android:
             AndroidDriver(companion: companion, serial: options.deviceID)
         }
-        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+
+        // Wire up session management so `start_session` can boot devices,
+        // build/launch the companion, install + launch the app on demand.
+        let iOSCM = CompanionManager()
+        let androidCM = AndroidCompanionManager()
+        let bootstrapper = DefaultSessionBootstrapper(
+            iOSCompanionManager: iOSCM,
+            androidCompanionManager: androidCM
+        )
+        let sessionManager = SessionManager(bootstrapper: bootstrapper)
+        let executor = DriverToolExecutor(driver: driver, sessionManager: sessionManager)
+        let server = MCPServer(executor: executor, sessionManager: sessionManager)
+
         do {
             try await MCPStdioServer(server: server).run()
         } catch {
+            await sessionManager.closeAll()
+            await iOSCM.shutdown()
+            await androidCM.shutdown()
             await companion.shutdown()
             throw error
         }
+
+        await sessionManager.closeAll()
+        await iOSCM.shutdown()
+        await androidCM.shutdown()
         await companion.shutdown()
         return CLIResult(output: "", exitCode: 0)
     } catch {

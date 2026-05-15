@@ -2,6 +2,7 @@ import AuditEngine
 import Foundation
 import MCP
 import MobileTestingCore
+import TestSession
 
 public protocol ToolExecutor: Sendable {
     func execute(toolName: String, arguments: [String: String]) async -> ToolResult
@@ -9,22 +10,99 @@ public protocol ToolExecutor: Sendable {
 
 // swiftlint:disable:next type_body_length
 public actor DriverToolExecutor: ToolExecutor {
-    private let driver: any PlatformDriver
+    /// The default driver used when a tool call does not specify a `session_id`.
+    /// Kept for backward compatibility with the original `amoo mcp serve` flow.
+    private let defaultDriver: any PlatformDriver
+    private let sessionManager: SessionManager?
 
-    public init(driver: any PlatformDriver) {
-        self.driver = driver
+    public init(driver: any PlatformDriver, sessionManager: SessionManager? = nil) {
+        self.defaultDriver = driver
+        self.sessionManager = sessionManager
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        let result: ToolResult
         do {
-            return try await dispatch(toolName: toolName, arguments: arguments)
+            result = try await dispatch(toolName: toolName, arguments: arguments)
         } catch {
-            return .error("\(toolName) failed: \(error)")
+            result = .error("\(toolName) failed: \(error)")
         }
+        await recordIfNeeded(toolName: toolName, arguments: arguments, result: result)
+        return result
+    }
+
+    /// Resolve the driver to use for a tool call. Routes to a session driver
+    /// when `session_id` is present and active; otherwise falls back to the
+    /// default driver.
+    private func resolveDriver(arguments: [String: String]) async -> any PlatformDriver {
+        if let sessionID = arguments["session_id"],
+           let manager = sessionManager,
+           let session = await manager.session(sessionID),
+           await session.isActive {
+            return session.driver
+        }
+        return defaultDriver
+    }
+
+    private func recordIfNeeded(
+        toolName: String,
+        arguments: [String: String],
+        result: ToolResult
+    ) async {
+        guard let sessionID = arguments["session_id"],
+              let manager = sessionManager,
+              let session = await manager.session(sessionID),
+              await session.isActive
+        else { return }
+
+        let action = SessionAction(
+            timestamp: Date(),
+            toolName: toolName,
+            arguments: redactArguments(toolName: toolName, arguments: arguments),
+            result: result.content,
+            isError: result.isError
+        )
+        await session.record(action)
+    }
+
+    /// Strip out sensitive fields before persisting an action to session history.
+    /// Mirrors the existing tool-level redaction in `type_text`.
+    private func redactArguments(toolName: String, arguments: [String: String]) -> [String: String] {
+        var copy = arguments
+        switch toolName {
+        case "type_text":
+            if let value = copy["text"] {
+                copy["text"] = "<redacted, \(value.count) chars>"
+            }
+        case "fill_field":
+            if let value = copy["value"] {
+                copy["value"] = "<redacted, \(value.count) chars>"
+            }
+        default:
+            break
+        }
+        return copy
+    }
+
+    /// Parses `k=v,k2=v2` into a dictionary. Empty entries are skipped.
+    nonisolated func parseEnvironment(_ raw: String?) -> [String: String] {
+        guard let raw, !raw.isEmpty else { return [:] }
+        var result: [String: String] = [:]
+        for pair in raw.split(separator: ",") {
+            let trimmed = pair.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            if let equals = trimmed.firstIndex(of: "=") {
+                let key = String(trimmed[..<equals]).trimmingCharacters(in: .whitespaces)
+                let value = String(trimmed[trimmed.index(after: equals)...])
+                if !key.isEmpty { result[key] = value }
+            }
+        }
+        return result
     }
 
     // swiftlint:disable cyclomatic_complexity function_body_length
     private func dispatch(toolName: String, arguments: [String: String]) async throws -> ToolResult {
+        let driver = await resolveDriver(arguments: arguments)
         switch toolName {
         // Device lifecycle
         case "device_boot":
@@ -46,7 +124,10 @@ public actor DriverToolExecutor: ToolExecutor {
             guard let appID = arguments["app_id"] else {
                 return .error("Missing required argument: app_id")
             }
-            try await driver.launchApp(appID: appID, arguments: [], environment: [:])
+            let launchArgs: [String] = arguments["launch_args"]
+                .map { $0.split(separator: ",").map(String.init) } ?? []
+            let env = parseEnvironment(arguments["environment"])
+            try await driver.launchApp(appID: appID, arguments: launchArgs, environment: env)
             return .success("App launched: \(appID)")
 
         case "device_terminate_app":
@@ -261,29 +342,82 @@ public actor DriverToolExecutor: ToolExecutor {
 
         // Audit tools
         case "audit_app":
-            return try await executeAudit(arguments: arguments, rulePacks: RulePacks.all)
+            return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.all)
 
         case "audit_accessibility":
-            return try await executeAudit(arguments: arguments, rulePacks: RulePacks.ux + RulePacks.testability)
+            return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.ux + RulePacks.testability)
 
         case "audit_security":
-            return try await executeAudit(arguments: arguments, rulePacks: RulePacks.security)
+            return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.security)
 
         // Assistant-facing MCP tools
         case "describe_screen":
-            return try await executeDescribeScreen()
+            return try await executeDescribeScreen(driver: driver)
 
         case "suggest_test_actions":
-            return try await executeSuggestActions()
+            return try await executeSuggestActions(driver: driver)
 
         case "analyze_ai_testability":
-            return try await executeAnalyzeAITestability()
+            return try await executeAnalyzeAITestability(driver: driver)
 
         case "find_element_by_description":
             guard let description = arguments["description"] else {
                 return .error("Missing required argument: description")
             }
-            return try await executeFindByDescription(description)
+            return try await executeFindByDescription(description, driver: driver)
+
+        // Device discovery / app inventory
+        case "list_devices":
+            return try await executeListDevices(arguments: arguments)
+
+        case "list_apps":
+            let apps = try await driver.listApps()
+            return formatListApps(apps)
+
+        // Session management
+        case "start_session":
+            return try await executeStartSession(arguments: arguments)
+
+        case "end_session":
+            return try await executeEndSession(arguments: arguments)
+
+        case "list_sessions":
+            return await executeListSessions()
+
+        case "get_session_report":
+            return try await executeGetSessionReport(arguments: arguments)
+
+        // Intent-level tools
+        case "navigate_to":
+            guard let description = arguments["description"] else {
+                return .error("Missing required argument: description")
+            }
+            let timeout = arguments["timeout_ms"].flatMap(Int.init) ?? 3000
+            return try await executeNavigateTo(description: description, timeoutMS: timeout, driver: driver)
+
+        case "fill_field":
+            guard let fieldDescription = arguments["field_description"] else {
+                return .error("Missing required argument: field_description")
+            }
+            guard let value = arguments["value"] else {
+                return .error("Missing required argument: value")
+            }
+            return try await executeFillField(
+                fieldDescription: fieldDescription,
+                value: value,
+                driver: driver
+            )
+
+        case "assert_visible":
+            guard let description = arguments["description"] else {
+                return .error("Missing required argument: description")
+            }
+            let timeout = arguments["timeout_ms"].flatMap(Int.init) ?? 5000
+            return try await executeAssertVisible(
+                description: description,
+                timeoutMS: timeout,
+                driver: driver
+            )
 
         default:
             return .error("Unknown tool: \(toolName)")
@@ -292,7 +426,11 @@ public actor DriverToolExecutor: ToolExecutor {
 
     // swiftlint:enable cyclomatic_complexity function_body_length
 
-    private func executeAudit(arguments: [String: String], rulePacks: [any AuditRule]) async throws -> ToolResult {
+    private func executeAudit(
+        driver: any PlatformDriver,
+        arguments: [String: String],
+        rulePacks: [any AuditRule]
+    ) async throws -> ToolResult {
         guard let appID = arguments["app_id"] else {
             return .error("Missing required argument: app_id")
         }
@@ -388,7 +526,7 @@ public actor DriverToolExecutor: ToolExecutor {
 
     // MARK: - Assistant Tool Execution
 
-    private func executeDescribeScreen() async throws -> ToolResult {
+    private func executeDescribeScreen(driver: any PlatformDriver) async throws -> ToolResult {
         let context = try await driver.getScreenContext()
         let hierarchy = try await driver.getViewHierarchy()
         let interactable = try await driver.getInteractableElements()
@@ -405,12 +543,12 @@ public actor DriverToolExecutor: ToolExecutor {
         return .success(description, structuredContent: try Value(report))
     }
 
-    private func executeSuggestActions() async throws -> ToolResult {
-        let report = try await buildSuggestionReport()
+    private func executeSuggestActions(driver: any PlatformDriver) async throws -> ToolResult {
+        let report = try await buildSuggestionReport(driver: driver)
         return .success(formatSuggestionReport(report), structuredContent: try Value(report))
     }
 
-    private func buildSuggestionReport() async throws -> TestActionSuggestionReport {
+    private func buildSuggestionReport(driver: any PlatformDriver) async throws -> TestActionSuggestionReport {
         let context = try await driver.getScreenContext()
         let hierarchy = try await driver.getViewHierarchy()
         let screenshot = try await driver.takeScreenshot(format: .png)
@@ -432,7 +570,7 @@ public actor DriverToolExecutor: ToolExecutor {
         return deterministicSuggestionReport(for: request)
     }
 
-    private func executeAnalyzeAITestability() async throws -> ToolResult {
+    private func executeAnalyzeAITestability(driver: any PlatformDriver) async throws -> ToolResult {
         let context = try await driver.getScreenContext()
         let allElements = try await driver.findElements(ElementSelector())
         let interactable = filterAppRelevantElements(try await driver.getInteractableElements())
@@ -448,7 +586,10 @@ public actor DriverToolExecutor: ToolExecutor {
         return .success(formatAITestabilityReport(report), structuredContent: try Value(report))
     }
 
-    private func executeFindByDescription(_ description: String) async throws -> ToolResult {
+    private func executeFindByDescription(
+        _ description: String,
+        driver: any PlatformDriver
+    ) async throws -> ToolResult {
         let allElements = try await driver.findElements(ElementSelector())
         let lowered = description.lowercased()
         let directMatches = allElements.filter { element in
@@ -674,6 +815,311 @@ public actor DriverToolExecutor: ToolExecutor {
             return nil
         }
         return trimmed
+    }
+
+    // MARK: - Session tools
+
+    private func executeStartSession(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Session management not configured. Run `amoo mcp serve` to enable.")
+        }
+        guard let appID = arguments["app_id"] else {
+            return .error("Missing required argument: app_id")
+        }
+        let platformRaw = arguments["platform"] ?? "ios"
+        guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+        }
+        let deviceHint = arguments["device_hint"]
+        let buildPath = arguments["build_path"]
+
+        do {
+            let session = try await manager.startSession(
+                appID: appID,
+                platform: platform,
+                deviceHint: deviceHint,
+                buildPath: buildPath
+            )
+            let summary: [String: Value] = [
+                "session_id": .string(session.id),
+                "app_id": .string(session.appID),
+                "device_id": .string(session.deviceID),
+                "platform": .string(session.platform.rawValue)
+            ]
+            let text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue) device \(session.deviceID)."
+            return .success(text, structuredContent: .object(summary))
+        } catch {
+            return .error("start_session failed: \(error)")
+        }
+    }
+
+    private func executeEndSession(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Session management not configured.")
+        }
+        guard let sessionID = arguments["session_id"] else {
+            return .error("Missing required argument: session_id")
+        }
+
+        // Capture action count before close.
+        let actionCount: Int
+        if let session = await manager.session(sessionID) {
+            actionCount = await session.actions.count
+        } else {
+            return .error("Session not found: \(sessionID)")
+        }
+
+        do {
+            try await manager.endSession(sessionID)
+        } catch {
+            return .error("end_session failed: \(error)")
+        }
+
+        let summary: [String: Value] = [
+            "session_id": .string(sessionID),
+            "ended_at": .string(ISO8601DateFormatter().string(from: Date())),
+            "action_count": .int(actionCount)
+        ]
+        return .success(
+            "Ended session \(sessionID) (\(actionCount) action(s) recorded).",
+            structuredContent: .object(summary)
+        )
+    }
+
+    private func executeListSessions() async -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Session management not configured.")
+        }
+        let sessions = await manager.allSessions()
+        var rows: [Value] = []
+        var lines: [String] = []
+        for session in sessions {
+            let count = await session.actions.count
+            let isActive = await session.isActive
+            rows.append(.object([
+                "session_id": .string(session.id),
+                "app_id": .string(session.appID),
+                "device_id": .string(session.deviceID),
+                "platform": .string(session.platform.rawValue),
+                "started_at": .string(ISO8601DateFormatter().string(from: session.startedAt)),
+                "action_count": .int(count),
+                "is_active": .bool(isActive)
+            ]))
+            lines.append(
+                "[\(session.id)] \(session.appID) on \(session.platform.rawValue) — \(count) action(s)"
+                    + (isActive ? "" : " (closed)")
+            )
+        }
+        let summary = lines.isEmpty ? "No active sessions." : lines.joined(separator: "\n")
+        return .success(summary, structuredContent: .object(["sessions": .array(rows)]))
+    }
+
+    private func executeGetSessionReport(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Session management not configured.")
+        }
+        guard let sessionID = arguments["session_id"] else {
+            return .error("Missing required argument: session_id")
+        }
+        guard let session = await manager.session(sessionID) else {
+            return .error("Session not found: \(sessionID)")
+        }
+        let report = await SessionReport.make(from: session)
+        let summary = "Session \(report.sessionID) — \(report.actionCount) action(s), \(report.errorCount) error(s)."
+        return .success(summary, structuredContent: try Value(report))
+    }
+
+    // MARK: - Device discovery / app inventory
+
+    private func executeListDevices(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Session management not configured. Device discovery requires it.")
+        }
+        let platformFilter: Platform?
+        if let raw = arguments["platform"] {
+            guard let parsed = Platform(rawValue: raw.lowercased()) else {
+                return .error("Unknown platform '\(raw)'. Expected 'ios' or 'android'.")
+            }
+            platformFilter = parsed
+        } else {
+            platformFilter = nil
+        }
+
+        let devices = try await manager.listAvailableDevices(platform: platformFilter)
+        var rows: [Value] = []
+        var lines: [String] = []
+        for device in devices {
+            rows.append(.object([
+                "id": .string(device.id),
+                "name": .string(device.name),
+                "platform": .string(device.platform.rawValue),
+                "os_version": .string(device.osVersion),
+                "state": .string(device.state.rawValue)
+            ]))
+            lines.append("[\(device.platform.rawValue)] \(device.name) (\(device.id)) — \(device.state.rawValue)")
+        }
+        let text = lines.isEmpty ? "No devices found." : lines.joined(separator: "\n")
+        return .success(text, structuredContent: .object(["devices": .array(rows)]))
+    }
+
+    private func formatListApps(_ apps: [AppInfo]) -> ToolResult {
+        var rows: [Value] = []
+        var lines: [String] = []
+        for app in apps {
+            var fields: [String: Value] = ["app_id": .string(app.appID)]
+            if let name = app.name { fields["name"] = .string(name) }
+            if let version = app.version { fields["version"] = .string(version) }
+            rows.append(.object(fields))
+            let suffix = [app.name, app.version].compactMap { $0 }.joined(separator: " ")
+            lines.append(suffix.isEmpty ? app.appID : "\(app.appID) — \(suffix)")
+        }
+        let text = lines.isEmpty ? "No installed apps reported." : lines.joined(separator: "\n")
+        return .success(text, structuredContent: .object(["apps": .array(rows)]))
+    }
+
+    // MARK: - Intent tools
+
+    private func executeNavigateTo(
+        description: String,
+        timeoutMS: Int,
+        driver: any PlatformDriver
+    ) async throws -> ToolResult {
+        let lowered = description.lowercased()
+
+        // (a) If the current screen already matches, succeed immediately.
+        let initial = try await driver.getScreenContext()
+        if screenContextMatches(initial, query: lowered) {
+            return .success(
+                "Already on target screen.\n\(initial.summary)",
+                structuredContent: .object([
+                    "navigated": .bool(false),
+                    "matched_current_screen": .bool(true),
+                    "screen_summary": .string(initial.summary)
+                ])
+            )
+        }
+
+        // (b) Search elements; tap the first interactable match.
+        let candidate = try await findFirstNavigableElement(query: description, driver: driver)
+        guard let target = candidate else {
+            return ToolResult(
+                content: """
+                navigate_to failed: no element matches '\(description)'.
+                Current screen: \(initial.summary)
+                """,
+                isError: true,
+                structuredContent: .object([
+                    "navigated": .bool(false),
+                    "reason": .string("no_match"),
+                    "screen_summary": .string(initial.summary)
+                ])
+            )
+        }
+
+        let selector = ElementSelector(id: target.id.isEmpty ? nil : target.id,
+                                       label: target.label.isEmpty ? nil : target.label)
+        try await driver.tapElement(selector)
+        try? await Task.sleep(for: .milliseconds(800))
+
+        // Wait for screen change up to the requested timeout.
+        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000.0)
+        var current = initial
+        while Date() < deadline {
+            current = (try? await driver.getScreenContext()) ?? current
+            if current.summary != initial.summary { break }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+
+        return .success(
+            "Tapped '\(preferredElementName(label: target.label, id: target.id) ?? target.id)'.\n\(current.summary)",
+            structuredContent: .object([
+                "navigated": .bool(true),
+                "element_id": .string(target.id),
+                "element_label": .string(target.label),
+                "screen_summary": .string(current.summary)
+            ])
+        )
+    }
+
+    private func executeFillField(
+        fieldDescription: String,
+        value: String,
+        driver: any PlatformDriver
+    ) async throws -> ToolResult {
+        let selector = ElementSelector(description: fieldDescription)
+        try await driver.setText(selector, text: value)
+        return .success(
+            "Filled '\(fieldDescription)' with \(value.count) char(s).",
+            structuredContent: .object([
+                "field_description": .string(fieldDescription),
+                "value_length": .int(value.count)
+            ])
+        )
+    }
+
+    private func executeAssertVisible(
+        description: String,
+        timeoutMS: Int,
+        driver: any PlatformDriver
+    ) async throws -> ToolResult {
+        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000.0)
+        let lowered = description.lowercased()
+        var lastScreenSummary = ""
+        repeat {
+            if let context = try? await driver.getScreenContext() {
+                lastScreenSummary = context.summary
+            }
+            if let match = try await findFirstNavigableElement(query: description, driver: driver) {
+                return .success(
+                    "Visible: '\(preferredElementName(label: match.label, id: match.id) ?? match.id)'",
+                    structuredContent: .object([
+                        "passed": .bool(true),
+                        "element_id": .string(match.id),
+                        "element_label": .string(match.label),
+                        "element_type": .string(match.type?.rawValue ?? ""),
+                        "screen_summary": .string(lastScreenSummary)
+                    ])
+                )
+            }
+            try? await Task.sleep(for: .milliseconds(500))
+        } while Date() < deadline
+        return ToolResult(
+            content: """
+            assert_visible failed: no element matched '\(description)' within \(timeoutMS)ms.
+            Current screen: \(lastScreenSummary)
+            """,
+            isError: true,
+            structuredContent: .object([
+                "passed": .bool(false),
+                "query": .string(description),
+                "query_lowercased": .string(lowered),
+                "screen_summary": .string(lastScreenSummary)
+            ])
+        )
+    }
+
+    // MARK: - Intent tool helpers
+
+    private func findFirstNavigableElement(
+        query: String,
+        driver: any PlatformDriver
+    ) async throws -> ElementInfo? {
+        let lowered = query.lowercased()
+        let allElements = try await driver.findElements(ElementSelector())
+        let filtered = filterAppRelevantElements(allElements)
+        if let match = filtered.first(where: {
+            $0.label.lowercased().contains(lowered) || $0.id.lowercased().contains(lowered)
+        }) {
+            return match
+        }
+        let semantic = (try? await driver.findByDescription(query)) ?? []
+        return semantic.first
+    }
+
+    private func screenContextMatches(_ context: ScreenContext, query lowered: String) -> Bool {
+        if context.summary.lowercased().contains(lowered) { return true }
+        if let title = context.screenTitle, title.lowercased().contains(lowered) { return true }
+        return false
     }
 }
 

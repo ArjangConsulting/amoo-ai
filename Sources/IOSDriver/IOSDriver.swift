@@ -46,8 +46,17 @@ public actor IOSDriver: PlatformDriver {
         try await simctl.install(device: deviceID, appPath: path)
     }
 
-    public func launchApp(appID: String, arguments: [String] = [], environment _: [String: String] = [:]) async throws {
-        try await simctl.launch(device: deviceID, appID: appID, arguments: arguments)
+    public func launchApp(
+        appID: String,
+        arguments: [String] = [],
+        environment: [String: String] = [:]
+    ) async throws {
+        try await simctl.launch(
+            device: deviceID,
+            appID: appID,
+            arguments: arguments,
+            environment: environment
+        )
         currentAppID = appID
     }
 

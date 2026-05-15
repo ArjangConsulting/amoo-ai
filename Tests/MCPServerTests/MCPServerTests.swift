@@ -3,6 +3,7 @@
 import Foundation
 import MCP
 import MobileTestingCore
+import TestSession
 import XCTest
 
 final class MCPServerTests: XCTestCase {
@@ -22,6 +23,15 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(names.contains("suggest_test_actions"))
         XCTAssertTrue(names.contains("analyze_ai_testability"))
         XCTAssertTrue(names.contains("find_element_by_description"))
+        XCTAssertTrue(names.contains("start_session"))
+        XCTAssertTrue(names.contains("end_session"))
+        XCTAssertTrue(names.contains("list_sessions"))
+        XCTAssertTrue(names.contains("get_session_report"))
+        XCTAssertTrue(names.contains("navigate_to"))
+        XCTAssertTrue(names.contains("fill_field"))
+        XCTAssertTrue(names.contains("assert_visible"))
+        XCTAssertTrue(names.contains("list_devices"))
+        XCTAssertTrue(names.contains("list_apps"))
         XCTAssertFalse(names.contains { $0.hasPrefix("ai_") })
     }
 
@@ -33,8 +43,25 @@ final class MCPServerTests: XCTestCase {
         let tap = defs.first(where: { $0.name == "tap" })
         XCTAssertNotNil(tap)
         XCTAssertEqual(tap?.required, ["x", "y"])
-        XCTAssertEqual(tap?.properties.count, 2)
+        // x, y, and the auto-injected session_id (optional).
+        XCTAssertEqual(tap?.properties.count, 3)
+        XCTAssertNotNil(tap?.properties["session_id"], "session_id should be advertised on driver-routed tools")
         XCTAssertFalse(try XCTUnwrap(tap?.description.isEmpty))
+    }
+
+    func testEveryDriverRoutedToolAdvertisesSessionID() {
+        let server = MCPServer()
+        let defs = server.toolDefinitions()
+        // Tools that don't route through resolveDriver: start_session,
+        // list_sessions don't accept session_id by design. Everything else
+        // should advertise it.
+        let exempt: Set<String> = ["start_session", "list_sessions"]
+        for def in defs where !exempt.contains(def.name) {
+            XCTAssertNotNil(
+                def.properties["session_id"],
+                "Tool '\(def.name)' must advertise an optional session_id"
+            )
+        }
     }
 
     func testMCPToolConversionIncludesInputSchema() throws {
@@ -555,6 +582,295 @@ final class MCPServerTests: XCTestCase {
         let server = MCPServer()
         XCTAssertTrue(server.toolNames().contains("swipe_in_direction"))
     }
+
+    // MARK: - Session lifecycle
+
+    func testStartSessionReturnsSessionID() async throws {
+        let (driver, manager, _) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let result = await server.execute(
+            toolName: "start_session",
+            arguments: ["app_id": "com.example", "platform": "ios"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let structured = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(structured["app_id"]?.stringValue, "com.example")
+        XCTAssertEqual(structured["platform"]?.stringValue, "ios")
+        XCTAssertNotNil(structured["session_id"]?.stringValue)
+
+        let all = await manager.allSessions()
+        XCTAssertEqual(all.count, 1)
+    }
+
+    func testStartSessionRejectsUnknownPlatform() async {
+        let (driver, manager, _) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let result = await server.execute(
+            toolName: "start_session",
+            arguments: ["app_id": "com.example", "platform": "blackberry"]
+        )
+        XCTAssertTrue(result.isError)
+        XCTAssertTrue(result.content.lowercased().contains("unknown platform"))
+    }
+
+    func testStartSessionWithoutSessionManagerReturnsError() async {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+        let result = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        XCTAssertTrue(result.isError)
+    }
+
+    func testEndSessionClosesAndReportsActionCount() async throws {
+        let (driver, manager, bootstrapper) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
+
+        _ = await server.execute(toolName: "tap", arguments: ["x": "1", "y": "2", "session_id": sessionID])
+        _ = await server.execute(toolName: "tap", arguments: ["x": "3", "y": "4", "session_id": sessionID])
+
+        let ended = await server.execute(toolName: "end_session", arguments: ["session_id": sessionID])
+        XCTAssertFalse(ended.isError, ended.content)
+        let structured = try XCTUnwrap(ended.structuredContent?.objectValue)
+        XCTAssertEqual(structured["action_count"]?.intValue, 2)
+
+        let driverCallCount: Int
+        if let sessionDriver = await bootstrapper.lastDriver {
+            driverCallCount = await sessionDriver.calls.count
+        } else {
+            driverCallCount = 0
+        }
+        XCTAssertGreaterThanOrEqual(driverCallCount, 3) // 2 taps + 1 terminateApp on close
+    }
+
+    func testGetSessionReportRedactsTypeText() async throws {
+        let (driver, manager, _) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
+
+        _ = await server.execute(
+            toolName: "type_text",
+            arguments: ["text": "supersecret", "session_id": sessionID]
+        )
+
+        let report = await server.execute(
+            toolName: "get_session_report",
+            arguments: ["session_id": sessionID]
+        )
+        XCTAssertFalse(report.isError)
+
+        let json = try JSONEncoder().encode(try XCTUnwrap(report.structuredContent))
+        let decoded = try JSONDecoder().decode(SessionReport.self, from: json)
+        let typeTextAction = try XCTUnwrap(decoded.actions.first { $0.toolName == "type_text" })
+        XCTAssertEqual(typeTextAction.arguments["text"], "<redacted, 11 chars>")
+        XCTAssertNotEqual(typeTextAction.arguments["text"], "supersecret")
+    }
+
+    func testListSessionsReturnsSummary() async throws {
+        let (driver, manager, _) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        _ = await server.execute(toolName: "start_session", arguments: ["app_id": "com.a"])
+        _ = await server.execute(toolName: "start_session", arguments: ["app_id": "com.b"])
+
+        let result = await server.execute(toolName: "list_sessions", arguments: [:])
+        XCTAssertFalse(result.isError)
+        let sessions = try XCTUnwrap(result.structuredContent?.objectValue?["sessions"]?.arrayValue)
+        XCTAssertEqual(sessions.count, 2)
+    }
+
+    // MARK: - Routing & recording
+
+    func testTapWithSessionIDRoutesToSessionDriver() async throws {
+        let (defaultDriver, manager, bootstrapper) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: defaultDriver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
+
+        _ = await server.execute(
+            toolName: "tap",
+            arguments: ["x": "10", "y": "20", "session_id": sessionID]
+        )
+
+        let defaultCalls = await defaultDriver.calls
+        XCTAssertFalse(defaultCalls.contains("tap:10.0,20.0"), "Default driver should not see the tap")
+
+        let resolved = await bootstrapper.lastDriver
+        let sessionDriver = try XCTUnwrap(resolved)
+        let sessionCalls = await sessionDriver.calls
+        XCTAssertTrue(sessionCalls.contains("tap:10.0,20.0"))
+    }
+
+    func testTapWithoutSessionIDDoesNotRecord() async throws {
+        let (driver, manager, _) = makeSessionStack()
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
+
+        _ = await server.execute(toolName: "tap", arguments: ["x": "1", "y": "2"]) // no session_id
+
+        let report = await server.execute(
+            toolName: "get_session_report",
+            arguments: ["session_id": sessionID]
+        )
+        let structured = try XCTUnwrap(report.structuredContent)
+        let decoded = try JSONDecoder().decode(SessionReport.self, from: JSONEncoder().encode(structured))
+        XCTAssertTrue(decoded.actions.allSatisfy { $0.toolName != "tap" },
+                      "Tap without session_id should not be recorded in the session")
+    }
+
+    // MARK: - Device discovery & app inventory
+
+    func testListDevicesReturnsBootstrapperResults() async throws {
+        let (driver, manager, bootstrapper) = makeSessionStack()
+        await bootstrapper.setDevices([
+            DeviceInfo(id: "udid-1", name: "iPhone 15", platform: .ios, osVersion: "17.0", state: .booted),
+            DeviceInfo(id: "emulator-5554", name: "Pixel 7", platform: .android, osVersion: "14", state: .booted)
+        ])
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let result = await server.execute(toolName: "list_devices", arguments: [:])
+        XCTAssertFalse(result.isError)
+        let devices = try XCTUnwrap(result.structuredContent?.objectValue?["devices"]?.arrayValue)
+        XCTAssertEqual(devices.count, 2)
+    }
+
+    func testListAppsCallsDriverListApps() async throws {
+        let driver = AppListMockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "list_apps", arguments: [:])
+        XCTAssertFalse(result.isError)
+        let apps = try XCTUnwrap(result.structuredContent?.objectValue?["apps"]?.arrayValue)
+        XCTAssertEqual(apps.count, 2)
+    }
+
+    // MARK: - device_launch_app args & env
+
+    func testDeviceLaunchAppPassesLaunchArgsAndEnvironment() async {
+        let driver = LaunchTrackingDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        _ = await server.execute(
+            toolName: "device_launch_app",
+            arguments: [
+                "app_id": "com.example",
+                "launch_args": "-ui_test,fast",
+                "environment": "STAGE=test,VERBOSE=1"
+            ]
+        )
+
+        let calls = await driver.launchCalls
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls.first?.appID, "com.example")
+        XCTAssertEqual(calls.first?.arguments, ["-ui_test", "fast"])
+        XCTAssertEqual(calls.first?.environment, ["STAGE": "test", "VERBOSE": "1"])
+    }
+
+    // MARK: - Intent tools
+
+    func testFillFieldCallsSetText() async throws {
+        let driver = SetTextTrackingDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(
+            toolName: "fill_field",
+            arguments: ["field_description": "Email", "value": "user@test.com"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let calls = await driver.setTextCalls
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls.first?.selector.description, "Email")
+        XCTAssertEqual(calls.first?.text, "user@test.com")
+        XCTAssertFalse(result.content.contains("user@test.com"))
+    }
+
+    func testNavigateToTapsMatchingElement() async throws {
+        let driver = NavigationMockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(
+            toolName: "navigate_to",
+            arguments: ["description": "Submit", "timeout_ms": "500"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let structured = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(structured["navigated"]?.boolValue, true)
+        let tapped = await driver.tappedSelectors
+        XCTAssertEqual(tapped.count, 1)
+    }
+
+    func testNavigateToReturnsFailureWhenNoMatch() async throws {
+        let driver = NavigationMockDriver(elements: [], summary: "Home")
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(
+            toolName: "navigate_to",
+            arguments: ["description": "Pluto", "timeout_ms": "200"]
+        )
+        XCTAssertTrue(result.isError)
+        let structured = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(structured["navigated"]?.boolValue, false)
+        XCTAssertEqual(structured["reason"]?.stringValue, "no_match")
+    }
+
+    func testAssertVisibleSucceedsWhenElementPresent() async throws {
+        let driver = NavigationMockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(
+            toolName: "assert_visible",
+            arguments: ["description": "Submit", "timeout_ms": "200"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let structured = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(structured["passed"]?.boolValue, true)
+    }
+
+    func testAssertVisibleTimesOut() async throws {
+        let driver = NavigationMockDriver(elements: [], summary: "Home")
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(
+            toolName: "assert_visible",
+            arguments: ["description": "Nope", "timeout_ms": "200"]
+        )
+        XCTAssertTrue(result.isError)
+        let structured = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(structured["passed"]?.boolValue, false)
+    }
+
+    // MARK: - Helpers
+
+    private func makeSessionStack() -> (MockDriver, SessionManager, MockSessionBootstrapper) {
+        let defaultDriver = MockDriver()
+        let bootstrapper = MockSessionBootstrapper()
+        let manager = SessionManager(bootstrapper: bootstrapper, idGenerator: { UUID().uuidString })
+        return (defaultDriver, manager, bootstrapper)
+    }
 }
 
 private final class LockedDataBuffer: @unchecked Sendable {
@@ -885,5 +1201,106 @@ private actor MockDriver: PlatformDriver {
 
     func appState(appID _: String) async throws -> AppState {
         .notRunning
+    }
+}
+
+// MARK: - Additional test doubles for session, intent, and launch_args tests
+
+private actor MockSessionBootstrapper: SessionBootstrapper {
+    private var devices: [DeviceInfo] = []
+    private(set) var lastDriver: MockDriver?
+
+    func setDevices(_ values: [DeviceInfo]) {
+        devices = values
+    }
+
+    func bootstrap(
+        appID _: String,
+        platform: Platform,
+        deviceHint _: String?,
+        buildPath _: String?
+    ) async throws -> BootstrapResult {
+        let driver = MockDriver()
+        lastDriver = driver
+        return BootstrapResult(
+            driver: driver,
+            deviceID: "mock-\(platform.rawValue)",
+            platform: platform,
+            cleanup: {}
+        )
+    }
+
+    func listDevices(platform _: Platform?) async throws -> [DeviceInfo] {
+        devices
+    }
+}
+
+private actor AppListMockDriver: PlatformDriver {
+    func listApps() async throws -> [AppInfo] {
+        [
+            AppInfo(appID: "com.example.one", name: "One", version: "1.0"),
+            AppInfo(appID: "com.example.two", name: "Two", version: nil)
+        ]
+    }
+}
+
+private actor LaunchTrackingDriver: PlatformDriver {
+    struct LaunchCall: Sendable, Equatable {
+        let appID: String
+        let arguments: [String]
+        let environment: [String: String]
+    }
+
+    private(set) var launchCalls: [LaunchCall] = []
+
+    func launchApp(appID: String, arguments: [String], environment: [String: String]) async throws {
+        launchCalls.append(LaunchCall(appID: appID, arguments: arguments, environment: environment))
+    }
+}
+
+private actor SetTextTrackingDriver: PlatformDriver {
+    struct SetTextCall: Sendable {
+        let selector: ElementSelector
+        let text: String
+    }
+
+    private(set) var setTextCalls: [SetTextCall] = []
+
+    func setText(_ selector: ElementSelector, text: String) async throws {
+        setTextCalls.append(SetTextCall(selector: selector, text: text))
+    }
+}
+
+private actor NavigationMockDriver: PlatformDriver {
+    private let elements: [ElementInfo]
+    private let summary: String
+    private(set) var tappedSelectors: [ElementSelector] = []
+    private var currentSummary: String
+
+    init(
+        elements: [ElementInfo] = [
+            ElementInfo(id: "submit_btn", label: "Submit", type: .button),
+            ElementInfo(id: "cancel_btn", label: "Cancel", type: .button)
+        ],
+        summary: String = "Home screen"
+    ) {
+        self.elements = elements
+        self.summary = summary
+        self.currentSummary = summary
+    }
+
+    func findElements(_: ElementSelector) async throws -> [ElementInfo] { elements }
+
+    func findByDescription(_: String) async throws -> [ElementInfo] { elements }
+
+    func getScreenContext() async throws -> ScreenContext {
+        ScreenContext(summary: currentSummary)
+    }
+
+    func getInteractableElements() async throws -> [ElementInfo] { elements }
+
+    func tapElement(_ selector: ElementSelector) async throws {
+        tappedSelectors.append(selector)
+        currentSummary = "After tap: \(selector.label ?? selector.id ?? "?")"
     }
 }
