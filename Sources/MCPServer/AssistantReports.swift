@@ -63,25 +63,42 @@ public struct TestActionSuggestionRequest: Sendable, Equatable {
     }
 }
 
+public struct ElementA11yIssue: Sendable, Equatable, Codable {
+    public var id: String
+    public var label: String
+    public var type: String?
+    public var issue: String
+
+    public init(id: String, label: String, type: String?, issue: String) {
+        self.id = id
+        self.label = label
+        self.type = type
+        self.issue = issue
+    }
+}
+
 public struct AITestabilityReport: Sendable, Equatable, Codable {
     public var screenSummary: String
     public var interactableCount: Int
     public var confidence: String
     public var diagnostics: [String]
     public var developerFeedback: [String]
+    public var elementsWithIssues: [ElementA11yIssue]
 
     public init(
         screenSummary: String,
         interactableCount: Int,
         confidence: String,
         diagnostics: [String],
-        developerFeedback: [String]
+        developerFeedback: [String],
+        elementsWithIssues: [ElementA11yIssue] = []
     ) {
         self.screenSummary = screenSummary
         self.interactableCount = interactableCount
         self.confidence = confidence
         self.diagnostics = diagnostics
         self.developerFeedback = developerFeedback
+        self.elementsWithIssues = elementsWithIssues
     }
 }
 

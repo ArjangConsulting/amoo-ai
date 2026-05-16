@@ -67,9 +67,22 @@ public enum AssistantTools {
                         type: "array",
                         description: "Recommended developer improvements",
                         items: .scalar(type: "string")
+                    ),
+                    "elementsWithIssues": .init(
+                        type: "array",
+                        description: "Elements that have accessibility issues, with id, label, type, and issue description",
+                        items: .object(
+                            properties: [
+                                "id": .init(type: "string", description: "Element identifier"),
+                                "label": .init(type: "string", description: "Element label"),
+                                "type": .init(type: "string", description: "Element type, when known"),
+                                "issue": .init(type: "string", description: "Specific accessibility issue on this element")
+                            ],
+                            required: ["id", "label", "issue"]
+                        )
                     )
                 ],
-                required: ["screenSummary", "interactableCount", "confidence", "diagnostics", "developerFeedback"]
+                required: ["screenSummary", "interactableCount", "confidence", "diagnostics", "developerFeedback", "elementsWithIssues"]
             )
         ),
         ToolDefinition(
