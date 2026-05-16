@@ -575,12 +575,14 @@ public actor DriverToolExecutor: ToolExecutor {
         let allElements = try await driver.findElements(ElementSelector())
         let interactable = filterAppRelevantElements(try await driver.getInteractableElements())
         let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: interactable)
+        let elementsWithIssues = collectElementA11yIssues(allElements: allElements, interactableElements: interactable)
         let report = AITestabilityReport(
             screenSummary: context.summary,
             interactableCount: interactable.count,
             confidence: testabilityConfidence(diagnostics: diagnostics, interactableCount: interactable.count),
             diagnostics: diagnostics,
-            developerFeedback: developerFeedback(for: diagnostics)
+            developerFeedback: developerFeedback(for: diagnostics),
+            elementsWithIssues: elementsWithIssues
         )
 
         return .success(formatAITestabilityReport(report), structuredContent: try Value(report))
@@ -664,6 +666,17 @@ public actor DriverToolExecutor: ToolExecutor {
             lines.append(contentsOf: report.diagnostics.map { "- \($0)" })
         }
 
+        if !report.elementsWithIssues.isEmpty {
+            lines.append("")
+            lines.append("Elements with accessibility issues (\(report.elementsWithIssues.count)):")
+            for issue in report.elementsWithIssues {
+                let typeStr = issue.type.map { " [\($0)]" } ?? ""
+                let idStr = issue.id.isEmpty ? "(no id)" : issue.id
+                let labelStr = issue.label.isEmpty ? "(no label)" : "\"\(issue.label)\""
+                lines.append("  \(idStr)\(typeStr) \(labelStr) — \(issue.issue)")
+            }
+        }
+
         lines.append("")
         lines.append("Developer feedback:")
         lines.append(contentsOf: report.developerFeedback.map { "- \($0)" })
@@ -731,6 +744,65 @@ public actor DriverToolExecutor: ToolExecutor {
         }
 
         return diagnostics
+    }
+
+    private func collectElementA11yIssues(allElements: [ElementInfo], interactableElements: [ElementInfo]) -> [ElementA11yIssue] {
+        var issues: [ElementA11yIssue] = []
+
+        let genericLabelSet: Set<String> = ["button", "image", "text field", "text", "label", "item", "view"]
+
+        for element in interactableElements {
+            let typeLabel = element.type?.rawValue
+
+            if preferredElementName(label: element.label, id: normalizedElementID(element.id)) == nil {
+                issues.append(ElementA11yIssue(
+                    id: element.id,
+                    label: element.label,
+                    type: typeLabel,
+                    issue: "missing_label: no meaningful accessibility label or stable identifier"
+                ))
+                continue
+            }
+
+            let normalizedLabel = element.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if genericLabelSet.contains(normalizedLabel) {
+                issues.append(ElementA11yIssue(
+                    id: element.id,
+                    label: element.label,
+                    type: typeLabel,
+                    issue: "generic_label: label '\(element.label)' does not describe the element's purpose"
+                ))
+            }
+        }
+
+        let labelGroups = Dictionary(grouping: interactableElements) {
+            $0.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        for (key, group) in labelGroups where !key.isEmpty && group.count > 1 {
+            for element in group {
+                let alreadyTagged = issues.contains { $0.id == element.id && $0.label == element.label }
+                if !alreadyTagged {
+                    issues.append(ElementA11yIssue(
+                        id: element.id,
+                        label: element.label,
+                        type: element.type?.rawValue,
+                        issue: "duplicate_label: label '\(element.label)' is shared by \(group.count) elements"
+                    ))
+                }
+            }
+        }
+
+        let hiddenEnabled = allElements.filter { !$0.isVisible && $0.isEnabled && !isLikelySystemElement($0) }
+        for element in hiddenEnabled {
+            issues.append(ElementA11yIssue(
+                id: element.id,
+                label: element.label,
+                type: element.type?.rawValue,
+                issue: "hidden_but_enabled: element is enabled but not visible in the accessibility tree"
+            ))
+        }
+
+        return issues
     }
 
     private func developerFeedback(for diagnostics: [String]) -> [String] {
