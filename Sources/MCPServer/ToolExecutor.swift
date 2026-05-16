@@ -673,7 +673,10 @@ public actor DriverToolExecutor: ToolExecutor {
                 let typeStr = issue.type.map { " [\($0)]" } ?? ""
                 let idStr = issue.id.isEmpty ? "(no id)" : issue.id
                 let labelStr = issue.label.isEmpty ? "(no label)" : "\"\(issue.label)\""
-                lines.append("  \(idStr)\(typeStr) \(labelStr) — \(issue.issue)")
+                let frameStr = issue.frame.map { f in
+                    " at (\(Int(f.x)), \(Int(f.y))) \(Int(f.width))×\(Int(f.height))pt"
+                } ?? ""
+                lines.append("  \(idStr)\(typeStr) \(labelStr)\(frameStr) — \(issue.issue)")
             }
         }
 
@@ -759,7 +762,8 @@ public actor DriverToolExecutor: ToolExecutor {
                     id: element.id,
                     label: element.label,
                     type: typeLabel,
-                    issue: "missing_label: no meaningful accessibility label or stable identifier"
+                    issue: "missing_label: no meaningful accessibility label or stable identifier",
+                    frame: element.frame
                 ))
                 continue
             }
@@ -770,7 +774,8 @@ public actor DriverToolExecutor: ToolExecutor {
                     id: element.id,
                     label: element.label,
                     type: typeLabel,
-                    issue: "generic_label: label '\(element.label)' does not describe the element's purpose"
+                    issue: "generic_label: label '\(element.label)' does not describe the element's purpose",
+                    frame: element.frame
                 ))
             }
         }
@@ -786,7 +791,8 @@ public actor DriverToolExecutor: ToolExecutor {
                         id: element.id,
                         label: element.label,
                         type: element.type?.rawValue,
-                        issue: "duplicate_label: label '\(element.label)' is shared by \(group.count) elements"
+                        issue: "duplicate_label: label '\(element.label)' is shared by \(group.count) elements",
+                        frame: element.frame
                     ))
                 }
             }
@@ -798,7 +804,8 @@ public actor DriverToolExecutor: ToolExecutor {
                 id: element.id,
                 label: element.label,
                 type: element.type?.rawValue,
-                issue: "hidden_but_enabled: element is enabled but not visible in the accessibility tree"
+                issue: "hidden_but_enabled: element is enabled but not visible in the accessibility tree",
+                frame: element.frame
             ))
         }
 
