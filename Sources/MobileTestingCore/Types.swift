@@ -28,7 +28,7 @@ public enum Direction: String, Sendable, Equatable {
     case right
 }
 
-public struct Rect: Sendable, Equatable {
+public struct Rect: Sendable, Equatable, Codable {
     public var x: Double
     public var y: Double
     public var width: Double

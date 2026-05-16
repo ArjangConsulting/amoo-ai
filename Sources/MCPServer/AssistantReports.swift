@@ -68,12 +68,14 @@ public struct ElementA11yIssue: Sendable, Equatable, Codable {
     public var label: String
     public var type: String?
     public var issue: String
+    public var frame: Rect?
 
-    public init(id: String, label: String, type: String?, issue: String) {
+    public init(id: String, label: String, type: String?, issue: String, frame: Rect? = nil) {
         self.id = id
         self.label = label
         self.type = type
         self.issue = issue
+        self.frame = frame
     }
 }
 
