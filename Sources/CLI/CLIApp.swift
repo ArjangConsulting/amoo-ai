@@ -97,6 +97,18 @@ public struct CLIApp {
             }
         }
 
+        if args.first == "chat" {
+            if isHelpRequest(Array(args.dropFirst())) {
+                return CLIResult(output: renderChatHelp(), exitCode: 0)
+            }
+            switch parseChatCommandOptions(args: Array(args.dropFirst())) {
+            case let .failure(error):
+                return CLIResult(output: error.description, exitCode: 64)
+            case let .success(options):
+                return await runChatCommand(options: options)
+            }
+        }
+
         if args.first == "mcp" {
             if isHelpRequest(Array(args.dropFirst())) {
                 return CLIResult(output: renderMCPHelp(), exitCode: 0)
@@ -138,6 +150,7 @@ func renderCLIHelp() -> String {
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       audit ...                    Run app audit rules
+      chat                         Interactive AI chat (Ollama + MCP tools)
       mcp serve                    Run the local MCP stdio server for AI clients
 
     Shortcuts:

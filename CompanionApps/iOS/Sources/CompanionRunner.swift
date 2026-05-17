@@ -13,6 +13,13 @@ import XCTest
 final class CompanionRunner: XCTestCase {
     private static let defaultPort = 22087
 
+    /// Disable the default test execution time limit so the companion server
+    /// stays alive indefinitely until the host explicitly terminates it.
+    override var executionTimeAllowance: TimeInterval {
+        get { 86400 } // 24 hours
+        set { _ = newValue }
+    }
+
     @MainActor
     func testRunCompanion() async throws {
         let app = XCUIApplication()

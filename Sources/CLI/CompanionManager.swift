@@ -261,7 +261,8 @@ final class CompanionManager: @unchecked Sendable {
                 .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
                 .trailingArguments([
                     "-only-testing",
-                    "MobileTestingCompanionUITests/CompanionRunner/testRunCompanion"
+                    "MobileTestingCompanionUITests/CompanionRunner/testRunCompanion",
+                    "-test-timeouts-enabled", "NO"
                 ])
                 .env("COMPANION_PORT", String(config.port))
                 .stdout(.file(path: logPath, append: false))
