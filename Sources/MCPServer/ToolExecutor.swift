@@ -360,6 +360,9 @@ public actor DriverToolExecutor: ToolExecutor {
         case "analyze_ai_testability":
             return try await executeAnalyzeAITestability(driver: driver)
 
+        case "highlight_a11y_issues":
+            return try await executeHighlightA11yIssues(driver: driver)
+
         case "find_element_by_description":
             guard let description = arguments["description"] else {
                 return .error("Missing required argument: description")
@@ -586,6 +589,54 @@ public actor DriverToolExecutor: ToolExecutor {
         )
 
         return .success(formatAITestabilityReport(report), structuredContent: try Value(report))
+    }
+
+    private func executeHighlightA11yIssues(driver: any PlatformDriver) async throws -> ToolResult {
+        async let hierarchyTask = driver.getViewHierarchy()
+        async let allElementsTask = driver.findElements(ElementSelector())
+        async let interactableTask = driver.getInteractableElements()
+        async let screenshotTask = driver.takeScreenshot(format: .png)
+
+        let hierarchy = try await hierarchyTask
+        let allElements = try await allElementsTask
+        let interactable = filterAppRelevantElements(try await interactableTask)
+        let screenshotData = try await screenshotTask
+
+        let issues = collectElementA11yIssues(allElements: allElements, interactableElements: interactable)
+
+        let viewportWidth = hierarchy.frame?.width ?? 0
+        let pngData = Data(screenshotData.bytes)
+        let annotated = ScreenshotAnnotator.annotate(
+            pngData: pngData,
+            issues: issues,
+            viewportWidth: viewportWidth
+        )
+
+        struct HighlightReport: Codable {
+            let issueCount: Int
+            let issues: [ElementA11yIssue]
+        }
+        let report = HighlightReport(issueCount: issues.count, issues: issues)
+
+        let text: String
+        if issues.isEmpty {
+            text = "No accessibility issues found — nothing to highlight."
+        } else {
+            let lines = issues.map { issue in
+                let typeStr = issue.type.map { " [\($0)]" } ?? ""
+                let idStr = issue.id.isEmpty ? "(no id)" : issue.id
+                let frameStr = issue.frame.map { f in " at (\(Int(f.x)),\(Int(f.y))) \(Int(f.width))×\(Int(f.height))pt" } ?? ""
+                return "  \(idStr)\(typeStr)\(frameStr) — \(issue.issue)"
+            }
+            text = "\(issues.count) element(s) highlighted (red=missing label, orange=generic, yellow=duplicate):\n"
+                + lines.joined(separator: "\n")
+        }
+
+        return ToolResult(
+            content: text,
+            structuredContent: try Value(report),
+            annotatedImagePNG: annotated
+        )
     }
 
     private func executeFindByDescription(

@@ -118,11 +118,14 @@ public struct ToolResult: Sendable, Equatable {
     public var content: String
     public var isError: Bool
     public var structuredContent: Value?
+    /// Optional annotated PNG returned as an MCP image content block.
+    public var annotatedImagePNG: Data?
 
-    public init(content: String, isError: Bool = false, structuredContent: Value? = nil) {
+    public init(content: String, isError: Bool = false, structuredContent: Value? = nil, annotatedImagePNG: Data? = nil) {
         self.content = content
         self.isError = isError
         self.structuredContent = structuredContent
+        self.annotatedImagePNG = annotatedImagePNG
     }
 
     public static func success(_ content: String) -> Self {
@@ -138,8 +141,17 @@ public struct ToolResult: Sendable, Equatable {
     }
 
     public func mcpResult() -> CallTool.Result {
-        CallTool.Result(
-            content: [.text(text: content, annotations: nil, _meta: nil)],
+        var items: [Tool.Content] = [.text(text: content, annotations: nil, _meta: nil)]
+        if let imageData = annotatedImagePNG {
+            items.append(.image(
+                data: imageData.base64EncodedString(),
+                mimeType: "image/png",
+                annotations: nil,
+                _meta: nil
+            ))
+        }
+        return CallTool.Result(
+            content: items,
             structuredContent: structuredContent,
             isError: isError
         )

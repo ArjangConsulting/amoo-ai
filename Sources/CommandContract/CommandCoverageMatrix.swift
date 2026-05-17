@@ -369,6 +369,15 @@ public enum CommandCoverageMatrix {
             expectedAssertion: "MCP returns structured AI testability diagnostics and developer feedback"
         ),
         .init(
+            name: "highlight_a11y_issues",
+            channel: .mcp,
+            kind: .ai,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .details,
+            expectedAssertion: "MCP returns annotated screenshot PNG with colored overlays on elements that have accessibility issues"
+        ),
+        .init(
             name: "find_element_by_description",
             channel: .mcp,
             kind: .ai,

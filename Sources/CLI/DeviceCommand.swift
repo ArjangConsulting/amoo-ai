@@ -59,6 +59,7 @@ func renderDeviceHelp() -> String {
       describe_screen
       suggest_test_actions
       analyze_ai_testability
+      highlight_a11y_issues
       find_element_by_description description=<text>
       device_launch_app app_id=<id>
       device_terminate_app app_id=<id>

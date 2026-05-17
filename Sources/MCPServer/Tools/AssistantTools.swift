@@ -87,6 +87,33 @@ public enum AssistantTools {
             )
         ),
         ToolDefinition(
+            name: "highlight_a11y_issues",
+            title: "Highlight Accessibility Issues",
+            description: "Take an annotated screenshot with colored stroke overlays on every element that has an accessibility issue."
+                + " Red = missing label, orange = generic label, yellow = duplicate label."
+                + " Returns the text report plus the annotated PNG as an image content block.",
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "issueCount": .init(type: "integer", description: "Number of elements with accessibility issues"),
+                    "issues": .init(
+                        type: "array",
+                        description: "List of elements with issues, matching the analyze_ai_testability format",
+                        items: .object(
+                            properties: [
+                                "id": .init(type: "string", description: "Element identifier"),
+                                "label": .init(type: "string", description: "Element label"),
+                                "type": .init(type: "string", description: "Element type, when known"),
+                                "issue": .init(type: "string", description: "Specific accessibility issue"),
+                                "frame": .init(type: "object", description: "Position in points: x, y, width, height")
+                            ],
+                            required: ["id", "label", "issue"]
+                        )
+                    )
+                ],
+                required: ["issueCount", "issues"]
+            )
+        ),
+        ToolDefinition(
             name: "find_element_by_description",
             title: "Find Element By Description",
             description: "Find UI elements by natural language description, using exposed labels and identifiers.",
