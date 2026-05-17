@@ -342,25 +342,97 @@ extension IOSDriver {
             }
         }
 
-        // Fallback: extract CFBundleIdentifier from plist text
-        var apps: [AppInfo] = []
-        let lines = plistOutput.components(separatedBy: "\n")
-        var foundKey = false
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.contains("CFBundleIdentifier") {
-                foundKey = true
-                continue
-            }
-            if foundKey {
-                if let start = trimmed.range(of: "<string>"),
-                   let end = trimmed.range(of: "</string>") {
-                    let bundleID = String(trimmed[start.upperBound ..< end.lowerBound])
-                    apps.append(AppInfo(appID: bundleID))
-                }
-                foundKey = false
+        // Try JSON dictionary format (simctl listapps on newer Xcode returns {bundleID: {info}})
+        if let root = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] {
+            return root.compactMap { (_, dict) in
+                guard let bundleID = dict["CFBundleIdentifier"] as? String else { return nil }
+                let name = dict["CFBundleDisplayName"] as? String ?? dict["CFBundleName"] as? String
+                let version = dict["CFBundleShortVersionString"] as? String
+                return AppInfo(appID: bundleID, name: name, version: version)
             }
         }
+
+        // Fallback: old-style property list text format (key = "value";)
+        // Extracts CFBundleIdentifier from lines like: CFBundleIdentifier = "com.example.app";
+        var apps: [AppInfo] = []
+        let lines = plistOutput.components(separatedBy: "\n")
+        var currentBundleID: String?
+        var currentName: String?
+        var currentVersion: String?
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if let value = extractOldPlistValue(trimmed, key: "CFBundleIdentifier") {
+                // If we had a previous bundle ID pending, save it
+                if let bundleID = currentBundleID {
+                    apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
+                }
+                currentBundleID = value
+                currentName = nil
+                currentVersion = nil
+            } else if let value = extractOldPlistValue(trimmed, key: "CFBundleDisplayName") {
+                currentName = value
+            } else if let value = extractOldPlistValue(trimmed, key: "CFBundleName"), currentName == nil {
+                currentName = value
+            } else if let value = extractOldPlistValue(trimmed, key: "CFBundleShortVersionString") {
+                currentVersion = value
+            } else if trimmed == "};" || trimmed == "}" {
+                // End of an app entry
+                if let bundleID = currentBundleID {
+                    apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
+                    currentBundleID = nil
+                    currentName = nil
+                    currentVersion = nil
+                }
+            }
+        }
+        // Capture last entry if not terminated by };
+        if let bundleID = currentBundleID {
+            apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
+        }
+
+        // Fallback: XML plist format with <string> tags
+        if apps.isEmpty {
+            var foundKey = false
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.contains("CFBundleIdentifier") {
+                    foundKey = true
+                    continue
+                }
+                if foundKey {
+                    if let start = trimmed.range(of: "<string>"),
+                       let end = trimmed.range(of: "</string>") {
+                        let bundleID = String(trimmed[start.upperBound ..< end.lowerBound])
+                        apps.append(AppInfo(appID: bundleID))
+                    }
+                    foundKey = false
+                }
+            }
+        }
+
         return apps
+    }
+
+    /// Extracts a value from old-style plist text format: `Key = "value";` or `Key = value;`
+    private func extractOldPlistValue(_ line: String, key: String) -> String? {
+        // Match patterns like:
+        //   CFBundleIdentifier = "com.example.app";
+        //   CFBundleDisplayName = Novalingo;
+        guard line.contains(key) else { return nil }
+        let parts = line.split(separator: "=", maxSplits: 1)
+        guard parts.count == 2 else { return nil }
+        let keyPart = parts[0].trimmingCharacters(in: .whitespaces)
+        guard keyPart == key else { return nil }
+        var value = parts[1].trimmingCharacters(in: .whitespaces)
+        // Remove trailing semicolons
+        if value.hasSuffix(";") { value = String(value.dropLast()) }
+        value = value.trimmingCharacters(in: .whitespaces)
+        // Remove surrounding quotes
+        if value.hasPrefix("\"") && value.hasSuffix("\"") {
+            value = String(value.dropFirst().dropLast())
+        }
+        return value.isEmpty ? nil : value
     }
 }
