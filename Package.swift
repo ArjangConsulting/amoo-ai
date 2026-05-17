@@ -16,6 +16,7 @@ let package = Package(
         .library(name: "AuditEngine", targets: ["AuditEngine"]),
         .library(name: "CommandContract", targets: ["CommandContract"]),
         .library(name: "TestSession", targets: ["TestSession"]),
+        .library(name: "OllamaClient", targets: ["OllamaClient"]),
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
@@ -68,6 +69,7 @@ let package = Package(
         .target(name: "AuditEngine", dependencies: ["MobileTestingCore"]),
         .target(name: "CommandContract", dependencies: ["MobileTestingCore"]),
         .target(name: "TestSession", dependencies: ["MobileTestingCore"]),
+        .target(name: "OllamaClient"),
         .target(
             name: "GRPCService",
             dependencies: [
@@ -98,6 +100,7 @@ let package = Package(
                 "IOSDriver",
                 "AndroidDriver",
                 "MCPServer",
+                "OllamaClient",
                 "AuditEngine",
                 "ProcessRunner",
                 "TestSession",
