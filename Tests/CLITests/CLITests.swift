@@ -665,6 +665,13 @@ final class CLITests: XCTestCase {
         XCTAssertNil(none)
     }
 
+    func testREPLBuiltinToolsIsHandledWithoutDispatch() async {
+        let definitions = MCPServer().toolDefinitions()
+        let result = await test_handleBuiltin("tools", toolDefinitions: definitions)
+
+        XCTAssertEqual(result, "handled")
+    }
+
     func testREPLBannerStyleFallsBackForDumbTerminal() {
         XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "dumb", "LANG": "en_US.UTF-8"]), "+")
         XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "xterm-256color", "LANG": "en_US.UTF-8"]), "╭")

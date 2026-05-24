@@ -155,7 +155,7 @@ func renderCLIHelp() -> String {
 
     Shortcuts:
       amoo --help                  Show top-level help
-      amoo --tools                 List MCP tool names
+      amoo --tools                 List MCP tool names only (comma-separated)
 
     Guidance:
       Run 'amoo <command>' without enough arguments to see command-specific usage.

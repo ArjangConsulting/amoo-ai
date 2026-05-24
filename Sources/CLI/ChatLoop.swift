@@ -248,7 +248,7 @@ struct ChatLoop {
 
     private func printHelp() {
         let help = """
-          /tools    - List available MCP tools
+          /tools    - List available MCP tools with descriptions
           /history  - Show conversation messages
           /clear    - Reset conversation (keep system prompt)
           /model    - Show current model
