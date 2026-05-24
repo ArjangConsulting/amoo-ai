@@ -128,8 +128,12 @@ private func replLoop(
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { continue }
 
-        if await handleBuiltin(trimmed, toolDefinitions: toolDefinitions) {
-            break // quit/exit
+        let builtinResult = await handleBuiltin(trimmed, toolDefinitions: toolDefinitions)
+        if builtinResult == .quit {
+            break
+        }
+        if builtinResult == .handled {
+            continue
         }
 
         await dispatch(
@@ -194,9 +198,13 @@ private func padRight(_ value: String, to width: Int) -> String {
 
 // MARK: - Built-in commands
 
-// Returns true when the user wants to quit.
+private enum BuiltinCommandResult {
+    case handled
+    case quit
+    case notHandled
+}
 
-private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) async -> Bool {
+private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) async -> BuiltinCommandResult {
     let lower = line.lowercased()
 
     switch lower {
@@ -205,19 +213,19 @@ private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) as
             cli_save_history(historyPath)
         }
         print(colored("Goodbye.", .cyan))
-        return true
+        return .quit
 
     case "help", "?":
         printHelp(definitions: toolDefinitions)
-        return false
+        return .handled
 
     case "tools":
         let names = toolDefinitions.map(\.name).joined(separator: ", ")
         print(names)
-        return false
+        return .handled
 
     default:
-        return false
+        return .notHandled
     }
 }
 
@@ -236,7 +244,7 @@ private func printHelp(definitions: [ToolDefinition]) {
     print("")
     print(colored("Built-in commands:", .bold, .cyan))
     print("  \(colored("help", .green))        Show this help")
-    print("  \(colored("tools", .green))       List tool names only")
+    print("  \(colored("tools", .green))       Print available tool names only")
     print("  \(colored("quit/exit", .green))   Exit the session")
     print("")
     print(colored("Press Tab to complete the tool command or argument key.", .gray))
@@ -420,5 +428,16 @@ func test_closestTool(to input: String, among candidates: [String]) -> String? {
 
 func test_replBannerStyle(environment: [String: String]) -> String {
     replBannerStyle(environment: environment).topLeft
+}
+
+func test_handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) async -> String {
+    switch await handleBuiltin(line, toolDefinitions: toolDefinitions) {
+    case .handled:
+        return "handled"
+    case .quit:
+        return "quit"
+    case .notHandled:
+        return "notHandled"
+    }
 }
 #endif

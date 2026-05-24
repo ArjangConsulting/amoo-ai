@@ -334,7 +334,7 @@ func renderChatHelp() -> String {
       --no-companion           Skip companion check (tools may fail)
 
     In-chat commands:
-      /tools    - List available tools
+      /tools    - List available tools with descriptions
       /history  - Show conversation
       /clear    - Reset conversation
       /model    - Show current model
