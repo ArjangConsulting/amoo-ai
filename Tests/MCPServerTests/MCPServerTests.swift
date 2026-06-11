@@ -863,6 +863,72 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(structured["passed"]?.boolValue, false)
     }
 
+    // MARK: - Screenshot
+
+    func testTakeScreenshotReturnsImageContentBlock() async throws {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "take_screenshot", arguments: [:])
+        XCTAssertFalse(result.isError, result.content)
+
+        let image = try XCTUnwrap(result.image, "take_screenshot must return an image content block")
+        XCTAssertEqual(image.mimeType, "image/png")
+        XCTAssertFalse(image.data.isEmpty)
+
+        let fields = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(fields["format"]?.stringValue, "png")
+        XCTAssertEqual(fields["byte_count"]?.intValue, 1)
+
+        // The MCP result should carry both a text and an image content item.
+        let mcp = result.mcpResult()
+        XCTAssertEqual(mcp.content.count, 2)
+    }
+
+    func testTakeScreenshotJPEGAcceptsJpgAlias() async throws {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let result = await server.execute(toolName: "take_screenshot", arguments: ["format": "jpg"])
+        XCTAssertFalse(result.isError, result.content)
+        let image = try XCTUnwrap(result.image)
+        XCTAssertEqual(image.mimeType, "image/jpeg")
+        XCTAssertEqual(result.structuredContent?.objectValue?["format"]?.stringValue, "jpeg")
+    }
+
+    func testTakeScreenshotWritesToOutputPath() async throws {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let path = NSTemporaryDirectory() + "amoo-shot-\(UUID().uuidString).png"
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        let result = await server.execute(toolName: "take_screenshot", arguments: ["output": path])
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))
+        XCTAssertEqual(result.structuredContent?.objectValue?["saved_path"]?.stringValue, path)
+        XCTAssertTrue(result.content.contains("saved to"))
+    }
+
+    func testTakeScreenshotWriteFailureKeepsRequiredStructuredFields() async throws {
+        let driver = MockDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        let server = MCPServer(executor: executor)
+
+        let path = NSTemporaryDirectory() + "amoo-missing-\(UUID().uuidString)/shot.png"
+        let result = await server.execute(toolName: "take_screenshot", arguments: ["output": path])
+
+        XCTAssertTrue(result.isError)
+        // The declared outputSchema requires byte_count and format even on error.
+        let fields = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(fields["byte_count"]?.intValue, 1)
+        XCTAssertEqual(fields["format"]?.stringValue, "png")
+        XCTAssertNil(fields["saved_path"])
+    }
+
     // MARK: - Helpers
 
     private func makeSessionStack() -> (MockDriver, SessionManager, MockSessionBootstrapper) {
@@ -1157,8 +1223,8 @@ private actor MockDriver: PlatformDriver {
         false
     }
 
-    func takeScreenshot(format _: ImageFormat) async throws -> ScreenshotData {
-        ScreenshotData(bytes: [0xFF])
+    func takeScreenshot(format: ImageFormat) async throws -> ScreenshotData {
+        ScreenshotData(bytes: [0xFF], format: format)
     }
 
     func startRecording() async throws -> RecordingSession {

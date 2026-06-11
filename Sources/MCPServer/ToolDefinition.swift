@@ -114,18 +114,29 @@ private func itemsSchemaValue(_ schema: ToolItemsSchema) -> Value {
     }
 }
 
+/// An image payload returned alongside a tool result as an MCP image content block.
+public struct ToolImageContent: Sendable, Equatable {
+    public var data: Data
+    public var mimeType: String
+
+    public init(data: Data, mimeType: String) {
+        self.data = data
+        self.mimeType = mimeType
+    }
+}
+
 public struct ToolResult: Sendable, Equatable {
     public var content: String
     public var isError: Bool
     public var structuredContent: Value?
-    /// Optional annotated PNG returned as an MCP image content block.
-    public var annotatedImagePNG: Data?
+    /// Optional image (screenshot, annotated overlay, …) returned as an MCP image content block.
+    public var image: ToolImageContent?
 
-    public init(content: String, isError: Bool = false, structuredContent: Value? = nil, annotatedImagePNG: Data? = nil) {
+    public init(content: String, isError: Bool = false, structuredContent: Value? = nil, image: ToolImageContent? = nil) {
         self.content = content
         self.isError = isError
         self.structuredContent = structuredContent
-        self.annotatedImagePNG = annotatedImagePNG
+        self.image = image
     }
 
     public static func success(_ content: String) -> Self {
@@ -142,10 +153,10 @@ public struct ToolResult: Sendable, Equatable {
 
     public func mcpResult() -> CallTool.Result {
         var items: [Tool.Content] = [.text(text: content, annotations: nil, _meta: nil)]
-        if let imageData = annotatedImagePNG {
+        if let image {
             items.append(.image(
-                data: imageData.base64EncodedString(),
-                mimeType: "image/png",
+                data: image.data.base64EncodedString(),
+                mimeType: image.mimeType,
                 annotations: nil,
                 _meta: nil
             ))

@@ -292,10 +292,7 @@ public actor DriverToolExecutor: ToolExecutor {
             return .success(context.summary)
 
         case "take_screenshot":
-            let formatStr = arguments["format"] ?? "png"
-            let format: ImageFormat = formatStr == "jpeg" ? .jpeg : .png
-            let screenshot = try await driver.takeScreenshot(format: format)
-            return .success("Screenshot captured: \(screenshot.bytes.count) bytes (\(formatStr))")
+            return try await executeTakeScreenshot(driver: driver, arguments: arguments)
 
         case "is_keyboard_visible":
             let visible = try await driver.isKeyboardVisible()
@@ -635,7 +632,7 @@ public actor DriverToolExecutor: ToolExecutor {
         return ToolResult(
             content: text,
             structuredContent: try Value(report),
-            annotatedImagePNG: annotated
+            image: annotated.map { ToolImageContent(data: $0, mimeType: ImageFormat.png.mimeType) }
         )
     }
 
@@ -659,6 +656,54 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         let descriptions = matches.map { "[\($0.id)] \($0.label)" }
         return .success("Found \(matches.count) match(es):\n\(descriptions.joined(separator: "\n"))", structuredContent: try Value(report))
+    }
+
+    private func executeTakeScreenshot(
+        driver: any PlatformDriver,
+        arguments: [String: String]
+    ) async throws -> ToolResult {
+        let requestedFormat = ImageFormat(parsing: arguments["format"])
+        let screenshot = try await driver.takeScreenshot(format: requestedFormat)
+        // Trust the format the driver actually produced — some drivers ignore the
+        // requested format (e.g. Android always returns PNG), so labeling by the
+        // request would hand clients a wrong MIME type.
+        let actualFormat = screenshot.format
+        let data = Data(screenshot.bytes)
+
+        var fields: [String: Value] = [
+            "byte_count": .int(data.count),
+            "format": .string(actualFormat.rawValue)
+        ]
+
+        var savedNote = ""
+        if let output = arguments["output"], !output.isEmpty {
+            let url = URL(fileURLWithPath: (output as NSString).expandingTildeInPath)
+            do {
+                try data.write(to: url)
+                fields["saved_path"] = .string(url.path)
+                savedNote = " — saved to \(url.path)"
+            } catch {
+                // Keep the declared outputSchema's required fields even on error,
+                // for clients that validate structured content strictly.
+                return ToolResult(
+                    content: "take_screenshot captured \(data.count) bytes but failed to write to \(output): \(error)",
+                    isError: true,
+                    structuredContent: .object(fields)
+                )
+            }
+        }
+
+        // Surface format downgrades instead of leaving them silent — the request
+        // is best-effort (see ScreenCapture.takeScreenshot).
+        let formatNote = actualFormat == requestedFormat
+            ? ""
+            : " — note: requested \(requestedFormat.rawValue) but the driver produced \(actualFormat.rawValue)"
+
+        return ToolResult(
+            content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))\(savedNote)\(formatNote)",
+            structuredContent: .object(fields),
+            image: ToolImageContent(data: data, mimeType: actualFormat.mimeType)
+        )
     }
 
     private func parseDirection(_ value: String) -> Direction? {
