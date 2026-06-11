@@ -14,14 +14,7 @@ public enum QueryTools {
         ),
         ToolDefinition(
             name: "get_view_hierarchy",
-            description: "Get the full UI view hierarchy tree of the current screen."
-                + " Uses the last launched app by default.",
-            properties: [
-                "app_id": .init(
-                    type: "string",
-                    description: "Bundle ID of the app to inspect. Omit to use the last launched app."
-                )
-            ]
+            description: "Get the full UI view hierarchy tree of the current foreground screen."
         ),
         ToolDefinition(
             name: "get_screen_context",
@@ -29,15 +22,28 @@ public enum QueryTools {
         ),
         ToolDefinition(
             name: "take_screenshot",
-            description: "Capture a screenshot of the current screen",
+            description: "Capture a screenshot of the current screen."
+                + " Returns the image as an MCP image content block, and optionally writes it to disk.",
             properties: [
-                "format": .init(type: "string", description: "Image format: png or jpeg. Defaults to png."),
+                "format": .init(
+                    type: "string",
+                    description: "Image format: png or jpeg. Defaults to png. Best-effort —"
+                        + " some drivers always capture png; check the format field in the result."
+                ),
                 "output": .init(
                     type: "string",
-                    description: "Optional file path to save the screenshot."
-                        + " Defaults to screenshot_<timestamp>.png in the current directory."
+                    description: "Optional file path to also save the screenshot to (~ is expanded)."
+                        + " When omitted, the image is only returned inline."
                 )
-            ]
+            ],
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "byte_count": .init(type: "integer", description: "Size of the captured image in bytes"),
+                    "format": .init(type: "string", description: "Image format actually captured: png or jpeg"),
+                    "saved_path": .init(type: "string", description: "Absolute path written to, when output was provided")
+                ],
+                required: ["byte_count", "format"]
+            )
         ),
         ToolDefinition(
             name: "is_keyboard_visible",

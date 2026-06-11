@@ -45,6 +45,22 @@ public struct Rect: Sendable, Equatable, Codable {
 public enum ImageFormat: String, Sendable, Equatable {
     case png
     case jpeg
+
+    /// Parses a user-supplied format string, accepting the common "jpg" alias
+    /// case-insensitively. Unrecognized or missing values fall back to `.png`.
+    public init(parsing string: String?) {
+        switch string?.lowercased() {
+        case "jpeg", "jpg": self = .jpeg
+        default: self = .png
+        }
+    }
+
+    public var mimeType: String {
+        switch self {
+        case .png: "image/png"
+        case .jpeg: "image/jpeg"
+        }
+    }
 }
 
 public struct ScreenshotData: Sendable, Equatable {
