@@ -53,9 +53,7 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
-    await replLoop(executor: executor, screenshotHandler: { args in
-        await handleIOSScreenshot(driver: driver, arguments: args)
-    }, toolDefinitions: toolDefinitions)
+    await replLoop(executor: executor, toolDefinitions: toolDefinitions)
 
     await companion.shutdown()
     await manager.shutdown()
@@ -87,9 +85,7 @@ private func runAndroidREPL(
     print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
-    await replLoop(executor: executor, screenshotHandler: { args in
-        await handleAndroidScreenshot(driver: driver, arguments: args)
-    }, toolDefinitions: toolDefinitions)
+    await replLoop(executor: executor, toolDefinitions: toolDefinitions)
 
     await companion.shutdown()
 }
@@ -106,7 +102,6 @@ private func replHistoryPath() -> String? {
 
 private func replLoop(
     executor: DriverToolExecutor,
-    screenshotHandler: @escaping @Sendable ([String: String]) async -> Void,
     toolDefinitions: [ToolDefinition]
 ) async {
     // Load history from previous sessions
@@ -139,7 +134,6 @@ private func replLoop(
         await dispatch(
             line: trimmed,
             executor: executor,
-            screenshotHandler: screenshotHandler,
             toolDefinitions: toolDefinitions
         )
     }
@@ -257,7 +251,6 @@ private func printHelp(definitions: [ToolDefinition]) {
 private func dispatch(
     line: String,
     executor: DriverToolExecutor,
-    screenshotHandler: @escaping @Sendable ([String: String]) async -> Void,
     toolDefinitions: [ToolDefinition]
 ) async {
     let (toolName, parts) = shellSplit(line)
@@ -293,12 +286,14 @@ private func dispatch(
         }
     }
 
-    // Screenshot: save bytes to a file
-    if toolName == "take_screenshot" {
-        await withCLILoadingIndicator("Capturing screenshot") {
-            await screenshotHandler(arguments)
-        }
-        return
+    // take_screenshot: the terminal can't display inline images, so always save —
+    // inject a default timestamped path when no output is given. The extension
+    // reflects the requested format; the result text reports the format the
+    // driver actually produced (see ScreenCapture.takeScreenshot).
+    if toolName == "take_screenshot", arguments["output"] == nil {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let ext = ImageFormat(parsing: arguments["format"]).rawValue
+        arguments["output"] = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).\(ext)"
     }
 
     let result = await withCLILoadingIndicator("Running \(toolName)") {
@@ -316,43 +311,6 @@ private func dispatch(
         print(result.content)
     } else {
         print(colored(result.content, .green))
-    }
-}
-
-private func handleIOSScreenshot(driver: IOSDriver, arguments: [String: String]) async {
-    do {
-        let requestedFormat = arguments["format"]?.lowercased()
-        let format: ImageFormat = requestedFormat == "jpeg" ? .jpeg : .png
-        let fileExtension = format == .jpeg ? "jpeg" : "png"
-        let data = try await driver.takeScreenshot(format: format)
-        let outputPath: String
-        if let path = arguments["output"] {
-            outputPath = path
-        } else {
-            let timestamp = Int(Date().timeIntervalSince1970)
-            outputPath = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).\(fileExtension)"
-        }
-        try Data(data.bytes).write(to: URL(fileURLWithPath: outputPath))
-        print(colored("Screenshot saved: \(outputPath)", .green))
-    } catch {
-        print(colored("Screenshot failed: \(error)", .red))
-    }
-}
-
-private func handleAndroidScreenshot(driver: AndroidDriver, arguments: [String: String]) async {
-    do {
-        let data = try await driver.takeScreenshot(format: .png)
-        let outputPath: String
-        if let path = arguments["output"] {
-            outputPath = path
-        } else {
-            let timestamp = Int(Date().timeIntervalSince1970)
-            outputPath = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).png"
-        }
-        try Data(data.bytes).write(to: URL(fileURLWithPath: outputPath))
-        print(colored("Screenshot saved: \(outputPath)", .green))
-    } catch {
-        print(colored("Screenshot failed: \(error)", .red))
     }
 }
 

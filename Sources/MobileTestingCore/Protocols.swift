@@ -53,6 +53,11 @@ public protocol AppManagement: Sendable {
 // MARK: - Screen Capture
 
 public protocol ScreenCapture: Sendable {
+    /// Captures a screenshot of the current screen.
+    ///
+    /// `format` is a request, not a guarantee — drivers may ignore it and capture
+    /// in a different encoding (e.g. Android always produces PNG). Callers must
+    /// consult `ScreenshotData.format` for the encoding actually returned.
     func takeScreenshot(format: ImageFormat) async throws -> ScreenshotData
     func startRecording() async throws -> RecordingSession
     func stopRecording(sessionID: String) async throws -> String
