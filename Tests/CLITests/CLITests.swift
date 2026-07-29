@@ -416,7 +416,7 @@ final class CLITests: XCTestCase {
         )
         try FileManager.default.createDirectory(at: productsDir, withIntermediateDirectories: true)
         FileManager.default.createFile(
-            atPath: productsDir.appendingPathComponent("MobileTestingCompanion_iphonesimulator.xctestrun")
+            atPath: productsDir.appendingPathComponent("AmooCompanion_iphonesimulator.xctestrun")
                 .path,
             contents: Data()
         )
@@ -453,10 +453,10 @@ final class CLITests: XCTestCase {
                 ["xcodegen", "generate", "--spec", companionDir + "/project.yml"],
                 [
                     "xcodebuild",
-                    "-scheme", "MobileTestingCompanion",
+                    "-scheme", "AmooCompanion",
                     "-destination", "platform=iOS Simulator,id=SIM-123",
                     "-derivedDataPath", companionDir + "/build",
-                    "-project", companionDir + "/MobileTestingCompanion.xcodeproj",
+                    "-project", companionDir + "/AmooCompanion.xcodeproj",
                     "build-for-testing"
                 ]
             ]

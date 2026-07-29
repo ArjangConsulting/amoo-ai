@@ -122,8 +122,8 @@ amoo/
 │
 ├── CompanionApps/
 │   ├── iOS/                             # Module 10: iOS companion app (Xcode project)
-│   │   └── MobileTestingCompanion/
-│   │       ├── MobileTestingCompanionUITests/
+│   │   └── AmooCompanion/
+│   │       ├── AmooCompanionUITests/
 │   │       │   ├── CompanionServer.swift      # gRPC server running inside XCUITest
 │   │       │   ├── Handlers/
 │   │       │   │   ├── TouchHandler.swift     # Tap, long press, double tap
@@ -133,7 +133,7 @@ amoo/
 │   │       │   │   ├── QueryHandler.swift     # Element finding
 │   │       │   │   └── AIHandler.swift        # AI-optimized screen context
 │   │       │   └── XCUITestBridge.swift        # Translates commands to XCUITest API calls
-│   │       └── MobileTestingCompanion.xcodeproj
+│   │       └── AmooCompanion.xcodeproj
 │   │
 │   └── Android/                         # Module 11: Android companion app (Gradle project)
 │       └── companion-app/
