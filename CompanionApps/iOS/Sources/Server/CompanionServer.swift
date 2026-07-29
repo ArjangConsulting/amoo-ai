@@ -34,7 +34,7 @@ final class CompanionServer: Sendable {
     /// over USB. Exposing the companion on every interface would let any device
     /// on the network drive XCUITest gestures (taps, types, screenshots).
     func run() async throws {
-        let transport = try HTTP2ServerTransport.Posix(
+        let transport = HTTP2ServerTransport.Posix(
             address: .ipv4(host: "127.0.0.1", port: port),
             transportSecurity: .plaintext
         )
