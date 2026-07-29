@@ -436,9 +436,9 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
             !formFields.isEmpty ? "form_fields=\(formFields.joined(separator: ", "))" : nil,
             !textHighlights.isEmpty ? "visible_text=\(textHighlights.joined(separator: ", "))" : nil,
             "interactable=\(appRelevantInteractables(interactable).count)",
-            "visible_elements=\(elements.filter(\\.isVisible).count)",
+            "visible_elements=\(elements.filter(\.isVisible).count)",
             hierarchy.id.isEmpty ? nil : "root=\(hierarchy.id)"
-        ].compactMap { $0 }
+        ].compactMap(\.self)
 
         return parts.joined(separator: " | ")
     }

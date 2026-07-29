@@ -236,10 +236,10 @@ final class CompanionManager: @unchecked Sendable {
         // Build for testing
         let buildResult = try await XcodeBuild(context: shellContext)
             .trailingArgument("build-for-testing")
-            .option(.scheme("MobileTestingCompanion"))
+            .option(.scheme("AmooCompanion"))
             .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
             .option(.derivedDataPath(config.companionDir + "/build"))
-            .option(.project(config.companionDir + "/MobileTestingCompanion.xcodeproj"))
+            .option(.project(config.companionDir + "/AmooCompanion.xcodeproj"))
             .run()
             .processResult
 
@@ -261,7 +261,7 @@ final class CompanionManager: @unchecked Sendable {
                 .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
                 .trailingArguments([
                     "-only-testing",
-                    "MobileTestingCompanionUITests/CompanionRunner/testRunCompanion",
+                    "AmooCompanionUITests/CompanionRunner/testRunCompanion",
                     "-test-timeouts-enabled", "NO"
                 ])
                 .env("COMPANION_PORT", String(config.port))
@@ -281,7 +281,9 @@ final class CompanionManager: @unchecked Sendable {
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {
-            if await isReachable(host: host, port: port) { return }
+            if await isReachable(host: host, port: port) {
+                return
+            }
             try await Task.sleep(for: .milliseconds(500))
         }
         let logPath = NSTemporaryDirectory() + "companion-launch.log"
