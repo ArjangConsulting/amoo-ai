@@ -68,8 +68,8 @@ Touch four files plus tests:
      `AuditMockDriver` depending on what the tool touches.
    - For end-to-end stdio coverage, extend
      `testMCPStdioServeRespondsWithJSONRPCMessages` — it boots the real `amoo`
-     binary, pipes JSON-RPC `initialize` + `tools/list`, and is the canonical
-     template for stdio assertions.
+     binary, exercises stateless `server/discover` + `tools/list` and the legacy
+     `initialize` flow, and is the canonical template for stdio assertions.
 
 For assistant-facing tools, also add the prose formatter in
 `Sources/MCPServer/AssistantReports.swift` alongside the matching `Codable` report
