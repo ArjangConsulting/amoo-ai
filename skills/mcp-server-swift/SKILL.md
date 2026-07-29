@@ -8,16 +8,20 @@ description: Guide for building MCP (Model Context Protocol) servers in Swift â€
 | Field | Value |
 |-------|-------|
 | Created | 2026-03-04 |
-| Last Updated | 2026-03-05 |
-| MCP Spec | 2025-11-25 |
-| Swift MCP SDK | 0.11.0 (`modelcontextprotocol/swift-sdk`) |
+| Last Updated | 2026-07-29 |
+| MCP Spec | 2026-07-28 (dual-era with 2025-11-25) |
+| Swift MCP SDK | 0.12.1 (`modelcontextprotocol/swift-sdk`) |
 | Swift | 6.0+ |
 | Platforms | macOS 13+, iOS 16+, Linux |
-| Source | [swift-sdk](https://github.com/modelcontextprotocol/swift-sdk), [MCP spec](https://modelcontextprotocol.io/specification/2025-11-25/index.md) |
+| Source | [swift-sdk](https://github.com/modelcontextprotocol/swift-sdk), [MCP spec](https://modelcontextprotocol.io/specification/2026-07-28) |
+
+> The official Swift SDK's latest release is currently 0.12.1 and implements
+> MCP 2025-11-25. Amoo implements the 2026-07-28 stateless stdio wire boundary
+> directly while retaining the SDK for shared MCP value and tool types.
 
 ### Update checklist
 - [ ] Check [swift-sdk releases](https://github.com/modelcontextprotocol/swift-sdk/releases) for new versions
-- [ ] Check [MCP spec changelog](https://modelcontextprotocol.io/specification/2025-11-25/changelog.md) for protocol changes
+- [ ] Check [MCP spec changelog](https://modelcontextprotocol.io/specification/2026-07-28/changelog) for protocol changes
 - [ ] Review [MCP roadmap](https://modelcontextprotocol.io/development/roadmap.md) for upcoming features
 - [ ] Check if new transport types have been added
 - [ ] Verify tool/resource/prompt API signatures haven't changed
