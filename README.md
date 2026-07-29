@@ -64,7 +64,8 @@ swift run amoo mcp serve --platform android --port 22088
 ```
 
 The server speaks JSON-RPC over `stdio` and exits cleanly when the client closes
-stdin.
+stdin. It supports both stateless MCP `2026-07-28` requests and the legacy
+`initialize` flow used by MCP `2025-11-25` clients.
 
 ### Connecting an MCP client
 

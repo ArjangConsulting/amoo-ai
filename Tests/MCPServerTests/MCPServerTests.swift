@@ -212,7 +212,12 @@ final class MCPServerTests: XCTestCase {
             }
         }
 
+        let modernMeta = #""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"amoo-tests","version":"0.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}"#
         let messages = [
+            #"{"jsonrpc":"2.0","id":"discover","method":"server/discover","params":{\#(modernMeta)}}"#,
+            #"{"jsonrpc":"2.0","id":"modern-list","method":"tools/list","params":{\#(modernMeta)}}"#,
+            #"{"jsonrpc":"2.0","id":"modern-call","method":"tools/call","params":{"name":"tap","arguments":{"x":10,"y":20},\#(modernMeta)}}"#,
+            #"{"jsonrpc":"2.0","id":"unsupported","method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1900-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
             #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"amoo-tests","version":"0.0.0"}}}"#,
             #"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
             #"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#
@@ -220,7 +225,13 @@ final class MCPServerTests: XCTestCase {
         try stdin.fileHandleForWriting.write(contentsOf: Data(messages.utf8))
 
         let data = try await waitForStdout(output) { text in
-            text.contains(#""id":1"#) && text.contains(#""id":2"#) && text.contains("describe_screen")
+            text.contains(#""id":"discover""#)
+                && text.contains(#""id":"modern-list""#)
+                && text.contains(#""id":"modern-call""#)
+                && text.contains(#""id":"unsupported""#)
+                && text.contains(#""id":1"#)
+                && text.contains(#""id":2"#)
+                && text.contains("describe_screen")
         }
 
         let stdoutText = String(decoding: data, as: UTF8.self)
@@ -234,6 +245,38 @@ final class MCPServerTests: XCTestCase {
 
         XCTAssertTrue(stdoutText.contains("suggest_test_actions"))
         XCTAssertTrue(errorOutput.data().isEmpty)
+
+        let objects = try lines.compactMap {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]
+        }
+        let discover = try XCTUnwrap(objects.first { $0["id"] as? String == "discover" })
+        let discoverResult = try XCTUnwrap(
+            discover["result"] as? [String: Any],
+            "Unexpected discovery response: \(discover)"
+        )
+        XCTAssertEqual(discoverResult["resultType"] as? String, "complete")
+        let supportedVersions = try XCTUnwrap(discoverResult["supportedVersions"] as? [String])
+        XCTAssertEqual(supportedVersions.first, "2026-07-28")
+        XCTAssertTrue(supportedVersions.contains("2025-11-25"))
+        XCTAssertEqual(discoverResult["ttlMs"] as? Int, 3_600_000)
+
+        let modernList = try XCTUnwrap(objects.first { $0["id"] as? String == "modern-list" })
+        let modernListResult = try XCTUnwrap(modernList["result"] as? [String: Any])
+        XCTAssertEqual(modernListResult["resultType"] as? String, "complete")
+        XCTAssertEqual(modernListResult["cacheScope"] as? String, "public")
+        let modernTools = try XCTUnwrap(modernListResult["tools"] as? [[String: Any]])
+        let modernToolNames = modernTools.compactMap { $0["name"] as? String }
+        XCTAssertEqual(modernToolNames, modernToolNames.sorted())
+
+        let modernCall = try XCTUnwrap(objects.first { $0["id"] as? String == "modern-call" })
+        let modernCallResult = try XCTUnwrap(modernCall["result"] as? [String: Any])
+        XCTAssertEqual(modernCallResult["resultType"] as? String, "complete")
+        XCTAssertEqual(modernCallResult["isError"] as? Bool, true)
+        XCTAssertNotNil(modernCallResult["_meta"] as? [String: Any])
+
+        let unsupported = try XCTUnwrap(objects.first { $0["id"] as? String == "unsupported" })
+        let unsupportedError = try XCTUnwrap(unsupported["error"] as? [String: Any])
+        XCTAssertEqual(unsupportedError["code"] as? Int, -32022)
 
         try stdin.fileHandleForWriting.close()
         let exited = await waitForProcessExit(process, timeoutNanoseconds: 5_000_000_000)
@@ -991,8 +1034,9 @@ private func amooExecutableURL() throws -> URL {
         .deletingLastPathComponent()
         .deletingLastPathComponent()
     let candidates = [
-        packageRoot.appendingPathComponent(".build/arm64-apple-macosx/debug/amoo"),
-        packageRoot.appendingPathComponent(".build/debug/amoo")
+        packageRoot.appendingPathComponent(".build/debug/amoo"),
+        packageRoot.appendingPathComponent(".build/out/Products/Debug/amoo"),
+        packageRoot.appendingPathComponent(".build/arm64-apple-macosx/debug/amoo")
     ]
 
     guard let executableURL = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else {
