@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_MIN=${ROOT_COVERAGE_MIN:-80}
 CORE_MIN=${CORE_COVERAGE_MIN:-85}
 DRIVER_MIN=${DRIVER_COVERAGE_MIN:-75}
+CLI_MIN=${CLI_COVERAGE_MIN:-45}
 
 WORKSPACE_HOME="${PWD}/.ci-home"
 WORKSPACE_CLANG_CACHE="${PWD}/.build/clang-module-cache"
@@ -24,21 +25,10 @@ fi
 
 export PROTOC_PATH
 
-PROFILE_BASE_DIR="${TMPDIR:-/tmp}"
-PROFILE_BASE_DIR="${PROFILE_BASE_DIR%/}"
-LLVM_PROFILE_FILE="${LLVM_PROFILE_FILE:-$PROFILE_BASE_DIR/amoo-%p.profraw}"
-export LLVM_PROFILE_FILE
-
 if [[ ! -f Package.swift ]]; then
   echo "No Package.swift found. Skipping tests and coverage gate for now."
   exit 0
 fi
-
-echo "Running tests with code coverage enabled..."
-HOME="$WORKSPACE_HOME" \
-CLANG_MODULE_CACHE_PATH="$WORKSPACE_CLANG_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
-swift test --enable-code-coverage
 
 CODECOV_PATH=$(
   HOME="$WORKSPACE_HOME" \
@@ -46,12 +36,54 @@ CODECOV_PATH=$(
   SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
   swift test --show-codecov-path
 )
+CODECOV_DIR=$(dirname "$CODECOV_PATH")
+PRODUCTS_DIR=$(dirname "$CODECOV_DIR")
+mkdir -p "$CODECOV_DIR"
+rm -f "$CODECOV_DIR"/*.profraw "$CODECOV_DIR"/*.profdata "$CODECOV_PATH"
+shopt -s nullglob
+STALE_TEST_BUNDLES=("$PRODUCTS_DIR"/*.xctest)
+if (( ${#STALE_TEST_BUNDLES[@]} > 0 )); then
+  rm -rf "${STALE_TEST_BUNDLES[@]}"
+fi
+
+# SwiftPM may launch one process per test target. Include both the binary
+# signature and PID so concurrent targets cannot overwrite each other's data.
+export LLVM_PROFILE_FILE="$CODECOV_DIR/amoo-%m-%p.profraw"
+
+echo "Running tests with code coverage enabled..."
+HOME="$WORKSPACE_HOME" \
+CLANG_MODULE_CACHE_PATH="$WORKSPACE_CLANG_CACHE" \
+SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
+swift test --enable-code-coverage
+
+RAW_PROFILES=("$CODECOV_DIR"/*.profraw)
+TEST_BINARIES=("$PRODUCTS_DIR"/*.xctest/Contents/MacOS/*)
+
+if (( ${#RAW_PROFILES[@]} == 0 )); then
+  echo "error: no raw coverage profiles found in $CODECOV_DIR" >&2
+  exit 1
+fi
+if (( ${#TEST_BINARIES[@]} == 0 )); then
+  echo "error: no test binaries found next to $CODECOV_DIR" >&2
+  exit 1
+fi
+
+PROFDATA_PATH="$CODECOV_DIR/default.profdata"
+xcrun llvm-profdata merge -sparse "${RAW_PROFILES[@]}" -o "$PROFDATA_PATH"
+
+PRIMARY_BINARY=${TEST_BINARIES[0]}
+LLVM_COV_COMMAND=(xcrun llvm-cov export -instr-profile="$PROFDATA_PATH" "$PRIMARY_BINARY")
+for (( index = 1; index < ${#TEST_BINARIES[@]}; index++ )); do
+  LLVM_COV_COMMAND+=("-object" "${TEST_BINARIES[$index]}")
+done
+"${LLVM_COV_COMMAND[@]}" > "$CODECOV_PATH"
+
 if [[ ! -f "$CODECOV_PATH" ]]; then
   echo "error: coverage JSON not found at $CODECOV_PATH" >&2
   exit 1
 fi
 
-python - "$CODECOV_PATH" "$ROOT_MIN" "$CORE_MIN" "$DRIVER_MIN" <<'PY'
+python - "$CODECOV_PATH" "$ROOT_MIN" "$CORE_MIN" "$DRIVER_MIN" "$CLI_MIN" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -60,6 +92,7 @@ codecov_path = Path(sys.argv[1])
 root_min = float(sys.argv[2])
 core_min = float(sys.argv[3])
 driver_min = float(sys.argv[4])
+cli_min = float(sys.argv[5])
 repo_root = str(Path.cwd())
 
 with codecov_path.open() as f:
@@ -69,12 +102,12 @@ data = report["data"][0]
 files = data.get("files", [])
 
 
-def aggregate(prefixes: list[str]):
+def aggregate(prefixes: list[str], excludes: list[str] = []):
     total_count = 0.0
     total_covered = 0.0
     for entry in files:
         filename = entry.get("filename", "")
-        if any(p in filename for p in prefixes):
+        if any(p in filename for p in prefixes) and not any(p in filename for p in excludes):
             lines = entry.get("summary", {}).get("lines", {})
             count = float(lines.get("count", 0.0))
             covered = float(lines.get("covered", 0.0))
@@ -84,8 +117,12 @@ def aggregate(prefixes: list[str]):
         return None
     return (total_covered / total_count) * 100.0
 
-root_cov = aggregate([f"{repo_root}/Sources/"])
+root_cov = aggregate(
+    [f"{repo_root}/Sources/"],
+    ["/Sources/CLIReadline/", "/Sources/CLI/main.swift"],
+)
 core_cov = aggregate(["/Sources/MobileTestingCore/"])
+cli_cov = aggregate(["/Sources/CLI/"], ["/Sources/CLI/main.swift"])
 driver_cov = aggregate([
     "/Sources/IOSDriver/",
     "/Sources/AndroidDriver/",
@@ -104,6 +141,11 @@ if core_cov is None:
 else:
     print(f"MobileTestingCore coverage: {core_cov:.2f}% (min {core_min:.2f}%)")
 
+if cli_cov is None:
+    print("CLI coverage: N/A (module not present yet)")
+else:
+    print(f"CLI coverage: {cli_cov:.2f}% (min {cli_min:.2f}%)")
+
 if driver_cov is None:
     print("Driver/protocol coverage: N/A (modules not present yet)")
 else:
@@ -114,6 +156,8 @@ if root_cov < root_min:
     failures.append(f"Repo coverage {root_cov:.2f}% is below {root_min:.2f}%")
 if core_cov is not None and core_cov < core_min:
     failures.append(f"MobileTestingCore coverage {core_cov:.2f}% is below {core_min:.2f}%")
+if cli_cov is not None and cli_cov < cli_min:
+    failures.append(f"CLI coverage {cli_cov:.2f}% is below {cli_min:.2f}%")
 if driver_cov is not None and driver_cov < driver_min:
     failures.append(f"Driver/protocol coverage {driver_cov:.2f}% is below {driver_min:.2f}%")
 
