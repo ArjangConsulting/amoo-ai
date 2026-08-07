@@ -43,9 +43,14 @@ public protocol USBTunneling: Sendable {
 /// ``USBTunneling`` backed by `iproxy` from libimobiledevice.
 public struct IProxyTunnel: USBTunneling {
     private let context: ShellContext
+    private let readinessTimeoutSeconds: TimeInterval
 
-    public init(context: ShellContext = .init()) {
+    /// - Parameter readinessTimeoutSeconds: How long ``open(deviceUDID:localPort:devicePort:)``
+    ///   waits for the forward to accept connections before giving up. Exposed so tests can
+    ///   exercise the timeout path without stalling.
+    public init(context: ShellContext = .init(), readinessTimeoutSeconds: TimeInterval = 5.0) {
         self.context = context
+        self.readinessTimeoutSeconds = readinessTimeoutSeconds
     }
 
     public func isAvailable() async -> Bool {
@@ -84,13 +89,13 @@ public struct IProxyTunnel: USBTunneling {
 
         // iproxy binds asynchronously; dialing before it listens fails the first
         // connection and surfaces as a spurious "companion unreachable".
-        guard await Self.waitForPort(localPort) else {
+        guard await Self.waitForPort(localPort, timeoutSeconds: readinessTimeoutSeconds) else {
             try? await close(handle)
             throw MobileTestingError.commandFailed(
                 command: "iproxy \(localPort):\(devicePort) -u \(deviceUDID)",
                 output: """
                 Tunnel did not start listening on port \(localPort) within \
-                \(Self.readinessTimeoutSeconds)s.
+                \(readinessTimeoutSeconds)s.
                 Check the device is connected and trusted: xcrun devicectl list devices
                 """
             )
@@ -112,13 +117,12 @@ public struct IProxyTunnel: USBTunneling {
 
     // MARK: - Readiness
 
-    private static let readinessTimeoutSeconds = 5.0
     /// Note: `Duration` unqualified is MobileTestingCore's own type, not Swift's.
     private static let readinessPollInterval = Swift.Duration.milliseconds(100)
 
     /// Polls until something accepts TCP connections on `port`, or the timeout elapses.
-    private static func waitForPort(_ port: Int) async -> Bool {
-        let deadline = Date().addingTimeInterval(readinessTimeoutSeconds)
+    private static func waitForPort(_ port: Int, timeoutSeconds: TimeInterval) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
         while Date() < deadline {
             if canConnect(toPort: port) {
                 return true

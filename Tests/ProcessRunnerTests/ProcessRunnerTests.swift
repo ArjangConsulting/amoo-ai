@@ -265,7 +265,7 @@ final class ProcessRunnerTests: XCTestCase {
     }
 }
 
-private final class MockShellExecutor: @unchecked Sendable {
+final class MockShellExecutor: @unchecked Sendable {
     private let recorder: ShellCommandRecorder
     let context: ShellContext
 
@@ -294,7 +294,7 @@ private final class MockShellExecutor: @unchecked Sendable {
     }
 }
 
-private actor ShellCommandRecorder {
+actor ShellCommandRecorder {
     private var commands: [[String]] = []
     private var results: [ShellOutput]
 
