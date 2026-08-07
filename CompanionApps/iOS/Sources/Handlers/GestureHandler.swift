@@ -14,6 +14,22 @@ final class GestureHandler: @unchecked Sendable {
         )
     }
 
+    func drag(
+        fromX: Double,
+        fromY: Double,
+        toX: Double,
+        toY: Double,
+        durationMs: Int,
+        holdMs: Int
+    ) async {
+        await bridge.drag(
+            fromX: fromX, fromY: fromY,
+            toX: toX, toY: toY,
+            durationSeconds: Double(durationMs) / 1000.0,
+            holdSeconds: Double(holdMs) / 1000.0
+        )
+    }
+
     func scroll(direction: ScrollDirection, distance: Double) async {
         await bridge.scroll(direction: direction, distance: distance)
     }

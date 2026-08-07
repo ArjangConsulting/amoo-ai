@@ -45,6 +45,42 @@ final class XCUITestBridge: @unchecked Sendable {
         start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .default, thenHoldForDuration: 0)
     }
 
+    /// A true drag: dwell at the origin long enough for the target to enter a drag
+    /// state, travel to the destination at a velocity derived from `durationSeconds`,
+    /// then settle briefly before releasing so drop targets register the finish.
+    ///
+    /// The origin dwell is what separates this from ``swipe(fromX:fromY:toX:toY:durationSeconds:)``,
+    /// which uses a fixed 0.05s press purely to start the pan.
+    func drag(
+        fromX: Double,
+        fromY: Double,
+        toX: Double,
+        toY: Double,
+        durationSeconds: TimeInterval,
+        holdSeconds: TimeInterval
+    ) {
+        let start = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: fromX, dy: fromY))
+        let end = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: toX, dy: toY))
+
+        let distance = hypot(toX - fromX, toY - fromY)
+        let velocity: XCUIGestureVelocity = durationSeconds > 0
+            ? XCUIGestureVelocity(rawValue: distance / durationSeconds)
+            : .default
+
+        start.press(
+            forDuration: holdSeconds,
+            thenDragTo: end,
+            withVelocity: velocity,
+            thenHoldForDuration: Self.dropSettleSeconds
+        )
+    }
+
+    /// Brief dwell at the destination before lifting, giving drop targets a chance to
+    /// register the drag finishing over them.
+    private static let dropSettleSeconds: TimeInterval = 0.2
+
     func scroll(direction: ScrollDirection, distance: Double) {
         switch direction {
         case .up:
@@ -67,8 +103,7 @@ final class XCUITestBridge: @unchecked Sendable {
         if id != nil || label != nil || containsText != nil {
             let allElements = collectedElements(in: app)
             for element in allElements
-                where matches(element: element, id: id, label: label, containsText: containsText)
-            {
+                where matches(element: element, id: id, label: label, containsText: containsText) {
                 guard element.exists else { continue }
                 switch direction {
                 case .up: element.swipeUp()
@@ -522,7 +557,7 @@ final class XCUITestBridge: @unchecked Sendable {
             target.links,
             target.images,
             target.switches,
-            target.sliders,
+            target.sliders
         ]
 
         var elements: [XCUIElement] = []
@@ -534,7 +569,7 @@ final class XCUITestBridge: @unchecked Sendable {
                     String(element.elementType.rawValue),
                     element.identifier,
                     element.label,
-                    NSCoder.string(for: element.frame.standardized),
+                    NSCoder.string(for: element.frame.standardized)
                 ].joined(separator: "|")
                 if seen.insert(key).inserted {
                     elements.append(element)

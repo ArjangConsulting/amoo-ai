@@ -181,6 +181,34 @@ final class CompanionProtocolTests: XCTestCase {
         XCTAssertEqual(req?.selector.id, "card-list")
     }
 
+    func testDragSendsHoldDurationSeparatelyFromTravelDuration() async throws {
+        let rpcClient = MockRPCClient()
+        let client = GRPCCompanionClient(
+            connection: .init(host: "localhost", port: 22087),
+            rpcClient: rpcClient
+        )
+
+        try await client.drag(
+            from: Point(x: 10, y: 20),
+            to: Point(x: 110, y: 220),
+            duration: Duration(milliseconds: 400),
+            holdDuration: Duration(milliseconds: 750)
+        )
+
+        let req = await rpcClient.dragRequest
+        XCTAssertEqual(req?.from.x, 10)
+        XCTAssertEqual(req?.to.y, 220)
+        XCTAssertEqual(req?.duration.milliseconds, 400)
+        // The hold is what makes this a drag rather than a swipe — it must survive
+        // the trip across the wire as its own field.
+        XCTAssertTrue(req?.hasHoldDuration ?? false)
+        XCTAssertEqual(req?.holdDuration.milliseconds, 750)
+
+        let calls = await rpcClient.actionCalls
+        XCTAssertTrue(calls.contains("drag"))
+        XCTAssertFalse(calls.contains("swipe"))
+    }
+
     func testLiveFactoryBuildsClient() async throws {
         let client = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: 22087))
         await client.shutdown()
@@ -197,6 +225,7 @@ private actor MockRPCClient: CompanionRPCClient {
     var findElementsRequest: MobileTesting_FindElementsRequest?
     var tapElementRequest: MobileTesting_TapElementRequest?
     var swipeRequest: MobileTesting_SwipeRequest?
+    var dragRequest: MobileTesting_DragRequest?
     var swipeDirectionRequest: MobileTesting_SwipeDirectionRequest?
     var typeTextRequest: MobileTesting_TypeTextRequest?
     var clearTextRequest: MobileTesting_ClearTextRequest?
@@ -259,6 +288,12 @@ private actor MockRPCClient: CompanionRPCClient {
     func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
         swipeRequest = request
         actionCalls.append("swipe")
+        return successResponse()
+    }
+
+    func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
+        dragRequest = request
+        actionCalls.append("drag")
         return successResponse()
     }
 

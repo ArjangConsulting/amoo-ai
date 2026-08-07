@@ -8,4 +8,6 @@ public enum MobileTestingError: Error, Sendable, Equatable {
     case appNotInstalled(appID: String)
     case commandFailed(command: String, output: String)
     case companionNotConnected
+    /// A required external tool is missing. `hint` should tell the user how to install it.
+    case setupRequired(tool: String, hint: String)
 }

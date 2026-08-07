@@ -10,40 +10,76 @@ public actor IOSDriver: PlatformDriver {
     }
 
     private let companion: any CompanionClient
-    private let simctl: any SimctlRunning
+    private let backend: any IOSHostBackend
     private let deviceID: String
     private var activeRecordings: [String: ActiveRecording] = [:] // sessionID → recording
     private var currentAppID: String?
 
+    /// Creates a driver for an iOS *simulator*.
     public init(
         companion: any CompanionClient,
         simctl: any SimctlRunning = SimctlRunner(),
         deviceID: String = "booted"
     ) {
+        self.init(
+            companion: companion,
+            backend: SimulatorHostBackend(simctl: simctl),
+            deviceID: deviceID
+        )
+    }
+
+    /// Creates a driver over an explicit host backend.
+    ///
+    /// Use ``physicalDevice(companion:devicectl:deviceID:)`` for a real device; this
+    /// initializer exists so callers can inject a custom or fake backend.
+    public init(
+        companion: any CompanionClient,
+        backend: any IOSHostBackend,
+        deviceID: String = "booted"
+    ) {
         self.companion = companion
-        self.simctl = simctl
+        self.backend = backend
         self.deviceID = deviceID
+    }
+
+    /// Creates a driver for a *physical* iOS device.
+    ///
+    /// `deviceID` must be a UDID, identifier, or device name that `devicectl` accepts —
+    /// there is no `"booted"` equivalent for real hardware, so it is required.
+    ///
+    /// The companion still has to be reachable: unlike a simulator, a device does not
+    /// share localhost with the host, so open a `USBTunneling` forward first and point
+    /// `companion` at the resulting local port.
+    public static func physicalDevice(
+        companion: any CompanionClient,
+        devicectl: any DeviceCtlRunning = DeviceCtlRunner(),
+        deviceID: String
+    ) -> IOSDriver {
+        IOSDriver(
+            companion: companion,
+            backend: PhysicalDeviceHostBackend(devicectl: devicectl),
+            deviceID: deviceID
+        )
     }
 
     // MARK: - DeviceDriver
 
     public func boot() async throws {
-        try await simctl.bootStatus(device: deviceID)
+        try await backend.boot(device: deviceID)
     }
 
     public func shutdown() async throws {
-        try await simctl.shutdown(device: deviceID)
+        try await backend.shutdown(device: deviceID)
     }
 
     public func deviceInfo() async throws -> DeviceInfo {
-        let json = try await simctl.listDevices()
-        return parseDeviceInfo(json: json, deviceID: deviceID)
+        try await backend.deviceInfo(device: deviceID)
     }
 
     // MARK: - App Management
 
     public func installApp(path: String) async throws {
-        try await simctl.install(device: deviceID, appPath: path)
+        try await backend.installApp(device: deviceID, path: path)
     }
 
     public func launchApp(
@@ -51,7 +87,7 @@ public actor IOSDriver: PlatformDriver {
         arguments: [String] = [],
         environment: [String: String] = [:]
     ) async throws {
-        try await simctl.launch(
+        try await backend.launchApp(
             device: deviceID,
             appID: appID,
             arguments: arguments,
@@ -61,16 +97,15 @@ public actor IOSDriver: PlatformDriver {
     }
 
     public func terminateApp(appID: String) async throws {
-        try await simctl.terminate(device: deviceID, appID: appID)
+        try await backend.terminateApp(device: deviceID, appID: appID)
     }
 
     public func uninstallApp(appID: String) async throws {
-        try await simctl.uninstall(device: deviceID, appID: appID)
+        try await backend.uninstallApp(device: deviceID, appID: appID)
     }
 
     public func listApps() async throws -> [AppInfo] {
-        let output = try await simctl.listApps(device: deviceID)
-        return parseAppList(plistOutput: output)
+        try await backend.listApps(device: deviceID)
     }
 
     public func appState(appID _: String) async throws -> AppState {
@@ -106,12 +141,21 @@ public actor IOSDriver: PlatformDriver {
         try await companion.swipeInDirection(direction, distance: distance, duration: duration, element: nil)
     }
 
-    public func swipe(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws {
+    public func swipe(
+        direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    ) async throws {
         try await companion.swipeInDirection(direction, distance: distance, duration: duration, element: element)
     }
 
     public func scroll(direction: Direction, distance: Double) async throws {
         try await companion.scroll(direction: direction, distance: distance)
+    }
+
+    public func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws {
+        try await companion.drag(from: from, to: to, duration: duration, holdDuration: holdDuration)
     }
 
     // MARK: - Text Actions (delegate to companion)
@@ -136,7 +180,7 @@ public actor IOSDriver: PlatformDriver {
     }
 
     public func openURL(_ url: String) async throws {
-        try await simctl.openURL(device: deviceID, url: url)
+        try await backend.openURL(device: deviceID, url: url)
     }
 
     // MARK: - Screen Capture
@@ -146,9 +190,8 @@ public actor IOSDriver: PlatformDriver {
         do {
             return try await companion.takeScreenshot()
         } catch {
-            // Fall back to simctl if companion doesn't support screenshots
-            let data = try await simctl.screenshot(device: deviceID, format: format)
-            return ScreenshotData(bytes: [UInt8](data), format: format)
+            // Fall back to the host backend if companion doesn't support screenshots
+            return try await backend.screenshot(device: deviceID, format: format)
         }
     }
 
@@ -161,8 +204,10 @@ public actor IOSDriver: PlatformDriver {
         }
 
         let sessionID = UUID().uuidString
-        let outputPath = NSTemporaryDirectory() + "recording_\(sessionID).mov"
-        let pid = try await simctl.startRecording(device: deviceID, outputPath: outputPath)
+        // The container format is backend-specific: simctl writes .mov, devicectl demands .mp4.
+        let outputPath = NSTemporaryDirectory()
+            + "recording_\(sessionID).\(backend.recordingFileExtension)"
+        let pid = try await backend.startRecording(device: deviceID, outputPath: outputPath)
         activeRecordings[sessionID] = ActiveRecording(pid: pid, outputPath: outputPath)
         return RecordingSession(id: sessionID, deviceID: deviceID)
     }
@@ -175,7 +220,7 @@ public actor IOSDriver: PlatformDriver {
             )
         }
 
-        try await simctl.stopRecording(pid: recording.pid)
+        try await backend.stopRecording(pid: recording.pid)
         return recording.outputPath
     }
 
@@ -227,7 +272,9 @@ public actor IOSDriver: PlatformDriver {
                 appID: context.appID,
                 candidateBundleIDs: context.candidateBundleIDs
             )
-            if elements.isEmpty { return }
+            if elements.isEmpty {
+                return
+            }
             try await Task.sleep(for: .milliseconds(100))
         }
         throw MobileTestingError.timeout(operation: "waitForElementToDisappear", duration: timeout)
@@ -240,25 +287,19 @@ public actor IOSDriver: PlatformDriver {
     // MARK: - Configuration
 
     public func setPermission(_ change: PermissionChange) async throws {
-        let action = change.granted ? "grant" : "revoke"
-        try await simctl.setPermission(
-            device: deviceID,
-            action: action,
-            permission: change.permission,
-            appID: change.appID
-        )
+        try await backend.setPermission(device: deviceID, change: change)
     }
 
     public func setLocation(latitude: Double, longitude: Double) async throws {
-        try await simctl.setLocation(device: deviceID, latitude: latitude, longitude: longitude)
+        try await backend.setLocation(device: deviceID, latitude: latitude, longitude: longitude)
     }
 
     public func clearLocation() async throws {
-        try await simctl.clearLocation(device: deviceID)
+        try await backend.clearLocation(device: deviceID)
     }
 
     public func setAppearance(_ appearance: Appearance) async throws {
-        try await simctl.setAppearance(device: deviceID, appearance: appearance)
+        try await backend.setAppearance(device: deviceID, appearance: appearance)
     }
 
     // MARK: - AI Context (delegate to companion)
@@ -276,7 +317,7 @@ public actor IOSDriver: PlatformDriver {
     }
 }
 
-// MARK: - Parsing Helpers
+// MARK: - Helpers
 
 extension IOSDriver {
     private func appQueryContext() async throws -> (appID: String?, candidateBundleIDs: [String]) {
@@ -285,154 +326,5 @@ extension IOSDriver {
         }
 
         return (nil, [])
-    }
-
-    func parseDeviceInfo(json: String, deviceID: String) -> DeviceInfo {
-        // Parse simctl list devices -j output
-        guard let data = json.data(using: .utf8),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let devices = root["devices"] as? [String: [[String: Any]]]
-        else {
-            // JSON parse failed — we genuinely don't know the device state.
-            return DeviceInfo(id: deviceID, name: deviceID, platform: .ios, osVersion: "unknown", state: .unknown)
-        }
-
-        for (runtime, deviceList) in devices {
-            for device in deviceList {
-                let udid = device["udid"] as? String ?? ""
-                let state = device["state"] as? String ?? ""
-                let isMatch = udid == deviceID || (deviceID == "booted" && state == "Booted")
-                if isMatch {
-                    let name = device["name"] as? String ?? deviceID
-                    let osVersion = parseRuntimeVersion(runtime)
-                    let deviceState: DeviceState = state == "Booted" ? .booted : .shutdown
-                    return DeviceInfo(id: udid, name: name, platform: .ios, osVersion: osVersion, state: deviceState)
-                }
-            }
-        }
-
-        // Device not found in the list — we can't claim it's booted.
-        return DeviceInfo(id: deviceID, name: deviceID, platform: .ios, osVersion: "unknown", state: .unknown)
-    }
-
-    /// Strip the `com.apple.CoreSimulator.SimRuntime.<OS>-` prefix and convert the
-    /// remaining `<major>-<minor>` to a dotted version. Handles iOS, watchOS, tvOS,
-    /// and visionOS so callers see clean version strings rather than the raw bundle id.
-    private func parseRuntimeVersion(_ runtime: String) -> String {
-        let prefix = "com.apple.CoreSimulator.SimRuntime."
-        guard runtime.hasPrefix(prefix) else { return runtime }
-        let suffix = runtime.dropFirst(prefix.count)
-        // suffix looks like "iOS-17-2" / "watchOS-10-0" — drop the OS-name segment.
-        guard let dashIndex = suffix.firstIndex(of: "-") else { return String(suffix) }
-        let version = suffix[suffix.index(after: dashIndex)...]
-        return version.replacingOccurrences(of: "-", with: ".")
-    }
-
-    func parseAppList(plistOutput: String) -> [AppInfo] {
-        // simctl listapps returns plist-formatted output; parse bundle IDs
-        guard let data = plistOutput.data(using: .utf8) else { return [] }
-
-        // Try JSON format first (newer simctl versions with -j flag)
-        if let apps = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            return apps.compactMap { dict in
-                guard let bundleID = dict["CFBundleIdentifier"] as? String else { return nil }
-                let name = dict["CFBundleDisplayName"] as? String ?? dict["CFBundleName"] as? String
-                let version = dict["CFBundleShortVersionString"] as? String
-                return AppInfo(appID: bundleID, name: name, version: version)
-            }
-        }
-
-        // Try JSON dictionary format (simctl listapps on newer Xcode returns {bundleID: {info}})
-        if let root = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] {
-            return root.compactMap { (_, dict) in
-                guard let bundleID = dict["CFBundleIdentifier"] as? String else { return nil }
-                let name = dict["CFBundleDisplayName"] as? String ?? dict["CFBundleName"] as? String
-                let version = dict["CFBundleShortVersionString"] as? String
-                return AppInfo(appID: bundleID, name: name, version: version)
-            }
-        }
-
-        // Fallback: old-style property list text format (key = "value";)
-        // Extracts CFBundleIdentifier from lines like: CFBundleIdentifier = "com.example.app";
-        var apps: [AppInfo] = []
-        let lines = plistOutput.components(separatedBy: "\n")
-        var currentBundleID: String?
-        var currentName: String?
-        var currentVersion: String?
-
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-
-            if let value = extractOldPlistValue(trimmed, key: "CFBundleIdentifier") {
-                // If we had a previous bundle ID pending, save it
-                if let bundleID = currentBundleID {
-                    apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
-                }
-                currentBundleID = value
-                currentName = nil
-                currentVersion = nil
-            } else if let value = extractOldPlistValue(trimmed, key: "CFBundleDisplayName") {
-                currentName = value
-            } else if let value = extractOldPlistValue(trimmed, key: "CFBundleName"), currentName == nil {
-                currentName = value
-            } else if let value = extractOldPlistValue(trimmed, key: "CFBundleShortVersionString") {
-                currentVersion = value
-            } else if trimmed == "};" || trimmed == "}" {
-                // End of an app entry
-                if let bundleID = currentBundleID {
-                    apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
-                    currentBundleID = nil
-                    currentName = nil
-                    currentVersion = nil
-                }
-            }
-        }
-        // Capture last entry if not terminated by };
-        if let bundleID = currentBundleID {
-            apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
-        }
-
-        // Fallback: XML plist format with <string> tags
-        if apps.isEmpty {
-            var foundKey = false
-            for line in lines {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.contains("CFBundleIdentifier") {
-                    foundKey = true
-                    continue
-                }
-                if foundKey {
-                    if let start = trimmed.range(of: "<string>"),
-                       let end = trimmed.range(of: "</string>") {
-                        let bundleID = String(trimmed[start.upperBound ..< end.lowerBound])
-                        apps.append(AppInfo(appID: bundleID))
-                    }
-                    foundKey = false
-                }
-            }
-        }
-
-        return apps
-    }
-
-    /// Extracts a value from old-style plist text format: `Key = "value";` or `Key = value;`
-    private func extractOldPlistValue(_ line: String, key: String) -> String? {
-        // Match patterns like:
-        //   CFBundleIdentifier = "com.example.app";
-        //   CFBundleDisplayName = Novalingo;
-        guard line.contains(key) else { return nil }
-        let parts = line.split(separator: "=", maxSplits: 1)
-        guard parts.count == 2 else { return nil }
-        let keyPart = parts[0].trimmingCharacters(in: .whitespaces)
-        guard keyPart == key else { return nil }
-        var value = parts[1].trimmingCharacters(in: .whitespaces)
-        // Remove trailing semicolons
-        if value.hasSuffix(";") { value = String(value.dropLast()) }
-        value = value.trimmingCharacters(in: .whitespaces)
-        // Remove surrounding quotes
-        if value.hasPrefix("\"") && value.hasSuffix("\"") {
-            value = String(value.dropFirst().dropLast())
-        }
-        return value.isEmpty ? nil : value
     }
 }

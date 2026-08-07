@@ -112,12 +112,21 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.swipeInDirection(direction, distance: distance, duration: duration, element: nil)
     }
 
-    public func swipe(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws {
+    public func swipe(
+        direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    ) async throws {
         try await companion.swipeInDirection(direction, distance: distance, duration: duration, element: element)
     }
 
     public func scroll(direction: Direction, distance: Double) async throws {
         try await companion.scroll(direction: direction, distance: distance)
+    }
+
+    public func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws {
+        try await companion.drag(from: from, to: to, duration: duration, holdDuration: holdDuration)
     }
 
     // MARK: - Text Actions (delegate to companion)
@@ -208,7 +217,9 @@ public actor AndroidDriver: PlatformDriver {
         let deadline = Date().addingTimeInterval(Double(timeout.milliseconds) / 1000.0)
         while Date() < deadline {
             let elements = try await companion.findElements(selector)
-            if elements.isEmpty { return }
+            if elements.isEmpty {
+                return
+            }
             try await Task.sleep(for: .milliseconds(100))
         }
         throw MobileTestingError.timeout(operation: "waitForElementToDisappear", duration: timeout)

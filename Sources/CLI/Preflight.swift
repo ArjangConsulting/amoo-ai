@@ -14,6 +14,9 @@ public enum PreflightPlatform: String, Sendable {
 public enum PreflightStatus: String, Sendable {
     case pass = "PASS"
     case fail = "FAIL"
+    /// Something optional is missing. Reported, but does not fail preflight — used for
+    /// tooling only some workflows need, like physical-device support.
+    case warn = "WARN"
 }
 
 public struct PreflightCheck: Sendable, Equatable {
@@ -61,25 +64,7 @@ public struct DefaultPreflightChecker: PreflightChecking {
         var checks: [PreflightCheck] = []
 
         if platform == .all || platform == .iOS {
-            await checks.append(
-                check(
-                    id: "ios.xcode-select",
-                    commandDescription: "xcode-select -p",
-                    remediation: "Install Xcode Command Line Tools and select an active developer directory."
-                ) {
-                    try await XcodeSelect(context: shellContext).printPath().run().processResult
-                }
-            )
-            await checks.append(
-                check(
-                    id: "ios.simctl",
-                    commandDescription: "xcrun simctl list devices available --json",
-                    remediation: "Install Xcode simulator runtimes and ensure `xcrun simctl` is available."
-                ) {
-                    let output = try await SimctlRunner(context: shellContext).listDevices()
-                    return ProcessResult(exitCode: 0, stdout: output, stderr: "")
-                }
-            )
+            await checks.append(contentsOf: iOSChecks())
         }
 
         if platform == .all || platform == .android {
@@ -97,10 +82,68 @@ public struct DefaultPreflightChecker: PreflightChecking {
         return PreflightReport(platform: platform, checks: checks)
     }
 
+    /// Simulator tooling is required; physical-device tooling is opt-in and only warns,
+    /// since most workflows never touch real hardware.
+    private func iOSChecks() async -> [PreflightCheck] {
+        var checks: [PreflightCheck] = []
+
+        await checks.append(
+            check(
+                id: "ios.xcode-select",
+                commandDescription: "xcode-select -p",
+                remediation: "Install Xcode Command Line Tools and select an active developer directory."
+            ) {
+                try await XcodeSelect(context: shellContext).printPath().run().processResult
+            }
+        )
+        await checks.append(
+            check(
+                id: "ios.simctl",
+                commandDescription: "xcrun simctl list devices available --json",
+                remediation: "Install Xcode simulator runtimes and ensure `xcrun simctl` is available."
+            ) {
+                let output = try await SimctlRunner(context: shellContext).listDevices()
+                return ProcessResult(exitCode: 0, stdout: output, stderr: "")
+            }
+        )
+        await checks.append(
+            check(
+                id: "ios.devicectl",
+                commandDescription: "xcrun devicectl list devices --json-output -",
+                remediation: """
+                Needed only for physical iOS devices. Requires Xcode 15 or later; \
+                simulators do not use it.
+                """,
+                failureStatus: .warn
+            ) {
+                let output = try await DeviceCtlRunner(context: shellContext).listDevices()
+                return ProcessResult(exitCode: 0, stdout: output, stderr: "")
+            }
+        )
+        await checks.append(
+            check(
+                id: "ios.iproxy",
+                commandDescription: "which iproxy",
+                remediation: """
+                Needed only for physical iOS devices, to tunnel to the companion over \
+                USB — `devicectl` has no port forwarding of its own.
+                Install with: brew install libimobiledevice
+                (`iproxy` ships in libusbmuxd, which that formula pulls in and links.)
+                """,
+                failureStatus: .warn
+            ) {
+                try await Command("which").args(["iproxy"]).run(in: shellContext).processResult
+            }
+        )
+
+        return checks
+    }
+
     private func check(
         id: String,
         commandDescription: String,
         remediation: String,
+        failureStatus: PreflightStatus = .fail,
         run: () async throws -> ProcessResult
     ) async -> PreflightCheck {
         do {
@@ -117,7 +160,7 @@ public struct DefaultPreflightChecker: PreflightChecking {
             let detail = result.stderr.isEmpty ? result.stdout : result.stderr
             return PreflightCheck(
                 id: id,
-                status: .fail,
+                status: failureStatus,
                 message:
                 "Exit \(result.exitCode): \(detail.trimmingCharacters(in: .whitespacesAndNewlines))",
                 remediation: remediation
@@ -125,7 +168,7 @@ public struct DefaultPreflightChecker: PreflightChecking {
         } catch {
             return PreflightCheck(
                 id: id,
-                status: .fail,
+                status: failureStatus,
                 message: "Execution failed: \(error)",
                 remediation: remediation
             )
@@ -142,12 +185,13 @@ public func renderPreflightReport(_ report: PreflightReport) -> String {
     lines.append("preflight \(statusText) [\(report.platform.rawValue)]")
 
     for check in report.checks {
-        let badge =
-            check.status == .pass
-                ? colored("[PASS]", .green)
-                : colored("[FAIL]", .red)
+        let badge: String = switch check.status {
+        case .pass: colored("[PASS]", .green)
+        case .warn: colored("[WARN]", .yellow)
+        case .fail: colored("[FAIL]", .red)
+        }
         lines.append("\(badge) \(check.id) - \(check.message)")
-        if check.status == .fail {
+        if check.status != .pass {
             lines.append("  \(colored("remediation:", .yellow)) \(check.remediation)")
         }
     }
