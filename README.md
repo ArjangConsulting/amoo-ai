@@ -16,6 +16,36 @@ The high-level design lives in [Instruction.md](Instruction.md) and [Architectur
 - [Tests](Tests): unit and integration tests
 - [scripts](scripts): CI and local helper scripts
 
+## Prerequisites
+
+Amoo depends on these external tools. Only `protoc` is needed for every build; the rest are
+scoped to a platform or target type.
+
+| Dependency | Install | Required for |
+| --- | --- | --- |
+| Xcode + Command Line Tools | App Store / developer.apple.com | Anything iOS |
+| `protoc` | `brew install protobuf` | **All builds** — the gRPC Swift protobuf plugin |
+| `xcodegen` | `brew install xcodegen` | Regenerating the iOS companion project |
+| **`libimobiledevice`** | **`brew install libimobiledevice`** | **Physical iOS devices** — supplies `iproxy`, the USB tunnel to the companion. Not needed for simulators. |
+| JDK 21 | `brew install --cask temurin@21` | Android companion. Newer JDKs (26) fail with a `jlink` error. |
+| Android SDK + platform-tools | Android Studio | Anything Android |
+
+Install everything for iOS work, including physical-device support:
+
+```bash
+brew install protobuf xcodegen libimobiledevice
+```
+
+Then verify:
+
+```bash
+swift run amoo preflight --platform ios
+```
+
+Device-only tooling (`ios.devicectl`, `ios.iproxy`) reports `WARN` rather than `FAIL`, so a
+simulator-only setup still passes preflight. See
+[Physical iOS Devices](#physical-ios-devices) for why `libimobiledevice` is required.
+
 ## Common Commands
 
 From the repo root:
@@ -26,13 +56,53 @@ make lint
 make format
 ```
 
-The gRPC Swift protobuf build plugin needs a `protoc` executable. Install it with
-`brew install protobuf`, then either use the Make targets, which run through
-`scripts/with-protoc.sh`, or export it once in your shell:
+The Make targets route through `scripts/with-protoc.sh` to locate `protoc`. If you invoke
+`swift build` / `swift test` directly instead, export it once in your shell:
 
 ```bash
 export PROTOC_PATH="$(command -v protoc)"
 ```
+
+## Physical iOS Devices
+
+Simulators need no extra tooling. Driving a **physical** iOS device additionally requires
+the `iproxy` binary:
+
+```bash
+brew install libimobiledevice
+```
+
+`iproxy` itself ships in the `libusbmuxd` formula, which `libimobiledevice` pulls in as a
+required dependency and links onto your `PATH` — so the command above is all you need. If
+you want only the tunnel and none of the `idevice*` utilities, `brew install libusbmuxd` is
+a smaller equivalent. Confirm with `which iproxy`.
+
+`iproxy` forwards a port on your Mac to a port on the USB-connected device. It is needed
+because a simulator shares `localhost` with the host — so the companion is directly
+reachable — while a real device does not. Android solves this with the built-in
+`adb forward`; Apple ships no equivalent, as `xcrun devicectl` has no port-forwarding
+command at all. Without `iproxy` there is no route from the host to the companion running
+on the device.
+
+Amoo starts and stops the tunnel itself; you only need the binary installed. Check your
+setup with:
+
+```bash
+swift run amoo preflight --platform ios
+```
+
+`ios.devicectl` and `ios.iproxy` report `WARN` rather than `FAIL` when missing, since
+simulator-only workflows never use them.
+
+Two further requirements for real hardware:
+
+- The device must be paired and trusted — verify with `xcrun devicectl list devices`.
+- The XCUITest companion runner must be signed with a provisioning profile valid for that
+  device. Simulators skip code signing entirely.
+
+One capability is simulator-only: `setPermission`. `simctl privacy` can grant and revoke
+TCC permissions, and `devicectl` has no counterpart, so on a device Amoo fails that call
+explicitly rather than pretending it worked. Grant permissions manually in Settings.
 
 ## MCP For Local AI
 

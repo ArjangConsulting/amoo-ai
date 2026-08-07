@@ -25,14 +25,19 @@ The integration tests then talk to:
 
 - Xcode installed and usable from the command line
 - an iOS simulator runtime installed
+- `protoc` (`brew install protobuf`) for the gRPC Swift build plugin
 - `xcodegen` available if you want the script to rebuild the companion
 - a booted iOS simulator, unless you pass a specific simulator and boot it yourself first
+
+This script is simulator-only, so it does **not** need `libimobiledevice`. Driving a
+physical device through the driver or CLI does — see [Physical Devices](#physical-devices).
 
 Useful checks:
 
 ```bash
 xcodebuild -version
 xcrun simctl list devices available
+swift run amoo preflight --platform ios
 bash scripts/run-e2e.sh --help
 ```
 
@@ -120,19 +125,31 @@ scripts/run-e2e.sh --skip-build
 
 ## Physical Devices
 
-The script detects connected iPhones and iPads, but this repo-root e2e flow is still simulator-only.
+The script detects connected iPhones and iPads, but **this repo-root e2e flow is still
+simulator-only** — it reports physical devices and stops rather than pretending to work.
 
-Why:
+The driver layer itself does support physical devices:
 
-- the integration tests connect to `127.0.0.1:22087`
-- the iOS driver still uses `simctl` for host-side actions
+- `IOSDriver.physicalDevice(companion:devicectl:deviceID:)` drives real hardware through
+  `xcrun devicectl` instead of `simctl`
+- `IProxyTunnel` provides the USB port forward, so the companion is reachable off-localhost
+- `amoo` discovers connected devices alongside simulators and picks the backend automatically
 
-So today the script will report physical devices and stop instead of pretending the flow works on them.
+What is still missing is wiring `scripts/run-e2e.sh` to use them: it hardcodes
+`127.0.0.1:22087` without opening a tunnel first, and `fail_for_physical_targets` rejects
+device targets outright.
 
-If you want true physical-device e2e support, the codebase needs:
+To drive a physical device today, use the driver or CLI directly rather than this script.
+That path requires:
 
-- a non-localhost companion transport strategy
-- host-side iOS control that uses `devicectl` instead of simulator-only `simctl`
+- `brew install libimobiledevice` — supplies `iproxy` (via its `libusbmuxd` dependency).
+  `devicectl` has no port-forwarding command of its own, unlike Android's `adb forward`, so
+  without this there is no route from the host to the companion running on the device.
+- the device paired and trusted — check with `xcrun devicectl list devices`
+- the XCUITest runner signed with a provisioning profile valid for that device
+
+`setPermission` remains simulator-only: `simctl privacy` has no `devicectl` counterpart, so
+on a device that call fails explicitly instead of silently doing nothing.
 
 ## Useful Commands
 

@@ -39,10 +39,40 @@ Greenfield project — no code yet. See `Instruction.md` for the full vision.
 ## Build & Test
 
 ```bash
-# TODO: Fill in as code is written
-# swift build
-# swift test
+swift build
+swift test
+make lint          # swiftformat --lint + swiftlint --strict
+make format
 ```
+
+The companion apps are **not** covered by `swift build` — they build through Xcode and
+Gradle, so verify them separately after changing anything under `CompanionApps/`:
+
+```bash
+make companion-ios-build       # xcodegen + xcodebuild build-for-testing
+make companion-android-build   # gradle assembleDebug assembleAndroidTest
+```
+
+## External Dependencies
+
+| Tool | Install | Needed for |
+| --- | --- | --- |
+| `protoc` | `brew install protobuf` | gRPC Swift protobuf build plugin (all builds) |
+| **JDK 21** | `brew install --cask temurin@21` | Android companion. Newer JDKs (26) fail in `compileDebugJavaWithJavac` with a `jlink` / `core-for-system-modules.jar` error. Set `JAVA_HOME` to the JDK 21 path. |
+| `iproxy` | `brew install libimobiledevice` | **Physical iOS devices only.** USB tunnel to the companion — `devicectl` has no port forwarding, unlike Android's `adb forward`. Simulators don't need it. The binary actually ships in `libusbmuxd`, pulled in and linked as a dependency of `libimobiledevice`. |
+
+`swift run amoo preflight --platform ios` checks these; device-only tooling reports `WARN`
+rather than `FAIL` so simulator-only setups still pass.
+
+## Gotchas
+
+- **Never run a formatter over vendored SPM checkouts.** They live under gitignored
+  `build/SourcePackages/checkouts/`, so reformatting them is invisible to git but silently
+  corrupts the dependency — this previously stripped `: Sendable` conformances out of
+  `grpc-swift-2` and broke the iOS companion build with errors that appeared to originate
+  in the dependency. `.swiftformat` excludes these paths; keep it that way. Recover with
+  `git checkout -- .` inside the affected checkout.
+- `swiftformat` is not idempotent here — run it twice per file to reach a stable result.
 
 ## Conventions
 
