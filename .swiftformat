@@ -12,4 +12,9 @@
 --ifdef no-indent
 --disable wrapMultilineStatementBraces
 
---exclude .build,.swiftpm,DerivedData,CompanionApps/iOS/build,CompanionApps/iOS/GeneratedProtos,CompanionApps/Android/build
+# Never format vendored dependency sources. SPM checkouts live under gitignored build
+# directories, so reformatting them is invisible to git but silently corrupts the
+# dependency — it previously stripped `: Sendable` conformances out of grpc-swift-2 and
+# broke the iOS companion build with errors that appeared to come from the dependency.
+# Globs (not just literal paths) so any derived-data location is covered.
+--exclude .build,.swiftpm,DerivedData,**/DerivedData,**/SourcePackages,**/checkouts,CompanionApps/iOS/build,CompanionApps/iOS/GeneratedProtos,CompanionApps/Android/build
