@@ -42,7 +42,10 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
         return
     }
 
-    let driver = IOSDriver(companion: companion, deviceID: device.udid)
+    // Selection already told us which kind of target this is, so no need to re-query.
+    let driver = device.isPhysicalDevice
+        ? IOSDriver.physicalDevice(companion: companion, deviceID: device.udid)
+        : IOSDriver(companion: companion, deviceID: device.udid)
     let executor = DriverToolExecutor(driver: driver)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
@@ -391,11 +394,11 @@ func test_replBannerStyle(environment: [String: String]) -> String {
 func test_handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) async -> String {
     switch await handleBuiltin(line, toolDefinitions: toolDefinitions) {
     case .handled:
-        return "handled"
+        "handled"
     case .quit:
-        return "quit"
+        "quit"
     case .notHandled:
-        return "notHandled"
+        "notHandled"
     }
 }
 #endif

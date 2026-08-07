@@ -23,7 +23,7 @@ enum ChatCommandParseError: Error, CustomStringConvertible {
 
     var description: String {
         switch self {
-        case let .invalid(msg): return msg
+        case let .invalid(msg): msg
         }
     }
 }
@@ -136,10 +136,9 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
         return CLIResult(output: "Device selection failed: \(error)", exitCode: 1)
     }
 
-    let resolvedDeviceID: String
-    switch device {
-    case let .ios(booted): resolvedDeviceID = booted.udid
-    case let .android(serial, _): resolvedDeviceID = serial
+    let resolvedDeviceID: String = switch device {
+    case let .ios(booted): booted.udid
+    case let .android(serial, _): serial
     }
 
     // 4. Check companion reachability (unless --no-companion)
@@ -154,7 +153,10 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
             print(colored("✗", .red))
             print()
             print(colored("Companion app not running.", .yellow))
-            print("Install and launch companion for \(options.platform == .ios ? "iOS" : "Android")? [Y/n] ", terminator: "")
+            print(
+                "Install and launch companion for \(options.platform == .ios ? "iOS" : "Android")? [Y/n] ",
+                terminator: ""
+            )
             fflush(stdout)
 
             let answer = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "y"
@@ -190,7 +192,7 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
         let companion = try GRPCCompanionClient.makeLive(connection: connection)
         switch options.platform {
         case .ios:
-            driver = IOSDriver(companion: companion, deviceID: resolvedDeviceID)
+            driver = await makeIOSDriver(companion: companion, deviceID: resolvedDeviceID)
         case .android:
             driver = AndroidDriver(companion: companion, serial: resolvedDeviceID)
         }
@@ -209,11 +211,11 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
     let systemPrompt = """
     You are an AI assistant for mobile app testing using the amoo framework.
     You have access to tools that control \(options.platform == .ios ? "iOS" : "Android") devices/simulators.
-    
+
     When the user asks you to perform actions on the device, use the available tools.
     Always explain what you're doing and report results clearly.
     If a tool call fails, explain the error and suggest fixes.
-    
+
     Be concise in your responses. Prefer taking action over asking for clarification when the intent is clear.
     """
 

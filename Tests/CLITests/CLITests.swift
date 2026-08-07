@@ -29,7 +29,8 @@ final class CLITests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("Usage: amoo <command> [options]"))
-        XCTAssertTrue(result.output.contains("Run 'amoo <command>' without enough arguments to see command-specific usage."))
+        XCTAssertTrue(result.output
+            .contains("Run 'amoo <command>' without enough arguments to see command-specific usage."))
     }
 
     func testHelpFlagReturnsGuidance() async {
@@ -122,7 +123,14 @@ final class CLITests: XCTestCase {
     }
 
     func testMCPServeOptionsParsesAndroid() {
-        let parsed = parseMCPServeOptions(args: ["--platform", "android", "--port", "22099", "--device", "emulator-5554"])
+        let parsed = parseMCPServeOptions(args: [
+            "--platform",
+            "android",
+            "--port",
+            "22099",
+            "--device",
+            "emulator-5554"
+        ])
         guard case let .success(options) = parsed else {
             return XCTFail("Expected parser success")
         }
@@ -192,6 +200,48 @@ final class CLITests: XCTestCase {
             ),
             [.ios, .android]
         )
+    }
+
+    func testParseConnectedIOSDevicesOnlyReturnsTunnelledIOSDevices() {
+        let devices = test_parseConnectedIOSDevices(json: """
+        {
+          "result": {
+            "devices": [
+              {
+                "identifier": "ID-1",
+                "deviceProperties": { "name": "Mani's iPhone", "osVersionNumber": "18.2" },
+                "hardwareProperties": { "udid": "UDID-1", "platform": "iOS" },
+                "connectionProperties": { "tunnelState": "connected" }
+              },
+              {
+                "identifier": "ID-2",
+                "deviceProperties": { "name": "Unplugged iPhone", "osVersionNumber": "18.1" },
+                "hardwareProperties": { "udid": "UDID-2", "platform": "iOS" },
+                "connectionProperties": { "tunnelState": "unavailable" }
+              },
+              {
+                "identifier": "ID-3",
+                "deviceProperties": { "name": "Mani's Watch", "osVersionNumber": "11.0" },
+                "hardwareProperties": { "udid": "UDID-3", "platform": "watchOS" },
+                "connectionProperties": { "tunnelState": "connected" }
+              }
+            ]
+          }
+        }
+        """)
+
+        // Unplugged devices can't be driven, and devicectl also reports paired Watches
+        // and Apple TVs — offering either would only fail later.
+        XCTAssertEqual(devices.count, 1)
+        XCTAssertEqual(devices.first?.udid, "UDID-1")
+        XCTAssertEqual(devices.first?.name, "Mani's iPhone")
+        XCTAssertEqual(devices.first?.osVersion, "18.2")
+        XCTAssertTrue(devices.first?.isPhysicalDevice ?? false)
+    }
+
+    func testParseConnectedIOSDevicesSurvivesMalformedJSON() {
+        XCTAssertTrue(test_parseConnectedIOSDevices(json: "not json").isEmpty)
+        XCTAssertTrue(test_parseConnectedIOSDevices(json: #"{"result":{}}"#).isEmpty)
     }
 
     func testParseAvailableIOSSimulatorsIncludesShutdownDevices() {

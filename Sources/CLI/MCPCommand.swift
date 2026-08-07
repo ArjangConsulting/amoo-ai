@@ -109,7 +109,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
         let companion = try GRPCCompanionClient.makeLive(connection: connection)
         let driver: any PlatformDriver = switch options.platform {
         case .ios:
-            IOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
+            await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
         case .android:
             AndroidDriver(companion: companion, serial: options.deviceID)
         }

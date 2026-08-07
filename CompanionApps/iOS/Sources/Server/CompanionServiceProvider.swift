@@ -216,13 +216,24 @@ actor CompanionServiceProvider: MobileTesting_CompanionService.SimpleServiceProt
         request: MobileTesting_DragRequest,
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
-        await gesture.swipe(
+        // `hold_duration` is a message field, so an explicit zero (caller wants no dwell)
+        // is distinguishable from an omitted field (caller has no opinion).
+        let holdMs = request.hasHoldDuration
+            ? Int(request.holdDuration.milliseconds)
+            : Self.defaultDragHoldMilliseconds
+        await gesture.drag(
             fromX: request.from.x, fromY: request.from.y,
             toX: request.to.x, toY: request.to.y,
-            durationMs: Int(request.duration.milliseconds)
+            durationMs: Int(request.duration.milliseconds),
+            holdMs: holdMs
         )
         return successResponse()
     }
+
+    /// Hold applied at the drag origin when the caller doesn't specify one. Matches the
+    /// iOS long-press threshold, so an unqualified drag picks the target up rather than
+    /// degrading into a swipe.
+    private static let defaultDragHoldMilliseconds = 500
 
     // MARK: - Text
 

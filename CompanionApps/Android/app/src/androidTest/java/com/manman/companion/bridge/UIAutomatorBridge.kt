@@ -1,6 +1,9 @@
 package com.manman.companion.bridge
 
 import android.graphics.Rect
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -11,6 +14,14 @@ import androidx.test.uiautomator.UiObject2
  * If UIAutomator APIs change, only this file changes.
  */
 class UIAutomatorBridge {
+    private companion object {
+        /** Gap between injected ACTION_MOVE events during a drag, in milliseconds. */
+        const val MOVE_INTERVAL_MS = 10
+
+        /** Dwell at the destination before lifting, so drop targets see the drag finish. */
+        const val DROP_SETTLE_MS = 200L
+    }
+
     private val instrumentation by lazy(LazyThreadSafetyMode.NONE) {
         InstrumentationRegistry.getInstrumentation()
     }
@@ -33,6 +44,75 @@ class UIAutomatorBridge {
 
     fun swipe(fromX: Int, fromY: Int, toX: Int, toY: Int, steps: Int): Boolean {
         return device.swipe(fromX, fromY, toX, toY, steps)
+    }
+
+    /**
+     * A true drag: press at the origin, hold there long enough for the target to enter a
+     * drag state, travel to the destination, then release.
+     *
+     * UiDevice.swipe/drag can't express the origin dwell — they start moving immediately,
+     * which reads as a fling rather than a drag. So this injects the MotionEvent stream
+     * directly, which is the only way to control the hold.
+     */
+    fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean {
+        val downTime = SystemClock.uptimeMillis()
+
+        if (!injectPointerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, fromX, fromY)) {
+            return false
+        }
+
+        // Dwell at the origin. No events needed — the view's own long-press timer runs
+        // from the DOWN it already received.
+        if (holdMs > 0) {
+            SystemClock.sleep(holdMs.toLong())
+        }
+
+        val steps = (durationMs / MOVE_INTERVAL_MS).coerceAtLeast(1)
+        for (step in 1..steps) {
+            val progress = step.toFloat() / steps
+            val x = fromX + (toX - fromX) * progress
+            val y = fromY + (toY - fromY) * progress
+            val eventTime = SystemClock.uptimeMillis()
+            if (!injectPointerEvent(MotionEvent.ACTION_MOVE, downTime, eventTime, x, y)) {
+                return false
+            }
+            SystemClock.sleep(MOVE_INTERVAL_MS.toLong())
+        }
+
+        // Settle at the destination before lifting so drop targets register the finish.
+        SystemClock.sleep(DROP_SETTLE_MS)
+
+        return injectPointerEvent(
+            MotionEvent.ACTION_UP,
+            downTime,
+            SystemClock.uptimeMillis(),
+            toX,
+            toY
+        )
+    }
+
+    private fun injectPointerEvent(
+        action: Int,
+        downTime: Long,
+        eventTime: Long,
+        x: Number,
+        y: Number
+    ): Boolean {
+        val event = MotionEvent.obtain(
+            downTime,
+            eventTime,
+            action,
+            x.toFloat(),
+            y.toFloat(),
+            0
+        )
+        // Injection is rejected unless the event claims a touchscreen source.
+        event.source = InputDevice.SOURCE_TOUCHSCREEN
+        return try {
+            instrumentation.uiAutomation.injectInputEvent(event, true)
+        } finally {
+            event.recycle()
+        }
     }
 
     fun scroll(direction: Direction, distance: Int): Boolean {

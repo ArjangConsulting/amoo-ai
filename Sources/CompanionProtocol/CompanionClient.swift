@@ -14,8 +14,14 @@ public protocol CompanionClient: Sendable {
 
     // Gestures
     func swipe(from: Point, to: Point, duration: Duration) async throws
-    func swipeInDirection(_ direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws
+    func swipeInDirection(
+        _ direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    ) async throws
     func scroll(direction: Direction, distance: Double) async throws
+    func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws
 
     // Text
     func typeText(_ text: String) async throws
@@ -64,12 +70,21 @@ public extension CompanionClient {
         throw MobileTestingError.notImplemented("pressHome")
     }
 
-    func swipeInDirection(_: Direction, distance _: Double, duration _: Duration, element _: ElementSelector?) async throws {
+    func swipeInDirection(
+        _: Direction,
+        distance _: Double,
+        duration _: Duration,
+        element _: ElementSelector?
+    ) async throws {
         throw MobileTestingError.notImplemented("swipeInDirection")
     }
 
     func scroll(direction _: Direction, distance _: Double) async throws {
         throw MobileTestingError.notImplemented("scroll")
+    }
+
+    func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {
+        throw MobileTestingError.notImplemented("drag")
     }
 
     func clearText(characterCount _: Int?) async throws {

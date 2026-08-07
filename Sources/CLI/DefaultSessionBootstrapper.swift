@@ -60,12 +60,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         }
 
         // Build the platform driver bound to that companion + device.
-        let platformDriver: any PlatformDriver
-        switch available {
+        let platformDriver: any PlatformDriver = switch available {
         case .ios:
-            platformDriver = IOSDriver(companion: companion, deviceID: deviceID)
+            await makeIOSDriver(companion: companion, deviceID: deviceID)
         case .android:
-            platformDriver = AndroidDriver(companion: companion, serial: deviceID)
+            AndroidDriver(companion: companion, serial: deviceID)
         }
 
         // Install the app under test if a build path was supplied.
@@ -155,7 +154,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     private func waitForScreenReady(driver: any PlatformDriver) async {
         let deadline = Date().addingTimeInterval(screenStabilizationTimeoutSeconds)
         while Date() < deadline {
-            if (try? await driver.getScreenContext()) != nil { return }
+            if await (try? driver.getScreenContext()) != nil {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(300))
         }
     }

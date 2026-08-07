@@ -106,9 +106,15 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
         let distance = request.distance > 0 ? Double(request.distance) : 300
-        let duration = request.durationMs > 0 ? Duration(milliseconds: Int(request.durationMs)) : Duration(milliseconds: 400)
+        let duration = request
+            .durationMs > 0 ? Duration(milliseconds: Int(request.durationMs)) : Duration(milliseconds: 400)
         let element: ElementSelector? = request.hasSelector ? request.selector.coreSelector : nil
-        try await companion.swipeInDirection(request.direction.coreDirection, distance: distance, duration: duration, element: element)
+        try await companion.swipeInDirection(
+            request.direction.coreDirection,
+            distance: distance,
+            duration: duration,
+            element: element
+        )
         return actionResponse(success: true)
     }
 
@@ -156,13 +162,27 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
         actionResponse(success: false, message: "pinch not implemented")
     }
 
+    /// Hold applied at the drag origin when the caller doesn't specify one. Matches the
+    /// platform long-press threshold, so an unqualified drag actually picks the target up
+    /// rather than degrading into a swipe.
+    package static let defaultDragHoldMilliseconds = 500
+
     package func drag(
         request: MobileTesting_DragRequest,
         context _: ServerContext
     ) async throws -> MobileTesting_ActionResponse {
-        // Drag is a long press + swipe
         let duration = Duration(milliseconds: Int(request.duration.milliseconds))
-        try await companion.swipe(from: request.from.corePoint, to: request.to.corePoint, duration: duration)
+        // `hold_duration` is a message field, so an explicit zero (caller wants no dwell)
+        // is distinguishable from an omitted field (caller has no opinion).
+        let holdMilliseconds = request.hasHoldDuration
+            ? Int(request.holdDuration.milliseconds)
+            : Self.defaultDragHoldMilliseconds
+        try await companion.drag(
+            from: request.from.corePoint,
+            to: request.to.corePoint,
+            duration: duration,
+            holdDuration: Duration(milliseconds: holdMilliseconds)
+        )
         return actionResponse(success: true)
     }
 
@@ -390,8 +410,12 @@ private extension ViewNode {
         var node = MobileTesting_ViewNode()
         node.id = id
         node.label = label
-        if let value { node.value = value }
-        if let type { node.type = type.rawValue }
+        if let value {
+            node.value = value
+        }
+        if let type {
+            node.type = type.rawValue
+        }
         if let frame {
             var rect = MobileTesting_Rect()
             rect.x = frame.x

@@ -155,7 +155,7 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
 
     let driver: any PlatformDriver = switch options.platform {
     case .ios:
-        IOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
+        await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
     case .android:
         AndroidDriver(companion: companion, serial: options.deviceID)
     }

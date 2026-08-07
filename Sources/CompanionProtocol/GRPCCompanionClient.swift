@@ -24,6 +24,7 @@ package protocol CompanionRPCClient: Sendable {
     func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse
     func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws -> MobileTesting_ActionResponse
     func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse
+    func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse
 
     // Text
     func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse
@@ -116,6 +117,10 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
 
     package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
         try await client.scroll(request)
+    }
+
+    package func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
+        try await client.drag(request)
     }
 
     package func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse {
@@ -253,6 +258,11 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
     }
 
     package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
+        _ = request
+        return successActionResponse()
+    }
+
+    package func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
         _ = request
         return successActionResponse()
     }
@@ -443,6 +453,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         try await client.scroll(request)
     }
 
+    package func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
+        try await client.drag(request)
+    }
+
     package func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse {
         try await client.typeText(request)
     }
@@ -630,6 +644,24 @@ public actor GRPCCompanionClient: CompanionClient {
 
         let response = try await rpcClient.swipe(request)
         try validate(response: response, action: "swipe")
+    }
+
+    /// Presses at `from`, holds for `holdDuration` so the target can register a
+    /// long-press, then moves to `to` over `duration` before releasing. This is
+    /// what distinguishes a drag from a swipe — a swipe never dwells at the origin.
+    public func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws {
+        var request = MobileTesting_DragRequest()
+        request.from = from.protoPoint
+        request.to = to.protoPoint
+        var dur = MobileTesting_Duration()
+        dur.milliseconds = Int32(duration.milliseconds)
+        request.duration = dur
+        var hold = MobileTesting_Duration()
+        hold.milliseconds = Int32(holdDuration.milliseconds)
+        request.holdDuration = hold
+
+        let response = try await rpcClient.drag(request)
+        try validate(response: response, action: "drag")
     }
 
     public func swipeInDirection(

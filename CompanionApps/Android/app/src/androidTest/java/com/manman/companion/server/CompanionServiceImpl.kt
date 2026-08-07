@@ -15,6 +15,7 @@ import mobile.testing.v1.CapabilityTier
 import mobile.testing.v1.ClearTextRequest
 import mobile.testing.v1.CompanionServiceGrpcKt
 import mobile.testing.v1.Direction as ProtoDirection
+import mobile.testing.v1.DragRequest
 import mobile.testing.v1.Empty
 import mobile.testing.v1.EndSessionRequest
 import mobile.testing.v1.EndSessionResponse
@@ -51,6 +52,15 @@ class CompanionServiceImpl(
     private val accessibility: AccessibilityHandler
 ) : CompanionServiceGrpcKt.CompanionServiceCoroutineImplBase() {
 
+    private companion object {
+        /**
+         * Hold applied at the drag origin when the caller doesn't specify one. Matches the
+         * Android long-press threshold, so an unqualified drag picks the target up rather
+         * than degrading into a swipe.
+         */
+        const val DEFAULT_DRAG_HOLD_MS = 500
+    }
+
     private var sessionId: String? = null
     private val bridge = UIAutomatorBridge()
 
@@ -69,6 +79,7 @@ class CompanionServiceImpl(
             capability("action.swipe", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.scroll", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.swipeInDirection", CapabilityTier.CAPABILITY_TIER_REQUIRED),
+            capability("action.drag", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
             capability("action.typeText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.clearText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.tapElement", CapabilityTier.CAPABILITY_TIER_REQUIRED),
@@ -130,6 +141,27 @@ class CompanionServiceImpl(
                 request.duration.milliseconds
             ),
             "swipe failed"
+        )
+    }
+
+    override suspend fun drag(request: DragRequest): ActionResponse {
+        // hold_duration is a message field, so an explicit zero (caller wants no dwell)
+        // is distinguishable from an omitted field (caller has no opinion).
+        val holdMs = if (request.hasHoldDuration()) {
+            request.holdDuration.milliseconds
+        } else {
+            DEFAULT_DRAG_HOLD_MS
+        }
+        return actionResponse(
+            gesture.drag(
+                request.from.x.toInt(),
+                request.from.y.toInt(),
+                request.to.x.toInt(),
+                request.to.y.toInt(),
+                request.duration.milliseconds,
+                holdMs
+            ),
+            "drag failed"
         )
     }
 
