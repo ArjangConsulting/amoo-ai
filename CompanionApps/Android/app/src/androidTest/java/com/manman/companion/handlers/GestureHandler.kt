@@ -10,6 +10,10 @@ class GestureHandler(private val bridge: UIAutomatorBridge) {
         return bridge.swipe(fromX, fromY, toX, toY, steps)
     }
 
+    fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean {
+        return bridge.drag(fromX, fromY, toX, toY, durationMs, holdMs)
+    }
+
     fun scroll(direction: Direction, distance: Int): Boolean {
         return bridge.scroll(direction, distance)
     }

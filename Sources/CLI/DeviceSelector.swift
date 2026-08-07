@@ -9,9 +9,14 @@ struct BootedDevice {
     let udid: String
     let name: String
     let osVersion: String
+    /// Whether this is real hardware rather than a simulator. Determines which host
+    /// toolchain drives it (`devicectl` vs `simctl`) and whether a USB tunnel is needed
+    /// to reach the companion.
+    var isPhysicalDevice: Bool = false
 
     var displayName: String {
-        "\(name) [iOS \(osVersion)] (\(udid))"
+        let kind = isPhysicalDevice ? "device" : "sim"
+        return "\(name) [iOS \(osVersion), \(kind)] (\(udid))"
     }
 }
 
@@ -28,7 +33,9 @@ struct IOSSimulatorDevice: Equatable {
 struct AndroidVirtualDevice: Equatable {
     let name: String
 
-    var displayName: String { name }
+    var displayName: String {
+        name
+    }
 }
 
 /// A cross-platform representation of an available device or emulator/simulator.
@@ -64,15 +71,20 @@ enum DeviceSelectionError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .noBootedSimulators:
-            return """
-            No booted iOS simulator found.
-            Boot one with:
+            """
+            No booted iOS simulator or connected device found.
+            Boot a simulator with:
               open -a Simulator
               xcrun simctl boot "<name-or-udid>"
+            Or connect a physical device and check it is paired and trusted:
+              xcrun devicectl list devices
+            Physical devices also need `iproxy` (brew install libimobiledevice) to reach \
+            the companion, and the XCUITest runner must be signed with a provisioning \
+            profile valid for that device.
             Then re-run amoo.
             """
         case .noDevicesAvailable:
-            return """
+            """
             No iOS simulators or Android emulators/devices found.
             - iOS: open -a Simulator  (or xcrun simctl boot "<name-or-udid>")
             - Android: start an emulator in Android Studio or connect a device
@@ -81,22 +93,22 @@ enum DeviceSelectionError: Error, CustomStringConvertible {
         case let .noLaunchableDevices(platform):
             switch platform {
             case .ios:
-                return """
+                """
                 No available iOS simulators found.
                 Install a simulator runtime in Xcode, then re-run amoo.
                 """
             case .android:
-                return """
+                """
                 No Android virtual devices found.
                 Create one in Android Studio Device Manager, then re-run amoo.
                 """
             }
         case let .invalidSelection(input):
-            return "Invalid selection '\(input)'. Enter a number from the list."
+            "Invalid selection '\(input)'. Enter a number from the list."
         case let .launchFailed(message):
-            return "Failed to launch device: \(message)"
+            "Failed to launch device: \(message)"
         case let .startupTimedOut(message):
-            return message
+            message
         }
     }
 }
@@ -151,9 +163,7 @@ struct DeviceSelector {
     }
 
     func selectDevice(hint: String? = nil) async throws -> BootedDevice {
-        let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
-        let devices = try await SimctlRunner(context: context).listDevices()
-        let booted = parseBootedDevices(json: devices)
+        let booted = await listBootedDevices()
 
         if let hint {
             if let match = booted.first(where: {
@@ -178,10 +188,30 @@ struct DeviceSelector {
         }
     }
 
+    /// Booted simulators plus connected physical devices, since both are drivable targets.
     func listBootedDevices() async -> [BootedDevice] {
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
-        guard let json = try? await SimctlRunner(context: context).listDevices() else { return [] }
-        return parseBootedDevices(json: json)
+        let simulators = await (try? SimctlRunner(context: context).listDevices())
+            .map(parseBootedDevices(json:)) ?? []
+        return await simulators + listPhysicalDevices()
+    }
+
+    /// Physical iOS devices currently connected and paired, via `devicectl`.
+    ///
+    /// Returns empty rather than throwing when `devicectl` is unavailable — an older
+    /// Xcode shouldn't stop simulator workflows from listing.
+    func listPhysicalDevices() async -> [BootedDevice] {
+        let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+        guard let json = try? await DeviceCtlRunner(context: context).listDevices() else { return [] }
+        return parseConnectedIOSDevices(json: json)
+    }
+
+    /// Whether `deviceID` names a connected physical device rather than a simulator.
+    func isPhysicalDevice(deviceID: String) async -> Bool {
+        guard deviceID != "booted" else { return false }
+        return await listPhysicalDevices().contains {
+            $0.udid == deviceID || $0.name.lowercased() == deviceID.lowercased()
+        }
     }
 
     func listAvailableSimulators() async -> [IOSSimulatorDevice] {
@@ -261,7 +291,11 @@ struct PlatformDeviceSelector {
 
         switch all.count {
         case 0:
-            return try await launchInteractiveDevice(platform: platform, iosSelector: iosSelector, androidSelector: androidSelector)
+            return try await launchInteractiveDevice(
+                platform: platform,
+                iosSelector: iosSelector,
+                androidSelector: androidSelector
+            )
         case 1:
             let device = all[0]
             print(colored("Auto-selected:", .cyan) + " \(device.displayName)")
@@ -306,7 +340,7 @@ struct PlatformDeviceSelector {
             let simulator = iosSimulators.count == 1
                 ? iosSimulators[0]
                 : try prompter.selectIOSSimulator(from: iosSimulators)
-            return .ios(try await bootIOSSimulator(simulator, selector: iosSelector))
+            return try await .ios(bootIOSSimulator(simulator, selector: iosSelector))
         case .android:
             guard !androidVirtualDevices.isEmpty else {
                 throw DeviceSelectionError.noLaunchableDevices(.android)
@@ -318,7 +352,10 @@ struct PlatformDeviceSelector {
         }
     }
 
-    private func bootIOSSimulator(_ simulator: IOSSimulatorDevice, selector: DeviceSelector) async throws -> BootedDevice {
+    private func bootIOSSimulator(
+        _ simulator: IOSSimulatorDevice,
+        selector: DeviceSelector
+    ) async throws -> BootedDevice {
         _ = try? await processRunner.run(["open", "-a", "Simulator"])
         let bootResult = try await processRunner.run(["xcrun", "simctl", "boot", simulator.udid])
         guard bootResult.exitCode == 0 else {
@@ -410,6 +447,43 @@ func parseBootedDevices(json: String) -> [BootedDevice] {
         }
     }
     return result.sorted { $0.name < $1.name }
+}
+
+/// Parses `devicectl list devices --json-output` into connected, drivable iOS devices.
+///
+/// Only devices whose tunnel is established are returned — a paired-but-unplugged phone
+/// appears in the list but can't be driven, so offering it would just fail later.
+func parseConnectedIOSDevices(json: String) -> [BootedDevice] {
+    guard let data = json.data(using: .utf8),
+          let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let result = root["result"] as? [String: Any],
+          let devices = result["devices"] as? [[String: Any]]
+    else { return [] }
+
+    var connected: [BootedDevice] = []
+    for device in devices {
+        let properties = device["deviceProperties"] as? [String: Any] ?? [:]
+        let hardware = device["hardwareProperties"] as? [String: Any] ?? [:]
+        let connection = device["connectionProperties"] as? [String: Any] ?? [:]
+
+        guard connection["tunnelState"] as? String == "connected" else { continue }
+        // Only iOS — devicectl also reports paired Watches, Apple TVs, and Macs.
+        guard (hardware["platform"] as? String ?? "iOS") == "iOS" else { continue }
+
+        let identifier = device["identifier"] as? String ?? ""
+        let udid = hardware["udid"] as? String ?? identifier
+        guard !udid.isEmpty else { continue }
+
+        connected.append(
+            BootedDevice(
+                udid: udid,
+                name: properties["name"] as? String ?? udid,
+                osVersion: properties["osVersionNumber"] as? String ?? "unknown",
+                isPhysicalDevice: true
+            )
+        )
+    }
+    return connected.sorted { $0.name < $1.name }
 }
 
 func parseAvailableIOSSimulators(json: String) -> [IOSSimulatorDevice] {
@@ -546,6 +620,10 @@ private func promptSelection<T>(
 #if DEBUG
 func test_parseAvailableIOSSimulators(json: String) -> [IOSSimulatorDevice] {
     parseAvailableIOSSimulators(json: json)
+}
+
+func test_parseConnectedIOSDevices(json: String) -> [BootedDevice] {
+    parseConnectedIOSDevices(json: json)
 }
 
 func test_parseAndroidVirtualDevices(output: String) -> [AndroidVirtualDevice] {
