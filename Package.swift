@@ -125,6 +125,7 @@ let package = Package(
         .testTarget(name: "MCPServerTests", dependencies: ["MCPServer"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
         .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "MobileTestingCore"]),
+        .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),
         .testTarget(
             name: "CLITests",
             dependencies: [

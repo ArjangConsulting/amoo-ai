@@ -1,13 +1,24 @@
 import Foundation
 
+protocol OllamaHTTPTransport: Sendable {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse)
+}
+
+extension URLSession: OllamaHTTPTransport {}
+
 /// HTTP client for Ollama's `/api/chat` endpoint with tool-calling support.
 public actor OllamaClient {
     private let baseURL: URL
-    private let session: URLSession
+    private let transport: any OllamaHTTPTransport
 
     public init(host: String = "127.0.0.1", port: Int = 11434) {
-        self.baseURL = URL(string: "http://\(host):\(port)")!
-        self.session = URLSession(configuration: .default)
+        baseURL = URL(string: "http://\(host):\(port)") ?? URL(fileURLWithPath: "/")
+        transport = URLSession(configuration: .default)
+    }
+
+    init(baseURL: URL, transport: any OllamaHTTPTransport) {
+        self.baseURL = baseURL
+        self.transport = transport
     }
 
     // MARK: - Chat Completion
@@ -36,7 +47,7 @@ public actor OllamaClient {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await transport.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OllamaError.invalidResponse
@@ -57,7 +68,7 @@ public actor OllamaClient {
         var request = URLRequest(url: endpoint)
         request.timeoutInterval = 3
         do {
-            let (_, response) = try await session.data(for: request)
+            let (_, response) = try await transport.data(for: request)
             return (response as? HTTPURLResponse)?.statusCode == 200
         } catch {
             return false
@@ -67,7 +78,7 @@ public actor OllamaClient {
     /// Lists available models.
     public func listModels() async throws -> [String] {
         let endpoint = baseURL.appendingPathComponent("api/tags")
-        let (data, _) = try await session.data(for: URLRequest(url: endpoint))
+        let (data, _) = try await transport.data(for: URLRequest(url: endpoint))
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let models = json["models"] as? [[String: Any]] else {
             return []
