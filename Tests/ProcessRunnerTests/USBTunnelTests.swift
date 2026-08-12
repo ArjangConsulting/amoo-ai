@@ -1,8 +1,8 @@
 #if canImport(Darwin)
 import Darwin
 #endif
+import AmooCore
 import Foundation
-import MobileTestingCore
 import ProcessRunner
 import SwiftyShell
 import XCTest
@@ -38,7 +38,7 @@ final class USBTunnelTests: XCTestCase {
         do {
             _ = try await tunnel.open(deviceUDID: "UDID-1", localPort: 22087, devicePort: 22087)
             XCTFail("Expected open to fail when iproxy is missing")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             guard case let .setupRequired(tool, hint) = error else {
                 return XCTFail("Expected setupRequired, got \(error)")
             }
@@ -82,7 +82,7 @@ final class USBTunnelTests: XCTestCase {
             // a handle that looks valid but routes nowhere.
             _ = try await tunnel.open(deviceUDID: "UDID-1", localPort: unusedPort(), devicePort: 22087)
             XCTFail("Expected open to fail when the tunnel never starts listening")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             guard case let .commandFailed(_, output) = error else {
                 return XCTFail("Expected commandFailed, got \(error)")
             }

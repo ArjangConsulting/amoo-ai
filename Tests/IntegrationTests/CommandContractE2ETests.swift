@@ -1,10 +1,10 @@
+import AmooCore
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
 import Darwin.C
 import IOSDriver
 import MCPServer
-import MobileTestingCore
 import XCTest
 
 final class CommandContractE2ETests: XCTestCase {
@@ -32,7 +32,7 @@ final class CommandContractE2ETests: XCTestCase {
 
     private static var fixtureAppID: String {
         ProcessInfo.processInfo
-            .environment["E2E_APP_ID"] ?? (platform == .ios ? "com.mobiletesting.companion" : "com.manman.companion")
+            .environment["E2E_APP_ID"] ?? (platform == .ios ? "com.amoo.companion" : "com.amoo.companion")
     }
 
     override func setUp() async throws {
@@ -55,7 +55,9 @@ final class CommandContractE2ETests: XCTestCase {
                 return
             } catch {
                 if attempt == attempts - 1 {
-                    throw XCTSkip("Companion is reachable on port \(Self.companionPort) but not ready for gRPC yet: \(error)")
+                    throw XCTSkip(
+                        "Companion is reachable on port \(Self.companionPort) but not ready for gRPC yet: \(error)"
+                    )
                 }
                 try? await Task.sleep(nanoseconds: sleepMilliseconds * 1_000_000)
             }
@@ -103,13 +105,17 @@ final class CommandContractE2ETests: XCTestCase {
 
         if Self.platform == .android {
             primaryArguments = compactArguments(id: id, label: nil, containsText: containsText)
-            fallbackArguments = effectiveLabel == nil ? nil : compactArguments(id: nil, label: effectiveLabel, containsText: containsText)
+            fallbackArguments = effectiveLabel == nil ? nil : compactArguments(
+                id: nil,
+                label: effectiveLabel,
+                containsText: containsText
+            )
         } else {
             primaryArguments = compactArguments(id: id, label: effectiveLabel, containsText: containsText)
             fallbackArguments = nil
         }
 
-        let successNeedles = [id, effectiveLabel, containsText].compactMap { $0 }
+        let successNeedles = [id, effectiveLabel, containsText].compactMap(\.self)
 
         for attempt in 0 ..< attempts {
             let result = await server.execute(toolName: "find_elements", arguments: primaryArguments)
@@ -146,9 +152,11 @@ final class CommandContractE2ETests: XCTestCase {
         readyID: String? = nil,
         readyLabel: String? = nil
     ) async -> ToolResult {
-        let effectiveLauncherLabel = Self.platform == .android ? androidLabelFallback(for: launcherID) ?? launcherLabel : launcherLabel
-        let effectiveReadyLabel = Self.platform == .android ? readyLabel ?? androidLabelFallback(for: readyID) : readyLabel
-        let readyNeedles = [readyID, effectiveReadyLabel].compactMap { $0 }
+        let effectiveLauncherLabel = Self
+            .platform == .android ? androidLabelFallback(for: launcherID) ?? launcherLabel : launcherLabel
+        let effectiveReadyLabel = Self
+            .platform == .android ? readyLabel ?? androidLabelFallback(for: readyID) : readyLabel
+        let readyNeedles = [readyID, effectiveReadyLabel].compactMap(\.self)
 
         func prepareHome() async -> ToolResult {
             await resetFixtureApp(on: server)
@@ -167,7 +175,10 @@ final class CommandContractE2ETests: XCTestCase {
         }
 
         let launcherByID = await server.execute(toolName: "find_elements", arguments: ["id": launcherID])
-        let launcherByLabel = await server.execute(toolName: "find_elements", arguments: ["label": effectiveLauncherLabel])
+        let launcherByLabel = await server.execute(
+            toolName: "find_elements",
+            arguments: ["label": effectiveLauncherLabel]
+        )
 
         let homeReady = await prepareHome()
         guard !homeReady.isError else {
@@ -176,7 +187,10 @@ final class CommandContractE2ETests: XCTestCase {
 
         let openByID = await server.execute(toolName: "tap_element", arguments: ["id": launcherID])
         guard !openByID.isError else {
-            let openByLabel = await server.execute(toolName: "tap_element", arguments: ["label": effectiveLauncherLabel])
+            let openByLabel = await server.execute(
+                toolName: "tap_element",
+                arguments: ["label": effectiveLauncherLabel]
+            )
             guard !openByLabel.isError else {
                 return .error(
                     "Failed to open fixture screen: \(openByLabel.content) | idQuery=\(launcherByID.content) | labelQuery=\(launcherByLabel.content)"
@@ -218,9 +232,15 @@ final class CommandContractE2ETests: XCTestCase {
 
     private func compactArguments(id: String?, label: String?, containsText: String?) -> [String: String] {
         var arguments: [String: String] = [:]
-        if let id { arguments["id"] = id }
-        if let label { arguments["label"] = label }
-        if let containsText { arguments["contains_text"] = containsText }
+        if let id {
+            arguments["id"] = id
+        }
+        if let label {
+            arguments["label"] = label
+        }
+        if let containsText {
+            arguments["contains_text"] = containsText
+        }
         return arguments
     }
 
@@ -241,7 +261,9 @@ final class CommandContractE2ETests: XCTestCase {
 
         let titleResult = await waitForElement(on: server, id: "fixture-home-title")
         guard !titleResult.isError else {
-            throw XCTSkip("Fixture home query is not stable in the current live companion session: \(titleResult.content)")
+            throw XCTSkip(
+                "Fixture home query is not stable in the current live companion session: \(titleResult.content)"
+            )
         }
         XCTAssertFalse(titleResult.isError)
         XCTAssertTrue(
@@ -259,7 +281,7 @@ final class CommandContractE2ETests: XCTestCase {
                 hierarchy.content.contains("Fixture") ||
                 hierarchy.content.contains("com.apple.springboard") ||
                 hierarchy.content.contains("com.android.launcher") ||
-                hierarchy.content.contains("com.manman.companion")
+                hierarchy.content.contains("com.amoo.companion")
         )
 
         let screenContext = await server.execute(toolName: "get_screen_context", arguments: [:])
@@ -501,7 +523,7 @@ final class CommandContractE2ETests: XCTestCase {
         XCTAssertTrue(screenshot.content.contains("bytes"))
     }
 
-    func testAssistantToolCanonicalNames() async throws {
+    func testAssistantToolCanonicalNames() throws {
         throw XCTSkip("Assistant command coverage is currently verified separately from core companion e2e stability")
     }
 

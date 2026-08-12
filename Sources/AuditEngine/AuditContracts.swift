@@ -1,4 +1,4 @@
-import MobileTestingCore
+import AmooCore
 
 public enum AuditDomain: String, Sendable {
     case security

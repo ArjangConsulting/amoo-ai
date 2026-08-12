@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 /// A managed, app-scoped testing session. Holds the driver bound to this
 /// session and records every tool invocation. Closing the session terminates

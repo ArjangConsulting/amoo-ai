@@ -1,3 +1,4 @@
+import AmooCore
 import AndroidDriver
 import CLIReadline
 import CompanionProtocol
@@ -5,7 +6,6 @@ import Darwin
 import Foundation
 import IOSDriver
 import MCPServer
-import MobileTestingCore
 
 // MARK: - REPL entry point
 

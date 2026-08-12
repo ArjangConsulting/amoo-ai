@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "AmooMobileTesting",
+    name: "Amoo",
     platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
-        .library(name: "MobileTestingCore", targets: ["MobileTestingCore"]),
+        .library(name: "AmooCore", targets: ["AmooCore"]),
         .library(name: "Protos", targets: ["Protos"]),
         .library(name: "CompanionProtocol", targets: ["CompanionProtocol"]),
         .library(name: "IOSDriver", targets: ["IOSDriver"]),
@@ -33,7 +33,7 @@ let package = Package(
             path: "Sources/CLIReadline",
             linkerSettings: [.linkedLibrary("edit", .when(platforms: [.macOS]))]
         ),
-        .target(name: "MobileTestingCore"),
+        .target(name: "AmooCore"),
         .target(
             name: "Protos",
             dependencies: [
@@ -49,7 +49,7 @@ let package = Package(
         .target(
             name: "CompanionProtocol",
             dependencies: [
-                "MobileTestingCore",
+                "AmooCore",
                 "Protos",
                 .product(name: "GRPCCore", package: "grpc-swift-2"),
                 .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport")
@@ -58,22 +58,22 @@ let package = Package(
         .target(
             name: "ProcessRunner",
             dependencies: [
-                "MobileTestingCore",
+                "AmooCore",
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "ShipItKit", package: "ShipItSwifty"),
                 .product(name: "GradleKit", package: "ShipItSwifty")
             ]
         ),
-        .target(name: "IOSDriver", dependencies: ["MobileTestingCore", "CompanionProtocol", "ProcessRunner"]),
-        .target(name: "AndroidDriver", dependencies: ["MobileTestingCore", "CompanionProtocol", "ProcessRunner"]),
-        .target(name: "AuditEngine", dependencies: ["MobileTestingCore"]),
-        .target(name: "CommandContract", dependencies: ["MobileTestingCore"]),
-        .target(name: "TestSession", dependencies: ["MobileTestingCore"]),
+        .target(name: "IOSDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
+        .target(name: "AndroidDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
+        .target(name: "AuditEngine", dependencies: ["AmooCore"]),
+        .target(name: "CommandContract", dependencies: ["AmooCore"]),
+        .target(name: "TestSession", dependencies: ["AmooCore"]),
         .target(name: "OllamaClient"),
         .target(
             name: "GRPCService",
             dependencies: [
-                "MobileTestingCore",
+                "AmooCore",
                 "CompanionProtocol",
                 "IOSDriver",
                 "AndroidDriver",
@@ -84,7 +84,7 @@ let package = Package(
         .target(
             name: "MCPServer",
             dependencies: [
-                "MobileTestingCore",
+                "AmooCore",
                 "GRPCService",
                 "AuditEngine",
                 "TestSession",
@@ -95,7 +95,7 @@ let package = Package(
             name: "CLI",
             dependencies: [
                 "CLIReadline",
-                "MobileTestingCore",
+                "AmooCore",
                 "CompanionProtocol",
                 "IOSDriver",
                 "AndroidDriver",
@@ -110,7 +110,7 @@ let package = Package(
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
-        .testTarget(name: "MobileTestingCoreTests", dependencies: ["MobileTestingCore"]),
+        .testTarget(name: "AmooCoreTests", dependencies: ["AmooCore"]),
         .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"]),
         .testTarget(name: "IOSDriverTests", dependencies: ["IOSDriver"]),
         .testTarget(name: "AndroidDriverTests", dependencies: ["AndroidDriver"]),
@@ -124,7 +124,7 @@ let package = Package(
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
         .testTarget(name: "MCPServerTests", dependencies: ["MCPServer"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
-        .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "MobileTestingCore"]),
+        .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),
         .testTarget(
             name: "CLITests",

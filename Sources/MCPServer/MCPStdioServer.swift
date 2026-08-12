@@ -1,6 +1,6 @@
+import AmooCore
 import Foundation
 import MCP
-import MobileTestingCore
 
 public struct MCPStdioServer: Sendable {
     static let modernProtocolVersion = "2026-07-28"

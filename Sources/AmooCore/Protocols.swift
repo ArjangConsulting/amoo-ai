@@ -107,188 +107,193 @@ public protocol PlatformDriver:
 
 public extension TouchActions {
     func tap(at _: Point) async throws {
-        throw MobileTestingError.notImplemented("tap")
+        throw AmooError.notImplemented("tap")
     }
 
     func doubleTap(at _: Point) async throws {
-        throw MobileTestingError.notImplemented("doubleTap")
+        throw AmooError.notImplemented("doubleTap")
     }
 
     func longPress(at _: Point, duration _: Duration) async throws {
-        throw MobileTestingError.notImplemented("longPress")
+        throw AmooError.notImplemented("longPress")
     }
 
     func tapElement(_: ElementSelector) async throws {
-        throw MobileTestingError.notImplemented("tapElement")
+        throw AmooError.notImplemented("tapElement")
     }
 }
 
 public extension GestureActions {
     func swipe(from _: Point, to _: Point, duration _: Duration) async throws {
-        throw MobileTestingError.notImplemented("swipe")
+        throw AmooError.notImplemented("swipe")
     }
 
     func swipe(direction: Direction, distance: Double, duration: Duration) async throws {
         try await swipe(direction: direction, distance: distance, duration: duration, element: nil)
     }
 
-    func swipe(direction _: Direction, distance _: Double, duration _: Duration, element _: ElementSelector?) async throws {
-        throw MobileTestingError.notImplemented("swipe(direction:element:)")
+    func swipe(
+        direction _: Direction,
+        distance _: Double,
+        duration _: Duration,
+        element _: ElementSelector?
+    ) async throws {
+        throw AmooError.notImplemented("swipe(direction:element:)")
     }
 
     func scroll(direction _: Direction, distance _: Double) async throws {
-        throw MobileTestingError.notImplemented("scroll")
+        throw AmooError.notImplemented("scroll")
     }
 
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {
-        throw MobileTestingError.notImplemented("scrollToElement")
+        throw AmooError.notImplemented("scrollToElement")
     }
 
     func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {
-        throw MobileTestingError.notImplemented("pinch")
+        throw AmooError.notImplemented("pinch")
     }
 
     func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {
-        throw MobileTestingError.notImplemented("drag")
+        throw AmooError.notImplemented("drag")
     }
 }
 
 public extension TextActions {
     func typeText(_: String) async throws {
-        throw MobileTestingError.notImplemented("typeText")
+        throw AmooError.notImplemented("typeText")
     }
 
     func clearText(characterCount _: Int?) async throws {
-        throw MobileTestingError.notImplemented("clearText")
+        throw AmooError.notImplemented("clearText")
     }
 
     func setText(_: ElementSelector, text _: String) async throws {
-        throw MobileTestingError.notImplemented("setText")
+        throw AmooError.notImplemented("setText")
     }
 }
 
 public extension NavigationActions {
     func pressBack() async throws {
-        throw MobileTestingError.notImplemented("pressBack")
+        throw AmooError.notImplemented("pressBack")
     }
 
     func pressHome() async throws {
-        throw MobileTestingError.notImplemented("pressHome")
+        throw AmooError.notImplemented("pressHome")
     }
 
     func openURL(_: String) async throws {
-        throw MobileTestingError.notImplemented("openURL")
+        throw AmooError.notImplemented("openURL")
     }
 }
 
 public extension DeviceDriver {
     func boot() async throws {
-        throw MobileTestingError.notImplemented("boot")
+        throw AmooError.notImplemented("boot")
     }
 
     func shutdown() async throws {
-        throw MobileTestingError.notImplemented("shutdown")
+        throw AmooError.notImplemented("shutdown")
     }
 
     func deviceInfo() async throws -> DeviceInfo {
-        throw MobileTestingError.notImplemented("deviceInfo")
+        throw AmooError.notImplemented("deviceInfo")
     }
 }
 
 public extension AppManagement {
     func installApp(path _: String) async throws {
-        throw MobileTestingError.notImplemented("installApp")
+        throw AmooError.notImplemented("installApp")
     }
 
     func launchApp(appID _: String, arguments _: [String], environment _: [String: String]) async throws {
-        throw MobileTestingError.notImplemented("launchApp")
+        throw AmooError.notImplemented("launchApp")
     }
 
     func terminateApp(appID _: String) async throws {
-        throw MobileTestingError.notImplemented("terminateApp")
+        throw AmooError.notImplemented("terminateApp")
     }
 
     func uninstallApp(appID _: String) async throws {
-        throw MobileTestingError.notImplemented("uninstallApp")
+        throw AmooError.notImplemented("uninstallApp")
     }
 
     func listApps() async throws -> [AppInfo] {
-        throw MobileTestingError.notImplemented("listApps")
+        throw AmooError.notImplemented("listApps")
     }
 
     func appState(appID _: String) async throws -> AppState {
-        throw MobileTestingError.notImplemented("appState")
+        throw AmooError.notImplemented("appState")
     }
 }
 
 public extension ScreenCapture {
     func takeScreenshot(format _: ImageFormat) async throws -> ScreenshotData {
-        throw MobileTestingError.notImplemented("takeScreenshot")
+        throw AmooError.notImplemented("takeScreenshot")
     }
 
     func startRecording() async throws -> RecordingSession {
-        throw MobileTestingError.notImplemented("startRecording")
+        throw AmooError.notImplemented("startRecording")
     }
 
     func stopRecording(sessionID _: String) async throws -> String {
-        throw MobileTestingError.notImplemented("stopRecording")
+        throw AmooError.notImplemented("stopRecording")
     }
 }
 
 public extension AccessibilityProvider {
     func findElements(_: ElementSelector) async throws -> [ElementInfo] {
-        throw MobileTestingError.notImplemented("findElements")
+        throw AmooError.notImplemented("findElements")
     }
 
     func getViewHierarchy() async throws -> ViewNode {
-        throw MobileTestingError.notImplemented("getViewHierarchy")
+        throw AmooError.notImplemented("getViewHierarchy")
     }
 
     func elementExists(_: ElementSelector) async throws -> Bool {
-        throw MobileTestingError.notImplemented("elementExists")
+        throw AmooError.notImplemented("elementExists")
     }
 
     func waitForElement(_: ElementSelector, timeout _: Duration) async throws {
-        throw MobileTestingError.notImplemented("waitForElement")
+        throw AmooError.notImplemented("waitForElement")
     }
 
     func waitForElementToDisappear(_: ElementSelector, timeout _: Duration) async throws {
-        throw MobileTestingError.notImplemented("waitForElementToDisappear")
+        throw AmooError.notImplemented("waitForElementToDisappear")
     }
 
     func isKeyboardVisible() async throws -> Bool {
-        throw MobileTestingError.notImplemented("isKeyboardVisible")
+        throw AmooError.notImplemented("isKeyboardVisible")
     }
 }
 
 public extension DeviceConfigurator {
     func setPermission(_: PermissionChange) async throws {
-        throw MobileTestingError.notImplemented("setPermission")
+        throw AmooError.notImplemented("setPermission")
     }
 
     func setLocation(latitude _: Double, longitude _: Double) async throws {
-        throw MobileTestingError.notImplemented("setLocation")
+        throw AmooError.notImplemented("setLocation")
     }
 
     func clearLocation() async throws {
-        throw MobileTestingError.notImplemented("clearLocation")
+        throw AmooError.notImplemented("clearLocation")
     }
 
     func setAppearance(_: Appearance) async throws {
-        throw MobileTestingError.notImplemented("setAppearance")
+        throw AmooError.notImplemented("setAppearance")
     }
 }
 
 public extension AIContextProvider {
     func getScreenContext() async throws -> ScreenContext {
-        throw MobileTestingError.notImplemented("getScreenContext")
+        throw AmooError.notImplemented("getScreenContext")
     }
 
     func getInteractableElements() async throws -> [ElementInfo] {
-        throw MobileTestingError.notImplemented("getInteractableElements")
+        throw AmooError.notImplemented("getInteractableElements")
     }
 
     func findByDescription(_: String) async throws -> [ElementInfo] {
-        throw MobileTestingError.notImplemented("findByDescription")
+        throw AmooError.notImplemented("findByDescription")
     }
 }

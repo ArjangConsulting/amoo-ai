@@ -1,4 +1,4 @@
-import MobileTestingCore
+import AmooCore
 import XCTest
 
 private struct UnimplementedTouch: TouchActions {}
@@ -11,7 +11,7 @@ private struct UnimplementedAccessibility: AccessibilityProvider {}
 private struct UnimplementedConfigurator: DeviceConfigurator {}
 private struct UnimplementedAIContext: AIContextProvider {}
 
-final class MobileTestingCoreTests: XCTestCase {
+final class AmooCoreTests: XCTestCase {
     private func assertNotImplemented(
         _ expected: String,
         file: StaticString = #filePath,
@@ -21,7 +21,7 @@ final class MobileTestingCoreTests: XCTestCase {
         do {
             try await operation()
             XCTFail("Expected notImplemented error", file: file, line: line)
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(error, .notImplemented(expected), file: file, line: line)
         } catch {
             XCTFail("Unexpected error: \(error)", file: file, line: line)
@@ -39,7 +39,7 @@ final class MobileTestingCoreTests: XCTestCase {
         do {
             try await action.tap(at: Point(x: 1, y: 2))
             XCTFail("Expected notImplemented error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(error, .notImplemented("tap"))
         } catch {
             XCTFail("Unexpected error: \(error)")
@@ -67,7 +67,7 @@ final class MobileTestingCoreTests: XCTestCase {
                 duration: Duration(milliseconds: 50)
             )
             XCTFail("Expected notImplemented error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(error, .notImplemented("swipe"))
         } catch {
             XCTFail("Unexpected error: \(error)")
@@ -102,7 +102,7 @@ final class MobileTestingCoreTests: XCTestCase {
         do {
             try await UnimplementedText().typeText("hello")
             XCTFail("Expected notImplemented error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(error, .notImplemented("typeText"))
         } catch {
             XCTFail("Unexpected error: \(error)")
@@ -111,7 +111,7 @@ final class MobileTestingCoreTests: XCTestCase {
         do {
             try await UnimplementedNavigation().pressBack()
             XCTFail("Expected notImplemented error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(error, .notImplemented("pressBack"))
         } catch {
             XCTFail("Unexpected error: \(error)")

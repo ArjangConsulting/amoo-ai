@@ -1,6 +1,6 @@
+import AmooCore
 import AuditEngine
 import MCPServer
-import MobileTestingCore
 
 public struct CLIResult: Sendable, Equatable {
     public var output: String

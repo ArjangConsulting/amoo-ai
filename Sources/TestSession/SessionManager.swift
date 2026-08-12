@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 /// Owns active sessions and bootstraps new ones. Created once per MCP server.
 public actor SessionManager: Sendable {

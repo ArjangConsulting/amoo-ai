@@ -1,8 +1,8 @@
+import AmooCore
 import AuditEngine
 import CompanionProtocol
 import GRPCCore
 import GRPCService
-import MobileTestingCore
 import Protos
 import XCTest
 
@@ -34,27 +34,27 @@ final class GRPCServiceTests: XCTestCase {
         let handler = CompanionServiceHandler(companion: companion, screenshotProvider: screenshots)
         let context = makeContext()
 
-        var startRequest = MobileTesting_StartSessionRequest()
+        var startRequest = Amoo_StartSessionRequest()
         startRequest.requestedSessionID = "test-session"
         let startResponse = try await handler.startSession(request: startRequest, context: context)
         XCTAssertEqual(startResponse.sessionID, "test-session")
 
         let capabilityResponse = try await handler.getCapabilities(
-            request: MobileTesting_CapabilitiesRequest(),
+            request: Amoo_CapabilitiesRequest(),
             context: context
         )
         XCTAssertEqual(capabilityResponse.capabilities.first?.key, "action.tap")
 
-        var tapRequest = MobileTesting_TapRequest()
-        var point = MobileTesting_Point()
+        var tapRequest = Amoo_TapRequest()
+        var point = Amoo_Point()
         point.x = 10
         point.y = 20
         tapRequest.point = point
         let tapResponse = try await handler.tap(request: tapRequest, context: context)
         XCTAssertTrue(tapResponse.success)
 
-        var findRequest = MobileTesting_FindElementsRequest()
-        findRequest.selector = MobileTesting_ElementSelector()
+        var findRequest = Amoo_FindElementsRequest()
+        findRequest.selector = Amoo_ElementSelector()
         findRequest.selector.id = "login"
         findRequest.appID = "com.example.login"
         findRequest.candidateBundleIds = ["com.example.login", "com.apple.springboard"]
@@ -64,7 +64,7 @@ final class GRPCServiceTests: XCTestCase {
         XCTAssertEqual(findContext?.appID, "com.example.login")
         XCTAssertEqual(findContext?.candidateBundleIDs, ["com.example.login", "com.apple.springboard"])
 
-        var tapElementRequest = MobileTesting_TapElementRequest()
+        var tapElementRequest = Amoo_TapElementRequest()
         tapElementRequest.selector.label = "Continue"
         tapElementRequest.appID = "com.example.login"
         tapElementRequest.candidateBundleIds = ["com.example.login"]
@@ -75,25 +75,25 @@ final class GRPCServiceTests: XCTestCase {
         XCTAssertEqual(tapContext?.candidateBundleIDs, ["com.example.login"])
 
         let hierarchyResponse = try await handler.getViewHierarchy(
-            request: MobileTesting_ViewHierarchyRequest(),
+            request: Amoo_ViewHierarchyRequest(),
             context: context
         )
         XCTAssertEqual(hierarchyResponse.root.id, "root")
 
         let screenContextResponse = try await handler.getScreenContext(
-            request: MobileTesting_ScreenContextRequest(),
+            request: Amoo_ScreenContextRequest(),
             context: context
         )
         XCTAssertEqual(screenContextResponse.summary, "Mock screen context")
 
         let screenshotResponse = try await handler.takeScreenshot(
-            request: MobileTesting_ScreenshotRequest(),
+            request: Amoo_ScreenshotRequest(),
             context: context
         )
         XCTAssertEqual(Array(screenshotResponse.data), [1, 2, 3])
 
         let endResponse = try await handler.endSession(
-            request: MobileTesting_EndSessionRequest(),
+            request: Amoo_EndSessionRequest(),
             context: context
         )
         XCTAssertTrue(endResponse.ended)
@@ -105,31 +105,31 @@ final class GRPCServiceTests: XCTestCase {
         let context = makeContext()
 
         // DoubleTap
-        var doubleTapReq = MobileTesting_TapRequest()
-        doubleTapReq.point = MobileTesting_Point()
+        var doubleTapReq = Amoo_TapRequest()
+        doubleTapReq.point = Amoo_Point()
         doubleTapReq.point.x = 5
         doubleTapReq.point.y = 10
         let doubleTapResp = try await handler.doubleTap(request: doubleTapReq, context: context)
         XCTAssertTrue(doubleTapResp.success)
 
         // Scroll
-        var scrollReq = MobileTesting_ScrollRequest()
+        var scrollReq = Amoo_ScrollRequest()
         scrollReq.direction = .down
         scrollReq.distance = 300
         let scrollResp = try await handler.scroll(request: scrollReq, context: context)
         XCTAssertTrue(scrollResp.success)
 
         // ClearText
-        var clearReq = MobileTesting_ClearTextRequest()
+        var clearReq = Amoo_ClearTextRequest()
         clearReq.characterCount = 5
         let clearResp = try await handler.clearText(request: clearReq, context: context)
         XCTAssertTrue(clearResp.success)
 
         // IsKeyboardVisible
-        let kbResp = try await handler.isKeyboardVisible(request: MobileTesting_Empty(), context: context)
+        let kbResp = try await handler.isKeyboardVisible(request: Amoo_Empty(), context: context)
         XCTAssertFalse(kbResp.visible)
 
-        var waitReq = MobileTesting_WaitForElementRequest()
+        var waitReq = Amoo_WaitForElementRequest()
         waitReq.selector.label = "Welcome"
         waitReq.appID = "com.example.fixture"
         waitReq.candidateBundleIds = ["com.example.fixture"]
@@ -146,49 +146,49 @@ final class GRPCServiceTests: XCTestCase {
         let handler = HostDeviceServiceHandler(controller: controller)
         let context = makeContext()
 
-        var installRequest = MobileTesting_InstallAppRequest()
+        var installRequest = Amoo_InstallAppRequest()
         installRequest.path = "/tmp/app.apk"
         let installResponse = try await handler.installApp(request: installRequest, context: context)
         XCTAssertTrue(installResponse.success)
 
-        var launchRequest = MobileTesting_LaunchAppRequest()
+        var launchRequest = Amoo_LaunchAppRequest()
         launchRequest.appID = "com.example.app"
         launchRequest.arguments = ["--uitest"]
         let launchResponse = try await handler.launchApp(request: launchRequest, context: context)
         XCTAssertTrue(launchResponse.success)
 
-        var terminateRequest = MobileTesting_TerminateAppRequest()
+        var terminateRequest = Amoo_TerminateAppRequest()
         terminateRequest.appID = "com.example.app"
         let terminateResponse = try await handler.terminateApp(request: terminateRequest, context: context)
         XCTAssertTrue(terminateResponse.success)
 
-        var uninstallRequest = MobileTesting_UninstallAppRequest()
+        var uninstallRequest = Amoo_UninstallAppRequest()
         uninstallRequest.appID = "com.example.app"
         let uninstallResponse = try await handler.uninstallApp(request: uninstallRequest, context: context)
         XCTAssertTrue(uninstallResponse.success)
 
-        var permissionRequest = MobileTesting_SetPermissionRequest()
+        var permissionRequest = Amoo_SetPermissionRequest()
         permissionRequest.appID = "com.example.app"
         permissionRequest.permission = "camera"
         permissionRequest.granted = true
         let permissionResponse = try await handler.setPermission(request: permissionRequest, context: context)
         XCTAssertTrue(permissionResponse.success)
 
-        var locationRequest = MobileTesting_SetLocationRequest()
+        var locationRequest = Amoo_SetLocationRequest()
         locationRequest.latitude = 37.77
         locationRequest.longitude = -122.42
         let locationResponse = try await handler.setLocation(request: locationRequest, context: context)
         XCTAssertTrue(locationResponse.success)
 
-        let clearLocResponse = try await handler.clearLocation(request: MobileTesting_Empty(), context: context)
+        let clearLocResponse = try await handler.clearLocation(request: Amoo_Empty(), context: context)
         XCTAssertTrue(clearLocResponse.success)
 
-        var appearanceRequest = MobileTesting_SetAppearanceRequest()
+        var appearanceRequest = Amoo_SetAppearanceRequest()
         appearanceRequest.appearance = "dark"
         let appearanceResponse = try await handler.setAppearance(request: appearanceRequest, context: context)
         XCTAssertTrue(appearanceResponse.success)
 
-        var urlRequest = MobileTesting_OpenURLRequest()
+        var urlRequest = Amoo_OpenURLRequest()
         urlRequest.url = "myapp://test"
         let urlResponse = try await handler.openURL(request: urlRequest, context: context)
         XCTAssertTrue(urlResponse.success)

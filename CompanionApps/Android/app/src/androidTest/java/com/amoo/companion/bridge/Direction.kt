@@ -1,4 +1,4 @@
-package com.manman.companion.bridge
+package com.amoo.companion.bridge
 
 enum class Direction {
     UP,

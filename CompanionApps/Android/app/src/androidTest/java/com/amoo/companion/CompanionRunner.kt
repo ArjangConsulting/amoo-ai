@@ -1,8 +1,8 @@
-package com.manman.companion
+package com.amoo.companion
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.manman.companion.bridge.UIAutomatorBridge
-import com.manman.companion.server.CompanionServer
+import com.amoo.companion.bridge.UIAutomatorBridge
+import com.amoo.companion.server.CompanionServer
 import org.junit.Test
 import org.junit.runner.RunWith
 

@@ -40,7 +40,7 @@ Use this skill when:
 Use these conventions in this repository:
 
 - Keep proto contracts in top-level `Protos/` with a dedicated SwiftPM target named `Protos` (path-based target).
-- Use package `mobile.testing.v1` and `option swift_prefix = "MobileTesting_"`.
+- Use package `amoo.v1` and `option swift_prefix = "Amoo_"`.
 - Split contracts by domain files:
   - `actions.proto` (companion interaction/session RPCs)
   - `accessibility.proto` (tree/query/wait RPCs)

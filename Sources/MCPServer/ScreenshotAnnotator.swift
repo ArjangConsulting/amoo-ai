@@ -1,14 +1,14 @@
+import AmooCore
 import CoreGraphics
 import Foundation
 import ImageIO
-import MobileTestingCore
 
 enum ScreenshotAnnotator {
-    // Colors keyed by issue prefix
+    /// Colors keyed by issue prefix
     private static let issueColors: [(prefix: String, color: (CGFloat, CGFloat, CGFloat))] = [
-        ("missing_label", (1.0, 0.22, 0.22)),   // red
-        ("generic_label", (1.0, 0.60, 0.00)),   // orange
-        ("duplicate_label", (1.0, 0.85, 0.00)), // yellow
+        ("missing_label", (1.0, 0.22, 0.22)), // red
+        ("generic_label", (1.0, 0.60, 0.00)), // orange
+        ("duplicate_label", (1.0, 0.85, 0.00)) // yellow
     ]
 
     static func annotate(pngData: Data, issues: [ElementA11yIssue], viewportWidth: Double) -> Data? {
@@ -67,7 +67,8 @@ enum ScreenshotAnnotator {
         guard let annotatedImage = context.makeImage() else { return nil }
 
         let output = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(output, "public.png" as CFString, 1, nil) else { return nil }
+        guard let destination = CGImageDestinationCreateWithData(output, "public.png" as CFString, 1, nil)
+        else { return nil }
         CGImageDestinationAddImage(destination, annotatedImage, nil)
         guard CGImageDestinationFinalize(destination) else { return nil }
 

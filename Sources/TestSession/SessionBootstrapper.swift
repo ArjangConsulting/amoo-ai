@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 /// Produces fully configured drivers for new sessions. Implemented in the CLI
 /// layer so the MCP server stays decoupled from the build toolchain.

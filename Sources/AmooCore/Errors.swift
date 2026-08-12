@@ -1,6 +1,6 @@
 import Foundation
 
-public enum MobileTestingError: Error, Sendable, Equatable {
+public enum AmooError: Error, Sendable, Equatable {
     case notImplemented(String)
     case unsupportedCapability(key: String, reason: String)
     case timeout(operation: String, duration: Duration)

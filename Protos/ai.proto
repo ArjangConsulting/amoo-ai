@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package mobile.testing.v1;
+package amoo.v1;
 
-option swift_prefix = "MobileTesting_";
+option swift_prefix = "Amoo_";
 option java_multiple_files = true;
-option java_package = "mobile.testing.v1";
+option java_package = "amoo.v1";
 
 import "common.proto";
 

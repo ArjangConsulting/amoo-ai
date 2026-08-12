@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 import ProcessRunner
 
 /// ``IOSHostBackend`` for iOS *simulators*, driven by `xcrun simctl`.

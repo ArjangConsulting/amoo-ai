@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 public struct SuggestedTestAction: Sendable, Equatable, Codable {
     public var priority: Int
@@ -151,7 +151,9 @@ func formatScreenDescription(
         .compactMap(interactableElementSummary)
 
     var lines: [String] = []
-    lines.append(context.screenTitle.flatMap { $0.isEmpty ? nil : "Screen title: \($0)" } ?? "Screen summary: \(context.summary)")
+    lines
+        .append(context.screenTitle
+            .flatMap { $0.isEmpty ? nil : "Screen title: \($0)" } ?? "Screen summary: \(context.summary)")
 
     if context.screenTitle?.isEmpty != false, !context.summary.isEmpty {
         lines.append("Context: \(context.summary)")
@@ -221,10 +223,17 @@ func deterministicSuggestionReport(for request: TestActionSuggestionRequest) -> 
     }
 
     let paddedActions = padSuggestedActions(actions, using: request)
-    let confidence = testabilityConfidence(diagnostics: request.diagnostics, interactableCount: request.interactableElements.count)
+    let confidence = testabilityConfidence(
+        diagnostics: request.diagnostics,
+        interactableCount: request.interactableElements.count
+    )
     let screenIntent = inferScreenIntent(from: request)
-    let accessibilityIssues = request.diagnostics.isEmpty ? ["No major accessibility issues detected from the current tree."] : request.diagnostics
-    let feedback = request.developerFeedback.isEmpty ? ["Add clear, unique accessibility labels to primary actions and form fields to improve AI guidance."] : request.developerFeedback
+    let accessibilityIssues = request.diagnostics
+        .isEmpty ? ["No major accessibility issues detected from the current tree."] : request.diagnostics
+    let feedback = request.developerFeedback
+        .isEmpty ?
+        ["Add clear, unique accessibility labels to primary actions and form fields to improve AI guidance."] : request
+        .developerFeedback
 
     return TestActionSuggestionReport(
         screenIntent: screenIntent,
@@ -245,7 +254,10 @@ func testabilityConfidence(diagnostics: [String], interactableCount: Int) -> Str
     return "low"
 }
 
-private func padSuggestedActions(_ actions: [SuggestedTestAction], using request: TestActionSuggestionRequest) -> [SuggestedTestAction] {
+private func padSuggestedActions(
+    _ actions: [SuggestedTestAction],
+    using request: TestActionSuggestionRequest
+) -> [SuggestedTestAction] {
     var padded = actions
 
     if padded.isEmpty {
@@ -260,16 +272,15 @@ private func padSuggestedActions(_ actions: [SuggestedTestAction], using request
 
     while padded.count < 3 {
         let priority = padded.count + 1
-        let fallbackAction: SuggestedTestAction
-        switch priority {
+        let fallbackAction = switch priority {
         case 2:
-            fallbackAction = SuggestedTestAction(
+            SuggestedTestAction(
                 priority: priority,
                 action: "Validate the main path with an alternate or invalid input",
                 reason: "High-value flows should cover validation and error handling, not just the happy path."
             )
         default:
-            fallbackAction = SuggestedTestAction(
+            SuggestedTestAction(
                 priority: priority,
                 action: "Improve accessibility labels for the visible controls",
                 reason: request.developerFeedback.first ?? "Better labels and identifiers will make future suggestions more accurate."
@@ -305,15 +316,15 @@ private func deterministicAction(for element: ElementInfo, fallbackIndex: Int) -
 private func deterministicReason(for element: ElementInfo) -> String {
     switch element.type {
     case .textField:
-        return "Form fields usually gate the main task and are a common source of validation regressions."
+        "Form fields usually gate the main task and are a common source of validation regressions."
     case .button:
-        return "Primary buttons often control the critical user flow and should be exercised first."
+        "Primary buttons often control the critical user flow and should be exercised first."
     case .cell, .table, .collectionView:
-        return "Lists and cells usually represent navigation entry points or important content transitions."
+        "Lists and cells usually represent navigation entry points or important content transitions."
     case .switchControl, .slider, .picker:
-        return "Stateful controls should be tested for value changes, persistence, and side effects."
+        "Stateful controls should be tested for value changes, persistence, and side effects."
     default:
-        return "This control is currently exposed as interactable and likely contributes to the visible task flow."
+        "This control is currently exposed as interactable and likely contributes to the visible task flow."
     }
 }
 
@@ -331,5 +342,6 @@ private func inferScreenIntent(from request: TestActionSuggestionRequest) -> Str
         return "Screen appears focused on \(labels.joined(separator: ", "))."
     }
 
-    return request.context.summary.isEmpty ? "Screen intent is unclear from the current accessibility tree." : request.context.summary
+    return request.context.summary.isEmpty ? "Screen intent is unclear from the current accessibility tree." : request
+        .context.summary
 }

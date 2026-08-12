@@ -1,4 +1,4 @@
-package com.manman.companion.bridge
+package com.amoo.companion.bridge
 
 data class ElementSnapshot(
     val id: String,

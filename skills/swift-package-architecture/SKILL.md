@@ -45,14 +45,14 @@ Current package conventions in this repository:
   - Attach `GRPCProtobufGenerator` plugin to `Protos`.
   - Runtime deps for generated code: `GRPCCore`, `GRPCProtobuf`.
 - Target layering:
-  - `MobileTestingCore` is dependency root.
+  - `AmooCore` is dependency root.
   - `CompanionProtocol` and `GRPCService` depend on `Protos`.
   - Drivers depend on core + companion protocol + process runner.
   - CLI depends on MCP + drivers + audit engine.
 - CI quality gates are mandatory:
   - `swiftformat --lint`
   - `swiftlint --strict --no-cache`
-  - coverage thresholds (`MobileTestingCore >= 85%`, driver/protocol >= 75%, repo >= 80%).
+  - coverage thresholds (`AmooCore >= 85%`, driver/protocol >= 75%, repo >= 80%).
 
 ## Package.swift Fundamentals
 
@@ -152,11 +152,11 @@ This is the core pattern for cross-platform code with platform-specific implemen
 import PackageDescription
 
 let package = Package(
-    name: "MobileTestingFramework",
+    name: "AmooFramework",
     platforms: [.macOS(.v15), .iOS(.v17)],
     products: [
         // Public API that consumers depend on
-        .library(name: "MobileTestingCore", targets: ["MobileTestingCore"]),
+        .library(name: "AmooCore", targets: ["AmooCore"]),
 
         // Platform-specific drivers
         .library(name: "IOSDriver", targets: ["IOSDriver"]),
@@ -175,7 +175,7 @@ let package = Package(
     targets: [
         // ── Core Interface ──────────────────────────
         .target(
-            name: "MobileTestingCore",
+            name: "AmooCore",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
             ]
@@ -184,18 +184,18 @@ let package = Package(
         // ── Platform Drivers ────────────────────────
         .target(
             name: "IOSDriver",
-            dependencies: ["MobileTestingCore"]
+            dependencies: ["AmooCore"]
         ),
         .target(
             name: "AndroidDriver",
-            dependencies: ["MobileTestingCore"]
+            dependencies: ["AmooCore"]
         ),
 
         // ── gRPC Service Layer ──────────────────────
         .target(
             name: "GRPCService",
             dependencies: [
-                "MobileTestingCore",
+                "AmooCore",
                 .product(name: "GRPCCore", package: "grpc-swift-2"),
                 .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
                 .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf"),
@@ -209,7 +209,7 @@ let package = Package(
         .executableTarget(
             name: "CLI",
             dependencies: [
-                "MobileTestingCore",
+                "AmooCore",
                 "IOSDriver",
                 "AndroidDriver",
                 "GRPCService",
@@ -219,16 +219,16 @@ let package = Package(
 
         // ── Tests ───────────────────────────────────
         .testTarget(
-            name: "MobileTestingCoreTests",
-            dependencies: ["MobileTestingCore"]
+            name: "AmooCoreTests",
+            dependencies: ["AmooCore"]
         ),
         .testTarget(
             name: "IOSDriverTests",
-            dependencies: ["IOSDriver", "MobileTestingCore"]
+            dependencies: ["IOSDriver", "AmooCore"]
         ),
         .testTarget(
             name: "AndroidDriverTests",
-            dependencies: ["AndroidDriver", "MobileTestingCore"]
+            dependencies: ["AndroidDriver", "AmooCore"]
         ),
     ]
 )
@@ -237,10 +237,10 @@ let package = Package(
 ### Directory structure
 
 ```
-MobileTestingFramework/
+AmooFramework/
 ├── Package.swift
 ├── Sources/
-│   ├── MobileTestingCore/         # Protocols + shared types
+│   ├── AmooCore/         # Protocols + shared types
 │   │   ├── DeviceDriver.swift
 │   │   ├── DeviceInfo.swift
 │   │   ├── Actions.swift
@@ -264,7 +264,7 @@ MobileTestingFramework/
 │           ├── ListCommand.swift
 │           └── AuditCommand.swift
 └── Tests/
-    ├── MobileTestingCoreTests/
+    ├── AmooCoreTests/
     │   └── MockDriverTests.swift
     ├── IOSDriverTests/
     │   └── IOSDriverTests.swift
@@ -277,7 +277,7 @@ MobileTestingFramework/
 ### Core interface pattern
 
 ```swift
-// Sources/MobileTestingCore/DeviceDriver.swift
+// Sources/AmooCore/DeviceDriver.swift
 
 /// Platform-agnostic interface for device interaction.
 /// iOS and Android drivers conform to this protocol.
@@ -306,7 +306,7 @@ public protocol DeviceDriver: Sendable {
 ```
 
 ```swift
-// Sources/MobileTestingCore/DeviceInfo.swift
+// Sources/AmooCore/DeviceInfo.swift
 
 public struct DeviceInfo: Sendable {
     public let id: String
@@ -354,7 +354,7 @@ public struct Size: Sendable {
 ### Error design
 
 ```swift
-// Sources/MobileTestingCore/Errors.swift
+// Sources/AmooCore/Errors.swift
 
 public enum DriverError: Error, Sendable {
     case deviceNotFound(String)
@@ -371,7 +371,7 @@ public enum DriverError: Error, Sendable {
 ```swift
 // Sources/IOSDriver/IOSDeviceDriver.swift
 
-import MobileTestingCore
+import AmooCore
 import Foundation
 
 public struct IOSDeviceDriver: DeviceDriver {
@@ -440,7 +440,7 @@ targets: [
     .target(
         name: "IOSDriver",
         dependencies: [
-            "MobileTestingCore",
+            "AmooCore",
             // Platform-conditional dependency
             .target(name: "IOSBridge", condition: .when(platforms: [.macOS, .iOS])),
         ]
@@ -554,7 +554,7 @@ targets: [
 ### Mockable protocol design
 
 ```swift
-// The protocol in MobileTestingCore enables mocking:
+// The protocol in AmooCore enables mocking:
 public protocol DeviceDriver: Sendable { /* ... */ }
 
 // Test mock in test target:
@@ -580,7 +580,7 @@ struct MockDeviceDriver: DeviceDriver {
 
 ```swift
 import Testing
-@testable import MobileTestingCore
+@testable import AmooCore
 
 @Test("Device info parses correctly")
 func deviceInfoParsing() throws {
@@ -615,10 +615,10 @@ func tapCoordinates(x: Int, y: Int) async throws {
 swift test
 
 # Run specific test target
-swift test --filter MobileTestingCoreTests
+swift test --filter AmooCoreTests
 
 # Run specific test
-swift test --filter "MobileTestingCoreTests.deviceInfoParsing"
+swift test --filter "AmooCoreTests.deviceInfoParsing"
 
 # Parallel testing
 swift test --parallel
@@ -635,7 +635,7 @@ swift test -v
 Key principle: **Public protocols in core, internal implementations in drivers.**
 
 ```swift
-// MobileTestingCore — everything consumers need is public
+// AmooCore — everything consumers need is public
 public protocol DeviceDriver { ... }
 public struct DeviceInfo { ... }
 public enum DriverError: Error { ... }

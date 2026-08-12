@@ -1,7 +1,7 @@
+import AmooCore
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MobileTestingCore
 import ProcessRunner
 import XCTest
 
@@ -21,7 +21,7 @@ final class PhysicalDeviceHostBackendTests: XCTestCase {
                 PermissionChange(appID: "com.example.app", permission: "photos", granted: true)
             )
             XCTFail("Expected setPermission to fail on a physical device")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             // Must fail loudly rather than silently no-op, so a test never runs against
             // a permission state it thinks it set.
             guard case let .unsupportedCapability(key, reason) = error else {

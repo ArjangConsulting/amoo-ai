@@ -1,4 +1,4 @@
-package com.manman.companion
+package com.amoo.companion
 
 import android.app.Activity
 import android.content.Intent

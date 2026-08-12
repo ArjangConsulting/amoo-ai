@@ -1,6 +1,6 @@
 name: AmooCompanion
 options:
-  bundleIdPrefix: com.mobiletesting
+  bundleIdPrefix: com.amoo
   deploymentTarget:
     iOS: "18.0"
   xcodeVersion: "16.0"
@@ -36,7 +36,7 @@ targets:
       path: HostApp/Info.plist
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mobiletesting.companion
+        PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion
         INFOPLIST_FILE: HostApp/Info.plist
 
   AmooCompanionUITests:
@@ -58,7 +58,7 @@ targets:
         product: SwiftProtobuf
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mobiletesting.companion.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: ""
         TEST_TARGET_NAME: AmooCompanion

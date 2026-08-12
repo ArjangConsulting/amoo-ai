@@ -1,4 +1,4 @@
-import MobileTestingCore
+import AmooCore
 
 // MARK: - Security Rules
 
@@ -204,8 +204,12 @@ public struct NavigationDeadEndRule: AuditRule {
     private func containsType(_ node: ViewNode, type: ElementType, depth: Int = 0) -> Bool {
         // Hard depth cap: a hostile or malformed companion could hand us a cyclic
         // hierarchy and a naive recursion would blow the stack.
-        if depth >= maxHierarchyDepth { return false }
-        if node.type == type { return true }
+        if depth >= maxHierarchyDepth {
+            return false
+        }
+        if node.type == type {
+            return true
+        }
         return node.children.contains { containsType($0, type: type, depth: depth + 1) }
     }
 }
@@ -375,8 +379,12 @@ public struct HierarchyDepthRule: AuditRule {
 
     private func measureDepth(_ node: ViewNode, depth: Int = 0) -> Int {
         // Cap recursion: a malformed hierarchy from the companion could be cyclic.
-        if depth >= maxHierarchyDepth { return depth }
-        if node.children.isEmpty { return 1 }
+        if depth >= maxHierarchyDepth {
+            return depth
+        }
+        if node.children.isEmpty {
+            return 1
+        }
         return 1 + (node.children.map { measureDepth($0, depth: depth + 1) }.max() ?? 0)
     }
 }

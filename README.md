@@ -150,7 +150,7 @@ Add an entry to your MCP client's configuration. For Claude Desktop
       "command": "swift",
       "args": [
         "run",
-        "--package-path", "/absolute/path/to/mobile-testing",
+        "--package-path", "/absolute/path/to/amoo",
         "amoo", "mcp", "serve",
         "--platform", "ios"
       ]
@@ -169,7 +169,7 @@ swift build -c release
 {
   "mcpServers": {
     "amoo": {
-      "command": "/absolute/path/to/mobile-testing/.build/release/amoo",
+      "command": "/absolute/path/to/amoo/.build/release/amoo",
       "args": ["mcp", "serve", "--platform", "ios"]
     }
   }

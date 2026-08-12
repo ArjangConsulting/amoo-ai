@@ -1,6 +1,6 @@
+import AmooCore
 import CompanionProtocol
 import Foundation
-import MobileTestingCore
 import ProcessRunner
 
 public actor AndroidDriver: PlatformDriver {
@@ -162,7 +162,7 @@ public actor AndroidDriver: PlatformDriver {
 
     public func startRecording() async throws -> RecordingSession {
         guard activeRecordings.isEmpty else {
-            throw MobileTestingError.commandFailed(
+            throw AmooError.commandFailed(
                 command: "startRecording",
                 output: "Only one active Android recording is supported per driver."
             )
@@ -181,7 +181,7 @@ public actor AndroidDriver: PlatformDriver {
 
     public func stopRecording(sessionID: String) async throws -> String {
         guard let recording = activeRecordings.removeValue(forKey: sessionID) else {
-            throw MobileTestingError.commandFailed(
+            throw AmooError.commandFailed(
                 command: "stopRecording",
                 output: "No active recording with session ID: \(sessionID)"
             )
@@ -222,7 +222,7 @@ public actor AndroidDriver: PlatformDriver {
             }
             try await Task.sleep(for: .milliseconds(100))
         }
-        throw MobileTestingError.timeout(operation: "waitForElementToDisappear", duration: timeout)
+        throw AmooError.timeout(operation: "waitForElementToDisappear", duration: timeout)
     }
 
     public func isKeyboardVisible() async throws -> Bool {

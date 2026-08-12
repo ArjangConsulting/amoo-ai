@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 /// Host-side operations that differ between an iOS *simulator* and a *physical device*.
 ///

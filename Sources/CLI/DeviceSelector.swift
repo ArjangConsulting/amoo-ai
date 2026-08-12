@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 import ProcessRunner
 import SwiftyShell
 

@@ -1,6 +1,6 @@
+import AmooCore
 import Foundation
 import GradleKit
-import MobileTestingCore
 import Network
 import ProcessRunner
 import SwiftyShell
@@ -157,7 +157,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
         _ = try? await Adb(context: shellContext)
             .serial(config.serial)
-            .amForceStop(package: "com.manman.companion.test")
+            .amForceStop(package: "com.amoo.companion.test")
             .run()
             .processResult
         _ = try? await Adb(context: shellContext)
@@ -245,8 +245,8 @@ final class AndroidCompanionManager: @unchecked Sendable {
                 .rawArguments([
                     "shell", "am", "instrument",
                     "-w",
-                    "-e", "class", "com.manman.companion.CompanionRunner",
-                    "com.manman.companion.test/androidx.test.runner.AndroidJUnitRunner"
+                    "-e", "class", "com.amoo.companion.CompanionRunner",
+                    "com.amoo.companion.test/androidx.test.runner.AndroidJUnitRunner"
                 ])
                 .stdout(.file(path: logPath, append: false))
                 .stderr(.file(path: logPath, append: true))
@@ -286,7 +286,9 @@ final class AndroidCompanionManager: @unchecked Sendable {
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {
-            if await isReachable(host: host, port: port) { return }
+            if await isReachable(host: host, port: port) {
+                return
+            }
             try await Task.sleep(for: .milliseconds(500))
         }
 

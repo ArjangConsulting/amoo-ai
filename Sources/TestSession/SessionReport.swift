@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 /// Serializable snapshot of a session's full action history. Returned by
 /// the MCP `get_session_report` tool.

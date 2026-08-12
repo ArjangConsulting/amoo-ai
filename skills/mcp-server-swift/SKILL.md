@@ -91,7 +91,7 @@ capabilities: .init(
 import PackageDescription
 
 let package = Package(
-    name: "MobileTestingMCP",
+    name: "AmooMCP",
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.11.0"),
@@ -99,7 +99,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "MobileTestingMCP",
+            name: "AmooMCP",
             dependencies: [
                 .product(name: "MCP", package: "swift-sdk"),
                 .product(name: "Logging", package: "swift-log"),
@@ -117,7 +117,7 @@ let package = Package(
 import MCP
 
 @main
-struct MobileTestingServer {
+struct AmooServer {
     static func main() async throws {
         let server = Server(
             name: "mobile-testing",
@@ -714,7 +714,7 @@ For stdio transport, configure as an MCP server:
   "mcpServers": {
     "mobile-testing": {
       "command": "swift",
-      "args": ["run", "--package-path", "/path/to/MobileTestingMCP", "MobileTestingMCP"],
+      "args": ["run", "--package-path", "/path/to/AmooMCP", "AmooMCP"],
       "env": {
         "ANDROID_HOME": "/Users/you/Library/Android/sdk"
       }
@@ -729,7 +729,7 @@ Or if built as a binary:
 {
   "mcpServers": {
     "mobile-testing": {
-      "command": "/path/to/MobileTestingMCP",
+      "command": "/path/to/AmooMCP",
       "env": {}
     }
   }
@@ -756,7 +756,7 @@ Or if built as a binary:
 Use the official MCP Inspector to test your server interactively:
 
 ```bash
-npx @modelcontextprotocol/inspector swift run --package-path /path/to/MobileTestingMCP MobileTestingMCP
+npx @modelcontextprotocol/inspector swift run --package-path /path/to/AmooMCP AmooMCP
 ```
 
 The Inspector provides a web UI to:

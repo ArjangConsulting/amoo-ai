@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 @testable import TestSession
 import XCTest
 
@@ -30,7 +30,7 @@ final class TestSessionTests: XCTestCase {
         XCTAssertEqual(recorded.first?.toolName, "tap")
     }
 
-    func testCloseTerminatesAppAndCallsCleanup() async throws {
+    func testCloseTerminatesAppAndCallsCleanup() async {
         let driver = RecordingDriver()
         let cleanupCount = ActorCounter()
         let session = TestSession(
@@ -220,19 +220,25 @@ final class TestSessionTests: XCTestCase {
 
 private actor ActorCounter {
     private(set) var value: Int = 0
-    func increment() { value += 1 }
+    func increment() {
+        value += 1
+    }
 }
 
 private final class IDVendor: @unchecked Sendable {
     private let lock = NSLock()
     private var values: [String]
 
-    init(values: [String]) { self.values = values }
+    init(values: [String]) {
+        self.values = values
+    }
 
     func next() -> String {
         lock.lock()
         defer { lock.unlock() }
-        if values.isEmpty { return "extra" }
+        if values.isEmpty {
+            return "extra"
+        }
         return values.removeFirst()
     }
 }
@@ -272,10 +278,18 @@ private actor RecordingDriver: PlatformDriver {
 
     func installApp(path _: String) async throws {}
     func launchApp(appID _: String, arguments _: [String], environment _: [String: String]) async throws {}
-    func terminateApp(appID: String) async throws { terminations.append(appID) }
+    func terminateApp(appID: String) async throws {
+        terminations.append(appID)
+    }
+
     func uninstallApp(appID _: String) async throws {}
-    func listApps() async throws -> [AppInfo] { [] }
-    func appState(appID _: String) async throws -> AppState { .notRunning }
+    func listApps() async throws -> [AppInfo] {
+        []
+    }
+
+    func appState(appID _: String) async throws -> AppState {
+        .notRunning
+    }
 }
 
 private struct NoopDriver: PlatformDriver, Sendable {}

@@ -11,134 +11,133 @@
 import GRPCCore
 import GRPCProtobuf
 
-// MARK: - mobile.testing.v1.HostDeviceService
+// MARK: - amoo.v1.HostDeviceService
 
-/// Namespace containing generated types for the "mobile.testing.v1.HostDeviceService" service.
+/// Namespace containing generated types for the "amoo.v1.HostDeviceService" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum MobileTesting_HostDeviceService: Sendable {
-    /// Service descriptor for the "mobile.testing.v1.HostDeviceService" service.
-    public static let descriptor = GRPCCore
-        .ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService")
+public enum Amoo_HostDeviceService: Sendable {
+    /// Service descriptor for the "amoo.v1.HostDeviceService" service.
+    public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService")
     /// Namespace for method metadata.
     public enum Method: Sendable {
         /// Namespace for "InstallApp" metadata.
         public enum InstallApp: Sendable {
             /// Request type for "InstallApp".
-            public typealias Input = MobileTesting_InstallAppRequest
+            public typealias Input = Amoo_InstallAppRequest
             /// Response type for "InstallApp".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "InstallApp".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "InstallApp"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "InstallApp",
+                type: .unary
             )
         }
-
         /// Namespace for "LaunchApp" metadata.
         public enum LaunchApp: Sendable {
             /// Request type for "LaunchApp".
-            public typealias Input = MobileTesting_LaunchAppRequest
+            public typealias Input = Amoo_LaunchAppRequest
             /// Response type for "LaunchApp".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "LaunchApp".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "LaunchApp"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "LaunchApp",
+                type: .unary
             )
         }
-
         /// Namespace for "TerminateApp" metadata.
         public enum TerminateApp: Sendable {
             /// Request type for "TerminateApp".
-            public typealias Input = MobileTesting_TerminateAppRequest
+            public typealias Input = Amoo_TerminateAppRequest
             /// Response type for "TerminateApp".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "TerminateApp".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "TerminateApp"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "TerminateApp",
+                type: .unary
             )
         }
-
         /// Namespace for "UninstallApp" metadata.
         public enum UninstallApp: Sendable {
             /// Request type for "UninstallApp".
-            public typealias Input = MobileTesting_UninstallAppRequest
+            public typealias Input = Amoo_UninstallAppRequest
             /// Response type for "UninstallApp".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "UninstallApp".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "UninstallApp"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "UninstallApp",
+                type: .unary
             )
         }
-
         /// Namespace for "SetPermission" metadata.
         public enum SetPermission: Sendable {
             /// Request type for "SetPermission".
-            public typealias Input = MobileTesting_SetPermissionRequest
+            public typealias Input = Amoo_SetPermissionRequest
             /// Response type for "SetPermission".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "SetPermission".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "SetPermission"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "SetPermission",
+                type: .unary
             )
         }
-
         /// Namespace for "SetLocation" metadata.
         public enum SetLocation: Sendable {
             /// Request type for "SetLocation".
-            public typealias Input = MobileTesting_SetLocationRequest
+            public typealias Input = Amoo_SetLocationRequest
             /// Response type for "SetLocation".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "SetLocation".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "SetLocation"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "SetLocation",
+                type: .unary
             )
         }
-
         /// Namespace for "ClearLocation" metadata.
         public enum ClearLocation: Sendable {
             /// Request type for "ClearLocation".
-            public typealias Input = MobileTesting_Empty
+            public typealias Input = Amoo_Empty
             /// Response type for "ClearLocation".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "ClearLocation".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "ClearLocation"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "ClearLocation",
+                type: .unary
             )
         }
-
         /// Namespace for "SetAppearance" metadata.
         public enum SetAppearance: Sendable {
             /// Request type for "SetAppearance".
-            public typealias Input = MobileTesting_SetAppearanceRequest
+            public typealias Input = Amoo_SetAppearanceRequest
             /// Response type for "SetAppearance".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "SetAppearance".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "SetAppearance"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "SetAppearance",
+                type: .unary
             )
         }
-
         /// Namespace for "OpenURL" metadata.
         public enum OpenURL: Sendable {
             /// Request type for "OpenURL".
-            public typealias Input = MobileTesting_OpenURLRequest
+            public typealias Input = Amoo_OpenURLRequest
             /// Response type for "OpenURL".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "OpenURL".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService"),
-                method: "OpenURL"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService"),
+                method: "OpenURL",
+                type: .unary
             )
         }
-
-        /// Descriptors for all methods in the "mobile.testing.v1.HostDeviceService" service.
+        /// Descriptors for all methods in the "amoo.v1.HostDeviceService" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             InstallApp.descriptor,
             LaunchApp.descriptor,
@@ -154,17 +153,16 @@ public enum MobileTesting_HostDeviceService: Sendable {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension GRPCCore.ServiceDescriptor {
-    /// Service descriptor for the "mobile.testing.v1.HostDeviceService" service.
-    static let mobileTesting_HostDeviceService = GRPCCore
-        .ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.HostDeviceService")
+extension GRPCCore.ServiceDescriptor {
+    /// Service descriptor for the "amoo.v1.HostDeviceService" service.
+    public static let amoo_HostDeviceService = GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.HostDeviceService")
 }
 
-// MARK: mobile.testing.v1.HostDeviceService (server)
+// MARK: amoo.v1.HostDeviceService (server)
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService {
-    /// Streaming variant of the service protocol for the "mobile.testing.v1.HostDeviceService" service.
+extension Amoo_HostDeviceService {
+    /// Streaming variant of the service protocol for the "amoo.v1.HostDeviceService" service.
     ///
     /// This protocol is the lowest-level of the service protocols generated for this service
     /// giving you the most flexibility over the implementation of your service. This comes at
@@ -174,411 +172,411 @@ public extension MobileTesting_HostDeviceService {
     ///
     /// Where possible, prefer using the stricter, less-verbose ``ServiceProtocol``
     /// or ``SimpleServiceProtocol`` instead.
-    protocol StreamingServiceProtocol: GRPCCore.RegistrableRPCService {
+    public protocol StreamingServiceProtocol: GRPCCore.RegistrableRPCService {
         /// Handle the "InstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_InstallAppRequest` messages.
+        ///   - request: A streaming request of `Amoo_InstallAppRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func installApp(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_InstallAppRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_InstallAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "LaunchApp" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_LaunchAppRequest` messages.
+        ///   - request: A streaming request of `Amoo_LaunchAppRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func launchApp(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_LaunchAppRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_LaunchAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "TerminateApp" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_TerminateAppRequest` messages.
+        ///   - request: A streaming request of `Amoo_TerminateAppRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func terminateApp(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_TerminateAppRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_TerminateAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "UninstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_UninstallAppRequest` messages.
+        ///   - request: A streaming request of `Amoo_UninstallAppRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func uninstallApp(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_UninstallAppRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_UninstallAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetPermission" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_SetPermissionRequest` messages.
+        ///   - request: A streaming request of `Amoo_SetPermissionRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func setPermission(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_SetPermissionRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_SetPermissionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_SetLocationRequest` messages.
+        ///   - request: A streaming request of `Amoo_SetLocationRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func setLocation(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_SetLocationRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_SetLocationRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "ClearLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_Empty` messages.
+        ///   - request: A streaming request of `Amoo_Empty` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func clearLocation(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetAppearance" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_SetAppearanceRequest` messages.
+        ///   - request: A streaming request of `Amoo_SetAppearanceRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func setAppearance(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_SetAppearanceRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_SetAppearanceRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "OpenURL" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_OpenURLRequest` messages.
+        ///   - request: A streaming request of `Amoo_OpenURLRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func openURL(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_OpenURLRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_OpenURLRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
     }
 
-    /// Service protocol for the "mobile.testing.v1.HostDeviceService" service.
+    /// Service protocol for the "amoo.v1.HostDeviceService" service.
     ///
     /// This protocol is higher level than ``StreamingServiceProtocol`` but lower level than
     /// the ``SimpleServiceProtocol``, it provides access to request and response metadata and
     /// trailing response metadata. If you don't need these then consider using
     /// the ``SimpleServiceProtocol``. If you need fine grained control over your RPCs then
     /// use ``StreamingServiceProtocol``.
-    protocol ServiceProtocol: MobileTesting_HostDeviceService.StreamingServiceProtocol {
+    public protocol ServiceProtocol: Amoo_HostDeviceService.StreamingServiceProtocol {
         /// Handle the "InstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_InstallAppRequest` message.
+        ///   - request: A request containing a single `Amoo_InstallAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func installApp(
-            request: GRPCCore.ServerRequest<MobileTesting_InstallAppRequest>,
+            request: GRPCCore.ServerRequest<Amoo_InstallAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "LaunchApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_LaunchAppRequest` message.
+        ///   - request: A request containing a single `Amoo_LaunchAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func launchApp(
-            request: GRPCCore.ServerRequest<MobileTesting_LaunchAppRequest>,
+            request: GRPCCore.ServerRequest<Amoo_LaunchAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "TerminateApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TerminateAppRequest` message.
+        ///   - request: A request containing a single `Amoo_TerminateAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func terminateApp(
-            request: GRPCCore.ServerRequest<MobileTesting_TerminateAppRequest>,
+            request: GRPCCore.ServerRequest<Amoo_TerminateAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "UninstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_UninstallAppRequest` message.
+        ///   - request: A request containing a single `Amoo_UninstallAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func uninstallApp(
-            request: GRPCCore.ServerRequest<MobileTesting_UninstallAppRequest>,
+            request: GRPCCore.ServerRequest<Amoo_UninstallAppRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetPermission" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetPermissionRequest` message.
+        ///   - request: A request containing a single `Amoo_SetPermissionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func setPermission(
-            request: GRPCCore.ServerRequest<MobileTesting_SetPermissionRequest>,
+            request: GRPCCore.ServerRequest<Amoo_SetPermissionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetLocationRequest` message.
+        ///   - request: A request containing a single `Amoo_SetLocationRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func setLocation(
-            request: GRPCCore.ServerRequest<MobileTesting_SetLocationRequest>,
+            request: GRPCCore.ServerRequest<Amoo_SetLocationRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "ClearLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
+        ///   - request: A request containing a single `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func clearLocation(
-            request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetAppearance" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetAppearanceRequest` message.
+        ///   - request: A request containing a single `Amoo_SetAppearanceRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func setAppearance(
-            request: GRPCCore.ServerRequest<MobileTesting_SetAppearanceRequest>,
+            request: GRPCCore.ServerRequest<Amoo_SetAppearanceRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "OpenURL" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_OpenURLRequest` message.
+        ///   - request: A request containing a single `Amoo_OpenURLRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func openURL(
-            request: GRPCCore.ServerRequest<MobileTesting_OpenURLRequest>,
+            request: GRPCCore.ServerRequest<Amoo_OpenURLRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
     }
 
-    /// Simple service protocol for the "mobile.testing.v1.HostDeviceService" service.
+    /// Simple service protocol for the "amoo.v1.HostDeviceService" service.
     ///
     /// This is the highest level protocol for the service. The API is the easiest to use but
     /// doesn't provide access to request or response metadata. If you need access to these
     /// then use ``ServiceProtocol`` instead.
-    protocol SimpleServiceProtocol: MobileTesting_HostDeviceService.ServiceProtocol {
+    public protocol SimpleServiceProtocol: Amoo_HostDeviceService.ServiceProtocol {
         /// Handle the "InstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_InstallAppRequest` message.
+        ///   - request: A `Amoo_InstallAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func installApp(
-            request: MobileTesting_InstallAppRequest,
+            request: Amoo_InstallAppRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "LaunchApp" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_LaunchAppRequest` message.
+        ///   - request: A `Amoo_LaunchAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func launchApp(
-            request: MobileTesting_LaunchAppRequest,
+            request: Amoo_LaunchAppRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "TerminateApp" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_TerminateAppRequest` message.
+        ///   - request: A `Amoo_TerminateAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func terminateApp(
-            request: MobileTesting_TerminateAppRequest,
+            request: Amoo_TerminateAppRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "UninstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_UninstallAppRequest` message.
+        ///   - request: A `Amoo_UninstallAppRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func uninstallApp(
-            request: MobileTesting_UninstallAppRequest,
+            request: Amoo_UninstallAppRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "SetPermission" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_SetPermissionRequest` message.
+        ///   - request: A `Amoo_SetPermissionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func setPermission(
-            request: MobileTesting_SetPermissionRequest,
+            request: Amoo_SetPermissionRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "SetLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_SetLocationRequest` message.
+        ///   - request: A `Amoo_SetLocationRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func setLocation(
-            request: MobileTesting_SetLocationRequest,
+            request: Amoo_SetLocationRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "ClearLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_Empty` message.
+        ///   - request: A `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func clearLocation(
-            request: MobileTesting_Empty,
+            request: Amoo_Empty,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "SetAppearance" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_SetAppearanceRequest` message.
+        ///   - request: A `Amoo_SetAppearanceRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func setAppearance(
-            request: MobileTesting_SetAppearanceRequest,
+            request: Amoo_SetAppearanceRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "OpenURL" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_OpenURLRequest` message.
+        ///   - request: A `Amoo_OpenURLRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func openURL(
-            request: MobileTesting_OpenURLRequest,
+            request: Amoo_OpenURLRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
     }
 }
 
-/// Default implementation of 'registerMethods(with:)'.
+// Default implementation of 'registerMethods(with:)'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
-    func registerMethods(with router: inout GRPCCore.RPCRouter<some GRPCCore.ServerTransport>) {
+extension Amoo_HostDeviceService.StreamingServiceProtocol {
+    public func registerMethods<Transport>(with router: inout GRPCCore.RPCRouter<Transport>) where Transport: GRPCCore.ServerTransport {
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.InstallApp.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_InstallAppRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.InstallApp.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_InstallAppRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.installApp(
                     request: request,
@@ -587,9 +585,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.LaunchApp.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_LaunchAppRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.LaunchApp.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_LaunchAppRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.launchApp(
                     request: request,
@@ -598,9 +596,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.TerminateApp.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_TerminateAppRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.TerminateApp.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_TerminateAppRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.terminateApp(
                     request: request,
@@ -609,9 +607,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.UninstallApp.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_UninstallAppRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.UninstallApp.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_UninstallAppRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.uninstallApp(
                     request: request,
@@ -620,9 +618,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.SetPermission.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SetPermissionRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.SetPermission.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetPermissionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.setPermission(
                     request: request,
@@ -631,9 +629,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.SetLocation.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SetLocationRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.SetLocation.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetLocationRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.setLocation(
                     request: request,
@@ -642,9 +640,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.ClearLocation.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_Empty>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.ClearLocation.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.clearLocation(
                     request: request,
@@ -653,9 +651,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.SetAppearance.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SetAppearanceRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.SetAppearance.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetAppearanceRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.setAppearance(
                     request: request,
@@ -664,9 +662,9 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_HostDeviceService.Method.OpenURL.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_OpenURLRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_HostDeviceService.Method.OpenURL.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_OpenURLRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.openURL(
                     request: request,
@@ -677,102 +675,102 @@ public extension MobileTesting_HostDeviceService.StreamingServiceProtocol {
     }
 }
 
-/// Default implementation of streaming methods from 'StreamingServiceProtocol'.
+// Default implementation of streaming methods from 'StreamingServiceProtocol'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService.ServiceProtocol {
-    func installApp(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_InstallAppRequest>,
+extension Amoo_HostDeviceService.ServiceProtocol {
+    public func installApp(
+        request: GRPCCore.StreamingServerRequest<Amoo_InstallAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await installApp(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.installApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func launchApp(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_LaunchAppRequest>,
+    public func launchApp(
+        request: GRPCCore.StreamingServerRequest<Amoo_LaunchAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await launchApp(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.launchApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func terminateApp(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_TerminateAppRequest>,
+    public func terminateApp(
+        request: GRPCCore.StreamingServerRequest<Amoo_TerminateAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await terminateApp(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.terminateApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func uninstallApp(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_UninstallAppRequest>,
+    public func uninstallApp(
+        request: GRPCCore.StreamingServerRequest<Amoo_UninstallAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await uninstallApp(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.uninstallApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func setPermission(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_SetPermissionRequest>,
+    public func setPermission(
+        request: GRPCCore.StreamingServerRequest<Amoo_SetPermissionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await setPermission(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.setPermission(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func setLocation(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_SetLocationRequest>,
+    public func setLocation(
+        request: GRPCCore.StreamingServerRequest<Amoo_SetLocationRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await setLocation(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.setLocation(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func clearLocation(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+    public func clearLocation(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await clearLocation(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.clearLocation(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func setAppearance(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_SetAppearanceRequest>,
+    public func setAppearance(
+        request: GRPCCore.StreamingServerRequest<Amoo_SetAppearanceRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await setAppearance(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.setAppearance(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func openURL(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_OpenURLRequest>,
+    public func openURL(
+        request: GRPCCore.StreamingServerRequest<Amoo_OpenURLRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await openURL(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.openURL(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -780,15 +778,15 @@ public extension MobileTesting_HostDeviceService.ServiceProtocol {
     }
 }
 
-/// Default implementation of methods from 'ServiceProtocol'.
+// Default implementation of methods from 'ServiceProtocol'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
-    func installApp(
-        request: GRPCCore.ServerRequest<MobileTesting_InstallAppRequest>,
+extension Amoo_HostDeviceService.SimpleServiceProtocol {
+    public func installApp(
+        request: GRPCCore.ServerRequest<Amoo_InstallAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: installApp(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.installApp(
                 request: request.message,
                 context: context
             ),
@@ -796,12 +794,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func launchApp(
-        request: GRPCCore.ServerRequest<MobileTesting_LaunchAppRequest>,
+    public func launchApp(
+        request: GRPCCore.ServerRequest<Amoo_LaunchAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: launchApp(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.launchApp(
                 request: request.message,
                 context: context
             ),
@@ -809,12 +807,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func terminateApp(
-        request: GRPCCore.ServerRequest<MobileTesting_TerminateAppRequest>,
+    public func terminateApp(
+        request: GRPCCore.ServerRequest<Amoo_TerminateAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: terminateApp(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.terminateApp(
                 request: request.message,
                 context: context
             ),
@@ -822,12 +820,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func uninstallApp(
-        request: GRPCCore.ServerRequest<MobileTesting_UninstallAppRequest>,
+    public func uninstallApp(
+        request: GRPCCore.ServerRequest<Amoo_UninstallAppRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: uninstallApp(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.uninstallApp(
                 request: request.message,
                 context: context
             ),
@@ -835,12 +833,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func setPermission(
-        request: GRPCCore.ServerRequest<MobileTesting_SetPermissionRequest>,
+    public func setPermission(
+        request: GRPCCore.ServerRequest<Amoo_SetPermissionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: setPermission(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.setPermission(
                 request: request.message,
                 context: context
             ),
@@ -848,12 +846,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func setLocation(
-        request: GRPCCore.ServerRequest<MobileTesting_SetLocationRequest>,
+    public func setLocation(
+        request: GRPCCore.ServerRequest<Amoo_SetLocationRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: setLocation(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.setLocation(
                 request: request.message,
                 context: context
             ),
@@ -861,12 +859,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func clearLocation(
-        request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+    public func clearLocation(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: clearLocation(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.clearLocation(
                 request: request.message,
                 context: context
             ),
@@ -874,12 +872,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func setAppearance(
-        request: GRPCCore.ServerRequest<MobileTesting_SetAppearanceRequest>,
+    public func setAppearance(
+        request: GRPCCore.ServerRequest<Amoo_SetAppearanceRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: setAppearance(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.setAppearance(
                 request: request.message,
                 context: context
             ),
@@ -887,12 +885,12 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
         )
     }
 
-    func openURL(
-        request: GRPCCore.ServerRequest<MobileTesting_OpenURLRequest>,
+    public func openURL(
+        request: GRPCCore.ServerRequest<Amoo_OpenURLRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: openURL(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.openURL(
                 request: request.message,
                 context: context
             ),
@@ -901,202 +899,193 @@ public extension MobileTesting_HostDeviceService.SimpleServiceProtocol {
     }
 }
 
-// MARK: mobile.testing.v1.HostDeviceService (client)
+// MARK: amoo.v1.HostDeviceService (client)
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService {
-    /// Generated client protocol for the "mobile.testing.v1.HostDeviceService" service.
+extension Amoo_HostDeviceService {
+    /// Generated client protocol for the "amoo.v1.HostDeviceService" service.
     ///
     /// You don't need to implement this protocol directly, use the generated
     /// implementation, ``Client``.
-    protocol ClientProtocol: Sendable {
+    public protocol ClientProtocol: Sendable {
         /// Call the "InstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_InstallAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_InstallAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_InstallAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_InstallAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func installApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_InstallAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func installApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_InstallAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_InstallAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "LaunchApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_LaunchAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_LaunchAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_LaunchAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_LaunchAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func launchApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_LaunchAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func launchApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_LaunchAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_LaunchAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "TerminateApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TerminateAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TerminateAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TerminateAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_TerminateAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func terminateApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TerminateAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func terminateApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TerminateAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TerminateAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "UninstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_UninstallAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_UninstallAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_UninstallAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_UninstallAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func uninstallApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_UninstallAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func uninstallApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_UninstallAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_UninstallAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "SetPermission" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetPermissionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetPermissionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetPermissionRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetPermissionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setPermission<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetPermissionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func setPermission<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetPermissionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetPermissionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "SetLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetLocationRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetLocationRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetLocationRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetLocationRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setLocation<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetLocationRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func setLocation<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetLocationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetLocationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "ClearLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func clearLocation<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func clearLocation<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "SetAppearance" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetAppearanceRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetAppearanceRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetAppearanceRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetAppearanceRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setAppearance<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetAppearanceRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func setAppearance<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetAppearanceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "OpenURL" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_OpenURLRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_OpenURLRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_OpenURLRequest` message.
+        ///   - serializer: A serializer for `Amoo_OpenURLRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func openURL<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_OpenURLRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func openURL<Result>(
+            request: GRPCCore.ClientRequest<Amoo_OpenURLRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_OpenURLRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
     }
 
-    /// Generated client for the "mobile.testing.v1.HostDeviceService" service.
+    /// Generated client for the "amoo.v1.HostDeviceService" service.
     ///
     /// The ``Client`` provides an implementation of ``ClientProtocol`` which wraps
     /// a `GRPCCore.GRPCCClient`. The underlying `GRPCClient` provides the long-lived
     /// means of communication with the remote peer.
-    struct Client<Transport: GRPCCore.ClientTransport>: ClientProtocol {
+    public struct Client<Transport>: ClientProtocol where Transport: GRPCCore.ClientTransport {
         private let client: GRPCCore.GRPCClient<Transport>
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
@@ -1110,27 +1099,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "InstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_InstallAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_InstallAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_InstallAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_InstallAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func installApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_InstallAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func installApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_InstallAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_InstallAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.InstallApp.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.InstallApp.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1141,27 +1129,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "LaunchApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_LaunchAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_LaunchAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_LaunchAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_LaunchAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func launchApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_LaunchAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func launchApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_LaunchAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_LaunchAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.LaunchApp.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.LaunchApp.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1172,27 +1159,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "TerminateApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TerminateAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TerminateAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TerminateAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_TerminateAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func terminateApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TerminateAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func terminateApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TerminateAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TerminateAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.TerminateApp.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.TerminateApp.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1203,27 +1189,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "UninstallApp" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_UninstallAppRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_UninstallAppRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_UninstallAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_UninstallAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func uninstallApp<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_UninstallAppRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func uninstallApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_UninstallAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_UninstallAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.UninstallApp.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.UninstallApp.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1234,27 +1219,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "SetPermission" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetPermissionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetPermissionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetPermissionRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetPermissionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setPermission<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetPermissionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func setPermission<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetPermissionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetPermissionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.SetPermission.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.SetPermission.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1265,27 +1249,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "SetLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetLocationRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetLocationRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetLocationRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetLocationRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setLocation<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetLocationRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func setLocation<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetLocationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetLocationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.SetLocation.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.SetLocation.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1296,27 +1279,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "ClearLocation" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func clearLocation<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func clearLocation<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.ClearLocation.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.ClearLocation.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1327,27 +1309,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "SetAppearance" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetAppearanceRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetAppearanceRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetAppearanceRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetAppearanceRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setAppearance<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetAppearanceRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func setAppearance<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetAppearanceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.SetAppearance.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.SetAppearance.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1358,27 +1339,26 @@ public extension MobileTesting_HostDeviceService {
         /// Call the "OpenURL" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_OpenURLRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_OpenURLRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_OpenURLRequest` message.
+        ///   - serializer: A serializer for `Amoo_OpenURLRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func openURL<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_OpenURLRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func openURL<Result>(
+            request: GRPCCore.ClientRequest<Amoo_OpenURLRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_OpenURLRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_HostDeviceService.Method.OpenURL.descriptor,
+                descriptor: Amoo_HostDeviceService.Method.OpenURL.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1388,30 +1368,29 @@ public extension MobileTesting_HostDeviceService {
     }
 }
 
-/// Helpers providing default arguments to 'ClientProtocol' methods.
+// Helpers providing default arguments to 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService.ClientProtocol {
+extension Amoo_HostDeviceService.ClientProtocol {
     /// Call the "InstallApp" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_InstallAppRequest` message.
+    ///   - request: A request containing a single `Amoo_InstallAppRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func installApp<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>,
+    public func installApp<Result>(
+        request: GRPCCore.ClientRequest<Amoo_InstallAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await installApp(
+    ) async throws -> Result where Result: Sendable {
+        try await self.installApp(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_InstallAppRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_InstallAppRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1420,24 +1399,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "LaunchApp" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_LaunchAppRequest` message.
+    ///   - request: A request containing a single `Amoo_LaunchAppRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func launchApp<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>,
+    public func launchApp<Result>(
+        request: GRPCCore.ClientRequest<Amoo_LaunchAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await launchApp(
+    ) async throws -> Result where Result: Sendable {
+        try await self.launchApp(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_LaunchAppRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_LaunchAppRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1446,24 +1424,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "TerminateApp" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_TerminateAppRequest` message.
+    ///   - request: A request containing a single `Amoo_TerminateAppRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func terminateApp<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>,
+    public func terminateApp<Result>(
+        request: GRPCCore.ClientRequest<Amoo_TerminateAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await terminateApp(
+    ) async throws -> Result where Result: Sendable {
+        try await self.terminateApp(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_TerminateAppRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_TerminateAppRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1472,24 +1449,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "UninstallApp" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_UninstallAppRequest` message.
+    ///   - request: A request containing a single `Amoo_UninstallAppRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func uninstallApp<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>,
+    public func uninstallApp<Result>(
+        request: GRPCCore.ClientRequest<Amoo_UninstallAppRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await uninstallApp(
+    ) async throws -> Result where Result: Sendable {
+        try await self.uninstallApp(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_UninstallAppRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_UninstallAppRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1498,24 +1474,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "SetPermission" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_SetPermissionRequest` message.
+    ///   - request: A request containing a single `Amoo_SetPermissionRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setPermission<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>,
+    public func setPermission<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SetPermissionRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await setPermission(
+    ) async throws -> Result where Result: Sendable {
+        try await self.setPermission(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetPermissionRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetPermissionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1524,24 +1499,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "SetLocation" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_SetLocationRequest` message.
+    ///   - request: A request containing a single `Amoo_SetLocationRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setLocation<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>,
+    public func setLocation<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SetLocationRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await setLocation(
+    ) async throws -> Result where Result: Sendable {
+        try await self.setLocation(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetLocationRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetLocationRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1550,24 +1524,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "ClearLocation" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_Empty` message.
+    ///   - request: A request containing a single `Amoo_Empty` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func clearLocation<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_Empty>,
+    public func clearLocation<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await clearLocation(
+    ) async throws -> Result where Result: Sendable {
+        try await self.clearLocation(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_Empty>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1576,24 +1549,23 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "SetAppearance" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_SetAppearanceRequest` message.
+    ///   - request: A request containing a single `Amoo_SetAppearanceRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setAppearance<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>,
+    public func setAppearance<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await setAppearance(
+    ) async throws -> Result where Result: Sendable {
+        try await self.setAppearance(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetAppearanceRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetAppearanceRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1602,33 +1574,32 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     /// Call the "OpenURL" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_OpenURLRequest` message.
+    ///   - request: A request containing a single `Amoo_OpenURLRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func openURL<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>,
+    public func openURL<Result>(
+        request: GRPCCore.ClientRequest<Amoo_OpenURLRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await openURL(
+    ) async throws -> Result where Result: Sendable {
+        try await self.openURL(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_OpenURLRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_OpenURLRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
     }
 }
 
-/// Helpers providing sugared APIs for 'ClientProtocol' methods.
+// Helpers providing sugared APIs for 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_HostDeviceService.ClientProtocol {
+extension Amoo_HostDeviceService.ClientProtocol {
     /// Call the "InstallApp" method.
     ///
     /// - Parameters:
@@ -1639,20 +1610,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func installApp<Result: Sendable>(
-        _ message: MobileTesting_InstallAppRequest,
+    public func installApp<Result>(
+        _ message: Amoo_InstallAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_InstallAppRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_InstallAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await installApp(
+        return try await self.installApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1669,20 +1639,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func launchApp<Result: Sendable>(
-        _ message: MobileTesting_LaunchAppRequest,
+    public func launchApp<Result>(
+        _ message: Amoo_LaunchAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_LaunchAppRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_LaunchAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await launchApp(
+        return try await self.launchApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1699,20 +1668,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func terminateApp<Result: Sendable>(
-        _ message: MobileTesting_TerminateAppRequest,
+    public func terminateApp<Result>(
+        _ message: Amoo_TerminateAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_TerminateAppRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_TerminateAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await terminateApp(
+        return try await self.terminateApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1729,20 +1697,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func uninstallApp<Result: Sendable>(
-        _ message: MobileTesting_UninstallAppRequest,
+    public func uninstallApp<Result>(
+        _ message: Amoo_UninstallAppRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_UninstallAppRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_UninstallAppRequest>(
             message: message,
             metadata: metadata
         )
-        return try await uninstallApp(
+        return try await self.uninstallApp(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1759,20 +1726,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setPermission<Result: Sendable>(
-        _ message: MobileTesting_SetPermissionRequest,
+    public func setPermission<Result>(
+        _ message: Amoo_SetPermissionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_SetPermissionRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SetPermissionRequest>(
             message: message,
             metadata: metadata
         )
-        return try await setPermission(
+        return try await self.setPermission(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1789,20 +1755,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setLocation<Result: Sendable>(
-        _ message: MobileTesting_SetLocationRequest,
+    public func setLocation<Result>(
+        _ message: Amoo_SetLocationRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_SetLocationRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SetLocationRequest>(
             message: message,
             metadata: metadata
         )
-        return try await setLocation(
+        return try await self.setLocation(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1819,20 +1784,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func clearLocation<Result: Sendable>(
-        _ message: MobileTesting_Empty,
+    public func clearLocation<Result>(
+        _ message: Amoo_Empty,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_Empty>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
             message: message,
             metadata: metadata
         )
-        return try await clearLocation(
+        return try await self.clearLocation(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1849,20 +1813,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setAppearance<Result: Sendable>(
-        _ message: MobileTesting_SetAppearanceRequest,
+    public func setAppearance<Result>(
+        _ message: Amoo_SetAppearanceRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_SetAppearanceRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>(
             message: message,
             metadata: metadata
         )
-        return try await setAppearance(
+        return try await self.setAppearance(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -1879,20 +1842,19 @@ public extension MobileTesting_HostDeviceService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func openURL<Result: Sendable>(
-        _ message: MobileTesting_OpenURLRequest,
+    public func openURL<Result>(
+        _ message: Amoo_OpenURLRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_OpenURLRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_OpenURLRequest>(
             message: message,
             metadata: metadata
         )
-        return try await openURL(
+        return try await self.openURL(
             request: request,
             options: options,
             onResponse: handleResponse

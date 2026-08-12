@@ -1,7 +1,7 @@
+import AmooCore
 import AuditEngine
 import Foundation
 import MCP
-import MobileTestingCore
 import TestSession
 
 public protocol ToolExecutor: Sendable {
@@ -16,7 +16,7 @@ public actor DriverToolExecutor: ToolExecutor {
     private let sessionManager: SessionManager?
 
     public init(driver: any PlatformDriver, sessionManager: SessionManager? = nil) {
-        self.defaultDriver = driver
+        defaultDriver = driver
         self.sessionManager = sessionManager
     }
 
@@ -94,7 +94,9 @@ public actor DriverToolExecutor: ToolExecutor {
             if let equals = trimmed.firstIndex(of: "=") {
                 let key = String(trimmed[..<equals]).trimmingCharacters(in: .whitespaces)
                 let value = String(trimmed[trimmed.index(after: equals)...])
-                if !key.isEmpty { result[key] = value }
+                if !key.isEmpty {
+                    result[key] = value
+                }
             }
         }
         return result
@@ -342,7 +344,11 @@ public actor DriverToolExecutor: ToolExecutor {
             return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.all)
 
         case "audit_accessibility":
-            return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.ux + RulePacks.testability)
+            return try await executeAudit(
+                driver: driver,
+                arguments: arguments,
+                rulePacks: RulePacks.ux + RulePacks.testability
+            )
 
         case "audit_security":
             return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.security)
@@ -540,12 +546,12 @@ public actor DriverToolExecutor: ToolExecutor {
             screenTitle: context.screenTitle?.isEmpty == false ? context.screenTitle : nil,
             interactableCount: interactable.count
         )
-        return .success(description, structuredContent: try Value(report))
+        return try .success(description, structuredContent: Value(report))
     }
 
     private func executeSuggestActions(driver: any PlatformDriver) async throws -> ToolResult {
         let report = try await buildSuggestionReport(driver: driver)
-        return .success(formatSuggestionReport(report), structuredContent: try Value(report))
+        return try .success(formatSuggestionReport(report), structuredContent: Value(report))
     }
 
     private func buildSuggestionReport(driver: any PlatformDriver) async throws -> TestActionSuggestionReport {
@@ -555,10 +561,18 @@ public actor DriverToolExecutor: ToolExecutor {
         let allElements = try await driver.findElements(ElementSelector())
         let interactable = try await driver.getInteractableElements()
         let filteredElements = filterAppRelevantElements(interactable)
-        let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: filteredElements)
+        let diagnostics = collectAccessibilityDiagnostics(
+            allElements: allElements,
+            interactableElements: filteredElements
+        )
         let developerFeedback = developerFeedback(for: diagnostics)
         let request = TestActionSuggestionRequest(
-            context: enrichedScreenContext(context: context, allElements: allElements, interactableElements: filteredElements, hierarchy: hierarchy),
+            context: enrichedScreenContext(
+                context: context,
+                allElements: allElements,
+                interactableElements: filteredElements,
+                hierarchy: hierarchy
+            ),
             hierarchy: hierarchy,
             allElements: filterAppRelevantElements(allElements),
             interactableElements: filteredElements,
@@ -573,7 +587,7 @@ public actor DriverToolExecutor: ToolExecutor {
     private func executeAnalyzeAITestability(driver: any PlatformDriver) async throws -> ToolResult {
         let context = try await driver.getScreenContext()
         let allElements = try await driver.findElements(ElementSelector())
-        let interactable = filterAppRelevantElements(try await driver.getInteractableElements())
+        let interactable = try await filterAppRelevantElements(driver.getInteractableElements())
         let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: interactable)
         let elementsWithIssues = collectElementA11yIssues(allElements: allElements, interactableElements: interactable)
         let report = AITestabilityReport(
@@ -585,7 +599,7 @@ public actor DriverToolExecutor: ToolExecutor {
             elementsWithIssues: elementsWithIssues
         )
 
-        return .success(formatAITestabilityReport(report), structuredContent: try Value(report))
+        return try .success(formatAITestabilityReport(report), structuredContent: Value(report))
     }
 
     private func executeHighlightA11yIssues(driver: any PlatformDriver) async throws -> ToolResult {
@@ -596,7 +610,7 @@ public actor DriverToolExecutor: ToolExecutor {
 
         let hierarchy = try await hierarchyTask
         let allElements = try await allElementsTask
-        let interactable = filterAppRelevantElements(try await interactableTask)
+        let interactable = try await filterAppRelevantElements(interactableTask)
         let screenshotData = try await screenshotTask
 
         let issues = collectElementA11yIssues(allElements: allElements, interactableElements: interactable)
@@ -622,16 +636,17 @@ public actor DriverToolExecutor: ToolExecutor {
             let lines = issues.map { issue in
                 let typeStr = issue.type.map { " [\($0)]" } ?? ""
                 let idStr = issue.id.isEmpty ? "(no id)" : issue.id
-                let frameStr = issue.frame.map { f in " at (\(Int(f.x)),\(Int(f.y))) \(Int(f.width))×\(Int(f.height))pt" } ?? ""
+                let frameStr = issue.frame
+                    .map { f in " at (\(Int(f.x)),\(Int(f.y))) \(Int(f.width))×\(Int(f.height))pt" } ?? ""
                 return "  \(idStr)\(typeStr)\(frameStr) — \(issue.issue)"
             }
             text = "\(issues.count) element(s) highlighted (red=missing label, orange=generic, yellow=duplicate):\n"
                 + lines.joined(separator: "\n")
         }
 
-        return ToolResult(
+        return try ToolResult(
             content: text,
-            structuredContent: try Value(report),
+            structuredContent: Value(report),
             image: annotated.map { ToolImageContent(data: $0, mimeType: ImageFormat.png.mimeType) }
         )
     }
@@ -652,10 +667,13 @@ public actor DriverToolExecutor: ToolExecutor {
         )
 
         if matches.isEmpty {
-            return .success("No elements matched: \(description)", structuredContent: try Value(report))
+            return try .success("No elements matched: \(description)", structuredContent: Value(report))
         }
         let descriptions = matches.map { "[\($0.id)] \($0.label)" }
-        return .success("Found \(matches.count) match(es):\n\(descriptions.joined(separator: "\n"))", structuredContent: try Value(report))
+        return try .success(
+            "Found \(matches.count) match(es):\n\(descriptions.joined(separator: "\n"))",
+            structuredContent: Value(report)
+        )
     }
 
     private func executeTakeScreenshot(
@@ -808,12 +826,21 @@ public actor DriverToolExecutor: ToolExecutor {
         return raw.hasPrefix("status") || raw.contains("system")
     }
 
-    private func collectAccessibilityDiagnostics(allElements: [ElementInfo], interactableElements: [ElementInfo]) -> [String] {
+    private func collectAccessibilityDiagnostics(
+        allElements: [ElementInfo],
+        interactableElements: [ElementInfo]
+    ) -> [String] {
         var diagnostics: [String] = []
 
-        let unlabeledInteractables = interactableElements.filter { preferredElementName(label: $0.label, id: normalizedElementID($0.id)) == nil }
+        let unlabeledInteractables = interactableElements.filter { preferredElementName(
+            label: $0.label,
+            id: normalizedElementID($0.id)
+        ) == nil }
         if !unlabeledInteractables.isEmpty {
-            diagnostics.append("\(unlabeledInteractables.count) interactable element(s) are missing a meaningful accessibility label or identifier.")
+            diagnostics
+                .append(
+                    "\(unlabeledInteractables.count) interactable element(s) are missing a meaningful accessibility label or identifier."
+                )
         }
 
         let genericLabels = interactableElements.filter {
@@ -821,7 +848,10 @@ public actor DriverToolExecutor: ToolExecutor {
             return ["button", "image", "text field", "text", "label", "item", "view"].contains(label)
         }
         if !genericLabels.isEmpty {
-            diagnostics.append("\(genericLabels.count) interactable element(s) use generic labels such as 'Button' or 'Text field'.")
+            diagnostics
+                .append(
+                    "\(genericLabels.count) interactable element(s) use generic labels such as 'Button' or 'Text field'."
+                )
         }
 
         let duplicateLabels = Dictionary(grouping: interactableElements) {
@@ -835,7 +865,10 @@ public actor DriverToolExecutor: ToolExecutor {
 
         let hiddenInteractables = allElements.filter { !$0.isVisible && $0.isEnabled && !isLikelySystemElement($0) }
         if !hiddenInteractables.isEmpty {
-            diagnostics.append("\(hiddenInteractables.count) enabled element(s) are hidden, which can confuse screen understanding.")
+            diagnostics
+                .append(
+                    "\(hiddenInteractables.count) enabled element(s) are hidden, which can confuse screen understanding."
+                )
         }
 
         if interactableElements.isEmpty {
@@ -845,10 +878,13 @@ public actor DriverToolExecutor: ToolExecutor {
         return diagnostics
     }
 
-    private func collectElementA11yIssues(allElements: [ElementInfo], interactableElements: [ElementInfo]) -> [ElementA11yIssue] {
+    private func collectElementA11yIssues(
+        allElements: [ElementInfo],
+        interactableElements: [ElementInfo]
+    ) -> [ElementA11yIssue] {
         var issues: [ElementA11yIssue] = []
 
-        let genericLabelSet: Set<String> = ["button", "image", "text field", "text", "label", "item", "view"]
+        let genericLabelSet: Set = ["button", "image", "text field", "text", "label", "item", "view"]
 
         for element in interactableElements {
             let typeLabel = element.type?.rawValue
@@ -914,24 +950,42 @@ public actor DriverToolExecutor: ToolExecutor {
         for diagnostic in diagnostics {
             let lowered = diagnostic.lowercased()
             if lowered.contains("missing a meaningful accessibility label") {
-                feedback.append("Add explicit accessibility labels or stable identifiers to every tappable control and input.")
+                feedback
+                    .append(
+                        "Add explicit accessibility labels or stable identifiers to every tappable control and input."
+                    )
             }
             if lowered.contains("generic labels") {
-                feedback.append("Replace generic labels like 'Button' or 'Text field' with semantic names that reflect the user-visible purpose.")
+                feedback
+                    .append(
+                        "Replace generic labels like 'Button' or 'Text field' with semantic names that reflect the user-visible purpose."
+                    )
             }
             if lowered.contains("duplicate interactable labels") {
-                feedback.append("Make repeated controls distinguishable with unique accessibility labels, values, or identifiers.")
+                feedback
+                    .append(
+                        "Make repeated controls distinguishable with unique accessibility labels, values, or identifiers."
+                    )
             }
-            if lowered.contains("enabled element") && lowered.contains("hidden") {
-                feedback.append("Ensure hidden elements are not exposed as enabled accessibility nodes unless they are intentionally interactive.")
+            if lowered.contains("enabled element"), lowered.contains("hidden") {
+                feedback
+                    .append(
+                        "Ensure hidden elements are not exposed as enabled accessibility nodes unless they are intentionally interactive."
+                    )
             }
             if lowered.contains("no app-relevant interactable elements") {
-                feedback.append("Expose the primary CTA, form fields, and navigation targets through accessibility so AI can identify the main flow.")
+                feedback
+                    .append(
+                        "Expose the primary CTA, form fields, and navigation targets through accessibility so AI can identify the main flow."
+                    )
             }
         }
 
         if feedback.isEmpty {
-            feedback.append("Keep primary actions, inputs, and navigation controls clearly labeled to preserve high-confidence AI suggestions.")
+            feedback
+                .append(
+                    "Keep primary actions, inputs, and navigation controls clearly labeled to preserve high-confidence AI suggestions."
+                )
         }
 
         var seen = Set<String>()
@@ -948,7 +1002,10 @@ public actor DriverToolExecutor: ToolExecutor {
             ? context.screenTitle
             : inferredScreenTitle(from: allElements, hierarchy: hierarchy)
 
-        let primaryTargets = interactableElements.prefix(3).compactMap { preferredElementName(label: $0.label, id: normalizedElementID($0.id)) }
+        let primaryTargets = interactableElements.prefix(3).compactMap { preferredElementName(
+            label: $0.label,
+            id: normalizedElementID($0.id)
+        ) }
         let visibleText = allElements
             .filter { $0.type == .staticText }
             .prefix(4)
@@ -959,7 +1016,7 @@ public actor DriverToolExecutor: ToolExecutor {
             !primaryTargets.isEmpty ? "primary_actions=\(primaryTargets.joined(separator: ", "))" : nil,
             !visibleText.isEmpty ? "visible_text=\(visibleText.joined(separator: ", "))" : nil,
             context.summary.isEmpty ? nil : context.summary
-        ].compactMap { $0 }
+        ].compactMap(\.self)
 
         return ScreenContext(
             summary: summaryParts.joined(separator: " | "),
@@ -969,8 +1026,10 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     private func inferredScreenTitle(from elements: [ElementInfo], hierarchy: ViewNode) -> String? {
-        if let textTitle = elements.first(where: { $0.type == .staticText && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })?.label,
-           !textTitle.isEmpty {
+        if let textTitle = elements
+            .first(where: { $0.type == .staticText && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            })?.label,
+            !textTitle.isEmpty {
             return textTitle
         }
 
@@ -986,7 +1045,8 @@ public actor DriverToolExecutor: ToolExecutor {
         guard !trimmed.isEmpty else { return nil }
         let lowered = trimmed.lowercased()
         let genericPatterns = ["button", "text", "label", "image", "view", "cell"]
-        if genericPatterns.contains(where: { lowered == $0 || lowered.hasPrefix("\($0)") && lowered.count <= $0.count + 2 }) {
+        if genericPatterns
+            .contains(where: { lowered == $0 || lowered.hasPrefix("\($0)") && lowered.count <= $0.count + 2 }) {
             return nil
         }
         return trimmed
@@ -1101,7 +1161,7 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         let report = await SessionReport.make(from: session)
         let summary = "Session \(report.sessionID) — \(report.actionCount) action(s), \(report.errorCount) error(s)."
-        return .success(summary, structuredContent: try Value(report))
+        return try .success(summary, structuredContent: Value(report))
     }
 
     // MARK: - Device discovery / app inventory
@@ -1142,10 +1202,14 @@ public actor DriverToolExecutor: ToolExecutor {
         var lines: [String] = []
         for app in apps {
             var fields: [String: Value] = ["app_id": .string(app.appID)]
-            if let name = app.name { fields["name"] = .string(name) }
-            if let version = app.version { fields["version"] = .string(version) }
+            if let name = app.name {
+                fields["name"] = .string(name)
+            }
+            if let version = app.version {
+                fields["version"] = .string(version)
+            }
             rows.append(.object(fields))
-            let suffix = [app.name, app.version].compactMap { $0 }.joined(separator: " ")
+            let suffix = [app.name, app.version].compactMap(\.self).joined(separator: " ")
             lines.append(suffix.isEmpty ? app.appID : "\(app.appID) — \(suffix)")
         }
         let text = lines.isEmpty ? "No installed apps reported." : lines.joined(separator: "\n")
@@ -1191,8 +1255,10 @@ public actor DriverToolExecutor: ToolExecutor {
             )
         }
 
-        let selector = ElementSelector(id: target.id.isEmpty ? nil : target.id,
-                                       label: target.label.isEmpty ? nil : target.label)
+        let selector = ElementSelector(
+            id: target.id.isEmpty ? nil : target.id,
+            label: target.label.isEmpty ? nil : target.label
+        )
         try await driver.tapElement(selector)
         try? await Task.sleep(for: .milliseconds(800))
 
@@ -1200,8 +1266,10 @@ public actor DriverToolExecutor: ToolExecutor {
         let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000.0)
         var current = initial
         while Date() < deadline {
-            current = (try? await driver.getScreenContext()) ?? current
-            if current.summary != initial.summary { break }
+            current = await (try? driver.getScreenContext()) ?? current
+            if current.summary != initial.summary {
+                break
+            }
             try? await Task.sleep(for: .milliseconds(200))
         }
 
@@ -1287,13 +1355,17 @@ public actor DriverToolExecutor: ToolExecutor {
         }) {
             return match
         }
-        let semantic = (try? await driver.findByDescription(query)) ?? []
+        let semantic = await (try? driver.findByDescription(query)) ?? []
         return semantic.first
     }
 
     private func screenContextMatches(_ context: ScreenContext, query lowered: String) -> Bool {
-        if context.summary.lowercased().contains(lowered) { return true }
-        if let title = context.screenTitle, title.lowercased().contains(lowered) { return true }
+        if context.summary.lowercased().contains(lowered) {
+            return true
+        }
+        if let title = context.screenTitle, title.lowercased().contains(lowered) {
+            return true
+        }
         return false
     }
 }
@@ -1309,8 +1381,12 @@ private func renderViewNode(_ node: ViewNode, indent: Int) -> String {
     let valueStr = node.value.map { " = \(colored($0, .magenta))" } ?? ""
     let idStr = node.id.isEmpty ? "" : " \(colored("id=\(node.id)", .blue))"
     let stateStr: String = {
-        if !node.isEnabled { return " \(colored("(disabled)", .red))" }
-        if !node.isVisible { return " \(colored("(hidden)", .gray))" }
+        if !node.isEnabled {
+            return " \(colored("(disabled)", .red))"
+        }
+        if !node.isVisible {
+            return " \(colored("(hidden)", .gray))"
+        }
         return ""
     }()
 

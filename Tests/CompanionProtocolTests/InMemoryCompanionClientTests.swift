@@ -1,6 +1,6 @@
+import AmooCore
 @testable import CompanionProtocol
 import Foundation
-import MobileTestingCore
 import XCTest
 
 /// Exercises the in-memory companion client — the stub `GRPCCompanionClient(connection:)`

@@ -1,7 +1,7 @@
-package com.manman.companion.handlers
+package com.amoo.companion.handlers
 
-import com.manman.companion.bridge.ElementSnapshot
-import com.manman.companion.bridge.UIAutomatorBridge
+import com.amoo.companion.bridge.ElementSnapshot
+import com.amoo.companion.bridge.UIAutomatorBridge
 
 class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
 

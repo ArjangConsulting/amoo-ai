@@ -1,62 +1,63 @@
+import AmooCore
+
 // swiftlint:disable file_length
 import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2
-import MobileTestingCore
 import Protos
 
 // swiftformat:disable wrapMultilineStatementBraces
 
 package protocol CompanionRPCClient: Sendable {
     // Session
-    func startSession(_ request: MobileTesting_StartSessionRequest) async throws -> MobileTesting_StartSessionResponse
-    func getCapabilities(_ request: MobileTesting_CapabilitiesRequest) async throws
-        -> MobileTesting_CapabilitiesResponse
-    func endSession(_ request: MobileTesting_EndSessionRequest) async throws -> MobileTesting_EndSessionResponse
+    func startSession(_ request: Amoo_StartSessionRequest) async throws -> Amoo_StartSessionResponse
+    func getCapabilities(_ request: Amoo_CapabilitiesRequest) async throws
+        -> Amoo_CapabilitiesResponse
+    func endSession(_ request: Amoo_EndSessionRequest) async throws -> Amoo_EndSessionResponse
 
     // Touch
-    func tap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse
-    func doubleTap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse
-    func longPress(_ request: MobileTesting_LongPressRequest) async throws -> MobileTesting_ActionResponse
-    func tapElement(_ request: MobileTesting_TapElementRequest) async throws -> MobileTesting_ActionResponse
+    func tap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse
+    func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse
+    func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse
+    func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse
 
     // Gestures
-    func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse
-    func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws -> MobileTesting_ActionResponse
-    func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse
-    func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse
+    func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse
+    func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws -> Amoo_ActionResponse
+    func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse
+    func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse
 
     // Text
-    func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse
-    func clearText(_ request: MobileTesting_ClearTextRequest) async throws -> MobileTesting_ActionResponse
+    func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse
+    func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse
 
     // Navigation
-    func pressBack(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse
-    func pressHome(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse
+    func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse
+    func pressHome(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse
 
     // Accessibility
-    func findElements(_ request: MobileTesting_FindElementsRequest) async throws -> MobileTesting_FindElementsResponse
+    func findElements(_ request: Amoo_FindElementsRequest) async throws -> Amoo_FindElementsResponse
     func getViewHierarchy(
-        _ request: MobileTesting_ViewHierarchyRequest
-    ) async throws -> MobileTesting_ViewHierarchyResponse
+        _ request: Amoo_ViewHierarchyRequest
+    ) async throws -> Amoo_ViewHierarchyResponse
     func waitForElement(
-        _ request: MobileTesting_WaitForElementRequest
-    ) async throws -> MobileTesting_WaitForElementResponse
-    func isKeyboardVisible(_ request: MobileTesting_Empty) async throws -> MobileTesting_KeyboardVisibleResponse
+        _ request: Amoo_WaitForElementRequest
+    ) async throws -> Amoo_WaitForElementResponse
+    func isKeyboardVisible(_ request: Amoo_Empty) async throws -> Amoo_KeyboardVisibleResponse
 
     /// Capture
-    func takeScreenshot(_ request: MobileTesting_ScreenshotRequest) async throws -> MobileTesting_ScreenshotResponse
+    func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws -> Amoo_ScreenshotResponse
 
     /// AI
     func getScreenContext(
-        _ request: MobileTesting_ScreenContextRequest
-    ) async throws -> MobileTesting_ScreenContextResponse
+        _ request: Amoo_ScreenContextRequest
+    ) async throws -> Amoo_ScreenContextResponse
     func findByDescription(
-        _ request: MobileTesting_FindByDescriptionRequest
-    ) async throws -> MobileTesting_FindElementsResponse
+        _ request: Amoo_FindByDescriptionRequest
+    ) async throws -> Amoo_FindElementsResponse
     func getInteractableElements(
-        _ request: MobileTesting_Empty
-    ) async throws -> MobileTesting_InteractableElementsResponse
+        _ request: Amoo_Empty
+    ) async throws -> Amoo_InteractableElementsResponse
 
     func shutdown() async
 }
@@ -68,119 +69,119 @@ package extension CompanionRPCClient {
 // MARK: - GeneratedCompanionRPCClient
 
 package struct GeneratedCompanionRPCClient: CompanionRPCClient {
-    private let client: any MobileTesting_CompanionService.ClientProtocol
+    private let client: any Amoo_CompanionService.ClientProtocol
 
-    package init(client: any MobileTesting_CompanionService.ClientProtocol) {
+    package init(client: any Amoo_CompanionService.ClientProtocol) {
         self.client = client
     }
 
-    package func startSession(_ request: MobileTesting_StartSessionRequest) async throws
-        -> MobileTesting_StartSessionResponse {
+    package func startSession(_ request: Amoo_StartSessionRequest) async throws
+        -> Amoo_StartSessionResponse {
         try await client.startSession(request)
     }
 
     package func getCapabilities(
-        _ request: MobileTesting_CapabilitiesRequest
-    ) async throws -> MobileTesting_CapabilitiesResponse {
+        _ request: Amoo_CapabilitiesRequest
+    ) async throws -> Amoo_CapabilitiesResponse {
         try await client.getCapabilities(request)
     }
 
-    package func endSession(_ request: MobileTesting_EndSessionRequest) async throws
-        -> MobileTesting_EndSessionResponse {
+    package func endSession(_ request: Amoo_EndSessionRequest) async throws
+        -> Amoo_EndSessionResponse {
         try await client.endSession(request)
     }
 
-    package func tap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse {
+    package func tap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
         try await client.tap(request)
     }
 
-    package func doubleTap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse {
+    package func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
         try await client.doubleTap(request)
     }
 
-    package func longPress(_ request: MobileTesting_LongPressRequest) async throws -> MobileTesting_ActionResponse {
+    package func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse {
         try await client.longPress(request)
     }
 
-    package func tapElement(_ request: MobileTesting_TapElementRequest) async throws -> MobileTesting_ActionResponse {
+    package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
         try await client.tapElement(request)
     }
 
-    package func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
+    package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
         try await client.swipe(request)
     }
 
-    package func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws
-        -> MobileTesting_ActionResponse {
+    package func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws
+        -> Amoo_ActionResponse {
         try await client.swipeInDirection(request)
     }
 
-    package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
+    package func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse {
         try await client.scroll(request)
     }
 
-    package func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
+    package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
         try await client.drag(request)
     }
 
-    package func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse {
+    package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
         try await client.typeText(request)
     }
 
-    package func clearText(_ request: MobileTesting_ClearTextRequest) async throws -> MobileTesting_ActionResponse {
+    package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
         try await client.clearText(request)
     }
 
-    package func pressBack(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse {
+    package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         try await client.pressBack(request)
     }
 
-    package func pressHome(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse {
+    package func pressHome(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         try await client.pressHome(request)
     }
 
-    package func findElements(_ request: MobileTesting_FindElementsRequest) async throws
-        -> MobileTesting_FindElementsResponse {
+    package func findElements(_ request: Amoo_FindElementsRequest) async throws
+        -> Amoo_FindElementsResponse {
         try await client.findElements(request)
     }
 
     package func getViewHierarchy(
-        _ request: MobileTesting_ViewHierarchyRequest
-    ) async throws -> MobileTesting_ViewHierarchyResponse {
+        _ request: Amoo_ViewHierarchyRequest
+    ) async throws -> Amoo_ViewHierarchyResponse {
         try await client.getViewHierarchy(request)
     }
 
     package func waitForElement(
-        _ request: MobileTesting_WaitForElementRequest
-    ) async throws -> MobileTesting_WaitForElementResponse {
+        _ request: Amoo_WaitForElementRequest
+    ) async throws -> Amoo_WaitForElementResponse {
         try await client.waitForElement(request)
     }
 
-    package func isKeyboardVisible(_ request: MobileTesting_Empty) async throws
-        -> MobileTesting_KeyboardVisibleResponse {
+    package func isKeyboardVisible(_ request: Amoo_Empty) async throws
+        -> Amoo_KeyboardVisibleResponse {
         try await client.isKeyboardVisible(request)
     }
 
-    package func takeScreenshot(_ request: MobileTesting_ScreenshotRequest) async throws
-        -> MobileTesting_ScreenshotResponse {
+    package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
+        -> Amoo_ScreenshotResponse {
         try await client.takeScreenshot(request)
     }
 
     package func getScreenContext(
-        _ request: MobileTesting_ScreenContextRequest
-    ) async throws -> MobileTesting_ScreenContextResponse {
+        _ request: Amoo_ScreenContextRequest
+    ) async throws -> Amoo_ScreenContextResponse {
         try await client.getScreenContext(request)
     }
 
     package func findByDescription(
-        _ request: MobileTesting_FindByDescriptionRequest
-    ) async throws -> MobileTesting_FindElementsResponse {
+        _ request: Amoo_FindByDescriptionRequest
+    ) async throws -> Amoo_FindElementsResponse {
         try await client.findByDescription(request)
     }
 
     package func getInteractableElements(
-        _ request: MobileTesting_Empty
-    ) async throws -> MobileTesting_InteractableElementsResponse {
+        _ request: Amoo_Empty
+    ) async throws -> Amoo_InteractableElementsResponse {
         try await client.getInteractableElements(request)
     }
 }
@@ -190,190 +191,190 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
 package struct InMemoryCompanionRPCClient: CompanionRPCClient {
     package init() {}
 
-    package func startSession(_ request: MobileTesting_StartSessionRequest) async throws
-        -> MobileTesting_StartSessionResponse {
-        var response = MobileTesting_StartSessionResponse()
+    package func startSession(_ request: Amoo_StartSessionRequest) async throws
+        -> Amoo_StartSessionResponse {
+        var response = Amoo_StartSessionResponse()
         response.sessionID = request.requestedSessionID.isEmpty ? UUID().uuidString : request.requestedSessionID
         return response
     }
 
     package func getCapabilities(
-        _ request: MobileTesting_CapabilitiesRequest
-    ) async throws -> MobileTesting_CapabilitiesResponse {
+        _ request: Amoo_CapabilitiesRequest
+    ) async throws -> Amoo_CapabilitiesResponse {
         _ = request
 
-        var requiredCapability = MobileTesting_CapabilityDescriptor()
+        var requiredCapability = Amoo_CapabilityDescriptor()
         requiredCapability.key = "action.tap"
         requiredCapability.tier = .required
         requiredCapability.supported = true
 
-        var queryCapability = MobileTesting_CapabilityDescriptor()
+        var queryCapability = Amoo_CapabilityDescriptor()
         queryCapability.key = "query.findElements"
         queryCapability.tier = .required
         queryCapability.supported = true
 
-        var response = MobileTesting_CapabilitiesResponse()
+        var response = Amoo_CapabilitiesResponse()
         response.capabilities = [requiredCapability, queryCapability]
         return response
     }
 
-    package func endSession(_ request: MobileTesting_EndSessionRequest) async throws
-        -> MobileTesting_EndSessionResponse {
+    package func endSession(_ request: Amoo_EndSessionRequest) async throws
+        -> Amoo_EndSessionResponse {
         _ = request
 
-        var response = MobileTesting_EndSessionResponse()
+        var response = Amoo_EndSessionResponse()
         response.ended = true
         return response
     }
 
-    package func tap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse {
+    package func tap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func doubleTap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse {
+    package func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func longPress(_ request: MobileTesting_LongPressRequest) async throws -> MobileTesting_ActionResponse {
+    package func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func tapElement(_ request: MobileTesting_TapElementRequest) async throws -> MobileTesting_ActionResponse {
+    package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
+    package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws
-        -> MobileTesting_ActionResponse {
+    package func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws
+        -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
+    package func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
+    package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse {
+    package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func clearText(_ request: MobileTesting_ClearTextRequest) async throws -> MobileTesting_ActionResponse {
+    package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func pressBack(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse {
+    package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func pressHome(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse {
+    package func pressHome(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
 
-    package func findElements(_ request: MobileTesting_FindElementsRequest) async throws
-        -> MobileTesting_FindElementsResponse {
-        var element = MobileTesting_ElementInfo()
+    package func findElements(_ request: Amoo_FindElementsRequest) async throws
+        -> Amoo_FindElementsResponse {
+        var element = Amoo_ElementInfo()
         element.id = request.selector.id.isEmpty ? "sample" : request.selector.id
         element.label = request.selector.label.isEmpty ? "sample" : request.selector.label
 
-        var response = MobileTesting_FindElementsResponse()
+        var response = Amoo_FindElementsResponse()
         response.elements = [element]
         return response
     }
 
     package func getViewHierarchy(
-        _ request: MobileTesting_ViewHierarchyRequest
-    ) async throws -> MobileTesting_ViewHierarchyResponse {
+        _ request: Amoo_ViewHierarchyRequest
+    ) async throws -> Amoo_ViewHierarchyResponse {
         _ = request
 
-        var root = MobileTesting_ViewNode()
+        var root = Amoo_ViewNode()
         root.id = "root"
 
-        var response = MobileTesting_ViewHierarchyResponse()
+        var response = Amoo_ViewHierarchyResponse()
         response.root = root
         return response
     }
 
     package func waitForElement(
-        _ request: MobileTesting_WaitForElementRequest
-    ) async throws -> MobileTesting_WaitForElementResponse {
+        _ request: Amoo_WaitForElementRequest
+    ) async throws -> Amoo_WaitForElementResponse {
         _ = request
-        var response = MobileTesting_WaitForElementResponse()
+        var response = Amoo_WaitForElementResponse()
         response.found = true
         return response
     }
 
-    package func isKeyboardVisible(_ request: MobileTesting_Empty) async throws
-        -> MobileTesting_KeyboardVisibleResponse {
+    package func isKeyboardVisible(_ request: Amoo_Empty) async throws
+        -> Amoo_KeyboardVisibleResponse {
         _ = request
-        var response = MobileTesting_KeyboardVisibleResponse()
+        var response = Amoo_KeyboardVisibleResponse()
         response.visible = false
         return response
     }
 
-    package func takeScreenshot(_ request: MobileTesting_ScreenshotRequest) async throws
-        -> MobileTesting_ScreenshotResponse {
+    package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
+        -> Amoo_ScreenshotResponse {
         _ = request
-        var response = MobileTesting_ScreenshotResponse()
+        var response = Amoo_ScreenshotResponse()
         response.data = Data([0x89, 0x50, 0x4E, 0x47]) // PNG magic bytes
         return response
     }
 
     package func getScreenContext(
-        _ request: MobileTesting_ScreenContextRequest
-    ) async throws -> MobileTesting_ScreenContextResponse {
+        _ request: Amoo_ScreenContextRequest
+    ) async throws -> Amoo_ScreenContextResponse {
         _ = request
 
-        var response = MobileTesting_ScreenContextResponse()
+        var response = Amoo_ScreenContextResponse()
         response.summary = "Empty screen context"
         return response
     }
 
     package func findByDescription(
-        _ request: MobileTesting_FindByDescriptionRequest
-    ) async throws -> MobileTesting_FindElementsResponse {
-        var element = MobileTesting_ElementInfo()
+        _ request: Amoo_FindByDescriptionRequest
+    ) async throws -> Amoo_FindElementsResponse {
+        var element = Amoo_ElementInfo()
         element.id = "fixture-home-title"
         element.label = request.description_p.isEmpty ? "Fixture Home" : request.description_p
 
-        var response = MobileTesting_FindElementsResponse()
+        var response = Amoo_FindElementsResponse()
         response.elements = [element]
         return response
     }
 
     package func getInteractableElements(
-        _ request: MobileTesting_Empty
-    ) async throws -> MobileTesting_InteractableElementsResponse {
+        _ request: Amoo_Empty
+    ) async throws -> Amoo_InteractableElementsResponse {
         _ = request
 
-        var element = MobileTesting_ElementInfo()
+        var element = Amoo_ElementInfo()
         element.id = "fixture-open-details"
         element.label = "Open Details"
 
-        var response = MobileTesting_InteractableElementsResponse()
+        var response = Amoo_InteractableElementsResponse()
         response.elements = [element]
         return response
     }
 
-    private func successActionResponse() -> MobileTesting_ActionResponse {
-        var response = MobileTesting_ActionResponse()
+    private func successActionResponse() -> Amoo_ActionResponse {
+        var response = Amoo_ActionResponse()
         response.success = true
         return response
     }
@@ -383,7 +384,7 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
 
 package actor LiveCompanionRPCClient: CompanionRPCClient {
     private let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>
-    private let client: MobileTesting_CompanionService.Client<HTTP2ClientTransport.Posix>
+    private let client: Amoo_CompanionService.Client<HTTP2ClientTransport.Posix>
     private let connectionTask: Task<Void, Never>
 
     package init(connection: CompanionConnection) throws {
@@ -393,7 +394,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         )
         let grpcClient = GRPCClient(transport: transport)
         self.grpcClient = grpcClient
-        client = MobileTesting_CompanionService.Client(wrapping: grpcClient)
+        client = Amoo_CompanionService.Client(wrapping: grpcClient)
         connectionTask = Task {
             do {
                 try await grpcClient.runConnections()
@@ -408,113 +409,113 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         connectionTask.cancel()
     }
 
-    package func startSession(_ request: MobileTesting_StartSessionRequest) async throws
-        -> MobileTesting_StartSessionResponse {
+    package func startSession(_ request: Amoo_StartSessionRequest) async throws
+        -> Amoo_StartSessionResponse {
         try await client.startSession(request)
     }
 
     package func getCapabilities(
-        _ request: MobileTesting_CapabilitiesRequest
-    ) async throws -> MobileTesting_CapabilitiesResponse {
+        _ request: Amoo_CapabilitiesRequest
+    ) async throws -> Amoo_CapabilitiesResponse {
         try await client.getCapabilities(request)
     }
 
-    package func endSession(_ request: MobileTesting_EndSessionRequest) async throws
-        -> MobileTesting_EndSessionResponse {
+    package func endSession(_ request: Amoo_EndSessionRequest) async throws
+        -> Amoo_EndSessionResponse {
         try await client.endSession(request)
     }
 
-    package func tap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse {
+    package func tap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
         try await client.tap(request)
     }
 
-    package func doubleTap(_ request: MobileTesting_TapRequest) async throws -> MobileTesting_ActionResponse {
+    package func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
         try await client.doubleTap(request)
     }
 
-    package func longPress(_ request: MobileTesting_LongPressRequest) async throws -> MobileTesting_ActionResponse {
+    package func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse {
         try await client.longPress(request)
     }
 
-    package func tapElement(_ request: MobileTesting_TapElementRequest) async throws -> MobileTesting_ActionResponse {
+    package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
         try await client.tapElement(request)
     }
 
-    package func swipe(_ request: MobileTesting_SwipeRequest) async throws -> MobileTesting_ActionResponse {
+    package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
         try await client.swipe(request)
     }
 
-    package func swipeInDirection(_ request: MobileTesting_SwipeDirectionRequest) async throws
-        -> MobileTesting_ActionResponse {
+    package func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws
+        -> Amoo_ActionResponse {
         try await client.swipeInDirection(request)
     }
 
-    package func scroll(_ request: MobileTesting_ScrollRequest) async throws -> MobileTesting_ActionResponse {
+    package func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse {
         try await client.scroll(request)
     }
 
-    package func drag(_ request: MobileTesting_DragRequest) async throws -> MobileTesting_ActionResponse {
+    package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
         try await client.drag(request)
     }
 
-    package func typeText(_ request: MobileTesting_TypeTextRequest) async throws -> MobileTesting_ActionResponse {
+    package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
         try await client.typeText(request)
     }
 
-    package func clearText(_ request: MobileTesting_ClearTextRequest) async throws -> MobileTesting_ActionResponse {
+    package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
         try await client.clearText(request)
     }
 
-    package func pressBack(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse {
+    package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         try await client.pressBack(request)
     }
 
-    package func pressHome(_ request: MobileTesting_Empty) async throws -> MobileTesting_ActionResponse {
+    package func pressHome(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         try await client.pressHome(request)
     }
 
-    package func findElements(_ request: MobileTesting_FindElementsRequest) async throws
-        -> MobileTesting_FindElementsResponse {
+    package func findElements(_ request: Amoo_FindElementsRequest) async throws
+        -> Amoo_FindElementsResponse {
         try await client.findElements(request)
     }
 
     package func getViewHierarchy(
-        _ request: MobileTesting_ViewHierarchyRequest
-    ) async throws -> MobileTesting_ViewHierarchyResponse {
+        _ request: Amoo_ViewHierarchyRequest
+    ) async throws -> Amoo_ViewHierarchyResponse {
         try await client.getViewHierarchy(request)
     }
 
     package func waitForElement(
-        _ request: MobileTesting_WaitForElementRequest
-    ) async throws -> MobileTesting_WaitForElementResponse {
+        _ request: Amoo_WaitForElementRequest
+    ) async throws -> Amoo_WaitForElementResponse {
         try await client.waitForElement(request)
     }
 
-    package func isKeyboardVisible(_ request: MobileTesting_Empty) async throws
-        -> MobileTesting_KeyboardVisibleResponse {
+    package func isKeyboardVisible(_ request: Amoo_Empty) async throws
+        -> Amoo_KeyboardVisibleResponse {
         try await client.isKeyboardVisible(request)
     }
 
-    package func takeScreenshot(_ request: MobileTesting_ScreenshotRequest) async throws
-        -> MobileTesting_ScreenshotResponse {
+    package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
+        -> Amoo_ScreenshotResponse {
         try await client.takeScreenshot(request)
     }
 
     package func getScreenContext(
-        _ request: MobileTesting_ScreenContextRequest
-    ) async throws -> MobileTesting_ScreenContextResponse {
+        _ request: Amoo_ScreenContextRequest
+    ) async throws -> Amoo_ScreenContextResponse {
         try await client.getScreenContext(request)
     }
 
     package func findByDescription(
-        _ request: MobileTesting_FindByDescriptionRequest
-    ) async throws -> MobileTesting_FindElementsResponse {
+        _ request: Amoo_FindByDescriptionRequest
+    ) async throws -> Amoo_FindElementsResponse {
         try await client.findByDescription(request)
     }
 
     package func getInteractableElements(
-        _ request: MobileTesting_Empty
-    ) async throws -> MobileTesting_InteractableElementsResponse {
+        _ request: Amoo_Empty
+    ) async throws -> Amoo_InteractableElementsResponse {
         try await client.getInteractableElements(request)
     }
 
@@ -553,7 +554,7 @@ public actor GRPCCompanionClient: CompanionClient {
 
     package init(
         connection: CompanionConnection,
-        generatedClient: any MobileTesting_CompanionService.ClientProtocol
+        generatedClient: any Amoo_CompanionService.ClientProtocol
     ) {
         self.connection = connection
         rpcClient = GeneratedCompanionRPCClient(client: generatedClient)
@@ -562,7 +563,7 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Session
 
     public func startSession() async throws {
-        var request = MobileTesting_StartSessionRequest()
+        var request = Amoo_StartSessionRequest()
         request.requestedSessionID = sessionID ?? UUID().uuidString
 
         let response = try await rpcClient.startSession(request)
@@ -570,7 +571,7 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func getCapabilities() async throws -> [CapabilityDescriptor] {
-        let response = try await rpcClient.getCapabilities(MobileTesting_CapabilitiesRequest())
+        let response = try await rpcClient.getCapabilities(Amoo_CapabilitiesRequest())
         return response.capabilities.map { descriptor in
             CapabilityDescriptor(
                 key: descriptor.key,
@@ -582,7 +583,7 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func endSession() async throws {
-        var request = MobileTesting_EndSessionRequest()
+        var request = Amoo_EndSessionRequest()
         request.sessionID = sessionID ?? ""
 
         _ = try await rpcClient.endSession(request)
@@ -592,7 +593,7 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Touch
 
     public func tap(at point: Point) async throws {
-        var request = MobileTesting_TapRequest()
+        var request = Amoo_TapRequest()
         request.point = point.protoPoint
 
         let response = try await rpcClient.tap(request)
@@ -600,7 +601,7 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func doubleTap(at point: Point) async throws {
-        var request = MobileTesting_TapRequest()
+        var request = Amoo_TapRequest()
         request.point = point.protoPoint
 
         let response = try await rpcClient.doubleTap(request)
@@ -608,9 +609,9 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func longPress(at point: Point, duration: Duration) async throws {
-        var request = MobileTesting_LongPressRequest()
+        var request = Amoo_LongPressRequest()
         request.point = point.protoPoint
-        var dur = MobileTesting_Duration()
+        var dur = Amoo_Duration()
         dur.milliseconds = Int32(duration.milliseconds)
         request.duration = dur
 
@@ -623,7 +624,7 @@ public actor GRPCCompanionClient: CompanionClient {
         appID: String? = nil,
         candidateBundleIDs: [String] = []
     ) async throws {
-        var request = MobileTesting_TapElementRequest()
+        var request = Amoo_TapElementRequest()
         request.selector = selector.protoSelector
         request.appID = appID ?? ""
         request.candidateBundleIds = candidateBundleIDs
@@ -635,10 +636,10 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Gestures
 
     public func swipe(from: Point, to: Point, duration: Duration) async throws {
-        var request = MobileTesting_SwipeRequest()
+        var request = Amoo_SwipeRequest()
         request.from = from.protoPoint
         request.to = to.protoPoint
-        var dur = MobileTesting_Duration()
+        var dur = Amoo_Duration()
         dur.milliseconds = Int32(duration.milliseconds)
         request.duration = dur
 
@@ -650,13 +651,13 @@ public actor GRPCCompanionClient: CompanionClient {
     /// long-press, then moves to `to` over `duration` before releasing. This is
     /// what distinguishes a drag from a swipe — a swipe never dwells at the origin.
     public func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws {
-        var request = MobileTesting_DragRequest()
+        var request = Amoo_DragRequest()
         request.from = from.protoPoint
         request.to = to.protoPoint
-        var dur = MobileTesting_Duration()
+        var dur = Amoo_Duration()
         dur.milliseconds = Int32(duration.milliseconds)
         request.duration = dur
-        var hold = MobileTesting_Duration()
+        var hold = Amoo_Duration()
         hold.milliseconds = Int32(holdDuration.milliseconds)
         request.holdDuration = hold
 
@@ -670,7 +671,7 @@ public actor GRPCCompanionClient: CompanionClient {
         duration: Duration,
         element: ElementSelector?
     ) async throws {
-        var request = MobileTesting_SwipeDirectionRequest()
+        var request = Amoo_SwipeDirectionRequest()
         request.direction = direction.protoDirection
         request.distance = Float(distance)
         request.durationMs = Int32(duration.milliseconds)
@@ -683,7 +684,7 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func scroll(direction: Direction, distance: Double) async throws {
-        var request = MobileTesting_ScrollRequest()
+        var request = Amoo_ScrollRequest()
         request.direction = direction.protoDirection
         request.distance = Float(distance)
 
@@ -694,7 +695,7 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Text
 
     public func typeText(_ text: String) async throws {
-        var request = MobileTesting_TypeTextRequest()
+        var request = Amoo_TypeTextRequest()
         request.text = text
 
         let response = try await rpcClient.typeText(request)
@@ -702,7 +703,7 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func clearText(characterCount: Int?) async throws {
-        var request = MobileTesting_ClearTextRequest()
+        var request = Amoo_ClearTextRequest()
         request.characterCount = Int32(characterCount ?? 0)
 
         let response = try await rpcClient.clearText(request)
@@ -712,12 +713,12 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Navigation
 
     public func pressBack() async throws {
-        let response = try await rpcClient.pressBack(MobileTesting_Empty())
+        let response = try await rpcClient.pressBack(Amoo_Empty())
         try validate(response: response, action: "pressBack")
     }
 
     public func pressHome() async throws {
-        let response = try await rpcClient.pressHome(MobileTesting_Empty())
+        let response = try await rpcClient.pressHome(Amoo_Empty())
         try validate(response: response, action: "pressHome")
     }
 
@@ -729,7 +730,7 @@ public actor GRPCCompanionClient: CompanionClient {
         candidateBundleIDs: [String] = []
     ) async throws
         -> [ElementInfo] {
-        var request = MobileTesting_FindElementsRequest()
+        var request = Amoo_FindElementsRequest()
         request.selector = selector.protoSelector
         request.appID = appID ?? ""
         request.candidateBundleIds = candidateBundleIDs
@@ -739,7 +740,7 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func getViewHierarchy(appID: String? = nil, candidateBundleIDs: [String] = []) async throws -> ViewNode {
-        var request = MobileTesting_ViewHierarchyRequest()
+        var request = Amoo_ViewHierarchyRequest()
         request.appID = appID ?? ""
         request.candidateBundleIds = candidateBundleIDs
         let response = try await rpcClient.getViewHierarchy(request)
@@ -752,9 +753,9 @@ public actor GRPCCompanionClient: CompanionClient {
         appID: String? = nil,
         candidateBundleIDs: [String] = []
     ) async throws {
-        var request = MobileTesting_WaitForElementRequest()
+        var request = Amoo_WaitForElementRequest()
         request.selector = selector.protoSelector
-        var dur = MobileTesting_Duration()
+        var dur = Amoo_Duration()
         dur.milliseconds = Int32(timeout.milliseconds)
         request.timeout = dur
         request.appID = appID ?? ""
@@ -762,26 +763,26 @@ public actor GRPCCompanionClient: CompanionClient {
 
         let response = try await rpcClient.waitForElement(request)
         if !response.found {
-            throw MobileTestingError.timeout(operation: "waitForElement", duration: timeout)
+            throw AmooError.timeout(operation: "waitForElement", duration: timeout)
         }
     }
 
     public func isKeyboardVisible() async throws -> Bool {
-        let response = try await rpcClient.isKeyboardVisible(MobileTesting_Empty())
+        let response = try await rpcClient.isKeyboardVisible(Amoo_Empty())
         return response.visible
     }
 
     // MARK: - Capture
 
     public func takeScreenshot() async throws -> ScreenshotData {
-        let response = try await rpcClient.takeScreenshot(MobileTesting_ScreenshotRequest())
+        let response = try await rpcClient.takeScreenshot(Amoo_ScreenshotRequest())
         return ScreenshotData(bytes: [UInt8](response.data))
     }
 
     // MARK: - AI
 
     public func getScreenContext() async throws -> ScreenContext {
-        var request = MobileTesting_ScreenContextRequest()
+        var request = Amoo_ScreenContextRequest()
         request.format = "summary"
 
         let response = try await rpcClient.getScreenContext(request)
@@ -789,12 +790,12 @@ public actor GRPCCompanionClient: CompanionClient {
     }
 
     public func getInteractableElements() async throws -> [ElementInfo] {
-        let response = try await rpcClient.getInteractableElements(MobileTesting_Empty())
+        let response = try await rpcClient.getInteractableElements(Amoo_Empty())
         return response.elements.map(\.coreElementInfo)
     }
 
     public func findByDescription(_ description: String) async throws -> [ElementInfo] {
-        var request = MobileTesting_FindByDescriptionRequest()
+        var request = Amoo_FindByDescriptionRequest()
         request.description_p = description
         let response = try await rpcClient.findByDescription(request)
         return response.elements.map(\.coreElementInfo)
@@ -808,13 +809,13 @@ public actor GRPCCompanionClient: CompanionClient {
 
     // MARK: - Private
 
-    private func validate(response: MobileTesting_ActionResponse, action: String) throws {
+    private func validate(response: Amoo_ActionResponse, action: String) throws {
         guard response.success else {
             // Runtime action failures (element not found, tap missed) — these are not
             // capability-negotiation problems. Surface them as commandFailed so callers
-            // catching MobileTestingError.commandFailed see them as expected.
+            // catching AmooError.commandFailed see them as expected.
             let reason = response.message.nonEmpty ?? "unknown"
-            throw MobileTestingError.commandFailed(command: action, output: reason)
+            throw AmooError.commandFailed(command: action, output: reason)
         }
     }
 }
@@ -822,7 +823,7 @@ public actor GRPCCompanionClient: CompanionClient {
 // MARK: - Proto Conversions
 
 private extension CapabilityTier {
-    static func from(_ tier: MobileTesting_CapabilityTier) -> Self {
+    static func from(_ tier: Amoo_CapabilityTier) -> Self {
         switch tier {
         case .required:
             .required
@@ -832,15 +833,15 @@ private extension CapabilityTier {
     }
 }
 
-private extension MobileTesting_CapabilityTier {
+private extension Amoo_CapabilityTier {
     var coreTier: CapabilityTier {
         .from(self)
     }
 }
 
 private extension Point {
-    var protoPoint: MobileTesting_Point {
-        var point = MobileTesting_Point()
+    var protoPoint: Amoo_Point {
+        var point = Amoo_Point()
         point.x = x
         point.y = y
         return point
@@ -848,7 +849,7 @@ private extension Point {
 }
 
 private extension Direction {
-    var protoDirection: MobileTesting_Direction {
+    var protoDirection: Amoo_Direction {
         switch self {
         case .up: .up
         case .down: .down
@@ -858,7 +859,7 @@ private extension Direction {
     }
 }
 
-private extension MobileTesting_ElementInfo {
+private extension Amoo_ElementInfo {
     var coreElementInfo: ElementInfo {
         ElementInfo(
             id: id.nonEmpty ?? "",
@@ -872,7 +873,7 @@ private extension MobileTesting_ElementInfo {
     }
 }
 
-private extension MobileTesting_ViewNode {
+private extension Amoo_ViewNode {
     var coreViewNode: ViewNode {
         ViewNode(
             id: id.nonEmpty ?? "",
@@ -887,15 +888,15 @@ private extension MobileTesting_ViewNode {
     }
 }
 
-private extension MobileTesting_Rect {
+private extension Amoo_Rect {
     var coreRect: Rect {
         Rect(x: x, y: y, width: width, height: height)
     }
 }
 
 private extension ElementSelector {
-    var protoSelector: MobileTesting_ElementSelector {
-        var selector = MobileTesting_ElementSelector()
+    var protoSelector: Amoo_ElementSelector {
+        var selector = Amoo_ElementSelector()
 
         if let id {
             selector.id = id

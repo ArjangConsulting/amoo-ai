@@ -1,5 +1,5 @@
+import AmooCore
 import GRPCCore
-import MobileTestingCore
 import Protos
 
 package protocol HostDeviceControlling: Sendable {
@@ -28,7 +28,7 @@ package struct NoopHostDeviceController: HostDeviceControlling {
     package func openURL(_: String) async throws {}
 }
 
-package actor HostDeviceServiceHandler: MobileTesting_HostDeviceService.SimpleServiceProtocol {
+package actor HostDeviceServiceHandler: Amoo_HostDeviceService.SimpleServiceProtocol {
     private let controller: any HostDeviceControlling
 
     package init(controller: any HostDeviceControlling = NoopHostDeviceController()) {
@@ -36,41 +36,41 @@ package actor HostDeviceServiceHandler: MobileTesting_HostDeviceService.SimpleSe
     }
 
     package func installApp(
-        request: MobileTesting_InstallAppRequest,
+        request: Amoo_InstallAppRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.installApp(path: request.path)
         return actionResponse()
     }
 
     package func launchApp(
-        request: MobileTesting_LaunchAppRequest,
+        request: Amoo_LaunchAppRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.launchApp(appID: request.appID, arguments: request.arguments)
         return actionResponse()
     }
 
     package func terminateApp(
-        request: MobileTesting_TerminateAppRequest,
+        request: Amoo_TerminateAppRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.terminateApp(appID: request.appID)
         return actionResponse()
     }
 
     package func uninstallApp(
-        request: MobileTesting_UninstallAppRequest,
+        request: Amoo_UninstallAppRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.uninstallApp(appID: request.appID)
         return actionResponse()
     }
 
     package func setPermission(
-        request: MobileTesting_SetPermissionRequest,
+        request: Amoo_SetPermissionRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let change = PermissionChange(
             appID: request.appID,
             permission: request.permission,
@@ -81,40 +81,40 @@ package actor HostDeviceServiceHandler: MobileTesting_HostDeviceService.SimpleSe
     }
 
     package func setLocation(
-        request: MobileTesting_SetLocationRequest,
+        request: Amoo_SetLocationRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.setLocation(latitude: request.latitude, longitude: request.longitude)
         return actionResponse()
     }
 
     package func clearLocation(
-        request _: MobileTesting_Empty,
+        request _: Amoo_Empty,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.clearLocation()
         return actionResponse()
     }
 
     package func setAppearance(
-        request: MobileTesting_SetAppearanceRequest,
+        request: Amoo_SetAppearanceRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let appearance: Appearance = request.appearance == "dark" ? .dark : .light
         try await controller.setAppearance(appearance)
         return actionResponse()
     }
 
     package func openURL(
-        request: MobileTesting_OpenURLRequest,
+        request: Amoo_OpenURLRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await controller.openURL(request.url)
         return actionResponse()
     }
 
-    private func actionResponse() -> MobileTesting_ActionResponse {
-        var response = MobileTesting_ActionResponse()
+    private func actionResponse() -> Amoo_ActionResponse {
+        var response = Amoo_ActionResponse()
         response.success = true
         response.message = "ok"
         return response

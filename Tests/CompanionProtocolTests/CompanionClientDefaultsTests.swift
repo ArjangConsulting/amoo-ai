@@ -1,5 +1,5 @@
+import AmooCore
 @testable import CompanionProtocol
-import MobileTestingCore
 import XCTest
 
 final class CompanionClientDefaultsTests: XCTestCase {
@@ -186,7 +186,7 @@ private func assertNotImplemented(
     do {
         _ = try await operation()
         XCTFail("Expected notImplemented error", file: file, line: line)
-    } catch let error as MobileTestingError {
+    } catch let error as AmooError {
         XCTAssertEqual(error, .notImplemented(expectedOperation), file: file, line: line)
     } catch {
         XCTFail("Unexpected error: \(error)", file: file, line: line)
