@@ -1,13 +1,13 @@
+import AmooCore
 import CLIReadline
 import Foundation
 import MCPServer
-import MobileTestingCore
 import OllamaClient
 
-// Convenience extension to use method syntax for coloring.
+/// Convenience extension to use method syntax for coloring.
 private extension String {
     func colored(_ color: ANSIColor) -> String {
-        MobileTestingCore.colored(self, color)
+        AmooCore.colored(self, color)
     }
 }
 
@@ -36,17 +36,18 @@ struct ChatLoop {
         self.maxToolCallsPerTurn = maxToolCallsPerTurn
 
         // Convert MCP ToolDefinitions to ToolBridge schemas
-        self.toolSchemas = toolDefinitions.map { def in
+        toolSchemas = toolDefinitions.map { def in
             ToolBridge.ToolSchema(
                 name: def.name,
                 description: def.description,
-                properties: def.properties.map { (key: $0.key, type: $0.value.type, description: $0.value.description) },
+                properties: def.properties
+                    .map { (key: $0.key, type: $0.value.type, description: $0.value.description) },
                 required: def.required
             )
         }
-        self.tools = ToolBridge.toOllamaTools(toolSchemas)
+        tools = ToolBridge.toOllamaTools(toolSchemas)
 
-        self.messages = [ChatMessage(role: .system, content: systemPrompt)]
+        messages = [ChatMessage(role: .system, content: systemPrompt)]
     }
 
     mutating func run() async {
@@ -56,12 +57,17 @@ struct ChatLoop {
         while true {
             guard let input = readInput() else { break }
             let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty { continue }
+            if trimmed.isEmpty {
+                continue
+            }
 
             // Handle slash commands
             if trimmed.hasPrefix("/") {
-                if handleSlashCommand(trimmed) { continue }
-                else { break } // /quit
+                if handleSlashCommand(trimmed) {
+                    continue
+                } else {
+                    break
+                } // /quit
             }
 
             // Add user message

@@ -1,4 +1,4 @@
-import MobileTestingCore
+import AmooCore
 
 public protocol CompanionClient: Sendable {
     // Session
@@ -55,19 +55,19 @@ public extension CompanionClient {
     }
 
     func doubleTap(at _: Point) async throws {
-        throw MobileTestingError.notImplemented("doubleTap")
+        throw AmooError.notImplemented("doubleTap")
     }
 
     func longPress(at _: Point, duration _: Duration) async throws {
-        throw MobileTestingError.notImplemented("longPress")
+        throw AmooError.notImplemented("longPress")
     }
 
     func tapElement(_: ElementSelector, appID _: String?, candidateBundleIDs _: [String]) async throws {
-        throw MobileTestingError.notImplemented("tapElement")
+        throw AmooError.notImplemented("tapElement")
     }
 
     func pressHome() async throws {
-        throw MobileTestingError.notImplemented("pressHome")
+        throw AmooError.notImplemented("pressHome")
     }
 
     func swipeInDirection(
@@ -76,23 +76,23 @@ public extension CompanionClient {
         duration _: Duration,
         element _: ElementSelector?
     ) async throws {
-        throw MobileTestingError.notImplemented("swipeInDirection")
+        throw AmooError.notImplemented("swipeInDirection")
     }
 
     func scroll(direction _: Direction, distance _: Double) async throws {
-        throw MobileTestingError.notImplemented("scroll")
+        throw AmooError.notImplemented("scroll")
     }
 
     func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {
-        throw MobileTestingError.notImplemented("drag")
+        throw AmooError.notImplemented("drag")
     }
 
     func clearText(characterCount _: Int?) async throws {
-        throw MobileTestingError.notImplemented("clearText")
+        throw AmooError.notImplemented("clearText")
     }
 
     func getViewHierarchy(appID _: String?, candidateBundleIDs _: [String]) async throws -> ViewNode {
-        throw MobileTestingError.notImplemented("getViewHierarchy")
+        throw AmooError.notImplemented("getViewHierarchy")
     }
 
     func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
@@ -101,7 +101,7 @@ public extension CompanionClient {
 
     func findElements(_: ElementSelector, appID _: String?, candidateBundleIDs _: [String]) async throws
         -> [ElementInfo] {
-        throw MobileTestingError.notImplemented("findElements")
+        throw AmooError.notImplemented("findElements")
     }
 
     func waitForElement(_ selector: ElementSelector, timeout: Duration) async throws {
@@ -114,22 +114,22 @@ public extension CompanionClient {
         appID _: String?,
         candidateBundleIDs _: [String]
     ) async throws {
-        throw MobileTestingError.notImplemented("waitForElement")
+        throw AmooError.notImplemented("waitForElement")
     }
 
     func isKeyboardVisible() async throws -> Bool {
-        throw MobileTestingError.notImplemented("isKeyboardVisible")
+        throw AmooError.notImplemented("isKeyboardVisible")
     }
 
     func takeScreenshot() async throws -> ScreenshotData {
-        throw MobileTestingError.notImplemented("takeScreenshot")
+        throw AmooError.notImplemented("takeScreenshot")
     }
 
     func getInteractableElements() async throws -> [ElementInfo] {
-        throw MobileTestingError.notImplemented("getInteractableElements")
+        throw AmooError.notImplemented("getInteractableElements")
     }
 
     func findByDescription(_: String) async throws -> [ElementInfo] {
-        throw MobileTestingError.notImplemented("findByDescription")
+        throw AmooError.notImplemented("findByDescription")
     }
 }

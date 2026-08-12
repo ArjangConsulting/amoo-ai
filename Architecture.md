@@ -31,7 +31,7 @@ amoo/
 │   └── ai.proto                         #   AI-specific queries
 │
 ├── Sources/
-│   ├── MobileTestingCore/               # Module 1: Shared protocols & types
+│   ├── AmooCore/               # Module 1: Shared protocols & types
 │   │   ├── Actions/
 │   │   │   ├── TouchActions.swift       #   Tap, long press, double tap
 │   │   │   ├── GestureActions.swift     #   Swipe, scroll, pinch, drag
@@ -151,7 +151,7 @@ amoo/
 │           └── settings.gradle.kts
 │
 └── Tests/
-    ├── MobileTestingCoreTests/
+    ├── AmooCoreTests/
     ├── IOSDriverTests/
     ├── AndroidDriverTests/
     ├── CompanionProtocolTests/
@@ -749,7 +749,7 @@ CI quality gates are mandatory:
 
 - `swiftformat --lint` must pass.
 - `swiftlint --strict` must pass.
-- `MobileTestingCore` line coverage >= 85%.
+- `AmooCore` line coverage >= 85%.
 - Driver/protocol modules line coverage >= 75%.
 - Repo-wide line coverage >= 80% before `v1.0.0`.
 - PRs cannot reduce coverage by more than 1% without explicit reviewer approval.

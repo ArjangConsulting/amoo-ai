@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 import SwiftyShell
 
 /// Host-side control of a *physical* iOS device via `xcrun devicectl`.

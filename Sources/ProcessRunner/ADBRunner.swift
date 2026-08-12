@@ -1,6 +1,6 @@
+import AmooCore
 import Foundation
 import GradleKit
-import MobileTestingCore
 import SwiftyShell
 
 public protocol ADBRunning: Sendable {
@@ -88,7 +88,7 @@ public struct ADBRunner: ADBRunning {
             adb(serial: serial).rawArguments([
                 "shell", "am", "start",
                 "--activity-clear-top",
-                "-n", component,
+                "-n", component
             ])
         )
     }
@@ -122,7 +122,7 @@ public struct ADBRunner: ADBRunning {
     public func startRecording(serial: String? = nil, outputPath: String) async throws {
         let serialKey = serial ?? "__default__"
         guard await ADBRecordingRegistry.shared.lookup(serialKey: serialKey) == nil else {
-            throw MobileTestingError.commandFailed(
+            throw AmooError.commandFailed(
                 command: "adb screenrecord",
                 output: "A recording is already active for \(serial ?? "default device")."
             )

@@ -1,10 +1,10 @@
-package com.manman.companion.server
+package com.amoo.companion.server
 
-import com.manman.companion.bridge.UIAutomatorBridge
-import com.manman.companion.handlers.AccessibilityHandler
-import com.manman.companion.handlers.GestureHandler
-import com.manman.companion.handlers.TextHandler
-import com.manman.companion.handlers.TouchHandler
+import com.amoo.companion.bridge.UIAutomatorBridge
+import com.amoo.companion.handlers.AccessibilityHandler
+import com.amoo.companion.handlers.GestureHandler
+import com.amoo.companion.handlers.TextHandler
+import com.amoo.companion.handlers.TouchHandler
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 

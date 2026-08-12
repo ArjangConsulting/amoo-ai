@@ -1,7 +1,7 @@
+import AmooCore
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MobileTestingCore
 import ProcessRunner
 import XCTest
 
@@ -272,7 +272,7 @@ final class IOSDriverTests: XCTestCase {
     func testTakeScreenshotFallsBackToSimctlWhenCompanionFails() async throws {
         let simctl = MockSimctlRunner()
         let companion = MockCompanionClient()
-        await companion.setScreenshotError(MobileTestingError.notImplemented("takeScreenshot"))
+        await companion.setScreenshotError(AmooError.notImplemented("takeScreenshot"))
         let driver = IOSDriver(companion: companion, simctl: simctl)
 
         let screenshot = try await driver.takeScreenshot(format: .jpeg)
@@ -289,7 +289,7 @@ final class IOSDriverTests: XCTestCase {
         do {
             _ = try await driver.startRecording()
             XCTFail("Expected commandFailed error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(
                 error,
                 .commandFailed(
@@ -302,7 +302,7 @@ final class IOSDriverTests: XCTestCase {
         do {
             _ = try await driver.stopRecording(sessionID: "missing")
             XCTFail("Expected commandFailed error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(
                 error,
                 .commandFailed(command: "stopRecording", output: "No active recording with session ID: missing")
@@ -339,7 +339,7 @@ final class IOSDriverTests: XCTestCase {
         do {
             try await driver.waitForElementToDisappear(.init(id: "spinner"), timeout: Duration(milliseconds: 1))
             XCTFail("Expected timeout error")
-        } catch let error as MobileTestingError {
+        } catch let error as AmooError {
             XCTAssertEqual(error, .timeout(operation: "waitForElementToDisappear", duration: Duration(milliseconds: 1)))
         }
     }
@@ -432,7 +432,7 @@ private actor MockSimctlRunner: SimctlRunning {
         let envSuffix = environment.isEmpty
             ? ""
             : ":env=" + environment.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" }
-                .joined(separator: ",")
+            .joined(separator: ",")
         _appCalls.append("launch:\(device):\(appID)\(envSuffix)")
     }
 
@@ -568,7 +568,12 @@ private actor MockCompanionClient: CompanionClient {
         _swipes.append((from, to, duration))
     }
 
-    private var _swipeDirections: [(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?)] = []
+    private var _swipeDirections: [(
+        direction: Direction,
+        distance: Double,
+        duration: Duration,
+        element: ElementSelector?
+    )] = []
 
     var swipeDirections: [(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?)] {
         _swipeDirections

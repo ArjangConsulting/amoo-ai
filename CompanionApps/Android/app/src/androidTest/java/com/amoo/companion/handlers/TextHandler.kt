@@ -1,6 +1,6 @@
-package com.manman.companion.handlers
+package com.amoo.companion.handlers
 
-import com.manman.companion.bridge.UIAutomatorBridge
+import com.amoo.companion.bridge.UIAutomatorBridge
 
 class TextHandler(private val bridge: UIAutomatorBridge) {
 

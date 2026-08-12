@@ -11,352 +11,354 @@
 import GRPCCore
 import GRPCProtobuf
 
-// MARK: - mobile.testing.v1.CompanionService
+// MARK: - amoo.v1.CompanionService
 
-/// Namespace containing generated types for the "mobile.testing.v1.CompanionService" service.
+/// Namespace containing generated types for the "amoo.v1.CompanionService" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum MobileTesting_CompanionService: Sendable {
-    /// Service descriptor for the "mobile.testing.v1.CompanionService" service.
-    public static let descriptor = GRPCCore
-        .ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService")
+public enum Amoo_CompanionService: Sendable {
+    /// Service descriptor for the "amoo.v1.CompanionService" service.
+    public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService")
     /// Namespace for method metadata.
     public enum Method: Sendable {
         /// Namespace for "StartSession" metadata.
         public enum StartSession: Sendable {
             /// Request type for "StartSession".
-            public typealias Input = MobileTesting_StartSessionRequest
+            public typealias Input = Amoo_StartSessionRequest
             /// Response type for "StartSession".
-            public typealias Output = MobileTesting_StartSessionResponse
+            public typealias Output = Amoo_StartSessionResponse
             /// Descriptor for "StartSession".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "StartSession"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "StartSession",
+                type: .unary
             )
         }
-
         /// Namespace for "GetCapabilities" metadata.
         public enum GetCapabilities: Sendable {
             /// Request type for "GetCapabilities".
-            public typealias Input = MobileTesting_CapabilitiesRequest
+            public typealias Input = Amoo_CapabilitiesRequest
             /// Response type for "GetCapabilities".
-            public typealias Output = MobileTesting_CapabilitiesResponse
+            public typealias Output = Amoo_CapabilitiesResponse
             /// Descriptor for "GetCapabilities".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "GetCapabilities"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetCapabilities",
+                type: .unary
             )
         }
-
         /// Namespace for "EndSession" metadata.
         public enum EndSession: Sendable {
             /// Request type for "EndSession".
-            public typealias Input = MobileTesting_EndSessionRequest
+            public typealias Input = Amoo_EndSessionRequest
             /// Response type for "EndSession".
-            public typealias Output = MobileTesting_EndSessionResponse
+            public typealias Output = Amoo_EndSessionResponse
             /// Descriptor for "EndSession".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "EndSession"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "EndSession",
+                type: .unary
             )
         }
-
         /// Namespace for "Tap" metadata.
         public enum Tap: Sendable {
             /// Request type for "Tap".
-            public typealias Input = MobileTesting_TapRequest
+            public typealias Input = Amoo_TapRequest
             /// Response type for "Tap".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "Tap".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "Tap"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "Tap",
+                type: .unary
             )
         }
-
         /// Namespace for "DoubleTap" metadata.
         public enum DoubleTap: Sendable {
             /// Request type for "DoubleTap".
-            public typealias Input = MobileTesting_TapRequest
+            public typealias Input = Amoo_TapRequest
             /// Response type for "DoubleTap".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "DoubleTap".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "DoubleTap"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "DoubleTap",
+                type: .unary
             )
         }
-
         /// Namespace for "LongPress" metadata.
         public enum LongPress: Sendable {
             /// Request type for "LongPress".
-            public typealias Input = MobileTesting_LongPressRequest
+            public typealias Input = Amoo_LongPressRequest
             /// Response type for "LongPress".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "LongPress".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "LongPress"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "LongPress",
+                type: .unary
             )
         }
-
         /// Namespace for "TapElement" metadata.
         public enum TapElement: Sendable {
             /// Request type for "TapElement".
-            public typealias Input = MobileTesting_TapElementRequest
+            public typealias Input = Amoo_TapElementRequest
             /// Response type for "TapElement".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "TapElement".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "TapElement"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "TapElement",
+                type: .unary
             )
         }
-
         /// Namespace for "Swipe" metadata.
         public enum Swipe: Sendable {
             /// Request type for "Swipe".
-            public typealias Input = MobileTesting_SwipeRequest
+            public typealias Input = Amoo_SwipeRequest
             /// Response type for "Swipe".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "Swipe".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "Swipe"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "Swipe",
+                type: .unary
             )
         }
-
         /// Namespace for "SwipeInDirection" metadata.
         public enum SwipeInDirection: Sendable {
-            public typealias Input = MobileTesting_SwipeDirectionRequest
-            public typealias Output = MobileTesting_ActionResponse
+            /// Request type for "SwipeInDirection".
+            public typealias Input = Amoo_SwipeDirectionRequest
+            /// Response type for "SwipeInDirection".
+            public typealias Output = Amoo_ActionResponse
+            /// Descriptor for "SwipeInDirection".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "SwipeInDirection"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "SwipeInDirection",
+                type: .unary
             )
         }
-
         /// Namespace for "Scroll" metadata.
         public enum Scroll: Sendable {
             /// Request type for "Scroll".
-            public typealias Input = MobileTesting_ScrollRequest
+            public typealias Input = Amoo_ScrollRequest
             /// Response type for "Scroll".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "Scroll".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "Scroll"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "Scroll",
+                type: .unary
             )
         }
-
         /// Namespace for "ScrollToElement" metadata.
         public enum ScrollToElement: Sendable {
             /// Request type for "ScrollToElement".
-            public typealias Input = MobileTesting_ScrollToElementRequest
+            public typealias Input = Amoo_ScrollToElementRequest
             /// Response type for "ScrollToElement".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "ScrollToElement".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "ScrollToElement"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "ScrollToElement",
+                type: .unary
             )
         }
-
         /// Namespace for "Pinch" metadata.
         public enum Pinch: Sendable {
             /// Request type for "Pinch".
-            public typealias Input = MobileTesting_PinchRequest
+            public typealias Input = Amoo_PinchRequest
             /// Response type for "Pinch".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "Pinch".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "Pinch"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "Pinch",
+                type: .unary
             )
         }
-
         /// Namespace for "Drag" metadata.
         public enum Drag: Sendable {
             /// Request type for "Drag".
-            public typealias Input = MobileTesting_DragRequest
+            public typealias Input = Amoo_DragRequest
             /// Response type for "Drag".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "Drag".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "Drag"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "Drag",
+                type: .unary
             )
         }
-
         /// Namespace for "TypeText" metadata.
         public enum TypeText: Sendable {
             /// Request type for "TypeText".
-            public typealias Input = MobileTesting_TypeTextRequest
+            public typealias Input = Amoo_TypeTextRequest
             /// Response type for "TypeText".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "TypeText".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "TypeText"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "TypeText",
+                type: .unary
             )
         }
-
         /// Namespace for "ClearText" metadata.
         public enum ClearText: Sendable {
             /// Request type for "ClearText".
-            public typealias Input = MobileTesting_ClearTextRequest
+            public typealias Input = Amoo_ClearTextRequest
             /// Response type for "ClearText".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "ClearText".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "ClearText"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "ClearText",
+                type: .unary
             )
         }
-
         /// Namespace for "SetText" metadata.
         public enum SetText: Sendable {
             /// Request type for "SetText".
-            public typealias Input = MobileTesting_SetTextRequest
+            public typealias Input = Amoo_SetTextRequest
             /// Response type for "SetText".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "SetText".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "SetText"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "SetText",
+                type: .unary
             )
         }
-
         /// Namespace for "PressBack" metadata.
         public enum PressBack: Sendable {
             /// Request type for "PressBack".
-            public typealias Input = MobileTesting_Empty
+            public typealias Input = Amoo_Empty
             /// Response type for "PressBack".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "PressBack".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "PressBack"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "PressBack",
+                type: .unary
             )
         }
-
         /// Namespace for "PressHome" metadata.
         public enum PressHome: Sendable {
             /// Request type for "PressHome".
-            public typealias Input = MobileTesting_Empty
+            public typealias Input = Amoo_Empty
             /// Response type for "PressHome".
-            public typealias Output = MobileTesting_ActionResponse
+            public typealias Output = Amoo_ActionResponse
             /// Descriptor for "PressHome".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "PressHome"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "PressHome",
+                type: .unary
             )
         }
-
         /// Namespace for "GetViewHierarchy" metadata.
         public enum GetViewHierarchy: Sendable {
             /// Request type for "GetViewHierarchy".
-            public typealias Input = MobileTesting_ViewHierarchyRequest
+            public typealias Input = Amoo_ViewHierarchyRequest
             /// Response type for "GetViewHierarchy".
-            public typealias Output = MobileTesting_ViewHierarchyResponse
+            public typealias Output = Amoo_ViewHierarchyResponse
             /// Descriptor for "GetViewHierarchy".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "GetViewHierarchy"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetViewHierarchy",
+                type: .unary
             )
         }
-
         /// Namespace for "FindElements" metadata.
         public enum FindElements: Sendable {
             /// Request type for "FindElements".
-            public typealias Input = MobileTesting_FindElementsRequest
+            public typealias Input = Amoo_FindElementsRequest
             /// Response type for "FindElements".
-            public typealias Output = MobileTesting_FindElementsResponse
+            public typealias Output = Amoo_FindElementsResponse
             /// Descriptor for "FindElements".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "FindElements"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "FindElements",
+                type: .unary
             )
         }
-
         /// Namespace for "WaitForElement" metadata.
         public enum WaitForElement: Sendable {
             /// Request type for "WaitForElement".
-            public typealias Input = MobileTesting_WaitForElementRequest
+            public typealias Input = Amoo_WaitForElementRequest
             /// Response type for "WaitForElement".
-            public typealias Output = MobileTesting_WaitForElementResponse
+            public typealias Output = Amoo_WaitForElementResponse
             /// Descriptor for "WaitForElement".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "WaitForElement"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "WaitForElement",
+                type: .unary
             )
         }
-
         /// Namespace for "IsKeyboardVisible" metadata.
         public enum IsKeyboardVisible: Sendable {
             /// Request type for "IsKeyboardVisible".
-            public typealias Input = MobileTesting_Empty
+            public typealias Input = Amoo_Empty
             /// Response type for "IsKeyboardVisible".
-            public typealias Output = MobileTesting_KeyboardVisibleResponse
+            public typealias Output = Amoo_KeyboardVisibleResponse
             /// Descriptor for "IsKeyboardVisible".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "IsKeyboardVisible"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "IsKeyboardVisible",
+                type: .unary
             )
         }
-
         /// Namespace for "GetScreenContext" metadata.
         public enum GetScreenContext: Sendable {
             /// Request type for "GetScreenContext".
-            public typealias Input = MobileTesting_ScreenContextRequest
+            public typealias Input = Amoo_ScreenContextRequest
             /// Response type for "GetScreenContext".
-            public typealias Output = MobileTesting_ScreenContextResponse
+            public typealias Output = Amoo_ScreenContextResponse
             /// Descriptor for "GetScreenContext".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "GetScreenContext"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetScreenContext",
+                type: .unary
             )
         }
-
         /// Namespace for "FindByDescription" metadata.
         public enum FindByDescription: Sendable {
             /// Request type for "FindByDescription".
-            public typealias Input = MobileTesting_FindByDescriptionRequest
+            public typealias Input = Amoo_FindByDescriptionRequest
             /// Response type for "FindByDescription".
-            public typealias Output = MobileTesting_FindElementsResponse
+            public typealias Output = Amoo_FindElementsResponse
             /// Descriptor for "FindByDescription".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "FindByDescription"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "FindByDescription",
+                type: .unary
             )
         }
-
         /// Namespace for "GetInteractableElements" metadata.
         public enum GetInteractableElements: Sendable {
             /// Request type for "GetInteractableElements".
-            public typealias Input = MobileTesting_Empty
+            public typealias Input = Amoo_Empty
             /// Response type for "GetInteractableElements".
-            public typealias Output = MobileTesting_InteractableElementsResponse
+            public typealias Output = Amoo_InteractableElementsResponse
             /// Descriptor for "GetInteractableElements".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "GetInteractableElements"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetInteractableElements",
+                type: .unary
             )
         }
-
         /// Namespace for "TakeScreenshot" metadata.
         public enum TakeScreenshot: Sendable {
             /// Request type for "TakeScreenshot".
-            public typealias Input = MobileTesting_ScreenshotRequest
+            public typealias Input = Amoo_ScreenshotRequest
             /// Response type for "TakeScreenshot".
-            public typealias Output = MobileTesting_ScreenshotResponse
+            public typealias Output = Amoo_ScreenshotResponse
             /// Descriptor for "TakeScreenshot".
             public static let descriptor = GRPCCore.MethodDescriptor(
-                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService"),
-                method: "TakeScreenshot"
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "TakeScreenshot",
+                type: .unary
             )
         }
-
-        /// Descriptors for all methods in the "mobile.testing.v1.CompanionService" service.
+        /// Descriptors for all methods in the "amoo.v1.CompanionService" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             StartSession.descriptor,
             GetCapabilities.descriptor,
@@ -389,17 +391,16 @@ public enum MobileTesting_CompanionService: Sendable {
 }
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension GRPCCore.ServiceDescriptor {
-    /// Service descriptor for the "mobile.testing.v1.CompanionService" service.
-    static let mobileTesting_CompanionService = GRPCCore
-        .ServiceDescriptor(fullyQualifiedService: "mobile.testing.v1.CompanionService")
+extension GRPCCore.ServiceDescriptor {
+    /// Service descriptor for the "amoo.v1.CompanionService" service.
+    public static let amoo_CompanionService = GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService")
 }
 
-// MARK: mobile.testing.v1.CompanionService (server)
+// MARK: amoo.v1.CompanionService (server)
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService {
-    /// Streaming variant of the service protocol for the "mobile.testing.v1.CompanionService" service.
+extension Amoo_CompanionService {
+    /// Streaming variant of the service protocol for the "amoo.v1.CompanionService" service.
     ///
     /// This protocol is the lowest-level of the service protocols generated for this service
     /// giving you the most flexibility over the implementation of your service. This comes at
@@ -409,7 +410,7 @@ public extension MobileTesting_CompanionService {
     ///
     /// Where possible, prefer using the stricter, less-verbose ``ServiceProtocol``
     /// or ``SimpleServiceProtocol`` instead.
-    protocol StreamingServiceProtocol: GRPCCore.RegistrableRPCService {
+    public protocol StreamingServiceProtocol: GRPCCore.RegistrableRPCService {
         /// Handle the "StartSession" method.
         ///
         /// > Source IDL Documentation:
@@ -417,44 +418,44 @@ public extension MobileTesting_CompanionService {
         /// > Session lifecycle
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_StartSessionRequest` messages.
+        ///   - request: A streaming request of `Amoo_StartSessionRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_StartSessionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_StartSessionResponse` messages.
         func startSession(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_StartSessionRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_StartSessionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_StartSessionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_StartSessionResponse>
 
         /// Handle the "GetCapabilities" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_CapabilitiesRequest` messages.
+        ///   - request: A streaming request of `Amoo_CapabilitiesRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_CapabilitiesResponse` messages.
+        /// - Returns: A streaming response of `Amoo_CapabilitiesResponse` messages.
         func getCapabilities(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_CapabilitiesRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_CapabilitiesRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_CapabilitiesResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_CapabilitiesResponse>
 
         /// Handle the "EndSession" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_EndSessionRequest` messages.
+        ///   - request: A streaming request of `Amoo_EndSessionRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_EndSessionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_EndSessionResponse` messages.
         func endSession(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_EndSessionRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_EndSessionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_EndSessionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_EndSessionResponse>
 
         /// Handle the "Tap" method.
         ///
@@ -463,58 +464,58 @@ public extension MobileTesting_CompanionService {
         /// > Touch actions
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_TapRequest` messages.
+        ///   - request: A streaming request of `Amoo_TapRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func tap(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_TapRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_TapRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "DoubleTap" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_TapRequest` messages.
+        ///   - request: A streaming request of `Amoo_TapRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func doubleTap(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_TapRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_TapRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "LongPress" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_LongPressRequest` messages.
+        ///   - request: A streaming request of `Amoo_LongPressRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func longPress(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_LongPressRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_LongPressRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "TapElement" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_TapElementRequest` messages.
+        ///   - request: A streaming request of `Amoo_TapElementRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func tapElement(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_TapElementRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_TapElementRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Swipe" method.
         ///
@@ -523,77 +524,86 @@ public extension MobileTesting_CompanionService {
         /// > Gesture actions
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_SwipeRequest` messages.
+        ///   - request: A streaming request of `Amoo_SwipeRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func swipe(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_SwipeRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
+        /// Handle the "SwipeInDirection" method.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_SwipeDirectionRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func swipeInDirection(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeDirectionRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_SwipeDirectionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Scroll" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_ScrollRequest` messages.
+        ///   - request: A streaming request of `Amoo_ScrollRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func scroll(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_ScrollRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_ScrollRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "ScrollToElement" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_ScrollToElementRequest` messages.
+        ///   - request: A streaming request of `Amoo_ScrollToElementRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func scrollToElement(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_ScrollToElementRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_ScrollToElementRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Pinch" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_PinchRequest` messages.
+        ///   - request: A streaming request of `Amoo_PinchRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func pinch(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_PinchRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_PinchRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Drag" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_DragRequest` messages.
+        ///   - request: A streaming request of `Amoo_DragRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func drag(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_DragRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_DragRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "TypeText" method.
         ///
@@ -602,44 +612,44 @@ public extension MobileTesting_CompanionService {
         /// > Text actions
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_TypeTextRequest` messages.
+        ///   - request: A streaming request of `Amoo_TypeTextRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func typeText(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_TypeTextRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_TypeTextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "ClearText" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_ClearTextRequest` messages.
+        ///   - request: A streaming request of `Amoo_ClearTextRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func clearText(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_ClearTextRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_ClearTextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetText" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_SetTextRequest` messages.
+        ///   - request: A streaming request of `Amoo_SetTextRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func setText(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_SetTextRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_SetTextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "PressBack" method.
         ///
@@ -648,30 +658,30 @@ public extension MobileTesting_CompanionService {
         /// > Navigation
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_Empty` messages.
+        ///   - request: A streaming request of `Amoo_Empty` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func pressBack(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "PressHome" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_Empty` messages.
+        ///   - request: A streaming request of `Amoo_Empty` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ActionResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
         func pressHome(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "GetViewHierarchy" method.
         ///
@@ -680,58 +690,58 @@ public extension MobileTesting_CompanionService {
         /// > Accessibility queries
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_ViewHierarchyRequest` messages.
+        ///   - request: A streaming request of `Amoo_ViewHierarchyRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ViewHierarchyResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ViewHierarchyResponse` messages.
         func getViewHierarchy(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_ViewHierarchyRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_ViewHierarchyRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ViewHierarchyResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ViewHierarchyResponse>
 
         /// Handle the "FindElements" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_FindElementsRequest` messages.
+        ///   - request: A streaming request of `Amoo_FindElementsRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_FindElementsResponse` messages.
+        /// - Returns: A streaming response of `Amoo_FindElementsResponse` messages.
         func findElements(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_FindElementsRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_FindElementsRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_FindElementsResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_FindElementsResponse>
 
         /// Handle the "WaitForElement" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_WaitForElementRequest` messages.
+        ///   - request: A streaming request of `Amoo_WaitForElementRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_WaitForElementResponse` messages.
+        /// - Returns: A streaming response of `Amoo_WaitForElementResponse` messages.
         func waitForElement(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_WaitForElementRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_WaitForElementRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_WaitForElementResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_WaitForElementResponse>
 
         /// Handle the "IsKeyboardVisible" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_Empty` messages.
+        ///   - request: A streaming request of `Amoo_Empty` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_KeyboardVisibleResponse` messages.
+        /// - Returns: A streaming response of `Amoo_KeyboardVisibleResponse` messages.
         func isKeyboardVisible(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_KeyboardVisibleResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_KeyboardVisibleResponse>
 
         /// Handle the "GetScreenContext" method.
         ///
@@ -740,44 +750,44 @@ public extension MobileTesting_CompanionService {
         /// > AI context
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_ScreenContextRequest` messages.
+        ///   - request: A streaming request of `Amoo_ScreenContextRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ScreenContextResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ScreenContextResponse` messages.
         func getScreenContext(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_ScreenContextRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_ScreenContextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ScreenContextResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ScreenContextResponse>
 
         /// Handle the "FindByDescription" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_FindByDescriptionRequest` messages.
+        ///   - request: A streaming request of `Amoo_FindByDescriptionRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_FindElementsResponse` messages.
+        /// - Returns: A streaming response of `Amoo_FindElementsResponse` messages.
         func findByDescription(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_FindByDescriptionRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_FindByDescriptionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_FindElementsResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_FindElementsResponse>
 
         /// Handle the "GetInteractableElements" method.
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_Empty` messages.
+        ///   - request: A streaming request of `Amoo_Empty` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_InteractableElementsResponse` messages.
+        /// - Returns: A streaming response of `Amoo_InteractableElementsResponse` messages.
         func getInteractableElements(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_InteractableElementsResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_InteractableElementsResponse>
 
         /// Handle the "TakeScreenshot" method.
         ///
@@ -786,26 +796,26 @@ public extension MobileTesting_CompanionService {
         /// > Capture
         ///
         /// - Parameters:
-        ///   - request: A streaming request of `MobileTesting_ScreenshotRequest` messages.
+        ///   - request: A streaming request of `Amoo_ScreenshotRequest` messages.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A streaming response of `MobileTesting_ScreenshotResponse` messages.
+        /// - Returns: A streaming response of `Amoo_ScreenshotResponse` messages.
         func takeScreenshot(
-            request: GRPCCore.StreamingServerRequest<MobileTesting_ScreenshotRequest>,
+            request: GRPCCore.StreamingServerRequest<Amoo_ScreenshotRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ScreenshotResponse>
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ScreenshotResponse>
     }
 
-    /// Service protocol for the "mobile.testing.v1.CompanionService" service.
+    /// Service protocol for the "amoo.v1.CompanionService" service.
     ///
     /// This protocol is higher level than ``StreamingServiceProtocol`` but lower level than
     /// the ``SimpleServiceProtocol``, it provides access to request and response metadata and
     /// trailing response metadata. If you don't need these then consider using
     /// the ``SimpleServiceProtocol``. If you need fine grained control over your RPCs then
     /// use ``StreamingServiceProtocol``.
-    protocol ServiceProtocol: MobileTesting_CompanionService.StreamingServiceProtocol {
+    public protocol ServiceProtocol: Amoo_CompanionService.StreamingServiceProtocol {
         /// Handle the "StartSession" method.
         ///
         /// > Source IDL Documentation:
@@ -813,44 +823,44 @@ public extension MobileTesting_CompanionService {
         /// > Session lifecycle
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_StartSessionRequest` message.
+        ///   - request: A request containing a single `Amoo_StartSessionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_StartSessionResponse` message.
+        /// - Returns: A response containing a single `Amoo_StartSessionResponse` message.
         func startSession(
-            request: GRPCCore.ServerRequest<MobileTesting_StartSessionRequest>,
+            request: GRPCCore.ServerRequest<Amoo_StartSessionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_StartSessionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_StartSessionResponse>
 
         /// Handle the "GetCapabilities" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_CapabilitiesRequest` message.
+        ///   - request: A request containing a single `Amoo_CapabilitiesRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_CapabilitiesResponse` message.
+        /// - Returns: A response containing a single `Amoo_CapabilitiesResponse` message.
         func getCapabilities(
-            request: GRPCCore.ServerRequest<MobileTesting_CapabilitiesRequest>,
+            request: GRPCCore.ServerRequest<Amoo_CapabilitiesRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_CapabilitiesResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_CapabilitiesResponse>
 
         /// Handle the "EndSession" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_EndSessionRequest` message.
+        ///   - request: A request containing a single `Amoo_EndSessionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_EndSessionResponse` message.
+        /// - Returns: A response containing a single `Amoo_EndSessionResponse` message.
         func endSession(
-            request: GRPCCore.ServerRequest<MobileTesting_EndSessionRequest>,
+            request: GRPCCore.ServerRequest<Amoo_EndSessionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_EndSessionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_EndSessionResponse>
 
         /// Handle the "Tap" method.
         ///
@@ -859,58 +869,58 @@ public extension MobileTesting_CompanionService {
         /// > Touch actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapRequest` message.
+        ///   - request: A request containing a single `Amoo_TapRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func tap(
-            request: GRPCCore.ServerRequest<MobileTesting_TapRequest>,
+            request: GRPCCore.ServerRequest<Amoo_TapRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "DoubleTap" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapRequest` message.
+        ///   - request: A request containing a single `Amoo_TapRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func doubleTap(
-            request: GRPCCore.ServerRequest<MobileTesting_TapRequest>,
+            request: GRPCCore.ServerRequest<Amoo_TapRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "LongPress" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_LongPressRequest` message.
+        ///   - request: A request containing a single `Amoo_LongPressRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func longPress(
-            request: GRPCCore.ServerRequest<MobileTesting_LongPressRequest>,
+            request: GRPCCore.ServerRequest<Amoo_LongPressRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "TapElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapElementRequest` message.
+        ///   - request: A request containing a single `Amoo_TapElementRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func tapElement(
-            request: GRPCCore.ServerRequest<MobileTesting_TapElementRequest>,
+            request: GRPCCore.ServerRequest<Amoo_TapElementRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Swipe" method.
         ///
@@ -919,77 +929,86 @@ public extension MobileTesting_CompanionService {
         /// > Gesture actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SwipeRequest` message.
+        ///   - request: A request containing a single `Amoo_SwipeRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func swipe(
-            request: GRPCCore.ServerRequest<MobileTesting_SwipeRequest>,
+            request: GRPCCore.ServerRequest<Amoo_SwipeRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
+        /// Handle the "SwipeInDirection" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SwipeDirectionRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func swipeInDirection(
-            request: GRPCCore.ServerRequest<MobileTesting_SwipeDirectionRequest>,
+            request: GRPCCore.ServerRequest<Amoo_SwipeDirectionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Scroll" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScrollRequest` message.
+        ///   - request: A request containing a single `Amoo_ScrollRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func scroll(
-            request: GRPCCore.ServerRequest<MobileTesting_ScrollRequest>,
+            request: GRPCCore.ServerRequest<Amoo_ScrollRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "ScrollToElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScrollToElementRequest` message.
+        ///   - request: A request containing a single `Amoo_ScrollToElementRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func scrollToElement(
-            request: GRPCCore.ServerRequest<MobileTesting_ScrollToElementRequest>,
+            request: GRPCCore.ServerRequest<Amoo_ScrollToElementRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Pinch" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_PinchRequest` message.
+        ///   - request: A request containing a single `Amoo_PinchRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func pinch(
-            request: GRPCCore.ServerRequest<MobileTesting_PinchRequest>,
+            request: GRPCCore.ServerRequest<Amoo_PinchRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "Drag" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_DragRequest` message.
+        ///   - request: A request containing a single `Amoo_DragRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func drag(
-            request: GRPCCore.ServerRequest<MobileTesting_DragRequest>,
+            request: GRPCCore.ServerRequest<Amoo_DragRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "TypeText" method.
         ///
@@ -998,44 +1017,44 @@ public extension MobileTesting_CompanionService {
         /// > Text actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TypeTextRequest` message.
+        ///   - request: A request containing a single `Amoo_TypeTextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func typeText(
-            request: GRPCCore.ServerRequest<MobileTesting_TypeTextRequest>,
+            request: GRPCCore.ServerRequest<Amoo_TypeTextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "ClearText" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ClearTextRequest` message.
+        ///   - request: A request containing a single `Amoo_ClearTextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func clearText(
-            request: GRPCCore.ServerRequest<MobileTesting_ClearTextRequest>,
+            request: GRPCCore.ServerRequest<Amoo_ClearTextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "SetText" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetTextRequest` message.
+        ///   - request: A request containing a single `Amoo_SetTextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func setText(
-            request: GRPCCore.ServerRequest<MobileTesting_SetTextRequest>,
+            request: GRPCCore.ServerRequest<Amoo_SetTextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "PressBack" method.
         ///
@@ -1044,30 +1063,30 @@ public extension MobileTesting_CompanionService {
         /// > Navigation
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
+        ///   - request: A request containing a single `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func pressBack(
-            request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "PressHome" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
+        ///   - request: A request containing a single `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ActionResponse` message.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
         func pressHome(
-            request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
         /// Handle the "GetViewHierarchy" method.
         ///
@@ -1076,58 +1095,58 @@ public extension MobileTesting_CompanionService {
         /// > Accessibility queries
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ViewHierarchyRequest` message.
+        ///   - request: A request containing a single `Amoo_ViewHierarchyRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ViewHierarchyResponse` message.
+        /// - Returns: A response containing a single `Amoo_ViewHierarchyResponse` message.
         func getViewHierarchy(
-            request: GRPCCore.ServerRequest<MobileTesting_ViewHierarchyRequest>,
+            request: GRPCCore.ServerRequest<Amoo_ViewHierarchyRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ViewHierarchyResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ViewHierarchyResponse>
 
         /// Handle the "FindElements" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_FindElementsRequest` message.
+        ///   - request: A request containing a single `Amoo_FindElementsRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_FindElementsResponse` message.
+        /// - Returns: A response containing a single `Amoo_FindElementsResponse` message.
         func findElements(
-            request: GRPCCore.ServerRequest<MobileTesting_FindElementsRequest>,
+            request: GRPCCore.ServerRequest<Amoo_FindElementsRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_FindElementsResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_FindElementsResponse>
 
         /// Handle the "WaitForElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_WaitForElementRequest` message.
+        ///   - request: A request containing a single `Amoo_WaitForElementRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_WaitForElementResponse` message.
+        /// - Returns: A response containing a single `Amoo_WaitForElementResponse` message.
         func waitForElement(
-            request: GRPCCore.ServerRequest<MobileTesting_WaitForElementRequest>,
+            request: GRPCCore.ServerRequest<Amoo_WaitForElementRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_WaitForElementResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_WaitForElementResponse>
 
         /// Handle the "IsKeyboardVisible" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
+        ///   - request: A request containing a single `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_KeyboardVisibleResponse` message.
+        /// - Returns: A response containing a single `Amoo_KeyboardVisibleResponse` message.
         func isKeyboardVisible(
-            request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_KeyboardVisibleResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse>
 
         /// Handle the "GetScreenContext" method.
         ///
@@ -1136,44 +1155,44 @@ public extension MobileTesting_CompanionService {
         /// > AI context
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScreenContextRequest` message.
+        ///   - request: A request containing a single `Amoo_ScreenContextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ScreenContextResponse` message.
+        /// - Returns: A response containing a single `Amoo_ScreenContextResponse` message.
         func getScreenContext(
-            request: GRPCCore.ServerRequest<MobileTesting_ScreenContextRequest>,
+            request: GRPCCore.ServerRequest<Amoo_ScreenContextRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ScreenContextResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ScreenContextResponse>
 
         /// Handle the "FindByDescription" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_FindByDescriptionRequest` message.
+        ///   - request: A request containing a single `Amoo_FindByDescriptionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_FindElementsResponse` message.
+        /// - Returns: A response containing a single `Amoo_FindElementsResponse` message.
         func findByDescription(
-            request: GRPCCore.ServerRequest<MobileTesting_FindByDescriptionRequest>,
+            request: GRPCCore.ServerRequest<Amoo_FindByDescriptionRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_FindElementsResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_FindElementsResponse>
 
         /// Handle the "GetInteractableElements" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
+        ///   - request: A request containing a single `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_InteractableElementsResponse` message.
+        /// - Returns: A response containing a single `Amoo_InteractableElementsResponse` message.
         func getInteractableElements(
-            request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_InteractableElementsResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_InteractableElementsResponse>
 
         /// Handle the "TakeScreenshot" method.
         ///
@@ -1182,24 +1201,24 @@ public extension MobileTesting_CompanionService {
         /// > Capture
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScreenshotRequest` message.
+        ///   - request: A request containing a single `Amoo_ScreenshotRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A response containing a single `MobileTesting_ScreenshotResponse` message.
+        /// - Returns: A response containing a single `Amoo_ScreenshotResponse` message.
         func takeScreenshot(
-            request: GRPCCore.ServerRequest<MobileTesting_ScreenshotRequest>,
+            request: GRPCCore.ServerRequest<Amoo_ScreenshotRequest>,
             context: GRPCCore.ServerContext
-        ) async throws -> GRPCCore.ServerResponse<MobileTesting_ScreenshotResponse>
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ScreenshotResponse>
     }
 
-    /// Simple service protocol for the "mobile.testing.v1.CompanionService" service.
+    /// Simple service protocol for the "amoo.v1.CompanionService" service.
     ///
     /// This is the highest level protocol for the service. The API is the easiest to use but
     /// doesn't provide access to request or response metadata. If you need access to these
     /// then use ``ServiceProtocol`` instead.
-    protocol SimpleServiceProtocol: MobileTesting_CompanionService.ServiceProtocol {
+    public protocol SimpleServiceProtocol: Amoo_CompanionService.ServiceProtocol {
         /// Handle the "StartSession" method.
         ///
         /// > Source IDL Documentation:
@@ -1207,44 +1226,44 @@ public extension MobileTesting_CompanionService {
         /// > Session lifecycle
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_StartSessionRequest` message.
+        ///   - request: A `Amoo_StartSessionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_StartSessionResponse` to respond with.
+        /// - Returns: A `Amoo_StartSessionResponse` to respond with.
         func startSession(
-            request: MobileTesting_StartSessionRequest,
+            request: Amoo_StartSessionRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_StartSessionResponse
+        ) async throws -> Amoo_StartSessionResponse
 
         /// Handle the "GetCapabilities" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_CapabilitiesRequest` message.
+        ///   - request: A `Amoo_CapabilitiesRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_CapabilitiesResponse` to respond with.
+        /// - Returns: A `Amoo_CapabilitiesResponse` to respond with.
         func getCapabilities(
-            request: MobileTesting_CapabilitiesRequest,
+            request: Amoo_CapabilitiesRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_CapabilitiesResponse
+        ) async throws -> Amoo_CapabilitiesResponse
 
         /// Handle the "EndSession" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_EndSessionRequest` message.
+        ///   - request: A `Amoo_EndSessionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_EndSessionResponse` to respond with.
+        /// - Returns: A `Amoo_EndSessionResponse` to respond with.
         func endSession(
-            request: MobileTesting_EndSessionRequest,
+            request: Amoo_EndSessionRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_EndSessionResponse
+        ) async throws -> Amoo_EndSessionResponse
 
         /// Handle the "Tap" method.
         ///
@@ -1253,58 +1272,58 @@ public extension MobileTesting_CompanionService {
         /// > Touch actions
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_TapRequest` message.
+        ///   - request: A `Amoo_TapRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func tap(
-            request: MobileTesting_TapRequest,
+            request: Amoo_TapRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "DoubleTap" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_TapRequest` message.
+        ///   - request: A `Amoo_TapRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func doubleTap(
-            request: MobileTesting_TapRequest,
+            request: Amoo_TapRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "LongPress" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_LongPressRequest` message.
+        ///   - request: A `Amoo_LongPressRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func longPress(
-            request: MobileTesting_LongPressRequest,
+            request: Amoo_LongPressRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "TapElement" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_TapElementRequest` message.
+        ///   - request: A `Amoo_TapElementRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func tapElement(
-            request: MobileTesting_TapElementRequest,
+            request: Amoo_TapElementRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "Swipe" method.
         ///
@@ -1313,77 +1332,86 @@ public extension MobileTesting_CompanionService {
         /// > Gesture actions
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_SwipeRequest` message.
+        ///   - request: A `Amoo_SwipeRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func swipe(
-            request: MobileTesting_SwipeRequest,
+            request: Amoo_SwipeRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
+        /// Handle the "SwipeInDirection" method.
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_SwipeDirectionRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func swipeInDirection(
-            request: MobileTesting_SwipeDirectionRequest,
+            request: Amoo_SwipeDirectionRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "Scroll" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_ScrollRequest` message.
+        ///   - request: A `Amoo_ScrollRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func scroll(
-            request: MobileTesting_ScrollRequest,
+            request: Amoo_ScrollRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "ScrollToElement" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_ScrollToElementRequest` message.
+        ///   - request: A `Amoo_ScrollToElementRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func scrollToElement(
-            request: MobileTesting_ScrollToElementRequest,
+            request: Amoo_ScrollToElementRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "Pinch" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_PinchRequest` message.
+        ///   - request: A `Amoo_PinchRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func pinch(
-            request: MobileTesting_PinchRequest,
+            request: Amoo_PinchRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "Drag" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_DragRequest` message.
+        ///   - request: A `Amoo_DragRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func drag(
-            request: MobileTesting_DragRequest,
+            request: Amoo_DragRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "TypeText" method.
         ///
@@ -1392,44 +1420,44 @@ public extension MobileTesting_CompanionService {
         /// > Text actions
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_TypeTextRequest` message.
+        ///   - request: A `Amoo_TypeTextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func typeText(
-            request: MobileTesting_TypeTextRequest,
+            request: Amoo_TypeTextRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "ClearText" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_ClearTextRequest` message.
+        ///   - request: A `Amoo_ClearTextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func clearText(
-            request: MobileTesting_ClearTextRequest,
+            request: Amoo_ClearTextRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "SetText" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_SetTextRequest` message.
+        ///   - request: A `Amoo_SetTextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func setText(
-            request: MobileTesting_SetTextRequest,
+            request: Amoo_SetTextRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "PressBack" method.
         ///
@@ -1438,30 +1466,30 @@ public extension MobileTesting_CompanionService {
         /// > Navigation
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_Empty` message.
+        ///   - request: A `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func pressBack(
-            request: MobileTesting_Empty,
+            request: Amoo_Empty,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "PressHome" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_Empty` message.
+        ///   - request: A `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ActionResponse` to respond with.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
         func pressHome(
-            request: MobileTesting_Empty,
+            request: Amoo_Empty,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ActionResponse
+        ) async throws -> Amoo_ActionResponse
 
         /// Handle the "GetViewHierarchy" method.
         ///
@@ -1470,58 +1498,58 @@ public extension MobileTesting_CompanionService {
         /// > Accessibility queries
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_ViewHierarchyRequest` message.
+        ///   - request: A `Amoo_ViewHierarchyRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ViewHierarchyResponse` to respond with.
+        /// - Returns: A `Amoo_ViewHierarchyResponse` to respond with.
         func getViewHierarchy(
-            request: MobileTesting_ViewHierarchyRequest,
+            request: Amoo_ViewHierarchyRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ViewHierarchyResponse
+        ) async throws -> Amoo_ViewHierarchyResponse
 
         /// Handle the "FindElements" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_FindElementsRequest` message.
+        ///   - request: A `Amoo_FindElementsRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_FindElementsResponse` to respond with.
+        /// - Returns: A `Amoo_FindElementsResponse` to respond with.
         func findElements(
-            request: MobileTesting_FindElementsRequest,
+            request: Amoo_FindElementsRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_FindElementsResponse
+        ) async throws -> Amoo_FindElementsResponse
 
         /// Handle the "WaitForElement" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_WaitForElementRequest` message.
+        ///   - request: A `Amoo_WaitForElementRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_WaitForElementResponse` to respond with.
+        /// - Returns: A `Amoo_WaitForElementResponse` to respond with.
         func waitForElement(
-            request: MobileTesting_WaitForElementRequest,
+            request: Amoo_WaitForElementRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_WaitForElementResponse
+        ) async throws -> Amoo_WaitForElementResponse
 
         /// Handle the "IsKeyboardVisible" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_Empty` message.
+        ///   - request: A `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_KeyboardVisibleResponse` to respond with.
+        /// - Returns: A `Amoo_KeyboardVisibleResponse` to respond with.
         func isKeyboardVisible(
-            request: MobileTesting_Empty,
+            request: Amoo_Empty,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_KeyboardVisibleResponse
+        ) async throws -> Amoo_KeyboardVisibleResponse
 
         /// Handle the "GetScreenContext" method.
         ///
@@ -1530,44 +1558,44 @@ public extension MobileTesting_CompanionService {
         /// > AI context
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_ScreenContextRequest` message.
+        ///   - request: A `Amoo_ScreenContextRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ScreenContextResponse` to respond with.
+        /// - Returns: A `Amoo_ScreenContextResponse` to respond with.
         func getScreenContext(
-            request: MobileTesting_ScreenContextRequest,
+            request: Amoo_ScreenContextRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ScreenContextResponse
+        ) async throws -> Amoo_ScreenContextResponse
 
         /// Handle the "FindByDescription" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_FindByDescriptionRequest` message.
+        ///   - request: A `Amoo_FindByDescriptionRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_FindElementsResponse` to respond with.
+        /// - Returns: A `Amoo_FindElementsResponse` to respond with.
         func findByDescription(
-            request: MobileTesting_FindByDescriptionRequest,
+            request: Amoo_FindByDescriptionRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_FindElementsResponse
+        ) async throws -> Amoo_FindElementsResponse
 
         /// Handle the "GetInteractableElements" method.
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_Empty` message.
+        ///   - request: A `Amoo_Empty` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_InteractableElementsResponse` to respond with.
+        /// - Returns: A `Amoo_InteractableElementsResponse` to respond with.
         func getInteractableElements(
-            request: MobileTesting_Empty,
+            request: Amoo_Empty,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_InteractableElementsResponse
+        ) async throws -> Amoo_InteractableElementsResponse
 
         /// Handle the "TakeScreenshot" method.
         ///
@@ -1576,27 +1604,27 @@ public extension MobileTesting_CompanionService {
         /// > Capture
         ///
         /// - Parameters:
-        ///   - request: A `MobileTesting_ScreenshotRequest` message.
+        ///   - request: A `Amoo_ScreenshotRequest` message.
         ///   - context: Context providing information about the RPC.
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        /// - Returns: A `MobileTesting_ScreenshotResponse` to respond with.
+        /// - Returns: A `Amoo_ScreenshotResponse` to respond with.
         func takeScreenshot(
-            request: MobileTesting_ScreenshotRequest,
+            request: Amoo_ScreenshotRequest,
             context: GRPCCore.ServerContext
-        ) async throws -> MobileTesting_ScreenshotResponse
+        ) async throws -> Amoo_ScreenshotResponse
     }
 }
 
-/// Default implementation of 'registerMethods(with:)'.
+// Default implementation of 'registerMethods(with:)'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService.StreamingServiceProtocol {
-    func registerMethods(with router: inout GRPCCore.RPCRouter<some GRPCCore.ServerTransport>) {
+extension Amoo_CompanionService.StreamingServiceProtocol {
+    public func registerMethods<Transport>(with router: inout GRPCCore.RPCRouter<Transport>) where Transport: GRPCCore.ServerTransport {
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.StartSession.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_StartSessionRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_StartSessionResponse>(),
+            forMethod: Amoo_CompanionService.Method.StartSession.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_StartSessionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_StartSessionResponse>(),
             handler: { request, context in
                 try await self.startSession(
                     request: request,
@@ -1605,9 +1633,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.GetCapabilities.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_CapabilitiesRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_CapabilitiesResponse>(),
+            forMethod: Amoo_CompanionService.Method.GetCapabilities.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_CapabilitiesRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_CapabilitiesResponse>(),
             handler: { request, context in
                 try await self.getCapabilities(
                     request: request,
@@ -1616,9 +1644,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.EndSession.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_EndSessionRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_EndSessionResponse>(),
+            forMethod: Amoo_CompanionService.Method.EndSession.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_EndSessionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_EndSessionResponse>(),
             handler: { request, context in
                 try await self.endSession(
                     request: request,
@@ -1627,9 +1655,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.Tap.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_TapRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.Tap.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_TapRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.tap(
                     request: request,
@@ -1638,9 +1666,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.DoubleTap.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_TapRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.DoubleTap.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_TapRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.doubleTap(
                     request: request,
@@ -1649,9 +1677,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.LongPress.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_LongPressRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.LongPress.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_LongPressRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.longPress(
                     request: request,
@@ -1660,9 +1688,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.TapElement.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_TapElementRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.TapElement.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_TapElementRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.tapElement(
                     request: request,
@@ -1671,9 +1699,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.Swipe.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SwipeRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.Swipe.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SwipeRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.swipe(
                     request: request,
@@ -1682,17 +1710,20 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.SwipeInDirection.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SwipeDirectionRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.SwipeInDirection.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SwipeDirectionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
-                try await self.swipeInDirection(request: request, context: context)
+                try await self.swipeInDirection(
+                    request: request,
+                    context: context
+                )
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.Scroll.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScrollRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.Scroll.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScrollRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.scroll(
                     request: request,
@@ -1701,9 +1732,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.ScrollToElement.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScrollToElementRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.ScrollToElement.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScrollToElementRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.scrollToElement(
                     request: request,
@@ -1712,9 +1743,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.Pinch.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_PinchRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.Pinch.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_PinchRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.pinch(
                     request: request,
@@ -1723,9 +1754,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.Drag.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_DragRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.Drag.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_DragRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.drag(
                     request: request,
@@ -1734,9 +1765,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.TypeText.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_TypeTextRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.TypeText.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_TypeTextRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.typeText(
                     request: request,
@@ -1745,9 +1776,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.ClearText.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ClearTextRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.ClearText.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ClearTextRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.clearText(
                     request: request,
@@ -1756,9 +1787,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.SetText.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_SetTextRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.SetText.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetTextRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.setText(
                     request: request,
@@ -1767,9 +1798,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.PressBack.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_Empty>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.PressBack.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.pressBack(
                     request: request,
@@ -1778,9 +1809,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.PressHome.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_Empty>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ActionResponse>(),
+            forMethod: Amoo_CompanionService.Method.PressHome.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
             handler: { request, context in
                 try await self.pressHome(
                     request: request,
@@ -1789,9 +1820,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.GetViewHierarchy.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ViewHierarchyRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ViewHierarchyResponse>(),
+            forMethod: Amoo_CompanionService.Method.GetViewHierarchy.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ViewHierarchyRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ViewHierarchyResponse>(),
             handler: { request, context in
                 try await self.getViewHierarchy(
                     request: request,
@@ -1800,9 +1831,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.FindElements.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_FindElementsRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_FindElementsResponse>(),
+            forMethod: Amoo_CompanionService.Method.FindElements.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_FindElementsRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_FindElementsResponse>(),
             handler: { request, context in
                 try await self.findElements(
                     request: request,
@@ -1811,9 +1842,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.WaitForElement.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_WaitForElementRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_WaitForElementResponse>(),
+            forMethod: Amoo_CompanionService.Method.WaitForElement.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_WaitForElementRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_WaitForElementResponse>(),
             handler: { request, context in
                 try await self.waitForElement(
                     request: request,
@@ -1822,9 +1853,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.IsKeyboardVisible.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_Empty>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_KeyboardVisibleResponse>(),
+            forMethod: Amoo_CompanionService.Method.IsKeyboardVisible.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_KeyboardVisibleResponse>(),
             handler: { request, context in
                 try await self.isKeyboardVisible(
                     request: request,
@@ -1833,9 +1864,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.GetScreenContext.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScreenContextRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ScreenContextResponse>(),
+            forMethod: Amoo_CompanionService.Method.GetScreenContext.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenContextRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenContextResponse>(),
             handler: { request, context in
                 try await self.getScreenContext(
                     request: request,
@@ -1844,9 +1875,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.FindByDescription.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_FindByDescriptionRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_FindElementsResponse>(),
+            forMethod: Amoo_CompanionService.Method.FindByDescription.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_FindByDescriptionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_FindElementsResponse>(),
             handler: { request, context in
                 try await self.findByDescription(
                     request: request,
@@ -1855,9 +1886,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.GetInteractableElements.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_Empty>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_InteractableElementsResponse>(),
+            forMethod: Amoo_CompanionService.Method.GetInteractableElements.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_InteractableElementsResponse>(),
             handler: { request, context in
                 try await self.getInteractableElements(
                     request: request,
@@ -1866,9 +1897,9 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
-            forMethod: MobileTesting_CompanionService.Method.TakeScreenshot.descriptor,
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScreenshotRequest>(),
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ScreenshotResponse>(),
+            forMethod: Amoo_CompanionService.Method.TakeScreenshot.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenshotRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenshotResponse>(),
             handler: { request, context in
                 try await self.takeScreenshot(
                     request: request,
@@ -1879,289 +1910,289 @@ public extension MobileTesting_CompanionService.StreamingServiceProtocol {
     }
 }
 
-/// Default implementation of streaming methods from 'StreamingServiceProtocol'.
+// Default implementation of streaming methods from 'StreamingServiceProtocol'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService.ServiceProtocol {
-    func startSession(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_StartSessionRequest>,
+extension Amoo_CompanionService.ServiceProtocol {
+    public func startSession(
+        request: GRPCCore.StreamingServerRequest<Amoo_StartSessionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_StartSessionResponse> {
-        let response = try await startSession(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_StartSessionResponse> {
+        let response = try await self.startSession(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func getCapabilities(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_CapabilitiesRequest>,
+    public func getCapabilities(
+        request: GRPCCore.StreamingServerRequest<Amoo_CapabilitiesRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_CapabilitiesResponse> {
-        let response = try await getCapabilities(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_CapabilitiesResponse> {
+        let response = try await self.getCapabilities(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func endSession(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_EndSessionRequest>,
+    public func endSession(
+        request: GRPCCore.StreamingServerRequest<Amoo_EndSessionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_EndSessionResponse> {
-        let response = try await endSession(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_EndSessionResponse> {
+        let response = try await self.endSession(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func tap(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_TapRequest>,
+    public func tap(
+        request: GRPCCore.StreamingServerRequest<Amoo_TapRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await tap(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.tap(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func doubleTap(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_TapRequest>,
+    public func doubleTap(
+        request: GRPCCore.StreamingServerRequest<Amoo_TapRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await doubleTap(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.doubleTap(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func longPress(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_LongPressRequest>,
+    public func longPress(
+        request: GRPCCore.StreamingServerRequest<Amoo_LongPressRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await longPress(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.longPress(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func tapElement(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_TapElementRequest>,
+    public func tapElement(
+        request: GRPCCore.StreamingServerRequest<Amoo_TapElementRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await tapElement(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.tapElement(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func swipe(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeRequest>,
+    public func swipe(
+        request: GRPCCore.StreamingServerRequest<Amoo_SwipeRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await swipe(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.swipe(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func swipeInDirection(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_SwipeDirectionRequest>,
+    public func swipeInDirection(
+        request: GRPCCore.StreamingServerRequest<Amoo_SwipeDirectionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await swipeInDirection(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.swipeInDirection(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func scroll(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_ScrollRequest>,
+    public func scroll(
+        request: GRPCCore.StreamingServerRequest<Amoo_ScrollRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await scroll(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.scroll(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func scrollToElement(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_ScrollToElementRequest>,
+    public func scrollToElement(
+        request: GRPCCore.StreamingServerRequest<Amoo_ScrollToElementRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await scrollToElement(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.scrollToElement(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func pinch(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_PinchRequest>,
+    public func pinch(
+        request: GRPCCore.StreamingServerRequest<Amoo_PinchRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await pinch(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.pinch(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func drag(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_DragRequest>,
+    public func drag(
+        request: GRPCCore.StreamingServerRequest<Amoo_DragRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await drag(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.drag(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func typeText(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_TypeTextRequest>,
+    public func typeText(
+        request: GRPCCore.StreamingServerRequest<Amoo_TypeTextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await typeText(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.typeText(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func clearText(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_ClearTextRequest>,
+    public func clearText(
+        request: GRPCCore.StreamingServerRequest<Amoo_ClearTextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await clearText(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.clearText(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func setText(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_SetTextRequest>,
+    public func setText(
+        request: GRPCCore.StreamingServerRequest<Amoo_SetTextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await setText(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.setText(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func pressBack(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+    public func pressBack(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await pressBack(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.pressBack(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func pressHome(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+    public func pressHome(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ActionResponse> {
-        let response = try await pressHome(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.pressHome(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func getViewHierarchy(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_ViewHierarchyRequest>,
+    public func getViewHierarchy(
+        request: GRPCCore.StreamingServerRequest<Amoo_ViewHierarchyRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ViewHierarchyResponse> {
-        let response = try await getViewHierarchy(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ViewHierarchyResponse> {
+        let response = try await self.getViewHierarchy(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func findElements(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_FindElementsRequest>,
+    public func findElements(
+        request: GRPCCore.StreamingServerRequest<Amoo_FindElementsRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_FindElementsResponse> {
-        let response = try await findElements(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_FindElementsResponse> {
+        let response = try await self.findElements(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func waitForElement(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_WaitForElementRequest>,
+    public func waitForElement(
+        request: GRPCCore.StreamingServerRequest<Amoo_WaitForElementRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_WaitForElementResponse> {
-        let response = try await waitForElement(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_WaitForElementResponse> {
+        let response = try await self.waitForElement(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func isKeyboardVisible(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+    public func isKeyboardVisible(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_KeyboardVisibleResponse> {
-        let response = try await isKeyboardVisible(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_KeyboardVisibleResponse> {
+        let response = try await self.isKeyboardVisible(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func getScreenContext(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_ScreenContextRequest>,
+    public func getScreenContext(
+        request: GRPCCore.StreamingServerRequest<Amoo_ScreenContextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ScreenContextResponse> {
-        let response = try await getScreenContext(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ScreenContextResponse> {
+        let response = try await self.getScreenContext(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func findByDescription(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_FindByDescriptionRequest>,
+    public func findByDescription(
+        request: GRPCCore.StreamingServerRequest<Amoo_FindByDescriptionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_FindElementsResponse> {
-        let response = try await findByDescription(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_FindElementsResponse> {
+        let response = try await self.findByDescription(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func getInteractableElements(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_Empty>,
+    public func getInteractableElements(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_InteractableElementsResponse> {
-        let response = try await getInteractableElements(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_InteractableElementsResponse> {
+        let response = try await self.getInteractableElements(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    func takeScreenshot(
-        request: GRPCCore.StreamingServerRequest<MobileTesting_ScreenshotRequest>,
+    public func takeScreenshot(
+        request: GRPCCore.StreamingServerRequest<Amoo_ScreenshotRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.StreamingServerResponse<MobileTesting_ScreenshotResponse> {
-        let response = try await takeScreenshot(
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ScreenshotResponse> {
+        let response = try await self.takeScreenshot(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2169,15 +2200,15 @@ public extension MobileTesting_CompanionService.ServiceProtocol {
     }
 }
 
-/// Default implementation of methods from 'ServiceProtocol'.
+// Default implementation of methods from 'ServiceProtocol'.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService.SimpleServiceProtocol {
-    func startSession(
-        request: GRPCCore.ServerRequest<MobileTesting_StartSessionRequest>,
+extension Amoo_CompanionService.SimpleServiceProtocol {
+    public func startSession(
+        request: GRPCCore.ServerRequest<Amoo_StartSessionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_StartSessionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_StartSessionResponse>(
-            message: startSession(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_StartSessionResponse> {
+        return GRPCCore.ServerResponse<Amoo_StartSessionResponse>(
+            message: try await self.startSession(
                 request: request.message,
                 context: context
             ),
@@ -2185,12 +2216,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func getCapabilities(
-        request: GRPCCore.ServerRequest<MobileTesting_CapabilitiesRequest>,
+    public func getCapabilities(
+        request: GRPCCore.ServerRequest<Amoo_CapabilitiesRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_CapabilitiesResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_CapabilitiesResponse>(
-            message: getCapabilities(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_CapabilitiesResponse> {
+        return GRPCCore.ServerResponse<Amoo_CapabilitiesResponse>(
+            message: try await self.getCapabilities(
                 request: request.message,
                 context: context
             ),
@@ -2198,12 +2229,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func endSession(
-        request: GRPCCore.ServerRequest<MobileTesting_EndSessionRequest>,
+    public func endSession(
+        request: GRPCCore.ServerRequest<Amoo_EndSessionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_EndSessionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_EndSessionResponse>(
-            message: endSession(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_EndSessionResponse> {
+        return GRPCCore.ServerResponse<Amoo_EndSessionResponse>(
+            message: try await self.endSession(
                 request: request.message,
                 context: context
             ),
@@ -2211,12 +2242,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func tap(
-        request: GRPCCore.ServerRequest<MobileTesting_TapRequest>,
+    public func tap(
+        request: GRPCCore.ServerRequest<Amoo_TapRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: tap(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.tap(
                 request: request.message,
                 context: context
             ),
@@ -2224,12 +2255,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func doubleTap(
-        request: GRPCCore.ServerRequest<MobileTesting_TapRequest>,
+    public func doubleTap(
+        request: GRPCCore.ServerRequest<Amoo_TapRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: doubleTap(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.doubleTap(
                 request: request.message,
                 context: context
             ),
@@ -2237,12 +2268,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func longPress(
-        request: GRPCCore.ServerRequest<MobileTesting_LongPressRequest>,
+    public func longPress(
+        request: GRPCCore.ServerRequest<Amoo_LongPressRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: longPress(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.longPress(
                 request: request.message,
                 context: context
             ),
@@ -2250,12 +2281,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func tapElement(
-        request: GRPCCore.ServerRequest<MobileTesting_TapElementRequest>,
+    public func tapElement(
+        request: GRPCCore.ServerRequest<Amoo_TapElementRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: tapElement(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.tapElement(
                 request: request.message,
                 context: context
             ),
@@ -2263,12 +2294,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func swipe(
-        request: GRPCCore.ServerRequest<MobileTesting_SwipeRequest>,
+    public func swipe(
+        request: GRPCCore.ServerRequest<Amoo_SwipeRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: swipe(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.swipe(
                 request: request.message,
                 context: context
             ),
@@ -2276,22 +2307,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func swipeInDirection(
-        request: GRPCCore.ServerRequest<MobileTesting_SwipeDirectionRequest>,
+    public func swipeInDirection(
+        request: GRPCCore.ServerRequest<Amoo_SwipeDirectionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: swipeInDirection(request: request.message, context: context),
-            metadata: [:]
-        )
-    }
-
-    func scroll(
-        request: GRPCCore.ServerRequest<MobileTesting_ScrollRequest>,
-        context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: scroll(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.swipeInDirection(
                 request: request.message,
                 context: context
             ),
@@ -2299,12 +2320,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func scrollToElement(
-        request: GRPCCore.ServerRequest<MobileTesting_ScrollToElementRequest>,
+    public func scroll(
+        request: GRPCCore.ServerRequest<Amoo_ScrollRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: scrollToElement(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.scroll(
                 request: request.message,
                 context: context
             ),
@@ -2312,12 +2333,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func pinch(
-        request: GRPCCore.ServerRequest<MobileTesting_PinchRequest>,
+    public func scrollToElement(
+        request: GRPCCore.ServerRequest<Amoo_ScrollToElementRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: pinch(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.scrollToElement(
                 request: request.message,
                 context: context
             ),
@@ -2325,12 +2346,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func drag(
-        request: GRPCCore.ServerRequest<MobileTesting_DragRequest>,
+    public func pinch(
+        request: GRPCCore.ServerRequest<Amoo_PinchRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: drag(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.pinch(
                 request: request.message,
                 context: context
             ),
@@ -2338,12 +2359,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func typeText(
-        request: GRPCCore.ServerRequest<MobileTesting_TypeTextRequest>,
+    public func drag(
+        request: GRPCCore.ServerRequest<Amoo_DragRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: typeText(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.drag(
                 request: request.message,
                 context: context
             ),
@@ -2351,12 +2372,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func clearText(
-        request: GRPCCore.ServerRequest<MobileTesting_ClearTextRequest>,
+    public func typeText(
+        request: GRPCCore.ServerRequest<Amoo_TypeTextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: clearText(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.typeText(
                 request: request.message,
                 context: context
             ),
@@ -2364,12 +2385,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func setText(
-        request: GRPCCore.ServerRequest<MobileTesting_SetTextRequest>,
+    public func clearText(
+        request: GRPCCore.ServerRequest<Amoo_ClearTextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: setText(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.clearText(
                 request: request.message,
                 context: context
             ),
@@ -2377,12 +2398,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func pressBack(
-        request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+    public func setText(
+        request: GRPCCore.ServerRequest<Amoo_SetTextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: pressBack(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.setText(
                 request: request.message,
                 context: context
             ),
@@ -2390,12 +2411,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func pressHome(
-        request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+    public func pressBack(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ActionResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ActionResponse>(
-            message: pressHome(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.pressBack(
                 request: request.message,
                 context: context
             ),
@@ -2403,12 +2424,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func getViewHierarchy(
-        request: GRPCCore.ServerRequest<MobileTesting_ViewHierarchyRequest>,
+    public func pressHome(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ViewHierarchyResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ViewHierarchyResponse>(
-            message: getViewHierarchy(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.pressHome(
                 request: request.message,
                 context: context
             ),
@@ -2416,12 +2437,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func findElements(
-        request: GRPCCore.ServerRequest<MobileTesting_FindElementsRequest>,
+    public func getViewHierarchy(
+        request: GRPCCore.ServerRequest<Amoo_ViewHierarchyRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_FindElementsResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_FindElementsResponse>(
-            message: findElements(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ViewHierarchyResponse> {
+        return GRPCCore.ServerResponse<Amoo_ViewHierarchyResponse>(
+            message: try await self.getViewHierarchy(
                 request: request.message,
                 context: context
             ),
@@ -2429,12 +2450,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func waitForElement(
-        request: GRPCCore.ServerRequest<MobileTesting_WaitForElementRequest>,
+    public func findElements(
+        request: GRPCCore.ServerRequest<Amoo_FindElementsRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_WaitForElementResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_WaitForElementResponse>(
-            message: waitForElement(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_FindElementsResponse> {
+        return GRPCCore.ServerResponse<Amoo_FindElementsResponse>(
+            message: try await self.findElements(
                 request: request.message,
                 context: context
             ),
@@ -2442,12 +2463,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func isKeyboardVisible(
-        request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+    public func waitForElement(
+        request: GRPCCore.ServerRequest<Amoo_WaitForElementRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_KeyboardVisibleResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_KeyboardVisibleResponse>(
-            message: isKeyboardVisible(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_WaitForElementResponse> {
+        return GRPCCore.ServerResponse<Amoo_WaitForElementResponse>(
+            message: try await self.waitForElement(
                 request: request.message,
                 context: context
             ),
@@ -2455,12 +2476,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func getScreenContext(
-        request: GRPCCore.ServerRequest<MobileTesting_ScreenContextRequest>,
+    public func isKeyboardVisible(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ScreenContextResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ScreenContextResponse>(
-            message: getScreenContext(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse> {
+        return GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse>(
+            message: try await self.isKeyboardVisible(
                 request: request.message,
                 context: context
             ),
@@ -2468,12 +2489,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func findByDescription(
-        request: GRPCCore.ServerRequest<MobileTesting_FindByDescriptionRequest>,
+    public func getScreenContext(
+        request: GRPCCore.ServerRequest<Amoo_ScreenContextRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_FindElementsResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_FindElementsResponse>(
-            message: findByDescription(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ScreenContextResponse> {
+        return GRPCCore.ServerResponse<Amoo_ScreenContextResponse>(
+            message: try await self.getScreenContext(
                 request: request.message,
                 context: context
             ),
@@ -2481,12 +2502,12 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func getInteractableElements(
-        request: GRPCCore.ServerRequest<MobileTesting_Empty>,
+    public func findByDescription(
+        request: GRPCCore.ServerRequest<Amoo_FindByDescriptionRequest>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_InteractableElementsResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_InteractableElementsResponse>(
-            message: getInteractableElements(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_FindElementsResponse> {
+        return GRPCCore.ServerResponse<Amoo_FindElementsResponse>(
+            message: try await self.findByDescription(
                 request: request.message,
                 context: context
             ),
@@ -2494,12 +2515,25 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
         )
     }
 
-    func takeScreenshot(
-        request: GRPCCore.ServerRequest<MobileTesting_ScreenshotRequest>,
+    public func getInteractableElements(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
         context: GRPCCore.ServerContext
-    ) async throws -> GRPCCore.ServerResponse<MobileTesting_ScreenshotResponse> {
-        try await GRPCCore.ServerResponse<MobileTesting_ScreenshotResponse>(
-            message: takeScreenshot(
+    ) async throws -> GRPCCore.ServerResponse<Amoo_InteractableElementsResponse> {
+        return GRPCCore.ServerResponse<Amoo_InteractableElementsResponse>(
+            message: try await self.getInteractableElements(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func takeScreenshot(
+        request: GRPCCore.ServerRequest<Amoo_ScreenshotRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ScreenshotResponse> {
+        return GRPCCore.ServerResponse<Amoo_ScreenshotResponse>(
+            message: try await self.takeScreenshot(
                 request: request.message,
                 context: context
             ),
@@ -2508,15 +2542,15 @@ public extension MobileTesting_CompanionService.SimpleServiceProtocol {
     }
 }
 
-// MARK: mobile.testing.v1.CompanionService (client)
+// MARK: amoo.v1.CompanionService (client)
 
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService {
-    /// Generated client protocol for the "mobile.testing.v1.CompanionService" service.
+extension Amoo_CompanionService {
+    /// Generated client protocol for the "amoo.v1.CompanionService" service.
     ///
     /// You don't need to implement this protocol directly, use the generated
     /// implementation, ``Client``.
-    protocol ClientProtocol: Sendable {
+    public protocol ClientProtocol: Sendable {
         /// Call the "StartSession" method.
         ///
         /// > Source IDL Documentation:
@@ -2524,62 +2558,59 @@ public extension MobileTesting_CompanionService {
         /// > Session lifecycle
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_StartSessionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_StartSessionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_StartSessionResponse` messages.
+        ///   - request: A request containing a single `Amoo_StartSessionRequest` message.
+        ///   - serializer: A serializer for `Amoo_StartSessionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_StartSessionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func startSession<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_StartSessionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_StartSessionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_StartSessionResponse>,
+        func startSession<Result>(
+            request: GRPCCore.ClientRequest<Amoo_StartSessionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_StartSessionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_StartSessionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_StartSessionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_StartSessionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "GetCapabilities" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_CapabilitiesRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_CapabilitiesRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_CapabilitiesResponse` messages.
+        ///   - request: A request containing a single `Amoo_CapabilitiesRequest` message.
+        ///   - serializer: A serializer for `Amoo_CapabilitiesRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_CapabilitiesResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func getCapabilities<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_CapabilitiesRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_CapabilitiesRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_CapabilitiesResponse>,
+        func getCapabilities<Result>(
+            request: GRPCCore.ClientRequest<Amoo_CapabilitiesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_CapabilitiesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_CapabilitiesResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_CapabilitiesResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CapabilitiesResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "EndSession" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_EndSessionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_EndSessionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_EndSessionResponse` messages.
+        ///   - request: A request containing a single `Amoo_EndSessionRequest` message.
+        ///   - serializer: A serializer for `Amoo_EndSessionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_EndSessionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func endSession<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_EndSessionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_EndSessionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_EndSessionResponse>,
+        func endSession<Result>(
+            request: GRPCCore.ClientRequest<Amoo_EndSessionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_EndSessionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_EndSessionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_EndSessionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_EndSessionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "Tap" method.
         ///
@@ -2588,82 +2619,78 @@ public extension MobileTesting_CompanionService {
         /// > Touch actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TapRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TapRequest` message.
+        ///   - serializer: A serializer for `Amoo_TapRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func tap<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TapRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TapRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func tap<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TapRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TapRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "DoubleTap" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TapRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TapRequest` message.
+        ///   - serializer: A serializer for `Amoo_TapRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func doubleTap<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TapRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TapRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func doubleTap<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TapRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TapRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "LongPress" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_LongPressRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_LongPressRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_LongPressRequest` message.
+        ///   - serializer: A serializer for `Amoo_LongPressRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func longPress<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_LongPressRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_LongPressRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func longPress<Result>(
+            request: GRPCCore.ClientRequest<Amoo_LongPressRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_LongPressRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "TapElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapElementRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TapElementRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TapElementRequest` message.
+        ///   - serializer: A serializer for `Amoo_TapElementRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func tapElement<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TapElementRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TapElementRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func tapElement<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TapElementRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TapElementRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "Swipe" method.
         ///
@@ -2672,111 +2699,116 @@ public extension MobileTesting_CompanionService {
         /// > Gesture actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SwipeRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SwipeRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SwipeRequest` message.
+        ///   - serializer: A serializer for `Amoo_SwipeRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func swipe<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SwipeRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func swipe<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SwipeRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SwipeRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
-        func swipeInDirection<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeDirectionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        /// Call the "SwipeInDirection" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SwipeDirectionRequest` message.
+        ///   - serializer: A serializer for `Amoo_SwipeDirectionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func swipeInDirection<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SwipeDirectionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SwipeDirectionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "Scroll" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScrollRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScrollRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScrollRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScrollRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func scroll<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScrollRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScrollRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func scroll<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScrollRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScrollRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "ScrollToElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScrollToElementRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScrollToElementRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScrollToElementRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScrollToElementRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func scrollToElement<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScrollToElementRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScrollToElementRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func scrollToElement<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScrollToElementRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScrollToElementRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "Pinch" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_PinchRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_PinchRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_PinchRequest` message.
+        ///   - serializer: A serializer for `Amoo_PinchRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func pinch<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_PinchRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_PinchRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func pinch<Result>(
+            request: GRPCCore.ClientRequest<Amoo_PinchRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_PinchRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "Drag" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_DragRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_DragRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_DragRequest` message.
+        ///   - serializer: A serializer for `Amoo_DragRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func drag<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_DragRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_DragRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func drag<Result>(
+            request: GRPCCore.ClientRequest<Amoo_DragRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_DragRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "TypeText" method.
         ///
@@ -2785,62 +2817,59 @@ public extension MobileTesting_CompanionService {
         /// > Text actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TypeTextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TypeTextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TypeTextRequest` message.
+        ///   - serializer: A serializer for `Amoo_TypeTextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func typeText<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TypeTextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TypeTextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func typeText<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TypeTextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TypeTextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "ClearText" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ClearTextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ClearTextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_ClearTextRequest` message.
+        ///   - serializer: A serializer for `Amoo_ClearTextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func clearText<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ClearTextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ClearTextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func clearText<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ClearTextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ClearTextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "SetText" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetTextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetTextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetTextRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetTextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func setText<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetTextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetTextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func setText<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetTextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetTextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "PressBack" method.
         ///
@@ -2849,42 +2878,40 @@ public extension MobileTesting_CompanionService {
         /// > Navigation
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func pressBack<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func pressBack<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "PressHome" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func pressHome<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        func pressHome<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "GetViewHierarchy" method.
         ///
@@ -2893,82 +2920,78 @@ public extension MobileTesting_CompanionService {
         /// > Accessibility queries
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ViewHierarchyRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ViewHierarchyRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ViewHierarchyResponse` messages.
+        ///   - request: A request containing a single `Amoo_ViewHierarchyRequest` message.
+        ///   - serializer: A serializer for `Amoo_ViewHierarchyRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ViewHierarchyResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func getViewHierarchy<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ViewHierarchyRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ViewHierarchyRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ViewHierarchyResponse>,
+        func getViewHierarchy<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ViewHierarchyRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ViewHierarchyRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ViewHierarchyResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ViewHierarchyResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ViewHierarchyResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "FindElements" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_FindElementsRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_FindElementsRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_FindElementsResponse` messages.
+        ///   - request: A request containing a single `Amoo_FindElementsRequest` message.
+        ///   - serializer: A serializer for `Amoo_FindElementsRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_FindElementsResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func findElements<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_FindElementsRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_FindElementsRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_FindElementsResponse>,
+        func findElements<Result>(
+            request: GRPCCore.ClientRequest<Amoo_FindElementsRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_FindElementsRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_FindElementsResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "WaitForElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_WaitForElementRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_WaitForElementRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_WaitForElementResponse` messages.
+        ///   - request: A request containing a single `Amoo_WaitForElementRequest` message.
+        ///   - serializer: A serializer for `Amoo_WaitForElementRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_WaitForElementResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func waitForElement<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_WaitForElementRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_WaitForElementRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_WaitForElementResponse>,
+        func waitForElement<Result>(
+            request: GRPCCore.ClientRequest<Amoo_WaitForElementRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_WaitForElementRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_WaitForElementResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_WaitForElementResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_WaitForElementResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "IsKeyboardVisible" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_KeyboardVisibleResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_KeyboardVisibleResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func isKeyboardVisible<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_KeyboardVisibleResponse>,
+        func isKeyboardVisible<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_KeyboardVisibleResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_KeyboardVisibleResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_KeyboardVisibleResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "GetScreenContext" method.
         ///
@@ -2977,62 +3000,59 @@ public extension MobileTesting_CompanionService {
         /// > AI context
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScreenContextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScreenContextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ScreenContextResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScreenContextRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScreenContextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ScreenContextResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func getScreenContext<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScreenContextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScreenContextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ScreenContextResponse>,
+        func getScreenContext<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScreenContextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScreenContextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ScreenContextResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ScreenContextResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenContextResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "FindByDescription" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_FindByDescriptionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_FindByDescriptionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_FindElementsResponse` messages.
+        ///   - request: A request containing a single `Amoo_FindByDescriptionRequest` message.
+        ///   - serializer: A serializer for `Amoo_FindByDescriptionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_FindElementsResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func findByDescription<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_FindByDescriptionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_FindByDescriptionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_FindElementsResponse>,
+        func findByDescription<Result>(
+            request: GRPCCore.ClientRequest<Amoo_FindByDescriptionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_FindByDescriptionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_FindElementsResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "GetInteractableElements" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_InteractableElementsResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_InteractableElementsResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func getInteractableElements<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_InteractableElementsResponse>,
+        func getInteractableElements<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_InteractableElementsResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_InteractableElementsResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_InteractableElementsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
 
         /// Call the "TakeScreenshot" method.
         ///
@@ -3041,30 +3061,29 @@ public extension MobileTesting_CompanionService {
         /// > Capture
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScreenshotRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScreenshotRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ScreenshotResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScreenshotRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScreenshotRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ScreenshotResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func takeScreenshot<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScreenshotRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScreenshotRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ScreenshotResponse>,
+        func takeScreenshot<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScreenshotRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScreenshotRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ScreenshotResponse>,
             options: GRPCCore.CallOptions,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ScreenshotResponse>) async throws -> Result
-        ) async throws -> Result
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenshotResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
     }
 
-    /// Generated client for the "mobile.testing.v1.CompanionService" service.
+    /// Generated client for the "amoo.v1.CompanionService" service.
     ///
     /// The ``Client`` provides an implementation of ``ClientProtocol`` which wraps
     /// a `GRPCCore.GRPCCClient`. The underlying `GRPCClient` provides the long-lived
     /// means of communication with the remote peer.
-    struct Client<Transport: GRPCCore.ClientTransport>: ClientProtocol {
+    public struct Client<Transport>: ClientProtocol where Transport: GRPCCore.ClientTransport {
         private let client: GRPCCore.GRPCClient<Transport>
 
         /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
@@ -3082,27 +3101,26 @@ public extension MobileTesting_CompanionService {
         /// > Session lifecycle
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_StartSessionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_StartSessionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_StartSessionResponse` messages.
+        ///   - request: A request containing a single `Amoo_StartSessionRequest` message.
+        ///   - serializer: A serializer for `Amoo_StartSessionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_StartSessionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func startSession<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_StartSessionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_StartSessionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_StartSessionResponse>,
+        public func startSession<Result>(
+            request: GRPCCore.ClientRequest<Amoo_StartSessionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_StartSessionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_StartSessionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_StartSessionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_StartSessionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.StartSession.descriptor,
+                descriptor: Amoo_CompanionService.Method.StartSession.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3113,27 +3131,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "GetCapabilities" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_CapabilitiesRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_CapabilitiesRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_CapabilitiesResponse` messages.
+        ///   - request: A request containing a single `Amoo_CapabilitiesRequest` message.
+        ///   - serializer: A serializer for `Amoo_CapabilitiesRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_CapabilitiesResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func getCapabilities<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_CapabilitiesRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_CapabilitiesRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_CapabilitiesResponse>,
+        public func getCapabilities<Result>(
+            request: GRPCCore.ClientRequest<Amoo_CapabilitiesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_CapabilitiesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_CapabilitiesResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_CapabilitiesResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CapabilitiesResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.GetCapabilities.descriptor,
+                descriptor: Amoo_CompanionService.Method.GetCapabilities.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3144,27 +3161,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "EndSession" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_EndSessionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_EndSessionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_EndSessionResponse` messages.
+        ///   - request: A request containing a single `Amoo_EndSessionRequest` message.
+        ///   - serializer: A serializer for `Amoo_EndSessionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_EndSessionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func endSession<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_EndSessionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_EndSessionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_EndSessionResponse>,
+        public func endSession<Result>(
+            request: GRPCCore.ClientRequest<Amoo_EndSessionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_EndSessionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_EndSessionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_EndSessionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_EndSessionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.EndSession.descriptor,
+                descriptor: Amoo_CompanionService.Method.EndSession.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3179,27 +3195,26 @@ public extension MobileTesting_CompanionService {
         /// > Touch actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TapRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TapRequest` message.
+        ///   - serializer: A serializer for `Amoo_TapRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func tap<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TapRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TapRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func tap<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TapRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TapRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.Tap.descriptor,
+                descriptor: Amoo_CompanionService.Method.Tap.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3210,27 +3225,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "DoubleTap" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TapRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TapRequest` message.
+        ///   - serializer: A serializer for `Amoo_TapRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func doubleTap<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TapRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TapRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func doubleTap<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TapRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TapRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.DoubleTap.descriptor,
+                descriptor: Amoo_CompanionService.Method.DoubleTap.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3241,27 +3255,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "LongPress" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_LongPressRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_LongPressRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_LongPressRequest` message.
+        ///   - serializer: A serializer for `Amoo_LongPressRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func longPress<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_LongPressRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_LongPressRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func longPress<Result>(
+            request: GRPCCore.ClientRequest<Amoo_LongPressRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_LongPressRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.LongPress.descriptor,
+                descriptor: Amoo_CompanionService.Method.LongPress.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3272,27 +3285,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "TapElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TapElementRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TapElementRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TapElementRequest` message.
+        ///   - serializer: A serializer for `Amoo_TapElementRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func tapElement<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TapElementRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TapElementRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func tapElement<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TapElementRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TapElementRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.TapElement.descriptor,
+                descriptor: Amoo_CompanionService.Method.TapElement.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3307,27 +3319,26 @@ public extension MobileTesting_CompanionService {
         /// > Gesture actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SwipeRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SwipeRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SwipeRequest` message.
+        ///   - serializer: A serializer for `Amoo_SwipeRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func swipe<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SwipeRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func swipe<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SwipeRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SwipeRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.Swipe.descriptor,
+                descriptor: Amoo_CompanionService.Method.Swipe.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3335,19 +3346,29 @@ public extension MobileTesting_CompanionService {
             )
         }
 
-        public func swipeInDirection<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SwipeDirectionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        /// Call the "SwipeInDirection" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SwipeDirectionRequest` message.
+        ///   - serializer: A serializer for `Amoo_SwipeDirectionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func swipeInDirection<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SwipeDirectionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SwipeDirectionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.SwipeInDirection.descriptor,
+                descriptor: Amoo_CompanionService.Method.SwipeInDirection.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3358,27 +3379,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "Scroll" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScrollRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScrollRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScrollRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScrollRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func scroll<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScrollRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScrollRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func scroll<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScrollRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScrollRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.Scroll.descriptor,
+                descriptor: Amoo_CompanionService.Method.Scroll.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3389,27 +3409,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "ScrollToElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScrollToElementRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScrollToElementRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScrollToElementRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScrollToElementRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func scrollToElement<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScrollToElementRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScrollToElementRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func scrollToElement<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScrollToElementRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScrollToElementRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.ScrollToElement.descriptor,
+                descriptor: Amoo_CompanionService.Method.ScrollToElement.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3420,27 +3439,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "Pinch" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_PinchRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_PinchRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_PinchRequest` message.
+        ///   - serializer: A serializer for `Amoo_PinchRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func pinch<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_PinchRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_PinchRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func pinch<Result>(
+            request: GRPCCore.ClientRequest<Amoo_PinchRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_PinchRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.Pinch.descriptor,
+                descriptor: Amoo_CompanionService.Method.Pinch.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3451,27 +3469,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "Drag" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_DragRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_DragRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_DragRequest` message.
+        ///   - serializer: A serializer for `Amoo_DragRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func drag<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_DragRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_DragRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func drag<Result>(
+            request: GRPCCore.ClientRequest<Amoo_DragRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_DragRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.Drag.descriptor,
+                descriptor: Amoo_CompanionService.Method.Drag.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3486,27 +3503,26 @@ public extension MobileTesting_CompanionService {
         /// > Text actions
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_TypeTextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_TypeTextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_TypeTextRequest` message.
+        ///   - serializer: A serializer for `Amoo_TypeTextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func typeText<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_TypeTextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_TypeTextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func typeText<Result>(
+            request: GRPCCore.ClientRequest<Amoo_TypeTextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_TypeTextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.TypeText.descriptor,
+                descriptor: Amoo_CompanionService.Method.TypeText.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3517,27 +3533,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "ClearText" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ClearTextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ClearTextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_ClearTextRequest` message.
+        ///   - serializer: A serializer for `Amoo_ClearTextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func clearText<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ClearTextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ClearTextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func clearText<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ClearTextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ClearTextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.ClearText.descriptor,
+                descriptor: Amoo_CompanionService.Method.ClearText.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3548,27 +3563,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "SetText" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_SetTextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_SetTextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_SetTextRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetTextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func setText<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_SetTextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_SetTextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func setText<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetTextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetTextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.SetText.descriptor,
+                descriptor: Amoo_CompanionService.Method.SetText.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3583,27 +3597,26 @@ public extension MobileTesting_CompanionService {
         /// > Navigation
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func pressBack<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func pressBack<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.PressBack.descriptor,
+                descriptor: Amoo_CompanionService.Method.PressBack.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3614,27 +3627,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "PressHome" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ActionResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func pressHome<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ActionResponse>,
+        public func pressHome<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.PressHome.descriptor,
+                descriptor: Amoo_CompanionService.Method.PressHome.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3649,27 +3661,26 @@ public extension MobileTesting_CompanionService {
         /// > Accessibility queries
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ViewHierarchyRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ViewHierarchyRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ViewHierarchyResponse` messages.
+        ///   - request: A request containing a single `Amoo_ViewHierarchyRequest` message.
+        ///   - serializer: A serializer for `Amoo_ViewHierarchyRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ViewHierarchyResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func getViewHierarchy<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ViewHierarchyRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ViewHierarchyRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ViewHierarchyResponse>,
+        public func getViewHierarchy<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ViewHierarchyRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ViewHierarchyRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ViewHierarchyResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ViewHierarchyResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ViewHierarchyResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.GetViewHierarchy.descriptor,
+                descriptor: Amoo_CompanionService.Method.GetViewHierarchy.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3680,27 +3691,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "FindElements" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_FindElementsRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_FindElementsRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_FindElementsResponse` messages.
+        ///   - request: A request containing a single `Amoo_FindElementsRequest` message.
+        ///   - serializer: A serializer for `Amoo_FindElementsRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_FindElementsResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func findElements<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_FindElementsRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_FindElementsRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_FindElementsResponse>,
+        public func findElements<Result>(
+            request: GRPCCore.ClientRequest<Amoo_FindElementsRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_FindElementsRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_FindElementsResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.FindElements.descriptor,
+                descriptor: Amoo_CompanionService.Method.FindElements.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3711,27 +3721,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "WaitForElement" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_WaitForElementRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_WaitForElementRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_WaitForElementResponse` messages.
+        ///   - request: A request containing a single `Amoo_WaitForElementRequest` message.
+        ///   - serializer: A serializer for `Amoo_WaitForElementRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_WaitForElementResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func waitForElement<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_WaitForElementRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_WaitForElementRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_WaitForElementResponse>,
+        public func waitForElement<Result>(
+            request: GRPCCore.ClientRequest<Amoo_WaitForElementRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_WaitForElementRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_WaitForElementResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_WaitForElementResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_WaitForElementResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.WaitForElement.descriptor,
+                descriptor: Amoo_CompanionService.Method.WaitForElement.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3742,27 +3751,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "IsKeyboardVisible" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_KeyboardVisibleResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_KeyboardVisibleResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func isKeyboardVisible<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_KeyboardVisibleResponse>,
+        public func isKeyboardVisible<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_KeyboardVisibleResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_KeyboardVisibleResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_KeyboardVisibleResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.IsKeyboardVisible.descriptor,
+                descriptor: Amoo_CompanionService.Method.IsKeyboardVisible.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3777,27 +3785,26 @@ public extension MobileTesting_CompanionService {
         /// > AI context
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScreenContextRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScreenContextRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ScreenContextResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScreenContextRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScreenContextRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ScreenContextResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func getScreenContext<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScreenContextRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScreenContextRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ScreenContextResponse>,
+        public func getScreenContext<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScreenContextRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScreenContextRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ScreenContextResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ScreenContextResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenContextResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.GetScreenContext.descriptor,
+                descriptor: Amoo_CompanionService.Method.GetScreenContext.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3808,27 +3815,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "FindByDescription" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_FindByDescriptionRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_FindByDescriptionRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_FindElementsResponse` messages.
+        ///   - request: A request containing a single `Amoo_FindByDescriptionRequest` message.
+        ///   - serializer: A serializer for `Amoo_FindByDescriptionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_FindElementsResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func findByDescription<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_FindByDescriptionRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_FindByDescriptionRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_FindElementsResponse>,
+        public func findByDescription<Result>(
+            request: GRPCCore.ClientRequest<Amoo_FindByDescriptionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_FindByDescriptionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_FindElementsResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.FindByDescription.descriptor,
+                descriptor: Amoo_CompanionService.Method.FindByDescription.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3839,27 +3845,26 @@ public extension MobileTesting_CompanionService {
         /// Call the "GetInteractableElements" method.
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_Empty` message.
-        ///   - serializer: A serializer for `MobileTesting_Empty` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_InteractableElementsResponse` messages.
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_InteractableElementsResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func getInteractableElements<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_Empty>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_Empty>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_InteractableElementsResponse>,
+        public func getInteractableElements<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_InteractableElementsResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_InteractableElementsResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_InteractableElementsResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.GetInteractableElements.descriptor,
+                descriptor: Amoo_CompanionService.Method.GetInteractableElements.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3874,27 +3879,26 @@ public extension MobileTesting_CompanionService {
         /// > Capture
         ///
         /// - Parameters:
-        ///   - request: A request containing a single `MobileTesting_ScreenshotRequest` message.
-        ///   - serializer: A serializer for `MobileTesting_ScreenshotRequest` messages.
-        ///   - deserializer: A deserializer for `MobileTesting_ScreenshotResponse` messages.
+        ///   - request: A request containing a single `Amoo_ScreenshotRequest` message.
+        ///   - serializer: A serializer for `Amoo_ScreenshotRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ScreenshotResponse` messages.
         ///   - options: Options to apply to this RPC.
         ///   - handleResponse: A closure which handles the response, the result of which is
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        public func takeScreenshot<Result: Sendable>(
-            request: GRPCCore.ClientRequest<MobileTesting_ScreenshotRequest>,
-            serializer: some GRPCCore.MessageSerializer<MobileTesting_ScreenshotRequest>,
-            deserializer: some GRPCCore.MessageDeserializer<MobileTesting_ScreenshotResponse>,
+        public func takeScreenshot<Result>(
+            request: GRPCCore.ClientRequest<Amoo_ScreenshotRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_ScreenshotRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ScreenshotResponse>,
             options: GRPCCore.CallOptions = .defaults,
-            onResponse handleResponse: @Sendable @escaping (GRPCCore
-                .ClientResponse<MobileTesting_ScreenshotResponse>) async throws -> Result = { response in
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenshotResponse>) async throws -> Result = { response in
                 try response.message
             }
-        ) async throws -> Result {
-            try await client.unary(
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
                 request: request,
-                descriptor: MobileTesting_CompanionService.Method.TakeScreenshot.descriptor,
+                descriptor: Amoo_CompanionService.Method.TakeScreenshot.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -3904,9 +3908,9 @@ public extension MobileTesting_CompanionService {
     }
 }
 
-/// Helpers providing default arguments to 'ClientProtocol' methods.
+// Helpers providing default arguments to 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService.ClientProtocol {
+extension Amoo_CompanionService.ClientProtocol {
     /// Call the "StartSession" method.
     ///
     /// > Source IDL Documentation:
@@ -3914,24 +3918,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Session lifecycle
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_StartSessionRequest` message.
+    ///   - request: A request containing a single `Amoo_StartSessionRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func startSession<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_StartSessionRequest>,
+    public func startSession<Result>(
+        request: GRPCCore.ClientRequest<Amoo_StartSessionRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_StartSessionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_StartSessionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await startSession(
+    ) async throws -> Result where Result: Sendable {
+        try await self.startSession(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_StartSessionRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_StartSessionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_StartSessionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_StartSessionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -3940,24 +3943,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "GetCapabilities" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_CapabilitiesRequest` message.
+    ///   - request: A request containing a single `Amoo_CapabilitiesRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getCapabilities<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_CapabilitiesRequest>,
+    public func getCapabilities<Result>(
+        request: GRPCCore.ClientRequest<Amoo_CapabilitiesRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_CapabilitiesResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CapabilitiesResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await getCapabilities(
+    ) async throws -> Result where Result: Sendable {
+        try await self.getCapabilities(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_CapabilitiesRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_CapabilitiesResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_CapabilitiesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_CapabilitiesResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -3966,24 +3968,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "EndSession" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_EndSessionRequest` message.
+    ///   - request: A request containing a single `Amoo_EndSessionRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func endSession<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_EndSessionRequest>,
+    public func endSession<Result>(
+        request: GRPCCore.ClientRequest<Amoo_EndSessionRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_EndSessionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_EndSessionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await endSession(
+    ) async throws -> Result where Result: Sendable {
+        try await self.endSession(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_EndSessionRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_EndSessionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_EndSessionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_EndSessionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -3996,24 +3997,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Touch actions
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_TapRequest` message.
+    ///   - request: A request containing a single `Amoo_TapRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func tap<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_TapRequest>,
+    public func tap<Result>(
+        request: GRPCCore.ClientRequest<Amoo_TapRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await tap(
+    ) async throws -> Result where Result: Sendable {
+        try await self.tap(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_TapRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_TapRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4022,24 +4022,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "DoubleTap" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_TapRequest` message.
+    ///   - request: A request containing a single `Amoo_TapRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func doubleTap<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_TapRequest>,
+    public func doubleTap<Result>(
+        request: GRPCCore.ClientRequest<Amoo_TapRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await doubleTap(
+    ) async throws -> Result where Result: Sendable {
+        try await self.doubleTap(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_TapRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_TapRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4048,24 +4047,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "LongPress" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_LongPressRequest` message.
+    ///   - request: A request containing a single `Amoo_LongPressRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func longPress<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_LongPressRequest>,
+    public func longPress<Result>(
+        request: GRPCCore.ClientRequest<Amoo_LongPressRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await longPress(
+    ) async throws -> Result where Result: Sendable {
+        try await self.longPress(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_LongPressRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_LongPressRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4074,24 +4072,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "TapElement" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_TapElementRequest` message.
+    ///   - request: A request containing a single `Amoo_TapElementRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func tapElement<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_TapElementRequest>,
+    public func tapElement<Result>(
+        request: GRPCCore.ClientRequest<Amoo_TapElementRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await tapElement(
+    ) async throws -> Result where Result: Sendable {
+        try await self.tapElement(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_TapElementRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_TapElementRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4104,41 +4101,48 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Gesture actions
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_SwipeRequest` message.
+    ///   - request: A request containing a single `Amoo_SwipeRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func swipe<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_SwipeRequest>,
+    public func swipe<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SwipeRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await swipe(
+    ) async throws -> Result where Result: Sendable {
+        try await self.swipe(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SwipeRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SwipeRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
     }
 
-    func swipeInDirection<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>,
+    /// Call the "SwipeInDirection" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_SwipeDirectionRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func swipeInDirection<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SwipeDirectionRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await swipeInDirection(
+    ) async throws -> Result where Result: Sendable {
+        try await self.swipeInDirection(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SwipeDirectionRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SwipeDirectionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4147,24 +4151,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "Scroll" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_ScrollRequest` message.
+    ///   - request: A request containing a single `Amoo_ScrollRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func scroll<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_ScrollRequest>,
+    public func scroll<Result>(
+        request: GRPCCore.ClientRequest<Amoo_ScrollRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await scroll(
+    ) async throws -> Result where Result: Sendable {
+        try await self.scroll(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ScrollRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScrollRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4173,24 +4176,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "ScrollToElement" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_ScrollToElementRequest` message.
+    ///   - request: A request containing a single `Amoo_ScrollToElementRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func scrollToElement<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_ScrollToElementRequest>,
+    public func scrollToElement<Result>(
+        request: GRPCCore.ClientRequest<Amoo_ScrollToElementRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await scrollToElement(
+    ) async throws -> Result where Result: Sendable {
+        try await self.scrollToElement(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ScrollToElementRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScrollToElementRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4199,24 +4201,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "Pinch" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_PinchRequest` message.
+    ///   - request: A request containing a single `Amoo_PinchRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func pinch<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_PinchRequest>,
+    public func pinch<Result>(
+        request: GRPCCore.ClientRequest<Amoo_PinchRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await pinch(
+    ) async throws -> Result where Result: Sendable {
+        try await self.pinch(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_PinchRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_PinchRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4225,24 +4226,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "Drag" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_DragRequest` message.
+    ///   - request: A request containing a single `Amoo_DragRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func drag<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_DragRequest>,
+    public func drag<Result>(
+        request: GRPCCore.ClientRequest<Amoo_DragRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await drag(
+    ) async throws -> Result where Result: Sendable {
+        try await self.drag(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_DragRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_DragRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4255,24 +4255,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Text actions
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_TypeTextRequest` message.
+    ///   - request: A request containing a single `Amoo_TypeTextRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func typeText<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_TypeTextRequest>,
+    public func typeText<Result>(
+        request: GRPCCore.ClientRequest<Amoo_TypeTextRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await typeText(
+    ) async throws -> Result where Result: Sendable {
+        try await self.typeText(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_TypeTextRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_TypeTextRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4281,24 +4280,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "ClearText" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_ClearTextRequest` message.
+    ///   - request: A request containing a single `Amoo_ClearTextRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func clearText<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_ClearTextRequest>,
+    public func clearText<Result>(
+        request: GRPCCore.ClientRequest<Amoo_ClearTextRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await clearText(
+    ) async throws -> Result where Result: Sendable {
+        try await self.clearText(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ClearTextRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ClearTextRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4307,24 +4305,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "SetText" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_SetTextRequest` message.
+    ///   - request: A request containing a single `Amoo_SetTextRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setText<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_SetTextRequest>,
+    public func setText<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SetTextRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await setText(
+    ) async throws -> Result where Result: Sendable {
+        try await self.setText(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_SetTextRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetTextRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4337,24 +4334,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Navigation
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_Empty` message.
+    ///   - request: A request containing a single `Amoo_Empty` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func pressBack<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_Empty>,
+    public func pressBack<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await pressBack(
+    ) async throws -> Result where Result: Sendable {
+        try await self.pressBack(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_Empty>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4363,24 +4359,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "PressHome" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_Empty` message.
+    ///   - request: A request containing a single `Amoo_Empty` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func pressHome<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_Empty>,
+    public func pressHome<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await pressHome(
+    ) async throws -> Result where Result: Sendable {
+        try await self.pressHome(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_Empty>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ActionResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4393,24 +4388,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Accessibility queries
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_ViewHierarchyRequest` message.
+    ///   - request: A request containing a single `Amoo_ViewHierarchyRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getViewHierarchy<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_ViewHierarchyRequest>,
+    public func getViewHierarchy<Result>(
+        request: GRPCCore.ClientRequest<Amoo_ViewHierarchyRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ViewHierarchyResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ViewHierarchyResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await getViewHierarchy(
+    ) async throws -> Result where Result: Sendable {
+        try await self.getViewHierarchy(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ViewHierarchyRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ViewHierarchyResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ViewHierarchyRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ViewHierarchyResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4419,24 +4413,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "FindElements" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_FindElementsRequest` message.
+    ///   - request: A request containing a single `Amoo_FindElementsRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func findElements<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_FindElementsRequest>,
+    public func findElements<Result>(
+        request: GRPCCore.ClientRequest<Amoo_FindElementsRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await findElements(
+    ) async throws -> Result where Result: Sendable {
+        try await self.findElements(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_FindElementsRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_FindElementsResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_FindElementsRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_FindElementsResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4445,24 +4438,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "WaitForElement" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_WaitForElementRequest` message.
+    ///   - request: A request containing a single `Amoo_WaitForElementRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func waitForElement<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_WaitForElementRequest>,
+    public func waitForElement<Result>(
+        request: GRPCCore.ClientRequest<Amoo_WaitForElementRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_WaitForElementResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_WaitForElementResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await waitForElement(
+    ) async throws -> Result where Result: Sendable {
+        try await self.waitForElement(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_WaitForElementRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_WaitForElementResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_WaitForElementRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_WaitForElementResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4471,24 +4463,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "IsKeyboardVisible" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_Empty` message.
+    ///   - request: A request containing a single `Amoo_Empty` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func isKeyboardVisible<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_Empty>,
+    public func isKeyboardVisible<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_KeyboardVisibleResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_KeyboardVisibleResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await isKeyboardVisible(
+    ) async throws -> Result where Result: Sendable {
+        try await self.isKeyboardVisible(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_Empty>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_KeyboardVisibleResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_KeyboardVisibleResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4501,24 +4492,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > AI context
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_ScreenContextRequest` message.
+    ///   - request: A request containing a single `Amoo_ScreenContextRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getScreenContext<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_ScreenContextRequest>,
+    public func getScreenContext<Result>(
+        request: GRPCCore.ClientRequest<Amoo_ScreenContextRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ScreenContextResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenContextResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await getScreenContext(
+    ) async throws -> Result where Result: Sendable {
+        try await self.getScreenContext(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ScreenContextRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScreenContextResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenContextRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenContextResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4527,24 +4517,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "FindByDescription" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_FindByDescriptionRequest` message.
+    ///   - request: A request containing a single `Amoo_FindByDescriptionRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func findByDescription<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_FindByDescriptionRequest>,
+    public func findByDescription<Result>(
+        request: GRPCCore.ClientRequest<Amoo_FindByDescriptionRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await findByDescription(
+    ) async throws -> Result where Result: Sendable {
+        try await self.findByDescription(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_FindByDescriptionRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_FindElementsResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_FindByDescriptionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_FindElementsResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4553,24 +4542,23 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// Call the "GetInteractableElements" method.
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_Empty` message.
+    ///   - request: A request containing a single `Amoo_Empty` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getInteractableElements<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_Empty>,
+    public func getInteractableElements<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_InteractableElementsResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_InteractableElementsResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await getInteractableElements(
+    ) async throws -> Result where Result: Sendable {
+        try await self.getInteractableElements(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_Empty>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_InteractableElementsResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_InteractableElementsResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -4583,33 +4571,32 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     /// > Capture
     ///
     /// - Parameters:
-    ///   - request: A request containing a single `MobileTesting_ScreenshotRequest` message.
+    ///   - request: A request containing a single `Amoo_ScreenshotRequest` message.
     ///   - options: Options to apply to this RPC.
     ///   - handleResponse: A closure which handles the response, the result of which is
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func takeScreenshot<Result: Sendable>(
-        request: GRPCCore.ClientRequest<MobileTesting_ScreenshotRequest>,
+    public func takeScreenshot<Result>(
+        request: GRPCCore.ClientRequest<Amoo_ScreenshotRequest>,
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ScreenshotResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenshotResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        try await takeScreenshot(
+    ) async throws -> Result where Result: Sendable {
+        try await self.takeScreenshot(
             request: request,
-            serializer: GRPCProtobuf.ProtobufSerializer<MobileTesting_ScreenshotRequest>(),
-            deserializer: GRPCProtobuf.ProtobufDeserializer<MobileTesting_ScreenshotResponse>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenshotRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenshotResponse>(),
             options: options,
             onResponse: handleResponse
         )
     }
 }
 
-/// Helpers providing sugared APIs for 'ClientProtocol' methods.
+// Helpers providing sugared APIs for 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public extension MobileTesting_CompanionService.ClientProtocol {
+extension Amoo_CompanionService.ClientProtocol {
     /// Call the "StartSession" method.
     ///
     /// > Source IDL Documentation:
@@ -4624,20 +4611,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func startSession<Result: Sendable>(
-        _ message: MobileTesting_StartSessionRequest,
+    public func startSession<Result>(
+        _ message: Amoo_StartSessionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_StartSessionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_StartSessionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_StartSessionRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_StartSessionRequest>(
             message: message,
             metadata: metadata
         )
-        return try await startSession(
+        return try await self.startSession(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4654,20 +4640,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getCapabilities<Result: Sendable>(
-        _ message: MobileTesting_CapabilitiesRequest,
+    public func getCapabilities<Result>(
+        _ message: Amoo_CapabilitiesRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_CapabilitiesResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CapabilitiesResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_CapabilitiesRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_CapabilitiesRequest>(
             message: message,
             metadata: metadata
         )
-        return try await getCapabilities(
+        return try await self.getCapabilities(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4684,20 +4669,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func endSession<Result: Sendable>(
-        _ message: MobileTesting_EndSessionRequest,
+    public func endSession<Result>(
+        _ message: Amoo_EndSessionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_EndSessionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_EndSessionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_EndSessionRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_EndSessionRequest>(
             message: message,
             metadata: metadata
         )
-        return try await endSession(
+        return try await self.endSession(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4718,20 +4702,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func tap<Result: Sendable>(
-        _ message: MobileTesting_TapRequest,
+    public func tap<Result>(
+        _ message: Amoo_TapRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_TapRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_TapRequest>(
             message: message,
             metadata: metadata
         )
-        return try await tap(
+        return try await self.tap(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4748,20 +4731,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func doubleTap<Result: Sendable>(
-        _ message: MobileTesting_TapRequest,
+    public func doubleTap<Result>(
+        _ message: Amoo_TapRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_TapRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_TapRequest>(
             message: message,
             metadata: metadata
         )
-        return try await doubleTap(
+        return try await self.doubleTap(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4778,20 +4760,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func longPress<Result: Sendable>(
-        _ message: MobileTesting_LongPressRequest,
+    public func longPress<Result>(
+        _ message: Amoo_LongPressRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_LongPressRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_LongPressRequest>(
             message: message,
             metadata: metadata
         )
-        return try await longPress(
+        return try await self.longPress(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4808,20 +4789,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func tapElement<Result: Sendable>(
-        _ message: MobileTesting_TapElementRequest,
+    public func tapElement<Result>(
+        _ message: Amoo_TapElementRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_TapElementRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_TapElementRequest>(
             message: message,
             metadata: metadata
         )
-        return try await tapElement(
+        return try await self.tapElement(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4842,40 +4822,48 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func swipe<Result: Sendable>(
-        _ message: MobileTesting_SwipeRequest,
+    public func swipe<Result>(
+        _ message: Amoo_SwipeRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_SwipeRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SwipeRequest>(
             message: message,
             metadata: metadata
         )
-        return try await swipe(
+        return try await self.swipe(
             request: request,
             options: options,
             onResponse: handleResponse
         )
     }
 
-    func swipeInDirection<Result: Sendable>(
-        _ message: MobileTesting_SwipeDirectionRequest,
+    /// Call the "SwipeInDirection" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func swipeInDirection<Result>(
+        _ message: Amoo_SwipeDirectionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_SwipeDirectionRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SwipeDirectionRequest>(
             message: message,
             metadata: metadata
         )
-        return try await swipeInDirection(
+        return try await self.swipeInDirection(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4892,20 +4880,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func scroll<Result: Sendable>(
-        _ message: MobileTesting_ScrollRequest,
+    public func scroll<Result>(
+        _ message: Amoo_ScrollRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_ScrollRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_ScrollRequest>(
             message: message,
             metadata: metadata
         )
-        return try await scroll(
+        return try await self.scroll(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4922,20 +4909,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func scrollToElement<Result: Sendable>(
-        _ message: MobileTesting_ScrollToElementRequest,
+    public func scrollToElement<Result>(
+        _ message: Amoo_ScrollToElementRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_ScrollToElementRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_ScrollToElementRequest>(
             message: message,
             metadata: metadata
         )
-        return try await scrollToElement(
+        return try await self.scrollToElement(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4952,20 +4938,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func pinch<Result: Sendable>(
-        _ message: MobileTesting_PinchRequest,
+    public func pinch<Result>(
+        _ message: Amoo_PinchRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_PinchRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_PinchRequest>(
             message: message,
             metadata: metadata
         )
-        return try await pinch(
+        return try await self.pinch(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -4982,20 +4967,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func drag<Result: Sendable>(
-        _ message: MobileTesting_DragRequest,
+    public func drag<Result>(
+        _ message: Amoo_DragRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_DragRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_DragRequest>(
             message: message,
             metadata: metadata
         )
-        return try await drag(
+        return try await self.drag(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5016,20 +5000,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func typeText<Result: Sendable>(
-        _ message: MobileTesting_TypeTextRequest,
+    public func typeText<Result>(
+        _ message: Amoo_TypeTextRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_TypeTextRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_TypeTextRequest>(
             message: message,
             metadata: metadata
         )
-        return try await typeText(
+        return try await self.typeText(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5046,20 +5029,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func clearText<Result: Sendable>(
-        _ message: MobileTesting_ClearTextRequest,
+    public func clearText<Result>(
+        _ message: Amoo_ClearTextRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_ClearTextRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_ClearTextRequest>(
             message: message,
             metadata: metadata
         )
-        return try await clearText(
+        return try await self.clearText(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5076,20 +5058,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func setText<Result: Sendable>(
-        _ message: MobileTesting_SetTextRequest,
+    public func setText<Result>(
+        _ message: Amoo_SetTextRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_SetTextRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SetTextRequest>(
             message: message,
             metadata: metadata
         )
-        return try await setText(
+        return try await self.setText(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5110,20 +5091,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func pressBack<Result: Sendable>(
-        _ message: MobileTesting_Empty,
+    public func pressBack<Result>(
+        _ message: Amoo_Empty,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_Empty>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
             message: message,
             metadata: metadata
         )
-        return try await pressBack(
+        return try await self.pressBack(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5140,20 +5120,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func pressHome<Result: Sendable>(
-        _ message: MobileTesting_Empty,
+    public func pressHome<Result>(
+        _ message: Amoo_Empty,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ActionResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_Empty>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
             message: message,
             metadata: metadata
         )
-        return try await pressHome(
+        return try await self.pressHome(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5174,20 +5153,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getViewHierarchy<Result: Sendable>(
-        _ message: MobileTesting_ViewHierarchyRequest,
+    public func getViewHierarchy<Result>(
+        _ message: Amoo_ViewHierarchyRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ViewHierarchyResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ViewHierarchyResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_ViewHierarchyRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_ViewHierarchyRequest>(
             message: message,
             metadata: metadata
         )
-        return try await getViewHierarchy(
+        return try await self.getViewHierarchy(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5204,20 +5182,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func findElements<Result: Sendable>(
-        _ message: MobileTesting_FindElementsRequest,
+    public func findElements<Result>(
+        _ message: Amoo_FindElementsRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_FindElementsRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_FindElementsRequest>(
             message: message,
             metadata: metadata
         )
-        return try await findElements(
+        return try await self.findElements(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5234,20 +5211,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func waitForElement<Result: Sendable>(
-        _ message: MobileTesting_WaitForElementRequest,
+    public func waitForElement<Result>(
+        _ message: Amoo_WaitForElementRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_WaitForElementResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_WaitForElementResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_WaitForElementRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_WaitForElementRequest>(
             message: message,
             metadata: metadata
         )
-        return try await waitForElement(
+        return try await self.waitForElement(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5264,20 +5240,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func isKeyboardVisible<Result: Sendable>(
-        _ message: MobileTesting_Empty,
+    public func isKeyboardVisible<Result>(
+        _ message: Amoo_Empty,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_KeyboardVisibleResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_KeyboardVisibleResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_Empty>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
             message: message,
             metadata: metadata
         )
-        return try await isKeyboardVisible(
+        return try await self.isKeyboardVisible(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5298,20 +5273,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getScreenContext<Result: Sendable>(
-        _ message: MobileTesting_ScreenContextRequest,
+    public func getScreenContext<Result>(
+        _ message: Amoo_ScreenContextRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ScreenContextResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenContextResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_ScreenContextRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_ScreenContextRequest>(
             message: message,
             metadata: metadata
         )
-        return try await getScreenContext(
+        return try await self.getScreenContext(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5328,20 +5302,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func findByDescription<Result: Sendable>(
-        _ message: MobileTesting_FindByDescriptionRequest,
+    public func findByDescription<Result>(
+        _ message: Amoo_FindByDescriptionRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_FindElementsResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_FindElementsResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_FindByDescriptionRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_FindByDescriptionRequest>(
             message: message,
             metadata: metadata
         )
-        return try await findByDescription(
+        return try await self.findByDescription(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5358,20 +5331,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func getInteractableElements<Result: Sendable>(
-        _ message: MobileTesting_Empty,
+    public func getInteractableElements<Result>(
+        _ message: Amoo_Empty,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_InteractableElementsResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_InteractableElementsResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_Empty>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
             message: message,
             metadata: metadata
         )
-        return try await getInteractableElements(
+        return try await self.getInteractableElements(
             request: request,
             options: options,
             onResponse: handleResponse
@@ -5392,20 +5364,19 @@ public extension MobileTesting_CompanionService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    func takeScreenshot<Result: Sendable>(
-        _ message: MobileTesting_ScreenshotRequest,
+    public func takeScreenshot<Result>(
+        _ message: Amoo_ScreenshotRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
-        onResponse handleResponse: @Sendable @escaping (GRPCCore
-            .ClientResponse<MobileTesting_ScreenshotResponse>) async throws -> Result = { response in
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenshotResponse>) async throws -> Result = { response in
             try response.message
         }
-    ) async throws -> Result {
-        let request = GRPCCore.ClientRequest<MobileTesting_ScreenshotRequest>(
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_ScreenshotRequest>(
             message: message,
             metadata: metadata
         )
-        return try await takeScreenshot(
+        return try await self.takeScreenshot(
             request: request,
             options: options,
             onResponse: handleResponse
