@@ -1,5 +1,5 @@
+import AmooCore
 import AuditEngine
-import MobileTestingCore
 import XCTest
 
 private struct LowConfidenceRule: AuditRule {

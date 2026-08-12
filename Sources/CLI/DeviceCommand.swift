@@ -1,8 +1,8 @@
+import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import IOSDriver
 import MCPServer
-import MobileTestingCore
 
 // MARK: - DeviceCommandOptions
 

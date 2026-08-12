@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.manman.companion"
+    namespace = "com.amoo.companion"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.manman.companion"
+        applicationId = "com.amoo.companion"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

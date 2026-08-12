@@ -1,6 +1,6 @@
+import AmooCore
 import AuditEngine
 import Foundation
-import MobileTestingCore
 
 public enum AuditFailThreshold: String, Sendable {
     case none

@@ -1,4 +1,4 @@
-package com.manman.companion.bridge
+package com.amoo.companion.bridge
 
 import android.graphics.Rect
 import android.os.SystemClock

@@ -210,7 +210,7 @@ This project should combine those strengths while prioritizing Swift-first modul
 - lint/format gates in CI must pass for every pull request
 - formatter: SwiftFormat
 - linter: SwiftLint (strict mode)
-- coverage gate: `MobileTestingCore` line coverage >= 85%
+- coverage gate: `AmooCore` line coverage >= 85%
 - coverage gate: driver and protocol modules line coverage >= 75%
 - coverage gate: repo-wide line coverage >= 80% before `v1.0.0`
 - coverage gate: pull requests cannot reduce coverage by more than 1% without explicit approval in review

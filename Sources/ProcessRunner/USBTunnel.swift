@@ -1,8 +1,8 @@
 #if canImport(Darwin)
 import Darwin
 #endif
+import AmooCore
 import Foundation
-import MobileTestingCore
 import SwiftyShell
 
 /// A live host→device TCP forward, so host code can reach a port on a physical device.
@@ -64,7 +64,7 @@ public struct IProxyTunnel: USBTunneling {
         devicePort: Int
     ) async throws -> USBTunnelHandle {
         guard await isAvailable() else {
-            throw MobileTestingError.setupRequired(
+            throw AmooError.setupRequired(
                 tool: "iproxy",
                 hint: """
                 Physical iOS devices need a USB tunnel to reach the companion, and \
@@ -91,7 +91,7 @@ public struct IProxyTunnel: USBTunneling {
         // connection and surfaces as a spurious "companion unreachable".
         guard await Self.waitForPort(localPort, timeoutSeconds: readinessTimeoutSeconds) else {
             try? await close(handle)
-            throw MobileTestingError.commandFailed(
+            throw AmooError.commandFailed(
                 command: "iproxy \(localPort):\(devicePort) -u \(deviceUDID)",
                 output: """
                 Tunnel did not start listening on port \(localPort) within \
@@ -117,7 +117,7 @@ public struct IProxyTunnel: USBTunneling {
 
     // MARK: - Readiness
 
-    /// Note: `Duration` unqualified is MobileTestingCore's own type, not Swift's.
+    /// Note: `Duration` unqualified is AmooCore's own type, not Swift's.
     private static let readinessPollInterval = Swift.Duration.milliseconds(100)
 
     /// Polls until something accepts TCP connections on `port`, or the timeout elapses.

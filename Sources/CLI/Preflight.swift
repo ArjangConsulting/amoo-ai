@@ -1,6 +1,6 @@
+import AmooCore
 import Foundation
 import GradleKit
-import MobileTestingCore
 import ProcessRunner
 import SwiftyShell
 import XcodeBuildKit

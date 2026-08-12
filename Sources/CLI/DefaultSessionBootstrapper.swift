@@ -1,8 +1,8 @@
+import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MobileTestingCore
 import ProcessRunner
 import TestSession
 

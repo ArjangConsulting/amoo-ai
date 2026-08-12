@@ -1,10 +1,10 @@
+import AmooCore
 import CompanionProtocol
 import Foundation
 import GRPCCore
-import MobileTestingCore
 import Protos
 
-package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServiceProtocol {
+package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtocol {
     private let companion: any CompanionClient
     private let screenshotProvider: (any ScreenCapture)?
 
@@ -16,36 +16,36 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Session
 
     package func startSession(
-        request: MobileTesting_StartSessionRequest,
+        request: Amoo_StartSessionRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_StartSessionResponse {
+    ) async throws -> Amoo_StartSessionResponse {
         try await companion.startSession()
 
         let sessionID = request.requestedSessionID.nonEmpty ?? UUID().uuidString
 
-        var response = MobileTesting_StartSessionResponse()
+        var response = Amoo_StartSessionResponse()
         response.sessionID = sessionID
         return response
     }
 
     package func getCapabilities(
-        request _: MobileTesting_CapabilitiesRequest,
+        request _: Amoo_CapabilitiesRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_CapabilitiesResponse {
+    ) async throws -> Amoo_CapabilitiesResponse {
         let capabilities = try await companion.getCapabilities()
 
-        var response = MobileTesting_CapabilitiesResponse()
+        var response = Amoo_CapabilitiesResponse()
         response.capabilities = capabilities.map(\.protoCapabilityDescriptor)
         return response
     }
 
     package func endSession(
-        request _: MobileTesting_EndSessionRequest,
+        request _: Amoo_EndSessionRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_EndSessionResponse {
+    ) async throws -> Amoo_EndSessionResponse {
         try await companion.endSession()
 
-        var response = MobileTesting_EndSessionResponse()
+        var response = Amoo_EndSessionResponse()
         response.ended = true
         return response
     }
@@ -53,34 +53,34 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Touch
 
     package func tap(
-        request: MobileTesting_TapRequest,
+        request: Amoo_TapRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await companion.tap(at: request.point.corePoint)
         return actionResponse(success: true)
     }
 
     package func doubleTap(
-        request: MobileTesting_TapRequest,
+        request: Amoo_TapRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await companion.doubleTap(at: request.point.corePoint)
         return actionResponse(success: true)
     }
 
     package func longPress(
-        request: MobileTesting_LongPressRequest,
+        request: Amoo_LongPressRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let duration = Duration(milliseconds: Int(request.duration.milliseconds))
         try await companion.longPress(at: request.point.corePoint, duration: duration)
         return actionResponse(success: true)
     }
 
     package func tapElement(
-        request: MobileTesting_TapElementRequest,
+        request: Amoo_TapElementRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let appID = request.appID.isEmpty ? nil : request.appID
         try await companion.tapElement(
             request.selector.coreSelector,
@@ -93,18 +93,18 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Gestures
 
     package func swipe(
-        request: MobileTesting_SwipeRequest,
+        request: Amoo_SwipeRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let duration = Duration(milliseconds: Int(request.duration.milliseconds))
         try await companion.swipe(from: request.from.corePoint, to: request.to.corePoint, duration: duration)
         return actionResponse(success: true)
     }
 
     package func swipeInDirection(
-        request: MobileTesting_SwipeDirectionRequest,
+        request: Amoo_SwipeDirectionRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let distance = request.distance > 0 ? Double(request.distance) : 300
         let duration = request
             .durationMs > 0 ? Duration(milliseconds: Int(request.durationMs)) : Duration(milliseconds: 400)
@@ -119,17 +119,17 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     }
 
     package func scroll(
-        request: MobileTesting_ScrollRequest,
+        request: Amoo_ScrollRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await companion.scroll(direction: request.direction.coreDirection, distance: Double(request.distance))
         return actionResponse(success: true)
     }
 
     package func scrollToElement(
-        request: MobileTesting_ScrollToElementRequest,
+        request: Amoo_ScrollToElementRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         // Scroll in direction until element is found, up to maxScrolls times.
         // Clamp the request value: an unbounded loop here is a remote-DoS vector
         // (one find + one scroll per iteration, both gRPC round-trips).
@@ -155,9 +155,9 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     private static let maxScrollAttempts = 100
 
     package func pinch(
-        request: MobileTesting_PinchRequest,
+        request: Amoo_PinchRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         // Pinch delegates to companion — not yet in CompanionClient, return not implemented
         actionResponse(success: false, message: "pinch not implemented")
     }
@@ -168,9 +168,9 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     package static let defaultDragHoldMilliseconds = 500
 
     package func drag(
-        request: MobileTesting_DragRequest,
+        request: Amoo_DragRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let duration = Duration(milliseconds: Int(request.duration.milliseconds))
         // `hold_duration` is a message field, so an explicit zero (caller wants no dwell)
         // is distinguishable from an omitted field (caller has no opinion).
@@ -189,26 +189,26 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Text
 
     package func typeText(
-        request: MobileTesting_TypeTextRequest,
+        request: Amoo_TypeTextRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await companion.typeText(request.text)
         return actionResponse(success: true)
     }
 
     package func clearText(
-        request: MobileTesting_ClearTextRequest,
+        request: Amoo_ClearTextRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         let count = request.characterCount > 0 ? Int(request.characterCount) : nil
         try await companion.clearText(characterCount: count)
         return actionResponse(success: true)
     }
 
     package func setText(
-        request: MobileTesting_SetTextRequest,
+        request: Amoo_SetTextRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         // Clear then type — companion doesn't have a direct setText yet
         try await companion.clearText(characterCount: nil)
         try await companion.typeText(request.text)
@@ -218,17 +218,17 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Navigation
 
     package func pressBack(
-        request _: MobileTesting_Empty,
+        request _: Amoo_Empty,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         try await companion.pressBack()
         return actionResponse(success: true)
     }
 
     package func pressHome(
-        request _: MobileTesting_Empty,
+        request _: Amoo_Empty,
         context _: ServerContext
-    ) async throws -> MobileTesting_ActionResponse {
+    ) async throws -> Amoo_ActionResponse {
         // pressHome is typically host-executed, but companion can handle on Android
         actionResponse(success: false, message: "pressHome not implemented via companion")
     }
@@ -236,24 +236,24 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Accessibility
 
     package func getViewHierarchy(
-        request: MobileTesting_ViewHierarchyRequest,
+        request: Amoo_ViewHierarchyRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ViewHierarchyResponse {
+    ) async throws -> Amoo_ViewHierarchyResponse {
         let appID = request.appID.isEmpty ? nil : request.appID
         let hierarchy = try await companion.getViewHierarchy(
             appID: appID,
             candidateBundleIDs: request.candidateBundleIds
         )
 
-        var response = MobileTesting_ViewHierarchyResponse()
+        var response = Amoo_ViewHierarchyResponse()
         response.root = hierarchy.protoViewNode
         return response
     }
 
     package func findElements(
-        request: MobileTesting_FindElementsRequest,
+        request: Amoo_FindElementsRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_FindElementsResponse {
+    ) async throws -> Amoo_FindElementsResponse {
         let appID = request.appID.isEmpty ? nil : request.appID
         let elements = try await companion.findElements(
             request.selector.coreSelector,
@@ -261,15 +261,15 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
             candidateBundleIDs: request.candidateBundleIds
         )
 
-        var response = MobileTesting_FindElementsResponse()
+        var response = Amoo_FindElementsResponse()
         response.elements = elements.map(\.protoElementInfo)
         return response
     }
 
     package func waitForElement(
-        request: MobileTesting_WaitForElementRequest,
+        request: Amoo_WaitForElementRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_WaitForElementResponse {
+    ) async throws -> Amoo_WaitForElementResponse {
         let timeout = Duration(milliseconds: Int(request.timeout.milliseconds))
         let appID = request.appID.isEmpty ? nil : request.appID
         do {
@@ -279,22 +279,22 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
                 appID: appID,
                 candidateBundleIDs: request.candidateBundleIds
             )
-            var response = MobileTesting_WaitForElementResponse()
+            var response = Amoo_WaitForElementResponse()
             response.found = true
             return response
         } catch {
-            var response = MobileTesting_WaitForElementResponse()
+            var response = Amoo_WaitForElementResponse()
             response.found = false
             return response
         }
     }
 
     package func isKeyboardVisible(
-        request _: MobileTesting_Empty,
+        request _: Amoo_Empty,
         context _: ServerContext
-    ) async throws -> MobileTesting_KeyboardVisibleResponse {
+    ) async throws -> Amoo_KeyboardVisibleResponse {
         let visible = try await companion.isKeyboardVisible()
-        var response = MobileTesting_KeyboardVisibleResponse()
+        var response = Amoo_KeyboardVisibleResponse()
         response.visible = visible
         return response
     }
@@ -302,34 +302,34 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - AI Context
 
     package func getScreenContext(
-        request _: MobileTesting_ScreenContextRequest,
+        request _: Amoo_ScreenContextRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ScreenContextResponse {
+    ) async throws -> Amoo_ScreenContextResponse {
         let context = try await companion.getScreenContext()
 
-        var response = MobileTesting_ScreenContextResponse()
+        var response = Amoo_ScreenContextResponse()
         response.summary = context.summary
         return response
     }
 
     package func findByDescription(
-        request: MobileTesting_FindByDescriptionRequest,
+        request: Amoo_FindByDescriptionRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_FindElementsResponse {
+    ) async throws -> Amoo_FindElementsResponse {
         let elements = try await companion.findByDescription(request.description_p)
 
-        var response = MobileTesting_FindElementsResponse()
+        var response = Amoo_FindElementsResponse()
         response.elements = elements.map(\.protoElementInfo)
         return response
     }
 
     package func getInteractableElements(
-        request _: MobileTesting_Empty,
+        request _: Amoo_Empty,
         context _: ServerContext
-    ) async throws -> MobileTesting_InteractableElementsResponse {
+    ) async throws -> Amoo_InteractableElementsResponse {
         let elements = try await companion.getInteractableElements()
 
-        var response = MobileTesting_InteractableElementsResponse()
+        var response = Amoo_InteractableElementsResponse()
         response.elements = elements.map(\.protoElementInfo)
         return response
     }
@@ -337,10 +337,10 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
     // MARK: - Capture
 
     package func takeScreenshot(
-        request _: MobileTesting_ScreenshotRequest,
+        request _: Amoo_ScreenshotRequest,
         context _: ServerContext
-    ) async throws -> MobileTesting_ScreenshotResponse {
-        var response = MobileTesting_ScreenshotResponse()
+    ) async throws -> Amoo_ScreenshotResponse {
+        var response = Amoo_ScreenshotResponse()
 
         if let screenshotProvider {
             let screenshot = try await screenshotProvider.takeScreenshot(format: .png)
@@ -352,8 +352,8 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
 
     // MARK: - Helpers
 
-    private func actionResponse(success: Bool, message: String = "") -> MobileTesting_ActionResponse {
-        var response = MobileTesting_ActionResponse()
+    private func actionResponse(success: Bool, message: String = "") -> Amoo_ActionResponse {
+        var response = Amoo_ActionResponse()
         response.success = success
         response.message = message
         return response
@@ -363,8 +363,8 @@ package actor CompanionServiceHandler: MobileTesting_CompanionService.SimpleServ
 // MARK: - Proto Conversions
 
 private extension CapabilityDescriptor {
-    var protoCapabilityDescriptor: MobileTesting_CapabilityDescriptor {
-        var descriptor = MobileTesting_CapabilityDescriptor()
+    var protoCapabilityDescriptor: Amoo_CapabilityDescriptor {
+        var descriptor = Amoo_CapabilityDescriptor()
         descriptor.key = key
         descriptor.tier = switch tier {
         case .required:
@@ -378,13 +378,13 @@ private extension CapabilityDescriptor {
     }
 }
 
-private extension MobileTesting_Point {
+private extension Amoo_Point {
     var corePoint: Point {
         Point(x: x, y: y)
     }
 }
 
-private extension MobileTesting_Direction {
+private extension Amoo_Direction {
     var coreDirection: Direction {
         switch self {
         case .up: .up
@@ -397,8 +397,8 @@ private extension MobileTesting_Direction {
 }
 
 private extension ElementInfo {
-    var protoElementInfo: MobileTesting_ElementInfo {
-        var element = MobileTesting_ElementInfo()
+    var protoElementInfo: Amoo_ElementInfo {
+        var element = Amoo_ElementInfo()
         element.id = id
         element.label = label
         return element
@@ -406,8 +406,8 @@ private extension ElementInfo {
 }
 
 private extension ViewNode {
-    var protoViewNode: MobileTesting_ViewNode {
-        var node = MobileTesting_ViewNode()
+    var protoViewNode: Amoo_ViewNode {
+        var node = Amoo_ViewNode()
         node.id = id
         node.label = label
         if let value {
@@ -417,7 +417,7 @@ private extension ViewNode {
             node.type = type.rawValue
         }
         if let frame {
-            var rect = MobileTesting_Rect()
+            var rect = Amoo_Rect()
             rect.x = frame.x
             rect.y = frame.y
             rect.width = frame.width
@@ -431,7 +431,7 @@ private extension ViewNode {
     }
 }
 
-private extension MobileTesting_ElementSelector {
+private extension Amoo_ElementSelector {
     var coreSelector: ElementSelector {
         let parent: ParentSelector? = hasParentSelector ? .selector(parentSelector.coreSelector) : nil
 

@@ -1,5 +1,5 @@
+import AmooCore
 import AuditEngine
-import MobileTestingCore
 
 public struct DeviceService: Sendable {
     public var config: ServiceConfig

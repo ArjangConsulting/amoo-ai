@@ -1,9 +1,9 @@
+import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
 import MCPServer
-import MobileTestingCore
 import Network
 import OllamaClient
 import TestSession

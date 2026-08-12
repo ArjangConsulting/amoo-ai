@@ -111,7 +111,7 @@ swift package init --type executable --name MyServer
 import PackageDescription
 
 let package = Package(
-    name: "MobileTestingServer",
+    name: "AmooServer",
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.121.0"),
@@ -640,7 +640,7 @@ app.post("ai", "generate-tests") { req -> GeneratedTests in
 ## Project Structure
 
 ```
-MobileTestingServer/
+AmooServer/
 ├── Package.swift
 ├── Sources/
 │   └── App/

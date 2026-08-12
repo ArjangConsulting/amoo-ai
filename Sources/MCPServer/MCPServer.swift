@@ -1,6 +1,6 @@
+import AmooCore
 import AuditEngine
 import GRPCService
-import MobileTestingCore
 import TestSession
 
 public struct MCPServer: Sendable {

@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 
 public enum CommandChannel: String, Sendable, CaseIterable {
     case mcp

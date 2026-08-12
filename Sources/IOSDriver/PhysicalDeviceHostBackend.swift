@@ -1,5 +1,5 @@
+import AmooCore
 import Foundation
-import MobileTestingCore
 import ProcessRunner
 
 /// ``IOSHostBackend`` for *physical* iOS devices, driven by `xcrun devicectl`.
@@ -90,7 +90,7 @@ public struct PhysicalDeviceHostBackend: IOSHostBackend {
     // MARK: - Configuration
 
     public func setPermission(device _: String, change: PermissionChange) async throws {
-        throw MobileTestingError.unsupportedCapability(
+        throw AmooError.unsupportedCapability(
             key: "config.setPermission",
             reason: """
             Setting app permissions is simulator-only: `simctl privacy` has no `devicectl` \

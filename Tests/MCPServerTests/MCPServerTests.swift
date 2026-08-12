@@ -1,8 +1,8 @@
 
-@testable import MCPServer
+import AmooCore
 import Foundation
 import MCP
-import MobileTestingCore
+@testable import MCPServer
 import TestSession
 import XCTest
 
@@ -55,7 +55,7 @@ final class MCPServerTests: XCTestCase {
         // Tools that don't route through resolveDriver: start_session,
         // list_sessions don't accept session_id by design. Everything else
         // should advertise it.
-        let exempt: Set<String> = ["start_session", "list_sessions"]
+        let exempt: Set = ["start_session", "list_sessions"]
         for def in defs where !exempt.contains(def.name) {
             XCTAssertNotNil(
                 def.properties["session_id"],
@@ -64,7 +64,7 @@ final class MCPServerTests: XCTestCase {
         }
     }
 
-    func testMCPToolConversionIncludesInputSchema() throws {
+    func testMCPToolConversionIncludesInputSchema() {
         let definition = ToolDefinition(
             name: "tap",
             title: "Tap",
@@ -517,7 +517,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("Confidence: medium"))
 
-        let data = try JSONEncoder().encode(try XCTUnwrap(result.structuredContent))
+        let data = try JSONEncoder().encode(XCTUnwrap(result.structuredContent))
         let report = try JSONDecoder().decode(TestActionSuggestionReport.self, from: data)
         XCTAssertEqual(report.suggestedActions.count, 3)
         XCTAssertEqual(report.suggestedActions.first?.priority, 1)
@@ -532,7 +532,7 @@ final class MCPServerTests: XCTestCase {
 
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("AI testability:"))
-        let data = try JSONEncoder().encode(try XCTUnwrap(result.structuredContent))
+        let data = try JSONEncoder().encode(XCTUnwrap(result.structuredContent))
         let report = try JSONDecoder().decode(AITestabilityReport.self, from: data)
         XCTAssertEqual(report.interactableCount, 2)
         XCTAssertFalse(report.developerFeedback.isEmpty)
@@ -591,7 +591,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(findAI.content.contains("Unknown tool"))
     }
 
-    func testSwipeInDirectionTool() async throws {
+    func testSwipeInDirectionTool() async {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
@@ -684,11 +684,10 @@ final class MCPServerTests: XCTestCase {
         let structured = try XCTUnwrap(ended.structuredContent?.objectValue)
         XCTAssertEqual(structured["action_count"]?.intValue, 2)
 
-        let driverCallCount: Int
-        if let sessionDriver = await bootstrapper.lastDriver {
-            driverCallCount = await sessionDriver.calls.count
+        let driverCallCount: Int = if let sessionDriver = await bootstrapper.lastDriver {
+            await sessionDriver.calls.count
         } else {
-            driverCallCount = 0
+            0
         }
         XCTAssertGreaterThanOrEqual(driverCallCount, 3) // 2 taps + 1 terminateApp on close
     }
@@ -712,7 +711,7 @@ final class MCPServerTests: XCTestCase {
         )
         XCTAssertFalse(report.isError)
 
-        let json = try JSONEncoder().encode(try XCTUnwrap(report.structuredContent))
+        let json = try JSONEncoder().encode(XCTUnwrap(report.structuredContent))
         let decoded = try JSONDecoder().decode(SessionReport.self, from: json)
         let typeTextAction = try XCTUnwrap(decoded.actions.first { $0.toolName == "type_text" })
         XCTAssertEqual(typeTextAction.arguments["text"], "<redacted, 11 chars>")
@@ -773,8 +772,10 @@ final class MCPServerTests: XCTestCase {
         )
         let structured = try XCTUnwrap(report.structuredContent)
         let decoded = try JSONDecoder().decode(SessionReport.self, from: JSONEncoder().encode(structured))
-        XCTAssertTrue(decoded.actions.allSatisfy { $0.toolName != "tap" },
-                      "Tap without session_id should not be recorded in the session")
+        XCTAssertTrue(
+            decoded.actions.allSatisfy { $0.toolName != "tap" },
+            "Tap without session_id should not be recorded in the session"
+        )
     }
 
     // MARK: - Device discovery & app inventory
@@ -830,7 +831,7 @@ final class MCPServerTests: XCTestCase {
 
     // MARK: - Intent tools
 
-    func testFillFieldCallsSetText() async throws {
+    func testFillFieldCallsSetText() async {
         let driver = SetTextTrackingDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
@@ -941,7 +942,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(result.structuredContent?.objectValue?["format"]?.stringValue, "jpeg")
     }
 
-    func testTakeScreenshotWritesToOutputPath() async throws {
+    func testTakeScreenshotWritesToOutputPath() async {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
@@ -1067,7 +1068,12 @@ private actor AuditMockDriver: PlatformDriver {
 
     func swipe(from _: Point, to _: Point, duration _: Duration) async throws {}
     func swipe(direction _: Direction, distance _: Double, duration _: Duration) async throws {}
-    func swipe(direction _: Direction, distance _: Double, duration _: Duration, element _: ElementSelector?) async throws {}
+    func swipe(
+        direction _: Direction,
+        distance _: Double,
+        duration _: Duration,
+        element _: ElementSelector?
+    ) async throws {}
     func scroll(direction _: Direction, distance _: Double) async throws {}
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {}
     func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
@@ -1215,7 +1221,7 @@ private actor MockDriver: PlatformDriver {
     }
 
     func swipe(direction: Direction, distance: Double, duration _: Duration, element: ElementSelector?) async throws {
-        let suffix = element.flatMap { $0.id }.map { ":\($0)" } ?? ""
+        let suffix = element.flatMap(\.id).map { ":\($0)" } ?? ""
         calls.append("swipeInDirection:\(direction):\(distance)\(suffix)")
     }
 
@@ -1396,18 +1402,24 @@ private actor NavigationMockDriver: PlatformDriver {
     ) {
         self.elements = elements
         self.summary = summary
-        self.currentSummary = summary
+        currentSummary = summary
     }
 
-    func findElements(_: ElementSelector) async throws -> [ElementInfo] { elements }
+    func findElements(_: ElementSelector) async throws -> [ElementInfo] {
+        elements
+    }
 
-    func findByDescription(_: String) async throws -> [ElementInfo] { elements }
+    func findByDescription(_: String) async throws -> [ElementInfo] {
+        elements
+    }
 
     func getScreenContext() async throws -> ScreenContext {
         ScreenContext(summary: currentSummary)
     }
 
-    func getInteractableElements() async throws -> [ElementInfo] { elements }
+    func getInteractableElements() async throws -> [ElementInfo] {
+        elements
+    }
 
     func tapElement(_ selector: ElementSelector) async throws {
         tappedSelectors.append(selector)
