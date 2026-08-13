@@ -130,6 +130,8 @@ let package = Package(
             name: "CLITests",
             dependencies: [
                 "CLI",
+                "OllamaClient",
+                "MCPServer",
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
