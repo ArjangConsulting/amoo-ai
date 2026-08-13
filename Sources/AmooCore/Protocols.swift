@@ -5,6 +5,8 @@ public protocol TouchActions: Sendable {
     func doubleTap(at point: Point) async throws
     func longPress(at point: Point, duration: Duration) async throws
     func tapElement(_ selector: ElementSelector) async throws
+    /// Taps an element resolved in a specific process; `nil` keeps the default resolution.
+    func tapElement(_ selector: ElementSelector, appID: String?) async throws
 }
 
 public protocol GestureActions: Sendable {
@@ -165,6 +167,10 @@ public extension TouchActions {
 
     func longPress(at _: Point, duration _: Duration) async throws {
         throw AmooError.notImplemented("longPress")
+    }
+
+    func tapElement(_ selector: ElementSelector, appID _: String?) async throws {
+        try await tapElement(selector)
     }
 
     func tapElement(_: ElementSelector) async throws {
