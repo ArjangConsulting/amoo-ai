@@ -314,9 +314,11 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(catalog.rootCandidates.contains("tap_element"))
         // session_id is auto-injected on every driver-routed tool so MCP
         // clients can scope the call to a specific start_session result.
+        // scope/bundle_id resolve the element in another process — system UI hosts permission
+        // alerts and the Sign in with Apple sheet, which are absent from the app's own tree.
         XCTAssertEqual(
             catalog.argumentCandidates(for: "tap_element"),
-            ["contains_text=", "id=", "label=", "session_id="]
+            ["bundle_id=", "contains_text=", "id=", "label=", "scope=", "session_id="]
         )
     }
 
