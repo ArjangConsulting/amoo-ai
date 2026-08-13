@@ -20,7 +20,9 @@ struct ChatLoop {
     private let model: String
     private let maxToolCallsPerTurn: Int
 
-    private var messages: [ChatMessage] = []
+    // `internal` (rather than `private`) so tests can drive a single conversation
+    // turn or slash command without going through the real terminal readline loop.
+    var messages: [ChatMessage] = []
 
     init(
         executor: any ToolExecutor,
@@ -82,7 +84,7 @@ struct ChatLoop {
 
     // MARK: - Conversation Turn
 
-    private mutating func processConversationTurn() async {
+    mutating func processConversationTurn() async {
         var toolCallCount = 0
 
         while true {
@@ -149,7 +151,7 @@ struct ChatLoop {
     // MARK: - Slash Commands
 
     /// Returns true if the command was handled, false if it's /quit.
-    private mutating func handleSlashCommand(_ input: String) -> Bool {
+    mutating func handleSlashCommand(_ input: String) -> Bool {
         let parts = input.split(separator: " ", maxSplits: 1)
         let command = String(parts[0]).lowercased()
 
