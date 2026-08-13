@@ -45,6 +45,10 @@ service CompanionService {
   rpc WaitForElement (WaitForElementRequest) returns (WaitForElementResponse);
   rpc IsKeyboardVisible (Empty) returns (KeyboardVisibleResponse);
 
+  // Target app
+  rpc GetCurrentApp (Empty) returns (CurrentAppResponse);
+  rpc SetTargetApp (SetTargetAppRequest) returns (ActionResponse);
+
   // AI context
   rpc GetScreenContext (ScreenContextRequest) returns (ScreenContextResponse);
   rpc FindByDescription (FindByDescriptionRequest) returns (FindElementsResponse);
@@ -164,4 +168,16 @@ message ScreenshotResponse {
 
 message KeyboardVisibleResponse {
   bool visible = 1;
+}
+
+message CurrentAppResponse {
+  // Bundle ID of the frontmost application, empty when it cannot be determined.
+  string bundle_id = 1;
+  // Bundle ID the session bound as the app under test, empty when unbound.
+  string target_bundle_id = 2;
+}
+
+message SetTargetAppRequest {
+  // Empty unbinds, falling back to whichever app is frontmost.
+  string bundle_id = 1;
 }

@@ -34,20 +34,53 @@ struct CompanionConfig {
     var companionDir: String
     var deviceUDID: String
     var readyTimeoutSeconds: Int
+    /// Bundle ID of the app under test, handed to the runner so gestures resolve to it rather
+    /// than to whatever happens to be frontmost when a command arrives.
+    var targetAppID: String?
 
     init(
         host: String = "127.0.0.1",
         port: Int = 22087,
         companionDir: String? = nil,
         deviceUDID: String,
-        readyTimeoutSeconds: Int = 30
+        readyTimeoutSeconds: Int = 30,
+        targetAppID: String? = nil
     ) {
         self.host = host
         self.port = port
-        self.companionDir =
-            companionDir ?? (FileManager.default.currentDirectoryPath + "/CompanionApps/iOS")
+        self.companionDir = companionDir ?? CompanionConfig.defaultCompanionDir()
         self.deviceUDID = deviceUDID
         self.readyTimeoutSeconds = readyTimeoutSeconds
+        self.targetAppID = targetAppID
+    }
+
+    /// The companion lives next to the amoo installation, not next to whoever invoked it.
+    ///
+    /// This used to resolve against the current working directory, so every invocation from
+    /// another project failed with "No project spec found at <that project>/CompanionApps/iOS" —
+    /// a path the caller has no reason to have. The executable's own location is walked upward
+    /// instead, with the CWD kept as a last resort for running out of a source checkout.
+    static func defaultCompanionDir() -> String {
+        let fileManager = FileManager.default
+        var searchRoots: [URL] = []
+
+        var executableDir = URL(fileURLWithPath: CommandLine.arguments[0])
+            .resolvingSymlinksInPath()
+            .deletingLastPathComponent()
+        for _ in 0..<6 {
+            searchRoots.append(executableDir)
+            executableDir.deleteLastPathComponent()
+        }
+        searchRoots.append(URL(fileURLWithPath: fileManager.currentDirectoryPath))
+
+        for root in searchRoots {
+            let candidate = root.appendingPathComponent("CompanionApps/iOS")
+            if fileManager.fileExists(atPath: candidate.appendingPathComponent("project.yml").path) {
+                return candidate.path
+            }
+        }
+
+        return fileManager.currentDirectoryPath + "/CompanionApps/iOS"
     }
 }
 
@@ -264,7 +297,15 @@ final class CompanionManager: @unchecked Sendable {
                     "AmooCompanionUITests/CompanionRunner/testRunCompanion",
                     "-test-timeouts-enabled", "NO"
                 ])
+                // xcodebuild does NOT forward its own environment into the test runner process:
+                // only `TEST_RUNNER_`-prefixed variables cross that boundary, arriving with the
+                // prefix stripped. The unprefixed pair is kept for any path that execs the runner
+                // directly. This was silently broken for COMPANION_PORT too — unnoticed only
+                // because the value it failed to deliver matched the runner's default.
+                .env("TEST_RUNNER_COMPANION_PORT", String(config.port))
+                .env("TEST_RUNNER_COMPANION_TARGET_APP", config.targetAppID ?? "")
                 .env("COMPANION_PORT", String(config.port))
+                .env("COMPANION_TARGET_APP", config.targetAppID ?? "")
                 .stdout(.file(path: logPath, append: false))
                 .stderr(.file(path: logPath, append: true))
                 .spawn(teardown: .graceful)

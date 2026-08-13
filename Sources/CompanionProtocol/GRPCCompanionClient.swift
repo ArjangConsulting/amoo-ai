@@ -44,6 +44,8 @@ package protocol CompanionRPCClient: Sendable {
         _ request: Amoo_WaitForElementRequest
     ) async throws -> Amoo_WaitForElementResponse
     func isKeyboardVisible(_ request: Amoo_Empty) async throws -> Amoo_KeyboardVisibleResponse
+    func getCurrentApp(_ request: Amoo_Empty) async throws -> Amoo_CurrentAppResponse
+    func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws -> Amoo_ActionResponse
 
     /// Capture
     func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws -> Amoo_ScreenshotResponse
@@ -160,6 +162,16 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
     package func isKeyboardVisible(_ request: Amoo_Empty) async throws
         -> Amoo_KeyboardVisibleResponse {
         try await client.isKeyboardVisible(request)
+    }
+
+    package func getCurrentApp(_ request: Amoo_Empty) async throws
+        -> Amoo_CurrentAppResponse {
+        try await client.getCurrentApp(request)
+    }
+
+    package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
+        -> Amoo_ActionResponse {
+        try await client.setTargetApp(request)
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
@@ -329,6 +341,20 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
         return response
     }
 
+    package func getCurrentApp(_ request: Amoo_Empty) async throws
+        -> Amoo_CurrentAppResponse {
+        _ = request
+        return Amoo_CurrentAppResponse()
+    }
+
+    package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
+        -> Amoo_ActionResponse {
+        _ = request
+        var response = Amoo_ActionResponse()
+        response.success = true
+        return response
+    }
+
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
         -> Amoo_ScreenshotResponse {
         _ = request
@@ -494,6 +520,16 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     package func isKeyboardVisible(_ request: Amoo_Empty) async throws
         -> Amoo_KeyboardVisibleResponse {
         try await client.isKeyboardVisible(request)
+    }
+
+    package func getCurrentApp(_ request: Amoo_Empty) async throws
+        -> Amoo_CurrentAppResponse {
+        try await client.getCurrentApp(request)
+    }
+
+    package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
+        -> Amoo_ActionResponse {
+        try await client.setTargetApp(request)
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
@@ -770,6 +806,22 @@ public actor GRPCCompanionClient: CompanionClient {
     public func isKeyboardVisible() async throws -> Bool {
         let response = try await rpcClient.isKeyboardVisible(Amoo_Empty())
         return response.visible
+    }
+
+    // MARK: - Target app
+
+    public func currentApp() async throws -> CurrentAppInfo {
+        let response = try await rpcClient.getCurrentApp(Amoo_Empty())
+        return CurrentAppInfo(
+            bundleID: response.bundleID,
+            targetBundleID: response.targetBundleID
+        )
+    }
+
+    public func setTargetApp(bundleID: String?) async throws {
+        var request = Amoo_SetTargetAppRequest()
+        request.bundleID = bundleID ?? ""
+        _ = try await rpcClient.setTargetApp(request)
     }
 
     // MARK: - Capture

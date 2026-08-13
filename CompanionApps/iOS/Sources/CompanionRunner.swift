@@ -22,10 +22,21 @@ final class CompanionRunner: XCTestCase {
 
     @MainActor
     func testRunCompanion() async throws {
+        // The host app exists purely to give this test bundle a process to live in. It is never
+        // the gesture target: `XCUITestBridge` resolves that per command and deliberately excludes
+        // this app, because XCUITest activates whatever app it delivers an interaction to —
+        // routing through this one foregrounds the fixture and swallows every tap.
         let app = XCUIApplication()
         app.launch()
 
-        let bridge = XCUITestBridge(app: app)
+        let targetBundleID = Self.targetAppFromEnvironment()
+        if let targetBundleID {
+            // `activate()`, not `launch()`: the session already installed and started the app
+            // under test, and relaunching would throw away the state being tested.
+            XCUIApplication(bundleIdentifier: targetBundleID).activate()
+        }
+
+        let bridge = XCUITestBridge(app: app, targetBundleID: targetBundleID)
         let port = Self.portFromEnvironment() ?? Self.defaultPort
         let server = CompanionServer(bridge: bridge, port: port)
 
@@ -35,5 +46,12 @@ final class CompanionRunner: XCTestCase {
 
     private static func portFromEnvironment() -> Int? {
         ProcessInfo.processInfo.environment["COMPANION_PORT"].flatMap(Int.init)
+    }
+
+    /// Bundle ID of the app under test, supplied by the host when a session names one.
+    private static func targetAppFromEnvironment() -> String? {
+        ProcessInfo.processInfo.environment["COMPANION_TARGET_APP"].flatMap {
+            $0.isEmpty ? nil : $0
+        }
     }
 }

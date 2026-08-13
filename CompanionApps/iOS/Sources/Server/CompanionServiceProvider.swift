@@ -59,6 +59,8 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("query.findElements", .required),
             ("query.getViewHierarchy", .required),
             ("query.isKeyboardVisible", .required),
+            ("query.currentApp", .required),
+            ("action.setTargetApp", .required),
             ("capture.screenshot", .required),
             ("ai.screenContext", .optional)
         ]
@@ -356,6 +358,32 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> Amoo_KeyboardVisibleResponse {
         var response = Amoo_KeyboardVisibleResponse()
         response.visible = await accessibility.isKeyboardVisible()
+        return response
+    }
+
+    // MARK: - Target app
+
+    /// Which app a gesture would land in right now, without the caller paying for a screenshot
+    /// to work it out.
+    func getCurrentApp(
+        request _: Amoo_Empty,
+        context _: ServerContext
+    ) async throws -> Amoo_CurrentAppResponse {
+        var response = Amoo_CurrentAppResponse()
+        response.bundleID = await accessibility.currentAppBundleID() ?? ""
+        response.targetBundleID = await accessibility.targetAppBundleID() ?? ""
+        return response
+    }
+
+    func setTargetApp(
+        request: Amoo_SetTargetAppRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_ActionResponse {
+        await accessibility.setTargetApp(
+            bundleID: request.bundleID.isEmpty ? nil : request.bundleID
+        )
+        var response = Amoo_ActionResponse()
+        response.success = true
         return response
     }
 

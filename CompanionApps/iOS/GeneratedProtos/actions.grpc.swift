@@ -306,6 +306,32 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "GetCurrentApp" metadata.
+        public enum GetCurrentApp: Sendable {
+            /// Request type for "GetCurrentApp".
+            public typealias Input = Amoo_Empty
+            /// Response type for "GetCurrentApp".
+            public typealias Output = Amoo_CurrentAppResponse
+            /// Descriptor for "GetCurrentApp".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetCurrentApp",
+                type: .unary
+            )
+        }
+        /// Namespace for "SetTargetApp" metadata.
+        public enum SetTargetApp: Sendable {
+            /// Request type for "SetTargetApp".
+            public typealias Input = Amoo_SetTargetAppRequest
+            /// Response type for "SetTargetApp".
+            public typealias Output = Amoo_ActionResponse
+            /// Descriptor for "SetTargetApp".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "SetTargetApp",
+                type: .unary
+            )
+        }
         /// Namespace for "GetScreenContext" metadata.
         public enum GetScreenContext: Sendable {
             /// Request type for "GetScreenContext".
@@ -382,6 +408,8 @@ public enum Amoo_CompanionService: Sendable {
             FindElements.descriptor,
             WaitForElement.descriptor,
             IsKeyboardVisible.descriptor,
+            GetCurrentApp.descriptor,
+            SetTargetApp.descriptor,
             GetScreenContext.descriptor,
             FindByDescription.descriptor,
             GetInteractableElements.descriptor,
@@ -742,6 +770,38 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_KeyboardVisibleResponse>
+
+        /// Handle the "GetCurrentApp" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Target app
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_Empty` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_CurrentAppResponse` messages.
+        func getCurrentApp(
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_CurrentAppResponse>
+
+        /// Handle the "SetTargetApp" method.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_SetTargetAppRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
+        func setTargetApp(
+            request: GRPCCore.StreamingServerRequest<Amoo_SetTargetAppRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "GetScreenContext" method.
         ///
@@ -1148,6 +1208,38 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse>
 
+        /// Handle the "GetCurrentApp" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Target app
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_CurrentAppResponse` message.
+        func getCurrentApp(
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_CurrentAppResponse>
+
+        /// Handle the "SetTargetApp" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SetTargetAppRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
+        func setTargetApp(
+            request: GRPCCore.ServerRequest<Amoo_SetTargetAppRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
+
         /// Handle the "GetScreenContext" method.
         ///
         /// > Source IDL Documentation:
@@ -1551,6 +1643,38 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_KeyboardVisibleResponse
 
+        /// Handle the "GetCurrentApp" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Target app
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_Empty` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_CurrentAppResponse` to respond with.
+        func getCurrentApp(
+            request: Amoo_Empty,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_CurrentAppResponse
+
+        /// Handle the "SetTargetApp" method.
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_SetTargetAppRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
+        func setTargetApp(
+            request: Amoo_SetTargetAppRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_ActionResponse
+
         /// Handle the "GetScreenContext" method.
         ///
         /// > Source IDL Documentation:
@@ -1864,6 +1988,28 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.GetCurrentApp.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_CurrentAppResponse>(),
+            handler: { request, context in
+                try await self.getCurrentApp(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.SetTargetApp.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetTargetAppRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
+            handler: { request, context in
+                try await self.setTargetApp(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.GetScreenContext.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenContextRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenContextResponse>(),
@@ -2149,6 +2295,28 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_KeyboardVisibleResponse> {
         let response = try await self.isKeyboardVisible(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func getCurrentApp(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_CurrentAppResponse> {
+        let response = try await self.getCurrentApp(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func setTargetApp(
+        request: GRPCCore.StreamingServerRequest<Amoo_SetTargetAppRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.setTargetApp(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2482,6 +2650,32 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse> {
         return GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse>(
             message: try await self.isKeyboardVisible(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func getCurrentApp(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_CurrentAppResponse> {
+        return GRPCCore.ServerResponse<Amoo_CurrentAppResponse>(
+            message: try await self.getCurrentApp(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func setTargetApp(
+        request: GRPCCore.ServerRequest<Amoo_SetTargetAppRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.setTargetApp(
                 request: request.message,
                 context: context
             ),
@@ -2991,6 +3185,48 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_KeyboardVisibleResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_KeyboardVisibleResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "GetCurrentApp" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Target app
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_CurrentAppResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func getCurrentApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_CurrentAppResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CurrentAppResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "SetTargetApp" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SetTargetAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetTargetAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func setTargetApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetTargetAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetTargetAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "GetScreenContext" method.
@@ -3778,6 +4014,70 @@ extension Amoo_CompanionService {
             )
         }
 
+        /// Call the "GetCurrentApp" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Target app
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_CurrentAppResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func getCurrentApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_CurrentAppResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CurrentAppResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.GetCurrentApp.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "SetTargetApp" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SetTargetAppRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetTargetAppRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func setTargetApp<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetTargetAppRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetTargetAppRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.SetTargetApp.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "GetScreenContext" method.
         ///
         /// > Source IDL Documentation:
@@ -4480,6 +4780,60 @@ extension Amoo_CompanionService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_KeyboardVisibleResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetCurrentApp" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Target app
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_Empty` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getCurrentApp<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CurrentAppResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.getCurrentApp(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_CurrentAppResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetTargetApp" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_SetTargetAppRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setTargetApp<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SetTargetAppRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.setTargetApp(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetTargetAppRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -5253,6 +5607,68 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.isKeyboardVisible(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetCurrentApp" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Target app
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getCurrentApp<Result>(
+        _ message: Amoo_Empty,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CurrentAppResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.getCurrentApp(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetTargetApp" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setTargetApp<Result>(
+        _ message: Amoo_SetTargetAppRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SetTargetAppRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.setTargetApp(
             request: request,
             options: options,
             onResponse: handleResponse

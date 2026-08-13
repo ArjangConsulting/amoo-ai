@@ -284,6 +284,15 @@ public actor IOSDriver: PlatformDriver {
         try await companion.isKeyboardVisible()
     }
 
+    public func currentApp() async throws -> CurrentApp {
+        let info = try await companion.currentApp()
+        return CurrentApp(bundleID: info.bundleID, targetBundleID: info.targetBundleID)
+    }
+
+    public func setTargetApp(bundleID: String?) async throws {
+        try await companion.setTargetApp(bundleID: bundleID)
+    }
+
     // MARK: - Configuration
 
     public func setPermission(_ change: PermissionChange) async throws {

@@ -72,6 +72,21 @@ public protocol AccessibilityProvider: Sendable {
     func waitForElement(_ selector: ElementSelector, timeout: Duration) async throws
     func waitForElementToDisappear(_ selector: ElementSelector, timeout: Duration) async throws
     func isKeyboardVisible() async throws -> Bool
+    /// Where a gesture would land right now, and the bound app under test.
+    func currentApp() async throws -> CurrentApp
+    /// Rebinds the app under test; `nil` falls back to whatever is frontmost.
+    func setTargetApp(bundleID: String?) async throws
+}
+
+/// Frontmost application, plus the app the session bound as the target.
+public struct CurrentApp: Sendable, Equatable {
+    public let bundleID: String
+    public let targetBundleID: String
+
+    public init(bundleID: String, targetBundleID: String) {
+        self.bundleID = bundleID
+        self.targetBundleID = targetBundleID
+    }
 }
 
 // MARK: - Configuration
@@ -263,6 +278,14 @@ public extension AccessibilityProvider {
 
     func isKeyboardVisible() async throws -> Bool {
         throw AmooError.notImplemented("isKeyboardVisible")
+    }
+
+    func currentApp() async throws -> CurrentApp {
+        throw AmooError.notImplemented("currentApp")
+    }
+
+    func setTargetApp(bundleID _: String?) async throws {
+        throw AmooError.notImplemented("setTargetApp")
     }
 }
 

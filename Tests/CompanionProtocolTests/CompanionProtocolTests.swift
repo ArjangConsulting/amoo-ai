@@ -220,6 +220,8 @@ private actor MockRPCClient: CompanionRPCClient {
         base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2foAAAAASUVORK5CYII="
     )!
 
+    var currentAppBundleID = "com.example.underTest"
+    var targetAppBundleID = ""
     var startRequest: Amoo_StartSessionRequest?
     var tapRequest: Amoo_TapRequest?
     var findElementsRequest: Amoo_FindElementsRequest?
@@ -371,6 +373,21 @@ private actor MockRPCClient: CompanionRPCClient {
         _ = request
         var response = Amoo_KeyboardVisibleResponse()
         response.visible = true
+        return response
+    }
+
+    func getCurrentApp(_ request: Amoo_Empty) async throws -> Amoo_CurrentAppResponse {
+        _ = request
+        var response = Amoo_CurrentAppResponse()
+        response.bundleID = currentAppBundleID
+        response.targetBundleID = targetAppBundleID
+        return response
+    }
+
+    func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws -> Amoo_ActionResponse {
+        targetAppBundleID = request.bundleID
+        var response = Amoo_ActionResponse()
+        response.success = true
         return response
     }
 

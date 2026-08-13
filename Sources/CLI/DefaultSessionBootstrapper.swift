@@ -47,7 +47,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             )
         }
 
-        let (deviceID, port) = try await ensureCompanion(for: available)
+        let (deviceID, port) = try await ensureCompanion(for: available, appID: appID)
 
         // Connect the gRPC client.
         let companion: GRPCCompanionClient
@@ -135,12 +135,17 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     /// Ensures the appropriate companion is running for the selected device and
     /// returns the resolved device ID + port the companion is reachable on.
     private func ensureCompanion(
-        for device: AvailableDevice
+        for device: AvailableDevice,
+        appID: String
     ) async throws -> (deviceID: String, port: Int) {
         switch device {
         case let .ios(booted):
             let port = 22087
-            let config = CompanionConfig(port: port, deviceUDID: booted.udid)
+            let config = CompanionConfig(
+                port: port,
+                deviceUDID: booted.udid,
+                targetAppID: appID
+            )
             try await iOSCompanionManager.ensureRunning(config: config)
             return (booted.udid, port)
         case let .android(serial, _):

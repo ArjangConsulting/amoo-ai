@@ -55,6 +55,8 @@ func renderDeviceHelp() -> String {
       get_view_hierarchy
       get_screen_context
       is_keyboard_visible
+      current_app
+      set_target_app [bundle_id=<id>]
       take_screenshot
       describe_screen
       suggest_test_actions

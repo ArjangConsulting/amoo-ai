@@ -300,6 +300,21 @@ public actor DriverToolExecutor: ToolExecutor {
             let visible = try await driver.isKeyboardVisible()
             return .success(visible ? "true" : "false")
 
+        case "current_app":
+            let current = try await driver.currentApp()
+            let target = current.targetBundleID.isEmpty ? "(unbound)" : current.targetBundleID
+            let frontmost = current.bundleID.isEmpty ? "(unknown)" : current.bundleID
+            return .success("frontmost=\(frontmost) target=\(target)")
+
+        case "set_target_app":
+            let bundleID = arguments["bundle_id"]
+            try await driver.setTargetApp(bundleID: bundleID)
+            return .success(
+                bundleID?.isEmpty == false
+                    ? "Target app set to \(bundleID ?? "")"
+                    : "Target app unbound; following the frontmost app"
+            )
+
         // Configuration
         case "set_permission":
             guard let appID = arguments["app_id"],
