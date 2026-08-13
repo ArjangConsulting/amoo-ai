@@ -117,7 +117,19 @@ public enum ActionTools {
             properties: [
                 "id": .init(type: "string", description: "Accessibility identifier of the element"),
                 "label": .init(type: "string", description: "Exact accessibility label of the element"),
-                "contains_text": .init(type: "string", description: "Partial text to match in the element label")
+                "contains_text": .init(type: "string", description: "Partial text to match in the element label"),
+                "scope": .init(
+                    type: "string",
+                    description: "Which process to resolve the element in: 'app' (default) or"
+                        + " 'system' for system UI. Not usually needed — a lookup that finds"
+                        + " nothing in the app retries against system UI automatically, so a"
+                        + " button in a permission alert or the Sign in with Apple sheet is"
+                        + " tappable by label without naming its process."
+                ),
+                "bundle_id": .init(
+                    type: "string",
+                    description: "Explicit bundle/package id to resolve the element in."
+                )
             ]
         )
     ]
