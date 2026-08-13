@@ -48,6 +48,35 @@ public enum QueryTools {
         ToolDefinition(
             name: "is_keyboard_visible",
             description: "Check whether the on-screen keyboard is currently visible"
+        ),
+        ToolDefinition(
+            name: "current_app",
+            title: "Current App",
+            description: "Bundle ID of the frontmost app — i.e. where a tap would land right now —"
+                + " plus the app bound as the target. Cheaper than a screenshot for confirming"
+                + " which app is in front before acting.",
+            properties: [:],
+            required: [],
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "bundle_id": .init(type: "string", description: "Frontmost app, empty if unknown"),
+                    "target_bundle_id": .init(type: "string", description: "Bound app under test, empty if unbound")
+                ],
+                required: ["bundle_id", "target_bundle_id"]
+            )
+        ),
+        ToolDefinition(
+            name: "set_target_app",
+            title: "Set Target App",
+            description: "Bind the app under test for subsequent commands. Pass an empty bundle_id"
+                + " to unbind and follow whatever is frontmost.",
+            properties: [
+                "bundle_id": .init(
+                    type: "string",
+                    description: "Bundle identifier of the app to drive; empty unbinds."
+                )
+            ],
+            required: []
         )
     ]
 }

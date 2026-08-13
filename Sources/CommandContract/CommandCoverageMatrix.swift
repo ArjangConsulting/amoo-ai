@@ -311,6 +311,25 @@ public enum CommandCoverageMatrix {
             expectedAssertion: "keyboard visibility reflects the focused input state"
         ),
 
+        .init(
+            name: "current_app",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .home,
+            expectedAssertion: "reports the frontmost bundle id, never the companion host app"
+        ),
+        .init(
+            name: "set_target_app",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .home,
+            expectedAssertion: "binds the app under test for subsequent commands"
+        ),
+
         // Audit
         .init(
             name: "audit_app",

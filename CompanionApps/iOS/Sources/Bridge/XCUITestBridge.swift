@@ -11,37 +11,104 @@ final class XCUITestBridge: @unchecked Sendable {
     private let app: XCUIApplication
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
-    init(app: XCUIApplication) {
+    /// Bundle ID of the companion's own host app, which must never be picked as a gesture target.
+    ///
+    /// XCUITest *activates* an application before delivering an interaction to it, so a gesture
+    /// routed through `app` foregrounds the companion and lands in the fixture UI instead of the
+    /// app under test. Excluding it from resolution is what keeps a tap on the real target.
+    private let hostBundleID: String?
+
+    /// The app under test, when the session named one. Deliberately lower priority than whatever
+    /// is actually frontmost, so a system sheet — a permission alert, Sign in with Apple — still
+    /// receives the gesture instead of having the bound app activated out from under it.
+    private var targetBundleID: String?
+
+    init(app: XCUIApplication, targetBundleID: String? = nil, hostBundleID: String? = nil) {
         self.app = app
+        self.targetBundleID = targetBundleID.flatMap { $0.isEmpty ? nil : $0 }
+        self.hostBundleID = hostBundleID ?? Self.bundleID(of: app)
+    }
+
+    /// Rebinds the app under test mid-session. A real flow crosses app boundaries, so the target
+    /// cannot be fixed for the lifetime of the companion.
+    func setTargetApp(bundleID: String?) {
+        targetBundleID = bundleID.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// The bound app under test, if the session named one.
+    func boundTargetBundleID() -> String? { targetBundleID }
+
+    /// Bundle ID of whatever is frontmost, so a caller can tell where a gesture would land without
+    /// paying for a screenshot to find out.
+    func currentAppBundleID() -> String? {
+        // Reports the *gesture* target, since that is the question being asked: where would a tap
+        // land right now. Reporting the query target instead made this say "springboard" while
+        // taps were being delivered to the app under test.
+        Self.bundleID(of: gestureTarget())
+    }
+
+    private static func bundleID(of application: XCUIApplication) -> String? {
+        for name in ["bundleID", "bundleId", "bundleIdentifier"] {
+            let selector = NSSelectorFromString(name)
+            guard application.responds(to: selector),
+                let value = application.perform(selector)?.takeUnretainedValue() as? String,
+                value.contains(".")
+            else { continue }
+            return value
+        }
+        return nil
     }
 
     // MARK: - Touch
 
     func tap(x: Double, y: Double) {
-        let coordinate = app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: x, dy: y))
-        coordinate.tap()
+        gestureCoordinate(x: x, y: y).tap()
     }
 
     func doubleTap(x: Double, y: Double) {
-        let coordinate = app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: x, dy: y))
-        coordinate.doubleTap()
+        gestureCoordinate(x: x, y: y).doubleTap()
     }
 
     func longPress(x: Double, y: Double, durationSeconds: TimeInterval) {
-        let coordinate = app.coordinate(withNormalizedOffset: .zero)
+        gestureCoordinate(x: x, y: y).press(forDuration: durationSeconds)
+    }
+
+    /// A screen coordinate expressed against the app a gesture should land in.
+    ///
+    /// Coordinates were previously taken against `app` — the companion's own host app — so every
+    /// tap activated the fixture and was delivered there, whatever was actually on screen.
+    private func gestureCoordinate(x: Double, y: Double) -> XCUICoordinate {
+        gestureTarget().coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: x, dy: y))
-        coordinate.press(forDuration: durationSeconds)
+    }
+
+    /// The app a gesture is delivered through.
+    ///
+    /// Deliberately ordered differently from ``resolvedTargetApp(bundleID:candidateBundleIDs:)``.
+    /// Queries want whatever is frontmost, so system UI stays findable. Gestures want the app
+    /// under test whenever it is foreground: SpringBoard reports itself as running-foreground too,
+    /// and coordinate taps routed through it land on empty chrome and are silently swallowed —
+    /// the command reports success and nothing happens. Falling through to the query order only
+    /// once the target is no longer foreground is what keeps system sheets reachable.
+    private func gestureTarget() -> XCUIApplication {
+        // The bound target wins outright, without consulting `state`. Two reasons: an app launched
+        // outside this test process is not reliably reported as `.runningForeground`, and
+        // SpringBoard *is* — so a state check hands gestures to SpringBoard, whose window swallows
+        // coordinate taps and reports success while nothing happens. Routing through the app is
+        // also correct when system UI is on top: the tap synthesizes a touch at that screen point,
+        // which whatever is frontmost receives. Callers that need to address a different process
+        // explicitly can pass a bundle ID or unbind with `set_target_app`.
+        if let targetBundleID {
+            return XCUIApplication(bundleIdentifier: targetBundleID)
+        }
+        return resolvedTargetApp(bundleID: nil, candidateBundleIDs: [])
     }
 
     // MARK: - Gestures
 
     func swipe(fromX: Double, fromY: Double, toX: Double, toY: Double, durationSeconds: TimeInterval) {
-        let start = app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: fromX, dy: fromY))
-        let end = app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: toX, dy: toY))
+        let start = gestureCoordinate(x: fromX, y: fromY)
+        let end = gestureCoordinate(x: toX, y: toY)
         start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .default, thenHoldForDuration: 0)
     }
 
@@ -59,10 +126,8 @@ final class XCUITestBridge: @unchecked Sendable {
         durationSeconds: TimeInterval,
         holdSeconds: TimeInterval
     ) {
-        let start = app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: fromX, dy: fromY))
-        let end = app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: toX, dy: toY))
+        let start = gestureCoordinate(x: fromX, y: fromY)
+        let end = gestureCoordinate(x: toX, y: toY)
 
         let distance = hypot(toX - fromX, toY - fromY)
         let velocity: XCUIGestureVelocity = durationSeconds > 0
@@ -82,15 +147,16 @@ final class XCUITestBridge: @unchecked Sendable {
     private static let dropSettleSeconds: TimeInterval = 0.2
 
     func scroll(direction: ScrollDirection, distance: Double) {
+        let target = gestureTarget()
         switch direction {
         case .up:
-            app.swipeDown(velocity: .init(distance))
+            target.swipeDown(velocity: .init(distance))
         case .down:
-            app.swipeUp(velocity: .init(distance))
+            target.swipeUp(velocity: .init(distance))
         case .left:
-            app.swipeRight(velocity: .init(distance))
+            target.swipeRight(velocity: .init(distance))
         case .right:
-            app.swipeLeft(velocity: .init(distance))
+            target.swipeLeft(velocity: .init(distance))
         }
     }
 
@@ -100,8 +166,9 @@ final class XCUITestBridge: @unchecked Sendable {
         label: String?,
         containsText: String?
     ) {
+        let target = gestureTarget()
         if id != nil || label != nil || containsText != nil {
-            let allElements = collectedElements(in: app)
+            let allElements = collectedElements(in: target)
             for element in allElements
                 where matches(element: element, id: id, label: label, containsText: containsText) {
                 guard element.exists else { continue }
@@ -115,10 +182,10 @@ final class XCUITestBridge: @unchecked Sendable {
             }
         }
         switch direction {
-        case .up: app.swipeUp()
-        case .down: app.swipeDown()
-        case .left: app.swipeLeft()
-        case .right: app.swipeRight()
+        case .up: target.swipeUp()
+        case .down: target.swipeDown()
+        case .left: target.swipeLeft()
+        case .right: target.swipeRight()
         }
     }
 
@@ -127,7 +194,7 @@ final class XCUITestBridge: @unchecked Sendable {
     func typeText(_ text: String) {
         guard let textInput = resolvedTextInput() else { return }
         focusForTextEntry(textInput)
-        app.typeText(text)
+        gestureTarget().typeText(text)
     }
 
     func clearText(characterCount: Int?) {
@@ -137,13 +204,13 @@ final class XCUITestBridge: @unchecked Sendable {
         let currentText = (textInput.value as? String) ?? ""
         let deleteCount = characterCount ?? currentText.count
         let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: deleteCount)
-        app.typeText(deleteString)
+        gestureTarget().typeText(deleteString)
     }
 
     // MARK: - Navigation
 
     func pressBack() {
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        gestureTarget().navigationBars.buttons.element(boundBy: 0).tap()
     }
 
     func pressHome() {
@@ -347,6 +414,16 @@ final class XCUITestBridge: @unchecked Sendable {
         return nil
     }
 
+    /// Resolves the application a command applies to.
+    ///
+    /// Order matters. An explicit `bundleID` always wins. Otherwise the frontmost app wins, which
+    /// is what makes system UI — permission alerts, Sign in with Apple — reachable without the
+    /// caller naming a bundle ID it cannot know. The session's bound target is the fallback for
+    /// when the app under test is merely backgrounded, and only then is it activated.
+    ///
+    /// The companion's own host app is excluded throughout: XCUITest activates an app before
+    /// delivering an interaction, so resolving to it foregrounds the fixture and swallows the
+    /// gesture. It stays as the last-resort return purely so this can never return nothing.
     private func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
         if let bundleID, !bundleID.isEmpty {
             return XCUIApplication(bundleIdentifier: bundleID)
@@ -356,8 +433,13 @@ final class XCUITestBridge: @unchecked Sendable {
             return frontmost
         }
 
+        if let targetBundleID {
+            return XCUIApplication(bundleIdentifier: targetBundleID)
+        }
+
         if let frontmost = candidateBundleIDs
             .lazy
+            .filter({ $0 != self.hostBundleID })
             .map({ XCUIApplication(bundleIdentifier: $0) })
             .first(where: { $0.state == .runningForeground }) {
             return frontmost
@@ -367,25 +449,24 @@ final class XCUITestBridge: @unchecked Sendable {
             return springboard
         }
 
-        if app.state == .runningForeground {
-            return app
-        }
-
         return app
     }
 
     /// Prefer XCTest's active app list when available so we don't need a host-side
     /// scan across every installed bundle ID just to identify the frontmost app.
+    ///
+    /// The companion's own host app is filtered out: it is always running (it hosts this test
+    /// bundle), so leaving it in would let it win the "frontmost" race and capture every gesture.
     private func frontmostActiveApplication() -> XCUIApplication? {
         if let activeApps = invokeXCUIApplicationClassSelector(named: "activeApplications") as? [XCUIApplication],
-           let frontmost = activeApps.first(where: { $0.state == .runningForeground }) {
+           let frontmost = activeApps.first(where: { isSelectableTarget($0) }) {
             return frontmost
         }
 
         let selectors = ["activeAppsInfo", "activeApplications"]
         for selectorName in selectors {
             guard let rawValue = invokeXCUIApplicationClassSelector(named: selectorName) else { continue }
-            for bundleID in extractBundleIDs(from: rawValue) {
+            for bundleID in extractBundleIDs(from: rawValue) where bundleID != hostBundleID {
                 let candidate = XCUIApplication(bundleIdentifier: bundleID)
                 if candidate.state == .runningForeground {
                     return candidate
@@ -394,6 +475,13 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return nil
+    }
+
+    /// Foreground *and* not the companion itself.
+    private func isSelectableTarget(_ candidate: XCUIApplication) -> Bool {
+        guard candidate.state == .runningForeground else { return false }
+        guard let hostBundleID else { return true }
+        return Self.bundleID(of: candidate) != hostBundleID
     }
 
     private func invokeXCUIApplicationClassSelector(named name: String) -> Any? {
