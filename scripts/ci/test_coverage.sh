@@ -138,7 +138,7 @@ root_cov = aggregate(
     [f"{repo_root}/Sources/"],
     ["/Sources/CLIReadline/", "/Sources/CLI/main.swift"],
 )
-core_cov = aggregate(["/Sources/MobileTestingCore/"])
+core_cov = aggregate(["/Sources/AmooCore/"])
 cli_cov = aggregate(["/Sources/CLI/"], ["/Sources/CLI/main.swift"])
 driver_cov = aggregate([
     "/Sources/IOSDriver/",
@@ -154,9 +154,9 @@ if root_cov is None:
 
 print(f"Repo coverage: {root_cov:.2f}% (min {root_min:.2f}%)")
 if core_cov is None:
-    print("MobileTestingCore coverage: N/A (module not present yet)")
+    print("AmooCore coverage: N/A (module not present yet)")
 else:
-    print(f"MobileTestingCore coverage: {core_cov:.2f}% (min {core_min:.2f}%)")
+    print(f"AmooCore coverage: {core_cov:.2f}% (min {core_min:.2f}%)")
 
 if cli_cov is None:
     print("CLI coverage: N/A (module not present yet)")
@@ -172,7 +172,7 @@ failures = []
 if root_cov < root_min:
     failures.append(f"Repo coverage {root_cov:.2f}% is below {root_min:.2f}%")
 if core_cov is not None and core_cov < core_min:
-    failures.append(f"MobileTestingCore coverage {core_cov:.2f}% is below {core_min:.2f}%")
+    failures.append(f"AmooCore coverage {core_cov:.2f}% is below {core_min:.2f}%")
 if cli_cov is not None and cli_cov < cli_min:
     failures.append(f"CLI coverage {cli_cov:.2f}% is below {cli_min:.2f}%")
 if driver_cov is not None and driver_cov < driver_min:

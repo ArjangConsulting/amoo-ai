@@ -41,10 +41,10 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Bundle ID of whatever is frontmost, so a caller can tell where a gesture would land without
     /// paying for a screenshot to find out.
     func currentAppBundleID() -> String? {
-        // Reports the *gesture* target, since that is the question being asked: where would a tap
-        // land right now. Reporting the query target instead made this say "springboard" while
-        // taps were being delivered to the app under test.
-        Self.bundleID(of: gestureTarget())
+        // Do not use `gestureTarget()` here: it deliberately returns the bound app even while
+        // another app or system sheet is frontmost. Queries resolve the actual foreground process
+        // first, which is the state this API promises to report.
+        Self.bundleID(of: resolvedTargetApp(bundleID: nil, candidateBundleIDs: []))
     }
 
     static let springboardBundleID = "com.apple.springboard"

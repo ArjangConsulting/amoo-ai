@@ -382,7 +382,13 @@ public actor DriverToolExecutor: ToolExecutor {
             let current = try await driver.currentApp()
             let target = current.targetBundleID.isEmpty ? "(unbound)" : current.targetBundleID
             let frontmost = current.bundleID.isEmpty ? "(unknown)" : current.bundleID
-            return .success("frontmost=\(frontmost) target=\(target)")
+            return .success(
+                "frontmost=\(frontmost) target=\(target)",
+                structuredContent: .object([
+                    "bundle_id": .string(current.bundleID),
+                    "target_bundle_id": .string(current.targetBundleID)
+                ])
+            )
 
         case "set_target_app":
             let bundleID = arguments["bundle_id"]
@@ -785,8 +791,8 @@ public actor DriverToolExecutor: ToolExecutor {
         // a full-resolution phone screen runs into thousands of tokens, and most questions
         // ("which screen am I on", "did the sheet close") are answerable at half scale.
         let scale = arguments["scale"].flatMap(Double.init)
-        let data = ScreenshotScaler.scaled(originalData, by: scale, format: actualFormat)
-            ?? originalData
+        let scaledData = ScreenshotScaler.scaled(originalData, by: scale, format: actualFormat)
+        let data = scaledData ?? originalData
 
         var fields: [String: Value] = [
             "byte_count": .int(data.count),
@@ -801,14 +807,23 @@ public actor DriverToolExecutor: ToolExecutor {
         // — which lands off-screen and still reports success.
         var geometryNote = ""
         if let screen = try? await driver.screenGeometry(), screen.scale > 0 {
-            fields["width_pixels"] = .double(screen.widthPixels)
-            fields["height_pixels"] = .double(screen.heightPixels)
+            let imageScale = scaledData == nil ? 1 : (scale ?? 1)
+            let imageWidth = (screen.widthPixels * imageScale).rounded()
+            let imageHeight = (screen.heightPixels * imageScale).rounded()
+            let imagePixelsPerPoint = screen.scale * imageScale
+            fields["width_pixels"] = .double(imageWidth)
+            fields["height_pixels"] = .double(imageHeight)
             fields["width_points"] = .double(screen.widthPoints)
             fields["height_points"] = .double(screen.heightPoints)
-            fields["scale"] = .double(screen.scale)
-            geometryNote = " — image is \(Int(screen.widthPixels))x\(Int(screen.heightPixels))px;"
+            fields["scale"] = .double(imagePixelsPerPoint)
+            geometryNote = " — image is \(Int(imageWidth))x\(Int(imageHeight))px;"
                 + " gestures take points (\(Int(screen.widthPoints))x\(Int(screen.heightPoints))),"
-                + " so divide by \(Int(screen.scale)) or pass unit=pixels"
+                + " so divide image coordinates by \(imagePixelsPerPoint.formatted())"
+            if scaledData == nil {
+                geometryNote += " or pass unit=pixels"
+            } else {
+                geometryNote += "; unit=pixels expects native screenshot pixels"
+            }
         }
 
         var savedNote = ""
