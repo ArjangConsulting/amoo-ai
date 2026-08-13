@@ -314,6 +314,17 @@ public extension AccessibilityProvider {
         throw AmooError.notImplemented("isKeyboardVisible")
     }
 
+    /// Defaults ignore the scope, preserving each driver's existing resolution.
+    func findElements(_ selector: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+        try await findElements(selector)
+    }
+
+    func getViewHierarchy(appID _: String?) async throws -> ViewNode {
+        try await getViewHierarchy()
+    }
+
+    var systemUIAppID: String? { nil }
+
     func currentApp() async throws -> CurrentApp {
         throw AmooError.notImplemented("currentApp")
     }

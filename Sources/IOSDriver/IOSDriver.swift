@@ -235,6 +235,22 @@ public actor IOSDriver: PlatformDriver {
         )
     }
 
+    public func findElements(
+        _ selector: ElementSelector,
+        appID: String?
+    ) async throws -> [ElementInfo] {
+        guard let appID, !appID.isEmpty else { return try await findElements(selector) }
+        return try await companion.findElements(selector, appID: appID, candidateBundleIDs: [])
+    }
+
+    public func getViewHierarchy(appID: String?) async throws -> ViewNode {
+        guard let appID, !appID.isEmpty else { return try await getViewHierarchy() }
+        return try await companion.getViewHierarchy(appID: appID, candidateBundleIDs: [])
+    }
+
+    /// SpringBoard hosts permission alerts and the Sign in with Apple sheet.
+    public nonisolated var systemUIAppID: String? { "com.apple.springboard" }
+
     public func getViewHierarchy() async throws -> ViewNode {
         // If we tracked an explicit launch, use it directly.
         if let appID = currentAppID {
