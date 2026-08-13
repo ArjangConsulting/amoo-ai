@@ -42,7 +42,7 @@ func renderDeviceHelp() -> String {
                        [--env KEY=VALUE ...] [--arg VALUE ...]
 
     Common tools:
-      tap x=<n> y=<n>
+      tap x=<n> y=<n> [unit=<points|pixels|normalized>]
       double_tap x=<n> y=<n>
       long_press x=<n> y=<n> [duration_ms=<n>]
       swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n>
@@ -68,6 +68,15 @@ func renderDeviceHelp() -> String {
       device_terminate_app app_id=<id>
       device_install_app path=<path>
       open_url url=<url>
+
+    Coordinates:
+      Gestures take points; screenshots come back in pixels (points x scale). Pass
+      unit=pixels to use a position read straight off a screenshot, or unit=normalized
+      for a 0..1 fraction of the screen. take_screenshot reports both sizes.
+
+    Scope:
+      Queries default to the app under test. System UI — permission alerts, Sign in
+      with Apple — runs in another process; pass scope=system to reach it.
 
     Environment variables:
       Repeat --env once per variable. Values may contain commas and '='.

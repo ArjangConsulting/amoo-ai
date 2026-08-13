@@ -319,6 +319,19 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "GetScreenInfo" metadata.
+        public enum GetScreenInfo: Sendable {
+            /// Request type for "GetScreenInfo".
+            public typealias Input = Amoo_Empty
+            /// Response type for "GetScreenInfo".
+            public typealias Output = Amoo_ScreenInfoResponse
+            /// Descriptor for "GetScreenInfo".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetScreenInfo",
+                type: .unary
+            )
+        }
         /// Namespace for "SetTargetApp" metadata.
         public enum SetTargetApp: Sendable {
             /// Request type for "SetTargetApp".
@@ -409,6 +422,7 @@ public enum Amoo_CompanionService: Sendable {
             WaitForElement.descriptor,
             IsKeyboardVisible.descriptor,
             GetCurrentApp.descriptor,
+            GetScreenInfo.descriptor,
             SetTargetApp.descriptor,
             GetScreenContext.descriptor,
             FindByDescription.descriptor,
@@ -788,6 +802,20 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_CurrentAppResponse>
+
+        /// Handle the "GetScreenInfo" method.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_Empty` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_ScreenInfoResponse` messages.
+        func getScreenInfo(
+            request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ScreenInfoResponse>
 
         /// Handle the "SetTargetApp" method.
         ///
@@ -1226,6 +1254,20 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_CurrentAppResponse>
 
+        /// Handle the "GetScreenInfo" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_ScreenInfoResponse` message.
+        func getScreenInfo(
+            request: GRPCCore.ServerRequest<Amoo_Empty>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ScreenInfoResponse>
+
         /// Handle the "SetTargetApp" method.
         ///
         /// - Parameters:
@@ -1661,6 +1703,20 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_CurrentAppResponse
 
+        /// Handle the "GetScreenInfo" method.
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_Empty` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_ScreenInfoResponse` to respond with.
+        func getScreenInfo(
+            request: Amoo_Empty,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_ScreenInfoResponse
+
         /// Handle the "SetTargetApp" method.
         ///
         /// - Parameters:
@@ -1999,6 +2055,17 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.GetScreenInfo.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenInfoResponse>(),
+            handler: { request, context in
+                try await self.getScreenInfo(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.SetTargetApp.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetTargetAppRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
@@ -2306,6 +2373,17 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_CurrentAppResponse> {
         let response = try await self.getCurrentApp(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func getScreenInfo(
+        request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ScreenInfoResponse> {
+        let response = try await self.getScreenInfo(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2663,6 +2741,19 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_CurrentAppResponse> {
         return GRPCCore.ServerResponse<Amoo_CurrentAppResponse>(
             message: try await self.getCurrentApp(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func getScreenInfo(
+        request: GRPCCore.ServerRequest<Amoo_Empty>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ScreenInfoResponse> {
+        return GRPCCore.ServerResponse<Amoo_ScreenInfoResponse>(
+            message: try await self.getScreenInfo(
                 request: request.message,
                 context: context
             ),
@@ -3208,6 +3299,25 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_CurrentAppResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_CurrentAppResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "GetScreenInfo" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ScreenInfoResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func getScreenInfo<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ScreenInfoResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenInfoResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "SetTargetApp" method.
@@ -4048,6 +4158,36 @@ extension Amoo_CompanionService {
             )
         }
 
+        /// Call the "GetScreenInfo" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_Empty` message.
+        ///   - serializer: A serializer for `Amoo_Empty` messages.
+        ///   - deserializer: A deserializer for `Amoo_ScreenInfoResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func getScreenInfo<Result>(
+            request: GRPCCore.ClientRequest<Amoo_Empty>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_Empty>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ScreenInfoResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenInfoResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.GetScreenInfo.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "SetTargetApp" method.
         ///
         /// - Parameters:
@@ -4809,6 +4949,31 @@ extension Amoo_CompanionService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_CurrentAppResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetScreenInfo" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_Empty` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getScreenInfo<Result>(
+        request: GRPCCore.ClientRequest<Amoo_Empty>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenInfoResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.getScreenInfo(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenInfoResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -5640,6 +5805,35 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.getCurrentApp(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetScreenInfo" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getScreenInfo<Result>(
+        _ message: Amoo_Empty,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ScreenInfoResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_Empty>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.getScreenInfo(
             request: request,
             options: options,
             onResponse: handleResponse

@@ -423,6 +423,41 @@ public nonisolated struct Amoo_ScreenshotResponse: Sendable {
 
   public var data: Data = Data()
 
+  /// Screen geometry, carried alongside the image so a caller can convert a pixel
+  /// position read off it into the points that gestures take, without a second call.
+  public var screen: Amoo_ScreenInfoResponse {
+    get {_screen ?? Amoo_ScreenInfoResponse()}
+    set {_screen = newValue}
+  }
+  /// Returns true if `screen` has been explicitly set.
+  public var hasScreen: Bool {self._screen != nil}
+  /// Clears the value of `screen`. Subsequent reads from it will return its default value.
+  public mutating func clearScreen() {self._screen = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _screen: Amoo_ScreenInfoResponse? = nil
+}
+
+public nonisolated struct Amoo_ScreenInfoResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Gesture coordinate space. This is what tap/swipe/drag expect.
+  public var widthPoints: Double = 0
+
+  public var heightPoints: Double = 0
+
+  /// Screenshot image space, which is `points * scale` on a Retina device.
+  public var widthPixels: Double = 0
+
+  public var heightPixels: Double = 0
+
+  public var scale: Double = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1160,7 +1195,7 @@ nonisolated extension Amoo_ScreenshotRequest: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Amoo_ScreenshotResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ScreenshotResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0\u{1}screen\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1169,20 +1204,79 @@ nonisolated extension Amoo_ScreenshotResponse: SwiftProtobuf.Message, SwiftProto
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBytesField(value: &self.data) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._screen) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.data.isEmpty {
       try visitor.visitSingularBytesField(value: self.data, fieldNumber: 1)
     }
+    try { if let v = self._screen {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_ScreenshotResponse, rhs: Amoo_ScreenshotResponse) -> Bool {
     if lhs.data != rhs.data {return false}
+    if lhs._screen != rhs._screen {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_ScreenInfoResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ScreenInfoResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}width_points\0\u{3}height_points\0\u{3}width_pixels\0\u{3}height_pixels\0\u{1}scale\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.widthPoints) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.heightPoints) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.widthPixels) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.heightPixels) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.scale) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.widthPoints.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.widthPoints, fieldNumber: 1)
+    }
+    if self.heightPoints.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.heightPoints, fieldNumber: 2)
+    }
+    if self.widthPixels.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.widthPixels, fieldNumber: 3)
+    }
+    if self.heightPixels.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.heightPixels, fieldNumber: 4)
+    }
+    if self.scale.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.scale, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_ScreenInfoResponse, rhs: Amoo_ScreenInfoResponse) -> Bool {
+    if lhs.widthPoints != rhs.widthPoints {return false}
+    if lhs.heightPoints != rhs.heightPoints {return false}
+    if lhs.widthPixels != rhs.widthPixels {return false}
+    if lhs.heightPixels != rhs.heightPixels {return false}
+    if lhs.scale != rhs.scale {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -60,6 +60,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("query.getViewHierarchy", .required),
             ("query.isKeyboardVisible", .required),
             ("query.currentApp", .required),
+            ("query.screenInfo", .required),
             ("action.setTargetApp", .required),
             ("capture.screenshot", .required),
             ("ai.screenContext", .optional)
@@ -433,6 +434,25 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         let data = await accessibility.takeScreenshot()
         var response = Amoo_ScreenshotResponse()
         response.data = data
+        response.screen = await screenInfoResponse()
+        return response
+    }
+
+    func getScreenInfo(
+        request _: Amoo_Empty,
+        context _: ServerContext
+    ) async throws -> Amoo_ScreenInfoResponse {
+        await screenInfoResponse()
+    }
+
+    private func screenInfoResponse() async -> Amoo_ScreenInfoResponse {
+        let info = await accessibility.screenInfo()
+        var response = Amoo_ScreenInfoResponse()
+        response.widthPoints = Double(info.points.width)
+        response.heightPoints = Double(info.points.height)
+        response.widthPixels = Double(info.pixels.width)
+        response.heightPixels = Double(info.pixels.height)
+        response.scale = info.scale
         return response
     }
 
