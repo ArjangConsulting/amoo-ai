@@ -32,6 +32,18 @@ final class AccessibilityHandler: @unchecked Sendable {
         await bridge.isKeyboardVisible()
     }
 
+    func currentAppBundleID() async -> String? {
+        await bridge.currentAppBundleID()
+    }
+
+    func targetAppBundleID() async -> String? {
+        await bridge.boundTargetBundleID()
+    }
+
+    func setTargetApp(bundleID: String?) async {
+        await bridge.setTargetApp(bundleID: bundleID)
+    }
+
     func takeScreenshot() async -> Data {
         await bridge.takeScreenshot()
     }

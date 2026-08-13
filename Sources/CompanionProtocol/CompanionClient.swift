@@ -39,6 +39,13 @@ public protocol CompanionClient: Sendable {
         async throws
     func isKeyboardVisible() async throws -> Bool
 
+    /// Target app
+    ///
+    /// `currentApp` reports where a gesture would land right now; `setTargetApp` rebinds the app
+    /// under test for the rest of the session (empty/nil falls back to whatever is frontmost).
+    func currentApp() async throws -> CurrentAppInfo
+    func setTargetApp(bundleID: String?) async throws
+
     /// Capture
     func takeScreenshot() async throws -> ScreenshotData
 
@@ -121,6 +128,14 @@ public extension CompanionClient {
         throw AmooError.notImplemented("isKeyboardVisible")
     }
 
+    func currentApp() async throws -> CurrentAppInfo {
+        throw AmooError.notImplemented("currentApp")
+    }
+
+    func setTargetApp(bundleID _: String?) async throws {
+        throw AmooError.notImplemented("setTargetApp")
+    }
+
     func takeScreenshot() async throws -> ScreenshotData {
         throw AmooError.notImplemented("takeScreenshot")
     }
@@ -131,5 +146,18 @@ public extension CompanionClient {
 
     func findByDescription(_: String) async throws -> [ElementInfo] {
         throw AmooError.notImplemented("findByDescription")
+    }
+}
+
+/// Where a gesture would land, and what the session bound as the app under test.
+public struct CurrentAppInfo: Sendable, Equatable {
+    /// Frontmost application, empty when it could not be determined.
+    public let bundleID: String
+    /// Bound app under test, empty when unbound.
+    public let targetBundleID: String
+
+    public init(bundleID: String, targetBundleID: String) {
+        self.bundleID = bundleID
+        self.targetBundleID = targetBundleID
     }
 }

@@ -299,6 +299,29 @@ package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtoc
         return response
     }
 
+    // MARK: - Target app
+
+    package func getCurrentApp(
+        request _: Amoo_Empty,
+        context _: ServerContext
+    ) async throws -> Amoo_CurrentAppResponse {
+        let info = try await companion.currentApp()
+        var response = Amoo_CurrentAppResponse()
+        response.bundleID = info.bundleID
+        response.targetBundleID = info.targetBundleID
+        return response
+    }
+
+    package func setTargetApp(
+        request: Amoo_SetTargetAppRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_ActionResponse {
+        try await companion.setTargetApp(bundleID: request.bundleID.nonEmpty)
+        var response = Amoo_ActionResponse()
+        response.success = true
+        return response
+    }
+
     // MARK: - AI Context
 
     package func getScreenContext(

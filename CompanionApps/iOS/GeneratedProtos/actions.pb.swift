@@ -440,6 +440,35 @@ public nonisolated struct Amoo_KeyboardVisibleResponse: Sendable {
   public init() {}
 }
 
+public nonisolated struct Amoo_CurrentAppResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Bundle ID of the frontmost application, empty when it cannot be determined.
+  public var bundleID: String = String()
+
+  /// Bundle ID the session bound as the app under test, empty when unbound.
+  public var targetBundleID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Amoo_SetTargetAppRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Empty unbinds, falling back to whichever app is frontmost.
+  public var bundleID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "amoo.v1"
@@ -1184,6 +1213,71 @@ nonisolated extension Amoo_KeyboardVisibleResponse: SwiftProtobuf.Message, Swift
 
   public static func ==(lhs: Amoo_KeyboardVisibleResponse, rhs: Amoo_KeyboardVisibleResponse) -> Bool {
     if lhs.visible != rhs.visible {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_CurrentAppResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CurrentAppResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}bundle_id\0\u{3}target_bundle_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.bundleID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.targetBundleID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.bundleID.isEmpty {
+      try visitor.visitSingularStringField(value: self.bundleID, fieldNumber: 1)
+    }
+    if !self.targetBundleID.isEmpty {
+      try visitor.visitSingularStringField(value: self.targetBundleID, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_CurrentAppResponse, rhs: Amoo_CurrentAppResponse) -> Bool {
+    if lhs.bundleID != rhs.bundleID {return false}
+    if lhs.targetBundleID != rhs.targetBundleID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_SetTargetAppRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetTargetAppRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}bundle_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.bundleID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.bundleID.isEmpty {
+      try visitor.visitSingularStringField(value: self.bundleID, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_SetTargetAppRequest, rhs: Amoo_SetTargetAppRequest) -> Bool {
+    if lhs.bundleID != rhs.bundleID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
