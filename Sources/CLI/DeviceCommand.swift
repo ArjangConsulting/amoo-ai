@@ -168,7 +168,32 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
     }
     await companion.shutdown()
 
-    return CLIResult(output: result.content, exitCode: result.isError ? 1 : 0)
+    return CLIResult(
+        output: result.isError
+            ? annotatedDeviceError(result.content, options: options)
+            : result.content,
+        exitCode: result.isError ? 1 : 0
+    )
+}
+
+/// Turns a bare transport failure into something actionable.
+///
+/// `amoo device` does not start the companion, so the common first-run experience was a raw
+/// gRPC `unavailable: … Connection refused (errno: 61)` with nothing naming the command that
+/// fixes it.
+private func annotatedDeviceError(_ message: String, options: DeviceCommandOptions) -> String {
+    let looksLikeNoCompanion = message.contains("Connection refused")
+        || message.contains("unavailable")
+        || message.contains("transient failure")
+    guard looksLikeNoCompanion else { return message }
+
+    let platform = options.platform == .android ? "android" : "ios"
+    return message + """
+
+
+        No companion is listening on port \(options.port). Start one with:
+          amoo companion start --platform \(platform)\(options.deviceID.map { " --device \($0)" } ?? "") --app <bundle-id>
+        """
 }
 
 private func defaultPort(for platform: Platform) -> Int {
