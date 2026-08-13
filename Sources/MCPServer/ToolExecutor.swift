@@ -343,14 +343,19 @@ public actor DriverToolExecutor: ToolExecutor {
                 containsText: arguments["contains_text"],
                 description: arguments["description"]
             )
-            let elements = try await driver.findElements(selector)
+            let elements = try await driver.findElements(
+                selector,
+                appID: queryScopeAppID(arguments: arguments, driver: driver)
+            )
             let descriptions = elements.map {
                 "\(colored("[\($0.id)]", .blue)) \(colored($0.label, .yellow))"
             }
             return .success("Found \(elements.count) element(s):\n\(descriptions.joined(separator: "\n"))")
 
         case "get_view_hierarchy":
-            let hierarchy = try await driver.getViewHierarchy()
+            let hierarchy = try await driver.getViewHierarchy(
+                appID: queryScopeAppID(arguments: arguments, driver: driver)
+            )
             return .success(renderViewNode(hierarchy, indent: 0))
 
         case "get_screen_context":

@@ -52,8 +52,8 @@ func renderDeviceHelp() -> String {
       press_back
       press_home
       tap_element [id=<id>] [label=<label>] [contains_text=<text>]
-      find_elements [id=<id>] [label=<label>] [contains_text=<text>]
-      get_view_hierarchy
+      find_elements [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
+      get_view_hierarchy [scope=<app|system>]
       get_screen_context
       is_keyboard_visible
       current_app

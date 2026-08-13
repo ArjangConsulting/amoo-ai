@@ -225,6 +225,9 @@ public actor AndroidDriver: PlatformDriver {
         throw AmooError.timeout(operation: "waitForElementToDisappear", duration: timeout)
     }
 
+    /// Android hosts permission dialogs and system chrome here.
+    public nonisolated var systemUIAppID: String? { "com.android.systemui" }
+
     public func isKeyboardVisible() async throws -> Bool {
         try await companion.isKeyboardVisible()
     }

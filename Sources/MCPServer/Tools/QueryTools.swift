@@ -9,12 +9,36 @@ public enum QueryTools {
                 "id": .init(type: "string", description: "Accessibility identifier to match"),
                 "label": .init(type: "string", description: "Accessibility label to match"),
                 "contains_text": .init(type: "string", description: "Partial text match"),
-                "description": .init(type: "string", description: "Natural language description for AI matching")
+                "description": .init(type: "string", description: "Natural language description for AI matching"),
+                "scope": .init(
+                    type: "string",
+                    description: "Which process to query: 'app' (default, the app under test) or"
+                        + " 'system' for system UI — permission alerts, Sign in with Apple — which"
+                        + " runs outside the app and is invisible to an app-scoped query. Pass"
+                        + " bundle_id instead to name a process explicitly."
+                ),
+                "bundle_id": .init(
+                    type: "string",
+                    description: "Explicit bundle/package id to query, overriding scope."
+                )
             ]
         ),
         ToolDefinition(
             name: "get_view_hierarchy",
-            description: "Get the full UI view hierarchy tree of the current foreground screen."
+            description: "Get the full UI view hierarchy tree of the current foreground screen.",
+            properties: [
+                "scope": .init(
+                    type: "string",
+                    description: "Which process to query: 'app' (default, the app under test) or"
+                        + " 'system' for system UI — permission alerts, Sign in with Apple — which"
+                        + " runs outside the app and is invisible to an app-scoped query. Pass"
+                        + " bundle_id instead to name a process explicitly."
+                ),
+                "bundle_id": .init(
+                    type: "string",
+                    description: "Explicit bundle/package id to query, overriding scope."
+                )
+            ]
         ),
         ToolDefinition(
             name: "get_screen_context",
