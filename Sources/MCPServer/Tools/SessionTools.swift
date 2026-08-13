@@ -23,6 +23,16 @@ public enum SessionTools {
                 "build_path": .init(
                     type: "string",
                     description: "Optional path to an .app bundle or .apk to install before launching."
+                ),
+                "launch_args": .init(
+                    type: "string",
+                    description: "Comma-separated arguments passed to the app at launch."
+                ),
+                "environment": .init(
+                    type: "string",
+                    description: "Comma-separated key=value pairs added to the app's environment"
+                        + " at launch (e.g. 'UITEST=1'). Needed for apps that only enter a test"
+                        + " mode via an environment flag."
                 )
             ],
             required: ["app_id"],

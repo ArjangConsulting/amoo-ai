@@ -10,7 +10,9 @@ public protocol SessionBootstrapper: Sendable {
         appID: String,
         platform: Platform,
         deviceHint: String?,
-        buildPath: String?
+        buildPath: String?,
+        arguments: [String],
+        environment: [String: String]
     ) async throws -> BootstrapResult
 
     /// Enumerate currently usable devices for the given platform (or all when nil).

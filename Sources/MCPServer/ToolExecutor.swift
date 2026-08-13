@@ -701,12 +701,22 @@ public actor DriverToolExecutor: ToolExecutor {
         // requested format (e.g. Android always returns PNG), so labeling by the
         // request would hand clients a wrong MIME type.
         let actualFormat = screenshot.format
-        let data = Data(screenshot.bytes)
+        let originalData = Data(screenshot.bytes)
+
+        // Downscaling is the single biggest lever on how much a screenshot costs a model to read:
+        // a full-resolution phone screen runs into thousands of tokens, and most questions
+        // ("which screen am I on", "did the sheet close") are answerable at half scale.
+        let scale = arguments["scale"].flatMap(Double.init)
+        let data = ScreenshotScaler.scaled(originalData, by: scale, format: actualFormat)
+            ?? originalData
 
         var fields: [String: Value] = [
             "byte_count": .int(data.count),
             "format": .string(actualFormat.rawValue)
         ]
+        if data.count != originalData.count {
+            fields["original_byte_count"] = .int(originalData.count)
+        }
 
         var savedNote = ""
         if let output = arguments["output"], !output.isEmpty {
@@ -1082,13 +1092,18 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         let deviceHint = arguments["device_hint"]
         let buildPath = arguments["build_path"]
+        let launchArgs: [String] = arguments["launch_args"]
+            .map { $0.split(separator: ",").map(String.init) } ?? []
+        let environment = parseEnvironment(arguments["environment"])
 
         do {
             let session = try await manager.startSession(
                 appID: appID,
                 platform: platform,
                 deviceHint: deviceHint,
-                buildPath: buildPath
+                buildPath: buildPath,
+                arguments: launchArgs,
+                environment: environment
             )
             let summary: [String: Value] = [
                 "session_id": .string(session.id),
