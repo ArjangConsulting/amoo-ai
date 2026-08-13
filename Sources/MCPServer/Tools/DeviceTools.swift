@@ -32,8 +32,11 @@ public enum DeviceTools {
                 ),
                 "environment": .init(
                     type: "string",
-                    description: "Comma-separated key=value pairs added to the app's environment"
-                        + " (e.g. 'STAGE=test,VERBOSE=1')"
+                    description: "Environment variables for the launched process, as KEY=VALUE"
+                        + " pairs separated by commas — 'STAGE=test,VERBOSE=1' sets two. Newlines"
+                        + " work as a separator too, for values that contain a comma. Environment"
+                        + " is fixed at process start, so this only applies to this launch:"
+                        + " relaunch the app to change it."
                 ),
                 "session_id": .init(
                     type: "string",
