@@ -57,7 +57,16 @@ SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
 swift test --enable-code-coverage
 
 RAW_PROFILES=("$CODECOV_DIR"/*.profraw)
-TEST_BINARIES=("$PRODUCTS_DIR"/*.xctest/Contents/MacOS/*)
+ALL_MACOS_ENTRIES=("$PRODUCTS_DIR"/*.xctest/Contents/MacOS/*)
+TEST_BINARIES=()
+for entry in "${ALL_MACOS_ENTRIES[@]}"; do
+  # Newer SwiftPM/toolchains place the test bundle's .dSYM directly inside
+  # Contents/MacOS alongside the actual executable; skip it and any other
+  # non-file entries so llvm-cov only ever sees real Mach-O binaries.
+  if [[ -f "$entry" && "$entry" != *.dSYM ]]; then
+    TEST_BINARIES+=("$entry")
+  fi
+done
 
 if (( ${#RAW_PROFILES[@]} == 0 )); then
   echo "error: no raw coverage profiles found in $CODECOV_DIR" >&2
