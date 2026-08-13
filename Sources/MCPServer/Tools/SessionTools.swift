@@ -30,9 +30,11 @@ public enum SessionTools {
                 ),
                 "environment": .init(
                     type: "string",
-                    description: "Comma-separated key=value pairs added to the app's environment"
-                        + " at launch (e.g. 'UITEST=1'). Needed for apps that only enter a test"
-                        + " mode via an environment flag."
+                    description: "Environment variables for the session's launch, as KEY=VALUE"
+                        + " pairs separated by commas — 'UITEST=1,STAGE=test' sets two. Newlines"
+                        + " work as a separator too, for values that contain a comma. Needed for"
+                        + " apps that only enter a test mode via an environment flag, which must"
+                        + " be present at launch to take effect."
                 )
             ],
             required: ["app_id"],

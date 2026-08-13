@@ -85,10 +85,16 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     /// Parses `k=v,k2=v2` into a dictionary. Empty entries are skipped.
-    nonisolated func parseEnvironment(_ raw: String?) -> [String: String] {
+    /// Parses `KEY=VALUE` pairs separated by newlines or commas.
+    ///
+    /// Newlines take precedence when present: the CLI joins repeated `--env` flags that way so a
+    /// value is free to contain a comma, which the comma form — still accepted, and what MCP
+    /// clients send — cannot express.
+    public nonisolated static func parseEnvironment(_ raw: String?) -> [String: String] {
         guard let raw, !raw.isEmpty else { return [:] }
+        let separator: Character = raw.contains("\n") ? "\n" : ","
         var result: [String: String] = [:]
-        for pair in raw.split(separator: ",") {
+        for pair in raw.split(separator: separator) {
             let trimmed = pair.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
             if let equals = trimmed.firstIndex(of: "=") {
@@ -128,7 +134,7 @@ public actor DriverToolExecutor: ToolExecutor {
             }
             let launchArgs: [String] = arguments["launch_args"]
                 .map { $0.split(separator: ",").map(String.init) } ?? []
-            let env = parseEnvironment(arguments["environment"])
+            let env = Self.parseEnvironment(arguments["environment"])
             try await driver.launchApp(appID: appID, arguments: launchArgs, environment: env)
             return .success("App launched: \(appID)")
 
@@ -1094,7 +1100,7 @@ public actor DriverToolExecutor: ToolExecutor {
         let buildPath = arguments["build_path"]
         let launchArgs: [String] = arguments["launch_args"]
             .map { $0.split(separator: ",").map(String.init) } ?? []
-        let environment = parseEnvironment(arguments["environment"])
+        let environment = Self.parseEnvironment(arguments["environment"])
 
         do {
             let session = try await manager.startSession(

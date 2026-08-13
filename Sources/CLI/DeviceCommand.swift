@@ -39,6 +39,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
 func renderDeviceHelp() -> String {
     """
     Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
+                       [--env KEY=VALUE ...] [--arg VALUE ...]
 
     Common tools:
       tap x=<n> y=<n>
@@ -63,10 +64,25 @@ func renderDeviceHelp() -> String {
       analyze_ai_testability
       highlight_a11y_issues
       find_element_by_description description=<text>
-      device_launch_app app_id=<id>
+      device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...]
       device_terminate_app app_id=<id>
       device_install_app path=<path>
       open_url url=<url>
+
+    Environment variables:
+      Repeat --env once per variable. Values may contain commas and '='.
+
+        amoo device device_launch_app app_id=com.example.app \\
+          --env UITEST=1 --env API_HOST=http://localhost:8080
+
+      Environment is fixed when a process starts, so a variable only reaches an app
+      that is launched with it — relaunch (terminate + launch) to change one. The
+      equivalent tool argument, which MCP clients send, is comma-separated:
+
+        environment=UITEST=1,API_HOST=http://localhost:8080
+
+    Launch arguments:
+      Repeat --arg once per argument, or pass launch_args=<a,b,c>.
 
     Defaults:
       platform=ios
@@ -126,12 +142,53 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
     remaining.removeFirst()
 
     var arguments: [String: String] = [:]
-    for arg in remaining {
+    var envPairs: [String] = []
+    var launchArgs: [String] = []
+
+    var index = remaining.startIndex
+    while index < remaining.endIndex {
+        let arg = remaining[index]
+
+        // `--env KEY=VALUE`, repeatable. Spelling environment variables as a tool argument means
+        // writing `environment=KEY=VALUE`, whose two `=` read as a typo, and stacking several of
+        // them into one comma-separated value makes it worse. Repeating a flag says what it means
+        // and lets a value contain a comma.
+        if arg == "--env" || arg == "--arg" {
+            let valueIndex = remaining.index(after: index)
+            guard valueIndex < remaining.endIndex else {
+                return .failure(.malformedArgument("\(arg) (missing value)"))
+            }
+            let value = remaining[valueIndex]
+            if arg == "--env" {
+                guard value.contains("=") else {
+                    return .failure(.malformedArgument("--env \(value) (expected KEY=VALUE)"))
+                }
+                envPairs.append(value)
+            } else {
+                launchArgs.append(value)
+            }
+            index = remaining.index(after: valueIndex)
+            continue
+        }
+
         let parts = arg.split(separator: "=", maxSplits: 1)
         guard parts.count == 2 else {
             return .failure(.malformedArgument(arg))
         }
         arguments[String(parts[0])] = String(parts[1])
+        index = remaining.index(after: index)
+    }
+
+    // Newline-joined rather than comma-joined so a value may contain a comma; the parser accepts
+    // either separator, keeping the comma form MCP clients already send. The trailing newline is
+    // load-bearing: it marks the string as newline-separated even when there is a single pair,
+    // which is otherwise indistinguishable from a comma-separated one and would see a lone value
+    // like `LOCALES=en,fr,de` split back apart.
+    if !envPairs.isEmpty {
+        arguments["environment"] = envPairs.joined(separator: "\n") + "\n"
+    }
+    if !launchArgs.isEmpty {
+        arguments["launch_args"] = launchArgs.joined(separator: ",")
     }
 
     return .success(DeviceCommandOptions(

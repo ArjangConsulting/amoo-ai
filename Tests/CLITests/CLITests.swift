@@ -372,6 +372,71 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(options.deviceID, "booted")
     }
 
+    func testDeviceCommandCollectsRepeatedEnvFlags() {
+        let parsed = parseDeviceCommandOptions(args: [
+            "device_launch_app",
+            "app_id=com.example.app",
+            "--env", "UITEST=1",
+            "--env", "API_HOST=http://localhost:8080"
+        ])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        XCTAssertEqual(options.arguments["app_id"], "com.example.app")
+        // Newline-joined, with a trailing newline marking the string as newline-separated.
+        XCTAssertEqual(
+            options.arguments["environment"],
+            "UITEST=1\nAPI_HOST=http://localhost:8080\n"
+        )
+        XCTAssertEqual(
+            DriverToolExecutor.parseEnvironment(options.arguments["environment"]),
+            ["UITEST": "1", "API_HOST": "http://localhost:8080"]
+        )
+    }
+
+    func testDeviceCommandKeepsCommasInsideEnvValues() {
+        let parsed = parseDeviceCommandOptions(args: [
+            "device_launch_app",
+            "app_id=com.example.app",
+            "--env", "LOCALES=en,fr,de"
+        ])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        let environment = DriverToolExecutor.parseEnvironment(
+            options.arguments["environment"]
+        )
+        XCTAssertEqual(environment, ["LOCALES": "en,fr,de"])
+    }
+
+    func testDeviceCommandRejectsEnvWithoutAssignment() {
+        let parsed = parseDeviceCommandOptions(args: [
+            "device_launch_app", "app_id=com.example.app", "--env", "UITEST"
+        ])
+        guard case .failure = parsed else {
+            return XCTFail("Expected parser failure for --env without KEY=VALUE")
+        }
+    }
+
+    func testDeviceCommandCollectsRepeatedArgFlags() {
+        let parsed = parseDeviceCommandOptions(args: [
+            "device_launch_app", "app_id=com.example.app", "--arg", "-uitest", "--arg", "fast"
+        ])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        XCTAssertEqual(options.arguments["launch_args"], "-uitest,fast")
+    }
+
+    /// The comma form MCP clients send keeps working alongside the newline form.
+    func testEnvironmentParsingAcceptsCommaSeparatedPairs() {
+        let environment = DriverToolExecutor.parseEnvironment("UITEST=1,STAGE=test")
+        XCTAssertEqual(environment, ["UITEST": "1", "STAGE": "test"])
+    }
+
     func testDeviceCommandUsesAndroidDefaults() {
         let parsed = parseDeviceCommandOptions(args: ["--platform", "android", "press_home"])
         guard case let .success(options) = parsed else {
