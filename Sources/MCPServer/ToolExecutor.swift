@@ -90,6 +90,53 @@ public actor DriverToolExecutor: ToolExecutor {
     /// Newlines take precedence when present: the CLI joins repeated `--env` flags that way so a
     /// value is free to contain a comma, which the comma form — still accepted, and what MCP
     /// clients send — cannot express.
+    /// Resolves the `scope` argument to the process a query should run against.
+    ///
+    /// `app` keeps each driver's own resolution (the bound app under test, else frontmost).
+    /// `system` targets the platform's system UI, which hosts permission alerts and the Sign in
+    /// with Apple sheet — neither of which the app under test can see. An explicit `bundle_id`
+    /// overrides both.
+    private func queryScopeAppID(
+        arguments: [String: String],
+        driver: any PlatformDriver
+    ) -> String? {
+        if let bundleID = arguments["bundle_id"], !bundleID.isEmpty { return bundleID }
+        switch arguments["scope"]?.lowercased() {
+        case "system": return driver.systemUIAppID
+        default: return nil
+        }
+    }
+
+    /// Converts an incoming coordinate pair into the points that gestures take.
+    ///
+    /// Gestures are in points; screenshots come back in pixels, three times larger on this class
+    /// of device. Reading a position off a screenshot and passing it straight through is the
+    /// obvious thing to do and silently wrong — the tap lands off-screen and still reports
+    /// success. `unit` makes the space explicit instead of leaving it to be inferred.
+    private func convertToPoints(
+        x: Double,
+        y: Double,
+        unit: String?,
+        driver: any PlatformDriver
+    ) async throws -> (x: Double, y: Double) {
+        switch (unit ?? "points").lowercased() {
+        case "points", "point", "pt":
+            return (x, y)
+        case "pixels", "pixel", "px":
+            let screen = try await driver.screenGeometry()
+            guard screen.scale > 0 else { return (x, y) }
+            return (x / screen.scale, y / screen.scale)
+        case "normalized", "fraction":
+            let screen = try await driver.screenGeometry()
+            return (x * screen.widthPoints, y * screen.heightPoints)
+        default:
+            throw AmooError.commandFailed(
+                command: "unit",
+                output: "Unknown unit '\(unit ?? "")'. Use points, pixels, or normalized."
+            )
+        }
+    }
+
     public nonisolated static func parseEnvironment(_ raw: String?) -> [String: String] {
         guard let raw, !raw.isEmpty else { return [:] }
         let separator: Character = raw.contains("\n") ? "\n" : ","
@@ -159,8 +206,9 @@ public actor DriverToolExecutor: ToolExecutor {
             else {
                 return .error("Missing required arguments: x, y (numbers)")
             }
-            try await driver.tap(at: Point(x: x, y: y))
-            return .success("Tapped at (\(x), \(y))")
+            let point = try await convertToPoints(x: x, y: y, unit: arguments["unit"], driver: driver)
+            try await driver.tap(at: Point(x: point.x, y: point.y))
+            return .success("Tapped at (\(point.x), \(point.y)) pts")
 
         case "double_tap":
             guard let x = arguments["x"].flatMap(Double.init),
@@ -168,8 +216,9 @@ public actor DriverToolExecutor: ToolExecutor {
             else {
                 return .error("Missing required arguments: x, y (numbers)")
             }
-            try await driver.doubleTap(at: Point(x: x, y: y))
-            return .success("Double tapped at (\(x), \(y))")
+            let point = try await convertToPoints(x: x, y: y, unit: arguments["unit"], driver: driver)
+            try await driver.doubleTap(at: Point(x: point.x, y: point.y))
+            return .success("Double tapped at (\(point.x), \(point.y)) pts")
 
         case "long_press":
             guard let x = arguments["x"].flatMap(Double.init),
@@ -178,8 +227,12 @@ public actor DriverToolExecutor: ToolExecutor {
                 return .error("Missing required arguments: x, y (numbers)")
             }
             let ms = arguments["duration_ms"].flatMap(Int.init) ?? 500
-            try await driver.longPress(at: Point(x: x, y: y), duration: Duration(milliseconds: ms))
-            return .success("Long pressed at (\(x), \(y)) for \(ms)ms")
+            let point = try await convertToPoints(x: x, y: y, unit: arguments["unit"], driver: driver)
+            try await driver.longPress(
+                at: Point(x: point.x, y: point.y),
+                duration: Duration(milliseconds: ms)
+            )
+            return .success("Long pressed at (\(point.x), \(point.y)) pts for \(ms)ms")
 
         // Gesture actions
         case "swipe":
@@ -191,12 +244,17 @@ public actor DriverToolExecutor: ToolExecutor {
                 return .error("Missing required arguments: from_x, from_y, to_x, to_y")
             }
             let ms = arguments["duration_ms"].flatMap(Int.init) ?? 300
+            let unit = arguments["unit"]
+            let start = try await convertToPoints(x: fromX, y: fromY, unit: unit, driver: driver)
+            let end = try await convertToPoints(x: toX, y: toY, unit: unit, driver: driver)
             try await driver.swipe(
-                from: Point(x: fromX, y: fromY),
-                to: Point(x: toX, y: toY),
+                from: Point(x: start.x, y: start.y),
+                to: Point(x: end.x, y: end.y),
                 duration: Duration(milliseconds: ms)
             )
-            return .success("Swiped from (\(fromX),\(fromY)) to (\(toX),\(toY))")
+            return .success(
+                "Swiped from (\(start.x),\(start.y)) to (\(end.x),\(end.y)) pts"
+            )
 
         case "swipe_in_direction":
             guard let dirStr = arguments["direction"] else {
@@ -724,6 +782,21 @@ public actor DriverToolExecutor: ToolExecutor {
             fields["original_byte_count"] = .int(originalData.count)
         }
 
+        // The image is in pixels and gestures take points. Reporting both, and the factor between
+        // them, is what stops a position read off this image from being passed straight to `tap`
+        // — which lands off-screen and still reports success.
+        var geometryNote = ""
+        if let screen = try? await driver.screenGeometry(), screen.scale > 0 {
+            fields["width_pixels"] = .double(screen.widthPixels)
+            fields["height_pixels"] = .double(screen.heightPixels)
+            fields["width_points"] = .double(screen.widthPoints)
+            fields["height_points"] = .double(screen.heightPoints)
+            fields["scale"] = .double(screen.scale)
+            geometryNote = " — image is \(Int(screen.widthPixels))x\(Int(screen.heightPixels))px;"
+                + " gestures take points (\(Int(screen.widthPoints))x\(Int(screen.heightPoints))),"
+                + " so divide by \(Int(screen.scale)) or pass unit=pixels"
+        }
+
         var savedNote = ""
         if let output = arguments["output"], !output.isEmpty {
             let url = URL(fileURLWithPath: (output as NSString).expandingTildeInPath)
@@ -749,7 +822,8 @@ public actor DriverToolExecutor: ToolExecutor {
             : " — note: requested \(requestedFormat.rawValue) but the driver produced \(actualFormat.rawValue)"
 
         return ToolResult(
-            content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))\(savedNote)\(formatNote)",
+            content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
+                + "\(savedNote)\(formatNote)\(geometryNote)",
             structuredContent: .object(fields),
             image: ToolImageContent(data: data, mimeType: actualFormat.mimeType)
         )

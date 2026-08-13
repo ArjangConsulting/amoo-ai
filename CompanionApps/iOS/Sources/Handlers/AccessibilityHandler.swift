@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Handles accessibility query gRPC requests by delegating to XCUITestBridge.
@@ -46,5 +47,9 @@ final class AccessibilityHandler: @unchecked Sendable {
 
     func takeScreenshot() async -> Data {
         await bridge.takeScreenshot()
+    }
+
+    func screenInfo() async -> (points: CGSize, pixels: CGSize, scale: Double) {
+        await bridge.screenInfo()
     }
 }
