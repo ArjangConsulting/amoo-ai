@@ -1325,6 +1325,8 @@ private actor MockDriver: PlatformDriver {
 private actor MockSessionBootstrapper: SessionBootstrapper {
     private var devices: [DeviceInfo] = []
     private(set) var lastDriver: MockDriver?
+    private(set) var lastLaunchArguments: [String] = []
+    private(set) var lastLaunchEnvironment: [String: String] = [:]
 
     func setDevices(_ values: [DeviceInfo]) {
         devices = values
@@ -1334,10 +1336,14 @@ private actor MockSessionBootstrapper: SessionBootstrapper {
         appID _: String,
         platform: Platform,
         deviceHint _: String?,
-        buildPath _: String?
+        buildPath _: String?,
+        arguments: [String],
+        environment: [String: String]
     ) async throws -> BootstrapResult {
         let driver = MockDriver()
         lastDriver = driver
+        lastLaunchArguments = arguments
+        lastLaunchEnvironment = environment
         return BootstrapResult(
             driver: driver,
             deviceID: "mock-\(platform.rawValue)",

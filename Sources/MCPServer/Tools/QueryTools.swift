@@ -33,6 +33,12 @@ public enum QueryTools {
                 "output": .init(
                     type: "string",
                     description: "Optional file path to also save the screenshot to (~ is expanded)."
+                ),
+                "scale": .init(
+                    type: "number",
+                    description: "Optional downscale factor in (0, 1]. 0.5 halves each dimension and"
+                        + " cuts the image roughly to a quarter of the bytes — enough for reading"
+                        + " layout and state, and far cheaper for a model to consume."
                         + " When omitted, the image is only returned inline."
                 )
             ],

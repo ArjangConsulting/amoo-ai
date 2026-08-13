@@ -19,13 +19,17 @@ public actor SessionManager: Sendable {
         appID: String,
         platform: Platform,
         deviceHint: String? = nil,
-        buildPath: String? = nil
+        buildPath: String? = nil,
+        arguments: [String] = [],
+        environment: [String: String] = [:]
     ) async throws -> TestSession {
         let bootstrap = try await bootstrapper.bootstrap(
             appID: appID,
             platform: platform,
             deviceHint: deviceHint,
-            buildPath: buildPath
+            buildPath: buildPath,
+            arguments: arguments,
+            environment: environment
         )
         let id = idGenerator()
         let session = TestSession(

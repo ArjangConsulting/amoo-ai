@@ -34,7 +34,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         appID: String,
         platform: Platform,
         deviceHint: String?,
-        buildPath: String?
+        buildPath: String?,
+        arguments: [String],
+        environment: [String: String]
     ) async throws -> BootstrapResult {
         let selector = PlatformDeviceSelector(processRunner: processRunner)
         let available = try await selector.selectDevice(hint: deviceHint, platform: platform)
@@ -79,7 +81,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
 
         // Launch the app.
         do {
-            try await platformDriver.launchApp(appID: appID, arguments: [], environment: [:])
+            try await platformDriver.launchApp(
+                appID: appID,
+                arguments: arguments,
+                environment: environment
+            )
         } catch {
             await companion.shutdown()
             throw BootstrapError.launchFailed(error.localizedDescription)
