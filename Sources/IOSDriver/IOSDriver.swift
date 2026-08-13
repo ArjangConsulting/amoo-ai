@@ -131,6 +131,11 @@ public actor IOSDriver: PlatformDriver {
         try await companion.tapElement(selector, appID: context.appID, candidateBundleIDs: context.candidateBundleIDs)
     }
 
+    public func tapElement(_ selector: ElementSelector, appID: String?) async throws {
+        guard let appID, !appID.isEmpty else { return try await tapElement(selector) }
+        try await companion.tapElement(selector, appID: appID, candidateBundleIDs: [])
+    }
+
     // MARK: - Gesture Actions (delegate to companion)
 
     public func swipe(from: Point, to: Point, duration: Duration) async throws {

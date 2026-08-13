@@ -47,6 +47,8 @@ final class XCUITestBridge: @unchecked Sendable {
         Self.bundleID(of: gestureTarget())
     }
 
+    static let springboardBundleID = "com.apple.springboard"
+
     private static func bundleID(of application: XCUIApplication) -> String? {
         for name in ["bundleID", "bundleId", "bundleIdentifier"] {
             let selector = NSSelectorFromString(name)
@@ -223,9 +225,31 @@ final class XCUITestBridge: @unchecked Sendable {
         bundleID: String? = nil,
         candidateBundleIDs: [String] = []
     ) -> [ElementSnapshot] {
-        let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
-        return matchableElements(in: target)
-            .filter { matches(candidate: $0, id: id, label: label, containsText: containsText) }
+        for app in searchOrder(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs) {
+            let found = matchableElements(in: app)
+                .filter { matches(candidate: $0, id: id, label: label, containsText: containsText) }
+            if !found.isEmpty { return found }
+        }
+        return []
+    }
+
+    /// The processes a lookup should try, in order.
+    ///
+    /// An explicit bundle ID is taken at its word. Otherwise the resolved app is tried first and
+    /// system UI second, because a permission alert or the Sign in with Apple sheet is drawn by a
+    /// *different* process: it sits above the app on screen but is absent from the app's
+    /// accessibility tree, so an app-scoped lookup correctly finds nothing for a control the user
+    /// is looking straight at. Falling back only when the first pass finds nothing keeps the app's
+    /// own matches preferred, and costs one extra snapshot exactly when the answer was going to be
+    /// "not found" anyway.
+    private func searchOrder(bundleID: String?, candidateBundleIDs: [String]) -> [XCUIApplication] {
+        if let bundleID, !bundleID.isEmpty {
+            return [XCUIApplication(bundleIdentifier: bundleID)]
+        }
+
+        let resolved = resolvedTargetApp(bundleID: nil, candidateBundleIDs: candidateBundleIDs)
+        guard Self.bundleID(of: resolved) != Self.springboardBundleID else { return [resolved] }
+        return [resolved, springboard]
     }
 
     func tapElement(
@@ -235,10 +259,16 @@ final class XCUITestBridge: @unchecked Sendable {
         bundleID: String? = nil,
         candidateBundleIDs: [String] = []
     ) -> Bool {
-        let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
-
-        for candidate in matchableElements(in: target)
-            where matches(candidate: candidate, id: id, label: label, containsText: containsText) {
+        // Shares `findElements`' search order, so a control in a system sheet is tappable by
+        // label without the caller naming the process it happens to live in. The tap itself is by
+        // coordinate, which is process-agnostic — only the lookup needed the scope.
+        for candidate in findElements(
+            id: id,
+            label: label,
+            containsText: containsText,
+            bundleID: bundleID,
+            candidateBundleIDs: candidateBundleIDs
+        ) {
             let frame = candidate.frame.standardized
             guard !frame.isNull, !frame.isEmpty else { continue }
             gestureCoordinate(x: frame.midX, y: frame.midY).tap()

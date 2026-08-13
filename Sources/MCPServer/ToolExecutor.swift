@@ -331,7 +331,10 @@ public actor DriverToolExecutor: ToolExecutor {
             guard selector.id != nil || selector.label != nil || selector.containsText != nil else {
                 return .error("At least one of id, label, or contains_text is required")
             }
-            try await driver.tapElement(selector)
+            try await driver.tapElement(
+                selector,
+                appID: queryScopeAppID(arguments: arguments, driver: driver)
+            )
             let desc = selector.label ?? selector.id ?? selector.containsText ?? ""
             return .success("Tapped element: \(desc)")
 
@@ -347,8 +350,14 @@ public actor DriverToolExecutor: ToolExecutor {
                 selector,
                 appID: queryScopeAppID(arguments: arguments, driver: driver)
             )
-            let descriptions = elements.map {
-                "\(colored("[\($0.id)]", .blue)) \(colored($0.label, .yellow))"
+            // Frames are included so a match is directly tappable: without them the only way to
+            // act on a found element was a screenshot round trip to read its position off the
+            // image — in pixels, needing conversion. These are points, ready for `tap`.
+            let descriptions = elements.map { element in
+                let position = element.frame.map {
+                    " at (\(Int($0.centre.x)),\(Int($0.centre.y))) pts \(Int($0.width))x\(Int($0.height))"
+                } ?? ""
+                return "\(colored("[\(element.id)]", .blue)) \(colored(element.label, .yellow))\(position)"
             }
             return .success("Found \(elements.count) element(s):\n\(descriptions.joined(separator: "\n"))")
 

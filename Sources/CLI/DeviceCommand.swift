@@ -51,7 +51,7 @@ func renderDeviceHelp() -> String {
       clear_text [character_count=<n>]
       press_back
       press_home
-      tap_element [id=<id>] [label=<label>] [contains_text=<text>]
+      tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
       find_elements [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
       get_view_hierarchy [scope=<app|system>]
       get_screen_context
@@ -75,8 +75,12 @@ func renderDeviceHelp() -> String {
       for a 0..1 fraction of the screen. take_screenshot reports both sizes.
 
     Scope:
-      Queries default to the app under test. System UI — permission alerts, Sign in
-      with Apple — runs in another process; pass scope=system to reach it.
+      Queries and element taps resolve against the app under test, then fall back to
+      system UI when nothing matches — so a control in a permission alert or the Sign
+      in with Apple sheet is reachable by label without naming its process. Pass
+      scope=system or bundle_id=<id> to target one explicitly.
+
+      find_elements reports each match's centre in points, ready to pass to tap.
 
     Environment variables:
       Repeat --env once per variable. Values may contain commas and '='.
