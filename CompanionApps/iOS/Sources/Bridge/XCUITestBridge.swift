@@ -272,6 +272,19 @@ final class XCUITestBridge: @unchecked Sendable {
         return screenshot.pngRepresentation
     }
 
+    /// Both coordinate spaces in play, and the factor between them.
+    ///
+    /// Gestures take points; screenshots come back in pixels. On a 3x device those differ by a
+    /// factor of three, so a coordinate read straight off a screenshot lands far off-screen —
+    /// and silently, since a tap outside any control still reports success.
+    func screenInfo() -> (points: CGSize, pixels: CGSize, scale: Double) {
+        let image = XCUIScreen.main.screenshot().image
+        let points = image.size
+        let scale = Double(image.scale)
+        let pixels = CGSize(width: points.width * scale, height: points.height * scale)
+        return (points, pixels, scale)
+    }
+
     // MARK: - Private
 
     private func buildHierarchyFromSnapshot(

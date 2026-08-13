@@ -376,6 +376,17 @@ private actor MockRPCClient: CompanionRPCClient {
         return response
     }
 
+    func getScreenInfo(_ request: Amoo_Empty) async throws -> Amoo_ScreenInfoResponse {
+        _ = request
+        var response = Amoo_ScreenInfoResponse()
+        response.widthPoints = 402
+        response.heightPoints = 874
+        response.widthPixels = 1206
+        response.heightPixels = 2622
+        response.scale = 3
+        return response
+    }
+
     func getCurrentApp(_ request: Amoo_Empty) async throws -> Amoo_CurrentAppResponse {
         _ = request
         var response = Amoo_CurrentAppResponse()

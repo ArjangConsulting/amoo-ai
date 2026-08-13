@@ -45,6 +45,7 @@ package protocol CompanionRPCClient: Sendable {
     ) async throws -> Amoo_WaitForElementResponse
     func isKeyboardVisible(_ request: Amoo_Empty) async throws -> Amoo_KeyboardVisibleResponse
     func getCurrentApp(_ request: Amoo_Empty) async throws -> Amoo_CurrentAppResponse
+    func getScreenInfo(_ request: Amoo_Empty) async throws -> Amoo_ScreenInfoResponse
     func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws -> Amoo_ActionResponse
 
     /// Capture
@@ -167,6 +168,11 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
     package func getCurrentApp(_ request: Amoo_Empty) async throws
         -> Amoo_CurrentAppResponse {
         try await client.getCurrentApp(request)
+    }
+
+    package func getScreenInfo(_ request: Amoo_Empty) async throws
+        -> Amoo_ScreenInfoResponse {
+        try await client.getScreenInfo(request)
     }
 
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
@@ -347,6 +353,12 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
         return Amoo_CurrentAppResponse()
     }
 
+    package func getScreenInfo(_ request: Amoo_Empty) async throws
+        -> Amoo_ScreenInfoResponse {
+        _ = request
+        return Amoo_ScreenInfoResponse()
+    }
+
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
         -> Amoo_ActionResponse {
         _ = request
@@ -525,6 +537,11 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     package func getCurrentApp(_ request: Amoo_Empty) async throws
         -> Amoo_CurrentAppResponse {
         try await client.getCurrentApp(request)
+    }
+
+    package func getScreenInfo(_ request: Amoo_Empty) async throws
+        -> Amoo_ScreenInfoResponse {
+        try await client.getScreenInfo(request)
     }
 
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
@@ -815,6 +832,20 @@ public actor GRPCCompanionClient: CompanionClient {
         return CurrentAppInfo(
             bundleID: response.bundleID,
             targetBundleID: response.targetBundleID
+        )
+    }
+
+    public func screenInfo() async throws -> ScreenGeometry {
+        try await Self.geometry(from: rpcClient.getScreenInfo(Amoo_Empty()))
+    }
+
+    static func geometry(from response: Amoo_ScreenInfoResponse) -> ScreenGeometry {
+        ScreenGeometry(
+            widthPoints: response.widthPoints,
+            heightPoints: response.heightPoints,
+            widthPixels: response.widthPixels,
+            heightPixels: response.heightPixels,
+            scale: response.scale
         )
     }
 

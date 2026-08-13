@@ -322,6 +322,20 @@ package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtoc
         return response
     }
 
+    package func getScreenInfo(
+        request _: Amoo_Empty,
+        context _: ServerContext
+    ) async throws -> Amoo_ScreenInfoResponse {
+        let info = try await companion.screenInfo()
+        var response = Amoo_ScreenInfoResponse()
+        response.widthPoints = info.widthPoints
+        response.heightPoints = info.heightPoints
+        response.widthPixels = info.widthPixels
+        response.heightPixels = info.heightPixels
+        response.scale = info.scale
+        return response
+    }
+
     // MARK: - AI Context
 
     package func getScreenContext(

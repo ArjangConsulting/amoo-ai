@@ -47,6 +47,7 @@ service CompanionService {
 
   // Target app
   rpc GetCurrentApp (Empty) returns (CurrentAppResponse);
+  rpc GetScreenInfo (Empty) returns (ScreenInfoResponse);
   rpc SetTargetApp (SetTargetAppRequest) returns (ActionResponse);
 
   // AI context
@@ -162,6 +163,19 @@ message ScreenshotRequest {
 
 message ScreenshotResponse {
   bytes data = 1;
+  // Screen geometry, carried alongside the image so a caller can convert a pixel
+  // position read off it into the points that gestures take, without a second call.
+  ScreenInfoResponse screen = 2;
+}
+
+message ScreenInfoResponse {
+  // Gesture coordinate space. This is what tap/swipe/drag expect.
+  double width_points = 1;
+  double height_points = 2;
+  // Screenshot image space, which is `points * scale` on a Retina device.
+  double width_pixels = 3;
+  double height_pixels = 4;
+  double scale = 5;
 }
 
 // Device info messages

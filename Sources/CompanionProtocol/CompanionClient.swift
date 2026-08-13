@@ -45,6 +45,8 @@ public protocol CompanionClient: Sendable {
     /// under test for the rest of the session (empty/nil falls back to whatever is frontmost).
     func currentApp() async throws -> CurrentAppInfo
     func setTargetApp(bundleID: String?) async throws
+    /// Point/pixel geometry of the screen, for converting positions read off a screenshot.
+    func screenInfo() async throws -> ScreenGeometry
 
     /// Capture
     func takeScreenshot() async throws -> ScreenshotData
@@ -136,6 +138,10 @@ public extension CompanionClient {
         throw AmooError.notImplemented("setTargetApp")
     }
 
+    func screenInfo() async throws -> ScreenGeometry {
+        throw AmooError.notImplemented("screenInfo")
+    }
+
     func takeScreenshot() async throws -> ScreenshotData {
         throw AmooError.notImplemented("takeScreenshot")
     }
@@ -159,5 +165,29 @@ public struct CurrentAppInfo: Sendable, Equatable {
     public init(bundleID: String, targetBundleID: String) {
         self.bundleID = bundleID
         self.targetBundleID = targetBundleID
+    }
+}
+
+/// The two coordinate spaces a caller has to reconcile: gestures take points, screenshots come
+/// back in pixels, and on a Retina device they differ by `scale`.
+public struct ScreenGeometry: Sendable, Equatable {
+    public let widthPoints: Double
+    public let heightPoints: Double
+    public let widthPixels: Double
+    public let heightPixels: Double
+    public let scale: Double
+
+    public init(
+        widthPoints: Double,
+        heightPoints: Double,
+        widthPixels: Double,
+        heightPixels: Double,
+        scale: Double
+    ) {
+        self.widthPoints = widthPoints
+        self.heightPoints = heightPoints
+        self.widthPixels = widthPixels
+        self.heightPixels = heightPixels
+        self.scale = scale
     }
 }

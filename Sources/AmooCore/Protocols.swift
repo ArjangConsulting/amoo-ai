@@ -72,10 +72,44 @@ public protocol AccessibilityProvider: Sendable {
     func waitForElement(_ selector: ElementSelector, timeout: Duration) async throws
     func waitForElementToDisappear(_ selector: ElementSelector, timeout: Duration) async throws
     func isKeyboardVisible() async throws -> Bool
+    /// Queries scoped to a specific process. Passing `nil` keeps the default resolution.
+    ///
+    /// System UI — permission alerts, Sign in with Apple — lives outside the app under test, so a
+    /// query that always resolves to the app can never see it.
+    func findElements(_ selector: ElementSelector, appID: String?) async throws -> [ElementInfo]
+    func getViewHierarchy(appID: String?) async throws -> ViewNode
+    /// Bundle/package id hosting system UI on this platform, or `nil` when there is none.
+    var systemUIAppID: String? { get }
     /// Where a gesture would land right now, and the bound app under test.
     func currentApp() async throws -> CurrentApp
     /// Rebinds the app under test; `nil` falls back to whatever is frontmost.
     func setTargetApp(bundleID: String?) async throws
+    /// Point and pixel geometry of the screen, for converting a position read off a screenshot
+    /// into the points that gestures take.
+    func screenGeometry() async throws -> ScreenSize
+}
+
+/// Gesture space (points) and screenshot space (pixels), plus the factor between them.
+public struct ScreenSize: Sendable, Equatable {
+    public let widthPoints: Double
+    public let heightPoints: Double
+    public let widthPixels: Double
+    public let heightPixels: Double
+    public let scale: Double
+
+    public init(
+        widthPoints: Double,
+        heightPoints: Double,
+        widthPixels: Double,
+        heightPixels: Double,
+        scale: Double
+    ) {
+        self.widthPoints = widthPoints
+        self.heightPoints = heightPoints
+        self.widthPixels = widthPixels
+        self.heightPixels = heightPixels
+        self.scale = scale
+    }
 }
 
 /// Frontmost application, plus the app the session bound as the target.
@@ -286,6 +320,10 @@ public extension AccessibilityProvider {
 
     func setTargetApp(bundleID _: String?) async throws {
         throw AmooError.notImplemented("setTargetApp")
+    }
+
+    func screenGeometry() async throws -> ScreenSize {
+        throw AmooError.notImplemented("screenGeometry")
     }
 }
 

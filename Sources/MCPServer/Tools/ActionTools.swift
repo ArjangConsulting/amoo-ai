@@ -7,7 +7,14 @@ public enum ActionTools {
             description: "Tap at a screen coordinate",
             properties: [
                 "x": .init(type: "string", description: "X coordinate"),
-                "y": .init(type: "string", description: "Y coordinate")
+                "y": .init(type: "string", description: "Y coordinate"),
+                "unit": .init(
+                    type: "string",
+                    description: "Coordinate space: points (default), pixels, or normalized."
+                        + " Screenshots are in pixels and gestures take points, so a position read"
+                        + " off a screenshot needs unit=pixels — passing it as points lands"
+                        + " off-screen and still reports success."
+                )
             ],
             required: ["x", "y"]
         ),
@@ -16,7 +23,14 @@ public enum ActionTools {
             description: "Double tap at a screen coordinate",
             properties: [
                 "x": .init(type: "string", description: "X coordinate"),
-                "y": .init(type: "string", description: "Y coordinate")
+                "y": .init(type: "string", description: "Y coordinate"),
+                "unit": .init(
+                    type: "string",
+                    description: "Coordinate space: points (default), pixels, or normalized."
+                        + " Screenshots are in pixels and gestures take points, so a position read"
+                        + " off a screenshot needs unit=pixels — passing it as points lands"
+                        + " off-screen and still reports success."
+                )
             ],
             required: ["x", "y"]
         ),
