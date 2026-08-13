@@ -168,16 +168,13 @@ final class XCUITestBridge: @unchecked Sendable {
     ) {
         let target = gestureTarget()
         if id != nil || label != nil || containsText != nil {
-            let allElements = collectedElements(in: target)
-            for element in allElements
-                where matches(element: element, id: id, label: label, containsText: containsText) {
-                guard element.exists else { continue }
-                switch direction {
-                case .up: element.swipeUp()
-                case .down: element.swipeDown()
-                case .left: element.swipeLeft()
-                case .right: element.swipeRight()
-                }
+            // Swipes from the matched element's centre, using the same single-snapshot lookup as
+            // `findElements` rather than enumerating live queries per element.
+            for candidate in matchableElements(in: target)
+                where matches(candidate: candidate, id: id, label: label, containsText: containsText) {
+                let frame = candidate.frame.standardized
+                guard !frame.isNull, !frame.isEmpty else { continue }
+                swipeFromCentre(of: frame, direction: direction)
                 return
             }
         }
@@ -226,26 +223,9 @@ final class XCUITestBridge: @unchecked Sendable {
         bundleID: String? = nil,
         candidateBundleIDs: [String] = []
     ) -> [ElementSnapshot] {
-        var results: [ElementSnapshot] = []
-
         let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
-        let allElements = collectedElements(in: target)
-
-        for element in allElements {
-            if matches(element: element, id: id, label: label, containsText: containsText) {
-                results.append(ElementSnapshot(
-                    id: element.identifier,
-                    label: element.label,
-                    value: (element.value as? String) ?? "",
-                    type: "\(element.elementType)",
-                    frame: element.frame,
-                    isEnabled: element.isEnabled,
-                    isVisible: element.exists && element.isHittable
-                ))
-            }
-        }
-
-        return results
+        return matchableElements(in: target)
+            .filter { matches(candidate: $0, id: id, label: label, containsText: containsText) }
     }
 
     func tapElement(
@@ -256,21 +236,12 @@ final class XCUITestBridge: @unchecked Sendable {
         candidateBundleIDs: [String] = []
     ) -> Bool {
         let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
-        let allElements = collectedElements(in: target)
 
-        for element in allElements where matches(element: element, id: id, label: label, containsText: containsText) {
-            guard element.exists else { continue }
-            if element.isHittable {
-                element.tap()
-                return true
-            }
-
-            let frame = element.frame.standardized
+        for candidate in matchableElements(in: target)
+            where matches(candidate: candidate, id: id, label: label, containsText: containsText) {
+            let frame = candidate.frame.standardized
             guard !frame.isNull, !frame.isEmpty else { continue }
-
-            let coordinate = target.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
-            coordinate.tap()
+            gestureCoordinate(x: frame.midX, y: frame.midY).tap()
             return true
         }
 
@@ -548,7 +519,7 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     private func matches(
-        element: XCUIElement,
+        candidate: ElementSnapshot,
         id: String?,
         label: String?,
         containsText: String?
@@ -556,17 +527,91 @@ final class XCUITestBridge: @unchecked Sendable {
         var isMatch = true
 
         if let id, !id.isEmpty {
-            isMatch = isMatch && element.identifier == id
+            isMatch = isMatch && candidate.id == id
         }
         if let label, !label.isEmpty {
-            isMatch = isMatch && element.label == label
+            isMatch = isMatch && candidate.label == label
         }
         if let containsText, !containsText.isEmpty {
-            isMatch = isMatch && element.label.contains(containsText)
+            isMatch = isMatch && candidate.label.contains(containsText)
         }
 
         return isMatch
     }
+
+    /// Every element a selector could match, read from one tree snapshot.
+    ///
+    /// This used to enumerate ten live `XCUIElementQuery`s and then read `.identifier`, `.label`,
+    /// `.frame`, `.isEnabled` and `.isHittable` off each result — every one of those a separate
+    /// IPC round trip. On a dense screen that is thousands of round trips, and it killed the
+    /// companion outright: the launch log fills with `Find the Cell` until the stream closes.
+    /// `snapshot()` fetches the whole tree in a single call and the walk happens in-process.
+    ///
+    /// Visibility is derived geometrically rather than from `isHittable`, which is itself a
+    /// per-element round trip.
+    private func matchableElements(in target: XCUIApplication) -> [ElementSnapshot] {
+        guard let root = try? target.snapshot() else { return [] }
+        let viewport = visibleViewport(for: target)
+        var results: [ElementSnapshot] = []
+        collectMatchable(root, depth: 0, viewport: viewport, into: &results)
+        return results
+    }
+
+    private func collectMatchable(
+        _ snapshot: XCUIElementSnapshot,
+        depth: Int,
+        viewport: CGRect,
+        into results: inout [ElementSnapshot]
+    ) {
+        guard depth <= Self.maxMatchDepth, results.count < Self.maxMatchResults else { return }
+
+        // Anything carrying an identifier or a label, rather than a set of element types: SwiftUI
+        // reports nearly every node in a snapshot tree as `.other`, so a type filter here matches
+        // nothing at all. The live queries this replaced sidestepped that by resolving through
+        // accessibility traits, which a snapshot walk cannot see.
+        if !snapshot.identifier.isEmpty || !snapshot.label.isEmpty {
+            results.append(ElementSnapshot(
+                id: snapshot.identifier,
+                label: snapshot.label,
+                value: (snapshot.value as? String) ?? "",
+                type: "\(snapshot.elementType)",
+                frame: snapshot.frame,
+                isEnabled: snapshot.isEnabled,
+                isVisible: isSnapshotVisible(
+                    snapshot,
+                    visibleFrame: snapshotVisibleFrame(snapshot),
+                    viewport: viewport
+                )
+            ))
+        }
+
+        for child in snapshot.children {
+            collectMatchable(child, depth: depth + 1, viewport: viewport, into: &results)
+        }
+    }
+
+    /// A directional swipe centred on `frame`, travelling a quarter of its span.
+    private func swipeFromCentre(of frame: CGRect, direction: ScrollDirection) {
+        let dx = frame.width / 4
+        let dy = frame.height / 4
+        let (toX, toY): (CGFloat, CGFloat) = switch direction {
+        case .up: (frame.midX, frame.midY - dy)
+        case .down: (frame.midX, frame.midY + dy)
+        case .left: (frame.midX - dx, frame.midY)
+        case .right: (frame.midX + dx, frame.midY)
+        }
+        gestureCoordinate(x: frame.midX, y: frame.midY).press(
+            forDuration: 0.05,
+            thenDragTo: gestureCoordinate(x: toX, y: toY),
+            withVelocity: .default,
+            thenHoldForDuration: 0
+        )
+    }
+
+    /// Bounds on a pathological tree, so a dense screen degrades into a truncated answer instead
+    /// of taking the companion down with it.
+    private static let maxMatchDepth = 40
+    private static let maxMatchResults = 500
 
     private func resolvedTextInput() -> XCUIElement? {
         let primaryCandidates = textInputCandidates(in: app)
@@ -634,39 +679,6 @@ final class XCUITestBridge: @unchecked Sendable {
         coordinate.tap()
     }
 
-    private func collectedElements(in target: XCUIApplication) -> [XCUIElement] {
-        let queries: [XCUIElementQuery] = [
-            target.buttons,
-            target.staticTexts,
-            target.textFields,
-            target.textViews,
-            target.secureTextFields,
-            target.cells,
-            target.links,
-            target.images,
-            target.switches,
-            target.sliders
-        ]
-
-        var elements: [XCUIElement] = []
-        var seen = Set<String>()
-
-        for query in queries {
-            for element in query.allElementsBoundByAccessibilityElement {
-                let key = [
-                    String(element.elementType.rawValue),
-                    element.identifier,
-                    element.label,
-                    NSCoder.string(for: element.frame.standardized)
-                ].joined(separator: "|")
-                if seen.insert(key).inserted {
-                    elements.append(element)
-                }
-            }
-        }
-
-        return elements
-    }
 
     private func stableNodeID(identifier: String, label: String?) -> String {
         if !identifier.isEmpty {
