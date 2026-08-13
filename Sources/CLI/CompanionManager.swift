@@ -125,8 +125,18 @@ final class CompanionManager: @unchecked Sendable {
     func install(config: CompanionConfig, force: Bool = false) async throws {
         let productsDir = config.companionDir + "/build/Build/Products"
         if !force, findXCTestRun(productsDir: productsDir) != nil {
+            // Says "built", never "installed" or "running" — a previous build product on disk is
+            // all this proves. Reporting it as plain success is what made a dead companion look
+            // like a healthy one: nothing was on the device and nothing was listening on the port.
             print(
-                colored("Companion already built.", .green) + colored(" Use --force to rebuild.", .gray)
+                colored("Companion already built.", .green)
+                    + colored(" Use --force to rebuild.", .gray)
+            )
+            print(
+                colored(
+                    "This does not start it — run 'amoo companion start' to bring it up.",
+                    .gray
+                )
             )
             return
         }
