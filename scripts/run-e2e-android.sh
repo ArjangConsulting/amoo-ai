@@ -70,7 +70,7 @@ cleanup() {
         kill "$INSTRUMENT_PID" 2>/dev/null || true
         wait "$INSTRUMENT_PID" 2>/dev/null || true
     fi
-    "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" shell am force-stop com.manman.companion.test >/dev/null 2>&1 || true
+    "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" shell am force-stop com.amoo.companion.test >/dev/null 2>&1 || true
     "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" forward --remove "tcp:$COMPANION_PORT" >/dev/null 2>&1 || true
     log "Done."
 }
@@ -97,8 +97,8 @@ log "Forwarding localhost:$COMPANION_PORT to device port $COMPANION_PORT..."
 log "Starting Android companion instrumentation..."
 "${ADB_BASE[@]}" shell am instrument \
     -w \
-    -e class com.manman.companion.CompanionRunner \
-    com.manman.companion.test/androidx.test.runner.AndroidJUnitRunner \
+    -e class com.amoo.companion.CompanionRunner \
+    com.amoo.companion.test/androidx.test.runner.AndroidJUnitRunner \
     2>&1 | sed 's/^/  [companion] /' &
 INSTRUMENT_PID=$!
 
@@ -116,4 +116,4 @@ done
 log "Companion is reachable after ${WAITED}s."
 
 log "Running integration tests..."
-(cd "$REPO_ROOT" && COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="android" E2E_DEVICE_ID="$DEVICE_SERIAL" E2E_APP_ID="com.manman.companion" swift test --filter IntegrationTests)
+(cd "$REPO_ROOT" && COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="android" E2E_DEVICE_ID="$DEVICE_SERIAL" E2E_APP_ID="com.amoo.companion" swift test --filter IntegrationTests)

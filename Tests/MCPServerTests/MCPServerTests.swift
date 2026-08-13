@@ -360,6 +360,22 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(hierarchy.content.contains("root"))
     }
 
+    func testCurrentAppReturnsDeclaredStructuredContent() async {
+        let driver = MockDriver()
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+
+        let result = await server.execute(toolName: "current_app", arguments: [:])
+
+        XCTAssertFalse(result.isError)
+        XCTAssertEqual(
+            result.structuredContent,
+            .object([
+                "bundle_id": .string("com.example.frontmost"),
+                "target_bundle_id": .string("com.example.target")
+            ])
+        )
+    }
+
     func testExecuteScrollAndTypeText() async {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
@@ -1163,6 +1179,7 @@ private actor AuditMockDriver: PlatformDriver {
     func appState(appID _: String) async throws -> AppState {
         .notRunning
     }
+
 }
 
 private actor MockDriver: PlatformDriver {
@@ -1317,6 +1334,10 @@ private actor MockDriver: PlatformDriver {
 
     func appState(appID _: String) async throws -> AppState {
         .notRunning
+    }
+
+    func currentApp() async throws -> CurrentApp {
+        CurrentApp(bundleID: "com.example.frontmost", targetBundleID: "com.example.target")
     }
 }
 
