@@ -16,8 +16,8 @@ class TouchHandler(private val bridge: UIAutomatorBridge) {
         return bridge.longPress(x, y, durationMs)
     }
 
-    fun tapElement(resourceId: String?, text: String?): Boolean {
-        val elements = bridge.findElements(resourceId, text, null)
+    fun tapElement(resourceId: String?, text: String?, appId: String? = null): Boolean {
+        val elements = bridge.findElements(resourceId, text, null, appId)
         val first = elements.firstOrNull() ?: return false
         return bridge.tap(
             first.frame.x + first.frame.width / 2,

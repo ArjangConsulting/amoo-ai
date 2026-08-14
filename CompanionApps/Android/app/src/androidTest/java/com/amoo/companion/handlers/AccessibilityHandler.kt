@@ -8,9 +8,10 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
     fun findElements(
         resourceId: String?,
         text: String?,
-        containsText: String?
+        containsText: String?,
+        appId: String? = null
     ): List<ElementSnapshot> {
-        return bridge.findElements(resourceId, text, containsText)
+        return bridge.findElements(resourceId, text, containsText, appId)
     }
 
     fun isKeyboardVisible(): Boolean = bridge.isKeyboardVisible()
@@ -27,7 +28,7 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
 
     fun takeScreenshot(): ByteArray = bridge.takeScreenshot()
 
-    fun getAllElements(): List<ElementSnapshot> = bridge.getAllElements()
+    fun getAllElements(appId: String? = null): List<ElementSnapshot> = bridge.getAllElements(appId)
 
     fun getInteractableElements(): List<ElementSnapshot> = bridge.getInteractableElements()
 
