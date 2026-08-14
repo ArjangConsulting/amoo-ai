@@ -28,9 +28,11 @@ import amoo.v1.KeyboardVisibleResponse
 import amoo.v1.LongPressRequest
 import amoo.v1.ScreenContextRequest
 import amoo.v1.ScreenContextResponse
+import amoo.v1.ScreenInfoResponse
 import amoo.v1.ScreenshotRequest
 import amoo.v1.ScreenshotResponse
 import amoo.v1.ScrollRequest
+import amoo.v1.SetTargetAppRequest
 import amoo.v1.StartSessionRequest
 import amoo.v1.StartSessionResponse
 import amoo.v1.SwipeDirectionRequest
@@ -281,10 +283,29 @@ class CompanionServiceImpl(
 
     override suspend fun getCurrentApp(request: Empty): CurrentAppResponse {
         request
-        // Target-app binding (SetTargetApp) isn't implemented on Android yet, so
-        // target_bundle_id is always empty — matches the proto's "empty when unbound" contract.
-        return CurrentAppResponse.newBuilder()
+        val builder = CurrentAppResponse.newBuilder()
             .setBundleId(accessibility.currentPackageName())
+        accessibility.targetPackageNameBinding()?.let { builder.setTargetBundleId(it) }
+        return builder.build()
+    }
+
+    override suspend fun setTargetApp(request: SetTargetAppRequest): ActionResponse {
+        accessibility.setTargetPackageName(request.bundleId.takeUnless { it.isEmpty() })
+        return ActionResponse.newBuilder().setSuccess(true).build()
+    }
+
+    override suspend fun getScreenInfo(request: Empty): ScreenInfoResponse {
+        request
+        // UIAutomator gestures and screenshots already operate in raw device pixels, unlike
+        // iOS's points-vs-Retina-pixels split, so points and pixels are the same here.
+        val width = accessibility.screenWidth().toDouble()
+        val height = accessibility.screenHeight().toDouble()
+        return ScreenInfoResponse.newBuilder()
+            .setWidthPoints(width)
+            .setHeightPoints(height)
+            .setWidthPixels(width)
+            .setHeightPixels(height)
+            .setScale(1.0)
             .build()
     }
 

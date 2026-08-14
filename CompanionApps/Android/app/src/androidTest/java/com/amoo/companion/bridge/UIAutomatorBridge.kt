@@ -239,9 +239,22 @@ class UIAutomatorBridge {
         }
     }
 
+    /** App explicitly bound via [setTargetPackageName], for query/gesture scoping. Unbound by default. */
+    private var boundTargetPackageName: String? = null
+
     fun currentPackageName(): String {
         return device.currentPackageName ?: targetPackageName
     }
+
+    fun targetPackageNameBinding(): String? = boundTargetPackageName
+
+    fun setTargetPackageName(bundleId: String?) {
+        boundTargetPackageName = bundleId
+    }
+
+    fun screenWidth(): Int = device.displayWidth
+
+    fun screenHeight(): Int = device.displayHeight
 
     fun isKeyboardVisible(): Boolean {
         // Heuristic: check if IME is shown via shell command

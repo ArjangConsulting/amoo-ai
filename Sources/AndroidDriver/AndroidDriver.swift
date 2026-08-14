@@ -285,6 +285,21 @@ public actor AndroidDriver: PlatformDriver {
         return CurrentApp(bundleID: info.bundleID, targetBundleID: info.targetBundleID)
     }
 
+    public func setTargetApp(bundleID: String?) async throws {
+        try await companion.setTargetApp(bundleID: bundleID)
+    }
+
+    public func screenGeometry() async throws -> ScreenSize {
+        let info = try await companion.screenInfo()
+        return ScreenSize(
+            widthPoints: info.widthPoints,
+            heightPoints: info.heightPoints,
+            widthPixels: info.widthPixels,
+            heightPixels: info.heightPixels,
+            scale: info.scale
+        )
+    }
+
     // MARK: - Configuration
 
     public func setPermission(_ change: PermissionChange) async throws {

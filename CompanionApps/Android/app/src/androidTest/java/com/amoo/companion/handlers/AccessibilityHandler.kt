@@ -17,6 +17,14 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
 
     fun currentPackageName(): String = bridge.currentPackageName()
 
+    fun targetPackageNameBinding(): String? = bridge.targetPackageNameBinding()
+
+    fun setTargetPackageName(bundleId: String?) = bridge.setTargetPackageName(bundleId)
+
+    fun screenWidth(): Int = bridge.screenWidth()
+
+    fun screenHeight(): Int = bridge.screenHeight()
+
     fun takeScreenshot(): ByteArray = bridge.takeScreenshot()
 
     fun getAllElements(): List<ElementSnapshot> = bridge.getAllElements()
