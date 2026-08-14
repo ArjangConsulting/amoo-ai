@@ -185,6 +185,23 @@ class UIAutomatorBridge {
         focused?.clear()
     }
 
+    fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
+        device.waitForIdle(2000)
+        val candidates = currentElements().filter { matches(it, resourceId, label, containsText) }
+        // A selector matching by label usually hits the field's own TextView label first, and
+        // setting text on that silently does nothing. Prefer an actual editable node.
+        val target = candidates.firstOrNull { it.className?.contains("EditText") == true }
+            ?: candidates.firstOrNull()
+            ?: return false
+        val before = target.text.orEmpty()
+        target.click()
+        target.text = value
+        val after = target.text.orEmpty()
+        // A password field reports a mask rather than what was typed, so an exact match is not
+        // always available — but the content still has to have moved off what was there before.
+        return after == value || (value.isNotEmpty() && after.isNotEmpty() && after != before)
+    }
+
     // -- Navigation --
 
     fun pressBack(): Boolean = device.pressBack()

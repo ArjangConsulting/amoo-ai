@@ -60,8 +60,7 @@ actor CLILoadingIndicator {
         hasRendered = true
     }
 
-    // swiftlint:disable:next modifier_order
-    private nonisolated static func writeToStandardError(_ text: String) {
+    nonisolated private static func writeToStandardError(_ text: String) {
         guard let data = text.data(using: .utf8) else { return }
         try? FileHandle.standardError.write(contentsOf: data)
     }

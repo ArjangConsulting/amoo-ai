@@ -178,8 +178,21 @@ extension SimulatorHostBackend {
 
         // Fallback: old-style property list text format (key = "value";)
         // Extracts CFBundleIdentifier from lines like: CFBundleIdentifier = "com.example.app";
-        var apps: [AppInfo] = []
         let lines = plistOutput.components(separatedBy: "\n")
+        var apps = parseOldStylePlistApps(lines: lines)
+
+        // Fallback: XML plist format with <string> tags
+        if apps.isEmpty {
+            apps = parseXMLPlistFallbackApps(lines: lines)
+        }
+
+        return apps
+    }
+
+    /// Parses old-style property list text format (key = "value";), extracting bundle entries
+    /// from lines like: CFBundleIdentifier = "com.example.app";
+    private static func parseOldStylePlistApps(lines: [String]) -> [AppInfo] {
+        var apps: [AppInfo] = []
         var currentBundleID: String?
         var currentName: String?
         var currentVersion: String?
@@ -216,26 +229,28 @@ extension SimulatorHostBackend {
             apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
         }
 
-        // Fallback: XML plist format with <string> tags
-        if apps.isEmpty {
-            var foundKey = false
-            for line in lines {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.contains("CFBundleIdentifier") {
-                    foundKey = true
-                    continue
+        return apps
+    }
+
+    /// Parses XML plist format with `<string>` tags as a last-resort fallback.
+    private static func parseXMLPlistFallbackApps(lines: [String]) -> [AppInfo] {
+        var apps: [AppInfo] = []
+        var foundKey = false
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("CFBundleIdentifier") {
+                foundKey = true
+                continue
+            }
+            if foundKey {
+                if let start = trimmed.range(of: "<string>"),
+                   let end = trimmed.range(of: "</string>") {
+                    let bundleID = String(trimmed[start.upperBound ..< end.lowerBound])
+                    apps.append(AppInfo(appID: bundleID))
                 }
-                if foundKey {
-                    if let start = trimmed.range(of: "<string>"),
-                       let end = trimmed.range(of: "</string>") {
-                        let bundleID = String(trimmed[start.upperBound ..< end.lowerBound])
-                        apps.append(AppInfo(appID: bundleID))
-                    }
-                    foundKey = false
-                }
+                foundKey = false
             }
         }
-
         return apps
     }
 

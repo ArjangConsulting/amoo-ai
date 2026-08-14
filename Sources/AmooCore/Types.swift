@@ -42,7 +42,9 @@ public struct Rect: Sendable, Equatable, Codable {
     }
 
     /// Centre of the rect — the point a tap on this element should use.
-    public var centre: Point { Point(x: x + width / 2, y: y + height / 2) }
+    public var centre: Point {
+        Point(x: x + width / 2, y: y + height / 2)
+    }
 }
 
 public enum ImageFormat: String, Sendable, Equatable {

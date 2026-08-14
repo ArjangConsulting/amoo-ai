@@ -2,10 +2,9 @@ import AmooCore
 import CoreGraphics
 import Foundation
 import ImageIO
+@testable import MCPServer
 import UniformTypeIdentifiers
 import XCTest
-
-@testable import MCPServer
 
 final class ScreenshotAnnotatorTests: XCTestCase {
     private func makePNG(width: Int, height: Int) -> Data {
@@ -41,7 +40,10 @@ final class ScreenshotAnnotatorTests: XCTestCase {
     func testAnnotateReturnsNilForUndecodableData() {
         let garbage = Data([0xFF, 0x00, 0x11])
         let issue = ElementA11yIssue(
-            id: "1", label: "button", type: "button", issue: "missing_label",
+            id: "1",
+            label: "button",
+            type: "button",
+            issue: "missing_label",
             frame: Rect(x: 0, y: 0, width: 10, height: 10)
         )
         XCTAssertNil(ScreenshotAnnotator.annotate(pngData: garbage, issues: [issue], viewportWidth: 50))
@@ -58,19 +60,31 @@ final class ScreenshotAnnotatorTests: XCTestCase {
         let png = makePNG(width: 100, height: 100)
         let issues = [
             ElementA11yIssue(
-                id: "1", label: "button", type: "button", issue: "missing_label",
+                id: "1",
+                label: "button",
+                type: "button",
+                issue: "missing_label",
                 frame: Rect(x: 10, y: 10, width: 20, height: 20)
             ),
             ElementA11yIssue(
-                id: "2", label: "label", type: "text", issue: "generic_label",
+                id: "2",
+                label: "label",
+                type: "text",
+                issue: "generic_label",
                 frame: Rect(x: 40, y: 40, width: 15, height: 15)
             ),
             ElementA11yIssue(
-                id: "3", label: "dup", type: "text", issue: "duplicate_label_foo",
+                id: "3",
+                label: "dup",
+                type: "text",
+                issue: "duplicate_label_foo",
                 frame: Rect(x: 60, y: 60, width: 10, height: 10)
             ),
             ElementA11yIssue(
-                id: "4", label: "other", type: "text", issue: "some_unknown_issue",
+                id: "4",
+                label: "other",
+                type: "text",
+                issue: "some_unknown_issue",
                 frame: Rect(x: 5, y: 5, width: 5, height: 5)
             )
         ]
@@ -86,7 +100,10 @@ final class ScreenshotAnnotatorTests: XCTestCase {
     func testAnnotateHandlesZeroViewportWidth() throws {
         let png = makePNG(width: 30, height: 30)
         let issue = ElementA11yIssue(
-            id: "1", label: "button", type: "button", issue: "missing_label",
+            id: "1",
+            label: "button",
+            type: "button",
+            issue: "missing_label",
             frame: Rect(x: 5, y: 5, width: 5, height: 5)
         )
         let result = try XCTUnwrap(ScreenshotAnnotator.annotate(pngData: png, issues: [issue], viewportWidth: 0))

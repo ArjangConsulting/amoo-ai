@@ -27,7 +27,6 @@ public struct CLIApp {
         self.auditRunner = auditRunner
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     public func run(args: [String]) async -> CLIResult {
         if args.isEmpty {
             // Default interactive mode when no arguments are provided.
@@ -43,82 +42,109 @@ public struct CLIApp {
             return CLIResult(output: mcpServer.toolNames().joined(separator: ","), exitCode: 0)
         }
 
-        if args.first == "preflight" {
-            if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderPreflightHelp(), exitCode: 0)
-            }
-            let parsed = parsePreflightPlatform(args: Array(args.dropFirst()))
-            switch parsed {
-            case let .failure(message):
-                return CLIResult(output: message, exitCode: 64)
-            case let .success(platform):
-                let report = await preflightChecker.run(platform: platform)
-                let output = renderPreflightReport(report)
-                return CLIResult(output: output, exitCode: report.hasFailures ? 2 : 0)
-            }
-        }
-
-        if args.first == "device" {
-            if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderDeviceHelp(), exitCode: 0)
-            }
-            switch parseDeviceCommandOptions(args: Array(args.dropFirst())) {
-            case let .failure(error):
-                return CLIResult(output: error.description, exitCode: 64)
-            case let .success(options):
-                return await runDeviceCommand(options: options)
-            }
-        }
-
-        if args.first == "companion" {
-            if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderCompanionHelp(), exitCode: 0)
-            }
-            switch parseCompanionCommandOptions(args: Array(args.dropFirst())) {
-            case let .failure(error):
-                return CLIResult(output: error.description, exitCode: 64)
-            case let .success(options):
-                return await runCompanionCommand(options: options)
-            }
-        }
-
-        if args.first == "audit" {
-            if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderAuditHelp(), exitCode: 0)
-            }
-            do {
-                let options = try parseAuditOptions(args: Array(args.dropFirst()))
-                let execution = try await runAuditCommand(options: options, runner: auditRunner)
-                return CLIResult(output: execution.output, exitCode: execution.exitCode)
-            } catch let error as AuditCommandParseError {
-                return CLIResult(output: error.description, exitCode: 64)
-            } catch {
-                return CLIResult(output: "Audit command failed: \(error)", exitCode: 1)
-            }
-        }
-
-        if args.first == "chat" {
-            if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderChatHelp(), exitCode: 0)
-            }
-            switch parseChatCommandOptions(args: Array(args.dropFirst())) {
-            case let .failure(error):
-                return CLIResult(output: error.description, exitCode: 64)
-            case let .success(options):
-                return await runChatCommand(options: options)
-            }
-        }
-
-        if args.first == "mcp" {
-            if isHelpRequest(Array(args.dropFirst())) {
-                return CLIResult(output: renderMCPHelp(), exitCode: 0)
-            }
-            return await runMCPCommand(args: Array(args.dropFirst()))
+        if let result = await dispatchSubcommand(args: args) {
+            return result
         }
 
         // Default: interactive REPL mode
         await startREPLMode(args: args)
         return CLIResult(output: "", exitCode: 0)
+    }
+
+    private func dispatchSubcommand(args: [String]) async -> CLIResult? {
+        let remaining = Array(args.dropFirst())
+        switch args.first {
+        case "preflight": return await handlePreflightCommand(remaining: remaining)
+        case "device": return await handleDeviceCommand(remaining: remaining)
+        case "companion": return await handleCompanionCommand(remaining: remaining)
+        case "flow": return await handleFlowCommand(remaining: remaining)
+        case "audit": return await handleAuditCommand(remaining: remaining)
+        case "chat": return await handleChatCommand(remaining: remaining)
+        case "mcp": return await handleMCPCommand(remaining: remaining)
+        default: return nil
+        }
+    }
+
+    private func handlePreflightCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: renderPreflightHelp(), exitCode: 0)
+        }
+        switch parsePreflightPlatform(args: remaining) {
+        case let .failure(message):
+            return CLIResult(output: message, exitCode: 64)
+        case let .success(platform):
+            let report = await preflightChecker.run(platform: platform)
+            let output = renderPreflightReport(report)
+            return CLIResult(output: output, exitCode: report.hasFailures ? 2 : 0)
+        }
+    }
+
+    private func handleDeviceCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: renderDeviceHelp(), exitCode: 0)
+        }
+        switch parseDeviceCommandOptions(args: remaining) {
+        case let .failure(error):
+            return CLIResult(output: error.description, exitCode: 64)
+        case let .success(options):
+            return await runDeviceCommand(options: options)
+        }
+    }
+
+    private func handleCompanionCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: renderCompanionHelp(), exitCode: 0)
+        }
+        switch parseCompanionCommandOptions(args: remaining) {
+        case let .failure(error):
+            return CLIResult(output: error.description, exitCode: 64)
+        case let .success(options):
+            return await runCompanionCommand(options: options)
+        }
+    }
+
+    private func handleFlowCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) || remaining.isEmpty {
+            return CLIResult(output: renderFlowHelp(), exitCode: remaining.isEmpty ? 64 : 0)
+        }
+        guard remaining.count == 1 else {
+            return CLIResult(output: renderFlowHelp(), exitCode: 64)
+        }
+        return await runFlowCommand(path: remaining[0])
+    }
+
+    private func handleAuditCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: renderAuditHelp(), exitCode: 0)
+        }
+        do {
+            let options = try parseAuditOptions(args: remaining)
+            let execution = try await runAuditCommand(options: options, runner: auditRunner)
+            return CLIResult(output: execution.output, exitCode: execution.exitCode)
+        } catch let error as AuditCommandParseError {
+            return CLIResult(output: error.description, exitCode: 64)
+        } catch {
+            return CLIResult(output: "Audit command failed: \(error)", exitCode: 1)
+        }
+    }
+
+    private func handleChatCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: renderChatHelp(), exitCode: 0)
+        }
+        switch parseChatCommandOptions(args: remaining) {
+        case let .failure(error):
+            return CLIResult(output: error.description, exitCode: 64)
+        case let .success(options):
+            return await runChatCommand(options: options)
+        }
+    }
+
+    private func handleMCPCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: renderMCPHelp(), exitCode: 0)
+        }
+        return await runMCPCommand(args: remaining)
     }
 }
 
@@ -149,6 +175,7 @@ func renderCLIHelp() -> String {
       preflight [--platform ...]   Check local tooling and environment
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
+      flow <path.amoo.json>        Run a reusable checked-in device flow
       audit ...                    Run app audit rules
       chat                         Interactive AI chat (Ollama + MCP tools)
       mcp serve                    Run the local MCP stdio server for AI clients

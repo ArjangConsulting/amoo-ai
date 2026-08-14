@@ -11,7 +11,8 @@ public struct MCPStdioServer: Sendable {
         "2024-11-05"
     ]
 
-    private static let instructions = "Use these tools to inspect and control a local iOS simulator or Android emulator through amoo. Prefer accessibility identifiers and labels over coordinates when possible."
+    private static let instructions = "Use these tools to inspect and control a local iOS simulator or Android emulator"
+        + " through amoo. Prefer accessibility identifiers and labels over coordinates when possible."
     private static let cacheTTLMilliseconds = 3_600_000
 
     private let server: MCPServer

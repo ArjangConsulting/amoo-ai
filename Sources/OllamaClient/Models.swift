@@ -98,7 +98,9 @@ public struct ChatResponse: Sendable {
     public var toolCalls: [ToolCall]
     public var doneReason: String?
 
-    public var hasToolCalls: Bool { !toolCalls.isEmpty }
+    public var hasToolCalls: Bool {
+        !toolCalls.isEmpty
+    }
 }
 
 public struct ToolCall: Sendable {

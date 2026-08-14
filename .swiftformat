@@ -18,3 +18,7 @@
 # broke the iOS companion build with errors that appeared to come from the dependency.
 # Globs (not just literal paths) so any derived-data location is covered.
 --exclude .build,.swiftpm,DerivedData,**/DerivedData,**/SourcePackages,**/checkouts,CompanionApps/iOS/build,CompanionApps/iOS/GeneratedProtos,CompanionApps/Android/build
+
+# SwiftLint's modifier_order wants `nonisolated public`; SwiftFormat defaults to the
+# reverse, so the two tools rewrite each other forever. Pin the order SwiftLint expects.
+--modifierorder nonisolated,private,fileprivate,internal,public,open,private(set),final
