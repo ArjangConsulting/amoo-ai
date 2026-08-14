@@ -1,4 +1,4 @@
-.PHONY: format lint test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build e2e-ios e2e-android e2e-all
+.PHONY: format lint test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -56,3 +56,6 @@ e2e-android:
 
 e2e-all:
 	bash ./scripts/run-e2e-all.sh
+
+docs:
+	./scripts/with-protoc.sh scripts/generate-docs.sh

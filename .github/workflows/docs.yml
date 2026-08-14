@@ -1,0 +1,63 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install tooling
+        run: |
+          brew install protobuf
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-docs-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-docs-${{ runner.os }}-
+
+      - name: Export protoc path
+        run: |
+          echo "PROTOC_PATH=$(brew --prefix protobuf)/bin/protoc" >> "$GITHUB_ENV"
+
+      - name: Generate DocC site
+        run: ./scripts/generate-docs.sh site --static --hosting-base-path "/${{ github.event.repository.name }}"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
