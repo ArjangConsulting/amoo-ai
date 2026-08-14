@@ -58,7 +58,7 @@ make companion-android-build   # gradle assembleDebug assembleAndroidTest
 | Tool | Install | Needed for |
 | --- | --- | --- |
 | `protoc` | `brew install protobuf` | gRPC Swift protobuf build plugin (all builds) |
-| **JDK 21** | `brew install --cask temurin@21` | Android companion. Newer JDKs (26) fail in `compileDebugJavaWithJavac` with a `jlink` / `core-for-system-modules.jar` error. Set `JAVA_HOME` to the JDK 21 path. |
+| **JDK 17–21** | `brew install --cask temurin@21` | Android companion. AGP 8.7 does not run on anything newer; a JDK 26 build fails with a `jlink` / `core-for-system-modules.jar` error, or a missing `com/android/aaptcompiler/ResourceCompiler` in `mergeDebugResources` — neither mentions the JDK. `make companion-android-build` and `amoo companion` resolve a supported JDK themselves (`scripts/android-jdk.sh` / `Sources/CLI/AndroidJDK.swift`), so `JAVA_HOME` only needs setting if one is installed somewhere non-standard. `swift run amoo preflight --platform android` reports which JDK was picked. |
 | `iproxy` | `brew install libimobiledevice` | **Physical iOS devices only.** USB tunnel to the companion — `devicectl` has no port forwarding, unlike Android's `adb forward`. Simulators don't need it. The binary actually ships in `libusbmuxd`, pulled in and linked as a dependency of `libimobiledevice`. |
 
 `swift run amoo preflight --platform ios` checks these; device-only tooling reports `WARN`

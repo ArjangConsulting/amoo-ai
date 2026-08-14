@@ -63,8 +63,11 @@ final class AndroidCompanionManager: @unchecked Sendable {
     private let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
+        // Gradle inherits JAVA_HOME from here. AGP 8.7 cannot run on a JDK newer than 21, and
+        // the failures it produces name neither Java nor the JDK — see `AndroidJDK`.
         shellContext = ShellContext(
-            executor: ProcessRunnerCommandExecutor(processRunner: processRunner)
+            executor: ProcessRunnerCommandExecutor(processRunner: processRunner),
+            environment: AndroidJDK.gradleEnvironment()
         )
     }
 
@@ -93,19 +96,32 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     /// Ensures the companion is reachable. Builds, installs, forwards TCP, spawns
     /// the instrumentation runner, and waits for the gRPC port — only as needed.
-    func ensureRunning(config: AndroidCompanionConfig) async throws {
-        // Reuse only when the same device + port are already wired up. A
-        // different serial means the existing port forward is routing to the
-        // wrong device — tear it down before rebuilding.
-        if let active = activeConfig,
-           active.serial == config.serial,
-           active.port == config.port,
-           await isReachable(host: config.host, port: config.port) {
+    func ensureRunning(config: AndroidCompanionConfig, force: Bool = false) async throws {
+        let sourcesChanged = !sourceFingerprintMatches(config: config)
+        if force {
+            if activeConfig == nil {
+                await stopExternalCompanion(config: config)
+            } else {
+                await shutdown()
+            }
+        }
+
+        if await isReachable(host: config.host, port: config.port), !force, !sourcesChanged {
             print("Android companion already running on port \(config.port) for"
                 + " \(config.serial ?? "default device").")
             return
         }
 
+        if await isReachable(host: config.host, port: config.port), sourcesChanged {
+            // The stale companion may be one we spawned. Going through `shutdown()` in that case
+            // also clears `activeConfig` and drops the runner handle — otherwise the next call
+            // reuses a config describing a process that is no longer serving.
+            if activeConfig == nil {
+                await stopExternalCompanion(config: config)
+            } else {
+                await shutdown()
+            }
+        }
         if let active = activeConfig, active.serial != config.serial || active.port != config.port {
             print("Switching Android companion from"
                 + " \(active.serial ?? "default") → \(config.serial ?? "default")...")
@@ -113,12 +129,14 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
 
         let (appApk, testApk) = apkPaths(companionDir: config.companionDir)
-        let needsBuild =
-            !FileManager.default.fileExists(atPath: appApk)
-                || !FileManager.default.fileExists(atPath: testApk)
+        let needsBuild = force
+            || sourcesChanged
+            || !FileManager.default.fileExists(atPath: appApk)
+            || !FileManager.default.fileExists(atPath: testApk)
 
         if needsBuild {
-            print("No Android companion build found. Building (this may take a moment)...")
+            print("Android companion sources changed or no build exists."
+                + " Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
@@ -193,6 +211,85 @@ final class AndroidCompanionManager: @unchecked Sendable {
             let message = result.stderr.isEmpty ? result.stdout : result.stderr
             throw AndroidCompanionError.buildFailed(message)
         }
+        try writeSourceFingerprint(config: config)
+    }
+
+    private func stopExternalCompanion(config: AndroidCompanionConfig) async {
+        _ = try? await Adb(context: shellContext)
+            .serial(config.serial)
+            .amForceStop(package: "com.amoo.companion.test")
+            .run()
+            .processResult
+        _ = try? await Adb(context: shellContext)
+            .serial(config.serial)
+            .removeForwardTCP(localPort: config.port)
+            .run()
+            .processResult
+    }
+
+    func currentSourceFingerprint(config: AndroidCompanionConfig) -> String {
+        let root = URL(fileURLWithPath: config.companionDir)
+        let locations = [
+            root.appendingPathComponent("app/src", isDirectory: true),
+            root.appendingPathComponent("app/build.gradle.kts"),
+            root.appendingPathComponent("build.gradle.kts"),
+            root.appendingPathComponent("settings.gradle.kts")
+        ]
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
+            for byte in url.path.utf8 {
+                hash = fingerprint(hash, byte: byte)
+            }
+            if let data = try? Data(contentsOf: url) {
+                for byte in data {
+                    hash = fingerprint(hash, byte: byte)
+                }
+            }
+        }
+        return String(hash, radix: 16)
+    }
+
+    private func sourceFiles(at locations: [URL]) -> [URL] {
+        locations.flatMap { location -> [URL] in
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory) else { return [] }
+            if !isDirectory.boolValue {
+                return [location]
+            }
+            guard let enumerator = FileManager.default.enumerator(
+                at: location,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ) else { return [] }
+            return enumerator.compactMap { item in
+                guard let url = item as? URL,
+                      (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+                else { return nil }
+                return url
+            }
+        }
+    }
+
+    private func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
+        (hash ^ UInt64(byte)) &* 1_099_511_628_211
+    }
+
+    private func sourceFingerprintMatches(config: AndroidCompanionConfig) -> Bool {
+        (try? String(contentsOfFile: fingerprintPath(config: config), encoding: .utf8))
+            == currentSourceFingerprint(config: config)
+    }
+
+    private func writeSourceFingerprint(config: AndroidCompanionConfig) throws {
+        let path = fingerprintPath(config: config)
+        try FileManager.default.createDirectory(
+            at: URL(fileURLWithPath: path).deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try currentSourceFingerprint(config: config).write(toFile: path, atomically: true, encoding: .utf8)
+    }
+
+    private func fingerprintPath(config: AndroidCompanionConfig) -> String {
+        config.companionDir + "/app/build/.amoo-source-fingerprint"
     }
 
     private func installAPKs(

@@ -2,7 +2,7 @@ import AmooCore
 import Foundation
 
 /// Owns active sessions and bootstraps new ones. Created once per MCP server.
-public actor SessionManager: Sendable {
+public actor SessionManager {
     private let bootstrapper: any SessionBootstrapper
     private let idGenerator: @Sendable () -> String
     private var sessions: [String: TestSession] = [:]
@@ -24,12 +24,14 @@ public actor SessionManager: Sendable {
         environment: [String: String] = [:]
     ) async throws -> TestSession {
         let bootstrap = try await bootstrapper.bootstrap(
-            appID: appID,
-            platform: platform,
-            deviceHint: deviceHint,
-            buildPath: buildPath,
-            arguments: arguments,
-            environment: environment
+            SessionBootstrapRequest(
+                appID: appID,
+                platform: platform,
+                deviceHint: deviceHint,
+                buildPath: buildPath,
+                arguments: arguments,
+                environment: environment
+            )
         )
         let id = idGenerator()
         let session = TestSession(

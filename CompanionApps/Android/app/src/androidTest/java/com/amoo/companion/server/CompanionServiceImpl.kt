@@ -37,6 +37,7 @@ import amoo.v1.SwipeRequest
 import amoo.v1.TapElementRequest
 import amoo.v1.TapRequest
 import amoo.v1.TypeTextRequest
+import amoo.v1.SetTextRequest
 import amoo.v1.ViewHierarchyRequest
 import amoo.v1.ViewHierarchyResponse
 import amoo.v1.WaitForElementRequest
@@ -82,6 +83,7 @@ class CompanionServiceImpl(
             capability("action.drag", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
             capability("action.typeText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.clearText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
+            capability("action.setText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.tapElement", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.pressBack", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.pressHome", CapabilityTier.CAPABILITY_TIER_REQUIRED),
@@ -197,6 +199,19 @@ class CompanionServiceImpl(
         request
         text.clearText()
         return success("cleared text")
+    }
+
+    override suspend fun setText(request: SetTextRequest): ActionResponse {
+        val selector = request.selector
+        return actionResponse(
+            text.setText(
+                selector.id.takeUnless { it.isBlank() },
+                selector.label.takeUnless { it.isBlank() },
+                selector.containsText.takeUnless { it.isBlank() },
+                request.text
+            ),
+            "text field not found or value was not accepted"
+        )
     }
 
     override suspend fun pressBack(request: Empty): ActionResponse {

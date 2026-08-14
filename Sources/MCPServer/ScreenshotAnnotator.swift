@@ -4,11 +4,17 @@ import Foundation
 import ImageIO
 
 enum ScreenshotAnnotator {
+    private struct RGBColor {
+        let red: CGFloat
+        let green: CGFloat
+        let blue: CGFloat
+    }
+
     /// Colors keyed by issue prefix
-    private static let issueColors: [(prefix: String, color: (CGFloat, CGFloat, CGFloat))] = [
-        ("missing_label", (1.0, 0.22, 0.22)), // red
-        ("generic_label", (1.0, 0.60, 0.00)), // orange
-        ("duplicate_label", (1.0, 0.85, 0.00)) // yellow
+    private static let issueColors: [(prefix: String, color: RGBColor)] = [
+        ("missing_label", RGBColor(red: 1.0, green: 0.22, blue: 0.22)), // red
+        ("generic_label", RGBColor(red: 1.0, green: 0.60, blue: 0.00)), // orange
+        ("duplicate_label", RGBColor(red: 1.0, green: 0.85, blue: 0.00)) // yellow
     ]
 
     static func annotate(pngData: Data, issues: [ElementA11yIssue], viewportWidth: Double) -> Data? {
@@ -76,8 +82,8 @@ enum ScreenshotAnnotator {
     }
 
     private static func strokeColor(for issue: String) -> CGColor {
-        for (prefix, (r, g, b)) in issueColors where issue.hasPrefix(prefix) {
-            return CGColor(red: r, green: g, blue: b, alpha: 1.0)
+        for (prefix, color) in issueColors where issue.hasPrefix(prefix) {
+            return CGColor(red: color.red, green: color.green, blue: color.blue, alpha: 1.0)
         }
         // purple fallback for any future issue types
         return CGColor(red: 0.55, green: 0.0, blue: 1.0, alpha: 1.0)

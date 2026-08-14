@@ -6,17 +6,36 @@ import Foundation
 public protocol SessionBootstrapper: Sendable {
     /// Boot/select a device, ensure the companion is reachable, install + launch
     /// the app, and return a ready-to-use driver bound to that session.
-    func bootstrap(
-        appID: String,
-        platform: Platform,
-        deviceHint: String?,
-        buildPath: String?,
-        arguments: [String],
-        environment: [String: String]
-    ) async throws -> BootstrapResult
+    func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult
 
     /// Enumerate currently usable devices for the given platform (or all when nil).
     func listDevices(platform: Platform?) async throws -> [DeviceInfo]
+}
+
+/// Groups the parameters needed to bootstrap a new test session.
+public struct SessionBootstrapRequest: Sendable {
+    public let appID: String
+    public let platform: Platform
+    public let deviceHint: String?
+    public let buildPath: String?
+    public let arguments: [String]
+    public let environment: [String: String]
+
+    public init(
+        appID: String,
+        platform: Platform,
+        deviceHint: String? = nil,
+        buildPath: String? = nil,
+        arguments: [String] = [],
+        environment: [String: String] = [:]
+    ) {
+        self.appID = appID
+        self.platform = platform
+        self.deviceHint = deviceHint
+        self.buildPath = buildPath
+        self.arguments = arguments
+        self.environment = environment
+    }
 }
 
 public struct BootstrapResult: Sendable {

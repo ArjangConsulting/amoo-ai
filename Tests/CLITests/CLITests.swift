@@ -8,6 +8,51 @@ import SwiftyShell
 import XCTest
 
 final class CLITests: XCTestCase {
+    func testFlowJSONDecodesReusableSteps() throws {
+        let data = Data("""
+        {
+          "platform": "ios",
+          "device_id": "booted",
+          "steps": [
+            { "name": "Open account", "tool": "tap_element", "arguments": { "id": "account" } },
+            { "tool": "assert_enabled", "arguments": { "id": "sign-in" } }
+          ]
+        }
+        """.utf8)
+
+        let flow = try JSONDecoder().decode(TestFlow.self, from: data)
+
+        XCTAssertEqual(flow.platform, "ios")
+        XCTAssertEqual(flow.deviceID, "booted")
+        XCTAssertEqual(flow.steps.map(\.tool), ["tap_element", "assert_enabled"])
+    }
+
+    func testDefaultCompanionDirectoryResolvesFromInstalledExecutable() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executable = root.appendingPathComponent(".build/debug/amoo")
+        let companion = root.appendingPathComponent("CompanionApps/iOS", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: executable.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(at: companion, withIntermediateDirectories: true)
+        XCTAssertTrue(
+            FileManager.default.createFile(
+                atPath: companion.appendingPathComponent("project.yml").path,
+                contents: Data()
+            )
+        )
+
+        let resolved = CompanionConfig.defaultCompanionDir(
+            executableURL: executable,
+            currentDirectoryPath: "/tmp/unrelated-project"
+        )
+
+        XCTAssertEqual(resolved, companion.path)
+    }
+
     func testDefaultOutput() async {
         // REPL mode (no subcommand): prints nothing to CLIResult, exits 0 after device selection fails silently
         let app = CLIApp()
@@ -175,713 +220,9 @@ final class CLITests: XCTestCase {
 
         XCTAssertEqual(error.description, "Unknown option '--transport'.")
     }
-
-    func testAvailablePlatformsIncludesOnlyLaunchablePlatforms() {
-        XCTAssertEqual(
-            test_availablePlatforms(
-                iosSimulators: [IOSSimulatorDevice(udid: "SIM-1", name: "iPhone 16", osVersion: "18.0")],
-                androidVirtualDevices: []
-            ),
-            [.ios]
-        )
-
-        XCTAssertEqual(
-            test_availablePlatforms(
-                iosSimulators: [],
-                androidVirtualDevices: [AndroidVirtualDevice(name: "Pixel_9")]
-            ),
-            [.android]
-        )
-
-        XCTAssertEqual(
-            test_availablePlatforms(
-                iosSimulators: [IOSSimulatorDevice(udid: "SIM-1", name: "iPhone 16", osVersion: "18.0")],
-                androidVirtualDevices: [AndroidVirtualDevice(name: "Pixel_9")]
-            ),
-            [.ios, .android]
-        )
-    }
-
-    func testParseConnectedIOSDevicesOnlyReturnsTunnelledIOSDevices() {
-        let devices = test_parseConnectedIOSDevices(json: """
-        {
-          "result": {
-            "devices": [
-              {
-                "identifier": "ID-1",
-                "deviceProperties": { "name": "Mani's iPhone", "osVersionNumber": "18.2" },
-                "hardwareProperties": { "udid": "UDID-1", "platform": "iOS" },
-                "connectionProperties": { "tunnelState": "connected" }
-              },
-              {
-                "identifier": "ID-2",
-                "deviceProperties": { "name": "Unplugged iPhone", "osVersionNumber": "18.1" },
-                "hardwareProperties": { "udid": "UDID-2", "platform": "iOS" },
-                "connectionProperties": { "tunnelState": "unavailable" }
-              },
-              {
-                "identifier": "ID-3",
-                "deviceProperties": { "name": "Mani's Watch", "osVersionNumber": "11.0" },
-                "hardwareProperties": { "udid": "UDID-3", "platform": "watchOS" },
-                "connectionProperties": { "tunnelState": "connected" }
-              }
-            ]
-          }
-        }
-        """)
-
-        // Unplugged devices can't be driven, and devicectl also reports paired Watches
-        // and Apple TVs — offering either would only fail later.
-        XCTAssertEqual(devices.count, 1)
-        XCTAssertEqual(devices.first?.udid, "UDID-1")
-        XCTAssertEqual(devices.first?.name, "Mani's iPhone")
-        XCTAssertEqual(devices.first?.osVersion, "18.2")
-        XCTAssertTrue(devices.first?.isPhysicalDevice ?? false)
-    }
-
-    func testParseConnectedIOSDevicesSurvivesMalformedJSON() {
-        XCTAssertTrue(test_parseConnectedIOSDevices(json: "not json").isEmpty)
-        XCTAssertTrue(test_parseConnectedIOSDevices(json: #"{"result":{}}"#).isEmpty)
-    }
-
-    func testParseAvailableIOSSimulatorsIncludesShutdownDevices() {
-        let simulators = test_parseAvailableIOSSimulators(json: """
-        {
-          "devices": {
-            "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
-              {
-                "name": "iPhone 16 Pro",
-                "udid": "SIM-NEW",
-                "state": "Shutdown"
-              }
-            ],
-            "com.apple.CoreSimulator.SimRuntime.iOS-17-5": [
-              {
-                "name": "iPhone 15",
-                "udid": "SIM-OLD",
-                "state": "Booted"
-              }
-            ]
-          }
-        }
-        """)
-
-        XCTAssertEqual(
-            simulators,
-            [
-                IOSSimulatorDevice(udid: "SIM-OLD", name: "iPhone 15", osVersion: "17.5"),
-                IOSSimulatorDevice(udid: "SIM-NEW", name: "iPhone 16 Pro", osVersion: "18.0")
-            ]
-        )
-    }
-
-    func testParseAndroidVirtualDevicesSkipsBlankLines() {
-        XCTAssertEqual(
-            test_parseAndroidVirtualDevices(output: "\nPixel_9\n\nPixel_Tablet_API_35\n"),
-            [
-                AndroidVirtualDevice(name: "Pixel_9"),
-                AndroidVirtualDevice(name: "Pixel_Tablet_API_35")
-            ]
-        )
-    }
-
-    func testREPLCompletionCatalogIncludesBuiltinsAndToolNames() {
-        let catalog = REPLCompletionCatalog(toolDefinitions: [
-            ToolDefinition(name: "tap", description: "Tap"),
-            ToolDefinition(name: "scroll", description: "Scroll")
-        ])
-
-        XCTAssertEqual(catalog.rootCandidates, ["?", "exit", "help", "quit", "scroll", "tap", "tools"])
-    }
-
-    func testREPLCompletionCatalogUsesSortedKeyValueArguments() {
-        let catalog = REPLCompletionCatalog(toolDefinitions: [
-            ToolDefinition(
-                name: "take_screenshot",
-                description: "Capture a screenshot",
-                properties: [
-                    "output": .init(type: "string", description: "Output path"),
-                    "format": .init(type: "string", description: "Image format")
-                ]
-            )
-        ])
-
-        XCTAssertEqual(catalog.argumentCandidates(for: "take_screenshot"), ["format=", "output="])
-    }
-
-    func testREPLCompletionCatalogIncludesTapElementTool() {
-        let catalog = REPLCompletionCatalog(toolDefinitions: MCPServer().toolDefinitions())
-        XCTAssertTrue(catalog.rootCandidates.contains("tap_element"))
-        // session_id is auto-injected on every driver-routed tool so MCP
-        // clients can scope the call to a specific start_session result.
-        // scope/bundle_id resolve the element in another process — system UI hosts permission
-        // alerts and the Sign in with Apple sheet, which are absent from the app's own tree.
-        XCTAssertEqual(
-            catalog.argumentCandidates(for: "tap_element"),
-            ["bundle_id=", "contains_text=", "id=", "label=", "scope=", "session_id="]
-        )
-    }
-
-    func testCompletionMatcherPrefersPrefixMatches() {
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "pre", 1), 1)
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "home", 1), 0)
-    }
-
-    func testCompletionMatcherFallsBackToContainsMatches() {
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "home", 0), 1)
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "xyz", 0), 0)
-    }
-
-    func testPreflightCommandWithFailureReturnsExitCode2() async {
-        let app = CLIApp(
-            preflightChecker: MockPreflightChecker(
-                report: PreflightReport(
-                    platform: .android,
-                    checks: [
-                        .init(
-                            id: "android.adb",
-                            status: .fail,
-                            message: "adb not found",
-                            remediation: "install platform-tools"
-                        )
-                    ]
-                )
-            )
-        )
-
-        let result = await app.run(args: ["preflight", "--platform", "android"])
-        XCTAssertEqual(result.exitCode, 2)
-        XCTAssertTrue(result.output.contains("preflight FAIL [android]"))
-    }
-
-    func testPreflightCommandInvalidPlatformReturnsUsageError() async {
-        let app = CLIApp(
-            preflightChecker: MockPreflightChecker(report: .init(platform: .all, checks: []))
-        )
-        let result = await app.run(args: ["preflight", "--platform", "desktop"])
-        XCTAssertEqual(result.exitCode, 64)
-        XCTAssertTrue(result.output.contains("Invalid platform"))
-    }
-
-    func testDeviceCommandDefaultsToIOSPlatform() {
-        let parsed = parseDeviceCommandOptions(args: ["tap", "x=1", "y=2"])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.platform, .ios)
-        XCTAssertEqual(options.port, 22087)
-        XCTAssertEqual(options.deviceID, "booted")
-    }
-
-    func testDeviceCommandCollectsRepeatedEnvFlags() {
-        let parsed = parseDeviceCommandOptions(args: [
-            "device_launch_app",
-            "app_id=com.example.app",
-            "--env", "UITEST=1",
-            "--env", "API_HOST=http://localhost:8080"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.arguments["app_id"], "com.example.app")
-        // Newline-joined, with a trailing newline marking the string as newline-separated.
-        XCTAssertEqual(
-            options.arguments["environment"],
-            "UITEST=1\nAPI_HOST=http://localhost:8080\n"
-        )
-        XCTAssertEqual(
-            DriverToolExecutor.parseEnvironment(options.arguments["environment"]),
-            ["UITEST": "1", "API_HOST": "http://localhost:8080"]
-        )
-    }
-
-    func testDeviceCommandKeepsCommasInsideEnvValues() {
-        let parsed = parseDeviceCommandOptions(args: [
-            "device_launch_app",
-            "app_id=com.example.app",
-            "--env", "LOCALES=en,fr,de"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        let environment = DriverToolExecutor.parseEnvironment(
-            options.arguments["environment"]
-        )
-        XCTAssertEqual(environment, ["LOCALES": "en,fr,de"])
-    }
-
-    func testDeviceCommandRejectsEnvWithoutAssignment() {
-        let parsed = parseDeviceCommandOptions(args: [
-            "device_launch_app", "app_id=com.example.app", "--env", "UITEST"
-        ])
-        guard case .failure = parsed else {
-            return XCTFail("Expected parser failure for --env without KEY=VALUE")
-        }
-    }
-
-    func testDeviceCommandCollectsRepeatedArgFlags() {
-        let parsed = parseDeviceCommandOptions(args: [
-            "device_launch_app", "app_id=com.example.app", "--arg", "-uitest", "--arg", "fast"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.arguments["launch_args"], "-uitest,fast")
-    }
-
-    /// The comma form MCP clients send keeps working alongside the newline form.
-    func testEnvironmentParsingAcceptsCommaSeparatedPairs() {
-        let environment = DriverToolExecutor.parseEnvironment("UITEST=1,STAGE=test")
-        XCTAssertEqual(environment, ["UITEST": "1", "STAGE": "test"])
-    }
-
-    func testDeviceCommandUsesAndroidDefaults() {
-        let parsed = parseDeviceCommandOptions(args: ["--platform", "android", "press_home"])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.platform, .android)
-        XCTAssertEqual(options.port, 22088)
-        XCTAssertNil(options.deviceID)
-    }
-
-    func testDeviceCommandParsesExplicitSettingsAndArguments() {
-        let parsed = parseDeviceCommandOptions(args: [
-            "--platform", "ios",
-            "--port", "22111",
-            "--device", "SIM-123",
-            "tap_element",
-            "id=login",
-            "label=Login"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.platform, .ios)
-        XCTAssertEqual(options.port, 22111)
-        XCTAssertEqual(options.deviceID, "SIM-123")
-        XCTAssertEqual(options.tool, "tap_element")
-        XCTAssertEqual(options.arguments, ["id": "login", "label": "Login"])
-    }
-
-    func testDeviceCommandNormalizesAndroidBootedDeviceToNil() {
-        let parsed = parseDeviceCommandOptions(args: [
-            "--platform", "android",
-            "--device", "booted",
-            "press_home"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertNil(options.deviceID)
-    }
-
-    func testDeviceCommandRejectsMalformedArgument() {
-        let parsed = parseDeviceCommandOptions(args: ["tap", "x=1", "oops"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Malformed argument 'oops'. Expected key=value format.")
-    }
-
-    func testDeviceCommandRejectsInvalidPort() {
-        let parsed = parseDeviceCommandOptions(args: ["--port", "abc", "tap"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Invalid port 'abc'. Expected a number.")
-    }
-
-    func testDeviceCommandRejectsUnknownPlatform() {
-        let parsed = parseDeviceCommandOptions(args: ["--platform", "web", "tap"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios' or 'android'.")
-    }
-
-    func testRunDeviceCommandReturnsConnectionFailureForInvalidPort() async {
-        let result = await runDeviceCommand(
-            options: DeviceCommandOptions(
-                platform: .ios,
-                port: -1,
-                deviceID: "booted",
-                tool: "tap",
-                arguments: ["x": "1", "y": "2"]
-            )
-        )
-
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertFalse(result.output.isEmpty)
-    }
-
-    func testCompanionInstallSkipsBuildWhenXCTestRunExists() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-        let productsDir = URL(fileURLWithPath: companionDir).appendingPathComponent(
-            "build/Build/Products", isDirectory: true
-        )
-        try FileManager.default.createDirectory(at: productsDir, withIntermediateDirectories: true)
-        FileManager.default.createFile(
-            atPath: productsDir.appendingPathComponent("AmooCompanion_iphonesimulator.xctestrun")
-                .path,
-            contents: Data()
-        )
-
-        let runner = MockCLIProcessRunner(results: [])
-        let manager = CompanionManager(processRunner: runner)
-        let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
-
-        try await manager.install(config: config)
-
-        let commands = await runner.recordedCommands()
-
-        XCTAssertEqual(commands, [])
-    }
-
-    func testCompanionInstallBuildsWithExpectedCommands() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-
-        let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
-            .success(.init(exitCode: 0, stdout: "built", stderr: ""))
-        ])
-        let manager = CompanionManager(processRunner: runner)
-        let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
-
-        try await manager.install(config: config, force: true)
-
-        let commands = await runner.recordedCommands()
-
-        XCTAssertEqual(
-            commands,
-            [
-                ["xcodegen", "generate", "--spec", companionDir + "/project.yml"],
-                [
-                    "xcodebuild",
-                    "-scheme", "AmooCompanion",
-                    "-destination", "platform=iOS Simulator,id=SIM-123",
-                    "-derivedDataPath", companionDir + "/build",
-                    "-project", companionDir + "/AmooCompanion.xcodeproj",
-                    "build-for-testing"
-                ]
-            ]
-        )
-    }
-
-    func testCompanionInstallThrowsWhenXcodegenIsMissing() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-
-        let runner = MockCLIProcessRunner(results: [
-            .failure(ShellError.commandNotFound("xcodegen"))
-        ])
-        let manager = CompanionManager(processRunner: runner)
-        let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
-
-        do {
-            try await manager.install(config: config, force: true)
-            XCTFail("Expected xcodegen error")
-        } catch let error as CompanionError {
-            guard case .xcodegeneNotFound = error else {
-                return XCTFail("Unexpected companion error: \(error)")
-            }
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
-    func testCompanionInstallThrowsBuildFailureOutput() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-
-        let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
-            .success(.init(exitCode: 65, stdout: "", stderr: "build log"))
-        ])
-        let manager = CompanionManager(processRunner: runner)
-        let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
-
-        do {
-            try await manager.install(config: config, force: true)
-            XCTFail("Expected build failure")
-        } catch let error as CompanionError {
-            guard case let .buildFailed(message) = error else {
-                return XCTFail("Unexpected companion error: \(error)")
-            }
-            XCTAssertEqual(message, "build log")
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
-    func testCompanionCommandParserDefaultsAndFlags() {
-        let parsed = parseCompanionCommandOptions(args: [
-            "install",
-            "--platform", "android",
-            "--device", "emulator-5554",
-            "--companion-dir", "/tmp/android-companion",
-            "--force"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.platform, .android)
-        XCTAssertEqual(options.deviceID, "emulator-5554")
-        XCTAssertEqual(options.companionDir, "/tmp/android-companion")
-        XCTAssertTrue(options.force)
-    }
-
-    func testCompanionCommandParserRejectsUnknownAction() {
-        let parsed = parseCompanionCommandOptions(args: ["launch"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(
-            error.description,
-            "Unknown companion action 'launch'. Run 'amoo companion' for usage."
-        )
-    }
-
-    func testCompanionCommandParserRejectsUnknownPlatform() {
-        let parsed = parseCompanionCommandOptions(args: ["install", "--platform", "desktop"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Unknown platform 'desktop'. Expected 'ios' or 'android'.")
-    }
-
-    func testRunIOSCompanionInstallReturnsFailureDescription() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-
-        let runner = MockCLIProcessRunner(results: [
-            .failure(ShellError.commandNotFound("xcodegen"))
-        ])
-        let result = await runIOSCompanionInstall(
-            options: CompanionCommandOptions(
-                action: .install,
-                platform: .ios,
-                deviceID: "SIM-123",
-                companionDir: companionDir,
-                force: true
-            ),
-            processRunner: runner
-        )
-
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertEqual(result.output, CompanionError.xcodegeneNotFound.description)
-    }
-
-    func testRunAndroidCompanionInstallBuildFailureUsesProcessOutput() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-
-        let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 1, stdout: "gradle failed", stderr: ""))
-        ])
-        let result = await runAndroidCompanionInstall(
-            options: CompanionCommandOptions(
-                action: .install,
-                platform: .android,
-                deviceID: "booted",
-                companionDir: companionDir,
-                force: true
-            ),
-            processRunner: runner,
-            currentDirectory: companionDir
-        )
-
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertTrue(result.output.contains("Android companion build failed:"))
-        XCTAssertTrue(result.output.contains("gradle failed"))
-    }
-
-    func testRunAndroidCompanionInstallFailsWhenAPKInstallFails() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-        try? createAndroidAPKFixtures(at: companionDir)
-
-        let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 1, stdout: "INSTALL_FAILED", stderr: ""))
-        ])
-        let result = await runAndroidCompanionInstall(
-            options: CompanionCommandOptions(
-                action: .install,
-                platform: .android,
-                deviceID: "emulator-5554",
-                companionDir: companionDir,
-                force: false
-            ),
-            processRunner: runner,
-            currentDirectory: companionDir
-        )
-
-        let commands = await runner.recordedCommands()
-        XCTAssertEqual(result.exitCode, 1)
-        XCTAssertTrue(result.output.contains("Failed to install Android app APK:"))
-        XCTAssertEqual(commands.count, 1)
-        XCTAssertEqual(commands.first?.prefix(5), ["adb", "-s", "emulator-5554", "install", "-r"])
-    }
-
-    func testRunAndroidCompanionInstallSucceedsWithExistingArtifacts() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
-        try createAndroidAPKFixtures(at: companionDir)
-
-        let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
-            .success(.init(exitCode: 0, stdout: "Success", stderr: ""))
-        ])
-        let result = await runAndroidCompanionInstall(
-            options: CompanionCommandOptions(
-                action: .install,
-                platform: .android,
-                deviceID: "booted",
-                companionDir: companionDir,
-                force: false
-            ),
-            processRunner: runner,
-            currentDirectory: companionDir
-        )
-
-        let commands = await runner.recordedCommands()
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "")
-        XCTAssertEqual(commands.count, 2)
-        XCTAssertEqual(commands[0][0 ... 2], ["adb", "install", "-r"])
-        XCTAssertEqual(commands[1][0 ... 2], ["adb", "install", "-r"])
-    }
-
-    func testREPLShellSplitHandlesQuotedArguments() {
-        let split = test_shellSplit("tap_element \"Sign In\" label='Primary CTA'")
-
-        XCTAssertEqual(split.toolName, "tap_element")
-        XCTAssertEqual(split.parts, ["Sign In", "label=Primary CTA"])
-    }
-
-    func testREPLClosestToolSuggestsNearMatch() {
-        let suggestion = test_closestTool(to: "scrll", among: ["scroll", "tap", "type_text"])
-        let none = test_closestTool(to: "banana", among: ["scroll", "tap", "type_text"])
-
-        XCTAssertEqual(suggestion, "scroll")
-        XCTAssertNil(none)
-    }
-
-    func testREPLBuiltinToolsIsHandledWithoutDispatch() async {
-        let definitions = MCPServer().toolDefinitions()
-        let result = await test_handleBuiltin("tools", toolDefinitions: definitions)
-
-        XCTAssertEqual(result, "handled")
-    }
-
-    func testREPLBannerStyleFallsBackForDumbTerminal() {
-        XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "dumb", "LANG": "en_US.UTF-8"]), "+")
-        XCTAssertEqual(test_replBannerStyle(environment: ["TERM": "xterm-256color", "LANG": "en_US.UTF-8"]), "╭")
-    }
-
-    func testAuditCommandWritesArtifactsAndReturnsSuccess() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
-            UUID().uuidString,
-            isDirectory: true
-        )
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        let jsonPath = tempDir.appendingPathComponent("audit.json").path
-        let markdownPath = tempDir.appendingPathComponent("audit.md").path
-
-        let report = AuditReport(
-            appID: "com.example.app",
-            findings: [makeFinding(id: "finding-1", severity: .low)]
-        )
-        let app = CLIApp(
-            preflightChecker: MockPreflightChecker(report: .init(platform: .all, checks: [])),
-            auditRunner: MockAuditRunner(report: report)
-        )
-
-        let result = await app.run(args: [
-            "audit",
-            "--app-id", "com.example.app",
-            "--screen-summary", "home screen",
-            "--root-id", "root",
-            "--fail-on", "high",
-            "--out-json", jsonPath,
-            "--out-md", markdownPath
-        ])
-
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: jsonPath))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: markdownPath))
-
-        let json = try String(contentsOfFile: jsonPath, encoding: .utf8)
-        let markdown = try String(contentsOfFile: markdownPath, encoding: .utf8)
-        XCTAssertTrue(json.contains("\"appID\" : \"com.example.app\""))
-        XCTAssertTrue(json.contains("\"failOn\" : \"high\""))
-        XCTAssertTrue(markdown.contains("# Audit Report"))
-        XCTAssertTrue(markdown.contains("Fail Policy: `high`"))
-    }
-
-    func testAuditCommandReturnsPolicyFailureExitCode() async {
-        let report = AuditReport(
-            appID: "com.example.app",
-            findings: [makeFinding(id: "finding-2", severity: .high)]
-        )
-        let app = CLIApp(
-            preflightChecker: MockPreflightChecker(report: .init(platform: .all, checks: [])),
-            auditRunner: MockAuditRunner(report: report)
-        )
-
-        let result = await app.run(args: ["audit", "--app-id", "com.example.app", "--fail-on", "high"])
-        XCTAssertEqual(result.exitCode, 2)
-        XCTAssertTrue(result.output.contains("Total Findings: `1`"))
-    }
-
-    func testAuditCommandInvalidArgumentsReturnUsageError() async {
-        let app = CLIApp(
-            preflightChecker: MockPreflightChecker(report: .init(platform: .all, checks: [])),
-            auditRunner: MockAuditRunner(report: .init(appID: "com.example", findings: []))
-        )
-
-        let result = await app.run(args: ["audit", "--fail-on", "extreme"])
-        XCTAssertEqual(result.exitCode, 64)
-        XCTAssertTrue(result.output.contains("Invalid --fail-on value"))
-    }
-
-    private func makeFinding(id: String, severity: Severity) -> AuditFinding {
-        AuditFinding(
-            id: id,
-            ruleID: "RULE-001",
-            severity: severity,
-            confidence: 0.8,
-            summary: "Sample finding",
-            remediation: "Fix issue",
-            evidence: [
-                AuditEvidence(
-                    kind: .trace,
-                    summary: "Trace sample",
-                    sourceRef: "trace-ref",
-                    attributes: [:]
-                )
-            ],
-            tags: ["security"]
-        )
-    }
 }
 
-private func makeTemporaryDirectory() -> String {
+func makeTemporaryDirectory() -> String {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
         UUID().uuidString, isDirectory: true
     )
@@ -889,7 +230,7 @@ private func makeTemporaryDirectory() -> String {
     return directory.path
 }
 
-private func createAndroidAPKFixtures(at companionDir: String) throws {
+func createAndroidAPKFixtures(at companionDir: String) throws {
     let appPath = URL(fileURLWithPath: companionDir)
         .appendingPathComponent("app/build/outputs/apk/debug", isDirectory: true)
     let testPath = URL(fileURLWithPath: companionDir)
@@ -904,7 +245,7 @@ private func createAndroidAPKFixtures(at companionDir: String) throws {
     )
 }
 
-private actor MockCLIProcessRunner: ProcessRunner {
+actor MockCLIProcessRunner: ProcessRunner {
     private var results: [Result<ProcessResult, Error>]
     private var commands: [[String]] = []
 
@@ -925,7 +266,7 @@ private actor MockCLIProcessRunner: ProcessRunner {
     }
 }
 
-private struct MockPreflightChecker: PreflightChecking {
+struct MockPreflightChecker: PreflightChecking {
     let report: PreflightReport
 
     func run(platform _: PreflightPlatform) async -> PreflightReport {
@@ -933,7 +274,7 @@ private struct MockPreflightChecker: PreflightChecking {
     }
 }
 
-private struct MockAuditRunner: AuditRunning {
+struct MockAuditRunner: AuditRunning {
     let report: AuditReport
 
     func runAudit(options _: AuditCommandOptions) async throws -> AuditReport {

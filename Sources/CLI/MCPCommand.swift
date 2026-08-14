@@ -62,44 +62,60 @@ func runMCPCommand(args: [String]) async -> CLIResult {
     }
 }
 
-func parseMCPServeOptions(args: [String]) -> Result<MCPServeOptions, MCPCommandParseError> {
-    var remaining = args
+private struct MCPServeFlags {
     var platform: Platform = .ios
     var port: Int?
     var deviceID: String?
+}
+
+/// Applies one recognized `--flag value` pair to `flags`, consuming both tokens from
+/// `remaining`. `first` must already be known to have the `--` prefix.
+private func applyMCPServeFlag(
+    _ first: String,
+    remaining: inout [String],
+    flags: inout MCPServeFlags
+) -> MCPCommandParseError? {
+    switch first {
+    case "--platform":
+        remaining.removeFirst()
+        guard let value = remaining.first else { return .missingValue("--platform") }
+        guard let parsed = Platform(rawValue: value.lowercased()) else { return .unknownPlatform(value) }
+        flags.platform = parsed
+        remaining.removeFirst()
+    case "--port":
+        remaining.removeFirst()
+        guard let value = remaining.first else { return .missingValue("--port") }
+        guard let parsed = Int(value) else { return .invalidPort(value) }
+        flags.port = parsed
+        remaining.removeFirst()
+    case "--device":
+        remaining.removeFirst()
+        guard let value = remaining.first else { return .missingValue("--device") }
+        flags.deviceID = value
+        remaining.removeFirst()
+    default:
+        return .unknownOption(first)
+    }
+    return nil
+}
+
+func parseMCPServeOptions(args: [String]) -> Result<MCPServeOptions, MCPCommandParseError> {
+    var remaining = args
+    var flags = MCPServeFlags()
 
     while let first = remaining.first {
         guard first.hasPrefix("--") else {
             return .failure(.malformedArguments)
         }
-
-        switch first {
-        case "--platform":
-            remaining.removeFirst()
-            guard let value = remaining.first else { return .failure(.missingValue("--platform")) }
-            guard let parsed = Platform(rawValue: value.lowercased()) else { return .failure(.unknownPlatform(value)) }
-            platform = parsed
-            remaining.removeFirst()
-        case "--port":
-            remaining.removeFirst()
-            guard let value = remaining.first else { return .failure(.missingValue("--port")) }
-            guard let parsed = Int(value) else { return .failure(.invalidPort(value)) }
-            port = parsed
-            remaining.removeFirst()
-        case "--device":
-            remaining.removeFirst()
-            guard let value = remaining.first else { return .failure(.missingValue("--device")) }
-            deviceID = value
-            remaining.removeFirst()
-        default:
-            return .failure(.unknownOption(first))
+        if let error = applyMCPServeFlag(first, remaining: &remaining, flags: &flags) {
+            return .failure(error)
         }
     }
 
     return .success(MCPServeOptions(
-        platform: platform,
-        port: port ?? defaultMCPPort(for: platform),
-        deviceID: normalizedMCPDeviceID(deviceID, for: platform)
+        platform: flags.platform,
+        port: flags.port ?? defaultMCPPort(for: flags.platform),
+        deviceID: normalizedMCPDeviceID(flags.deviceID, for: flags.platform)
     ))
 }
 

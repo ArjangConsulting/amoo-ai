@@ -20,6 +20,6 @@ public struct ElementSelector: Sendable, Equatable {
     }
 }
 
-public indirect enum ParentSelector: Sendable, Equatable {
+indirect public enum ParentSelector: Sendable, Equatable {
     case selector(ElementSelector)
 }

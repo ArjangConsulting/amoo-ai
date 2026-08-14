@@ -18,6 +18,12 @@ final class XCUITestBridge: @unchecked Sendable {
     /// app under test. Excluding it from resolution is what keeps a tap on the real target.
     private let hostBundleID: String?
 
+    /// The element most recently targeted by `tapElement`. Text RPCs arrive separately and XCTest
+    /// otherwise resolves the first text field on screen, which can silently redirect input away
+    /// from the field the caller just focused.
+    private var lastTappedElementID: String?
+    private var lastTappedElementLabel: String?
+
     /// The app under test, when the session named one. Deliberately lower priority than whatever
     /// is actually frontmost, so a system sheet — a permission alert, Sign in with Apple — still
     /// receives the gesture instead of having the bound app activated out from under it.
@@ -36,7 +42,9 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     /// The bound app under test, if the session named one.
-    func boundTargetBundleID() -> String? { targetBundleID }
+    func boundTargetBundleID() -> String? {
+        targetBundleID
+    }
 
     /// Bundle ID of whatever is frontmost, so a caller can tell where a gesture would land without
     /// paying for a screenshot to find out.
@@ -53,8 +61,8 @@ final class XCUITestBridge: @unchecked Sendable {
         for name in ["bundleID", "bundleId", "bundleIdentifier"] {
             let selector = NSSelectorFromString(name)
             guard application.responds(to: selector),
-                let value = application.perform(selector)?.takeUnretainedValue() as? String,
-                value.contains(".")
+                  let value = application.perform(selector)?.takeUnretainedValue() as? String,
+                  value.contains(".")
             else { continue }
             return value
         }
@@ -64,6 +72,7 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Touch
 
     func tap(x: Double, y: Double) {
+        clearLastTappedElement()
         gestureCoordinate(x: x, y: y).tap()
     }
 
@@ -206,6 +215,33 @@ final class XCUITestBridge: @unchecked Sendable {
         gestureTarget().typeText(deleteString)
     }
 
+    func setText(
+        id: String?,
+        label: String?,
+        containsText: String?,
+        text: String,
+        bundleID: String?,
+        candidateBundleIDs: [String]
+    ) -> Bool {
+        guard tapElement(
+            id: id,
+            label: label,
+            containsText: containsText,
+            bundleID: bundleID,
+            candidateBundleIDs: candidateBundleIDs
+        ) else { return false }
+        // `typeText`/`clearText` no-op when nothing resolves as a text input. Without this check
+        // a tap that landed on a static label would still report the field as filled.
+        guard let textInput = resolvedTextInput() else { return false }
+        let before = (textInput.value as? String) ?? ""
+        clearText(characterCount: nil)
+        typeText(text)
+        let after = (textInput.value as? String) ?? ""
+        // A secure field reports a mask rather than what was typed, so an exact match is not
+        // always available — but the content still has to have moved off what was there before.
+        return after == text || (!text.isEmpty && !after.isEmpty && after != before)
+    }
+
     // MARK: - Navigation
 
     func pressBack() {
@@ -228,7 +264,9 @@ final class XCUITestBridge: @unchecked Sendable {
         for app in searchOrder(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs) {
             let found = matchableElements(in: app)
                 .filter { matches(candidate: $0, id: id, label: label, containsText: containsText) }
-            if !found.isEmpty { return found }
+            if !found.isEmpty {
+                return found
+            }
         }
         return []
     }
@@ -271,6 +309,8 @@ final class XCUITestBridge: @unchecked Sendable {
         ) {
             let frame = candidate.frame.standardized
             guard !frame.isNull, !frame.isEmpty else { continue }
+            lastTappedElementID = candidate.id.isEmpty ? nil : candidate.id
+            lastTappedElementLabel = candidate.label.isEmpty ? nil : candidate.label
             gestureCoordinate(x: frame.midX, y: frame.midY).tap()
             return true
         }
@@ -657,17 +697,18 @@ final class XCUITestBridge: @unchecked Sendable {
     private static let maxMatchResults = 500
 
     private func resolvedTextInput() -> XCUIElement? {
-        let primaryCandidates = textInputCandidates(in: app)
-        for candidate in primaryCandidates where candidate.exists && candidate.isHittable {
-            return candidate
-        }
-
-        for candidate in primaryCandidates where candidate.exists {
-            return candidate
-        }
-
-        let target = resolvedTargetApp(bundleID: nil, candidateBundleIDs: [])
+        let target = gestureTarget()
         let candidates = textInputCandidates(in: target)
+
+        if let id = lastTappedElementID,
+           let selected = candidates.first(where: { $0.identifier == id && $0.exists }) {
+            return selected
+        }
+
+        if let label = lastTappedElementLabel,
+           let selected = candidates.first(where: { $0.label == label && $0.exists }) {
+            return selected
+        }
 
         for candidate in candidates where candidate.exists && candidate.isHittable {
             return candidate
@@ -678,6 +719,11 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return nil
+    }
+
+    private func clearLastTappedElement() {
+        lastTappedElementID = nil
+        lastTappedElementLabel = nil
     }
 
     private func textInputCandidates(in target: XCUIApplication) -> [XCUIElement] {
@@ -721,7 +767,6 @@ final class XCUITestBridge: @unchecked Sendable {
             .withOffset(CGVector(dx: frame.maxX - 8, dy: frame.midY))
         coordinate.tap()
     }
-
 
     private func stableNodeID(identifier: String, label: String?) -> String {
         if !identifier.isEmpty {

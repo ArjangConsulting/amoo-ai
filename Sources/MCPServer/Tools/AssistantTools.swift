@@ -18,7 +18,8 @@ public enum AssistantTools {
         ToolDefinition(
             name: "suggest_test_actions",
             title: "Suggest Test Actions",
-            description: "Suggest high-value test actions for the current screen with confidence and developer feedback.",
+            description: "Suggest high-value test actions for the current screen with confidence"
+                + " and developer feedback.",
             outputSchema: ToolOutputSchema(
                 properties: [
                     "screenIntent": .init(type: "string", description: "Inferred purpose of the current screen"),
@@ -52,11 +53,15 @@ public enum AssistantTools {
         ToolDefinition(
             name: "analyze_ai_testability",
             title: "Analyze AI Testability",
-            description: "Analyze whether the current screen exposes enough accessibility context for reliable AI-driven testing.",
+            description: "Analyze whether the current screen exposes enough accessibility context"
+                + " for reliable AI-driven testing.",
             outputSchema: ToolOutputSchema(
                 properties: [
                     "screenSummary": .init(type: "string", description: "Current screen summary"),
-                    "interactableCount": .init(type: "integer", description: "Number of app-relevant interactable elements"),
+                    "interactableCount": .init(
+                        type: "integer",
+                        description: "Number of app-relevant interactable elements"
+                    ),
                     "confidence": .init(type: "string", description: "Confidence level: high, medium, or low"),
                     "diagnostics": .init(
                         type: "array",
@@ -70,26 +75,41 @@ public enum AssistantTools {
                     ),
                     "elementsWithIssues": .init(
                         type: "array",
-                        description: "Elements that have accessibility issues, with id, label, type, frame coordinates, and issue description",
+                        description: "Elements that have accessibility issues, with id, label, type,"
+                            + " frame coordinates, and issue description",
                         items: .object(
                             properties: [
                                 "id": .init(type: "string", description: "Element identifier"),
                                 "label": .init(type: "string", description: "Element label"),
                                 "type": .init(type: "string", description: "Element type, when known"),
-                                "issue": .init(type: "string", description: "Specific accessibility issue on this element"),
-                                "frame": .init(type: "object", description: "Screen position: x, y (top-left origin), width, height in points")
+                                "issue": .init(
+                                    type: "string",
+                                    description: "Specific accessibility issue on this element"
+                                ),
+                                "frame": .init(
+                                    type: "object",
+                                    description: "Screen position: x, y (top-left origin), width, height in points"
+                                )
                             ],
                             required: ["id", "label", "issue"]
                         )
                     )
                 ],
-                required: ["screenSummary", "interactableCount", "confidence", "diagnostics", "developerFeedback", "elementsWithIssues"]
+                required: [
+                    "screenSummary",
+                    "interactableCount",
+                    "confidence",
+                    "diagnostics",
+                    "developerFeedback",
+                    "elementsWithIssues"
+                ]
             )
         ),
         ToolDefinition(
             name: "highlight_a11y_issues",
             title: "Highlight Accessibility Issues",
-            description: "Take an annotated screenshot with colored stroke overlays on every element that has an accessibility issue."
+            description: "Take an annotated screenshot with colored stroke overlays on every element"
+                + " that has an accessibility issue."
                 + " Red = missing label, orange = generic label, yellow = duplicate label."
                 + " Returns the text report plus the annotated PNG as an image content block.",
             outputSchema: ToolOutputSchema(

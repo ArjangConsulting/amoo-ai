@@ -88,9 +88,19 @@ final class CompanionProtocolTests: XCTestCase {
         try await client.longPress(at: Point(x: 5, y: 10), duration: Duration(milliseconds: 500))
         try await client.scroll(direction: .down, distance: 300)
         try await client.clearText(characterCount: 5)
+        try await client.setText(
+            .init(id: "email"),
+            text: "private",
+            appID: "com.example",
+            candidateBundleIDs: ["com.example.beta"]
+        )
 
         let calls = await rpcClient.actionCalls
-        XCTAssertEqual(calls, ["doubleTap", "longPress", "scroll", "clearText"])
+        XCTAssertEqual(calls, ["doubleTap", "longPress", "scroll", "clearText", "setText"])
+        let request = await rpcClient.setTextRequest
+        XCTAssertEqual(request?.selector.id, "email")
+        XCTAssertEqual(request?.appID, "com.example")
+        XCTAssertEqual(request?.candidateBundleIds, ["com.example.beta"])
     }
 
     func testAdditionalRPCDelegationAndSessionReuse() async throws {
@@ -231,6 +241,7 @@ private actor MockRPCClient: CompanionRPCClient {
     var swipeDirectionRequest: Amoo_SwipeDirectionRequest?
     var typeTextRequest: Amoo_TypeTextRequest?
     var clearTextRequest: Amoo_ClearTextRequest?
+    var setTextRequest: Amoo_SetTextRequest?
     var waitForElementRequest: Amoo_WaitForElementRequest?
     var actionCalls: [String] = []
 
@@ -320,6 +331,12 @@ private actor MockRPCClient: CompanionRPCClient {
     func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
         clearTextRequest = request
         actionCalls.append("clearText")
+        return successResponse()
+    }
+
+    func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
+        setTextRequest = request
+        actionCalls.append("setText")
         return successResponse()
     }
 

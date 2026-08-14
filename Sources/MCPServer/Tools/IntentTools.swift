@@ -44,19 +44,24 @@ public enum IntentTools {
                     type: "string",
                     description: "Natural-language description of the field (e.g. 'Email')"
                 ),
+                "id": .init(type: "string", description: "Preferred exact accessibility identifier"),
+                "label": .init(type: "string", description: "Exact accessibility label fallback"),
+                "contains_text": .init(type: "string", description: "Partial label fallback"),
                 "value": .init(type: "string", description: "Value to type"),
                 "session_id": .init(
                     type: "string",
                     description: "Optional session id; defaults to the server's default driver"
                 )
             ],
-            required: ["field_description", "value"],
+            required: ["value"],
             outputSchema: ToolOutputSchema(
                 properties: [
-                    "field_description": .init(type: "string", description: "Field that was filled"),
+                    "verified": .init(type: "boolean", description: "Whether the field exposed the new value"),
+                    "element_id": .init(type: "string", description: "Matched field accessibility identifier"),
+                    "element_label": .init(type: "string", description: "Matched field label"),
                     "value_length": .init(type: "integer", description: "Length of the value typed")
                 ],
-                required: ["field_description", "value_length"]
+                required: ["verified", "element_id", "element_label", "value_length"]
             )
         ),
         ToolDefinition(
@@ -91,6 +96,56 @@ public enum IntentTools {
                 ],
                 required: ["passed", "screen_summary"]
             )
+        ),
+        assertionDefinition(
+            name: "assert_enabled",
+            title: "Assert Enabled",
+            description: "Assert that a matching element is visible and enabled."
+        ),
+        assertionDefinition(
+            name: "assert_absent",
+            title: "Assert Absent",
+            description: "Poll until no matching element is present."
+        ),
+        ToolDefinition(
+            name: "assert_value",
+            title: "Assert Value",
+            description: "Assert a matching element's value without echoing the expected value.",
+            properties: assertionSelectorProperties.merging([
+                "expected": .init(type: "string", description: "Exact expected value"),
+                "contains": .init(type: "string", description: "Expected substring")
+            ]) { current, _ in current },
+            required: []
+        ),
+        ToolDefinition(
+            name: "assert_screen_changed",
+            title: "Assert Screen Changed",
+            description: "Assert that the screen differs from a token returned by get_screen_context.",
+            properties: [
+                "from_token": .init(type: "string", description: "Baseline screen_token"),
+                "timeout_ms": .init(type: "string", description: "Maximum wait, default 3000ms"),
+                "session_id": .init(type: "string", description: "Optional session id")
+            ],
+            required: ["from_token"]
         )
     ]
+
+    private static let assertionSelectorProperties: [String: ToolInputProperty] = [
+        "description": .init(type: "string", description: "Natural-language description"),
+        "id": .init(type: "string", description: "Preferred exact accessibility identifier"),
+        "label": .init(type: "string", description: "Exact accessibility label"),
+        "contains_text": .init(type: "string", description: "Partial label match"),
+        "timeout_ms": .init(type: "string", description: "Maximum wait, default 5000ms"),
+        "session_id": .init(type: "string", description: "Optional session id")
+    ]
+
+    private static func assertionDefinition(name: String, title: String, description: String) -> ToolDefinition {
+        ToolDefinition(
+            name: name,
+            title: title,
+            description: description,
+            properties: assertionSelectorProperties,
+            required: []
+        )
+    }
 }

@@ -74,8 +74,8 @@ struct CLIQualityCoverageTests {
 
         let report = await DefaultPreflightChecker(processRunner: runner).run(platform: .all)
 
-        #expect(report.checks.count == 5)
-        #expect(report.checks.last?.id == "android.adb")
+        #expect(report.checks.count == 6)
+        #expect(report.checks.last?.id == "android.jdk")
         #expect(report.checks.allSatisfy { $0.status == .pass })
         #expect(!report.hasFailures)
     }

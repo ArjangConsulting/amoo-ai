@@ -329,7 +329,9 @@ public extension AccessibilityProvider {
         try await getViewHierarchy()
     }
 
-    var systemUIAppID: String? { nil }
+    var systemUIAppID: String? {
+        nil
+    }
 
     func currentApp() async throws -> CurrentApp {
         throw AmooError.notImplemented("currentApp")

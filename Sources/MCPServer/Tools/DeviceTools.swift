@@ -38,6 +38,11 @@ public enum DeviceTools {
                         + " is fixed at process start, so this only applies to this launch:"
                         + " relaunch the app to change it."
                 ),
+                "timeout_ms": .init(
+                    type: "string",
+                    description: "How long to wait for the app to become frontmost before"
+                        + " reporting the launch as failed. Defaults to 5000."
+                ),
                 "session_id": .init(
                     type: "string",
                     description: "Optional session id; routes the call to the session's driver"

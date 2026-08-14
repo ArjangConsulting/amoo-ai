@@ -4,17 +4,30 @@ import Foundation
 /// This file has no dependency on MCPServer — it works with a simple
 /// intermediate representation so the module stays lightweight.
 public enum ToolBridge {
+    /// A single named, typed property within a `ToolSchema`.
+    public struct SchemaProperty: Sendable {
+        public var key: String
+        public var type: String
+        public var description: String
+
+        public init(key: String, type: String, description: String) {
+            self.key = key
+            self.type = type
+            self.description = description
+        }
+    }
+
     /// Describes a tool in a format-agnostic way for conversion.
     public struct ToolSchema: Sendable {
         public var name: String
         public var description: String
-        public var properties: [(key: String, type: String, description: String)]
+        public var properties: [SchemaProperty]
         public var required: [String]
 
         public init(
             name: String,
             description: String,
-            properties: [(key: String, type: String, description: String)],
+            properties: [SchemaProperty],
             required: [String]
         ) {
             self.name = name

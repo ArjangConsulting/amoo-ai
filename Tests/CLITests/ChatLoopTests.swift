@@ -51,7 +51,9 @@ private func plainResponseJSON(content: String) -> Data {
 
 private func toolCallResponseJSON(toolName: String) -> Data {
     Data(#"""
-    {"message": {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "\#(toolName)", "arguments": {"x": "1"}}}]}}
+    {"message": {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "\#(
+        toolName
+    )", "arguments": {"x": "1"}}}]}}
     """#.utf8)
 }
 
@@ -66,7 +68,12 @@ private func makeLoop(
         executor: executor,
         ollamaClient: client,
         toolDefinitions: [
-            ToolDefinition(name: "tap", description: "Tap the screen", properties: ["x": .init(type: "string", description: "x")], required: ["x"])
+            ToolDefinition(
+                name: "tap",
+                description: "Tap the screen",
+                properties: ["x": .init(type: "string", description: "x")],
+                required: ["x"]
+            )
         ],
         model: "qwen3.5",
         systemPrompt: "You are a helpful assistant.",
@@ -76,7 +83,7 @@ private func makeLoop(
 
 struct ChatLoopTests {
     @Test("A plain text response is appended as an assistant message")
-    func plainTextResponse() async throws {
+    func plainTextResponse() async {
         var loop = makeLoop(responses: [plainResponseJSON(content: "Hello there")])
         loop.messages.append(.init(role: .user, content: "hi"))
 
@@ -87,7 +94,7 @@ struct ChatLoopTests {
     }
 
     @Test("A tool call is executed and its result appended to the conversation")
-    func toolCallIsExecuted() async throws {
+    func toolCallIsExecuted() async {
         let executor = MockChatToolExecutor(results: [.success("tapped")])
         var loop = makeLoop(
             responses: [
@@ -112,7 +119,7 @@ struct ChatLoopTests {
     }
 
     @Test("Reaching the tool-call depth limit asks the model to summarize")
-    func depthLimitTriggersSummaryRequest() async throws {
+    func depthLimitTriggersSummaryRequest() async {
         let executor = MockChatToolExecutor(results: [.success("tapped")])
         var loop = makeLoop(
             responses: [toolCallResponseJSON(toolName: "tap")],
@@ -129,7 +136,7 @@ struct ChatLoopTests {
     }
 
     @Test("A transport failure stops the turn without crashing")
-    func transportFailureStopsTurn() async throws {
+    func transportFailureStopsTurn() async {
         var loop = makeLoop(responses: [])
         loop.messages.append(.init(role: .user, content: "hi"))
 
@@ -140,7 +147,7 @@ struct ChatLoopTests {
     }
 
     @Test("/quit and its aliases end the loop")
-    func quitCommandsEndLoop() async throws {
+    func quitCommandsEndLoop() {
         var loop = makeLoop(responses: [])
         var handled = loop.handleSlashCommand("/quit")
         #expect(handled == false)
@@ -151,7 +158,7 @@ struct ChatLoopTests {
     }
 
     @Test("/clear resets messages back to just the system prompt")
-    func clearResetsMessages() async throws {
+    func clearResetsMessages() {
         var loop = makeLoop(responses: [])
         loop.messages.append(.init(role: .user, content: "hi"))
         loop.messages.append(.init(role: .assistant, content: "hello"))
@@ -165,7 +172,7 @@ struct ChatLoopTests {
     }
 
     @Test("Unknown and known non-quit slash commands are handled without ending the loop")
-    func nonQuitCommandsAreHandled() async throws {
+    func nonQuitCommandsAreHandled() {
         var loop = makeLoop(responses: [])
         var handled = loop.handleSlashCommand("/help")
         #expect(handled)

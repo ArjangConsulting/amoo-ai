@@ -77,9 +77,36 @@ public struct DefaultPreflightChecker: PreflightChecking {
                     try await Adb(context: shellContext).rawArguments(["version"]).run().processResult
                 }
             )
+            checks.append(androidJDKCheck())
         }
 
         return PreflightReport(platform: platform, checks: checks)
+    }
+
+    /// The companion's Gradle build needs a JDK in AGP's supported range. Reported here because
+    /// a too-new JDK fails deep inside Gradle with an error that mentions neither.
+    private func androidJDKCheck() -> PreflightCheck {
+        let remediation = """
+        Install a JDK between \(AndroidJDK.minimumMajorVersion) and \
+        \(AndroidJDK.maximumMajorVersion) — `brew install --cask temurin@21` — or point \
+        JAVA_HOME at one you already have. Homebrew's `openjdk` is too new for AGP.
+        """
+        guard let javaHome = AndroidJDK.resolveJavaHome() else {
+            return PreflightCheck(
+                id: "android.jdk",
+                status: .fail,
+                message: "No JDK \(AndroidJDK.minimumMajorVersion)–\(AndroidJDK.maximumMajorVersion) found."
+                    + " The Android companion build will fail.",
+                remediation: remediation
+            )
+        }
+        let version = AndroidJDK.majorVersion(ofJavaHome: javaHome).map(String.init) ?? "unknown"
+        return PreflightCheck(
+            id: "android.jdk",
+            status: .pass,
+            message: "JDK \(version) at \(javaHome)",
+            remediation: remediation
+        )
     }
 
     /// Simulator tooling is required; physical-device tooling is opt-in and only warns,

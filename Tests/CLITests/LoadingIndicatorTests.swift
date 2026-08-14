@@ -4,7 +4,7 @@ import Testing
 
 struct LoadingIndicatorTests {
     @Test("Disabled indicator start/stop are no-ops")
-    func disabledIndicatorIsNoop() async throws {
+    func disabledIndicatorIsNoop() async {
         let indicator = CLILoadingIndicator(message: "loading", isEnabled: false)
         await indicator.start()
         await indicator.stop()
@@ -12,7 +12,7 @@ struct LoadingIndicatorTests {
     }
 
     @Test("Enabled indicator can start and stop without rendering before the delay elapses")
-    func enabledIndicatorStopsBeforeRendering() async throws {
+    func enabledIndicatorStopsBeforeRendering() async {
         let indicator = CLILoadingIndicator(message: "loading", isEnabled: true)
         await indicator.start(after: .seconds(60))
         await indicator.stop()
@@ -53,7 +53,7 @@ struct LoadingIndicatorTests {
     }
 
     @Test("withCLILoadingIndicator returns the operation's value for non-throwing operations")
-    func nonThrowingHelperReturnsValue() async throws {
+    func nonThrowingHelperReturnsValue() async {
         let result = await withCLILoadingIndicator("working") {
             "done"
         }

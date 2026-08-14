@@ -48,7 +48,7 @@ struct CompanionConfig {
     ) {
         self.host = host
         self.port = port
-        self.companionDir = companionDir ?? CompanionConfig.defaultCompanionDir()
+        self.companionDir = companionDir ?? Self.defaultCompanionDir()
         self.deviceUDID = deviceUDID
         self.readyTimeoutSeconds = readyTimeoutSeconds
         self.targetAppID = targetAppID
@@ -60,18 +60,25 @@ struct CompanionConfig {
     /// another project failed with "No project spec found at <that project>/CompanionApps/iOS" —
     /// a path the caller has no reason to have. The executable's own location is walked upward
     /// instead, with the CWD kept as a last resort for running out of a source checkout.
-    static func defaultCompanionDir() -> String {
+    static func defaultCompanionDir(
+        executableURL: URL? = Bundle.main.executableURL,
+        currentDirectoryPath: String = FileManager.default.currentDirectoryPath
+    ) -> String {
         let fileManager = FileManager.default
         var searchRoots: [URL] = []
 
-        var executableDir = URL(fileURLWithPath: CommandLine.arguments[0])
+        // `CommandLine.arguments[0]` is often only "amoo" when invoked through PATH, which
+        // incorrectly resolves relative to the caller's working directory. Bundle supplies the
+        // actual executable URL for command-line tools, including Homebrew-style symlinks.
+        if var executableDir = executableURL?
             .resolvingSymlinksInPath()
-            .deletingLastPathComponent()
-        for _ in 0..<6 {
-            searchRoots.append(executableDir)
-            executableDir.deleteLastPathComponent()
+            .deletingLastPathComponent() {
+            for _ in 0 ..< 6 {
+                searchRoots.append(executableDir)
+                executableDir.deleteLastPathComponent()
+            }
         }
-        searchRoots.append(URL(fileURLWithPath: fileManager.currentDirectoryPath))
+        searchRoots.append(URL(fileURLWithPath: currentDirectoryPath))
 
         for root in searchRoots {
             let candidate = root.appendingPathComponent("CompanionApps/iOS")
@@ -80,7 +87,7 @@ struct CompanionConfig {
             }
         }
 
-        return fileManager.currentDirectoryPath + "/CompanionApps/iOS"
+        return currentDirectoryPath + "/CompanionApps/iOS"
     }
 }
 
@@ -124,7 +131,9 @@ final class CompanionManager: @unchecked Sendable {
     /// Builds (installs) the companion test bundle without launching it.
     func install(config: CompanionConfig, force: Bool = false) async throws {
         let productsDir = config.companionDir + "/build/Build/Products"
-        if !force, findXCTestRun(productsDir: productsDir) != nil {
+        if !force,
+           findXCTestRun(productsDir: productsDir) != nil,
+           sourceFingerprintMatches(config: config) {
             // Says "built", never "installed" or "running" — a previous build product on disk is
             // all this proves. Reporting it as plain success is what made a dead companion look
             // like a healthy one: nothing was on the device and nothing was listening on the port.
@@ -174,17 +183,33 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     /// Ensures the companion is running. Builds and launches it if necessary.
-    func ensureRunning(config: CompanionConfig) async throws {
-        if await isReachable(host: config.host, port: config.port) {
+    func ensureRunning(config: CompanionConfig, force: Bool = false) async throws {
+        if force {
+            await shutdown()
+        }
+        let sourcesChanged = !sourceFingerprintMatches(config: config)
+        if await isReachable(host: config.host, port: config.port), !force, !sourcesChanged {
             print("Companion already running on port \(config.port).")
             return
+        }
+
+        if await isReachable(host: config.host, port: config.port) {
+            // `shutdown()` only reaches a runner this process spawned. A companion started by a
+            // separate `amoo companion start` still owns the port, and relaunching on top of it
+            // would leave the caller talking to the stale build.
+            let retryHint = force
+                ? "Stop that process (Ctrl-C in its terminal) and retry."
+                : "Stop its 'amoo companion start' process, then retry with --force."
+            throw CompanionError.launchFailed(
+                "Port \(config.port) is owned by another companion process. \(retryHint)"
+            )
         }
 
         let productsDir = config.companionDir + "/build/Build/Products"
         var xctestrunPath = findXCTestRun(productsDir: productsDir)
 
-        if xctestrunPath == nil {
-            print("No build found. Building companion app (this may take a moment)...")
+        if force || sourcesChanged || xctestrunPath == nil {
+            print("Companion sources changed or no build exists. Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building companion app") {
                 try await buildForTesting(config: config)
             }
@@ -252,10 +277,17 @@ final class CompanionManager: @unchecked Sendable {
             )
         else { return nil }
 
-        for case let url as URL in enumerator where url.pathExtension == "xctestrun" {
-            return url.path
+        let candidates = enumerator.compactMap { item -> URL? in
+            guard let url = item as? URL, url.pathExtension == "xctestrun" else { return nil }
+            return url
         }
-        return nil
+        return candidates.max(by: { lhs, rhs in
+            let left = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                ?? .distantPast
+            let right = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                ?? .distantPast
+            return left < right
+        })?.path
     }
 
     private func buildForTesting(config: CompanionConfig) async throws {
@@ -290,6 +322,71 @@ final class CompanionManager: @unchecked Sendable {
             let message = buildResult.stderr.isEmpty ? buildResult.stdout : buildResult.stderr
             throw CompanionError.buildFailed(message)
         }
+        try writeSourceFingerprint(config: config)
+    }
+
+    func currentSourceFingerprint(config: CompanionConfig) -> String {
+        let root = URL(fileURLWithPath: config.companionDir)
+        let locations = [
+            root.appendingPathComponent("project.yml"),
+            root.appendingPathComponent("Sources", isDirectory: true),
+            root.appendingPathComponent("../../Protos", isDirectory: true).standardizedFileURL
+        ]
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
+            for byte in url.path.utf8 {
+                hash = fingerprint(hash, byte: byte)
+            }
+            if let data = try? Data(contentsOf: url) {
+                for byte in data {
+                    hash = fingerprint(hash, byte: byte)
+                }
+            }
+        }
+        return String(hash, radix: 16)
+    }
+
+    private func sourceFiles(at locations: [URL]) -> [URL] {
+        locations.flatMap { location -> [URL] in
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory) else { return [] }
+            if !isDirectory.boolValue {
+                return [location]
+            }
+            guard let enumerator = FileManager.default.enumerator(
+                at: location,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ) else { return [] }
+            return enumerator.compactMap { item in
+                guard let url = item as? URL,
+                      (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+                else { return nil }
+                return url
+            }
+        }
+    }
+
+    private func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
+        (hash ^ UInt64(byte)) &* 1_099_511_628_211
+    }
+
+    private func sourceFingerprintMatches(config: CompanionConfig) -> Bool {
+        let path = fingerprintPath(config: config)
+        return (try? String(contentsOfFile: path, encoding: .utf8)) == currentSourceFingerprint(config: config)
+    }
+
+    private func writeSourceFingerprint(config: CompanionConfig) throws {
+        let path = fingerprintPath(config: config)
+        try FileManager.default.createDirectory(
+            at: URL(fileURLWithPath: path).deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try currentSourceFingerprint(config: config).write(toFile: path, atomically: true, encoding: .utf8)
+    }
+
+    private func fingerprintPath(config: CompanionConfig) -> String {
+        config.companionDir + "/build/.amoo-source-fingerprint"
     }
 
     private func launchCompanion(xctestrunPath: String, config: CompanionConfig) async throws {

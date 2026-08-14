@@ -70,7 +70,10 @@ public enum QueryTools {
                 properties: [
                     "byte_count": .init(type: "integer", description: "Size of the captured image in bytes"),
                     "format": .init(type: "string", description: "Image format actually captured: png or jpeg"),
-                    "saved_path": .init(type: "string", description: "Absolute path written to, when output was provided")
+                    "saved_path": .init(
+                        type: "string",
+                        description: "Absolute path written to, when output was provided"
+                    )
                 ],
                 required: ["byte_count", "format"]
             )

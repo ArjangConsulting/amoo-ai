@@ -120,8 +120,8 @@ struct OllamaClientTests {
                 name: "type_text",
                 description: "Types text",
                 properties: [
-                    (key: "text", type: "string", description: "Text to enter"),
-                    (key: "submit", type: "boolean", description: "Submit afterward")
+                    .init(key: "text", type: "string", description: "Text to enter"),
+                    .init(key: "submit", type: "boolean", description: "Submit afterward")
                 ],
                 required: ["text"]
             )

@@ -11,34 +11,66 @@ public actor AndroidDriver: PlatformDriver {
 
     private let companion: any CompanionClient
     private let adb: any ADBRunning
-    private let serial: String?
+    private let requestedDeviceID: String?
+    private let emulator: any EmulatorRunning
+    private var resolvedSerial: String?
     private var activeRecordings: [String: ActiveRecording] = [:]
 
     public init(
         companion: any CompanionClient,
         adb: any ADBRunning = ADBRunner(),
+        emulator: any EmulatorRunning = EmulatorRunner(),
         serial: String? = nil
     ) {
         self.companion = companion
         self.adb = adb
-        self.serial = serial
+        self.emulator = emulator
+        requestedDeviceID = serial
     }
 
     // MARK: - DeviceDriver
 
     public func boot() async throws {
         try await adb.startServer()
+        let devices = try await connectedDevices()
+        if let requestedDeviceID,
+           let connected = devices.first(where: { $0.serial == requestedDeviceID && $0.state == "device" }) {
+            resolvedSerial = connected.serial
+            return
+        }
+        if requestedDeviceID == nil, let connected = devices.first(where: { $0.state == "device" }) {
+            resolvedSerial = connected.serial
+            return
+        }
+
+        guard let avdName = requestedDeviceID, !avdName.hasPrefix("emulator-") else {
+            throw AmooError.commandFailed(
+                command: "device_boot",
+                output: "Requested Android device is not connected: \(requestedDeviceID ?? "default")"
+            )
+        }
+        let port = nextEmulatorPort(devices: devices)
+        try await emulator.launch(avdName: avdName, port: port)
+        let launchedSerial = "emulator-\(port)"
+        try await waitForBoot(serial: launchedSerial, timeoutSeconds: 120)
+        resolvedSerial = launchedSerial
     }
 
     public func shutdown() async throws {
-        try await adb.killEmulator(serial: serial)
+        try await adb.killEmulator(serial: activeSerial)
     }
 
     public func deviceInfo() async throws -> DeviceInfo {
-        _ = try await adb.listDevices()
+        let devices = try await connectedDevices()
+        guard let device = devices.first(where: { $0.serial == activeSerial && $0.state == "device" }) else {
+            throw AmooError.commandFailed(
+                command: "deviceInfo",
+                output: "Android device is not connected: \(activeSerial ?? "default")"
+            )
+        }
         return DeviceInfo(
-            id: serial ?? "default",
-            name: serial ?? "default",
+            id: device.serial,
+            name: requestedDeviceID ?? device.serial,
             platform: .android,
             osVersion: "unknown",
             state: .booted
@@ -48,27 +80,27 @@ public actor AndroidDriver: PlatformDriver {
     // MARK: - App Management
 
     public func installApp(path: String) async throws {
-        try await adb.install(serial: serial, apkPath: path)
+        try await adb.install(serial: activeSerial, apkPath: path)
     }
 
     public func launchApp(appID: String, arguments: [String] = [], environment _: [String: String] = [:]) async throws {
         if arguments.isEmpty {
-            try await adb.launchResetting(serial: serial, appID: appID)
+            try await adb.launchResetting(serial: activeSerial, appID: appID)
         } else {
-            try await adb.launch(serial: serial, appID: appID, arguments: arguments)
+            try await adb.launch(serial: activeSerial, appID: appID, arguments: arguments)
         }
     }
 
     public func terminateApp(appID: String) async throws {
-        try await adb.terminate(serial: serial, appID: appID)
+        try await adb.terminate(serial: activeSerial, appID: appID)
     }
 
     public func uninstallApp(appID: String) async throws {
-        try await adb.uninstall(serial: serial, appID: appID)
+        try await adb.uninstall(serial: activeSerial, appID: appID)
     }
 
     public func listApps() async throws -> [AppInfo] {
-        let output = try await adb.listPackages(serial: serial)
+        let output = try await adb.listPackages(serial: activeSerial)
         return output
             .components(separatedBy: .newlines)
             .compactMap { line -> AppInfo? in
@@ -80,8 +112,18 @@ public actor AndroidDriver: PlatformDriver {
             }
     }
 
-    public func appState(appID _: String) async throws -> AppState {
-        .unknown
+    public func appState(appID: String) async throws -> AppState {
+        // `pidof` exits non-zero when the package has no live process, and adb propagates that
+        // exit code — so a "not running" answer arrives as a thrown ShellError, not empty stdout.
+        let process = try? await adb.run(adbArgs() + ["shell", "pidof", appID])
+        if let stdout = process?.stdout, !stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .running
+        }
+        let packages = try await adb.listPackages(serial: activeSerial)
+        return packages.split(separator: "\n")
+            .contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "package:\(appID)" }
+            ? .notRunning
+            : .notInstalled
     }
 
     // MARK: - Touch Actions (delegate to companion)
@@ -139,6 +181,10 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.clearText(characterCount: characterCount)
     }
 
+    public func setText(_ selector: ElementSelector, text: String) async throws {
+        try await companion.setText(selector, text: text, appID: nil, candidateBundleIDs: [])
+    }
+
     // MARK: - Navigation Actions
 
     public func pressBack() async throws {
@@ -150,13 +196,13 @@ public actor AndroidDriver: PlatformDriver {
     }
 
     public func openURL(_ url: String) async throws {
-        try await adb.openURL(serial: serial, url: url)
+        try await adb.openURL(serial: activeSerial, url: url)
     }
 
     // MARK: - Screen Capture
 
     public func takeScreenshot(format _: ImageFormat) async throws -> ScreenshotData {
-        let data = try await adb.screenshot(serial: serial)
+        let data = try await adb.screenshot(serial: activeSerial)
         return ScreenshotData(bytes: [UInt8](data), format: .png)
     }
 
@@ -174,9 +220,9 @@ public actor AndroidDriver: PlatformDriver {
         // and recordings can contain on-screen secrets typed during the test.
         let remotePath = "/data/local/tmp/recording_\(sessionID).mp4"
         let localPath = NSTemporaryDirectory() + "recording_\(sessionID).mp4"
-        try await adb.startRecording(serial: serial, outputPath: remotePath)
+        try await adb.startRecording(serial: activeSerial, outputPath: remotePath)
         activeRecordings[sessionID] = ActiveRecording(remotePath: remotePath, localPath: localPath)
-        return RecordingSession(id: sessionID, deviceID: serial ?? "default")
+        return RecordingSession(id: sessionID, deviceID: activeSerial ?? "default")
     }
 
     public func stopRecording(sessionID: String) async throws -> String {
@@ -187,7 +233,7 @@ public actor AndroidDriver: PlatformDriver {
             )
         }
 
-        try await adb.stopRecording(serial: serial)
+        try await adb.stopRecording(serial: activeSerial)
         _ = try await adb.run(adbArgs() + ["pull", recording.remotePath, recording.localPath])
         // Best-effort cleanup; don't fail the call if the device-side rm fails.
         _ = try? await adb.run(adbArgs() + ["shell", "rm", recording.remotePath])
@@ -226,7 +272,9 @@ public actor AndroidDriver: PlatformDriver {
     }
 
     /// Android hosts permission dialogs and system chrome here.
-    public nonisolated var systemUIAppID: String? { "com.android.systemui" }
+    nonisolated public var systemUIAppID: String? {
+        "com.android.systemui"
+    }
 
     public func isKeyboardVisible() async throws -> Bool {
         try await companion.isKeyboardVisible()
@@ -236,9 +284,9 @@ public actor AndroidDriver: PlatformDriver {
 
     public func setPermission(_ change: PermissionChange) async throws {
         if change.granted {
-            try await adb.grantPermission(serial: serial, appID: change.appID, permission: change.permission)
+            try await adb.grantPermission(serial: activeSerial, appID: change.appID, permission: change.permission)
         } else {
-            try await adb.revokePermission(serial: serial, appID: change.appID, permission: change.permission)
+            try await adb.revokePermission(serial: activeSerial, appID: change.appID, permission: change.permission)
         }
     }
 
@@ -277,9 +325,47 @@ public actor AndroidDriver: PlatformDriver {
     // MARK: - Private
 
     private func adbArgs() -> [String] {
-        if let serial {
+        if let serial = activeSerial {
             return ["-s", serial]
         }
         return []
+    }
+
+    private var activeSerial: String? {
+        resolvedSerial ?? requestedDeviceID
+    }
+
+    private func connectedDevices() async throws -> [(serial: String, state: String)] {
+        try await adb.listDevices().split(separator: "\n").compactMap { line in
+            let columns = line.split(whereSeparator: \Character.isWhitespace)
+            guard columns.count >= 2, columns[0] != "List" else { return nil }
+            return (String(columns[0]), String(columns[1]))
+        }
+    }
+
+    private func nextEmulatorPort(devices: [(serial: String, state: String)]) -> Int {
+        let used: Set<Int> = Set(devices.compactMap { device -> Int? in
+            guard device.serial.hasPrefix("emulator-") else { return nil }
+            return Int(device.serial.dropFirst("emulator-".count))
+        })
+        return stride(from: 5554, through: 5680, by: 2).first(where: { !used.contains($0) }) ?? 5554
+    }
+
+    private func waitForBoot(serial: String, timeoutSeconds: Int) async throws {
+        let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
+        while Date() < deadline {
+            let devices = try await connectedDevices()
+            if devices.contains(where: { $0.serial == serial && $0.state == "device" }) {
+                let result = try await adb.run(["-s", serial, "shell", "getprop", "sys.boot_completed"])
+                if result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
+                    return
+                }
+            }
+            try await Task.sleep(for: .seconds(1))
+        }
+        throw AmooError.timeout(
+            operation: "boot Android emulator \(requestedDeviceID ?? serial)",
+            duration: Duration(milliseconds: timeoutSeconds * 1000)
+        )
     }
 }

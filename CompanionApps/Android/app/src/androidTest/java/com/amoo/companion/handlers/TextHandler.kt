@@ -11,4 +11,8 @@ class TextHandler(private val bridge: UIAutomatorBridge) {
     fun clearText() {
         bridge.clearText()
     }
+
+    fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
+        return bridge.setText(resourceId, label, containsText, value)
+    }
 }

@@ -21,7 +21,10 @@ final class CommandContractTests: XCTestCase {
 
     func testAssistantToolCoverageEntriesAreProviderNeutral() {
         for toolName in CommandCoverageMatrix.aiToolNames {
-            XCTAssertFalse(toolName.hasPrefix("ai_"), "Assistant tools must not use the removed ai_* prefix: \(toolName)")
+            XCTAssertFalse(
+                toolName.hasPrefix("ai_"),
+                "Assistant tools must not use the removed ai_* prefix: \(toolName)"
+            )
         }
     }
 

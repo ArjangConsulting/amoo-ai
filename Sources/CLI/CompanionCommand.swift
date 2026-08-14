@@ -2,6 +2,11 @@ import Foundation
 import GradleKit
 import ProcessRunner
 import SwiftyShell
+#if os(macOS)
+import Darwin
+#elseif os(Linux)
+import Glibc
+#endif
 
 // MARK: - Parsing
 
@@ -61,10 +66,71 @@ func renderCompanionHelp() -> String {
                    --device <id>           Simulator UDID or ADB serial (default: booted)
                    --app <bundle-id>       App under test, bound as the gesture target
                    --companion-dir <path>  Override companion app directory
+                   --force                 Rebuild before starting
     """
 }
 
-// swiftlint:disable:next cyclomatic_complexity
+private struct CompanionCommandFlags {
+    var platform: CompanionPlatform = .ios
+    var deviceID = "booted"
+    var companionDir: String?
+    var force = false
+    var appID: String?
+}
+
+/// Consumes and returns the next token in `remaining`, if any, without failing when absent
+/// (unrecognized-but-present flags with a missing value are silently ignored, matching the
+/// original parser's leniency).
+private func consumeOptionalValue(remaining: inout [String]) -> String? {
+    guard let value = remaining.first else { return nil }
+    remaining.removeFirst()
+    return value
+}
+
+/// Applies one `--flag [value]` token to `flags`, consuming its value from `remaining` when
+/// present. Returns a parse error only for a recognized flag with an invalid value.
+private func applyCompanionFlag(
+    _ flag: String,
+    remaining: inout [String],
+    flags: inout CompanionCommandFlags
+) -> CompanionCommandParseError? {
+    switch flag {
+    case "--platform":
+        guard let value = consumeOptionalValue(remaining: &remaining) else { return nil }
+        guard let platform = CompanionPlatform(rawValue: value) else {
+            return .unknownPlatform(value)
+        }
+        flags.platform = platform
+    case "--device":
+        flags.deviceID = consumeOptionalValue(remaining: &remaining) ?? flags.deviceID
+    case "--companion-dir":
+        flags.companionDir = consumeOptionalValue(remaining: &remaining) ?? flags.companionDir
+    case "--app":
+        flags.appID = consumeOptionalValue(remaining: &remaining) ?? flags.appID
+    case "--force":
+        flags.force = true
+    default:
+        break
+    }
+    return nil
+}
+
+/// Consumes `--flag [value]` tokens from `remaining` until exhausted.
+private func parseCompanionFlags(
+    remaining: inout [String]
+) -> Result<CompanionCommandFlags, CompanionCommandParseError> {
+    var flags = CompanionCommandFlags()
+
+    while !remaining.isEmpty {
+        let flag = remaining.removeFirst()
+        if let error = applyCompanionFlag(flag, remaining: &remaining, flags: &flags) {
+            return .failure(error)
+        }
+    }
+
+    return .success(flags)
+}
+
 func parseCompanionCommandOptions(
     args: [String]
 ) -> Result<CompanionCommandOptions, CompanionCommandParseError> {
@@ -85,53 +151,20 @@ func parseCompanionCommandOptions(
         return .failure(.unknownAction(actionStr))
     }
 
-    var platform: CompanionPlatform = .ios
-    var deviceID = "booted"
-    var companionDir: String?
-    var force = false
-    var appID: String?
-
-    while !remaining.isEmpty {
-        let flag = remaining.removeFirst()
-        switch flag {
-        case "--platform":
-            if let value = remaining.first {
-                remaining.removeFirst()
-                guard let p = CompanionPlatform(rawValue: value) else {
-                    return .failure(.unknownPlatform(value))
-                }
-                platform = p
-            }
-        case "--device":
-            if let value = remaining.first {
-                deviceID = value
-                remaining.removeFirst()
-            }
-        case "--companion-dir":
-            if let value = remaining.first {
-                companionDir = value
-                remaining.removeFirst()
-            }
-        case "--app":
-            if let value = remaining.first {
-                appID = value
-                remaining.removeFirst()
-            }
-        case "--force":
-            force = true
-        default:
-            break
-        }
+    let flags: CompanionCommandFlags
+    switch parseCompanionFlags(remaining: &remaining) {
+    case let .success(parsed): flags = parsed
+    case let .failure(error): return .failure(error)
     }
 
     return .success(
         CompanionCommandOptions(
             action: action,
-            platform: platform,
-            deviceID: deviceID,
-            companionDir: companionDir,
-            force: force,
-            appID: appID
+            platform: flags.platform,
+            deviceID: flags.deviceID,
+            companionDir: flags.companionDir,
+            force: flags.force,
+            appID: flags.appID
         )
     )
 }
@@ -188,13 +221,14 @@ func runIOSCompanionStart(
     let manager = CompanionManager(processRunner: processRunner)
 
     do {
-        try await manager.ensureRunning(config: config)
+        try await manager.ensureRunning(config: config, force: options.force)
         let target = options.appID.map { " driving \($0)" } ?? ""
         print("Companion ready on port \(config.port)\(target).")
         print("Holding it open — Ctrl-C to stop, or run this in the background.")
         // The runner is spawned as a child of this process and is torn down with it, so returning
         // here would take the companion down a moment after announcing it was ready.
-        try await Task.sleep(for: .seconds(60 * 60 * 24))
+        await waitForTerminationSignal()
+        await manager.shutdown()
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
         return CLIResult(output: "", exitCode: 0)
@@ -215,10 +249,11 @@ func runAndroidCompanionStart(
     let manager = AndroidCompanionManager(processRunner: processRunner)
 
     do {
-        try await manager.ensureRunning(config: config)
+        try await manager.ensureRunning(config: config, force: options.force)
         print("Companion ready on port \(config.port).")
         print("Holding it open — Ctrl-C to stop, or run this in the background.")
-        try await Task.sleep(for: .seconds(60 * 60 * 24))
+        await waitForTerminationSignal()
+        await manager.shutdown()
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
         return CLIResult(output: "", exitCode: 0)
@@ -276,4 +311,67 @@ func runAndroidCompanionInstall(
     } catch {
         return CLIResult(output: "Android companion install failed: \(error)", exitCode: 1)
     }
+}
+
+// MARK: - Foreground lifecycle
+
+private final class CompanionSignalWaiter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var sources: [DispatchSourceSignal] = []
+    private var finished = false
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            self.continuation = continuation
+            lock.unlock()
+
+            #if os(macOS) || os(Linux)
+            signal(SIGINT, SIG_IGN)
+            signal(SIGTERM, SIG_IGN)
+            let created = [SIGINT, SIGTERM].map { signalNumber in
+                let source = DispatchSource.makeSignalSource(signal: signalNumber, queue: .global())
+                source.setEventHandler { [weak self] in self?.finish() }
+                source.resume()
+                return source
+            }
+            // A signal can arrive between `resume()` and this assignment, so `finish()` may
+            // already have run and cleared the (then empty) source list. Cancel here instead of
+            // storing sources that nothing will ever tear down.
+            lock.lock()
+            let alreadyFinished = finished
+            if !alreadyFinished {
+                sources = created
+            }
+            lock.unlock()
+            if alreadyFinished {
+                created.forEach { $0.cancel() }
+            }
+            #else
+            finish()
+            #endif
+        }
+    }
+
+    private func finish() {
+        lock.lock()
+        guard !finished else {
+            lock.unlock()
+            return
+        }
+        finished = true
+        let pending = continuation
+        continuation = nil
+        let activeSources = sources
+        sources = []
+        lock.unlock()
+
+        activeSources.forEach { $0.cancel() }
+        pending?.resume()
+    }
+}
+
+private func waitForTerminationSignal() async {
+    await CompanionSignalWaiter().wait()
 }

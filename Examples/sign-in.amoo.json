@@ -1,0 +1,43 @@
+{
+  "platform": "ios",
+  "steps": [
+    {
+      "name": "Launch the app",
+      "tool": "device_launch_app",
+      "arguments": {
+        "app_id": "com.example.app"
+      }
+    },
+    {
+      "name": "Enter email",
+      "tool": "set_text",
+      "arguments": {
+        "id": "sign-in.email",
+        "value": "${AMOO_TEST_EMAIL}"
+      }
+    },
+    {
+      "name": "Enter password",
+      "tool": "set_text",
+      "arguments": {
+        "id": "sign-in.password",
+        "value": "${AMOO_TEST_PASSWORD}"
+      }
+    },
+    {
+      "name": "Submit",
+      "tool": "tap_element",
+      "arguments": {
+        "id": "sign-in.submit"
+      }
+    },
+    {
+      "name": "Signed-in account is visible",
+      "tool": "assert_enabled",
+      "arguments": {
+        "id": "account.sign-out",
+        "timeout_ms": "5000"
+      }
+    }
+  ]
+}

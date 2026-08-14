@@ -55,6 +55,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("action.swipeInDirection", .required),
             ("action.typeText", .required),
             ("action.clearText", .required),
+            ("action.setText", .required),
             ("action.pressBack", .required),
             ("query.findElements", .required),
             ("query.getViewHierarchy", .required),
@@ -261,9 +262,16 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         request: Amoo_SetTextRequest,
         context _: ServerContext
     ) async throws -> Amoo_ActionResponse {
-        await text.clearText(characterCount: nil)
-        await text.typeText(request.text)
-        return successResponse()
+        let selector = request.selector
+        let set = await text.setText(
+            id: selector.id.nonEmpty,
+            label: selector.label.nonEmpty,
+            containsText: selector.containsText.nonEmpty,
+            text: request.text,
+            bundleID: request.appID.nonEmpty,
+            candidateBundleIDs: request.candidateBundleIds
+        )
+        return set ? successResponse() : failResponse("text field not found")
     }
 
     // MARK: - Navigation
@@ -556,6 +564,12 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         }
 
         return trimmed
+    }
+}
+
+private extension String {
+    var nonEmpty: String? {
+        isEmpty ? nil : self
     }
 }
 

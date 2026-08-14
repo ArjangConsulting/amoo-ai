@@ -13,7 +13,7 @@ public struct ToolInputProperty: Sendable, Equatable {
     }
 }
 
-public indirect enum ToolItemsSchema: Sendable, Equatable {
+indirect public enum ToolItemsSchema: Sendable, Equatable {
     case scalar(type: String)
     case object(properties: [String: ToolInputProperty], required: [String])
 }
@@ -103,9 +103,9 @@ private func toolPropertyValue(_ property: ToolInputProperty) -> Value {
 private func itemsSchemaValue(_ schema: ToolItemsSchema) -> Value {
     switch schema {
     case let .scalar(type):
-        return .object(["type": .string(type)])
+        .object(["type": .string(type)])
     case let .object(properties, required):
-        return .object([
+        .object([
             "type": .string("object"),
             "properties": .object(properties.mapValues(toolPropertyValue)),
             "required": .array(required.map { .string($0) }),
@@ -132,7 +132,12 @@ public struct ToolResult: Sendable, Equatable {
     /// Optional image (screenshot, annotated overlay, …) returned as an MCP image content block.
     public var image: ToolImageContent?
 
-    public init(content: String, isError: Bool = false, structuredContent: Value? = nil, image: ToolImageContent? = nil) {
+    public init(
+        content: String,
+        isError: Bool = false,
+        structuredContent: Value? = nil,
+        image: ToolImageContent? = nil
+    ) {
         self.content = content
         self.isError = isError
         self.structuredContent = structuredContent

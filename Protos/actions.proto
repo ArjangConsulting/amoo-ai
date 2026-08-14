@@ -153,6 +153,8 @@ message ClearTextRequest {
 message SetTextRequest {
   ElementSelector selector = 1;
   string text = 2;
+  string app_id = 3;
+  repeated string candidate_bundle_ids = 4;
 }
 
 // Capture messages

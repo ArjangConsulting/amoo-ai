@@ -26,6 +26,7 @@ public protocol CompanionClient: Sendable {
     // Text
     func typeText(_ text: String) async throws
     func clearText(characterCount: Int?) async throws
+    func setText(_ selector: ElementSelector, text: String, appID: String?, candidateBundleIDs: [String]) async throws
 
     // Navigation
     func pressBack() async throws
@@ -98,6 +99,19 @@ public extension CompanionClient {
 
     func clearText(characterCount _: Int?) async throws {
         throw AmooError.notImplemented("clearText")
+    }
+
+    func setText(_ selector: ElementSelector, text: String) async throws {
+        try await setText(selector, text: text, appID: nil, candidateBundleIDs: [])
+    }
+
+    func setText(
+        _: ElementSelector,
+        text _: String,
+        appID _: String?,
+        candidateBundleIDs _: [String]
+    ) async throws {
+        throw AmooError.notImplemented("setText")
     }
 
     func getViewHierarchy(appID _: String?, candidateBundleIDs _: [String]) async throws -> ViewNode {

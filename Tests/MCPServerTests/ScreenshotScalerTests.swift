@@ -2,10 +2,9 @@ import AmooCore
 import CoreGraphics
 import Foundation
 import ImageIO
+@testable import MCPServer
 import UniformTypeIdentifiers
 import XCTest
-
-@testable import MCPServer
 
 final class ScreenshotScalerTests: XCTestCase {
     private func makePNG(width: Int, height: Int) -> Data {

@@ -30,6 +30,7 @@ package protocol CompanionRPCClient: Sendable {
     // Text
     func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse
     func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse
+    func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse
 
     // Navigation
     func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse
@@ -67,6 +68,10 @@ package protocol CompanionRPCClient: Sendable {
 
 package extension CompanionRPCClient {
     func shutdown() async {}
+
+    func setText(_: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
+        throw AmooError.notImplemented("setText RPC")
+    }
 }
 
 // MARK: - GeneratedCompanionRPCClient
@@ -133,6 +138,10 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
 
     package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
         try await client.clearText(request)
+    }
+
+    package func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
+        try await client.setText(request)
     }
 
     package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
@@ -296,6 +305,11 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
         return successActionResponse()
     }
 
+    package func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
+        _ = request
+        return successActionResponse()
+    }
+
     package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
@@ -421,6 +435,14 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
 // MARK: - LiveCompanionRPCClient
 
 package actor LiveCompanionRPCClient: CompanionRPCClient {
+    private static var gestureCallOptions: GRPCCore.CallOptions {
+        var options = GRPCCore.CallOptions.defaults
+        // XCUITest can wedge on beta runtimes. A deadline keeps the client usable and makes
+        // recovery (`amoo companion start --force`) possible instead of hanging forever.
+        options.timeout = .seconds(12)
+        return options
+    }
+
     private let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>
     private let client: Amoo_CompanionService.Client<HTTP2ClientTransport.Posix>
     private let connectionTask: Task<Void, Never>
@@ -480,20 +502,20 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     }
 
     package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
-        try await client.swipe(request)
+        try await client.swipe(request, options: Self.gestureCallOptions)
     }
 
     package func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws
         -> Amoo_ActionResponse {
-        try await client.swipeInDirection(request)
+        try await client.swipeInDirection(request, options: Self.gestureCallOptions)
     }
 
     package func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse {
-        try await client.scroll(request)
+        try await client.scroll(request, options: Self.gestureCallOptions)
     }
 
     package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
-        try await client.drag(request)
+        try await client.drag(request, options: Self.gestureCallOptions)
     }
 
     package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
@@ -502,6 +524,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
         try await client.clearText(request)
+    }
+
+    package func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
+        try await client.setText(request)
     }
 
     package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
@@ -761,6 +787,22 @@ public actor GRPCCompanionClient: CompanionClient {
 
         let response = try await rpcClient.clearText(request)
         try validate(response: response, action: "clearText")
+    }
+
+    public func setText(
+        _ selector: ElementSelector,
+        text: String,
+        appID: String? = nil,
+        candidateBundleIDs: [String] = []
+    ) async throws {
+        var request = Amoo_SetTextRequest()
+        request.selector = selector.protoSelector
+        request.text = text
+        request.appID = appID ?? ""
+        request.candidateBundleIds = candidateBundleIDs
+
+        let response = try await rpcClient.setText(request)
+        try validate(response: response, action: "setText")
     }
 
     // MARK: - Navigation

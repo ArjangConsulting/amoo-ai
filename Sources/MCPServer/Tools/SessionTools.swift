@@ -84,7 +84,15 @@ public enum SessionTools {
                                 "action_count": .init(type: "integer", description: "Recorded action count"),
                                 "is_active": .init(type: "boolean", description: "Whether the session is still open")
                             ],
-                            required: ["session_id", "app_id", "device_id", "platform", "started_at", "action_count", "is_active"]
+                            required: [
+                                "session_id",
+                                "app_id",
+                                "device_id",
+                                "platform",
+                                "started_at",
+                                "action_count",
+                                "is_active"
+                            ]
                         )
                     )
                 ],
@@ -125,8 +133,18 @@ public enum SessionTools {
                         )
                     )
                 ],
-                required: ["sessionID", "appID", "deviceID", "platform", "startedAt", "durationSeconds",
-                          "actionCount", "errorCount", "isActive", "actions"]
+                required: [
+                    "sessionID",
+                    "appID",
+                    "deviceID",
+                    "platform",
+                    "startedAt",
+                    "durationSeconds",
+                    "actionCount",
+                    "errorCount",
+                    "isActive",
+                    "actions"
+                ]
             )
         )
     ]

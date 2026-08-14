@@ -37,7 +37,14 @@ companion-ios-build: companion-ios-project
 		-derivedDataPath build 2>&1 | tail -5
 
 companion-android-build:
-	cd CompanionApps/Android && ./gradlew assembleDebug assembleAndroidTest
+	@JDK="$$(./scripts/android-jdk.sh)"; \
+	if [ -z "$$JDK" ]; then \
+		echo "No JDK 17-21 found. AGP 8.7 cannot run on a newer one."; \
+		echo "Install with: brew install --cask temurin@21"; \
+		exit 1; \
+	fi; \
+	echo "Using JAVA_HOME=$$JDK"; \
+	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew assembleDebug assembleAndroidTest
 
 companion-build: companion-ios-build companion-android-build
 

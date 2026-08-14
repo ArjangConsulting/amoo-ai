@@ -36,82 +36,95 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
     }
 }
 
+private let deviceHelpUsageAndTools = """
+Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
+                   [--env KEY=VALUE ...] [--arg VALUE ...]
+
+Common tools:
+  tap x=<n> y=<n> [unit=<points|pixels|normalized>]
+  double_tap x=<n> y=<n>
+  long_press x=<n> y=<n> [duration_ms=<n>]
+  swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n>
+  scroll direction=<up|down|left|right> [distance=<n>]
+  type_text text=<text>
+  clear_text [character_count=<n>]
+  set_text [id=<id>] [label=<label>] [contains_text=<text>] value=<text>
+  fill_field [id=<id>] [label=<label>] [contains_text=<text>] value=<text>
+  press_back
+  press_home
+  tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
+  find_elements [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
+  get_view_hierarchy [scope=<app|system>]
+  get_screen_context
+  is_keyboard_visible
+  current_app
+  set_target_app [bundle_id=<id>]
+  take_screenshot
+  describe_screen
+  suggest_test_actions
+  analyze_ai_testability
+  highlight_a11y_issues
+  find_element_by_description description=<text>
+  assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [timeout_ms=<n>]
+  assert_absent [id=<id>] [label=<label>] [contains_text=<text>] [timeout_ms=<n>]
+  assert_value [id=<id>] [label=<label>] [contains_text=<text>] [expected=<text>] [contains=<text>]
+  assert_screen_changed from_token=<token> [timeout_ms=<n>]
+  device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...]
+  device_terminate_app app_id=<id>
+  device_install_app path=<path>
+  open_url url=<url>
+
+Coordinates:
+  Gestures take points; screenshots come back in pixels (points x scale). Pass
+  unit=pixels to use a position read straight off a screenshot, or unit=normalized
+  for a 0..1 fraction of the screen. take_screenshot reports both sizes.
+
+Scope:
+  Queries and element taps resolve against the app under test, then fall back to
+  system UI when nothing matches — so a control in a permission alert or the Sign
+  in with Apple sheet is reachable by label without naming its process. Pass
+  scope=system or bundle_id=<id> to target one explicitly.
+
+  find_elements reports each match's centre in points, ready to pass to tap.
+"""
+
+private let deviceHelpEnvironmentAndDefaults = """
+Environment variables:
+  Repeat --env once per variable. Values may contain commas and '='.
+
+    amoo device device_launch_app app_id=com.example.app \\
+      --env UITEST=1 --env API_HOST=http://localhost:8080
+
+  Environment is fixed when a process starts, so a variable only reaches an app
+  that is launched with it — relaunch (terminate + launch) to change one. The
+  equivalent tool argument, which MCP clients send, is comma-separated:
+
+    environment=UITEST=1,API_HOST=http://localhost:8080
+
+Launch arguments:
+  Repeat --arg once per argument, or pass launch_args=<a,b,c>.
+
+Defaults:
+  platform=ios
+  ios port=22087
+  android port=22088
+"""
+
 func renderDeviceHelp() -> String {
-    """
-    Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
-                       [--env KEY=VALUE ...] [--arg VALUE ...]
-
-    Common tools:
-      tap x=<n> y=<n> [unit=<points|pixels|normalized>]
-      double_tap x=<n> y=<n>
-      long_press x=<n> y=<n> [duration_ms=<n>]
-      swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n>
-      scroll direction=<up|down|left|right> [distance=<n>]
-      type_text text=<text>
-      clear_text [character_count=<n>]
-      press_back
-      press_home
-      tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
-      find_elements [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
-      get_view_hierarchy [scope=<app|system>]
-      get_screen_context
-      is_keyboard_visible
-      current_app
-      set_target_app [bundle_id=<id>]
-      take_screenshot
-      describe_screen
-      suggest_test_actions
-      analyze_ai_testability
-      highlight_a11y_issues
-      find_element_by_description description=<text>
-      device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...]
-      device_terminate_app app_id=<id>
-      device_install_app path=<path>
-      open_url url=<url>
-
-    Coordinates:
-      Gestures take points; screenshots come back in pixels (points x scale). Pass
-      unit=pixels to use a position read straight off a screenshot, or unit=normalized
-      for a 0..1 fraction of the screen. take_screenshot reports both sizes.
-
-    Scope:
-      Queries and element taps resolve against the app under test, then fall back to
-      system UI when nothing matches — so a control in a permission alert or the Sign
-      in with Apple sheet is reachable by label without naming its process. Pass
-      scope=system or bundle_id=<id> to target one explicitly.
-
-      find_elements reports each match's centre in points, ready to pass to tap.
-
-    Environment variables:
-      Repeat --env once per variable. Values may contain commas and '='.
-
-        amoo device device_launch_app app_id=com.example.app \\
-          --env UITEST=1 --env API_HOST=http://localhost:8080
-
-      Environment is fixed when a process starts, so a variable only reaches an app
-      that is launched with it — relaunch (terminate + launch) to change one. The
-      equivalent tool argument, which MCP clients send, is comma-separated:
-
-        environment=UITEST=1,API_HOST=http://localhost:8080
-
-    Launch arguments:
-      Repeat --arg once per argument, or pass launch_args=<a,b,c>.
-
-    Defaults:
-      platform=ios
-      ios port=22087
-      android port=22088
-    """
+    deviceHelpUsageAndTools + "\n\n" + deviceHelpEnvironmentAndDefaults
 }
 
-// swiftlint:disable:next cyclomatic_complexity
-func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, DeviceCommandParseError> {
-    var remaining = args
+private struct DeviceCommandFlags {
     var platform: Platform = .ios
     var port: Int?
     var deviceID: String?
+}
 
-    // Parse flags
+/// Consumes leading `--flag [value]` pairs from `remaining`, stopping at the first non-flag
+/// token (the tool name).
+private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommandFlags, DeviceCommandParseError> {
+    var flags = DeviceCommandFlags()
+
     while let first = remaining.first, first.hasPrefix("--") {
         switch first {
         case "--platform":
@@ -122,7 +135,7 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
             guard let parsed = Platform(rawValue: platformStr.lowercased()) else {
                 return .failure(.unknownPlatform(platformStr))
             }
-            platform = parsed
+            flags.platform = parsed
             remaining.removeFirst()
 
         case "--port":
@@ -133,7 +146,7 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
             guard let parsed = Int(portStr) else {
                 return .failure(.invalidPort(portStr))
             }
-            port = parsed
+            flags.port = parsed
             remaining.removeFirst()
 
         case "--device":
@@ -141,7 +154,7 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
             guard let udid = remaining.first else {
                 break
             }
-            deviceID = udid
+            flags.deviceID = udid
             remaining.removeFirst()
 
         default:
@@ -149,11 +162,12 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
         }
     }
 
-    guard let tool = remaining.first else {
-        return .failure(.missingTool)
-    }
-    remaining.removeFirst()
+    return .success(flags)
+}
 
+/// Parses `key=value` tool arguments plus repeatable `--env KEY=VALUE` / `--arg VALUE` flags
+/// from the tokens following the tool name.
+private func parseDeviceToolArguments(_ remaining: [String]) -> Result<[String: String], DeviceCommandParseError> {
     var arguments: [String: String] = [:]
     var envPairs: [String] = []
     var launchArgs: [String] = []
@@ -204,10 +218,33 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
         arguments["launch_args"] = launchArgs.joined(separator: ",")
     }
 
+    return .success(arguments)
+}
+
+func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, DeviceCommandParseError> {
+    var remaining = args
+
+    let flags: DeviceCommandFlags
+    switch parseDeviceFlags(remaining: &remaining) {
+    case let .success(parsed): flags = parsed
+    case let .failure(error): return .failure(error)
+    }
+
+    guard let tool = remaining.first else {
+        return .failure(.missingTool)
+    }
+    remaining.removeFirst()
+
+    let arguments: [String: String]
+    switch parseDeviceToolArguments(remaining) {
+    case let .success(parsed): arguments = parsed
+    case let .failure(error): return .failure(error)
+    }
+
     return .success(DeviceCommandOptions(
-        platform: platform,
-        port: port ?? defaultPort(for: platform),
-        deviceID: normalizedDeviceID(deviceID, for: platform),
+        platform: flags.platform,
+        port: flags.port ?? defaultPort(for: flags.platform),
+        deviceID: normalizedDeviceID(flags.deviceID, for: flags.platform),
         tool: tool,
         arguments: arguments
     ))
@@ -261,9 +298,9 @@ private func annotatedDeviceError(_ message: String, options: DeviceCommandOptio
     return message + """
 
 
-        No companion is listening on port \(options.port). Start one with:
-          amoo companion start --platform \(platform)\(options.deviceID.map { " --device \($0)" } ?? "") --app <bundle-id>
-        """
+    No companion is listening on port \(options.port). Start one with:
+      amoo companion start --platform \(platform)\(options.deviceID.map { " --device \($0)" } ?? "") --app <bundle-id>
+    """
 }
 
 private func defaultPort(for platform: Platform) -> Int {
