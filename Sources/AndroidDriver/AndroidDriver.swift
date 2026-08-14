@@ -144,6 +144,10 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.tapElement(selector)
     }
 
+    public func tapElement(_ selector: ElementSelector, appID: String?) async throws {
+        try await companion.tapElement(selector, appID: appID, candidateBundleIDs: [])
+    }
+
     // MARK: - Gesture Actions (delegate to companion)
 
     public func swipe(from: Point, to: Point, duration: Duration) async throws {
@@ -246,8 +250,16 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.findElements(selector)
     }
 
+    public func findElements(_ selector: ElementSelector, appID: String?) async throws -> [ElementInfo] {
+        try await companion.findElements(selector, appID: appID, candidateBundleIDs: [])
+    }
+
     public func getViewHierarchy() async throws -> ViewNode {
         try await companion.getViewHierarchy(appID: nil, candidateBundleIDs: [])
+    }
+
+    public func getViewHierarchy(appID: String?) async throws -> ViewNode {
+        try await companion.getViewHierarchy(appID: appID, candidateBundleIDs: [])
     }
 
     public func elementExists(_ selector: ElementSelector) async throws -> Bool {
