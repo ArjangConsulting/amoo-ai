@@ -283,7 +283,8 @@ private func padSuggestedActions(
             SuggestedTestAction(
                 priority: priority,
                 action: "Improve accessibility labels for the visible controls",
-                reason: request.developerFeedback.first ?? "Better labels and identifiers will make future suggestions more accurate."
+                reason: request.developerFeedback.first
+                    ?? "Better labels and identifiers will make future suggestions more accurate."
             )
         }
         padded.append(fallbackAction)

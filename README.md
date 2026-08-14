@@ -27,7 +27,7 @@ scoped to a platform or target type.
 | `protoc` | `brew install protobuf` | **All builds** — the gRPC Swift protobuf plugin |
 | `xcodegen` | `brew install xcodegen` | Regenerating the iOS companion project |
 | **`libimobiledevice`** | **`brew install libimobiledevice`** | **Physical iOS devices** — supplies `iproxy`, the USB tunnel to the companion. Not needed for simulators. |
-| JDK 21 | `brew install --cask temurin@21` | Android companion. Newer JDKs (26) fail with a `jlink` error. |
+| JDK 17–21 | `brew install --cask temurin@21` | Android companion. AGP 8.7 does not run on anything newer. The build resolves an installed JDK in this range on its own, so `JAVA_HOME` rarely needs setting. |
 | Android SDK + platform-tools | Android Studio | Anything Android |
 
 Install everything for iOS work, including physical-device support:
@@ -190,6 +190,20 @@ Useful assistant-facing tools include:
 - `analyze_ai_testability`
 
 Use `analyze_ai_testability` to understand what developers can improve for better AI-driven testing: labels, identifiers, duplicate controls, hidden enabled elements, and missing primary actions.
+
+### Reusable test flows
+
+Keep deterministic smoke tests in a checked-in `*.amoo.json` file and run the whole sequence over
+one companion connection:
+
+```bash
+amoo flow Examples/sign-in.amoo.json
+```
+
+Each step names a normal device/MCP tool. Exact `${ENV_NAME}` argument values are resolved from the
+process environment so credentials do not enter source control. The runner stops at the first
+failed action or assertion and prints the verified result for every completed step. See
+[`Examples/sign-in.amoo.json`](Examples/sign-in.amoo.json) for the format.
 
 Run only the protocol tests:
 

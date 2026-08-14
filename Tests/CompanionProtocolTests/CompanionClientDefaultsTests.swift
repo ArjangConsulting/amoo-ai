@@ -82,17 +82,23 @@ final class CompanionClientDefaultsTests: XCTestCase {
     }
 }
 
+struct ElementQueryCall {
+    let selector: ElementSelector
+    let appID: String?
+    let candidateBundleIDs: [String]
+}
+
+struct WaitElementCall {
+    let selector: ElementSelector
+    let timeout: Duration
+    let appID: String?
+    let candidateBundleIDs: [String]
+}
+
 private actor DelegatingCompanionClient: CompanionClient {
-    private var recordedTapElementCalls: [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] =
-        []
-    private var recordedFindElementCalls: [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] =
-        []
-    private var recordedWaitCalls: [(
-        selector: ElementSelector,
-        timeout: Duration,
-        appID: String?,
-        candidateBundleIDs: [String]
-    )] = []
+    private var recordedTapElementCalls: [ElementQueryCall] = []
+    private var recordedFindElementCalls: [ElementQueryCall] = []
+    private var recordedWaitCalls: [WaitElementCall] = []
 
     func startSession() async throws {}
     func getCapabilities() async throws -> [CapabilityDescriptor] {
@@ -118,7 +124,9 @@ private actor DelegatingCompanionClient: CompanionClient {
     }
 
     func tapElement(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws {
-        recordedTapElementCalls.append((selector, appID, candidateBundleIDs))
+        recordedTapElementCalls.append(
+            ElementQueryCall(selector: selector, appID: appID, candidateBundleIDs: candidateBundleIDs)
+        )
     }
 
     func findElements(
@@ -126,7 +134,9 @@ private actor DelegatingCompanionClient: CompanionClient {
         appID: String?,
         candidateBundleIDs: [String]
     ) async throws -> [ElementInfo] {
-        recordedFindElementCalls.append((selector, appID, candidateBundleIDs))
+        recordedFindElementCalls.append(
+            ElementQueryCall(selector: selector, appID: appID, candidateBundleIDs: candidateBundleIDs)
+        )
         return [ElementInfo(id: "match", label: selector.label ?? "")]
     }
 
@@ -136,18 +146,20 @@ private actor DelegatingCompanionClient: CompanionClient {
         appID: String?,
         candidateBundleIDs: [String]
     ) async throws {
-        recordedWaitCalls.append((selector, timeout, appID, candidateBundleIDs))
+        recordedWaitCalls.append(
+            WaitElementCall(selector: selector, timeout: timeout, appID: appID, candidateBundleIDs: candidateBundleIDs)
+        )
     }
 
-    func tapElementCalls() -> [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] {
+    func tapElementCalls() -> [ElementQueryCall] {
         recordedTapElementCalls
     }
 
-    func findElementCalls() -> [(selector: ElementSelector, appID: String?, candidateBundleIDs: [String])] {
+    func findElementCalls() -> [ElementQueryCall] {
         recordedFindElementCalls
     }
 
-    func waitCalls() -> [(selector: ElementSelector, timeout: Duration, appID: String?, candidateBundleIDs: [String])] {
+    func waitCalls() -> [WaitElementCall] {
         recordedWaitCalls
     }
 }

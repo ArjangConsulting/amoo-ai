@@ -173,6 +173,17 @@ public actor IOSDriver: PlatformDriver {
         try await companion.clearText(characterCount: characterCount)
     }
 
+    public func setText(_ selector: ElementSelector, text: String) async throws {
+        let focusSelector = try await resolvedTextFieldSelector(selector)
+        let context = try await appQueryContext()
+        try await companion.setText(
+            focusSelector,
+            text: text,
+            appID: context.appID,
+            candidateBundleIDs: context.candidateBundleIDs
+        )
+    }
+
     // MARK: - Navigation Actions
 
     public func pressBack() async throws {
@@ -254,7 +265,9 @@ public actor IOSDriver: PlatformDriver {
     }
 
     /// SpringBoard hosts permission alerts and the Sign in with Apple sheet.
-    public nonisolated var systemUIAppID: String? { "com.apple.springboard" }
+    nonisolated public var systemUIAppID: String? {
+        "com.apple.springboard"
+    }
 
     public func getViewHierarchy() async throws -> ViewNode {
         // If we tracked an explicit launch, use it directly.
@@ -361,6 +374,37 @@ public actor IOSDriver: PlatformDriver {
 // MARK: - Helpers
 
 extension IOSDriver {
+    private func resolvedTextFieldSelector(_ selector: ElementSelector) async throws -> ElementSelector {
+        guard selector.id == nil,
+              selector.label == nil,
+              selector.containsText == nil,
+              let description = selector.description,
+              !description.isEmpty
+        else { return selector }
+
+        let context = try await appQueryContext()
+        let candidates = [
+            ElementSelector(id: description),
+            ElementSelector(label: description),
+            ElementSelector(containsText: description)
+        ]
+        for candidate in candidates {
+            let matches = try await companion.findElements(
+                candidate,
+                appID: context.appID,
+                candidateBundleIDs: context.candidateBundleIDs
+            )
+            if !matches.isEmpty {
+                return candidate
+            }
+        }
+
+        throw AmooError.commandFailed(
+            command: "setText",
+            output: "No text field matched description: \(description)"
+        )
+    }
+
     private func appQueryContext() async throws -> (appID: String?, candidateBundleIDs: [String]) {
         if let currentAppID {
             return (currentAppID, [])

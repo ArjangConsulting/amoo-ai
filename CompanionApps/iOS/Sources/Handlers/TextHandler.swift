@@ -13,4 +13,22 @@ final class TextHandler: @unchecked Sendable {
     func clearText(characterCount: Int?) async {
         await bridge.clearText(characterCount: characterCount)
     }
+
+    func setText(
+        id: String?,
+        label: String?,
+        containsText: String?,
+        text: String,
+        bundleID: String?,
+        candidateBundleIDs: [String]
+    ) async -> Bool {
+        await bridge.setText(
+            id: id,
+            label: label,
+            containsText: containsText,
+            text: text,
+            bundleID: bundleID,
+            candidateBundleIDs: candidateBundleIDs
+        )
+    }
 }

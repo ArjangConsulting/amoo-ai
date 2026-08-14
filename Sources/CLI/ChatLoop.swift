@@ -20,8 +20,8 @@ struct ChatLoop {
     private let model: String
     private let maxToolCallsPerTurn: Int
 
-    // `internal` (rather than `private`) so tests can drive a single conversation
-    // turn or slash command without going through the real terminal readline loop.
+    /// `internal` (rather than `private`) so tests can drive a single conversation
+    /// turn or slash command without going through the real terminal readline loop.
     var messages: [ChatMessage] = []
 
     init(
@@ -42,8 +42,9 @@ struct ChatLoop {
             ToolBridge.ToolSchema(
                 name: def.name,
                 description: def.description,
-                properties: def.properties
-                    .map { (key: $0.key, type: $0.value.type, description: $0.value.description) },
+                properties: def.properties.map {
+                    ToolBridge.SchemaProperty(key: $0.key, type: $0.value.type, description: $0.value.description)
+                },
                 required: def.required
             )
         }

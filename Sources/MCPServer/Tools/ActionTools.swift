@@ -63,7 +63,10 @@ public enum ActionTools {
                 "direction": .init(type: "string", description: "Swipe direction: up, down, left, or right"),
                 "distance": .init(type: "string", description: "Swipe distance in points. Defaults to 300."),
                 "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 400."),
-                "element_id": .init(type: "string", description: "Accessibility ID of element to swipe on. Omit for screen-center swipe."),
+                "element_id": .init(
+                    type: "string",
+                    description: "Accessibility ID of element to swipe on. Omit for screen-center swipe."
+                ),
                 "element_label": .init(type: "string", description: "Accessibility label of element to swipe on.")
             ],
             required: ["direction"]
@@ -94,6 +97,26 @@ public enum ActionTools {
                     description: "Number of characters to delete. Omit to clear all."
                 )
             ]
+        ),
+        ToolDefinition(
+            name: "set_text",
+            title: "Set Text",
+            description: "Atomically resolve, focus, clear, and fill a text field. Accessibility ID is preferred.",
+            properties: [
+                "id": .init(type: "string", description: "Exact accessibility identifier of the field"),
+                "label": .init(type: "string", description: "Exact accessibility label of the field"),
+                "contains_text": .init(type: "string", description: "Partial label fallback"),
+                "value": .init(type: "string", description: "Value to set"),
+                "scope": .init(
+                    type: "string",
+                    description: "Which process to resolve the field in: 'app' (default) or 'system'."
+                ),
+                "bundle_id": .init(
+                    type: "string",
+                    description: "Explicit bundle/package id to resolve the field in."
+                )
+            ],
+            required: ["value"]
         ),
         ToolDefinition(
             name: "press_back",

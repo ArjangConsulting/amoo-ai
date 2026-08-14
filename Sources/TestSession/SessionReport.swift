@@ -44,12 +44,12 @@ public struct SessionReport: Sendable, Codable, Equatable {
         self.actions = actions
     }
 
-    public static func make(from session: TestSession) async -> SessionReport {
+    public static func make(from session: TestSession) async -> Self {
         let actions = await session.actions
         let endedAt = await session.endedAt
         let isActive = await session.isActive
         let end = endedAt ?? Date()
-        return SessionReport(
+        return Self(
             sessionID: session.id,
             appID: session.appID,
             deviceID: session.deviceID,

@@ -249,21 +249,14 @@ private final class MockBootstrapper: SessionBootstrapper, @unchecked Sendable {
     var launchArguments: [String] = []
     var launchEnvironment: [String: String] = [:]
 
-    func bootstrap(
-        appID _: String,
-        platform: Platform,
-        deviceHint _: String?,
-        buildPath _: String?,
-        arguments: [String],
-        environment: [String: String]
-    ) async throws -> BootstrapResult {
-        launchArguments = arguments
-        launchEnvironment = environment
+    func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
+        launchArguments = request.arguments
+        launchEnvironment = request.environment
         let hook = cleanupHook
         return BootstrapResult(
             driver: NoopDriver(),
             deviceID: "mock-device",
-            platform: platform,
+            platform: request.platform,
             cleanup: { await hook() }
         )
     }

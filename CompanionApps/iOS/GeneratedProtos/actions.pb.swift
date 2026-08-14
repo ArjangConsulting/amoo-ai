@@ -397,6 +397,10 @@ public nonisolated struct Amoo_SetTextRequest: Sendable {
 
   public var text: String = String()
 
+  public var appID: String = String()
+
+  public var candidateBundleIds: [String] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1126,7 +1130,7 @@ nonisolated extension Amoo_ClearTextRequest: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Amoo_SetTextRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetTextRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}selector\0\u{1}text\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}selector\0\u{1}text\0\u{3}app_id\0\u{3}candidate_bundle_ids\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1136,6 +1140,8 @@ nonisolated extension Amoo_SetTextRequest: SwiftProtobuf.Message, SwiftProtobuf.
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._selector) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.appID) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.candidateBundleIds) }()
       default: break
       }
     }
@@ -1152,12 +1158,20 @@ nonisolated extension Amoo_SetTextRequest: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.text.isEmpty {
       try visitor.visitSingularStringField(value: self.text, fieldNumber: 2)
     }
+    if !self.appID.isEmpty {
+      try visitor.visitSingularStringField(value: self.appID, fieldNumber: 3)
+    }
+    if !self.candidateBundleIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.candidateBundleIds, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_SetTextRequest, rhs: Amoo_SetTextRequest) -> Bool {
     if lhs._selector != rhs._selector {return false}
     if lhs.text != rhs.text {return false}
+    if lhs.appID != rhs.appID {return false}
+    if lhs.candidateBundleIds != rhs.candidateBundleIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

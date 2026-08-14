@@ -30,14 +30,14 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         self.screenStabilizationTimeoutSeconds = screenStabilizationTimeoutSeconds
     }
 
-    func bootstrap(
-        appID: String,
-        platform: Platform,
-        deviceHint: String?,
-        buildPath: String?,
-        arguments: [String],
-        environment: [String: String]
-    ) async throws -> BootstrapResult {
+    func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
+        let appID = request.appID
+        let platform = request.platform
+        let deviceHint = request.deviceHint
+        let buildPath = request.buildPath
+        let arguments = request.arguments
+        let environment = request.environment
+
         let selector = PlatformDeviceSelector(processRunner: processRunner)
         let available = try await selector.selectDevice(hint: deviceHint, platform: platform)
 
