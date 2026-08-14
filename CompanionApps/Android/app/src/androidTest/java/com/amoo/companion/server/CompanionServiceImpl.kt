@@ -14,6 +14,7 @@ import amoo.v1.CapabilityDescriptor
 import amoo.v1.CapabilityTier
 import amoo.v1.ClearTextRequest
 import amoo.v1.CompanionServiceGrpcKt
+import amoo.v1.CurrentAppResponse
 import amoo.v1.Direction as ProtoDirection
 import amoo.v1.DragRequest
 import amoo.v1.Empty
@@ -275,6 +276,15 @@ class CompanionServiceImpl(
         request
         return KeyboardVisibleResponse.newBuilder()
             .setVisible(accessibility.isKeyboardVisible())
+            .build()
+    }
+
+    override suspend fun getCurrentApp(request: Empty): CurrentAppResponse {
+        request
+        // Target-app binding (SetTargetApp) isn't implemented on Android yet, so
+        // target_bundle_id is always empty — matches the proto's "empty when unbound" contract.
+        return CurrentAppResponse.newBuilder()
+            .setBundleId(accessibility.currentPackageName())
             .build()
     }
 
