@@ -213,17 +213,35 @@ class UIAutomatorBridge {
     fun findElements(
         resourceId: String?,
         text: String?,
-        containsText: String?
+        containsText: String?,
+        appId: String? = null
     ): List<ElementSnapshot> {
-        return currentElements()
+        return scopedElements(appId)
             .filter { element ->
                 matches(element, resourceId, text, containsText)
             }
             .map { it.toSnapshot() }
     }
 
-    fun getAllElements(): List<ElementSnapshot> {
-        return currentElements().map { it.toSnapshot() }
+    fun getAllElements(appId: String? = null): List<ElementSnapshot> {
+        return scopedElements(appId).map { it.toSnapshot() }
+    }
+
+    /**
+     * Elements from [appId]'s process, or every process when [appId] is null/blank.
+     *
+     * Unlike iOS's XCUITest, which isolates each app's accessibility tree behind
+     * XCUIApplication(bundleIdentifier:), UIAutomator2's root query already returns every
+     * visible window system-wide in one flat list — an app's own UI and system UI (permission
+     * dialogs, the notification shade) mixed together. So scoping to [appId] is a filter, not a
+     * separate lookup, and "fall back to system UI when nothing matches" falls out for free:
+     * an empty filtered result just returns the unfiltered list, which already contains it.
+     */
+    private fun scopedElements(appId: String?): List<UiObject2> {
+        val all = currentElements()
+        if (appId.isNullOrBlank()) return all
+        val scoped = all.filter { it.applicationPackage == appId }
+        return scoped.ifEmpty { all }
     }
 
     fun getInteractableElements(): List<ElementSnapshot> {

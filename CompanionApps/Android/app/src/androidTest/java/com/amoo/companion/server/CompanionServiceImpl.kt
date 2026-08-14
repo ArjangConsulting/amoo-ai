@@ -133,7 +133,8 @@ class CompanionServiceImpl(
         val id = request.selector.id.takeUnless { it.isBlank() }
         val label = request.selector.label.takeUnless { it.isBlank() }
             ?: request.selector.containsText.takeUnless { it.isBlank() }
-        return actionResponse(touch.tapElement(id, label), "element not found")
+        val appId = request.appId.takeUnless { it.isBlank() }
+        return actionResponse(touch.tapElement(id, label, appId), "element not found")
     }
 
     override suspend fun swipe(request: SwipeRequest): ActionResponse {
@@ -228,8 +229,8 @@ class CompanionServiceImpl(
     }
 
     override suspend fun getViewHierarchy(request: ViewHierarchyRequest): ViewHierarchyResponse {
-        request
-        val children = accessibility.getAllElements().map { it.toViewNode() }
+        val appId = request.appId.takeUnless { it.isBlank() }
+        val children = accessibility.getAllElements(appId).map { it.toViewNode() }
         val root = ViewNode.newBuilder()
             .setId("android-root")
             .setLabel(bridge.currentPackageName())
@@ -247,7 +248,8 @@ class CompanionServiceImpl(
         val matches = accessibility.findElements(
             selector.id.takeUnless { it.isBlank() },
             selector.label.takeUnless { it.isBlank() },
-            selector.containsText.takeUnless { it.isBlank() }
+            selector.containsText.takeUnless { it.isBlank() },
+            request.appId.takeUnless { it.isBlank() }
         )
         return FindElementsResponse.newBuilder()
             .addAllElements(matches.map { it.toElementInfo() })
