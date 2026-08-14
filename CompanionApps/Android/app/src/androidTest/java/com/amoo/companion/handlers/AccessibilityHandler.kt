@@ -15,6 +15,8 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
 
     fun isKeyboardVisible(): Boolean = bridge.isKeyboardVisible()
 
+    fun currentPackageName(): String = bridge.currentPackageName()
+
     fun takeScreenshot(): ByteArray = bridge.takeScreenshot()
 
     fun getAllElements(): List<ElementSnapshot> = bridge.getAllElements()

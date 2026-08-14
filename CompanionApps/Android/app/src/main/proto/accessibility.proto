@@ -10,6 +10,9 @@ import "common.proto";
 
 message ViewHierarchyRequest {
   string app_id = 1;
+  // If app_id is empty, the companion checks each candidate bundle ID using
+  // XCUIApplication.state == .runningForeground and returns the first match.
+  repeated string candidate_bundle_ids = 2;
 }
 
 message ViewHierarchyResponse {
@@ -18,6 +21,8 @@ message ViewHierarchyResponse {
 
 message FindElementsRequest {
   ElementSelector selector = 1;
+  string app_id = 2;
+  repeated string candidate_bundle_ids = 3;
 }
 
 message FindElementsResponse {
@@ -27,6 +32,8 @@ message FindElementsResponse {
 message WaitForElementRequest {
   ElementSelector selector = 1;
   Duration timeout = 2;
+  string app_id = 3;
+  repeated string candidate_bundle_ids = 4;
 }
 
 message WaitForElementResponse {
