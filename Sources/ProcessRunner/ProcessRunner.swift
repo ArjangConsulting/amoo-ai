@@ -55,6 +55,15 @@ public struct ProcessRunnerCommandExecutor: CommandExecutor {
     }
 
     public func execute(_ command: Command, in context: ShellContext) async throws -> ShellOutput {
+        // `ProcessRunner.run(_:)` only accepts an argv array, so routing through it silently
+        // drops `command.workingDirectoryOverride`/`environmentOverrides` and `context`'s
+        // working directory/environment. Real runs bypass that lossy path the same way
+        // `spawn(_:in:teardown:)` below already does, and go straight to `SubprocessExecutor`,
+        // which honors both. Only test doubles (non-`SystemProcessRunner` conformers) still
+        // route through `processRunner.run`, so recorded-command assertions keep working.
+        if processRunner is SystemProcessRunner {
+            return try await SubprocessExecutor().execute(command, in: context)
+        }
         let executable = command.executableOverride ?? command.executableName
         let result = try await processRunner.run([executable] + command.arguments)
         return ShellOutput(stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode)
