@@ -36,6 +36,7 @@ class CompanionServer(
     fun start() {
         server = NettyServerBuilder.forPort(port)
             .addService(CompanionServiceImpl(touch, gesture, text, accessibility))
+            .intercept(DescriptionBackfillInterceptor())
             .build()
             .start()
         println("[CompanionServer] Ready on port $port")
