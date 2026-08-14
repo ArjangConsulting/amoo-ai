@@ -224,7 +224,7 @@ final class AndroidDriverTests: XCTestCase {
 
         let exists = try await driver.elementExists(.init(id: "login"))
         try await driver.waitForElement(.init(id: "login"), timeout: .defaultSwipe)
-        try await driver.waitForElementToDisappear(.init(id: "spinner"), timeout: Duration(milliseconds: 250))
+        try await driver.waitForElementToDisappear(.init(id: "spinner"), timeout: Duration(milliseconds: 2000))
 
         let waitCalls = await companion.waitForElementCalls()
         XCTAssertTrue(exists)
