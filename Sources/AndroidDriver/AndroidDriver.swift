@@ -10,10 +10,10 @@ public actor AndroidDriver: PlatformDriver {
     }
 
     private let companion: any CompanionClient
-    private let adb: any ADBRunning
-    private let requestedDeviceID: String?
+    let adb: any ADBRunning
+    let requestedDeviceID: String?
     private let emulator: any EmulatorRunning
-    private var resolvedSerial: String?
+    var resolvedSerial: String?
     private var activeRecordings: [String: ActiveRecording] = [:]
 
     public init(
@@ -352,52 +352,5 @@ public actor AndroidDriver: PlatformDriver {
 
     public func findByDescription(_ description: String) async throws -> [ElementInfo] {
         try await companion.findByDescription(description)
-    }
-
-    // MARK: - Private
-
-    private func adbArgs() -> [String] {
-        if let serial = activeSerial {
-            return ["-s", serial]
-        }
-        return []
-    }
-
-    private var activeSerial: String? {
-        resolvedSerial ?? requestedDeviceID
-    }
-
-    private func connectedDevices() async throws -> [(serial: String, state: String)] {
-        try await adb.listDevices().split(separator: "\n").compactMap { line in
-            let columns = line.split(whereSeparator: \Character.isWhitespace)
-            guard columns.count >= 2, columns[0] != "List" else { return nil }
-            return (String(columns[0]), String(columns[1]))
-        }
-    }
-
-    private func nextEmulatorPort(devices: [(serial: String, state: String)]) -> Int {
-        let used: Set<Int> = Set(devices.compactMap { device -> Int? in
-            guard device.serial.hasPrefix("emulator-") else { return nil }
-            return Int(device.serial.dropFirst("emulator-".count))
-        })
-        return stride(from: 5554, through: 5680, by: 2).first(where: { !used.contains($0) }) ?? 5554
-    }
-
-    private func waitForBoot(serial: String, timeoutSeconds: Int) async throws {
-        let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
-        while Date() < deadline {
-            let devices = try await connectedDevices()
-            if devices.contains(where: { $0.serial == serial && $0.state == "device" }) {
-                let result = try await adb.run(["-s", serial, "shell", "getprop", "sys.boot_completed"])
-                if result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
-                    return
-                }
-            }
-            try await Task.sleep(for: .seconds(1))
-        }
-        throw AmooError.timeout(
-            operation: "boot Android emulator \(requestedDeviceID ?? serial)",
-            duration: Duration(milliseconds: timeoutSeconds * 1000)
-        )
     }
 }
