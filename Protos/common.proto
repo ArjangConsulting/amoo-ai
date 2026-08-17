@@ -46,6 +46,16 @@ message ElementSelector {
   string type = 6;
   string value = 7;
   int32 index = 8;
+  // Restrict results to elements that carry an identifier or a label.
+  //
+  // Off by default: an unfiltered query returns unlabeled elements too, so an icon-only
+  // control with no accessibility label is still reachable by its frame rather than being
+  // invisible to every query. Set this when a caller wants only elements it could name —
+  // the accessibility reports do, since "unlabeled" is the finding they exist to count.
+  //
+  // Has no effect alongside id/label/contains_text: an unlabeled element cannot match any
+  // of those anyway.
+  bool labeled_only = 9;
 }
 
 message ElementInfo {

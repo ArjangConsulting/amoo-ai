@@ -349,7 +349,7 @@ The contract is split by execution plane:
 | Action | Description | Parameters | Notes |
 |--------|-------------|------------|-------|
 | `getViewHierarchy` | Full UI tree | `appId: String?` | Returns `ViewNode` tree |
-| `findElements` | Query elements | `selector: ElementSelector` | Returns `[ElementInfo]` |
+| `findElements` | Query elements | `selector: ElementSelector` | Returns `[ElementInfo]`. An empty selector returns unlabeled elements too, so a control with no id or label is still reachable by its frame; `selector.labeledOnly` drops them |
 | `getElementInfo` | Single element details | `selector: ElementSelector` | Label, type, frame, value, traits |
 | `elementExists` | Check existence | `selector: ElementSelector` | Returns `Bool` |
 | `waitForElement` | Wait until visible | `selector: ElementSelector, timeout: Duration` | |

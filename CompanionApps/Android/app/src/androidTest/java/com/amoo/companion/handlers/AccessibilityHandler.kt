@@ -9,9 +9,10 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
         resourceId: String?,
         text: String?,
         containsText: String?,
-        appId: String? = null
+        appId: String? = null,
+        labeledOnly: Boolean = false
     ): List<ElementSnapshot> {
-        return bridge.findElements(resourceId, text, containsText, appId)
+        return bridge.findElements(resourceId, text, containsText, appId, labeledOnly)
     }
 
     fun isKeyboardVisible(): Boolean = bridge.isKeyboardVisible()

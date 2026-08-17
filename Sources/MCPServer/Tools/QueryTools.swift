@@ -4,12 +4,22 @@ public enum QueryTools {
     public static let definitions: [ToolDefinition] = [
         ToolDefinition(
             name: "find_elements",
-            description: "Find UI elements matching a selector. Returns matching element IDs and labels.",
+            description: "Find UI elements matching a selector. Returns matching element IDs and labels,"
+                + " each with its centre in points. With no selector, returns everything on screen,"
+                + " including unlabeled elements listed as [unlabeled] with their type and frame —"
+                + " that is how an icon-only button with no accessibility label is found.",
             properties: [
                 "id": .init(type: "string", description: "Accessibility identifier to match"),
                 "label": .init(type: "string", description: "Accessibility label to match"),
                 "contains_text": .init(type: "string", description: "Partial text match"),
                 "description": .init(type: "string", description: "Natural language description for AI matching"),
+                "labeled_only": .init(
+                    type: "string",
+                    description: "Set true to list only elements that have an identifier or label."
+                        + " Default false: unlabeled elements are listed too, since a control with"
+                        + " no label is reachable by tapping its reported centre. No effect when a"
+                        + " selector is given — unlabeled elements match no selector."
+                ),
                 "scope": .init(
                     type: "string",
                     description: "Which process to query: 'app' (default, the app under test) or"

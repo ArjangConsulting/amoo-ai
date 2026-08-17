@@ -249,7 +249,8 @@ class CompanionServiceImpl(
             selector.id.takeUnless { it.isBlank() },
             selector.label.takeUnless { it.isBlank() },
             selector.containsText.takeUnless { it.isBlank() },
-            request.appId.takeUnless { it.isBlank() }
+            request.appId.takeUnless { it.isBlank() },
+            selector.labeledOnly
         )
         return FindElementsResponse.newBuilder()
             .addAllElements(matches.map { it.toElementInfo() })

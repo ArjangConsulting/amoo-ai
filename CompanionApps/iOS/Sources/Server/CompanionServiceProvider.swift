@@ -320,7 +320,8 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             label: label,
             containsText: containsText,
             bundleID: bundleID,
-            candidateBundleIDs: request.candidateBundleIds
+            candidateBundleIDs: request.candidateBundleIds,
+            labeledOnly: request.selector.labeledOnly
         )
         var response = Amoo_FindElementsResponse()
         response.elements = elements.map { $0.toProto() }
@@ -403,7 +404,10 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         context _: ServerContext
     ) async throws -> Amoo_ScreenContextResponse {
         let hierarchy = await accessibility.getViewHierarchy()
-        let elements = await accessibility.findElements(id: nil, label: nil, containsText: nil)
+        // Labeled only: the summary describes a screen by what its elements are called, and its
+        // element count is the baseline `assert_screen_changed` compares against. Neither gains
+        // anything from frame-only entries.
+        let elements = await accessibility.findElements(id: nil, label: nil, containsText: nil, labeledOnly: true)
         let interactable = elements.filter { $0.isEnabled && $0.isVisible }
 
         var response = Amoo_ScreenContextResponse()
@@ -425,7 +429,10 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         request _: Amoo_Empty,
         context _: ServerContext
     ) async throws -> Amoo_InteractableElementsResponse {
-        let elements = await accessibility.findElements(id: nil, label: nil, containsText: nil)
+        // Labeled only, deliberately: this feeds the accessibility reports, whose whole job is to
+        // count how many interactable elements lack a usable label. Letting unlabeled leaves in
+        // here would inflate that count with decoration and bury the real finding.
+        let elements = await accessibility.findElements(id: nil, label: nil, containsText: nil, labeledOnly: true)
         let interactable = elements.filter { $0.isEnabled && $0.isVisible }
 
         var response = Amoo_InteractableElementsResponse()
