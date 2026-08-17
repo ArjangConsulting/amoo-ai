@@ -42,42 +42,66 @@ Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <too
 
 Common tools:
   tap x=<n> y=<n> [unit=<points|pixels|normalized>]
-  double_tap x=<n> y=<n>
+  double_tap x=<n> y=<n> [unit=<points|pixels|normalized>]
   long_press x=<n> y=<n> [duration_ms=<n>]
-  swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n>
+  swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n> [duration_ms=<n>]
+  swipe_in_direction direction=<up|down|left|right> [distance=<n>] [duration_ms=<n>]
+      [element_id=<id>] [element_label=<label>]
   scroll direction=<up|down|left|right> [distance=<n>]
   type_text text=<text>
   clear_text [character_count=<n>]
   set_text [id=<id>] [label=<label>] [contains_text=<text>] value=<text>
-  fill_field [id=<id>] [label=<label>] [contains_text=<text>] value=<text>
+      [scope=<app|system>] [bundle_id=<id>]
+  fill_field [id=<id>] [label=<label>] [contains_text=<text>] [field_description=<text>]
+      value=<text>
   press_back
   press_home
   tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
-  find_elements [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
-  get_view_hierarchy [scope=<app|system>]
+      [bundle_id=<id>]
+  find_elements [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [labeled_only=<true|false>] [scope=<app|system>] [bundle_id=<id>]
+  get_view_hierarchy [scope=<app|system>] [bundle_id=<id>]
   get_screen_context
   is_keyboard_visible
   current_app
   set_target_app [bundle_id=<id>]
-  take_screenshot
+  take_screenshot [output=<path>] [format=<png|jpeg>] [scale=<0..1>]
   describe_screen
   suggest_test_actions
   analyze_ai_testability
   highlight_a11y_issues
   find_element_by_description description=<text>
-  assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [timeout_ms=<n>]
-  assert_absent [id=<id>] [label=<label>] [contains_text=<text>] [timeout_ms=<n>]
-  assert_value [id=<id>] [label=<label>] [contains_text=<text>] [expected=<text>] [contains=<text>]
+  assert_visible description=<text> [timeout_ms=<n>]
+  assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [timeout_ms=<n>]
+  assert_absent [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [timeout_ms=<n>]
+  assert_value [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [timeout_ms=<n>] [expected=<text>] [contains=<text>]
   assert_screen_changed from_token=<token> [timeout_ms=<n>]
-  device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...]
+  device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...] [timeout_ms=<n>]
+      (tool-argument form: environment=<K=V,...> launch_args=<a,b,c>)
   device_terminate_app app_id=<id>
   device_install_app path=<path>
+  device_uninstall_app app_id=<id>
+  set_permission app_id=<id> permission=<name> [granted=<true|false>]
+  set_location latitude=<n> longitude=<n>
+  clear_location
+  set_appearance appearance=<light|dark>
+  list_devices [platform=<ios|android>]
   open_url url=<url>
 
 Coordinates:
   Gestures take points; screenshots come back in pixels (points x scale). Pass
   unit=pixels to use a position read straight off a screenshot, or unit=normalized
   for a 0..1 fraction of the screen. take_screenshot reports both sizes.
+
+  A coordinate eyeballed off a *rendered* screenshot needs two conversions, not
+  one: whatever showed you the image may have downscaled it first, so multiply
+  back to the original pixel size before passing unit=pixels. A tap that lands
+  outside every control still reports success, so a "successful" tap that changes
+  nothing is this bug until proven otherwise. Prefer tap_element / find_elements —
+  they report centres in points and skip the arithmetic entirely.
 
 Scope:
   Queries and element taps resolve against the app under test, then fall back to
@@ -86,6 +110,15 @@ Scope:
   scope=system or bundle_id=<id> to target one explicitly.
 
   find_elements reports each match's centre in points, ready to pass to tap.
+
+Unlabeled elements:
+  find_elements with no selector lists everything on screen, including elements
+  with no identifier or label — shown as [unlabeled] with their type and frame.
+  That is how an icon-only control reachable by no selector (a close button drawn
+  as a bare SF Symbol, anything inside a third-party paywall) is found: tap its
+  reported centre. Named elements are listed first, then the unlabeled ones
+  smallest-first, since a small leaf is usually the button and a large one is
+  usually the backdrop. Pass labeled_only=true for named elements only.
 """
 
 private let deviceHelpEnvironmentAndDefaults = """
