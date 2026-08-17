@@ -227,7 +227,8 @@ extension DriverToolExecutor {
                 id: arguments["id"],
                 label: arguments["label"],
                 containsText: arguments["contains_text"],
-                description: arguments["description"]
+                description: arguments["description"],
+                labeledOnly: boolArgument(arguments["labeled_only"]) ?? false
             )
             let elements = try await driver.findElements(
                 selector,
@@ -236,10 +237,18 @@ extension DriverToolExecutor {
             // Frames are included so a match is directly tappable: without them the only way to
             // act on a found element was a screenshot round trip to read its position off the
             // image — in pixels, needing conversion. These are points, ready for `tap`.
+            //
+            // An element with neither id nor label would otherwise render as two empty brackets.
+            // It is listed as its type, because for an unlabeled control the frame *is* the whole
+            // answer — `tap` at that centre is the only way to reach it.
             let descriptions = elements.map { element in
                 let position = element.frame.map {
                     " at (\(Int($0.centre.x)),\(Int($0.centre.y))) pts \(Int($0.width))x\(Int($0.height))"
                 } ?? ""
+                guard !element.id.isEmpty || !element.label.isEmpty else {
+                    let type = element.type?.rawValue ?? "element"
+                    return "\(colored("[unlabeled]", .blue)) \(colored(type, .yellow))\(position)"
+                }
                 return "\(colored("[\(element.id)]", .blue)) \(colored(element.label, .yellow))\(position)"
             }
             return .success("Found \(elements.count) element(s):\n\(descriptions.joined(separator: "\n"))")
@@ -466,4 +475,14 @@ extension DriverToolExecutor {
     }
 
     // swiftlint:enable cyclomatic_complexity function_body_length
+}
+
+/// Reads a boolean tool argument. Every argument arrives as a string, and MCP clients spell a flag
+/// as any of these, so accepting one spelling would reject calls that plainly meant true.
+func boolArgument(_ raw: String?) -> Bool? {
+    switch raw?.lowercased() {
+    case "true", "1", "yes": true
+    case "false", "0", "no": false
+    default: nil
+    }
 }

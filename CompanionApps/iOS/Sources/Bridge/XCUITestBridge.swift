@@ -181,7 +181,7 @@ final class XCUITestBridge: @unchecked Sendable {
         if id != nil || label != nil || containsText != nil {
             // Swipes from the matched element's centre, using the same single-snapshot lookup as
             // `findElements` rather than enumerating live queries per element.
-            for candidate in matchableElements(in: target)
+            for candidate in matchableElements(in: target, labeledOnly: true)
                 where matches(candidate: candidate, id: id, label: label, containsText: containsText) {
                 let frame = candidate.frame.standardized
                 guard !frame.isNull, !frame.isEmpty else { continue }
@@ -259,10 +259,14 @@ final class XCUITestBridge: @unchecked Sendable {
         label: String?,
         containsText: String?,
         bundleID: String? = nil,
-        candidateBundleIDs: [String] = []
+        candidateBundleIDs: [String] = [],
+        labeledOnly: Bool = false
     ) -> [ElementSnapshot] {
+        // A selector already excludes unlabeled elements — none of them can match an id, a label,
+        // or a substring of one — so collecting them is pure work for a result that drops them.
+        let namedOnly = labeledOnly || id != nil || label != nil || containsText != nil
         for app in searchOrder(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs) {
-            let found = matchableElements(in: app)
+            let found = matchableElements(in: app, labeledOnly: namedOnly)
                 .filter { matches(candidate: $0, id: id, label: label, containsText: containsText) }
             if !found.isEmpty {
                 return found
@@ -300,12 +304,15 @@ final class XCUITestBridge: @unchecked Sendable {
         // Shares `findElements`' search order, so a control in a system sheet is tappable by
         // label without the caller naming the process it happens to live in. The tap itself is by
         // coordinate, which is process-agnostic — only the lookup needed the scope.
+        // Labeled only: a tap needs something the caller named, and an element with no identifier
+        // or label is one only `tap` at a coordinate can reach.
         for candidate in findElements(
             id: id,
             label: label,
             containsText: containsText,
             bundleID: bundleID,
-            candidateBundleIDs: candidateBundleIDs
+            candidateBundleIDs: candidateBundleIDs,
+            labeledOnly: true
         ) {
             let frame = candidate.frame.standardized
             guard !frame.isNull, !frame.isEmpty else { continue }
@@ -632,45 +639,87 @@ final class XCUITestBridge: @unchecked Sendable {
     ///
     /// Visibility is derived geometrically rather than from `isHittable`, which is itself a
     /// per-element round trip.
-    private func matchableElements(in target: XCUIApplication) -> [ElementSnapshot] {
+    private func matchableElements(in target: XCUIApplication, labeledOnly: Bool = false) -> [ElementSnapshot] {
         guard let root = try? target.snapshot() else { return [] }
         let viewport = visibleViewport(for: target)
-        var results: [ElementSnapshot] = []
-        collectMatchable(root, depth: 0, viewport: viewport, into: &results)
-        return results
+        var named: [ElementSnapshot] = []
+        var unlabeled: [ElementSnapshot] = []
+        collectMatchable(root, depth: 0, viewport: viewport, into: &named, unlabeled: &unlabeled)
+        guard !labeledOnly else { return named }
+        // Named elements first, so the common case reads the same as it always did and the
+        // frame-only entries are a tail the caller can ignore. Smallest first within the tail:
+        // an icon button is a leaf a few dozen points across, while a full-bleed decorative
+        // backdrop is the last thing anyone is looking for.
+        return named + unlabeled.sorted { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
     }
 
+    /// Walks the tree once, splitting what it finds into elements a selector could name and
+    /// elements only a coordinate can reach.
+    ///
+    /// The two are collected separately, each against its own cap, so a screen dense with
+    /// decorative nodes cannot spend the whole result budget before the walk reaches the labeled
+    /// controls deeper in the tree.
     private func collectMatchable(
         _ snapshot: XCUIElementSnapshot,
         depth: Int,
         viewport: CGRect,
-        into results: inout [ElementSnapshot]
+        into results: inout [ElementSnapshot],
+        unlabeled: inout [ElementSnapshot]
     ) {
-        guard depth <= Self.maxMatchDepth, results.count < Self.maxMatchResults else { return }
+        guard depth <= Self.maxMatchDepth,
+              results.count < Self.maxMatchResults || unlabeled.count < Self.maxUnlabeledResults
+        else { return }
 
         // Anything carrying an identifier or a label, rather than a set of element types: SwiftUI
         // reports nearly every node in a snapshot tree as `.other`, so a type filter here matches
         // nothing at all. The live queries this replaced sidestepped that by resolving through
         // accessibility traits, which a snapshot walk cannot see.
-        if !snapshot.identifier.isEmpty || !snapshot.label.isEmpty {
-            results.append(ElementSnapshot(
-                id: snapshot.identifier,
-                label: snapshot.label,
-                value: (snapshot.value as? String) ?? "",
-                type: "\(snapshot.elementType)",
-                frame: snapshot.frame,
-                isEnabled: snapshot.isEnabled,
-                isVisible: isSnapshotVisible(
-                    snapshot,
-                    visibleFrame: snapshotVisibleFrame(snapshot),
-                    viewport: viewport
-                )
-            ))
+        let isNamed = !snapshot.identifier.isEmpty || !snapshot.label.isEmpty
+        if isNamed, results.count < Self.maxMatchResults {
+            results.append(element(from: snapshot, viewport: viewport))
+        } else if !isNamed,
+                  unlabeled.count < Self.maxUnlabeledResults,
+                  isReachableUnlabeledLeaf(snapshot, viewport: viewport) {
+            // An icon-only control — a close button drawn as a bare SF Symbol, anything inside a
+            // third-party paywall — has neither identifier nor label, so no selector reaches it
+            // and it used to be absent from every query result. Reporting its frame is the whole
+            // difference between "amoo cannot see this button" and one tap at a known point.
+            unlabeled.append(element(from: snapshot, viewport: viewport))
         }
 
         for child in snapshot.children {
-            collectMatchable(child, depth: depth + 1, viewport: viewport, into: &results)
+            collectMatchable(child, depth: depth + 1, viewport: viewport, into: &results, unlabeled: &unlabeled)
         }
+    }
+
+    /// Whether an unnamed node is worth reporting: a leaf, on screen, and big enough to tap.
+    ///
+    /// Containers are excluded because their frame is their children's bounding box — tapping one
+    /// hits whatever happens to sit at its centre. Sub-`minTappableSpan` nodes are separators and
+    /// hairlines, not controls.
+    private func isReachableUnlabeledLeaf(_ snapshot: XCUIElementSnapshot, viewport: CGRect) -> Bool {
+        guard snapshot.children.isEmpty else { return false }
+        let frame = snapshot.frame.standardized
+        guard !frame.isNull, !frame.isEmpty,
+              frame.width >= Self.minTappableSpan, frame.height >= Self.minTappableSpan
+        else { return false }
+        return isSnapshotVisible(snapshot, visibleFrame: snapshotVisibleFrame(snapshot), viewport: viewport)
+    }
+
+    private func element(from snapshot: XCUIElementSnapshot, viewport: CGRect) -> ElementSnapshot {
+        ElementSnapshot(
+            id: snapshot.identifier,
+            label: snapshot.label,
+            value: (snapshot.value as? String) ?? "",
+            type: "\(snapshot.elementType)",
+            frame: snapshot.frame,
+            isEnabled: snapshot.isEnabled,
+            isVisible: isSnapshotVisible(
+                snapshot,
+                visibleFrame: snapshotVisibleFrame(snapshot),
+                viewport: viewport
+            )
+        )
     }
 
     /// A directional swipe centred on `frame`, travelling a quarter of its span.
@@ -695,6 +744,15 @@ final class XCUITestBridge: @unchecked Sendable {
     /// of taking the companion down with it.
     private static let maxMatchDepth = 40
     private static let maxMatchResults = 500
+
+    /// Unlabeled leaves get a smaller budget of their own: they are a fallback for controls no
+    /// selector can name, not a reason for a result set to double in size.
+    private static let maxUnlabeledResults = 100
+
+    /// Points below which an unnamed leaf is treated as decoration rather than a control. Apple's
+    /// minimum touch target is 44pt; this is deliberately looser, since a small icon button often
+    /// draws smaller than its hit area.
+    private static let minTappableSpan: CGFloat = 12
 
     private func resolvedTextInput() -> XCUIElement? {
         let target = gestureTarget()

@@ -210,17 +210,27 @@ class UIAutomatorBridge {
 
     // -- Accessibility --
 
+    /**
+     * Elements matching the selector, or every element when no selector is given.
+     *
+     * Unlabeled elements are included by default, so an icon-only control with no content
+     * description is still reachable by its frame. [labeledOnly] drops them, which is what the
+     * accessibility reports want — "how many elements are unlabeled" is the finding they produce.
+     * A selector makes it moot: an element with no id and no label matches none of them.
+     */
     fun findElements(
         resourceId: String?,
         text: String?,
         containsText: String?,
-        appId: String? = null
+        appId: String? = null,
+        labeledOnly: Boolean = false
     ): List<ElementSnapshot> {
         return scopedElements(appId)
             .filter { element ->
                 matches(element, resourceId, text, containsText)
             }
             .map { it.toSnapshot() }
+            .filter { !labeledOnly || it.id.isNotBlank() || it.label.isNotBlank() }
     }
 
     fun getAllElements(appId: String? = null): List<ElementSnapshot> {

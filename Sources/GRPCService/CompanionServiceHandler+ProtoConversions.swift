@@ -84,7 +84,8 @@ extension Amoo_ElementSelector {
             label: label.nonEmpty,
             containsText: containsText.nonEmpty,
             description: description_p.nonEmpty,
-            parentSelector: parent
+            parentSelector: parent,
+            labeledOnly: labeledOnly
         )
     }
 }

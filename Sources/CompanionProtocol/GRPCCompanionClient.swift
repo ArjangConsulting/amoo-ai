@@ -1039,6 +1039,8 @@ private extension ElementSelector {
             selector.description_p = description
         }
 
+        selector.labeledOnly = labeledOnly
+
         if let parentSelector {
             switch parentSelector {
             case let .selector(parent):
