@@ -214,8 +214,9 @@ class UIAutomatorBridge {
      * Elements matching the selector, or every element when no selector is given.
      *
      * Unlabeled elements are included by default, so an icon-only control with no content
-     * description is still reachable by its frame. [labeledOnly] drops them, which is what the
-     * accessibility reports want — "how many elements are unlabeled" is the finding they produce.
+     * description is still reachable by its frame. [labeledOnly] drops them, for callers that
+     * only want elements they can name — the accessibility reports are not among them, since an
+     * element with no id and no label is the finding they produce.
      * A selector makes it moot: an element with no id and no label matches none of them.
      */
     fun findElements(

@@ -9,9 +9,12 @@ public struct ElementSelector: Sendable, Equatable {
     ///
     /// Off by default, so an unfiltered query also returns unlabeled elements — an icon-only
     /// close button with no accessibility label is reachable by its frame instead of being
-    /// invisible to every query. Set it when only named elements are wanted, which is what the
-    /// accessibility reports need: "how many elements are unlabeled" is the finding they exist
-    /// to produce, and counting the unlabeled ones as findable would erase it.
+    /// invisible to every query. Set it when only named elements are wanted, which is what a
+    /// screen summary needs: it describes a screen by what its elements are called, and a
+    /// frame-only entry contributes nothing to that.
+    ///
+    /// The accessibility reports leave it off deliberately. An element with neither identifier
+    /// nor label is precisely the finding they exist to produce.
     ///
     /// No effect alongside `id`, `label`, or `containsText`: an unlabeled element cannot match
     /// any of those.
