@@ -429,10 +429,12 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         request _: Amoo_Empty,
         context _: ServerContext
     ) async throws -> Amoo_InteractableElementsResponse {
-        // Labeled only, deliberately: this feeds the accessibility reports, whose whole job is to
-        // count how many interactable elements lack a usable label. Letting unlabeled leaves in
-        // here would inflate that count with decoration and bury the real finding.
-        let elements = await accessibility.findElements(id: nil, label: nil, containsText: nil, labeledOnly: true)
+        // Unlabeled elements included, deliberately: this feeds the accessibility reports, and
+        // an element with neither identifier nor label is the finding they exist to produce.
+        // UX-001 (MissingAccessibilityLabelRule) selects on exactly `label.isEmpty && id.isEmpty`,
+        // so filtering those out here leaves the rule unable to fire at all, and
+        // highlight_a11y_issues with nothing to draw a red box around.
+        let elements = await accessibility.findElements(id: nil, label: nil, containsText: nil)
         let interactable = elements.filter { $0.isEnabled && $0.isVisible }
 
         var response = Amoo_InteractableElementsResponse()

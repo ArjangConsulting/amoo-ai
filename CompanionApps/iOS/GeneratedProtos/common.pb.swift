@@ -229,8 +229,11 @@ public nonisolated struct Amoo_ElementSelector: @unchecked Sendable {
   ///
   /// Off by default: an unfiltered query returns unlabeled elements too, so an icon-only
   /// control with no accessibility label is still reachable by its frame rather than being
-  /// invisible to every query. Set this when a caller wants only elements it could name —
-  /// the accessibility reports do, since "unlabeled" is the finding they exist to count.
+  /// invisible to every query. Set this when a caller wants only elements it can name —
+  /// the screen summary does, since it describes a screen by what its elements are called.
+  ///
+  /// The accessibility reports deliberately leave it off: an element with neither identifier
+  /// nor label is the finding they exist to produce.
   ///
   /// Has no effect alongside id/label/contains_text: an unlabeled element cannot match any
   /// of those anyway.
