@@ -227,6 +227,10 @@ public struct MissingAccessibilityLabelRule: AuditRule {
 
     public init() {}
 
+    /// Depends on `getInteractableElements` reporting elements that carry neither an identifier
+    /// nor a label. A companion that filters those out before answering leaves this rule unable
+    /// to fire at all — it will find nothing and report a clean screen, which is the one outcome
+    /// it must never produce by accident.
     public func evaluate(_ input: AuditInput) async throws -> [AuditFinding] {
         let unlabeled = input.interactableElements.filter { el in
             el.label.trimmingCharacters(in: .whitespaces).isEmpty && el.id.isEmpty
