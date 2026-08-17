@@ -225,6 +225,20 @@ public nonisolated struct Amoo_ElementSelector: @unchecked Sendable {
     set {_uniqueStorage()._index = newValue}
   }
 
+  /// Restrict results to elements that carry an identifier or a label.
+  ///
+  /// Off by default: an unfiltered query returns unlabeled elements too, so an icon-only
+  /// control with no accessibility label is still reachable by its frame rather than being
+  /// invisible to every query. Set this when a caller wants only elements it could name —
+  /// the accessibility reports do, since "unlabeled" is the finding they exist to count.
+  ///
+  /// Has no effect alongside id/label/contains_text: an unlabeled element cannot match any
+  /// of those anyway.
+  public var labeledOnly: Bool {
+    get {_storage._labeledOnly}
+    set {_uniqueStorage()._labeledOnly = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -502,7 +516,7 @@ nonisolated extension Amoo_CapabilityDescriptor: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ElementSelector"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{3}contains_text\0\u{1}description\0\u{3}parent_selector\0\u{1}type\0\u{1}value\0\u{1}index\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{3}contains_text\0\u{1}description\0\u{3}parent_selector\0\u{1}type\0\u{1}value\0\u{1}index\0\u{3}labeled_only\0")
 
   fileprivate class _StorageClass {
     var _id: String = String()
@@ -513,6 +527,7 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
     var _type: String = String()
     var _value: String = String()
     var _index: Int32 = 0
+    var _labeledOnly: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -531,6 +546,7 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
       _type = source._type
       _value = source._value
       _index = source._index
+      _labeledOnly = source._labeledOnly
     }
   }
 
@@ -557,6 +573,7 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
         case 6: try { try decoder.decodeSingularStringField(value: &_storage._type) }()
         case 7: try { try decoder.decodeSingularStringField(value: &_storage._value) }()
         case 8: try { try decoder.decodeSingularInt32Field(value: &_storage._index) }()
+        case 9: try { try decoder.decodeSingularBoolField(value: &_storage._labeledOnly) }()
         default: break
         }
       }
@@ -593,6 +610,9 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
       if _storage._index != 0 {
         try visitor.visitSingularInt32Field(value: _storage._index, fieldNumber: 8)
       }
+      if _storage._labeledOnly != false {
+        try visitor.visitSingularBoolField(value: _storage._labeledOnly, fieldNumber: 9)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -610,6 +630,7 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
         if _storage._type != rhs_storage._type {return false}
         if _storage._value != rhs_storage._value {return false}
         if _storage._index != rhs_storage._index {return false}
+        if _storage._labeledOnly != rhs_storage._labeledOnly {return false}
         return true
       }
       if !storagesAreEqual {return false}

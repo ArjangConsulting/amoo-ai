@@ -14,14 +14,16 @@ final class AccessibilityHandler: @unchecked Sendable {
         label: String?,
         containsText: String?,
         bundleID: String? = nil,
-        candidateBundleIDs: [String] = []
+        candidateBundleIDs: [String] = [],
+        labeledOnly: Bool = false
     ) async -> [ElementSnapshot] {
         await bridge.findElements(
             id: id,
             label: label,
             containsText: containsText,
             bundleID: bundleID,
-            candidateBundleIDs: candidateBundleIDs
+            candidateBundleIDs: candidateBundleIDs,
+            labeledOnly: labeledOnly
         )
     }
 
