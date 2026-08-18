@@ -141,6 +141,15 @@ package extension CompanionServiceHandler {
         return response
     }
 
+    func getAppState(
+        request: Amoo_GetAppStateRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_GetAppStateResponse {
+        var response = Amoo_GetAppStateResponse()
+        response.state = try await companion.appState(appID: request.appID)
+        return response
+    }
+
     func getScreenInfo(
         request _: Amoo_Empty,
         context _: ServerContext

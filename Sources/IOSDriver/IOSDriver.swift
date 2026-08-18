@@ -108,17 +108,22 @@ public actor IOSDriver: PlatformDriver {
         try await backend.listApps(device: deviceID)
     }
 
-    /// Tried scoping `getViewHierarchy` to `appID` here to sidestep `currentApp()`'s flaky
-    /// frontmost detection (see `verifyLaunch`) — reverted. When `appID` is backgrounded,
-    /// XCUITest's own `XCUIApplication(bundleIdentifier:).snapshot()` does not fail fast: it
-    /// retries "Find the Target Application" internally for tens of seconds per call, and
-    /// `verifyLaunch` calls this every 250ms, which compounded into a companion hang severe
-    /// enough to take the gRPC connection down entirely (confirmed against a live simulator:
-    /// hundreds of retry log lines, then every subsequent test failed on connection refused).
-    /// No known-safe fix without a bounded timeout around the companion call, which would need
-    /// its own verification against this same class of hang.
-    public func appState(appID _: String) async throws -> AppState {
-        .unknown
+    /// A first attempt at this scoped `getViewHierarchy` to `appID` to sidestep `currentApp()`'s
+    /// flaky frontmost detection (see `verifyLaunch`) — that caused a companion hang and was
+    /// reverted: `XCUIApplication(bundleIdentifier:).snapshot()` does not fail fast on a
+    /// backgrounded app, retrying "Find the Target Application" internally for tens of seconds
+    /// per call, and `verifyLaunch` polls this every 250ms.
+    ///
+    /// This version asks the companion for `.state` instead of a snapshot — a cheap property
+    /// read with none of that risk, the same pattern the companion already trusts for its own
+    /// springboard fallback check (`XCUITestBridge.searchOrder`).
+    public func appState(appID: String) async throws -> AppState {
+        switch try await companion.appState(appID: appID) {
+        case "running": .running
+        case "suspended": .suspended
+        case "notRunning": .notRunning
+        default: .unknown
+        }
     }
 
     // MARK: - Touch Actions (delegate to companion)

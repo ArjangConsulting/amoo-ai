@@ -319,8 +319,12 @@ extension CommandContractE2ETests {
         driver: any PlatformDriver,
         id: String,
         appID: String?,
-        attempts: Int = 10,
-        sleepMilliseconds: UInt64 = 200,
+        // Confirmed against a live companion: `assert_value` reading the exact same field
+        // succeeded several seconds after typing, while a 2-second poll budget consistently did
+        // not — this environment's accessibility value updates settle far slower than XCUITest
+        // normally does elsewhere in this suite. 15s covers what was observed with headroom.
+        attempts: Int = 30,
+        sleepMilliseconds: UInt64 = 500,
         isReady: ([ElementInfo]) -> Bool
     ) async throws -> [ElementInfo] {
         var last: [ElementInfo] = []

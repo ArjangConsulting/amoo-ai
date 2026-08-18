@@ -397,6 +397,15 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         return response
     }
 
+    func getAppState(
+        request: Amoo_GetAppStateRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_GetAppStateResponse {
+        var response = Amoo_GetAppStateResponse()
+        response.state = await accessibility.appState(appID: request.appID)
+        return response
+    }
+
     // MARK: - AI Context
 
     func getScreenContext(
