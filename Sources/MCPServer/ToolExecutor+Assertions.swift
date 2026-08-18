@@ -92,16 +92,25 @@ extension DriverToolExecutor {
             if let frontmost, !frontmost.isEmpty {
                 lastFrontmost = frontmost
             }
-            let state = try? await driver.appState(appID: appID)
-            if frontmost == appID || state == .running {
+            if frontmost == appID {
                 return .success(
                     "App launched: \(appID) (verified=true)",
                     structuredContent: .object(["app_id": .string(appID), "verified": .bool(true)])
                 )
             }
-            // A driver that reports neither signal can never confirm the launch, so polling it
-            // only burns the whole timeout. Report the launch as unverified straight away.
-            if lastFrontmost == nil, state == nil {
+            // `appState`'s `.running` was tried here as a second, faster success signal, and
+            // reverted: confirmed live against a real device that `.state == .runningForeground`
+            // can read true while XCUITest's own app-resolution machinery is still genuinely
+            // stuck — a launch this trusted as "verified=true" was followed by "Find the Target
+            // Application" retrying continuously for 140+ seconds, and every later test that
+            // touched the fixture UI in that run failed. `.state` is a fine building block for
+            // other checks; treating it as sufficient proof a launch is *interactively ready*
+            // is not. Only `frontmost` is trusted for that here.
+            //
+            // A driver that never reports a frontmost app can never confirm the launch this way,
+            // so polling it further only burns the timeout. Report the launch as unverified
+            // straight away instead.
+            if lastFrontmost == nil, await (try? driver.appState(appID: appID)) == nil {
                 return unverified
             }
             try? await Task.sleep(for: .milliseconds(250))

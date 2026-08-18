@@ -189,6 +189,7 @@ actor MockCompanionClient: CompanionClient {
     private var _keyboardVisible = false
     private var _interactableElements: [ElementInfo] = []
     private var _findByDescriptionResults: [ElementInfo] = []
+    private var _appStateResult = "unknown"
     private var _screenshotError: Error?
 
     func startSession() async throws {}
@@ -313,6 +314,10 @@ actor MockCompanionClient: CompanionClient {
         _findByDescriptionResults
     }
 
+    func appState(appID _: String) async throws -> String {
+        _appStateResult
+    }
+
     func shutdown() async {}
 
     func actionCalls() -> ActionCallsSummary {
@@ -342,6 +347,10 @@ actor MockCompanionClient: CompanionClient {
 
     func setInteractableElements(_ elements: [ElementInfo]) {
         _interactableElements = elements
+    }
+
+    func setAppStateResult(_ state: String) {
+        _appStateResult = state
     }
 
     func setFindByDescriptionResults(_ elements: [ElementInfo]) {

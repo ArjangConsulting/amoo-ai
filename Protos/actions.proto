@@ -49,6 +49,7 @@ service CompanionService {
   rpc GetCurrentApp (Empty) returns (CurrentAppResponse);
   rpc GetScreenInfo (Empty) returns (ScreenInfoResponse);
   rpc SetTargetApp (SetTargetAppRequest) returns (ActionResponse);
+  rpc GetAppState (GetAppStateRequest) returns (GetAppStateResponse);
 
   // AI context
   rpc GetScreenContext (ScreenContextRequest) returns (ScreenContextResponse);
@@ -196,4 +197,24 @@ message CurrentAppResponse {
 message SetTargetAppRequest {
   // Empty unbinds, falling back to whichever app is frontmost.
   string bundle_id = 1;
+}
+
+message GetAppStateRequest {
+  string app_id = 1;
+}
+
+message GetAppStateResponse {
+  // One of: running, suspended, notRunning, notInstalled, unknown.
+  //
+  // Deliberately answers "is app_id itself foreground/background/not running" via
+  // XCUIApplication(bundleIdentifier:).state — a fast, public property read — rather than by
+  // asking XCUITest's private frontmost-app reflection who is active system-wide. That
+  // reflection was found to report stale answers for many seconds after a launch or app
+  // switch. Resist the temptation to make this richer (e.g. returning a populated
+  // accessibility snapshot instead of just the state string): XCUIApplication.snapshot() on a
+  // backgrounded app does not fail fast — it was found to retry internally for tens of
+  // seconds per call, and a caller polling this RPC in a loop turned that into a companion
+  // hang severe enough to take the whole gRPC connection down. state is a cheap enum read
+  // with none of that risk.
+  string state = 1;
 }

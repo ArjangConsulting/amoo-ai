@@ -165,6 +165,7 @@ extension IOSDriverTests {
         await companion.setKeyboardVisible(true)
         await companion.setInteractableElements([ElementInfo(id: "cta", label: "Continue")])
         await companion.setFindByDescriptionResults([ElementInfo(id: "settings", label: "Settings")])
+        await companion.setAppStateResult("running")
         let driver = IOSDriver(companion: companion, simctl: MockSimctlRunner())
 
         let keyboardVisible = try await driver.isKeyboardVisible()
@@ -175,7 +176,9 @@ extension IOSDriverTests {
         XCTAssertTrue(keyboardVisible)
         XCTAssertEqual(interactable, [ElementInfo(id: "cta", label: "Continue")])
         XCTAssertEqual(described, [ElementInfo(id: "settings", label: "Settings")])
-        XCTAssertEqual(appState, .unknown)
+        // Confirms appState genuinely delegates to the companion's `.state` check rather than
+        // returning a hardcoded value — it used to be a permanent `.unknown` stub.
+        XCTAssertEqual(appState, .running)
     }
 
     func testSwipeDirectionDelegatesToCompanion() async throws {

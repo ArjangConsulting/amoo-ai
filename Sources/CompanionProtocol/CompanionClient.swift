@@ -46,6 +46,12 @@ public protocol CompanionClient: Sendable {
     /// under test for the rest of the session (empty/nil falls back to whatever is frontmost).
     func currentApp() async throws -> CurrentAppInfo
     func setTargetApp(bundleID: String?) async throws
+    /// `appID`'s own run state, resolved directly via the companion's public
+    /// `XCUIApplication(bundleIdentifier:).state` — not by asking who is frontmost. See
+    /// `GetAppStateResponse` in actions.proto for why that distinction is load-bearing: the
+    /// frontmost-guessing path this sidesteps was found to report stale answers for many
+    /// seconds after a launch or app switch.
+    func appState(appID: String) async throws -> String
     /// Point/pixel geometry of the screen, for converting positions read off a screenshot.
     func screenInfo() async throws -> ScreenGeometry
 
@@ -150,6 +156,10 @@ public extension CompanionClient {
 
     func setTargetApp(bundleID _: String?) async throws {
         throw AmooError.notImplemented("setTargetApp")
+    }
+
+    func appState(appID _: String) async throws -> String {
+        throw AmooError.notImplemented("appState")
     }
 
     func screenInfo() async throws -> ScreenGeometry {

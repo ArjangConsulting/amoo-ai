@@ -419,6 +419,13 @@ private actor MockRPCClient: CompanionRPCClient {
         return response
     }
 
+    func getAppState(_ request: Amoo_GetAppStateRequest) async throws -> Amoo_GetAppStateResponse {
+        _ = request
+        var response = Amoo_GetAppStateResponse()
+        response.state = "unknown"
+        return response
+    }
+
     func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws -> Amoo_ScreenshotResponse {
         _ = request
         var response = Amoo_ScreenshotResponse()
