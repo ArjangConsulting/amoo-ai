@@ -53,6 +53,35 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(resolved, companion.path)
     }
 
+    func testAndroidDefaultCompanionDirectoryResolvesFromInstalledExecutable() throws {
+        // The Android twin of the iOS case above. It regressed independently: the iOS side was
+        // fixed while Android kept resolving against the CWD, so `amoo companion start
+        // --platform android` from any other project looked for gradlew under that project.
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executable = root.appendingPathComponent(".build/debug/amoo")
+        let companion = root.appendingPathComponent("CompanionApps/Android", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: executable.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(at: companion, withIntermediateDirectories: true)
+        XCTAssertTrue(
+            FileManager.default.createFile(
+                atPath: companion.appendingPathComponent("gradlew").path,
+                contents: Data()
+            )
+        )
+
+        let resolved = AndroidCompanionConfig.defaultCompanionDir(
+            executableURL: executable,
+            currentDirectoryPath: "/tmp/unrelated-project"
+        )
+
+        XCTAssertEqual(resolved, companion.path)
+    }
+
     func testDefaultOutput() async {
         // REPL mode (no subcommand): prints nothing to CLIResult, exits 0 after device selection fails silently
         let app = CLIApp()

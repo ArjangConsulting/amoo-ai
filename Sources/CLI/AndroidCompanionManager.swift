@@ -23,10 +23,46 @@ struct AndroidCompanionConfig {
     ) {
         self.host = host
         self.port = port
-        self.companionDir =
-            companionDir ?? (FileManager.default.currentDirectoryPath + "/CompanionApps/Android")
+        self.companionDir = companionDir ?? Self.defaultCompanionDir()
         self.serial = (serial?.isEmpty == false && serial != "booted") ? serial : nil
         self.readyTimeoutSeconds = readyTimeoutSeconds
+    }
+
+    /// The companion lives next to the amoo installation, not next to whoever invoked it.
+    ///
+    /// Mirrors `CompanionManager.defaultCompanionDir()`, which was fixed for this exact reason on
+    /// the iOS side: resolving against the current working directory made every invocation from
+    /// another project fail on a `CompanionApps/Android/gradlew` path the caller has no reason to
+    /// have. The executable's own location is walked upward instead, with the CWD kept as a last
+    /// resort for running out of a source checkout.
+    static func defaultCompanionDir(
+        executableURL: URL? = Bundle.main.executableURL,
+        currentDirectoryPath: String = FileManager.default.currentDirectoryPath
+    ) -> String {
+        let fileManager = FileManager.default
+        var searchRoots: [URL] = []
+
+        // `CommandLine.arguments[0]` is often only "amoo" when invoked through PATH, which
+        // incorrectly resolves relative to the caller's working directory. Bundle supplies the
+        // actual executable URL for command-line tools, including Homebrew-style symlinks.
+        if var executableDir = executableURL?
+            .resolvingSymlinksInPath()
+            .deletingLastPathComponent() {
+            for _ in 0 ..< 6 {
+                searchRoots.append(executableDir)
+                executableDir.deleteLastPathComponent()
+            }
+        }
+        searchRoots.append(URL(fileURLWithPath: currentDirectoryPath))
+
+        for root in searchRoots {
+            let candidate = root.appendingPathComponent("CompanionApps/Android")
+            if fileManager.fileExists(atPath: candidate.appendingPathComponent("gradlew").path) {
+                return candidate.path
+            }
+        }
+
+        return currentDirectoryPath + "/CompanionApps/Android"
     }
 }
 
