@@ -50,14 +50,19 @@ extension CommandContractE2ETests {
 
         let initialHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(initialHierarchy.isError)
-        XCTAssertFalse(initialHierarchy.content.contains("fixture-detail-row-10"))
+        // Row 10 is not a safe "not yet rendered" checkpoint: on a tall device, SwiftUI's List
+        // pre-renders enough rows past the viewport that row 10 is already in the hierarchy before
+        // any scroll — the sibling test testHierarchyReachesDeeperRowsAfterMultipleScrolls proves
+        // row 20 stays absent through zero scrolls, so 15 sits at a conservative midpoint between
+        // the two known reference rows.
+        XCTAssertFalse(initialHierarchy.content.contains("fixture-detail-row-15"))
 
         let scroll = await server.execute(toolName: "scroll", arguments: ["direction": "down", "distance": "900"])
         XCTAssertFalse(scroll.isError)
 
         let scrolledHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(scrolledHierarchy.isError)
-        XCTAssertTrue(scrolledHierarchy.content.contains("fixture-detail-row-10"))
+        XCTAssertTrue(scrolledHierarchy.content.contains("fixture-detail-row-15"))
     }
 
     func testHierarchyReachesDeeperRowsAfterMultipleScrolls() async throws {
@@ -118,7 +123,17 @@ extension CommandContractE2ETests {
 
         switch Self.platform {
         case .ios:
-            let typedElements = try await driver.findElements(.init(id: "fixture-text-input"))
+            // Explicit appID (not the bare selector overload) sidesteps the same "who is
+            // frontmost" guess verifyLaunch relies on. That alone was not enough: even scoped
+            // correctly, a snapshot taken immediately after type_text can still return the
+            // field's pre-edit value — XCUITest's accessibility snapshot lags the synthetic
+            // keystrokes' own completion by up to a couple hundred milliseconds on this
+            // environment. Poll briefly rather than trust the very next snapshot.
+            let typedElements = try await pollFindElements(
+                driver: driver,
+                id: "fixture-text-input",
+                appID: Self.fixtureAppID
+            ) { $0.first?.value as? String == "contract text" }
             XCTAssertEqual(typedElements.first?.value as? String, "contract text", "elements: \(typedElements)")
         case .android:
             let typedHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
@@ -131,7 +146,14 @@ extension CommandContractE2ETests {
 
         switch Self.platform {
         case .ios:
-            let clearedElements = try await driver.findElements(.init(id: "fixture-text-input"))
+            let clearedElements = try await pollFindElements(
+                driver: driver,
+                id: "fixture-text-input",
+                appID: Self.fixtureAppID
+            ) { elements in
+                let value = elements.first?.value as? String
+                return value == "" || value == "Fixture Input"
+            }
             let clearedValue = clearedElements.first?.value as? String
             XCTAssertTrue(
                 clearedValue == "" || clearedValue == "Fixture Input",
@@ -285,5 +307,32 @@ extension CommandContractE2ETests {
             }
         }
         return result == 0
+    }
+
+    /// Polls `driver.findElements` until `isReady` accepts the result or the budget runs out.
+    ///
+    /// A snapshot taken immediately after a text-entry action can still report the field's
+    /// pre-edit value on this environment — XCUITest's accessibility snapshot lags the
+    /// synthetic keystrokes' own completion by up to a couple hundred milliseconds. One read is
+    /// not enough to tell "still catching up" apart from "genuinely wrong"; several are.
+    func pollFindElements(
+        driver: any PlatformDriver,
+        id: String,
+        appID: String?,
+        attempts: Int = 10,
+        sleepMilliseconds: UInt64 = 200,
+        isReady: ([ElementInfo]) -> Bool
+    ) async throws -> [ElementInfo] {
+        var last: [ElementInfo] = []
+        for attempt in 0 ..< attempts {
+            last = try await driver.findElements(.init(id: id), appID: appID)
+            if isReady(last) {
+                return last
+            }
+            if attempt < attempts - 1 {
+                try? await Task.sleep(nanoseconds: sleepMilliseconds * 1_000_000)
+            }
+        }
+        return last
     }
 }

@@ -108,6 +108,15 @@ public actor IOSDriver: PlatformDriver {
         try await backend.listApps(device: deviceID)
     }
 
+    /// Tried scoping `getViewHierarchy` to `appID` here to sidestep `currentApp()`'s flaky
+    /// frontmost detection (see `verifyLaunch`) — reverted. When `appID` is backgrounded,
+    /// XCUITest's own `XCUIApplication(bundleIdentifier:).snapshot()` does not fail fast: it
+    /// retries "Find the Target Application" internally for tens of seconds per call, and
+    /// `verifyLaunch` calls this every 250ms, which compounded into a companion hang severe
+    /// enough to take the gRPC connection down entirely (confirmed against a live simulator:
+    /// hundreds of retry log lines, then every subsequent test failed on connection refused).
+    /// No known-safe fix without a bounded timeout around the companion call, which would need
+    /// its own verification against this same class of hang.
     public func appState(appID _: String) async throws -> AppState {
         .unknown
     }

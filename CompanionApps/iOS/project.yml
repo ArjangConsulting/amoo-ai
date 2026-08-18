@@ -34,6 +34,16 @@ targets:
       - path: HostApp
     info:
       path: HostApp/Info.plist
+      properties:
+        # HostApp/App.swift's .onOpenURL handler expects amoo:// links (used by
+        # testOpenURLAndScreenshot and the "Open Deep Link" fixture screen). xcodegen
+        # regenerates HostApp/Info.plist from this project.yml on every `xcodegen generate` —
+        # editing the plist file directly does not survive the next build, so the scheme has
+        # to be declared here instead.
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
+            CFBundleURLSchemes:
+              - amoo
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion
