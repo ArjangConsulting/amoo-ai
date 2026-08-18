@@ -152,11 +152,13 @@ extension CommandContractE2ETests {
                 appID: Self.fixtureAppID
             ) { elements in
                 let value = elements.first?.value as? String
-                return value == "" || value == "Fixture Input"
+                // A cleared field's accessibility value was found to report nil here, not "" —
+                // both mean "no content" and either is a correct cleared state.
+                return value == nil || value == "" || value == "Fixture Input"
             }
             let clearedValue = clearedElements.first?.value as? String
             XCTAssertTrue(
-                clearedValue == "" || clearedValue == "Fixture Input",
+                clearedValue == nil || clearedValue == "" || clearedValue == "Fixture Input",
                 "elements: \(clearedElements)"
             )
         case .android:
