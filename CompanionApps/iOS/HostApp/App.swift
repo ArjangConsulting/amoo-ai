@@ -8,6 +8,7 @@ private enum FixtureRoute: Hashable {
     case appearance
     case deepLink
     case confirmation
+    case unlabeled
 }
 
 @main
@@ -18,6 +19,7 @@ struct CompanionHostApp: App {
     @State private var doubleTapCount = 0
     @State private var longPressState = "idle"
     @State private var deepLinkValue = "No URL opened yet"
+    @State private var unlabeledDismissCount = 0
 
     var body: some Scene {
         WindowGroup {
@@ -47,6 +49,8 @@ struct CompanionHostApp: App {
                         FixtureDeepLinkView(deepLinkValue: $deepLinkValue)
                     case .confirmation:
                         FixtureConfirmationView()
+                    case .unlabeled:
+                        FixtureUnlabeledView(dismissCount: $unlabeledDismissCount)
                     }
                 }
                 .toolbar {
@@ -82,6 +86,8 @@ struct CompanionHostApp: App {
             path = [.appearance]
         case "confirm":
             path = [.confirmation]
+        case "unlabeled":
+            path = [.unlabeled]
         default:
             deepLinkValue = url.absoluteString
             path = [.deepLink]
@@ -123,6 +129,8 @@ private struct FixtureHomeView: View {
                     .accessibilityIdentifier("fixture-open-deeplink")
                 NavigationLink("Open Confirmation", value: FixtureRoute.confirmation)
                     .accessibilityIdentifier("fixture-open-confirmation")
+                NavigationLink("Open Unlabeled", value: FixtureRoute.unlabeled)
+                    .accessibilityIdentifier("fixture-open-unlabeled")
             }
 
             Section("Gesture Summary") {
@@ -266,6 +274,48 @@ private struct FixtureDeepLinkView: View {
         }
         .padding()
         .navigationTitle("Deep Link")
+    }
+}
+
+/// A screen whose primary control carries neither an accessibility label nor an identifier, the
+/// way a third-party paywall's close button does.
+///
+/// Deliberately hostile to every selector-based tool: no `find_elements id=`, `tap_element`, or
+/// `assert_visible` can name this button. It exists so the contract tests can prove that an
+/// unfiltered query still reports it by frame, that tapping that frame works, and that the
+/// accessibility audit reports it as unlabeled rather than declaring the screen clean.
+private struct FixtureUnlabeledView: View {
+    @Binding var dismissCount: Int
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Unlabeled Screen")
+                .font(.title2.bold())
+                .accessibilityIdentifier("fixture-unlabeled-screen")
+
+            Text("Dismissed: \(dismissCount)")
+                .accessibilityIdentifier("fixture-unlabeled-dismiss-count")
+
+            Button {
+                dismissCount += 1
+            } label: {
+                // Not Image(systemName:): SF Symbols carry a built-in accessibility label
+                // ("xmark" -> "Close") that survived every attempt to override it —
+                // .accessibilityHidden(true) on the image, .accessibilityLabel("") and
+                // .accessibilityElement(children: .ignore) on the button, alone and combined.
+                // Confirmed empirically against a live companion: the button kept reporting
+                // id="xmark", label="Close" regardless, which defeated the entire fixture. A
+                // plain shape has no such default, so it starts genuinely unlabeled.
+                Circle()
+                    .fill(Color.secondary)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("")
+            .accessibilityIdentifier("")
+        }
+        .padding()
+        .navigationTitle("Unlabeled")
     }
 }
 
