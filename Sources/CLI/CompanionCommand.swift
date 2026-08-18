@@ -244,7 +244,9 @@ func runAndroidCompanionStart(
     processRunner: any ProcessRunner = SystemProcessRunner(),
     currentDirectory: String = FileManager.default.currentDirectoryPath
 ) async -> CLIResult {
-    let companionDir = options.companionDir ?? (currentDirectory + "/CompanionApps/Android")
+    let companionDir =
+        options.companionDir
+            ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
     let config = AndroidCompanionConfig(companionDir: companionDir, serial: options.deviceID)
     let manager = AndroidCompanionManager(processRunner: processRunner)
 
@@ -295,7 +297,7 @@ func runAndroidCompanionInstall(
 ) async -> CLIResult {
     let companionDir =
         options.companionDir
-            ?? (currentDirectory + "/CompanionApps/Android")
+            ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
 
     let config = AndroidCompanionConfig(
         companionDir: companionDir,
