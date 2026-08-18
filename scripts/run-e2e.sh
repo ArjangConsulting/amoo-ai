@@ -452,7 +452,7 @@ log "Companion is reachable after ${WAITED}s."
 # Step 5: Run integration tests
 log "Running integration tests..."
 cd "$REPO_ROOT"
-COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="ios" E2E_DEVICE_ID="$TARGET_ID" E2E_APP_ID="com.mobiletesting.companion" swift test --filter IntegrationTests 2>&1
+COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="ios" E2E_DEVICE_ID="$TARGET_ID" E2E_APP_ID="com.amoo.companion" swift test --filter IntegrationTests 2>&1
 E2E_EXIT=$?
 
 if [[ $E2E_EXIT -eq 0 ]]; then
