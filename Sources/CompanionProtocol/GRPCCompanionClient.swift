@@ -48,6 +48,7 @@ package protocol CompanionRPCClient: Sendable {
     func getCurrentApp(_ request: Amoo_Empty) async throws -> Amoo_CurrentAppResponse
     func getScreenInfo(_ request: Amoo_Empty) async throws -> Amoo_ScreenInfoResponse
     func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws -> Amoo_ActionResponse
+    func getAppState(_ request: Amoo_GetAppStateRequest) async throws -> Amoo_GetAppStateResponse
 
     /// Capture
     func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws -> Amoo_ScreenshotResponse
@@ -187,6 +188,11 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
         -> Amoo_ActionResponse {
         try await client.setTargetApp(request)
+    }
+
+    package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
+        -> Amoo_GetAppStateResponse {
+        try await client.getAppState(request)
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
@@ -378,6 +384,14 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
         _ = request
         var response = Amoo_ActionResponse()
         response.success = true
+        return response
+    }
+
+    package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
+        -> Amoo_GetAppStateResponse {
+        _ = request
+        var response = Amoo_GetAppStateResponse()
+        response.state = "unknown"
         return response
     }
 
@@ -573,6 +587,11 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
         -> Amoo_ActionResponse {
         try await client.setTargetApp(request)
+    }
+
+    package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
+        -> Amoo_GetAppStateResponse {
+        try await client.getAppState(request)
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
@@ -895,6 +914,12 @@ public actor GRPCCompanionClient: CompanionClient {
         var request = Amoo_SetTargetAppRequest()
         request.bundleID = bundleID ?? ""
         _ = try await rpcClient.setTargetApp(request)
+    }
+
+    public func appState(appID: String) async throws -> String {
+        var request = Amoo_GetAppStateRequest()
+        request.appID = appID
+        return try await rpcClient.getAppState(request).state
     }
 
     // MARK: - Capture

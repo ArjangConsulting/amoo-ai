@@ -55,6 +55,21 @@ final class XCUITestBridge: @unchecked Sendable {
         Self.bundleID(of: resolvedTargetApp(bundleID: nil, candidateBundleIDs: []))
     }
 
+    /// `appID`'s own run state, via `XCUIApplication(bundleIdentifier:).state` directly —
+    /// bypasses `resolvedTargetApp`/`currentAppBundleID`'s frontmost-guessing entirely, since the
+    /// caller already knows exactly which bundle ID it cares about. A cheap property read: safe
+    /// to poll, unlike `.snapshot()` on a backgrounded app (see GetAppStateResponse in
+    /// actions.proto for why that distinction matters).
+    func appState(appID: String) -> String {
+        switch XCUIApplication(bundleIdentifier: appID).state {
+        case .runningForeground: "running"
+        case .runningBackground, .runningBackgroundSuspended: "suspended"
+        case .notRunning: "notRunning"
+        case .unknown: "unknown"
+        @unknown default: "unknown"
+        }
+    }
+
     static let springboardBundleID = "com.apple.springboard"
 
     private static func bundleID(of application: XCUIApplication) -> String? {

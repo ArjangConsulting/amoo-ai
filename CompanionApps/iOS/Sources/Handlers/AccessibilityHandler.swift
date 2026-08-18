@@ -47,6 +47,10 @@ final class AccessibilityHandler: @unchecked Sendable {
         await bridge.setTargetApp(bundleID: bundleID)
     }
 
+    func appState(appID: String) async -> String {
+        await bridge.appState(appID: appID)
+    }
+
     func takeScreenshot() async -> Data {
         await bridge.takeScreenshot()
     }

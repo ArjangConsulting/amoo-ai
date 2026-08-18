@@ -345,6 +345,19 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "GetAppState" metadata.
+        public enum GetAppState: Sendable {
+            /// Request type for "GetAppState".
+            public typealias Input = Amoo_GetAppStateRequest
+            /// Response type for "GetAppState".
+            public typealias Output = Amoo_GetAppStateResponse
+            /// Descriptor for "GetAppState".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "GetAppState",
+                type: .unary
+            )
+        }
         /// Namespace for "GetScreenContext" metadata.
         public enum GetScreenContext: Sendable {
             /// Request type for "GetScreenContext".
@@ -424,6 +437,7 @@ public enum Amoo_CompanionService: Sendable {
             GetCurrentApp.descriptor,
             GetScreenInfo.descriptor,
             SetTargetApp.descriptor,
+            GetAppState.descriptor,
             GetScreenContext.descriptor,
             FindByDescription.descriptor,
             GetInteractableElements.descriptor,
@@ -830,6 +844,20 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_SetTargetAppRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
+
+        /// Handle the "GetAppState" method.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_GetAppStateRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_GetAppStateResponse` messages.
+        func getAppState(
+            request: GRPCCore.StreamingServerRequest<Amoo_GetAppStateRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_GetAppStateResponse>
 
         /// Handle the "GetScreenContext" method.
         ///
@@ -1282,6 +1310,20 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
+        /// Handle the "GetAppState" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_GetAppStateRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_GetAppStateResponse` message.
+        func getAppState(
+            request: GRPCCore.ServerRequest<Amoo_GetAppStateRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_GetAppStateResponse>
+
         /// Handle the "GetScreenContext" method.
         ///
         /// > Source IDL Documentation:
@@ -1731,6 +1773,20 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_ActionResponse
 
+        /// Handle the "GetAppState" method.
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_GetAppStateRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_GetAppStateResponse` to respond with.
+        func getAppState(
+            request: Amoo_GetAppStateRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_GetAppStateResponse
+
         /// Handle the "GetScreenContext" method.
         ///
         /// > Source IDL Documentation:
@@ -2077,6 +2133,17 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.GetAppState.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_GetAppStateRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_GetAppStateResponse>(),
+            handler: { request, context in
+                try await self.getAppState(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.GetScreenContext.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ScreenContextRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ScreenContextResponse>(),
@@ -2395,6 +2462,17 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
         let response = try await self.setTargetApp(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func getAppState(
+        request: GRPCCore.StreamingServerRequest<Amoo_GetAppStateRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_GetAppStateResponse> {
+        let response = try await self.getAppState(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2767,6 +2845,19 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
         return GRPCCore.ServerResponse<Amoo_ActionResponse>(
             message: try await self.setTargetApp(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func getAppState(
+        request: GRPCCore.ServerRequest<Amoo_GetAppStateRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_GetAppStateResponse> {
+        return GRPCCore.ServerResponse<Amoo_GetAppStateResponse>(
+            message: try await self.getAppState(
                 request: request.message,
                 context: context
             ),
@@ -3337,6 +3428,25 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "GetAppState" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_GetAppStateRequest` message.
+        ///   - serializer: A serializer for `Amoo_GetAppStateRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_GetAppStateResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func getAppState<Result>(
+            request: GRPCCore.ClientRequest<Amoo_GetAppStateRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_GetAppStateRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_GetAppStateResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_GetAppStateResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "GetScreenContext" method.
@@ -4218,6 +4328,36 @@ extension Amoo_CompanionService {
             )
         }
 
+        /// Call the "GetAppState" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_GetAppStateRequest` message.
+        ///   - serializer: A serializer for `Amoo_GetAppStateRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_GetAppStateResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func getAppState<Result>(
+            request: GRPCCore.ClientRequest<Amoo_GetAppStateRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_GetAppStateRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_GetAppStateResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_GetAppStateResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.GetAppState.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "GetScreenContext" method.
         ///
         /// > Source IDL Documentation:
@@ -4999,6 +5139,31 @@ extension Amoo_CompanionService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetTargetAppRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetAppState" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_GetAppStateRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getAppState<Result>(
+        request: GRPCCore.ClientRequest<Amoo_GetAppStateRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_GetAppStateResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.getAppState(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_GetAppStateRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_GetAppStateResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -5863,6 +6028,35 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.setTargetApp(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetAppState" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getAppState<Result>(
+        _ message: Amoo_GetAppStateRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_GetAppStateResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_GetAppStateRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.getAppState(
             request: request,
             options: options,
             onResponse: handleResponse
