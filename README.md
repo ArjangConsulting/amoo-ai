@@ -48,6 +48,8 @@ See [docs/prerequisites.md](docs/prerequisites.md) for the full dependency table
 - [Prerequisites](docs/prerequisites.md) — external tooling, install steps, `make` targets
 - [Physical iOS Devices](docs/physical-ios-devices.md) — `iproxy`, pairing, provisioning, current constraints
 - [MCP For Local AI](docs/mcp-server.md) — running the MCP server, client config, reusable test flows
+- [Amoo Studio](https://github.com/maniramezan/amoo-studio) — Compose desktop client
+- [Studio protocol](docs/studio.md) — Swift service and GUI integration boundary
 - [iOS E2E Runbook](docs/e2e-ios.md) — full workflow and troubleshooting
 - [Command Contract Guide](docs/command-contract.md) — contributor checklist for coverage
 - [API Documentation (DocC)](docs/documentation.md) — generating and browsing the DocC site
