@@ -1,6 +1,7 @@
 import AmooCore
 import AuditEngine
 import MCPServer
+import StudioProtocol
 
 public struct CLIResult: Sendable, Equatable {
     public var output: String
@@ -61,8 +62,20 @@ public struct CLIApp {
         case "audit": return await handleAuditCommand(remaining: remaining)
         case "chat": return await handleChatCommand(remaining: remaining)
         case "mcp": return await handleMCPCommand(remaining: remaining)
+        case "studio": return await handleStudioCommand(remaining: remaining)
         default: return nil
         }
+    }
+
+    private func handleStudioCommand(remaining: [String]) async -> CLIResult {
+        if isHelpRequest(remaining) {
+            return CLIResult(output: "Usage: amoo studio serve", exitCode: 0)
+        }
+        guard remaining == ["serve"] else {
+            return CLIResult(output: "Usage: amoo studio serve", exitCode: 64)
+        }
+        await StudioService().run()
+        return CLIResult(output: "", exitCode: 0)
     }
 
     private func handlePreflightCommand(remaining: [String]) async -> CLIResult {
@@ -179,6 +192,7 @@ func renderCLIHelp() -> String {
       audit ...                    Run app audit rules
       chat                         Interactive AI chat (Ollama + MCP tools)
       mcp serve                    Run the local MCP stdio server for AI clients
+      studio serve                 Run the Studio JSON-RPC service over stdio
 
     Shortcuts:
       amoo --help                  Show top-level help

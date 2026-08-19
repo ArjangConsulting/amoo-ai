@@ -163,7 +163,8 @@ This project should combine those strengths while prioritizing Swift-first modul
 - MCP tools for core actions and queries
 - skill-compatible command surfaces/workflows
 - AI-assisted test case generation from app state + user intent
-- local AI client support through MCP stdio; model/provider choice lives outside the CLI
+- external AI client support through MCP stdio
+- embedded local-model support through the same tool executor for CLI and Studio clients
 
 ### 8.5 Audit Features
 
@@ -184,7 +185,7 @@ This project should combine those strengths while prioritizing Swift-first modul
 - natural-language flow execution and repair loops
 - parallel execution and worker orchestration
 - integrations with major testing ecosystems
-- lightweight GUI for orchestration, reports, and artifact inspection
+- Compose Multiplatform Studio for orchestration, reports, artifact inspection, and local-model chat
 - advanced policy engine for enterprise controls
 
 ## 10. Non-Functional Requirements
