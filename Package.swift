@@ -72,7 +72,7 @@ let package = Package(
         .target(name: "CommandContract", dependencies: ["AmooCore"]),
         .target(name: "TestSession", dependencies: ["AmooCore"]),
         .target(name: "OllamaClient"),
-        .target(name: "StudioProtocol", dependencies: ["AmooCore"]),
+        .target(name: "StudioProtocol", dependencies: ["AmooCore", "ProcessRunner"]),
         .target(
             name: "GRPCService",
             dependencies: [

@@ -15,7 +15,11 @@ public struct StudioHealth: Codable, Equatable, Sendable {
 public struct StudioService: Sendable {
     public static let protocolVersion = 1
 
-    public init() {}
+    private let workspace: any StudioDeviceWorkspace
+
+    public init(workspace: any StudioDeviceWorkspace = LiveStudioDeviceWorkspace()) {
+        self.workspace = workspace
+    }
 
     public func run(
         input: FileHandle = .standardInput,
@@ -42,10 +46,20 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health"]
+                    capabilities: ["health", "devices.list", "devices.start", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData"]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
+            case "devices.list":
+                result = try encodeValue(StudioDeviceList(devices: await workspace.listDevices()))
+            case "devices.start":
+                result = try encodeValue(await workspace.startDevice(try request.required("id")))
+            case "apps.buildInstallRun":
+                result = try encodeValue(await workspace.buildInstallRun(try request.appRequest()))
+            case "apps.reinstallRun":
+                result = try encodeValue(await workspace.reinstallRun(try request.appRequest()))
+            case "apps.resetData":
+                result = try encodeValue(await workspace.resetData(try request.appRequest()))
             default:
                 return encode(Response(
                     id: request.id,
@@ -70,6 +84,27 @@ public struct StudioService: Sendable {
 private struct Request: Decodable {
     let id: AnyJSON?
     let method: String
+    let params: [String: AnyJSON]?
+
+    func required(_ key: String) throws -> String {
+        guard case let .string(value)? = params?[key], !value.isEmpty else {
+            throw StudioWorkspaceError.invalidParameter(key)
+        }
+        return value
+    }
+
+    func optional(_ key: String) -> String? {
+        guard case let .string(value)? = params?[key], !value.isEmpty else { return nil }
+        return value
+    }
+
+    func appRequest() throws -> StudioAppRequest {
+        StudioAppRequest(
+            deviceId: try required("deviceId"), platform: optional("platform"),
+            projectPath: optional("projectPath"), appId: try required("appId"),
+            schemeOrModule: optional("schemeOrModule"), artifactPath: optional("artifactPath")
+        )
+    }
 }
 
 private struct Response: Encodable {

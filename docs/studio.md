@@ -19,10 +19,15 @@ The initial methods are:
 | --- | --- |
 | `system.handshake` | Product version, protocol version, and capability identifiers |
 | `system.health` | Current service status |
+| `devices.list` | Running and available simulators, emulators, and devices |
+| `devices.start` | Boot a selected simulator or emulator |
+| `apps.buildInstallRun` | Build, install, and launch an app |
+| `apps.reinstallRun` | Reinstall the last artifact without rebuilding |
+| `apps.resetData` | Remove app-local data after explicit approval |
 
-GUI-oriented lifecycle and event methods will sit beside these system methods. Device actions and
-queries must continue to use Amoo's existing executor and MCP tool definitions so MCP, CLI, and
-Studio do not develop different automation behavior.
+Build and lifecycle behavior belongs to Amoo. iOS builds run through Amoo's
+ShipItSwifty-backed process layer; Android builds use the project Gradle wrapper. Studio sends paths
+and selections but never invokes Xcode, Gradle, `simctl`, `adb`, or emulator tools itself.
 
 ## Reusable process library
 
