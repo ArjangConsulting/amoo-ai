@@ -18,6 +18,7 @@ public protocol ADBRunning: Sendable {
     func launchResetting(serial: String?, appID: String) async throws
     func terminate(serial: String?, appID: String) async throws
     func uninstall(serial: String?, appID: String) async throws
+    func clearAppData(serial: String?, appID: String) async throws
     func listPackages(serial: String?) async throws -> String
 
     // Capture
@@ -99,6 +100,10 @@ public struct ADBRunner: ADBRunning {
 
     public func uninstall(serial: String? = nil, appID: String) async throws {
         _ = try await run(adb(serial: serial).uninstall(package: appID))
+    }
+
+    public func clearAppData(serial: String? = nil, appID: String) async throws {
+        _ = try await run(adb(serial: serial).rawArguments(["shell", "pm", "clear", appID]))
     }
 
     public func listPackages(serial: String? = nil) async throws -> String {
