@@ -13,7 +13,10 @@ struct StudioProtocolTests {
 
         #expect(result["protocolVersion"] as? Int == StudioService.protocolVersion)
         #expect(result["product"] as? String == "amoo")
-        #expect(result["capabilities"] as? [String] == ["health"])
+        #expect(result["capabilities"] as? [String] == [
+            "health", "devices.list", "devices.start", "apps.buildInstallRun",
+            "apps.reinstallRun", "apps.resetData"
+        ])
     }
 
     @Test("unknown methods return JSON-RPC method-not-found")
@@ -25,4 +28,23 @@ struct StudioProtocolTests {
 
         #expect(error["code"] as? Int == -32601)
     }
+
+    @Test("device list is returned as structured protocol data")
+    func deviceList() async throws {
+        let request = Data(#"{"jsonrpc":"2.0","id":2,"method":"devices.list","params":{}}"#.utf8)
+        let response = await StudioService(workspace: StubWorkspace()).handle(request)
+        let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
+        let result = try #require(object["result"] as? [String: Any])
+        let devices = try #require(result["devices"] as? [[String: Any]])
+        #expect(devices.first?["id"] as? String == "sim-1")
+        #expect(devices.first?["status"] as? String == "Running")
+    }
+}
+
+private struct StubWorkspace: StudioDeviceWorkspace {
+    func listDevices() async -> [StudioDevice] { [.init(id: "sim-1", name: "iPhone", platform: .ios, osVersion: "26.0", status: .running, physical: false)] }
+    func startDevice(_: String) async -> StudioOperationResult { .init(message: "started", artifactPath: nil) }
+    func buildInstallRun(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "built", artifactPath: "/tmp/App.app") }
+    func reinstallRun(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "installed", artifactPath: nil) }
+    func resetData(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "reset", artifactPath: nil) }
 }
