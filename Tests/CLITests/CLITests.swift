@@ -115,7 +115,15 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(result.output.contains("Commands:"))
         XCTAssertTrue(result.output.contains("amoo device"))
         XCTAssertTrue(result.output.contains("mcp serve"))
+        XCTAssertTrue(result.output.contains("studio serve"))
         XCTAssertFalse(result.output.contains("amoo ai"))
+    }
+
+    func testStudioSubcommandHelpReturnsUsageWithoutStartingService() async {
+        let result = await CLIApp().run(args: ["studio", "--help"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.output, "Usage: amoo studio serve")
     }
 
     func testShortHelpFlagReturnsGuidance() async {
