@@ -25,8 +25,9 @@ The initial methods are:
 | `apps.reinstallRun` | Reinstall the last artifact without rebuilding |
 | `apps.resetData` | Remove app-local data after explicit approval |
 
-Build and lifecycle behavior belongs to Amoo. iOS builds run through Amoo's
-ShipItSwifty-backed process layer; Android builds use the project Gradle wrapper. Studio sends paths
+Build and lifecycle behavior belongs to Amoo. Both iOS and Android builds and device operations run
+through Amoo's ShipItSwifty-backed process layer (`GradleKit`, `Adb`, and the Apple command
+families). Android builds still select the project's Gradle wrapper through `GradleKit`. Studio sends paths
 and selections but never invokes Xcode, Gradle, `simctl`, `adb`, or emulator tools itself.
 
 ## Reusable process library

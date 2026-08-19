@@ -191,7 +191,8 @@ final class ProcessRunnerTests: XCTestCase {
             .init(exitCode: 0, stdout: "com.example.app/.RealLauncherActivity\n", stderr: ""),
             .init(exitCode: 0, stdout: "", stderr: ""),
             .init(exitCode: 0, stdout: "", stderr: ""),
-            .init(exitCode: 0, stdout: "", stderr: "")
+            .init(exitCode: 0, stdout: "", stderr: ""),
+            .init(exitCode: 0, stdout: "Success", stderr: "")
         ])
         let runner = ADBRunner(context: mock.context)
 
@@ -199,6 +200,7 @@ final class ProcessRunnerTests: XCTestCase {
         try await runner.launch(serial: nil, appID: "com.example.app")
         try await runner.terminate(serial: nil, appID: "com.example.app")
         try await runner.uninstall(serial: nil, appID: "com.example.app")
+        try await runner.clearAppData(serial: "emulator-5554", appID: "com.example.app")
 
         let commands = await mock.recordedCommands()
         XCTAssertEqual(commands[0], ["adb", "-s", "emulator-5554", "install", "-r", "/tmp/app.apk"])
@@ -211,6 +213,23 @@ final class ProcessRunnerTests: XCTestCase {
         )
         XCTAssertEqual(commands[3], ["adb", "shell", "am", "force-stop", "com.example.app"])
         XCTAssertEqual(commands[4], ["adb", "uninstall", "com.example.app"])
+        XCTAssertEqual(
+            commands[5],
+            ["adb", "-s", "emulator-5554", "shell", "pm", "clear", "com.example.app"]
+        )
+    }
+
+    func testGradleProjectBuilderUsesShipItGradleKit() async throws {
+        let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "BUILD SUCCESSFUL", stderr: ""))
+        let builder = GradleProjectBuilder(context: mock.context)
+
+        try await builder.assembleDebug(projectDirectory: "/tmp/project", module: "androidApp")
+
+        let commands = await mock.recordedCommands()
+        XCTAssertEqual(
+            commands,
+            [["gradle", "--no-daemon", ":androidApp:assembleDebug"]]
+        )
     }
 
     func testADBRunnerPermissions() async throws {

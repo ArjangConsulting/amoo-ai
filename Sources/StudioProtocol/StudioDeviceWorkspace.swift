@@ -38,7 +38,21 @@ public protocol StudioDeviceWorkspace: Sendable {
 
 public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
     private let runner: any ProcessRunner
-    public init(runner: any ProcessRunner = SystemProcessRunner()) { self.runner = runner }
+    private let adb: any ADBRunning
+    private let emulator: any EmulatorRunning
+    private let gradle: any GradleProjectBuilding
+
+    public init(
+        runner: any ProcessRunner = SystemProcessRunner(),
+        adb: any ADBRunning = ADBRunner(),
+        emulator: any EmulatorRunning = EmulatorRunner(),
+        gradle: any GradleProjectBuilding = GradleProjectBuilder()
+    ) {
+        self.runner = runner
+        self.adb = adb
+        self.emulator = emulator
+        self.gradle = gradle
+    }
 
     public func listDevices() async -> [StudioDevice] {
         async let ios = listIOS(); async let android = listAndroid()
@@ -53,7 +67,13 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
                 try await checked(["xcrun", "simctl", "boot", id])
                 _ = try? await runner.run(["open", "-a", "Simulator"])
             } else {
-                try launchDetached(["emulator", "-avd", id])
+                let usedPorts = Set(all.compactMap { device -> Int? in
+                    guard device.id.hasPrefix("emulator-") else { return nil }
+                    return Int(device.id.dropFirst("emulator-".count))
+                })
+                let port = stride(from: 5560, through: 5680, by: 2)
+                    .first { !usedPorts.contains($0) } ?? 5680
+                try await emulator.launch(avdName: id, port: port)
             }
             return .init(message: "Started \(device.name)", artifactPath: nil)
         } catch { return .init(message: "Could not start \(device.name): \(error)", artifactPath: nil) }
@@ -80,7 +100,7 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
     public func resetData(_ request: StudioAppRequest) async -> StudioOperationResult {
         do {
             if request.deviceId.hasPrefix("emulator-") || request.artifactPath?.hasSuffix(".apk") == true {
-                try await checked(["adb", "-s", request.deviceId, "shell", "pm", "clear", request.appId])
+                try await adb.clearAppData(serial: request.deviceId, appID: request.appId)
             } else {
                 try await checked(["xcrun", "simctl", "uninstall", request.deviceId, request.appId])
                 if let artifact = request.artifactPath {
@@ -107,7 +127,7 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
     }
 
     private func listAndroid() async -> [StudioDevice] {
-        let online = (try? await runner.run(["adb", "devices", "-l"]).stdout) ?? ""
+        let online = (try? await adb.listDevices()) ?? ""
         var devices = online.split(separator: "\n").compactMap { line -> StudioDevice? in
             let parts = line.split(separator: " ").map(String.init)
             guard parts.count > 1, parts[1] == "device" else { return nil }
@@ -134,7 +154,7 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
         }
         let root = URL(fileURLWithPath: path).hasDirectoryPath ? path : URL(fileURLWithPath: path).deletingLastPathComponent().path
         let module = target.isEmpty ? "app" : target
-        try await checked([root + "/gradlew", "--project-dir", root, ":\(module):assembleDebug"])
+        try await gradle.assembleDebug(projectDirectory: root, module: module)
         return try newestArtifact(in: root + "/\(module)/build/outputs/apk", suffix: ".apk")
     }
 
@@ -142,7 +162,8 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
         if platform == .ios {
             try await checked(["xcrun", "simctl", "install", request.deviceId, artifact]); try await checked(["xcrun", "simctl", "launch", request.deviceId, request.appId])
         } else {
-            try await checked(["adb", "-s", request.deviceId, "install", "-r", artifact]); try await checked(["adb", "-s", request.deviceId, "shell", "monkey", "-p", request.appId, "1"])
+            try await adb.install(serial: request.deviceId, apkPath: artifact)
+            try await adb.launch(serial: request.deviceId, appID: request.appId, arguments: [])
         }
     }
     private func checked(_ args: [String]) async throws { let result = try await runner.run(args); guard result.exitCode == 0 else { throw StudioWorkspaceError.command(result.stderr.isEmpty ? result.stdout : result.stderr) } }
@@ -153,5 +174,4 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
         guard let result = files.max(by: { (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast < (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast }) else { throw StudioWorkspaceError.artifactNotFound("No \(suffix) artifact found") }
         return result.path
     }
-    private func launchDetached(_ args: [String]) throws { let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/env"); process.arguments = args; process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice; try process.run() }
 }

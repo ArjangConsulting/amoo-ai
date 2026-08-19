@@ -69,6 +69,10 @@ actor MockADBRunner: ADBRunning {
         _appCalls.append("uninstall:\(appID)")
     }
 
+    func clearAppData(serial _: String?, appID: String) async throws {
+        _appCalls.append("clearAppData:\(appID)")
+    }
+
     func listPackages(serial _: String?) async throws -> String {
         _packageList
     }
