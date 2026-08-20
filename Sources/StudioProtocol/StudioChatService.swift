@@ -126,8 +126,15 @@ public struct LiveStudioChatService: StudioChatServing {
         }
 
         let messages = input.messages.map { ["role": $0.role == .user ? "user" : "assistant", "content": $0.content] }
-        var body: [String: Any] = ["model": provider.model, "messages": messages, "stream": false]
-        if provider.kind == .anthropic { body["max_tokens"] = 4096 }
+        let testContext = Self.testContext(input.activeTest)
+        var body: [String: Any] = ["model": provider.model, "stream": false]
+        if provider.kind == .anthropic {
+            body["messages"] = messages
+            body["system"] = testContext
+            body["max_tokens"] = 4096
+        } else {
+            body["messages"] = [["role": "system", "content": testContext]] + messages
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await transport.data(for: request)
@@ -145,5 +152,12 @@ public struct LiveStudioChatService: StudioChatServing {
         }
         guard let content, content.isEmpty == false else { throw StudioChatError.invalidResponse }
         return StudioChatResult(message: content)
+    }
+
+    private static func testContext(_ test: StudioAuthoredTest) -> String {
+        let steps = test.steps.enumerated().map { index, step in
+            "\(index + 1). \(step.instruction)\(step.expected.isEmpty ? "" : " Expected: \(step.expected)")"
+        }.joined(separator: "\n")
+        return "You are assisting with the active Amoo test '\(test.name)' on \(test.platform).\nDescription: \(test.description)\nSteps:\n\(steps)"
     }
 }
