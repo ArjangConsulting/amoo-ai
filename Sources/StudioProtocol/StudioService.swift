@@ -17,13 +17,16 @@ public struct StudioService: Sendable {
 
     private let workspace: any StudioDeviceWorkspace
     private let chat: any StudioChatServing
+    private let automation: any StudioAutomationServing
 
     public init(
         workspace: any StudioDeviceWorkspace = LiveStudioDeviceWorkspace(),
-        chat: any StudioChatServing = LiveStudioChatService()
+        chat: any StudioChatServing = LiveStudioChatService(),
+        automation: (any StudioAutomationServing)? = nil
     ) {
         self.workspace = workspace
         self.chat = chat
+        self.automation = automation ?? LiveStudioAutomationService(workspace: workspace)
     }
 
     public func run(
@@ -51,7 +54,7 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send"]
+                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "repl.execute", "tests.run", "reports.list"]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
@@ -69,6 +72,12 @@ public struct StudioService: Sendable {
                 result = try encodeValue(await workspace.resetData(try request.appRequest()))
             case "chat.send":
                 result = try encodeValue(try await chat.send(try request.decodeParams(StudioChatRequest.self)))
+            case "repl.execute":
+                result = try encodeValue(try await automation.execute(try request.decodeParams(StudioReplRequest.self)))
+            case "tests.run":
+                result = try encodeValue(try await automation.run(try request.decodeParams(StudioTestRunRequest.self)))
+            case "reports.list":
+                result = try encodeValue(await automation.reports())
             default:
                 return encode(Response(
                     id: request.id,
