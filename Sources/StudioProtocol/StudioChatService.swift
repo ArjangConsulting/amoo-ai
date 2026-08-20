@@ -40,8 +40,18 @@ public struct StudioAuthoredTest: Codable, Sendable {
     public let description: String
     public let platform: String
     public let steps: [Step]
-    public init(formatVersion: Int, name: String, description: String, platform: String, steps: [Step]) {
-        self.formatVersion = formatVersion; self.name = name; self.description = description; self.platform = platform; self.steps = steps
+    public let compiledPlan: StudioCompiledPlan?
+    public init(formatVersion: Int, name: String, description: String, platform: String, steps: [Step], compiledPlan: StudioCompiledPlan? = nil) {
+        self.formatVersion = formatVersion; self.name = name; self.description = description; self.platform = platform; self.steps = steps; self.compiledPlan = compiledPlan
+    }
+}
+
+public struct StudioCompiledPlan: Codable, Sendable {
+    public let compiler: String
+    public let compilerVersion: String
+    public let operations: [String]
+    public init(compiler: String, compilerVersion: String, operations: [String]) {
+        self.compiler = compiler; self.compilerVersion = compilerVersion; self.operations = operations
     }
 }
 
