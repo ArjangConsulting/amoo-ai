@@ -45,7 +45,11 @@ struct StudioAutomationServiceTests {
             ]
         )
 
-        let result = try await service.run(.init(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil))
+        let result = try await service.run(.init(
+            test: authoredTest(plan: plan),
+            deviceId: "emulator-5554",
+            providerId: nil
+        ))
 
         #expect(result.message == "Completed 2 operation(s).")
         #expect(await executor.operations() == ["tap_element", "assert_visible"])
@@ -87,7 +91,11 @@ struct StudioAutomationServiceTests {
             toolOperations: [.init(id: "operation-1", tool: "take_screenshot")]
         )
 
-        let started = await service.start(.init(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil))
+        let started = await service.start(.init(
+            test: authoredTest(plan: plan),
+            deviceId: "emulator-5554",
+            providerId: nil
+        ))
         let running = try await service.status(runId: started.runId)
         let cancelled = try await service.cancel(runId: started.runId)
 
@@ -100,11 +108,82 @@ struct StudioAutomationServiceTests {
     func replTestRun() async throws {
         let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
         let test = authoredTest(plan: .init(compiler: "test", compilerVersion: "1", operations: ["devices list"]))
-        let request = StudioReplRequest(command: "tests run", activeTest: test, selectedDeviceId: "emulator-5554", selectedProviderId: nil)
+        let request = StudioReplRequest(
+            command: "tests run",
+            activeTest: test,
+            selectedDeviceId: "emulator-5554",
+            selectedProviderId: nil
+        )
 
         let result = try await service.execute(request)
 
         #expect(result.output.contains("Completed 1 operation"))
+    }
+
+    @Test("REPL exposes discoverable help and inspection commands")
+    func replDiscoveryCommands() async throws {
+        let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+
+        let help = try await service.execute(repl("  help\n"))
+        let device = try await service.execute(repl("devices inspect emulator-5554"))
+        let provider = try await service.execute(.init(
+            command: "providers inspect local",
+            activeTest: authoredTest(),
+            selectedDeviceId: nil,
+            selectedProviderId: "local"
+        ))
+        let sessions = try await service.execute(repl("sessions list"))
+        let reports = try await service.execute(repl("reports list"))
+
+        #expect(help.output.contains("take_screenshot"))
+        #expect(device.output.contains("Platform: Android"))
+        #expect(provider.output.contains("local"))
+        #expect(sessions.output == "No sessions found.")
+        #expect(reports.output == "No reports found.")
+    }
+
+    @Test("REPL reports actionable errors for incomplete commands")
+    func replCommandErrors() async {
+        let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+
+        await #expect(throws: StudioAutomationError.self) {
+            try await service.execute(repl("devices inspect missing"))
+        }
+        await #expect(throws: StudioAutomationError.self) {
+            try await service.execute(repl("tests run"))
+        }
+        await #expect(throws: StudioAutomationError.self) {
+            try await service.execute(repl("tap_element id=sign-in"))
+        }
+    }
+
+    @Test("typed execution requires a tool executor and records failures")
+    func typedExecutionFailures() async throws {
+        let operation = StudioToolOperation(id: "operation-1", tool: "tap_element", arguments: ["id": "sign-in"])
+        let plan = StudioCompiledPlan(compiler: "studio", compilerVersion: "1", toolOperations: [operation])
+        let request = StudioTestRunRequest(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil)
+        let unavailable = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+
+        await #expect(throws: StudioAutomationError.self) { try await unavailable.run(request) }
+
+        let failing = LiveStudioAutomationService(
+            workspace: AutomationWorkspace(),
+            reportsURL: nil,
+            toolExecutor: FailingToolExecutor()
+        )
+        let result = try await failing.run(request)
+        let reports = await failing.reports()
+
+        #expect(result.message.contains("operation-1"))
+        #expect(reports.reports.first?.status == .failed)
+    }
+
+    @Test("unknown asynchronous run identifiers are rejected")
+    func unknownRun() async {
+        let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+
+        await #expect(throws: StudioAutomationError.self) { try await service.status(runId: "missing") }
+        await #expect(throws: StudioAutomationError.self) { try await service.cancel(runId: "missing") }
     }
 
     private func repl(_ command: String) -> StudioReplRequest {
@@ -112,7 +191,14 @@ struct StudioAutomationServiceTests {
     }
 
     private func authoredTest(plan: StudioCompiledPlan? = nil) -> StudioAuthoredTest {
-        .init(formatVersion: 1, name: "Smoke", description: "", platform: "Android", steps: [.init(id: "step-1", instruction: "Inspect devices", expected: "A device is available")], compiledPlan: plan)
+        .init(
+            formatVersion: 1,
+            name: "Smoke",
+            description: "",
+            platform: "Android",
+            steps: [.init(id: "step-1", instruction: "Inspect devices", expected: "A device is available")],
+            compiledPlan: plan
+        )
     }
 }
 
@@ -125,6 +211,19 @@ private struct SlowToolExecutor: StudioToolExecuting {
     ) async throws -> StudioToolExecutionResult {
         try await Task.sleep(for: .seconds(5))
         return .init(output: "ok")
+    }
+}
+
+private struct FailingToolExecutor: StudioToolExecuting {
+    struct Failure: Error {}
+
+    func execute(
+        _: StudioToolOperation,
+        deviceId _: String,
+        platform _: String,
+        appId _: String?
+    ) throws -> StudioToolExecutionResult {
+        throw Failure()
     }
 }
 
@@ -141,15 +240,51 @@ private actor RecordingToolExecutor: StudioToolExecuting {
         return .init(output: "ok")
     }
 
-    func operations() -> [String] { recorded.map(\.tool) }
-    func recordedOperations() -> [StudioToolOperation] { recorded }
+    func operations() -> [String] {
+        recorded.map(\.tool)
+    }
+
+    func recordedOperations() -> [StudioToolOperation] {
+        recorded
+    }
 }
 
 private struct AutomationWorkspace: StudioDeviceWorkspace {
-    func listDevices() async -> [StudioDevice] { [.init(id: "emulator-5554", name: "Pixel", platform: .android, osVersion: "16", status: .running, physical: false)] }
-    func startDevice(_: String) async -> StudioOperationResult { .init(message: "started", artifactPath: nil) }
-    func createDevice(_: StudioCreateDeviceRequest) async -> StudioOperationResult { .init(message: "created", artifactPath: nil) }
-    func buildInstallRun(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "built", artifactPath: nil) }
-    func reinstallRun(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "installed", artifactPath: nil) }
-    func resetData(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "reset", artifactPath: nil) }
+    func listDevices() async -> [StudioDevice] {
+        [.init(
+            id: "emulator-5554",
+            name: "Pixel",
+            platform: .android,
+            osVersion: "16",
+            status: .running,
+            physical: false
+        )]
+    }
+
+    func startDevice(_: String) async -> StudioOperationResult {
+        .init(message: "started", artifactPath: nil)
+    }
+
+    func createDevice(_: StudioCreateDeviceRequest) async -> StudioOperationResult {
+        .init(
+            message: "created",
+            artifactPath: nil
+        )
+    }
+
+    func buildInstallRun(_: StudioAppRequest) async
+        -> StudioOperationResult {
+        .init(message: "built", artifactPath: nil)
+    }
+
+    func reinstallRun(_: StudioAppRequest) async -> StudioOperationResult {
+        .init(
+            message: "installed",
+            artifactPath: nil
+        )
+    }
+
+    func resetData(_: StudioAppRequest) async -> StudioOperationResult {
+        .init(message: "reset", artifactPath: nil)
+    }
 }
