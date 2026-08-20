@@ -20,6 +20,16 @@ public struct StudioAppRequest: Sendable {
     public let deviceId: String; public let platform: String?; public let projectPath: String?
     public let appId: String; public let schemeOrModule: String?; public let artifactPath: String?
 }
+public struct StudioCreateDeviceRequest: Sendable {
+    public let platform: StudioPlatform
+    public let name: String
+    public let runtime: String
+    public let deviceType: String
+
+    public init(platform: StudioPlatform, name: String, runtime: String, deviceType: String) {
+        self.platform = platform; self.name = name; self.runtime = runtime; self.deviceType = deviceType
+    }
+}
 public enum StudioWorkspaceError: Error, CustomStringConvertible {
     case invalidParameter(String), command(String), artifactNotFound(String), unsupported(String)
     public var description: String { switch self {
@@ -31,6 +41,7 @@ public enum StudioWorkspaceError: Error, CustomStringConvertible {
 public protocol StudioDeviceWorkspace: Sendable {
     func listDevices() async -> [StudioDevice]
     func startDevice(_ id: String) async -> StudioOperationResult
+    func createDevice(_ request: StudioCreateDeviceRequest) async -> StudioOperationResult
     func buildInstallRun(_ request: StudioAppRequest) async -> StudioOperationResult
     func reinstallRun(_ request: StudioAppRequest) async -> StudioOperationResult
     func resetData(_ request: StudioAppRequest) async -> StudioOperationResult
@@ -41,17 +52,20 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
     private let adb: any ADBRunning
     private let emulator: any EmulatorRunning
     private let gradle: any GradleProjectBuilding
+    private let avdManager: any AndroidVirtualDeviceCreating
 
     public init(
         runner: any ProcessRunner = SystemProcessRunner(),
         adb: any ADBRunning = ADBRunner(),
         emulator: any EmulatorRunning = EmulatorRunner(),
-        gradle: any GradleProjectBuilding = GradleProjectBuilder()
+        gradle: any GradleProjectBuilding = GradleProjectBuilder(),
+        avdManager: any AndroidVirtualDeviceCreating = AndroidVirtualDeviceRunner()
     ) {
         self.runner = runner
         self.adb = adb
         self.emulator = emulator
         self.gradle = gradle
+        self.avdManager = avdManager
     }
 
     public func listDevices() async -> [StudioDevice] {
@@ -77,6 +91,20 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
             }
             return .init(message: "Started \(device.name)", artifactPath: nil)
         } catch { return .init(message: "Could not start \(device.name): \(error)", artifactPath: nil) }
+    }
+
+    public func createDevice(_ request: StudioCreateDeviceRequest) async -> StudioOperationResult {
+        do {
+            switch request.platform {
+            case .ios:
+                try await checked(["xcrun", "simctl", "create", request.name, request.deviceType, request.runtime])
+            case .android:
+                try await avdManager.create(name: request.name, systemImage: request.runtime, deviceType: request.deviceType)
+            }
+            return .init(message: "Created \(request.name)", artifactPath: nil)
+        } catch {
+            return .init(message: "Could not create \(request.name): \(error)", artifactPath: nil)
+        }
     }
 
     public func buildInstallRun(_ request: StudioAppRequest) async -> StudioOperationResult {
