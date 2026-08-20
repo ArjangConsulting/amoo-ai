@@ -28,6 +28,29 @@ struct StudioAutomationServiceTests {
         #expect(reports.reports.first?.status == .passed)
     }
 
+    @Test("typed plans execute real tool operations in order")
+    func typedTestRun() async throws {
+        let executor = RecordingToolExecutor()
+        let service = LiveStudioAutomationService(
+            workspace: AutomationWorkspace(),
+            reportsURL: nil,
+            toolExecutor: executor
+        )
+        let plan = StudioCompiledPlan(
+            compiler: "studio",
+            compilerVersion: "1",
+            toolOperations: [
+                .init(id: "operation-1", tool: "tap_element", arguments: ["id": "sign-in"]),
+                .init(id: "operation-2", tool: "assert_visible", arguments: ["id": "home"])
+            ]
+        )
+
+        let result = try await service.run(.init(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil))
+
+        #expect(result.message == "Completed 2 operation(s).")
+        #expect(await executor.operations() == ["tap_element", "assert_visible"])
+    }
+
     @Test("REPL can run the active compiled test")
     func replTestRun() async throws {
         let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
@@ -46,6 +69,22 @@ struct StudioAutomationServiceTests {
     private func authoredTest(plan: StudioCompiledPlan? = nil) -> StudioAuthoredTest {
         .init(formatVersion: 1, name: "Smoke", description: "", platform: "Android", steps: [.init(id: "step-1", instruction: "Inspect devices", expected: "A device is available")], compiledPlan: plan)
     }
+}
+
+private actor RecordingToolExecutor: StudioToolExecuting {
+    private var recorded: [String] = []
+
+    func execute(
+        _ operation: StudioToolOperation,
+        deviceId _: String,
+        platform _: String,
+        appId _: String?
+    ) -> StudioToolExecutionResult {
+        recorded.append(operation.tool)
+        return .init(output: "ok")
+    }
+
+    func operations() -> [String] { recorded }
 }
 
 private struct AutomationWorkspace: StudioDeviceWorkspace {

@@ -74,7 +74,12 @@ public struct CLIApp {
         guard remaining == ["serve"] else {
             return CLIResult(output: "Usage: amoo studio serve", exitCode: 64)
         }
-        await StudioService().run()
+        let workspace = LiveStudioDeviceWorkspace()
+        let automation = LiveStudioAutomationService(
+            workspace: workspace,
+            toolExecutor: CLIStudioToolExecutor()
+        )
+        await StudioService(workspace: workspace, automation: automation).run()
         return CLIResult(output: "", exitCode: 0)
     }
 

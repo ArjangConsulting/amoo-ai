@@ -57,6 +57,23 @@ public protocol StudioAutomationServing: Sendable {
     func reports() async -> StudioReportListResult
 }
 
+public struct StudioToolExecutionResult: Equatable, Sendable {
+    public let output: String
+    public let artifacts: [String]
+    public init(output: String, artifacts: [String] = []) {
+        self.output = output; self.artifacts = artifacts
+    }
+}
+
+public protocol StudioToolExecuting: Sendable {
+    func execute(
+        _ operation: StudioToolOperation,
+        deviceId: String,
+        platform: String,
+        appId: String?
+    ) async throws -> StudioToolExecutionResult
+}
+
 public enum StudioAutomationError: Error, CustomStringConvertible {
     case unsupportedCommand(String), destructiveCommand, invalidTest(String)
     public var description: String { switch self {
@@ -68,12 +85,18 @@ public enum StudioAutomationError: Error, CustomStringConvertible {
 
 public actor LiveStudioAutomationService: StudioAutomationServing {
     private let workspace: any StudioDeviceWorkspace
+    private let toolExecutor: (any StudioToolExecuting)?
     private let reportsURL: URL?
     private var storedReports: [StudioTestReport]
 
-    public init(workspace: any StudioDeviceWorkspace, reportsURL: URL? = LiveStudioAutomationService.defaultReportsURL()) {
+    public init(
+        workspace: any StudioDeviceWorkspace,
+        reportsURL: URL? = LiveStudioAutomationService.defaultReportsURL(),
+        toolExecutor: (any StudioToolExecuting)? = nil
+    ) {
         self.workspace = workspace
         self.reportsURL = reportsURL
+        self.toolExecutor = toolExecutor
         storedReports = reportsURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([StudioTestReport].self, from: $0) } ?? []
     }
 
@@ -121,9 +144,29 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         let reportID = UUID().uuidString
         let sessionID = UUID().uuidString
         let operations = request.test.compiledPlan?.operations ?? []
+        let toolOperations = request.test.compiledPlan?.toolOperations ?? []
         var failures: [String] = []
-        if operations.isEmpty {
+        var artifacts: [String] = []
+        if operations.isEmpty && toolOperations.isEmpty {
             failures.append("No compiled tool plan is available. Generate or attach a plan before execution.")
+        } else if !toolOperations.isEmpty {
+            guard let toolExecutor else {
+                throw StudioAutomationError.invalidTest("Real device tool execution is unavailable in this Amoo build.")
+            }
+            for operation in toolOperations {
+                do {
+                    let result = try await toolExecutor.execute(
+                        operation,
+                        deviceId: request.deviceId,
+                        platform: request.test.platform,
+                        appId: request.test.requirements?.appId
+                    )
+                    artifacts.append(contentsOf: result.artifacts)
+                } catch {
+                    failures.append("\(operation.id) (\(operation.tool)): \(error)")
+                    break
+                }
+            }
         } else {
             for operation in operations {
                 if operation.lowercased() == "tests run" {
@@ -142,8 +185,8 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
             startedAt: ISO8601DateFormatter().string(from: started),
             durationMillis: Int(Date().timeIntervalSince(started) * 1_000),
             deviceName: request.deviceId,
-            summary: failures.isEmpty ? "Completed \(operations.count) operation(s)." : failures.joined(separator: "\n"),
-            artifacts: []
+            summary: failures.isEmpty ? "Completed \(toolOperations.isEmpty ? operations.count : toolOperations.count) operation(s)." : failures.joined(separator: "\n"),
+            artifacts: artifacts
         )
         storedReports.insert(report, at: 0)
         persistReports()

@@ -40,18 +40,38 @@ public struct StudioAuthoredTest: Codable, Sendable {
     public let description: String
     public let platform: String
     public let steps: [Step]
+    public let requirements: StudioTestRequirements?
     public let compiledPlan: StudioCompiledPlan?
-    public init(formatVersion: Int, name: String, description: String, platform: String, steps: [Step], compiledPlan: StudioCompiledPlan? = nil) {
-        self.formatVersion = formatVersion; self.name = name; self.description = description; self.platform = platform; self.steps = steps; self.compiledPlan = compiledPlan
+    public init(formatVersion: Int, name: String, description: String, platform: String, steps: [Step], requirements: StudioTestRequirements? = nil, compiledPlan: StudioCompiledPlan? = nil) {
+        self.formatVersion = formatVersion; self.name = name; self.description = description; self.platform = platform; self.steps = steps; self.requirements = requirements; self.compiledPlan = compiledPlan
+    }
+}
+
+public struct StudioTestRequirements: Codable, Sendable {
+    public let appId: String?
+    public let projectPath: String?
+    public let deviceName: String?
+    public init(appId: String? = nil, projectPath: String? = nil, deviceName: String? = nil) {
+        self.appId = appId; self.projectPath = projectPath; self.deviceName = deviceName
+    }
+}
+
+public struct StudioToolOperation: Codable, Equatable, Sendable {
+    public let id: String
+    public let tool: String
+    public let arguments: [String: String]
+    public init(id: String, tool: String, arguments: [String: String] = [:]) {
+        self.id = id; self.tool = tool; self.arguments = arguments
     }
 }
 
 public struct StudioCompiledPlan: Codable, Sendable {
     public let compiler: String
     public let compilerVersion: String
-    public let operations: [String]
-    public init(compiler: String, compilerVersion: String, operations: [String]) {
-        self.compiler = compiler; self.compilerVersion = compilerVersion; self.operations = operations
+    public let operations: [String]?
+    public let toolOperations: [StudioToolOperation]?
+    public init(compiler: String, compilerVersion: String, operations: [String] = [], toolOperations: [StudioToolOperation]? = nil) {
+        self.compiler = compiler; self.compilerVersion = compilerVersion; self.operations = operations; self.toolOperations = toolOperations
     }
 }
 
