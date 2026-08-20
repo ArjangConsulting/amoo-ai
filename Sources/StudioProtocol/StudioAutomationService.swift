@@ -33,6 +33,27 @@ public struct StudioTestRunResult: Codable, Equatable, Sendable {
     }
 }
 
+public struct StudioTestStartResult: Codable, Equatable, Sendable {
+    public let runId: String
+    public init(runId: String) { self.runId = runId }
+}
+
+public enum StudioTestRunState: String, Codable, Sendable { case running = "Running"; case passed = "Passed"; case failed = "Failed"; case cancelled = "Cancelled" }
+
+public struct StudioTestRunStatus: Codable, Equatable, Sendable {
+    public let runId: String
+    public let state: StudioTestRunState
+    public let currentOperation: Int
+    public let totalOperations: Int
+    public let message: String
+    public let sessionId: String?
+    public let reportId: String?
+    public init(runId: String, state: StudioTestRunState, currentOperation: Int, totalOperations: Int, message: String, sessionId: String?, reportId: String?) {
+        self.runId = runId; self.state = state; self.currentOperation = currentOperation; self.totalOperations = totalOperations
+        self.message = message; self.sessionId = sessionId; self.reportId = reportId
+    }
+}
+
 public enum StudioReportStatus: String, Codable, Sendable { case passed = "Passed"; case failed = "Failed"; case cancelled = "Cancelled"; case running = "Running" }
 
 public struct StudioTestReport: Codable, Equatable, Sendable {
@@ -55,6 +76,9 @@ public protocol StudioAutomationServing: Sendable {
     func execute(_ request: StudioReplRequest) async throws -> StudioReplResult
     func run(_ request: StudioTestRunRequest) async throws -> StudioTestRunResult
     func reports() async -> StudioReportListResult
+    func start(_ request: StudioTestRunRequest) async -> StudioTestStartResult
+    func status(runId: String) async throws -> StudioTestRunStatus
+    func cancel(runId: String) async throws -> StudioTestRunStatus
 }
 
 public struct StudioToolExecutionResult: Equatable, Sendable {
@@ -75,11 +99,12 @@ public protocol StudioToolExecuting: Sendable {
 }
 
 public enum StudioAutomationError: Error, CustomStringConvertible {
-    case unsupportedCommand(String), destructiveCommand, invalidTest(String)
+    case unsupportedCommand(String), destructiveCommand, invalidTest(String), runNotFound(String)
     public var description: String { switch self {
     case let .unsupportedCommand(command): "Unsupported Studio command: \(command). Run 'help' to list commands."
     case .destructiveCommand: "Destructive commands must use a confirmed Studio workflow."
     case let .invalidTest(reason): "Test validation failed: \(reason)"
+    case let .runNotFound(id): "Test run not found: \(id)"
     } }
 }
 
@@ -88,6 +113,8 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     private let toolExecutor: (any StudioToolExecuting)?
     private let reportsURL: URL?
     private var storedReports: [StudioTestReport]
+    private var runTasks: [String: Task<Void, Never>] = [:]
+    private var runStatuses: [String: StudioTestRunStatus] = [:]
 
     public init(
         workspace: any StudioDeviceWorkspace,
@@ -154,6 +181,41 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     }
 
     public func run(_ request: StudioTestRunRequest) async throws -> StudioTestRunResult {
+        try await run(request, tracking: nil)
+    }
+
+    public func start(_ request: StudioTestRunRequest) -> StudioTestStartResult {
+        let runID = UUID().uuidString
+        let total = request.test.compiledPlan?.toolOperations?.count ?? request.test.compiledPlan?.operations?.count ?? 0
+        runStatuses[runID] = .init(runId: runID, state: .running, currentOperation: 0, totalOperations: total, message: "Preparing test…", sessionId: nil, reportId: nil)
+        runTasks[runID] = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await self.run(request, tracking: runID)
+                await self.finish(runId: runID, result: result)
+            } catch is CancellationError {
+                await self.markCancelled(runId: runID)
+            } catch {
+                await self.markFailed(runId: runID, message: String(describing: error))
+            }
+        }
+        return .init(runId: runID)
+    }
+
+    public func status(runId: String) throws -> StudioTestRunStatus {
+        guard let status = runStatuses[runId] else { throw StudioAutomationError.runNotFound(runId) }
+        return status
+    }
+
+    public func cancel(runId: String) throws -> StudioTestRunStatus {
+        guard let status = runStatuses[runId] else { throw StudioAutomationError.runNotFound(runId) }
+        runTasks[runId]?.cancel()
+        let cancelled = StudioTestRunStatus(runId: runId, state: .cancelled, currentOperation: status.currentOperation, totalOperations: status.totalOperations, message: "Test run cancelled.", sessionId: status.sessionId, reportId: status.reportId)
+        runStatuses[runId] = cancelled
+        return cancelled
+    }
+
+    private func run(_ request: StudioTestRunRequest, tracking runID: String?) async throws -> StudioTestRunResult {
         try Self.validate(request.test)
         let started = Date()
         let reportID = UUID().uuidString
@@ -169,6 +231,8 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
                 throw StudioAutomationError.invalidTest("Real device tool execution is unavailable in this Amoo build.")
             }
             for operation in toolOperations {
+                try Task.checkCancellation()
+                updateProgress(runId: runID, operation: operation, current: (toolOperations.firstIndex(of: operation) ?? 0) + 1, total: toolOperations.count)
                 do {
                     let result = try await toolExecutor.execute(
                         operation,
@@ -177,6 +241,8 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
                         appId: request.test.requirements?.appId
                     )
                     artifacts.append(contentsOf: result.artifacts)
+                } catch is CancellationError {
+                    throw CancellationError()
                 } catch {
                     failures.append("\(operation.id) (\(operation.tool)): \(error)")
                     break
@@ -184,6 +250,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
             }
         } else {
             for operation in operations {
+                try Task.checkCancellation()
                 if operation.lowercased() == "tests run" {
                     failures.append("tests run: A compiled plan cannot recursively execute itself.")
                     continue
@@ -206,6 +273,30 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         storedReports.insert(report, at: 0)
         persistReports()
         return .init(message: report.summary, sessionId: sessionID, reportId: reportID)
+    }
+
+    private func updateProgress(runId: String?, operation: StudioToolOperation, current: Int, total: Int) {
+        guard let runId else { return }
+        runStatuses[runId] = .init(runId: runId, state: .running, currentOperation: current, totalOperations: total, message: "Running \(operation.tool)…", sessionId: nil, reportId: nil)
+    }
+
+    private func finish(runId: String, result: StudioTestRunResult) {
+        let reportStatus = storedReports.first { $0.id == result.reportId }?.status
+        runStatuses[runId] = .init(runId: runId, state: reportStatus == .passed ? .passed : .failed, currentOperation: runStatuses[runId]?.totalOperations ?? 0, totalOperations: runStatuses[runId]?.totalOperations ?? 0, message: result.message, sessionId: result.sessionId, reportId: result.reportId)
+        runTasks[runId] = nil
+    }
+
+    private func markCancelled(runId: String) {
+        guard runStatuses[runId]?.state == .running else { return }
+        let previous = runStatuses[runId]!
+        runStatuses[runId] = .init(runId: runId, state: .cancelled, currentOperation: previous.currentOperation, totalOperations: previous.totalOperations, message: "Test run cancelled.", sessionId: nil, reportId: nil)
+        runTasks[runId] = nil
+    }
+
+    private func markFailed(runId: String, message: String) {
+        let previous = runStatuses[runId]
+        runStatuses[runId] = .init(runId: runId, state: .failed, currentOperation: previous?.currentOperation ?? 0, totalOperations: previous?.totalOperations ?? 0, message: message, sessionId: nil, reportId: nil)
+        runTasks[runId] = nil
     }
 
     public func reports() -> StudioReportListResult { .init(reports: storedReports) }

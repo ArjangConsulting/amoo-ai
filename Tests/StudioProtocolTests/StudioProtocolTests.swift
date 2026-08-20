@@ -16,7 +16,8 @@ struct StudioProtocolTests {
         #expect(result["capabilities"] as? [String] == [
             "health", "devices.list", "devices.start", "devices.create",
             "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send",
-            "repl.execute", "tests.run", "reports.list", "mcp.status"
+            "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel",
+            "reports.list", "mcp.status"
         ])
     }
 
@@ -78,6 +79,9 @@ private actor StubAutomation: StudioAutomationServing {
     func execute(_: StudioReplRequest) async throws -> StudioReplResult { .init(output: "executed") }
     func run(_: StudioTestRunRequest) async throws -> StudioTestRunResult { .init(message: "passed", sessionId: "session-1", reportId: "report-1") }
     func reports() async -> StudioReportListResult { .init(reports: []) }
+    func start(_: StudioTestRunRequest) -> StudioTestStartResult { .init(runId: "run-1") }
+    func status(runId: String) -> StudioTestRunStatus { .init(runId: runId, state: .running, currentOperation: 0, totalOperations: 1, message: "running", sessionId: nil, reportId: nil) }
+    func cancel(runId: String) -> StudioTestRunStatus { .init(runId: runId, state: .cancelled, currentOperation: 0, totalOperations: 1, message: "cancelled", sessionId: nil, reportId: nil) }
 }
 
 private struct StubChat: StudioChatServing {

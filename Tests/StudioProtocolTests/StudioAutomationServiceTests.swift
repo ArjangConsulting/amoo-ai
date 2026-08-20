@@ -74,6 +74,28 @@ struct StudioAutomationServiceTests {
         #expect(operations.first?.arguments == ["label": "Sign in"])
     }
 
+    @Test("async runs expose progress and support cancellation")
+    func asyncCancellation() async throws {
+        let service = LiveStudioAutomationService(
+            workspace: AutomationWorkspace(),
+            reportsURL: nil,
+            toolExecutor: SlowToolExecutor()
+        )
+        let plan = StudioCompiledPlan(
+            compiler: "studio",
+            compilerVersion: "1",
+            toolOperations: [.init(id: "operation-1", tool: "take_screenshot")]
+        )
+
+        let started = await service.start(.init(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil))
+        let running = try await service.status(runId: started.runId)
+        let cancelled = try await service.cancel(runId: started.runId)
+
+        #expect(running.state == .running)
+        #expect(running.totalOperations == 1)
+        #expect(cancelled.state == .cancelled)
+    }
+
     @Test("REPL can run the active compiled test")
     func replTestRun() async throws {
         let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
@@ -91,6 +113,18 @@ struct StudioAutomationServiceTests {
 
     private func authoredTest(plan: StudioCompiledPlan? = nil) -> StudioAuthoredTest {
         .init(formatVersion: 1, name: "Smoke", description: "", platform: "Android", steps: [.init(id: "step-1", instruction: "Inspect devices", expected: "A device is available")], compiledPlan: plan)
+    }
+}
+
+private struct SlowToolExecutor: StudioToolExecuting {
+    func execute(
+        _: StudioToolOperation,
+        deviceId _: String,
+        platform _: String,
+        appId _: String?
+    ) async throws -> StudioToolExecutionResult {
+        try await Task.sleep(for: .seconds(5))
+        return .init(output: "ok")
     }
 }
 
