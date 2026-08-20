@@ -94,6 +94,12 @@ public struct StudioChatResult: Codable, Equatable, Sendable {
 
 public protocol StudioChatServing: Sendable {
     func send(_ request: StudioChatRequest) async throws -> StudioChatResult
+    func check(_ provider: StudioProviderProfile) async throws -> StudioProviderCheckResult
+}
+
+public struct StudioProviderCheckResult: Codable, Equatable, Sendable {
+    public let message: String
+    public init(message: String) { self.message = message }
 }
 
 public protocol StudioHTTPTransport: Sendable {
@@ -176,6 +182,30 @@ public struct LiveStudioChatService: StudioChatServing {
         guard let content, content.isEmpty == false else { throw StudioChatError.invalidResponse }
         let proposal = Self.extractPlan(from: content)
         return StudioChatResult(message: proposal?.message ?? content, proposedPlan: proposal?.plan)
+    }
+
+    public func check(_ provider: StudioProviderProfile) async throws -> StudioProviderCheckResult {
+        guard var endpoint = URL(string: provider.baseUrl) else { throw StudioChatError.invalidEndpoint }
+        endpoint.append(path: provider.kind == .ollama ? "api/tags" : "v1/models")
+        var request = URLRequest(url: endpoint)
+        if provider.kind != .ollama {
+            let variable = provider.apiKeyEnvironmentVariable
+            guard !variable.isEmpty, let secret = environment(variable), !secret.isEmpty else {
+                throw StudioChatError.missingSecret(variable.isEmpty ? "provider API key" : variable)
+            }
+            if provider.kind == .anthropic {
+                request.setValue(secret, forHTTPHeaderField: "x-api-key")
+                request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            } else {
+                request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
+            }
+        }
+        let (data, response) = try await transport.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw StudioChatError.invalidResponse }
+        guard (200 ..< 300).contains(http.statusCode) else {
+            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1_024), as: UTF8.self))
+        }
+        return .init(message: "Connected to \(provider.name) at \(endpoint.host ?? provider.baseUrl).")
     }
 
     private static func testContext(_ test: StudioAuthoredTest) -> String {

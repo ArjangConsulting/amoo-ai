@@ -15,7 +15,7 @@ struct StudioProtocolTests {
         #expect(result["product"] as? String == "amoo")
         #expect(result["capabilities"] as? [String] == [
             "health", "devices.list", "devices.start", "devices.create",
-            "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send",
+            "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "providers.check",
             "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel",
             "reports.list", "mcp.status"
         ])
@@ -86,6 +86,7 @@ private actor StubAutomation: StudioAutomationServing {
 
 private struct StubChat: StudioChatServing {
     func send(_: StudioChatRequest) async throws -> StudioChatResult { StudioChatResult(message: "Ready to explore") }
+    func check(_: StudioProviderProfile) async throws -> StudioProviderCheckResult { .init(message: "connected") }
 }
 
 private struct StubWorkspace: StudioDeviceWorkspace {

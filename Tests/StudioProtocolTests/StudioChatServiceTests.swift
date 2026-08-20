@@ -52,6 +52,17 @@ struct StudioChatServiceTests {
         #expect(result.proposedPlan?.toolOperations?.map(\.tool) == ["tap_element", "assert_visible"])
     }
 
+    @Test("provider connectivity can be checked before chatting")
+    func providerCheck() async throws {
+        let transport = ChatTransport(response: #"{"data":[]}"#)
+        let service = LiveStudioChatService(transport: transport, environment: { $0 == "TEST_KEY" ? "secret" : nil })
+
+        let result = try await service.check(.init(id: "openai", name: "OpenAI", kind: .openAI, baseUrl: "https://api.openai.com", model: "model", apiKeyEnvironmentVariable: "TEST_KEY"))
+
+        #expect(result.message.contains("Connected to OpenAI"))
+        #expect(await transport.authorization == "Bearer secret")
+    }
+
     private func request(kind: StudioProviderKind, variable: String) -> StudioChatRequest {
         StudioChatRequest(
             provider: .init(id: "provider", name: "Provider", kind: kind, baseUrl: "https://example.com/v1", model: "model", apiKeyEnvironmentVariable: variable),

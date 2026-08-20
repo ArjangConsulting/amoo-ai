@@ -59,7 +59,7 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel", "reports.list", "mcp.status"]
+                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "providers.check", "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel", "reports.list", "mcp.status"]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
@@ -79,6 +79,8 @@ public struct StudioService: Sendable {
                 result = try encodeValue(await workspace.resetData(try request.appRequest()))
             case "chat.send":
                 result = try encodeValue(try await chat.send(try request.decodeParams(StudioChatRequest.self)))
+            case "providers.check":
+                result = try encodeValue(try await chat.check(try request.decodeParams(StudioProviderProfile.self)))
             case "repl.execute":
                 result = try encodeValue(try await automation.execute(try request.decodeParams(StudioReplRequest.self)))
             case "tests.run":
