@@ -65,7 +65,7 @@ public struct StudioToolOperation: Codable, Equatable, Sendable {
     }
 }
 
-public struct StudioCompiledPlan: Codable, Sendable {
+public struct StudioCompiledPlan: Codable, Equatable, Sendable {
     public let compiler: String
     public let compilerVersion: String
     public let operations: [String]?
@@ -86,7 +86,10 @@ public struct StudioChatRequest: Codable, Sendable {
 
 public struct StudioChatResult: Codable, Equatable, Sendable {
     public let message: String
-    public init(message: String) { self.message = message }
+    public let proposedPlan: StudioCompiledPlan?
+    public init(message: String, proposedPlan: StudioCompiledPlan? = nil) {
+        self.message = message; self.proposedPlan = proposedPlan
+    }
 }
 
 public protocol StudioChatServing: Sendable {
@@ -171,13 +174,46 @@ public struct LiveStudioChatService: StudioChatServing {
             ((object?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])?["content"] as? String
         }
         guard let content, content.isEmpty == false else { throw StudioChatError.invalidResponse }
-        return StudioChatResult(message: content)
+        let proposal = Self.extractPlan(from: content)
+        return StudioChatResult(message: proposal?.message ?? content, proposedPlan: proposal?.plan)
     }
 
     private static func testContext(_ test: StudioAuthoredTest) -> String {
         let steps = test.steps.enumerated().map { index, step in
             "\(index + 1). \(step.instruction)\(step.expected.isEmpty ? "" : " Expected: \(step.expected)")"
         }.joined(separator: "\n")
-        return "You are assisting with the active Amoo test '\(test.name)' on \(test.platform).\nDescription: \(test.description)\nSteps:\n\(steps)"
+        return """
+        You are assisting with the active Amoo test '\(test.name)' on \(test.platform).
+        Description: \(test.description)
+        Steps:
+        \(steps)
+
+        When the user asks to create or revise an executable test, include one machine-readable plan
+        after your explanation using exactly these tags:
+        <amoo-plan>{"compiler":"ai","compilerVersion":"1","toolOperations":[{"id":"operation-1","tool":"tap_element","arguments":{"id":"sign-in"}}]}</amoo-plan>
+        Allowed tools: tap_element, set_text, type_text, swipe_in_direction, wait_for_element,
+        assert_visible, assert_not_visible, assert_text, take_screenshot, press_back.
+        Prefer accessibility IDs, never invent secrets, and keep credentials as ${ENVIRONMENT_VARIABLE} values.
+        """
+    }
+
+    private static let allowedPlanTools: Set<String> = [
+        "tap_element", "set_text", "type_text", "swipe_in_direction", "wait_for_element",
+        "assert_visible", "assert_not_visible", "assert_text", "take_screenshot", "press_back"
+    ]
+
+    private static func extractPlan(from content: String) -> (message: String, plan: StudioCompiledPlan)? {
+        guard let start = content.range(of: "<amoo-plan>"),
+              let end = content.range(of: "</amoo-plan>", range: start.upperBound ..< content.endIndex)
+        else { return nil }
+        let data = Data(content[start.upperBound ..< end.lowerBound].utf8)
+        guard let plan = try? JSONDecoder().decode(StudioCompiledPlan.self, from: data),
+              let operations = plan.toolOperations,
+              !operations.isEmpty,
+              operations.allSatisfy({ allowedPlanTools.contains($0.tool) })
+        else { return nil }
+        var message = content
+        message.removeSubrange(start.lowerBound ..< end.upperBound)
+        return (message.trimmingCharacters(in: .whitespacesAndNewlines), plan)
     }
 }

@@ -34,6 +34,24 @@ struct StudioChatServiceTests {
         #expect(await transport.requestCount == 0)
     }
 
+    @Test("AI plans are extracted for explicit Studio review")
+    func proposedPlan() async throws {
+        let content = """
+        I created a two-step plan.
+        <amoo-plan>{"compiler":"ai","compilerVersion":"1","toolOperations":[{"id":"operation-1","tool":"tap_element","arguments":{"label":"Sign in"}},{"id":"operation-2","tool":"assert_visible","arguments":{"id":"home"}}]}</amoo-plan>
+        """
+        let data = try JSONSerialization.data(withJSONObject: [
+            "choices": [["message": ["content": content]]]
+        ])
+        let transport = ChatTransport(response: String(decoding: data, as: UTF8.self))
+        let service = LiveStudioChatService(transport: transport, environment: { $0 == "TEST_KEY" ? "secret" : nil })
+
+        let result = try await service.send(request(kind: .openAI, variable: "TEST_KEY"))
+
+        #expect(result.message == "I created a two-step plan.")
+        #expect(result.proposedPlan?.toolOperations?.map(\.tool) == ["tap_element", "assert_visible"])
+    }
+
     private func request(kind: StudioProviderKind, variable: String) -> StudioChatRequest {
         StudioChatRequest(
             provider: .init(id: "provider", name: "Provider", kind: kind, baseUrl: "https://example.com/v1", model: "model", apiKeyEnvironmentVariable: variable),
