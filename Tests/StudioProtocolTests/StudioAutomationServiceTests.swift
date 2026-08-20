@@ -51,6 +51,29 @@ struct StudioAutomationServiceTests {
         #expect(await executor.operations() == ["tap_element", "assert_visible"])
     }
 
+    @Test("REPL executes quoted mobile tool commands")
+    func replToolCommand() async throws {
+        let executor = RecordingToolExecutor()
+        let service = LiveStudioAutomationService(
+            workspace: AutomationWorkspace(),
+            reportsURL: nil,
+            toolExecutor: executor
+        )
+        let request = StudioReplRequest(
+            command: "tap_element label=\"Sign in\"",
+            activeTest: authoredTest(),
+            selectedDeviceId: "emulator-5554",
+            selectedProviderId: nil
+        )
+
+        _ = try await service.execute(request)
+
+        let operations = await executor.recordedOperations()
+        #expect(operations.count == 1)
+        #expect(operations.first?.tool == "tap_element")
+        #expect(operations.first?.arguments == ["label": "Sign in"])
+    }
+
     @Test("REPL can run the active compiled test")
     func replTestRun() async throws {
         let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
@@ -72,7 +95,7 @@ struct StudioAutomationServiceTests {
 }
 
 private actor RecordingToolExecutor: StudioToolExecuting {
-    private var recorded: [String] = []
+    private var recorded: [StudioToolOperation] = []
 
     func execute(
         _ operation: StudioToolOperation,
@@ -80,11 +103,12 @@ private actor RecordingToolExecutor: StudioToolExecuting {
         platform _: String,
         appId _: String?
     ) -> StudioToolExecutionResult {
-        recorded.append(operation.tool)
+        recorded.append(operation)
         return .init(output: "ok")
     }
 
-    func operations() -> [String] { recorded }
+    func operations() -> [String] { recorded.map(\.tool) }
+    func recordedOperations() -> [StudioToolOperation] { recorded }
 }
 
 private struct AutomationWorkspace: StudioDeviceWorkspace {

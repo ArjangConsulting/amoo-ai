@@ -107,7 +107,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         }
         switch command.lowercased() {
         case "help":
-            return .init(output: "help\ndevices list\ndevices inspect <id>\ntests validate\ntests run\nsessions list\nreports list\nproviders inspect <id>")
+            return .init(output: "help\ndevices list\ndevices inspect <id>\ntests validate\ntests run\nsessions list\nreports list\nproviders inspect <id>\ntap_element id=<id>|label=<label>\nset_text id=<id> value=<value>\nassert_visible id=<id>|label=<label>\ntake_screenshot")
         case "devices list":
             let devices = await workspace.listDevices()
             let output = devices.isEmpty ? "No devices found." : devices.map { "[\($0.platform.rawValue)] \($0.name) (\($0.id)) — \($0.status.rawValue)" }.joined(separator: "\n")
@@ -133,6 +133,21 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
             }
             if command.lowercased().hasPrefix("providers inspect "), let providerID = request.selectedProviderId {
                 return .init(output: "Selected provider profile: \(providerID). Secrets remain environment-only.")
+            }
+            if let operation = Self.parseToolOperation(command) {
+                guard let deviceID = request.selectedDeviceId else {
+                    throw StudioAutomationError.invalidTest("Choose a device before running mobile commands.")
+                }
+                guard let toolExecutor else {
+                    throw StudioAutomationError.invalidTest("Real device tool execution is unavailable in this Amoo build.")
+                }
+                let result = try await toolExecutor.execute(
+                    operation,
+                    deviceId: deviceID,
+                    platform: request.activeTest.platform,
+                    appId: request.activeTest.requirements?.appId
+                )
+                return .init(output: result.output)
             }
             throw StudioAutomationError.unsupportedCommand(command)
         }
@@ -200,6 +215,41 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         guard test.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { throw StudioAutomationError.invalidTest("A name is required.") }
         guard test.steps.isEmpty == false else { throw StudioAutomationError.invalidTest("At least one step is required.") }
         guard test.steps.allSatisfy({ $0.instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }) else { throw StudioAutomationError.invalidTest("Every step requires an instruction.") }
+    }
+
+    private static let studioTools: Set<String> = [
+        "tap_element", "set_text", "type_text", "swipe_in_direction", "wait_for_element",
+        "assert_visible", "assert_not_visible", "assert_text", "take_screenshot", "press_back"
+    ]
+
+    private static func parseToolOperation(_ command: String) -> StudioToolOperation? {
+        let tokens = tokenize(command)
+        guard let tool = tokens.first, studioTools.contains(tool) else { return nil }
+        let pairs: [(String, String)] = tokens.dropFirst().compactMap { token in
+            guard let separator = token.firstIndex(of: "=") else { return nil }
+            return (String(token[..<separator]), String(token[token.index(after: separator)...]))
+        }
+        let arguments = Dictionary(pairs, uniquingKeysWith: { _, latest in latest })
+        return .init(id: "repl-\(UUID().uuidString)", tool: tool, arguments: arguments)
+    }
+
+    private static func tokenize(_ command: String) -> [String] {
+        var tokens: [String] = []
+        var token = ""
+        var quote: Character?
+        for character in command {
+            if character == "\"" || character == "'" {
+                if quote == character { quote = nil }
+                else if quote == nil { quote = character }
+                else { token.append(character) }
+            } else if character.isWhitespace && quote == nil {
+                if !token.isEmpty { tokens.append(token); token = "" }
+            } else {
+                token.append(character)
+            }
+        }
+        if !token.isEmpty { tokens.append(token) }
+        return tokens
     }
 
     private func persistReports() {
