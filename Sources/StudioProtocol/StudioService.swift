@@ -11,6 +11,11 @@ public struct StudioHandshake: Codable, Equatable, Sendable {
 public struct StudioHealth: Codable, Equatable, Sendable {
     public let status: String
 }
+public struct StudioMCPStatus: Codable, Equatable, Sendable {
+    public let available: Bool
+    public let transport: String
+    public let arguments: [String]
+}
 
 public struct StudioService: Sendable {
     public static let protocolVersion = 1
@@ -54,10 +59,12 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "repl.execute", "tests.run", "reports.list"]
+                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "repl.execute", "tests.run", "reports.list", "mcp.status"]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
+            case "mcp.status":
+                result = try encodeValue(StudioMCPStatus(available: true, transport: "stdio", arguments: ["mcp", "serve"]))
             case "devices.list":
                 result = try encodeValue(StudioDeviceList(devices: await workspace.listDevices()))
             case "devices.start":

@@ -16,7 +16,7 @@ struct StudioProtocolTests {
         #expect(result["capabilities"] as? [String] == [
             "health", "devices.list", "devices.start", "devices.create",
             "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send",
-            "repl.execute", "tests.run", "reports.list"
+            "repl.execute", "tests.run", "reports.list", "mcp.status"
         ])
     }
 
@@ -59,6 +59,18 @@ struct StudioProtocolTests {
         let result = try #require(object["result"] as? [String: Any])
 
         #expect(result["message"] as? String == "Ready to explore")
+    }
+
+    @Test("MCP status reports the supported launch contract")
+    func mcpStatus() async throws {
+        let request = Data(#"{"jsonrpc":"2.0","id":5,"method":"mcp.status","params":{}}"#.utf8)
+        let response = await StudioService(workspace: StubWorkspace(), chat: StubChat()).handle(request)
+        let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
+        let result = try #require(object["result"] as? [String: Any])
+
+        #expect(result["available"] as? Bool == true)
+        #expect(result["transport"] as? String == "stdio")
+        #expect(result["arguments"] as? [String] == ["mcp", "serve"])
     }
 }
 
