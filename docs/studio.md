@@ -21,9 +21,19 @@ The initial methods are:
 | `system.health` | Current service status |
 | `devices.list` | Running and available simulators, emulators, and devices |
 | `devices.start` | Boot a selected simulator or emulator |
+| `devices.create` | Create a simulator or emulator through the typed process layer |
 | `apps.buildInstallRun` | Build, install, and launch an app |
 | `apps.reinstallRun` | Reinstall the last artifact without rebuilding |
 | `apps.resetData` | Remove app-local data after explicit approval |
+| `chat.send` | Send provider-neutral conversation state through the configured AI provider |
+| `repl.execute` | Execute a safe structured Studio console command |
+| `tests.run` | Validate and execute a compiled `.amootest` plan |
+| `reports.list` | Return persisted Studio test reports and artifacts |
+
+Provider secrets are resolved only from the environment-variable name in the profile. Studio test
+execution requires a compiled plan; authored intent without executable operations fails explicitly.
+Reports are owned and persisted by Amoo. REPL commands reject destructive operations so those actions
+continue to require an explicit approval event in Studio.
 
 Build and lifecycle behavior belongs to Amoo. Both iOS and Android builds and device operations run
 through Amoo's ShipItSwifty-backed process layer (`GradleKit`, `Adb`, and the Apple command
