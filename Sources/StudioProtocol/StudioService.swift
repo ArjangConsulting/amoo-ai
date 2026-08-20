@@ -16,9 +16,14 @@ public struct StudioService: Sendable {
     public static let protocolVersion = 1
 
     private let workspace: any StudioDeviceWorkspace
+    private let chat: any StudioChatServing
 
-    public init(workspace: any StudioDeviceWorkspace = LiveStudioDeviceWorkspace()) {
+    public init(
+        workspace: any StudioDeviceWorkspace = LiveStudioDeviceWorkspace(),
+        chat: any StudioChatServing = LiveStudioChatService()
+    ) {
         self.workspace = workspace
+        self.chat = chat
     }
 
     public func run(
@@ -46,7 +51,7 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData"]
+                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send"]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
@@ -62,6 +67,8 @@ public struct StudioService: Sendable {
                 result = try encodeValue(await workspace.reinstallRun(try request.appRequest()))
             case "apps.resetData":
                 result = try encodeValue(await workspace.resetData(try request.appRequest()))
+            case "chat.send":
+                result = try encodeValue(try await chat.send(try request.decodeParams(StudioChatRequest.self)))
             default:
                 return encode(Response(
                     id: request.id,
@@ -119,6 +126,10 @@ private struct Request: Decodable {
             runtime: try required("runtime"),
             deviceType: try required("deviceType")
         )
+    }
+
+    func decodeParams<Value: Decodable>(_ type: Value.Type) throws -> Value {
+        try JSONDecoder().decode(type, from: JSONEncoder().encode(params ?? [:]))
     }
 }
 

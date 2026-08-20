@@ -15,7 +15,7 @@ struct StudioProtocolTests {
         #expect(result["product"] as? String == "amoo")
         #expect(result["capabilities"] as? [String] == [
             "health", "devices.list", "devices.start", "devices.create",
-            "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData"
+            "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send"
         ])
     }
 
@@ -49,6 +49,20 @@ struct StudioProtocolTests {
 
         #expect(result["message"] as? String == "created Amoo Pixel")
     }
+
+    @Test("chat requests are routed to the provider service")
+    func chat() async throws {
+        let request = Data(#"{"jsonrpc":"2.0","id":4,"method":"chat.send","params":{"provider":{"id":"ollama","name":"Local","kind":"Ollama","baseUrl":"http://localhost:11434","model":"qwen","apiKeyEnvironmentVariable":""},"messages":[{"id":"user-1","role":"User","content":"Explore"}],"activeTest":{"formatVersion":1,"name":"Test","description":"","platform":"Android","steps":[]}}}"#.utf8)
+        let response = await StudioService(workspace: StubWorkspace(), chat: StubChat()).handle(request)
+        let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
+        let result = try #require(object["result"] as? [String: Any])
+
+        #expect(result["message"] as? String == "Ready to explore")
+    }
+}
+
+private struct StubChat: StudioChatServing {
+    func send(_: StudioChatRequest) async throws -> StudioChatResult { StudioChatResult(message: "Ready to explore") }
 }
 
 private struct StubWorkspace: StudioDeviceWorkspace {
