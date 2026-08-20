@@ -14,6 +14,8 @@ struct StudioChatServiceTests {
 
         #expect(result.message == "Hello")
         #expect(await transport.authorization == "Bearer secret")
+        #expect(await transport.body?.contains("active Amoo test") == true)
+        #expect(await transport.body?.contains("Test") == true)
     }
 
     @Test("provider keys are required without performing a request")
@@ -45,12 +47,14 @@ private actor ChatTransport: StudioHTTPTransport {
     private let response: String
     private(set) var authorization: String?
     private(set) var requestCount = 0
+    private(set) var body: String?
 
     init(response: String) { self.response = response }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requestCount += 1
         authorization = request.value(forHTTPHeaderField: "Authorization")
+        body = request.httpBody.map { String(decoding: $0, as: UTF8.self) }
         return (Data(response.utf8), HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
     }
 }
