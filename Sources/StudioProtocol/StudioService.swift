@@ -46,7 +46,7 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health", "devices.list", "devices.start", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData"]
+                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData"]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
@@ -54,6 +54,8 @@ public struct StudioService: Sendable {
                 result = try encodeValue(StudioDeviceList(devices: await workspace.listDevices()))
             case "devices.start":
                 result = try encodeValue(await workspace.startDevice(try request.required("id")))
+            case "devices.create":
+                result = try encodeValue(await workspace.createDevice(try request.createDeviceRequest()))
             case "apps.buildInstallRun":
                 result = try encodeValue(await workspace.buildInstallRun(try request.appRequest()))
             case "apps.reinstallRun":
@@ -103,6 +105,19 @@ private struct Request: Decodable {
             deviceId: try required("deviceId"), platform: optional("platform"),
             projectPath: optional("projectPath"), appId: try required("appId"),
             schemeOrModule: optional("schemeOrModule"), artifactPath: optional("artifactPath")
+        )
+    }
+
+    func createDeviceRequest() throws -> StudioCreateDeviceRequest {
+        let platformValue = try required("platform")
+        guard let platform = StudioPlatform(rawValue: platformValue.capitalized) else {
+            throw StudioWorkspaceError.invalidParameter("platform")
+        }
+        return StudioCreateDeviceRequest(
+            platform: platform,
+            name: try required("name"),
+            runtime: try required("runtime"),
+            deviceType: try required("deviceType")
         )
     }
 }
