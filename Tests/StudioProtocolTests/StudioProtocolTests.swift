@@ -15,7 +15,8 @@ struct StudioProtocolTests {
         #expect(result["product"] as? String == "amoo")
         #expect(result["capabilities"] as? [String] == [
             "health", "devices.list", "devices.start", "devices.create",
-            "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send"
+            "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send",
+            "repl.execute", "tests.run", "reports.list"
         ])
     }
 
@@ -59,6 +60,12 @@ struct StudioProtocolTests {
 
         #expect(result["message"] as? String == "Ready to explore")
     }
+}
+
+private actor StubAutomation: StudioAutomationServing {
+    func execute(_: StudioReplRequest) async throws -> StudioReplResult { .init(output: "executed") }
+    func run(_: StudioTestRunRequest) async throws -> StudioTestRunResult { .init(message: "passed", sessionId: "session-1", reportId: "report-1") }
+    func reports() async -> StudioReportListResult { .init(reports: []) }
 }
 
 private struct StubChat: StudioChatServing {
