@@ -204,6 +204,52 @@ struct StudioChatServiceTests {
         await #expect(throws: StudioChatError.self) { try await nonHTTP.check(profile) }
     }
 
+    @Test("chat send rejects invalid endpoints and non-HTTP responses")
+    func chatTransportConfigurationErrors() async {
+        let transport = ChatTransport(response: "{}")
+        let service = LiveStudioChatService(transport: transport, environment: { _ in "secret" })
+        let invalidRequest = StudioChatRequest(
+            provider: .init(
+                id: "invalid",
+                name: "Invalid",
+                kind: .custom,
+                baseUrl: "://",
+                model: "model",
+                apiKeyEnvironmentVariable: "KEY"
+            ),
+            messages: [],
+            activeTest: request(kind: .custom, variable: "KEY").activeTest
+        )
+        await #expect(throws: StudioChatError.self) { try await service.send(invalidRequest) }
+
+        let nonHTTP = LiveStudioChatService(
+            transport: NonHTTPChatTransport(),
+            environment: { _ in "secret" }
+        )
+        await #expect(throws: StudioChatError.self) {
+            try await nonHTTP.send(request(kind: .custom, variable: "KEY"))
+        }
+    }
+
+    @Test("Anthropic connectivity uses required provider headers")
+    func anthropicProviderCheck() async throws {
+        let transport = ChatTransport(response: "{}")
+        let service = LiveStudioChatService(transport: transport, environment: { _ in "secret" })
+        let provider = StudioProviderProfile(
+            id: "anthropic",
+            name: "Anthropic",
+            kind: .anthropic,
+            baseUrl: "https://api.anthropic.com",
+            model: "model",
+            apiKeyEnvironmentVariable: "KEY"
+        )
+
+        _ = try await service.check(provider)
+
+        #expect(await transport.apiKey == "secret")
+        #expect(await transport.anthropicVersion == "2023-06-01")
+    }
+
     private func request(kind: StudioProviderKind, variable: String) -> StudioChatRequest {
         StudioChatRequest(
             provider: .init(
