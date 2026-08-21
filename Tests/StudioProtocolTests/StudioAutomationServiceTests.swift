@@ -200,6 +200,75 @@ struct StudioAutomationServiceTests {
             compiledPlan: plan
         )
     }
+
+    @Test("test validation rejects each malformed authored-test shape")
+    func validationErrors() async {
+        let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+        let validStep = StudioAuthoredTest.Step(id: "step-1", instruction: "Tap", expected: "Done")
+        let invalidTests = [
+            StudioAuthoredTest(formatVersion: 2, name: "Test", description: "", platform: "iOS", steps: [validStep]),
+            StudioAuthoredTest(formatVersion: 1, name: "  ", description: "", platform: "iOS", steps: [validStep]),
+            StudioAuthoredTest(formatVersion: 1, name: "Test", description: "", platform: "iOS", steps: []),
+            StudioAuthoredTest(
+                formatVersion: 1,
+                name: "Test",
+                description: "",
+                platform: "iOS",
+                steps: [.init(id: "step-1", instruction: " ", expected: "Done")]
+            )
+        ]
+
+        for test in invalidTests {
+            await #expect(throws: StudioAutomationError.self) {
+                try await service.run(.init(test: test, deviceId: "device", providerId: nil))
+            }
+        }
+    }
+
+    @Test("empty and recursive legacy plans produce failed reports")
+    func invalidLegacyPlans() async throws {
+        let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+        let empty = authoredTest(plan: .init(compiler: "studio", compilerVersion: "1"))
+        let recursive = authoredTest(
+            plan: .init(compiler: "studio", compilerVersion: "1", operations: ["tests run", "unknown command"])
+        )
+
+        let emptyResult = try await service.run(.init(test: empty, deviceId: "device", providerId: nil))
+        let recursiveResult = try await service.run(.init(test: recursive, deviceId: "device", providerId: nil))
+
+        #expect(emptyResult.message.contains("No compiled tool plan"))
+        #expect(recursiveResult.message.contains("cannot recursively execute"))
+        #expect(recursiveResult.message.contains("Unsupported Studio command"))
+    }
+
+    @Test("completed asynchronous runs expose artifacts and final status")
+    func asyncCompletion() async throws {
+        let executor = RecordingToolExecutor(artifacts: ["/tmp/screenshot.png"])
+        let service = LiveStudioAutomationService(
+            workspace: AutomationWorkspace(),
+            reportsURL: nil,
+            toolExecutor: executor
+        )
+        let plan = StudioCompiledPlan(
+            compiler: "studio",
+            compilerVersion: "1",
+            toolOperations: [.init(id: "operation-1", tool: "take_screenshot")]
+        )
+        let started = await service.start(
+            .init(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil)
+        )
+
+        var status = try await service.status(runId: started.runId)
+        for _ in 0 ..< 100 where status.state == .running {
+            try await Task.sleep(for: .milliseconds(10))
+            status = try await service.status(runId: started.runId)
+        }
+        let report = await service.reports().reports.first
+
+        #expect(status.state == .passed)
+        #expect(status.currentOperation == 1)
+        #expect(report?.artifacts == ["/tmp/screenshot.png"])
+    }
 }
 
 private struct SlowToolExecutor: StudioToolExecuting {
@@ -229,6 +298,11 @@ private struct FailingToolExecutor: StudioToolExecuting {
 
 private actor RecordingToolExecutor: StudioToolExecuting {
     private var recorded: [StudioToolOperation] = []
+    private let artifacts: [String]
+
+    init(artifacts: [String] = []) {
+        self.artifacts = artifacts
+    }
 
     func execute(
         _ operation: StudioToolOperation,
@@ -237,7 +311,7 @@ private actor RecordingToolExecutor: StudioToolExecuting {
         appId _: String?
     ) -> StudioToolExecutionResult {
         recorded.append(operation)
-        return .init(output: "ok")
+        return .init(output: "ok", artifacts: artifacts)
     }
 
     func operations() -> [String] {

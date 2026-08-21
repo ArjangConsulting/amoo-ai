@@ -36,14 +36,14 @@ struct StudioChatServiceTests {
 
     @Test("AI plans are extracted for explicit Studio review")
     func proposedPlan() async throws {
-        let content = """
-        I created a two-step plan.
-        <amoo-plan>{"compiler":"ai","compilerVersion":"1","toolOperations":[{"id":"operation-1","tool":"tap_element","arguments":{"label":"Sign in"}},{"id":"operation-2","tool":"assert_visible","arguments":{"id":"home"}}]}</amoo-plan>
-        """
+        let plan = #"{"compiler":"ai","compilerVersion":"1","toolOperations":["#
+            + #"{"id":"operation-1","tool":"tap_element","arguments":{"label":"Sign in"}},"#
+            + #"{"id":"operation-2","tool":"assert_visible","arguments":{"id":"home"}}]}"#
+        let content = "I created a two-step plan.\n<amoo-plan>\(plan)</amoo-plan>"
         let data = try JSONSerialization.data(withJSONObject: [
             "choices": [["message": ["content": content]]]
         ])
-        let transport = ChatTransport(response: String(decoding: data, as: UTF8.self))
+        let transport = try ChatTransport(response: #require(String(bytes: data, encoding: .utf8)))
         let service = LiveStudioChatService(transport: transport, environment: { $0 == "TEST_KEY" ? "secret" : nil })
 
         let result = try await service.send(request(kind: .openAI, variable: "TEST_KEY"))
@@ -57,15 +57,113 @@ struct StudioChatServiceTests {
         let transport = ChatTransport(response: #"{"data":[]}"#)
         let service = LiveStudioChatService(transport: transport, environment: { $0 == "TEST_KEY" ? "secret" : nil })
 
-        let result = try await service.check(.init(id: "openai", name: "OpenAI", kind: .openAI, baseUrl: "https://api.openai.com", model: "model", apiKeyEnvironmentVariable: "TEST_KEY"))
+        let result = try await service.check(.init(
+            id: "openai",
+            name: "OpenAI",
+            kind: .openAI,
+            baseUrl: "https://api.openai.com",
+            model: "model",
+            apiKeyEnvironmentVariable: "TEST_KEY"
+        ))
 
         #expect(result.message.contains("Connected to OpenAI"))
         #expect(await transport.authorization == "Bearer secret")
     }
 
+    @Test("Anthropic chat uses its native request and response format")
+    func anthropicRequest() async throws {
+        let transport = ChatTransport(response: #"{"content":[{"text":"Anthropic reply"}]}"#)
+        let service = LiveStudioChatService(
+            transport: transport,
+            environment: { $0 == "ANTHROPIC_KEY" ? "secret" : nil }
+        )
+
+        let result = try await service.send(request(kind: .anthropic, variable: "ANTHROPIC_KEY"))
+
+        #expect(result.message == "Anthropic reply")
+        #expect(await transport.apiKey == "secret")
+        #expect(await transport.anthropicVersion == "2023-06-01")
+        #expect(await transport.body?.contains("max_tokens") == true)
+    }
+
+    @Test("Ollama chat and connectivity do not require a secret")
+    func ollamaRequests() async throws {
+        let transport = ChatTransport(response: #"{"message":{"content":"Local reply"}}"#)
+        let service = LiveStudioChatService(transport: transport, environment: { _ in nil })
+        let provider = StudioProviderProfile(
+            id: "ollama",
+            name: "Ollama",
+            kind: .ollama,
+            baseUrl: "http://localhost:11434",
+            model: "qwen",
+            apiKeyEnvironmentVariable: ""
+        )
+        let input = StudioChatRequest(
+            provider: provider,
+            messages: [.init(id: "assistant-1", role: .assistant, content: "Earlier")],
+            activeTest: request(kind: .ollama, variable: "").activeTest
+        )
+
+        let result = try await service.send(input)
+        let check = try await service.check(provider)
+
+        #expect(result.message == "Local reply")
+        #expect(check.message.contains("localhost"))
+        #expect(await transport.authorization == nil)
+        #expect(await transport.requestCount == 2)
+    }
+
+    @Test("HTTP and malformed provider responses produce actionable errors")
+    func responseErrors() async {
+        let rejected = ChatTransport(response: "denied", statusCode: 401)
+        let rejectedService = LiveStudioChatService(
+            transport: rejected,
+            environment: { $0 == "TEST_KEY" ? "secret" : nil }
+        )
+        await #expect(throws: StudioChatError.self) {
+            try await rejectedService.send(request(kind: .custom, variable: "TEST_KEY"))
+        }
+
+        let malformed = ChatTransport(response: "{}")
+        let malformedService = LiveStudioChatService(
+            transport: malformed,
+            environment: { $0 == "TEST_KEY" ? "secret" : nil }
+        )
+        await #expect(throws: StudioChatError.self) {
+            try await malformedService.send(request(kind: .openAI, variable: "TEST_KEY"))
+        }
+    }
+
+    @Test("unsafe and malformed AI plans stay plain chat messages")
+    func rejectedPlans() async throws {
+        let plan = #"{"compiler":"ai","compilerVersion":"1","toolOperations":["#
+            + #"{"id":"1","tool":"delete_app","arguments":{}}]}"#
+        let content = "Keep this as advice.\n<amoo-plan>\(plan)</amoo-plan>"
+        let data = try JSONSerialization.data(withJSONObject: [
+            "choices": [["message": ["content": content]]]
+        ])
+        let transport = try ChatTransport(response: #require(String(bytes: data, encoding: .utf8)))
+        let service = LiveStudioChatService(
+            transport: transport,
+            environment: { $0 == "TEST_KEY" ? "secret" : nil }
+        )
+
+        let result = try await service.send(request(kind: .openAI, variable: "TEST_KEY"))
+
+        #expect(result.proposedPlan == nil)
+        #expect(result.message.contains("<amoo-plan>"))
+    }
+
     private func request(kind: StudioProviderKind, variable: String) -> StudioChatRequest {
         StudioChatRequest(
-            provider: .init(id: "provider", name: "Provider", kind: kind, baseUrl: "https://example.com/v1", model: "model", apiKeyEnvironmentVariable: variable),
+            provider: .init(
+                id: "provider",
+                name: "Provider",
+                kind: kind,
+                baseUrl: "https://example.com/v1",
+                model: "model",
+                apiKeyEnvironmentVariable: variable
+            ),
             messages: [.init(id: "user-1", role: .user, content: "Hello")],
             activeTest: .init(formatVersion: 1, name: "Test", description: "", platform: "Android", steps: [])
         )
@@ -74,16 +172,27 @@ struct StudioChatServiceTests {
 
 private actor ChatTransport: StudioHTTPTransport {
     private let response: String
+    private let statusCode: Int
     private(set) var authorization: String?
+    private(set) var apiKey: String?
+    private(set) var anthropicVersion: String?
     private(set) var requestCount = 0
     private(set) var body: String?
 
-    init(response: String) { self.response = response }
+    init(response: String, statusCode: Int = 200) {
+        self.response = response
+        self.statusCode = statusCode
+    }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requestCount += 1
         authorization = request.value(forHTTPHeaderField: "Authorization")
-        body = request.httpBody.map { String(decoding: $0, as: UTF8.self) }
-        return (Data(response.utf8), HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        apiKey = request.value(forHTTPHeaderField: "x-api-key")
+        anthropicVersion = request.value(forHTTPHeaderField: "anthropic-version")
+        body = request.httpBody.flatMap { String(bytes: $0, encoding: .utf8) }
+        return (
+            Data(response.utf8),
+            HTTPURLResponse(url: request.url!, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
+        )
     }
 }
