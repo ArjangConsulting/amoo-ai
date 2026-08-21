@@ -154,6 +154,56 @@ struct StudioChatServiceTests {
         #expect(result.message.contains("<amoo-plan>"))
     }
 
+    @Test("invalid endpoints and provider checks surface configuration errors")
+    func providerCheckErrors() async {
+        let service = LiveStudioChatService(
+            transport: ChatTransport(response: "{}"),
+            environment: { _ in nil }
+        )
+        let invalid = StudioProviderProfile(
+            id: "invalid",
+            name: "Invalid",
+            kind: .custom,
+            baseUrl: "://",
+            model: "model",
+            apiKeyEnvironmentVariable: "KEY"
+        )
+        let missingKey = StudioProviderProfile(
+            id: "custom",
+            name: "Custom",
+            kind: .custom,
+            baseUrl: "https://example.com",
+            model: "model",
+            apiKeyEnvironmentVariable: ""
+        )
+
+        await #expect(throws: StudioChatError.self) { try await service.check(invalid) }
+        await #expect(throws: StudioChatError.self) { try await service.check(missingKey) }
+    }
+
+    @Test("provider checks reject HTTP and non-HTTP responses")
+    func providerCheckResponses() async {
+        let profile = StudioProviderProfile(
+            id: "ollama",
+            name: "Ollama",
+            kind: .ollama,
+            baseUrl: "http://localhost:11434",
+            model: "model",
+            apiKeyEnvironmentVariable: ""
+        )
+        let rejected = LiveStudioChatService(
+            transport: ChatTransport(response: "offline", statusCode: 503),
+            environment: { _ in nil }
+        )
+        let nonHTTP = LiveStudioChatService(
+            transport: NonHTTPChatTransport(),
+            environment: { _ in nil }
+        )
+
+        await #expect(throws: StudioChatError.self) { try await rejected.check(profile) }
+        await #expect(throws: StudioChatError.self) { try await nonHTTP.check(profile) }
+    }
+
     private func request(kind: StudioProviderKind, variable: String) -> StudioChatRequest {
         StudioChatRequest(
             provider: .init(
@@ -194,5 +244,11 @@ private actor ChatTransport: StudioHTTPTransport {
             Data(response.utf8),
             HTTPURLResponse(url: request.url!, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
         )
+    }
+}
+
+private struct NonHTTPChatTransport: StudioHTTPTransport {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        (Data(), URLResponse(url: request.url!, mimeType: nil, expectedContentLength: 0, textEncodingName: nil))
     }
 }
