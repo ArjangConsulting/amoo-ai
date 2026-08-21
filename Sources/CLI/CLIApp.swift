@@ -2,6 +2,12 @@ import AmooCore
 import AuditEngine
 import MCPServer
 import StudioProtocol
+import Foundation
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 public struct CLIResult: Sendable, Equatable {
     public var output: String
@@ -74,7 +80,12 @@ public struct CLIApp {
         guard remaining == ["serve"] else {
             return CLIResult(output: "Usage: amoo studio serve", exitCode: 64)
         }
-        await StudioService().run()
+        let workspace = LiveStudioDeviceWorkspace()
+        let automation = LiveStudioAutomationService(
+            workspace: workspace,
+            toolExecutor: CLIStudioToolExecutor()
+        )
+        await StudioService(workspace: workspace, automation: automation).run(output: studioProtocolOutput())
         return CLIResult(output: "", exitCode: 0)
     }
 
@@ -159,6 +170,16 @@ public struct CLIApp {
         }
         return await runMCPCommand(args: remaining)
     }
+}
+
+/// Keeps stdout exclusively framed for Studio even when lower-level build or companion code logs
+/// with `print`. The protocol retains a duplicate of the original descriptor; ordinary stdout is
+/// redirected to stderr for the remainder of this long-lived service process.
+private func studioProtocolOutput() -> FileHandle {
+    let protocolDescriptor = dup(STDOUT_FILENO)
+    precondition(protocolDescriptor >= 0, "Could not duplicate Studio protocol output")
+    precondition(dup2(STDERR_FILENO, STDOUT_FILENO) >= 0, "Could not reserve Studio protocol output")
+    return FileHandle(fileDescriptor: protocolDescriptor, closeOnDealloc: true)
 }
 
 func isHelpToken(_ token: String?) -> Bool {
