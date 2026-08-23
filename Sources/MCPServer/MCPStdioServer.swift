@@ -13,6 +13,14 @@ public struct MCPStdioServer: Sendable {
 
     private static let instructions = "Use these tools to inspect and control a local iOS simulator or Android emulator"
         + " through amoo. Prefer accessibility identifiers and labels over coordinates when possible."
+        + " Exception: for a tap or swipe on a specific row/element — especially inside a list with"
+        + " per-row actions such as a SwiftUI List's .swipeActions — label/id resolution alone can"
+        + " mistarget the wrong row. Call find_elements first to get that element's authoritative"
+        + " point-space coordinates, then drive the coordinate-based tap/swipe tools directly with"
+        + " those coordinates. Do not derive coordinates from a screenshot's pixel dimensions —"
+        + " screenshots are in pixels while gestures take points, and the two do not convert"
+        + " cleanly. To verify a UI mutation such as a delete succeeded, prefer find_elements with"
+        + " a text/label filter and check the result count rather than reading a screenshot."
     private static let cacheTTLMilliseconds = 3_600_000
 
     private let server: MCPServer
@@ -79,16 +87,8 @@ public struct MCPStdioServer: Sendable {
         }
 
         let params = request.params?.objectValue ?? [:]
-        if let metadata = params["_meta"]?.objectValue {
-            guard
-                let requestedVersion = metadata["io.modelcontextprotocol/protocolVersion"]?.stringValue
-            else {
-                return .response(.failure(
-                    id: id,
-                    code: -32602,
-                    message: "Modern MCP requests require _meta.io.modelcontextprotocol/protocolVersion"
-                ))
-            }
+        if let metadata = params["_meta"]?.objectValue,
+           let requestedVersion = metadata["io.modelcontextprotocol/protocolVersion"]?.stringValue {
             guard requestedVersion == Self.modernProtocolVersion else {
                 return .response(unsupportedVersion(id: id, requested: requestedVersion))
             }
