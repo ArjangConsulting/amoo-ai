@@ -58,7 +58,15 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "swipe_in_direction",
-            description: "Swipe in a direction from screen center or a specific element",
+            description: "Swipe in a direction from screen center or a specific element."
+                + " Resolving the target by element_id/element_label can mistarget a row inside a"
+                + " list with per-row actions (e.g. SwiftUI List .swipeActions): if the label"
+                + " doesn't uniquely and currently identify one element, the swipe fails rather"
+                + " than guessing, but a stale or ambiguous label can still land on the wrong row"
+                + " in some cases. For a swipe on a specific row/element, prefer calling"
+                + " find_elements first to get its authoritative point-space coordinates, then"
+                + " drive the coordinate-based swipe tool directly with those coordinates — this is"
+                + " the reliable path for row-specific gestures.",
             properties: [
                 "direction": .init(type: "string", description: "Swipe direction: up, down, left, or right"),
                 "distance": .init(type: "string", description: "Swipe distance in points. Defaults to 300."),
@@ -136,7 +144,13 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "tap_element",
-            description: "Tap a UI element by accessibility ID, label, or partial text match",
+            description: "Tap a UI element by accessibility ID, label, or partial text match."
+                + " For a control inside a list with per-row actions (e.g. SwiftUI List"
+                + " .swipeActions), resolving by label can be unreliable if the label isn't unique"
+                + " or the tree has shifted since the label was read — this can tap the wrong row."
+                + " For row-specific or otherwise precise taps, prefer calling find_elements first"
+                + " to get the element's authoritative point-space coordinates, then use the"
+                + " coordinate-based tap tool directly.",
             properties: [
                 "id": .init(type: "string", description: "Accessibility identifier of the element"),
                 "label": .init(type: "string", description: "Exact accessibility label of the element"),
