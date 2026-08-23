@@ -160,13 +160,13 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         let id = request.selector.id.isEmpty ? nil : request.selector.id
         let label = request.selector.label.isEmpty ? nil : request.selector.label
         let containsText = request.selector.containsText.isEmpty ? nil : request.selector.containsText
-        await gesture.swipeInDirection(
+        let swiped = await gesture.swipeInDirection(
             direction: direction,
             id: id,
             label: label,
             containsText: containsText
         )
-        return successResponse()
+        return swiped ? successResponse() : failResponse("Element not found for swipe")
     }
 
     func scroll(

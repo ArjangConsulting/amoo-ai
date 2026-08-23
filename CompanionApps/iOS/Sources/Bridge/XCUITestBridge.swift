@@ -186,14 +186,28 @@ final class XCUITestBridge: @unchecked Sendable {
         }
     }
 
+    /// Returns `false` when a selector was supplied but nothing matched, so the caller can report
+    /// failure instead of silently swiping the whole target.
+    ///
+    /// Previously, when `id`/`label`/`containsText` matched no element — including the case where
+    /// two rows in a list share the same accessibility label and the intended one isn't the first
+    /// hit in tree-walk order — this fell through to a generic `target.swipeLeft()`/`swipeUp()`/
+    /// etc. on the *whole* gesture target. XCUITest's directional swipe helpers start from wherever
+    /// they choose within that target (typically its centre), which in a scrollable list can land on
+    /// an entirely different row than the one named. The action still reported success, so a caller
+    /// asking to swipe a specific labelled row could silently act on an unrelated one with no
+    /// indication anything went wrong. Callers that want a screen-wide swipe should omit the
+    /// selector entirely rather than pass one that might not resolve.
+    @discardableResult
     func swipeInDirection(
         _ direction: ScrollDirection,
         id: String?,
         label: String?,
         containsText: String?
-    ) {
+    ) -> Bool {
         let target = gestureTarget()
-        if id != nil || label != nil || containsText != nil {
+        let hasSelector = id != nil || label != nil || containsText != nil
+        if hasSelector {
             // Swipes from the matched element's centre, using the same single-snapshot lookup as
             // `findElements` rather than enumerating live queries per element.
             for candidate in matchableElements(in: target, labeledOnly: true)
@@ -201,8 +215,9 @@ final class XCUITestBridge: @unchecked Sendable {
                 let frame = candidate.frame.standardized
                 guard !frame.isNull, !frame.isEmpty else { continue }
                 swipeFromCentre(of: frame, direction: direction)
-                return
+                return true
             }
+            return false
         }
         switch direction {
         case .up: target.swipeUp()
@@ -210,6 +225,7 @@ final class XCUITestBridge: @unchecked Sendable {
         case .left: target.swipeLeft()
         case .right: target.swipeRight()
         }
+        return true
     }
 
     // MARK: - Text

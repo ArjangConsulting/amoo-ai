@@ -34,12 +34,18 @@ final class GestureHandler: @unchecked Sendable {
         await bridge.scroll(direction: direction, distance: distance)
     }
 
+    /// Returns `false` when `id`/`label`/`containsText` was supplied but resolved no element, so
+    /// the caller can surface a real failure instead of reporting success for a swipe that either
+    /// did nothing or — previously — silently landed on the wrong element. See
+    /// `XCUITestBridge.swipeInDirection` for why a resolution miss must not fall back to a
+    /// generic whole-target swipe.
+    @discardableResult
     func swipeInDirection(
         direction: ScrollDirection,
         id: String?,
         label: String?,
         containsText: String?
-    ) async {
+    ) async -> Bool {
         await bridge.swipeInDirection(direction, id: id, label: label, containsText: containsText)
     }
 }
