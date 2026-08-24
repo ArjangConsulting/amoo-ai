@@ -186,6 +186,28 @@ struct StudioAutomationServiceTests {
         await #expect(throws: StudioAutomationError.self) { try await service.cancel(runId: "missing") }
     }
 
+    @Test("code export routes to the platform-specific emitter")
+    func codeExport() async throws {
+        let service = LiveStudioAutomationService(
+            workspace: AutomationWorkspace(),
+            reportsURL: nil,
+            codeEmitters: .init(ios: StubEmitter(platform: "iOS"), android: StubEmitter(platform: "Android"))
+        )
+        let plan = StudioCompiledPlan(compiler: "ai", compilerVersion: "1", toolOperations: [
+            .init(id: "op-1", tool: "tap_element", arguments: ["id": "sign-in"])
+        ])
+        let test = authoredTest(plan: plan)
+        let result = try await service.export(.init(test: test))
+        #expect(result.fileName == "AndroidTest.txt")
+    }
+
+    @Test("code export rejects platforms with no configured emitter")
+    func codeExportUnavailable() async {
+        let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
+        let test = authoredTest(plan: .init(compiler: "ai", compilerVersion: "1", toolOperations: []))
+        await #expect(throws: StudioAutomationError.self) { try await service.export(.init(test: test)) }
+    }
+
     private func repl(_ command: String) -> StudioReplRequest {
         .init(command: command, activeTest: authoredTest(), selectedDeviceId: nil, selectedProviderId: nil)
     }
@@ -424,5 +446,12 @@ private struct AutomationWorkspace: StudioDeviceWorkspace {
 
     func resetData(_: StudioAppRequest) async -> StudioOperationResult {
         .init(message: "reset", artifactPath: nil)
+    }
+}
+
+private struct StubEmitter: StudioCodeEmitting {
+    let platform: String
+    func generate(_: StudioAuthoredTest) throws -> StudioTestExportResult {
+        .init(fileName: "\(platform)Test.txt", source: "// generated for \(platform)")
     }
 }

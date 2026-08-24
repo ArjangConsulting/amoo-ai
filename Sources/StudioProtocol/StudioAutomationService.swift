@@ -79,6 +79,13 @@ public protocol StudioAutomationServing: Sendable {
     func start(_ request: StudioTestRunRequest) async -> StudioTestStartResult
     func status(runId: String) async throws -> StudioTestRunStatus
     func cancel(runId: String) async throws -> StudioTestRunStatus
+    func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult
+}
+
+extension StudioAutomationServing {
+    public func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
+        throw StudioAutomationError.invalidTest("Code export is unavailable in this Amoo build.")
+    }
 }
 
 public struct StudioToolExecutionResult: Equatable, Sendable {
@@ -111,6 +118,7 @@ public enum StudioAutomationError: Error, CustomStringConvertible {
 public actor LiveStudioAutomationService: StudioAutomationServing {
     private let workspace: any StudioDeviceWorkspace
     private let toolExecutor: (any StudioToolExecuting)?
+    private let codeEmitters: StudioCodeEmitters
     private let reportsURL: URL?
     private var storedReports: [StudioTestReport]
     private var runTasks: [String: Task<Void, Never>] = [:]
@@ -119,12 +127,33 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     public init(
         workspace: any StudioDeviceWorkspace,
         reportsURL: URL? = LiveStudioAutomationService.defaultReportsURL(),
-        toolExecutor: (any StudioToolExecuting)? = nil
+        toolExecutor: (any StudioToolExecuting)? = nil,
+        codeEmitters: StudioCodeEmitters = .init()
     ) {
         self.workspace = workspace
         self.reportsURL = reportsURL
         self.toolExecutor = toolExecutor
+        self.codeEmitters = codeEmitters
         storedReports = reportsURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([StudioTestReport].self, from: $0) } ?? []
+    }
+
+    public func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
+        let platform = request.test.platform.lowercased()
+        let emitter: (any StudioCodeEmitting)? = if platform.contains("android") {
+            codeEmitters.android
+        } else if platform.contains("ios") {
+            codeEmitters.ios
+        } else {
+            nil
+        }
+        guard let emitter else {
+            throw StudioAutomationError.invalidTest("Code export is unavailable for platform '\(request.test.platform)'.")
+        }
+        do {
+            return try emitter.generate(request.test)
+        } catch {
+            throw StudioAutomationError.invalidTest("Code export failed: \(error)")
+        }
     }
 
     public func execute(_ request: StudioReplRequest) async throws -> StudioReplResult {

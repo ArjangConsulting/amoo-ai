@@ -18,6 +18,7 @@ let package = Package(
         .library(name: "TestSession", targets: ["TestSession"]),
         .library(name: "OllamaClient", targets: ["OllamaClient"]),
         .library(name: "StudioProtocol", targets: ["StudioProtocol"]),
+        .library(name: "TestCodeGenerator", targets: ["TestCodeGenerator"]),
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
@@ -73,6 +74,7 @@ let package = Package(
         .target(name: "TestSession", dependencies: ["AmooCore"]),
         .target(name: "OllamaClient"),
         .target(name: "StudioProtocol", dependencies: ["AmooCore", "ProcessRunner"]),
+        .target(name: "TestCodeGenerator", dependencies: ["StudioProtocol"]),
         .target(
             name: "GRPCService",
             dependencies: [
@@ -108,6 +110,8 @@ let package = Package(
                 "AuditEngine",
                 "ProcessRunner",
                 "TestSession",
+                "StudioProtocol",
+                "TestCodeGenerator",
                 .product(name: "GradleKit", package: "ShipItSwifty"),
                 .product(name: "XcodeBuildKit", package: "ShipItSwifty"),
                 .product(name: "XcodeGenKit", package: "ShipItSwifty"),
@@ -131,6 +135,7 @@ let package = Package(
         .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),
         .testTarget(name: "StudioProtocolTests", dependencies: ["StudioProtocol"]),
+        .testTarget(name: "TestCodeGeneratorTests", dependencies: ["TestCodeGenerator", "StudioProtocol"]),
         .testTarget(
             name: "CLITests",
             dependencies: [
