@@ -2,6 +2,7 @@ import AmooCore
 import AuditEngine
 import MCPServer
 import StudioProtocol
+import TestCodeGenerator
 import Foundation
 #if canImport(Darwin)
 import Darwin
@@ -69,7 +70,27 @@ public struct CLIApp {
         case "chat": return await handleChatCommand(remaining: remaining)
         case "mcp": return await handleMCPCommand(remaining: remaining)
         case "studio": return await handleStudioCommand(remaining: remaining)
+        case "generate": return handleGenerateCommand(remaining: remaining)
         default: return nil
+        }
+    }
+
+    private func handleGenerateCommand(remaining: [String]) -> CLIResult {
+        guard remaining.first == "test" else {
+            return CLIResult(output: renderGenerateHelp(), exitCode: remaining.isEmpty ? 0 : 64)
+        }
+        let commandArgs = Array(remaining.dropFirst())
+        if isHelpRequest(commandArgs) {
+            return CLIResult(output: renderGenerateHelp(), exitCode: 0)
+        }
+        do {
+            let options = try parseGenerateTestOptions(args: commandArgs)
+            return try runGenerateTestCommand(
+                options: options,
+                emitters: StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+            )
+        } catch {
+            return CLIResult(output: String(describing: error), exitCode: 64)
         }
     }
 
@@ -83,7 +104,8 @@ public struct CLIApp {
         let workspace = LiveStudioDeviceWorkspace()
         let automation = LiveStudioAutomationService(
             workspace: workspace,
-            toolExecutor: CLIStudioToolExecutor()
+            toolExecutor: CLIStudioToolExecutor(),
+            codeEmitters: StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
         )
         await StudioService(workspace: workspace, automation: automation).run(output: studioProtocolOutput())
         return CLIResult(output: "", exitCode: 0)
