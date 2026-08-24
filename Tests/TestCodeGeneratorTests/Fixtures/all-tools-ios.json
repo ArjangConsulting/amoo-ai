@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "name": "2FA Login",
+  "description": "Exercises every supported tool plus known edge cases (digit-leading name, control characters in text)",
+  "platform": "iOS",
+  "steps": [
+    { "id": "step-1", "instruction": "Run through every supported tool", "expected": "Every step succeeds" }
+  ],
+  "compiledPlan": {
+    "compiler": "ai",
+    "compilerVersion": "1",
+    "toolOperations": [
+      { "id": "op-1", "tool": "tap_element", "arguments": { "id": "email-field" } },
+      { "id": "op-2", "tool": "set_text", "arguments": { "id": "email-field", "value": "user@example.com" } },
+      { "id": "op-3", "tool": "type_text", "arguments": { "text": "line one\nline two\ttabbed" } },
+      { "id": "op-4", "tool": "swipe_in_direction", "arguments": { "direction": "up", "element_id": "list" } },
+      { "id": "op-5", "tool": "wait_for_element", "arguments": { "id": "spinner", "timeout_ms": "2000" } },
+      { "id": "op-6", "tool": "assert_visible", "arguments": { "label": "Welcome" } },
+      { "id": "op-7", "tool": "assert_not_visible", "arguments": { "id": "spinner" } },
+      { "id": "op-8", "tool": "assert_text", "arguments": { "id": "greeting", "value": "Hi there" } },
+      { "id": "op-9", "tool": "take_screenshot", "arguments": {} },
+      { "id": "op-10", "tool": "press_back", "arguments": {} }
+    ]
+  }
+}
