@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "name": "Sign In Flow",
+  "description": "Signs a user in with valid credentials",
+  "platform": "Android",
+  "steps": [
+    { "id": "step-1", "instruction": "Enter email and tap sign in", "expected": "Home screen appears" }
+  ],
+  "compiledPlan": {
+    "compiler": "ai",
+    "compilerVersion": "1",
+    "toolOperations": [
+      { "id": "op-1", "tool": "tap_element", "arguments": { "id": "email-field" } },
+      { "id": "op-2", "tool": "set_text", "arguments": { "id": "email-field", "value": "user@example.com" } },
+      { "id": "op-3", "tool": "tap_element", "arguments": { "id": "sign-in-button" } },
+      { "id": "op-4", "tool": "assert_visible", "arguments": { "label": "Welcome" } }
+    ]
+  }
+}
