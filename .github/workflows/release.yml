@@ -266,10 +266,12 @@ jobs:
           macos_sha=$(sha256sum "amoo-${VERSION}-macos-universal.tar.gz" | awk '{print $1}')
           linux_sha=$(sha256sum "amoo-${VERSION}-linux-static.tar.gz" | awk '{print $1}')
 
+          # tail -n +5 drops the template's 4-line header comment — it describes the
+          # placeholder mechanics, which don't apply to the rendered file that ships to the tap.
           sed -e "s/VERSION_PLACEHOLDER/${VERSION}/g" \
               -e "s/MACOS_SHA256_PLACEHOLDER/${macos_sha}/g" \
               -e "s/LINUX_SHA256_PLACEHOLDER/${linux_sha}/g" \
-              Formula/amoo.rb > rendered-amoo.rb
+              Formula/amoo.rb | tail -n +5 > rendered-amoo.rb
           echo "Rendered formula:"
           cat rendered-amoo.rb
 
