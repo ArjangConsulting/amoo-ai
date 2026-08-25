@@ -16,14 +16,12 @@ Swift-first mobile testing infrastructure for iOS and Android, with:
 
 ## Install
 
-After the first Homebrew tap release is published:
-
 ```bash
 brew tap arjangconsulting/tap
 brew install amoo
 ```
 
-Until then, build from source (see Quick Start below).
+Or build from source (see Quick Start below).
 
 ## Quick Start
 
