@@ -1,5 +1,9 @@
-import Darwin
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 actor CLILoadingIndicator {
     private static let frames = ["|", "/", "-", "\\"]
@@ -9,7 +13,7 @@ actor CLILoadingIndicator {
     private var renderTask: Task<Void, Never>?
     private var hasRendered = false
 
-    init(message: String, isEnabled: Bool = isatty(fileno(stderr)) != 0) {
+    init(message: String, isEnabled: Bool = isatty(STDERR_FILENO) != 0) {
         self.message = message
         self.isEnabled = isEnabled
     }

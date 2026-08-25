@@ -1,4 +1,8 @@
+#if canImport(Darwin)
 import Darwin
+#else
+import Glibc
+#endif
 
 public enum ANSIColor: String, Sendable {
     case reset = "\u{001B}[0m"
@@ -23,7 +27,7 @@ public enum ANSIColor: String, Sendable {
 }
 
 /// Whether stdout is a terminal (enables colors).
-public let isColorEnabled: Bool = isatty(fileno(stdout)) != 0
+public let isColorEnabled: Bool = isatty(STDOUT_FILENO) != 0
 
 public func colored(_ text: String, _ colors: ANSIColor...) -> String {
     guard isColorEnabled else { return text }

@@ -1,5 +1,7 @@
 #if canImport(Darwin)
 import Darwin
+#else
+import Glibc
 #endif
 import AmooCore
 import Foundation
@@ -51,9 +53,13 @@ final class USBTunnelTests: XCTestCase {
 
     // MARK: - Open
 
+    // `USBTunnelHandle.canConnect(toPort:)` is deliberately stubbed to always return `false` on
+    // non-Darwin platforms (physical-iOS-device tunneling has no Linux use case), so the
+    // readiness poll this test exercises can never succeed there.
+    #if os(macOS)
     func testOpenForwardsLocalToDevicePortForSpecificUDID() async throws {
         let listener = try LoopbackListener()
-        defer { listener.close() }
+        defer { listener.shutdown() }
 
         let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "", stderr: ""))
         let tunnel = IProxyTunnel(context: mock.context)
@@ -71,6 +77,7 @@ final class USBTunnelTests: XCTestCase {
         XCTAssertEqual(handle.devicePort, 22087)
         XCTAssertEqual(handle.deviceUDID, "UDID-1")
     }
+    #endif
 
     func testOpenFailsWhenPortNeverAcceptsConnections() async throws {
         let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "", stderr: ""))
@@ -111,7 +118,7 @@ final class USBTunnelTests: XCTestCase {
     private func unusedPort() -> Int {
         let listener = try? LoopbackListener()
         let port = listener?.port ?? 49999
-        listener?.close()
+        listener?.shutdown()
         return port
     }
 }
@@ -124,7 +131,13 @@ private final class LoopbackListener {
     init() throws {
         // Use a local until every stored property is set — closures below capture it,
         // and capturing `self.descriptor` before `port` exists is not allowed.
-        let fileDescriptor = socket(AF_INET, SOCK_STREAM, 0)
+        // `SOCK_STREAM` is already `Int32` on Darwin but an `__socket_type` enum on Glibc.
+        #if canImport(Darwin)
+        let socketType = SOCK_STREAM
+        #else
+        let socketType = Int32(SOCK_STREAM.rawValue)
+        #endif
+        let fileDescriptor = socket(AF_INET, socketType, 0)
         guard fileDescriptor >= 0 else {
             throw NSError(domain: "LoopbackListener", code: 1)
         }
@@ -143,7 +156,7 @@ private final class LoopbackListener {
             }
         }
         guard bound == 0, listen(fileDescriptor, 1) == 0 else {
-            Darwin.close(fileDescriptor)
+            close(fileDescriptor)
             throw NSError(domain: "LoopbackListener", code: 2)
         }
 
@@ -155,7 +168,7 @@ private final class LoopbackListener {
             }
         }
         guard named == 0 else {
-            Darwin.close(fileDescriptor)
+            close(fileDescriptor)
             throw NSError(domain: "LoopbackListener", code: 3)
         }
 
@@ -163,7 +176,7 @@ private final class LoopbackListener {
         port = Int(UInt16(bigEndian: actual.sin_port))
     }
 
-    func close() {
-        Darwin.close(descriptor)
+    func shutdown() {
+        close(descriptor)
     }
 }

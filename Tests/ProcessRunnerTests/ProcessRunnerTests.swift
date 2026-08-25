@@ -26,6 +26,10 @@ final class ProcessRunnerTests: XCTestCase {
         }
     }
 
+    // `SimctlRunner` shells out to ShipItKit's `Simctl`, which is `#if os(macOS)`-gated (it wraps
+    // `xcrun simctl`, an Xcode-only tool) — on Linux `SimctlRunner` is a stub that always throws,
+    // so these tests exercising its real command-building behavior only apply on macOS.
+    #if os(macOS)
     func testSimctlRunnerPrefixesCommand() async throws {
         let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "{}", stderr: ""))
         let runner = SimctlRunner(context: mock.context)
@@ -116,6 +120,7 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(commands[3], ["xcrun", "simctl", "ui", "booted", "appearance", "dark"])
         XCTAssertEqual(commands[4], ["xcrun", "simctl", "openurl", "booted", "myapp://test"])
     }
+    #endif
 
     func testADBRunnerPrefixesAndHelpers() async throws {
         let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "", stderr: ""))
@@ -264,6 +269,7 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(commands[1], ["adb", "forward", "--remove", "tcp:22088"])
     }
 
+    #if os(macOS)
     func testSimctlRunnerPropagatesNonZeroExit() async throws {
         let mock = MockShellExecutor(result: .init(exitCode: 1, stdout: "", stderr: "failed"))
         let runner = SimctlRunner(context: mock.context)
@@ -282,6 +288,7 @@ final class ProcessRunnerTests: XCTestCase {
             }
         }
     }
+    #endif
 }
 
 final class MockShellExecutor: @unchecked Sendable {

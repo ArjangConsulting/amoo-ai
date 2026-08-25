@@ -27,7 +27,13 @@ extension CLITests {
         )
 
         XCTAssertEqual(result.exitCode, 1)
+        #if os(macOS)
         XCTAssertEqual(result.output, CompanionError.xcodegeneNotFound.description)
+        #else
+        // `buildForTesting` never reaches the injected process runner on Linux — it fails fast
+        // with `.unsupportedPlatform` instead, since XcodeGen/XcodeBuild aren't usable there.
+        XCTAssertEqual(result.output, CompanionError.unsupportedPlatform.description)
+        #endif
     }
 
     func testRunAndroidCompanionInstallBuildFailureUsesProcessOutput() async {

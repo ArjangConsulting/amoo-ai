@@ -53,3 +53,45 @@ jobs:
 
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
+
+  build-and-test-linux:
+    name: Build & Test (Linux)
+    runs-on: ubuntu-latest
+    # amoo's Swift code compiles on Linux even though iOS-simulator/Xcode-project features
+    # (XcodeBuildKit, XcodeGenKit, XCUITest bridge) are functionally macOS-only at runtime —
+    # they shell out to tools that don't exist on Linux and fail gracefully via `preflight`.
+    # No lint here: swiftformat/swiftlint aren't installed in this container, and
+    # scripts/ci/test_coverage.sh depends on `xcrun llvm-cov`, which is Darwin-only.
+    container:
+      image: swift:6.3-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install protoc
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq protobuf-compiler
+          echo "PROTOC_PATH=$(which protoc)" >> "$GITHUB_ENV"
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-linux-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-linux-
+
+      - name: Build
+        run: swift build --product amoo
+
+      - name: Test
+        # CLIQualityCoverageTests' Android preflight checks scan the real host for a JDK
+        # (AndroidJDK.discover()) rather than going through the injected process runner, so on a
+        # bare Linux runner without JDK 17-21 installed they fail regardless of platform-gating —
+        # not a Linux-compatibility issue, just a host tooling gap. Skipped here the same way
+        # ShipItSwifty skips its own macOS-only test targets on Linux.
+        run: swift test --skip IntegrationTests --skip CLIQualityCoverageTests

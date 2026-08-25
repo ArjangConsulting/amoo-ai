@@ -1,5 +1,8 @@
 @testable import CLI
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import MCPServer
 @testable import OllamaClient
 import Testing
@@ -7,8 +10,9 @@ import Testing
 private let baseURL = URL(string: "http://localhost:11434")!
 
 private func httpResponse(statusCode: Int) -> HTTPURLResponse {
-    HTTPURLResponse(url: baseURL, statusCode: statusCode, httpVersion: nil, headerFields: nil)
-        ?? HTTPURLResponse()
+    // This initializer only returns nil for a malformed httpVersion string; passing `nil` for it
+    // never fails on either platform. `HTTPURLResponse()` isn't available as a fallback on Linux.
+    HTTPURLResponse(url: baseURL, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
 }
 
 private enum TestError: Error {

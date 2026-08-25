@@ -50,7 +50,15 @@ func waitForProcessExit(_ process: Process, timeoutNanoseconds: UInt64) async ->
     return true
 }
 
-func amooExecutableURL() throws -> URL {
+/// Every plausible location for the built `amoo` executable, most likely first.
+///
+/// Multiple candidates exist because the build layout varies with `--build-path`,
+/// architecture-specific subdirectories, and Xcode's own output location — and because a
+/// contributor testing both a native macOS build and a `--build-path .build-linux` container
+/// build from the same checkout can end up with a stale, wrong-format binary at an earlier
+/// candidate path. Callers should attempt each in order and fall through past a launch failure
+/// rather than trusting the first executable-bit match.
+func amooExecutableCandidates() -> [URL] {
     let sourceURL = URL(fileURLWithPath: #filePath)
     let packageRoot = sourceURL
         .deletingLastPathComponent()
@@ -59,15 +67,12 @@ func amooExecutableURL() throws -> URL {
     let candidates = [
         packageRoot.appendingPathComponent(".build/debug/amoo"),
         packageRoot.appendingPathComponent(".build/out/Products/Debug/amoo"),
-        packageRoot.appendingPathComponent(".build/arm64-apple-macosx/debug/amoo")
+        packageRoot.appendingPathComponent(".build/arm64-apple-macosx/debug/amoo"),
+        packageRoot.appendingPathComponent(".build-linux/debug/amoo"),
+        packageRoot.appendingPathComponent(".build-linux/x86_64-unknown-linux-gnu/debug/amoo"),
+        packageRoot.appendingPathComponent(".build-linux/aarch64-unknown-linux-gnu/debug/amoo")
     ]
-
-    guard let executableURL = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else {
-        let paths = candidates.map(\.path).joined(separator: ", ")
-        throw XCTSkip("Cannot locate built amoo executable at any expected path: \(paths).")
-    }
-
-    return executableURL
+    return candidates.filter { FileManager.default.isExecutableFile(atPath: $0.path) }
 }
 
 /// Mock driver that returns elements triggering audit rules.
