@@ -1,10 +1,22 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 protocol OllamaHTTPTransport: Sendable {
     func data(for request: URLRequest) async throws -> (Data, URLResponse)
 }
 
-extension URLSession: OllamaHTTPTransport {}
+/// swift-corelibs-foundation's `URLSession.data(for:)` takes an extra `delegate` parameter on
+/// Linux, so it can't satisfy `OllamaHTTPTransport` via a direct `extension URLSession` the way
+/// it can on Darwin. Route through a thin wrapper instead so both platforms compile identically.
+private struct URLSessionTransport: OllamaHTTPTransport {
+    let session: URLSession
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        try await session.data(for: request)
+    }
+}
 
 /// HTTP client for Ollama's `/api/chat` endpoint with tool-calling support.
 public actor OllamaClient {
@@ -13,7 +25,7 @@ public actor OllamaClient {
 
     public init(host: String = "127.0.0.1", port: Int = 11434) {
         baseURL = URL(string: "http://\(host):\(port)") ?? URL(fileURLWithPath: "/")
-        transport = URLSession(configuration: .default)
+        transport = URLSessionTransport(session: URLSession(configuration: .default))
     }
 
     init(baseURL: URL, transport: any OllamaHTTPTransport) {

@@ -1,3 +1,4 @@
+#if canImport(CoreGraphics)
 import AmooCore
 import CoreGraphics
 import Foundation
@@ -70,3 +71,4 @@ final class ScreenshotScalerTests: XCTestCase {
         XCTAssertNil(ScreenshotScaler.scaled(png, by: 0.01, format: .png))
     }
 }
+#endif

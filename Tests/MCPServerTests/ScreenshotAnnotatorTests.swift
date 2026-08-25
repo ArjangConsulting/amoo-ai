@@ -1,3 +1,4 @@
+#if canImport(CoreGraphics)
 import AmooCore
 import CoreGraphics
 import Foundation
@@ -110,3 +111,4 @@ final class ScreenshotAnnotatorTests: XCTestCase {
         XCTAssertFalse(result.isEmpty)
     }
 }
+#endif

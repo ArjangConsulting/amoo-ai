@@ -1,7 +1,9 @@
 import AmooCore
 import Foundation
-import ShipItKit
 import SwiftyShell
+#if os(macOS)
+import ShipItKit
+#endif
 
 public protocol SimctlRunning: Sendable {
     @discardableResult
@@ -40,6 +42,7 @@ public protocol SimctlRunning: Sendable {
     func listInstalledAppIDs(device: String) async throws -> [String]
 }
 
+#if os(macOS)
 public struct SimctlRunner: SimctlRunning {
     private let context: ShellContext
 
@@ -232,3 +235,103 @@ private actor SimctlRecordingRegistry {
         processes.removeValue(forKey: pid)
     }
 }
+
+#else
+
+/// `xcrun simctl` only exists on macOS (it ships with Xcode), and ShipItKit's `Simctl` command
+/// builder is itself `#if os(macOS)`-gated. This stub keeps `SimctlRunner` linkable on Linux so
+/// the rest of the CLI (which references the type unconditionally) still compiles there — every
+/// call fails at runtime with a clear error instead of the binary failing to build at all, the
+/// same pattern `preflight` already uses for other macOS-only tooling.
+public struct SimctlRunner: SimctlRunning {
+    public init(context: ShellContext = .init()) {}
+
+    private func unsupported() -> Error {
+        ProcessRunnerError.nonZeroExit(
+            command: "xcrun simctl",
+            exitCode: 127,
+            stderr: "simctl is only available on macOS."
+        )
+    }
+
+    @discardableResult
+    public func run(_ arguments: [String]) async throws -> ProcessResult {
+        throw unsupported()
+    }
+
+    public func bootStatus(device: String = "booted") async throws {
+        throw unsupported()
+    }
+
+    public func shutdown(device: String = "booted") async throws {
+        throw unsupported()
+    }
+
+    public func listDevices() async throws -> String {
+        throw unsupported()
+    }
+
+    public func install(device: String, appPath: String) async throws {
+        throw unsupported()
+    }
+
+    public func launch(
+        device: String,
+        appID: String,
+        arguments: [String] = [],
+        environment: [String: String] = [:]
+    ) async throws {
+        throw unsupported()
+    }
+
+    public func terminate(device: String, appID: String) async throws {
+        throw unsupported()
+    }
+
+    public func uninstall(device: String, appID: String) async throws {
+        throw unsupported()
+    }
+
+    public func listApps(device: String) async throws -> String {
+        throw unsupported()
+    }
+
+    public func screenshot(device: String, format: ImageFormat = .png) async throws -> Data {
+        throw unsupported()
+    }
+
+    public func startRecording(device: String, outputPath: String) async throws -> Int32 {
+        throw unsupported()
+    }
+
+    public func stopRecording(pid: Int32) async throws {
+        throw unsupported()
+    }
+
+    public func setPermission(device: String, action: String, permission: String, appID: String)
+        async throws {
+        throw unsupported()
+    }
+
+    public func setLocation(device: String, latitude: Double, longitude: Double) async throws {
+        throw unsupported()
+    }
+
+    public func clearLocation(device: String) async throws {
+        throw unsupported()
+    }
+
+    public func setAppearance(device: String, appearance: Appearance) async throws {
+        throw unsupported()
+    }
+
+    public func openURL(device: String, url: String) async throws {
+        throw unsupported()
+    }
+
+    public func listInstalledAppIDs(device: String) async throws -> [String] {
+        throw unsupported()
+    }
+}
+
+#endif

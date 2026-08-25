@@ -1,9 +1,9 @@
 import AmooCore
 import AuditEngine
+import Foundation
 import MCPServer
 import StudioProtocol
 import TestCodeGenerator
-import Foundation
 #if canImport(Darwin)
 import Darwin
 #else
@@ -21,6 +21,13 @@ public struct CLIResult: Sendable, Equatable {
 }
 
 public struct CLIApp {
+    /// The version reported by `amoo --version`.
+    ///
+    /// For released binaries this is overwritten at build time by the release workflow, which
+    /// stamps it from the git tag (see `.github/workflows/release.yml`). The literal below is the
+    /// fallback for local/dev builds and should track the most recent release tag.
+    public static let versionString = "0.1.0"
+
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
@@ -40,6 +47,10 @@ public struct CLIApp {
             // Default interactive mode when no arguments are provided.
             await startREPLMode(args: args)
             return CLIResult(output: "", exitCode: 0)
+        }
+
+        if args == ["--version"] {
+            return CLIResult(output: Self.versionString, exitCode: 0)
         }
 
         if isHelpToken(args.first) {
