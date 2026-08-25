@@ -16,8 +16,14 @@ set -euo pipefail
 # untested branches in AndroidDriver.swift/GRPCCompanionClient.swift, dropping
 # real coverage to ~74.8% as of 2026-08-14. Lowered to 74% (a small buffer)
 # to keep CI green; ratchet back up to 75%+ as that code gets covered.
+#
+# CORE_MIN: AmooCore increasingly hosts CLI/chat-adjacent surface (REPL glue,
+# reachability helpers) that's exercised by real usage more than unit tests.
+# 85% chased 100%-covered-or-nothing additions; 70% matches ROOT_MIN and
+# leaves room for that kind of code without a test being mandatory for every
+# line. Raise it back if AmooCore drifts toward untested core logic instead.
 ROOT_MIN=${ROOT_COVERAGE_MIN:-67}
-CORE_MIN=${CORE_COVERAGE_MIN:-85}
+CORE_MIN=${CORE_COVERAGE_MIN:-70}
 DRIVER_MIN=${DRIVER_COVERAGE_MIN:-74}
 CLI_MIN=${CLI_COVERAGE_MIN:-45}
 

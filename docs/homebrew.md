@@ -45,14 +45,19 @@ tarball. The release workflow updates the tap automatically:
    values. The download URLs use the **bare** tag (no `v` prefix), matching the release.
 3. It commits the rendered formula to `ArjangConsulting/homebrew-tap` (`Formula/amoo.rb`).
 
-This requires a repository secret **`HOMEBREW_TAP_TOKEN`** — a fine-grained PAT (or classic token)
-with `contents: write` on `ArjangConsulting/homebrew-tap`. If the secret is absent the step logs a
-notice and skips; complete the [manual fallback](#manual-fallback) below.
+This instant push requires a repository secret **`HOMEBREW_TAP_TOKEN`** — a fine-grained PAT (or
+classic token) with `contents: write` on `ArjangConsulting/homebrew-tap`. GitHub doesn't expose an
+API to mint one, so it's a one-time manual step in the web UI if you want it. If the secret is
+absent the step logs a notice and skips — **this is not a failure**: the tap's own
+`Update Formula` workflow polls `amoo-ai`'s releases every 15 minutes using its own default
+`GITHUB_TOKEN` (no secret needed) and picks up the new version on its own. Only reach for the
+manual fallback below if you need the formula updated before that poll would catch it.
 
 ### Manual Fallback
 
-If the automated step was skipped, render and publish the formula by hand from this repo, using
-the SHA256 of the **release binary** tarballs (not a source tarball):
+If you need to publish the formula immediately rather than wait on the tap's poll, render and
+publish it by hand from this repo, using the SHA256 of the **release binary** tarballs (not a
+source tarball):
 
 ```bash
 ./scripts/update-formula.sh <version>
