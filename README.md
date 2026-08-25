@@ -14,6 +14,17 @@ Swift-first mobile testing infrastructure for iOS and Android, with:
 - [Tests](Tests): unit and integration tests
 - [scripts](scripts): CI and local helper scripts
 
+## Install
+
+After the first Homebrew tap release is published:
+
+```bash
+brew tap arjangconsulting/tap
+brew install amoo
+```
+
+Until then, build from source (see Quick Start below).
+
 ## Quick Start
 
 Install `protoc` (required for every build):
@@ -53,6 +64,7 @@ See [docs/prerequisites.md](docs/prerequisites.md) for the full dependency table
 - [iOS E2E Runbook](docs/e2e-ios.md) — full workflow and troubleshooting
 - [Command Contract Guide](docs/command-contract.md) — contributor checklist for coverage
 - [API Documentation (DocC)](docs/documentation.md) — generating and browsing the DocC site
+- [Homebrew install](docs/homebrew.md) — tap setup and release checklist (maintainer-only)
 - [Product/spec context](Instruction.md)
 - [System design and module boundaries](Architecture.md)
 

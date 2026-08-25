@@ -1,10 +1,11 @@
 #include "CLIReadline.h"
 
+#include <stdio.h>
+
 #if __has_include(<editline/readline.h>) && __has_include(<histedit.h>)
 #include <editline/readline.h>
 #define CLIREADLINE_HAS_LIBEDIT 1
 #else
-#include <stdio.h>
 #define CLIREADLINE_HAS_LIBEDIT 0
 #endif
 
@@ -365,3 +366,7 @@ void cli_set_command_completions(const char *command, const char *items) {
 }
 
 #endif
+
+void cli_line_buffer_stdout(void) {
+    setvbuf(stdout, NULL, _IOLBF, 0);
+}

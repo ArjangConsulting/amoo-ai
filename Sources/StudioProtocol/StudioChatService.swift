@@ -17,8 +17,16 @@ public struct StudioProviderProfile: Codable, Sendable {
     public let baseUrl: String
     public let model: String
     public let apiKeyEnvironmentVariable: String
-    public init(id: String, name: String, kind: StudioProviderKind, baseUrl: String, model: String, apiKeyEnvironmentVariable: String) {
-        self.id = id; self.name = name; self.kind = kind; self.baseUrl = baseUrl; self.model = model; self.apiKeyEnvironmentVariable = apiKeyEnvironmentVariable
+    public init(
+        id: String,
+        name: String,
+        kind: StudioProviderKind,
+        baseUrl: String,
+        model: String,
+        apiKeyEnvironmentVariable: String
+    ) {
+        self.id = id; self.name = name; self.kind = kind; self.baseUrl = baseUrl; self.model = model; self
+            .apiKeyEnvironmentVariable = apiKeyEnvironmentVariable
     }
 }
 
@@ -27,14 +35,19 @@ public struct StudioChatMessage: Codable, Sendable {
     public let id: String
     public let role: Role
     public let content: String
-    public init(id: String, role: Role, content: String) { self.id = id; self.role = role; self.content = content }
+    public init(id: String, role: Role, content: String) {
+        self.id = id; self.role = role; self.content = content
+    }
 }
 
 public struct StudioAuthoredTest: Codable, Sendable {
     public struct Step: Codable, Sendable {
         public let id: String; public let instruction: String; public let expected: String
-        public init(id: String, instruction: String, expected: String) { self.id = id; self.instruction = instruction; self.expected = expected }
+        public init(id: String, instruction: String, expected: String) {
+            self.id = id; self.instruction = instruction; self.expected = expected
+        }
     }
+
     public let formatVersion: Int
     public let name: String
     public let description: String
@@ -42,8 +55,17 @@ public struct StudioAuthoredTest: Codable, Sendable {
     public let steps: [Step]
     public let requirements: StudioTestRequirements?
     public let compiledPlan: StudioCompiledPlan?
-    public init(formatVersion: Int, name: String, description: String, platform: String, steps: [Step], requirements: StudioTestRequirements? = nil, compiledPlan: StudioCompiledPlan? = nil) {
-        self.formatVersion = formatVersion; self.name = name; self.description = description; self.platform = platform; self.steps = steps; self.requirements = requirements; self.compiledPlan = compiledPlan
+    public init(
+        formatVersion: Int,
+        name: String,
+        description: String,
+        platform: String,
+        steps: [Step],
+        requirements: StudioTestRequirements? = nil,
+        compiledPlan: StudioCompiledPlan? = nil
+    ) {
+        self.formatVersion = formatVersion; self.name = name; self.description = description; self
+            .platform = platform; self.steps = steps; self.requirements = requirements; self.compiledPlan = compiledPlan
     }
 }
 
@@ -70,8 +92,14 @@ public struct StudioCompiledPlan: Codable, Equatable, Sendable {
     public let compilerVersion: String
     public let operations: [String]?
     public let toolOperations: [StudioToolOperation]?
-    public init(compiler: String, compilerVersion: String, operations: [String] = [], toolOperations: [StudioToolOperation]? = nil) {
-        self.compiler = compiler; self.compilerVersion = compilerVersion; self.operations = operations; self.toolOperations = toolOperations
+    public init(
+        compiler: String,
+        compilerVersion: String,
+        operations: [String] = [],
+        toolOperations: [StudioToolOperation]? = nil
+    ) {
+        self.compiler = compiler; self.compilerVersion = compilerVersion; self.operations = operations; self
+            .toolOperations = toolOperations
     }
 }
 
@@ -99,24 +127,37 @@ public protocol StudioChatServing: Sendable {
 
 public struct StudioProviderCheckResult: Codable, Equatable, Sendable {
     public let message: String
-    public init(message: String) { self.message = message }
+    public init(message: String) {
+        self.message = message
+    }
 }
 
 public protocol StudioHTTPTransport: Sendable {
     func data(for request: URLRequest) async throws -> (Data, URLResponse)
 }
 
-extension URLSession: StudioHTTPTransport {}
+/// swift-corelibs-foundation's `URLSession.data(for:)` takes an extra `delegate` parameter on
+/// Linux, so it can't satisfy `StudioHTTPTransport` via a direct `extension URLSession` the way
+/// it can on Darwin. Route through a thin wrapper instead so both platforms compile identically.
+private struct URLSessionTransport: StudioHTTPTransport {
+    let session: URLSession
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        try await session.data(for: request)
+    }
+}
 
 public enum StudioChatError: Error, CustomStringConvertible {
     case invalidEndpoint, missingSecret(String), invalidResponse, requestFailed(Int, String)
 
-    public var description: String { switch self {
-    case .invalidEndpoint: "The provider endpoint is invalid."
-    case let .missingSecret(name): "The environment variable \(name) is not set."
-    case .invalidResponse: "The provider returned an invalid chat response."
-    case let .requestFailed(code, message): "Provider request failed (HTTP \(code)): \(message)"
-    } }
+    public var description: String {
+        switch self {
+        case .invalidEndpoint: "The provider endpoint is invalid."
+        case let .missingSecret(name): "The environment variable \(name) is not set."
+        case .invalidResponse: "The provider returned an invalid chat response."
+        case let .requestFailed(code, message): "Provider request failed (HTTP \(code)): \(message)"
+        }
+    }
 }
 
 public struct LiveStudioChatService: StudioChatServing {
@@ -124,7 +165,7 @@ public struct LiveStudioChatService: StudioChatServing {
     private let environment: @Sendable (String) -> String?
 
     public init() {
-        transport = URLSession(configuration: .default)
+        transport = URLSessionTransport(session: URLSession(configuration: .default))
         environment = { ProcessInfo.processInfo.environment[$0] }
     }
 
@@ -136,7 +177,9 @@ public struct LiveStudioChatService: StudioChatServing {
     public func send(_ input: StudioChatRequest) async throws -> StudioChatResult {
         let provider = input.provider
         guard var endpoint = URL(string: provider.baseUrl) else { throw StudioChatError.invalidEndpoint }
-        endpoint.append(path: provider.kind == .ollama ? "api/chat" : provider.kind == .anthropic ? "v1/messages" : "chat/completions")
+        endpoint
+            .append(path: provider.kind == .ollama ? "api/chat" : provider
+                .kind == .anthropic ? "v1/messages" : "chat/completions")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -169,7 +212,7 @@ public struct LiveStudioChatService: StudioChatServing {
         let (data, response) = try await transport.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw StudioChatError.invalidResponse }
         guard (200 ..< 300).contains(http.statusCode) else {
-            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1_024), as: UTF8.self))
+            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1024), as: UTF8.self))
         }
         let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let content: String? = if provider.kind == .ollama {
@@ -203,7 +246,7 @@ public struct LiveStudioChatService: StudioChatServing {
         let (data, response) = try await transport.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw StudioChatError.invalidResponse }
         guard (200 ..< 300).contains(http.statusCode) else {
-            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1_024), as: UTF8.self))
+            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1024), as: UTF8.self))
         }
         return .init(message: "Connected to \(provider.name) at \(endpoint.host ?? provider.baseUrl).")
     }

@@ -3,6 +3,7 @@
 
 # SwiftPM
 .build/
+.build-linux/
 .swiftpm/
 Package.resolved
 

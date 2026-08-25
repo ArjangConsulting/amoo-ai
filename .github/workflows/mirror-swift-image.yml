@@ -1,0 +1,43 @@
+name: Mirror Swift Image to GHCR
+
+# Manual only — this rarely changes. Re-run whenever the pinned Swift toolchain
+# version is bumped in ci.yml/release.yml, before updating those workflows'
+# container reference.
+on:
+  workflow_dispatch:
+    inputs:
+      swift_tag:
+        description: Upstream swift Docker Hub tag to mirror (e.g. 6.3-noble)
+        required: true
+        default: 6.3-noble
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    name: Mirror Swift image to GHCR
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy multi-platform image from Docker Hub to GHCR
+        env:
+          SWIFT_TAG: ${{ inputs.swift_tag || '6.3-noble' }}
+        run: |
+          set -euo pipefail
+          SOURCE="docker.io/library/swift:${SWIFT_TAG}"
+          TARGET="ghcr.io/${{ github.repository_owner }}/swift:${SWIFT_TAG}"
+          # Lowercase, as GHCR image paths are case-sensitive and reject uppercase.
+          TARGET=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
+
+          docker buildx imagetools create --tag "$TARGET" "$SOURCE"
+          docker buildx imagetools inspect "$TARGET"
+          echo "Mirrored $SOURCE -> $TARGET"

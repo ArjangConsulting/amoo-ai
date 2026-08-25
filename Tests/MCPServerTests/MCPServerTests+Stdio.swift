@@ -75,34 +75,52 @@ extension MCPServerTests {
     }
 
     private func startStdioServerHarness() throws -> StdioServerHarness {
-        let process = Process()
-        process.executableURL = try amooExecutableURL()
-        process.arguments = ["mcp", "serve"]
-
-        let stdin = Pipe()
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        let output = LockedDataBuffer()
-        let errorOutput = LockedDataBuffer()
-        stdout.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
-                output.append(data)
-            }
-        }
-        stderr.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
-                errorOutput.append(data)
-            }
+        let candidates = amooExecutableCandidates()
+        guard !candidates.isEmpty else {
+            throw XCTSkip("Cannot locate a built amoo executable at any expected path.")
         }
 
-        try process.run()
-        return StdioServerHarness(process: process, stdin: stdin, output: output, errorOutput: errorOutput)
+        var lastError: Error?
+        for candidate in candidates {
+            let process = Process()
+            process.executableURL = candidate
+            process.arguments = ["mcp", "serve"]
+
+            let stdin = Pipe()
+            let stdout = Pipe()
+            let stderr = Pipe()
+            process.standardInput = stdin
+            process.standardOutput = stdout
+            process.standardError = stderr
+
+            let output = LockedDataBuffer()
+            let errorOutput = LockedDataBuffer()
+            stdout.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if !data.isEmpty {
+                    output.append(data)
+                }
+            }
+            stderr.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if !data.isEmpty {
+                    errorOutput.append(data)
+                }
+            }
+
+            do {
+                try process.run()
+                return StdioServerHarness(process: process, stdin: stdin, output: output, errorOutput: errorOutput)
+            } catch {
+                // A stale, wrong-format binary from a different build layout (see
+                // `amooExecutableCandidates()`) fails here with ENOEXEC — try the next candidate
+                // rather than treating it as fatal.
+                stdout.fileHandleForReading.readabilityHandler = nil
+                stderr.fileHandleForReading.readabilityHandler = nil
+                lastError = error
+            }
+        }
+        throw lastError ?? XCTSkip("Cannot launch amoo executable at any expected path.")
     }
 
     private func assertModernJSONRPCResponses(_ objects: [[String: Any]]) throws {

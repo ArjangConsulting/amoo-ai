@@ -2,10 +2,14 @@ import AmooCore
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
-import Darwin.C
 import IOSDriver
 import MCPServer
 import XCTest
+#if canImport(Darwin)
+import Darwin.C
+#else
+import Glibc
+#endif
 
 extension CommandContractE2ETests {
     func testNavigateToDetailsAndScroll() async throws {
@@ -296,7 +300,13 @@ extension CommandContractE2ETests {
     }
 
     static func isPortOpen(_ port: Int) -> Bool {
-        let sock = socket(AF_INET, SOCK_STREAM, 0)
+        // `SOCK_STREAM` is already `Int32` on Darwin but an `__socket_type` enum on Glibc.
+        #if canImport(Darwin)
+        let socketType = SOCK_STREAM
+        #else
+        let socketType = Int32(SOCK_STREAM.rawValue)
+        #endif
+        let sock = socket(AF_INET, socketType, 0)
         guard sock >= 0 else { return false }
         defer { close(sock) }
 
@@ -307,7 +317,7 @@ extension CommandContractE2ETests {
 
         let result = withUnsafePointer(to: &addr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                Darwin.connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+                connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
         return result == 0

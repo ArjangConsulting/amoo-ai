@@ -2,10 +2,14 @@ import AmooCore
 import AndroidDriver
 import CLIReadline
 import CompanionProtocol
-import Darwin
 import Foundation
 import IOSDriver
 import MCPServer
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 // MARK: - REPL entry point
 

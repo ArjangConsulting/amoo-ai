@@ -1,8 +1,11 @@
 import AmooCore
-import CoreGraphics
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
 import ImageIO
+#endif
 
+#if canImport(CoreGraphics)
 enum ScreenshotAnnotator {
     private struct RGBColor {
         let red: CGFloat
@@ -89,3 +92,16 @@ enum ScreenshotAnnotator {
         return CGColor(red: 0.55, green: 0.0, blue: 1.0, alpha: 1.0)
     }
 }
+
+#else
+
+/// CoreGraphics/ImageIO don't exist on Linux. Annotation is a presentation nicety on top of a
+/// screenshot that itself only comes from macOS-simulator/device tooling, so on Linux this is
+/// unreachable in practice — return the image unannotated rather than failing outright.
+enum ScreenshotAnnotator {
+    static func annotate(pngData: Data, issues: [ElementA11yIssue], viewportWidth: Double) -> Data? {
+        pngData
+    }
+}
+
+#endif

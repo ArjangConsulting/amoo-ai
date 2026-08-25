@@ -224,7 +224,7 @@ struct ChatLoop {
             while !Task.isCancelled {
                 let frame = frames[i % frames.count]
                 print("\r\u{1B}[K  \(frame) thinking...".colored(.gray), terminator: "")
-                fflush(stdout)
+                fflush(nil)
                 i += 1
                 try? await Task.sleep(for: .milliseconds(80))
             }
@@ -235,7 +235,7 @@ struct ChatLoop {
         thinkingTask?.cancel()
         thinkingTask = nil
         print("\r\u{1B}[K", terminator: "")
-        fflush(stdout)
+        fflush(nil)
     }
 
     private func printToolCall(_ call: ToolCall) {

@@ -1,30 +1,9 @@
 import AmooCore
 import Foundation
-import Network
 import ProcessRunner
 import SwiftyShell
 import XcodeBuildKit
 import XcodeGenKit
-
-// MARK: - Thread-safe one-shot continuation box
-
-private final class ReachabilityBox: @unchecked Sendable {
-    private let continuation: CheckedContinuation<Bool, Never>
-    private let lock = NSLock()
-    private var resolved = false
-
-    init(continuation: CheckedContinuation<Bool, Never>) {
-        self.continuation = continuation
-    }
-
-    func resolve(_ value: Bool) {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !resolved else { return }
-        resolved = true
-        continuation.resume(returning: value)
-    }
-}
 
 // MARK: - Configuration
 
@@ -242,30 +221,7 @@ final class CompanionManager: @unchecked Sendable {
     // MARK: - Private
 
     private func isReachable(host: String, port: Int) async -> Bool {
-        await withCheckedContinuation { continuation in
-            let box = ReachabilityBox(continuation: continuation)
-            let connection = NWConnection(
-                host: NWEndpoint.Host(host),
-                port: NWEndpoint.Port(integerLiteral: UInt16(port)),
-                using: .tcp
-            )
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    connection.cancel()
-                    box.resolve(true)
-                case .failed, .cancelled:
-                    box.resolve(false)
-                default:
-                    break
-                }
-            }
-            connection.start(queue: .global())
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
-                connection.cancel()
-                box.resolve(false)
-            }
-        }
+        await isTCPPortReachable(host: host, port: port, timeoutSeconds: 1.5)
     }
 
     private func findXCTestRun(productsDir: String) -> String? {
@@ -291,6 +247,7 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     private func buildForTesting(config: CompanionConfig) async throws {
+        #if os(macOS)
         let genResult: ProcessResult
         do {
             genResult = try await XcodeGen(context: shellContext)
@@ -323,6 +280,10 @@ final class CompanionManager: @unchecked Sendable {
             throw CompanionError.buildFailed(message)
         }
         try writeSourceFingerprint(config: config)
+        #else
+        _ = config
+        throw CompanionError.unsupportedPlatform
+        #endif
     }
 
     func currentSourceFingerprint(config: CompanionConfig) -> String {

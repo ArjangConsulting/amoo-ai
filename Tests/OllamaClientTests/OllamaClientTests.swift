@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import OllamaClient
 import Testing
 
@@ -148,8 +151,9 @@ struct OllamaClientTests {
 private let baseURL = URL(string: "http://127.0.0.1:11434") ?? URL(fileURLWithPath: "/")
 
 private func httpResponse(statusCode: Int) -> HTTPURLResponse {
-    HTTPURLResponse(url: baseURL, statusCode: statusCode, httpVersion: nil, headerFields: nil)
-        ?? HTTPURLResponse()
+    // This initializer only returns nil for a malformed httpVersion string; passing `nil` for it
+    // never fails on either platform. `HTTPURLResponse()` isn't available as a fallback on Linux.
+    HTTPURLResponse(url: baseURL, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
 }
 
 private enum TestError: Error {

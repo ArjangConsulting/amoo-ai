@@ -3,10 +3,23 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing release tag to rebuild and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+
+concurrency:
+  group: release-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   verify:
@@ -14,16 +27,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_VERSION }}
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/protobuf
+            /usr/local/Cellar/swiftformat
+            /usr/local/Cellar/swiftlint
+          key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/release.yml') }}
+          restore-keys: brew-${{ runner.os }}-
+
       - name: Install tooling
         run: |
-          brew update
           brew install protobuf swiftformat swiftlint
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: release-verify-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            release-verify-spm-
 
       - name: Export protoc path
         run: |
@@ -35,11 +68,221 @@ jobs:
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
 
-  publish:
+  build-macos:
+    name: Build macOS Universal Binary
+    needs: verify
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_VERSION }}
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/protobuf
+          key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/release.yml') }}
+          restore-keys: brew-${{ runner.os }}-
+
+      - name: Install tooling
+        run: |
+          brew install protobuf
+
+      - name: Export protoc path
+        run: |
+          echo "PROTOC_PATH=$(brew --prefix protobuf)/bin/protoc" >> "$GITHUB_ENV"
+
+      - name: Stamp version from tag
+        run: |
+          sed -i.bak 's/public static let versionString = "[^"]*"/public static let versionString = "'"${RELEASE_VERSION}"'"/' Sources/CLI/CLIApp.swift
+          rm -f Sources/CLI/CLIApp.swift.bak
+          grep -q "public static let versionString = \"${RELEASE_VERSION}\"" Sources/CLI/CLIApp.swift
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: release-macos-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            release-macos-spm-
+
+      - name: Build arm64
+        run: |
+          swift build \
+            --configuration release \
+            --product amoo \
+            --arch arm64 \
+            --disable-sandbox
+
+      - name: Build x86_64
+        run: |
+          swift build \
+            --configuration release \
+            --product amoo \
+            --arch x86_64 \
+            --disable-sandbox
+
+      - name: Create universal binary
+        run: |
+          lipo -create -output amoo \
+            .build/arm64-apple-macosx/release/amoo \
+            .build/x86_64-apple-macosx/release/amoo
+          lipo -info amoo
+
+      - name: Smoke test stamped binary
+        run: |
+          test "$(./amoo --version)" = "${RELEASE_VERSION}"
+          ./amoo --help >/dev/null
+
+      - name: Package tarball
+        run: |
+          VERSION="${RELEASE_VERSION}"
+          tar -czf "amoo-${VERSION}-macos-universal.tar.gz" amoo
+          echo "TARBALL=amoo-${VERSION}-macos-universal.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: ${{ env.TARBALL }}
+          retention-days: 7
+
+  build-linux:
+    name: Build Linux Static Binary
     needs: verify
     runs-on: ubuntu-latest
+    # amoo's Swift code compiles on Linux even though iOS-simulator/Xcode-project features
+    # (XcodeBuildKit, XcodeGenKit, XCUITest bridge) are functionally macOS-only at runtime —
+    # they shell out to tools that don't exist on Linux and fail gracefully via `preflight`,
+    # the same pattern ShipItSwifty itself uses for its own XcodeBuildKit/XcodeGenKit targets.
+    container:
+      image: swift:6.3-noble
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_VERSION }}
+
+      - name: Install protoc
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq protobuf-compiler
+          echo "PROTOC_PATH=$(which protoc)" >> "$GITHUB_ENV"
+
+      - name: Stamp version from tag
+        run: |
+          sed -i.bak 's/public static let versionString = "[^"]*"/public static let versionString = "'"${RELEASE_VERSION}"'"/' Sources/CLI/CLIApp.swift
+          rm -f Sources/CLI/CLIApp.swift.bak
+          grep -q "public static let versionString = \"${RELEASE_VERSION}\"" Sources/CLI/CLIApp.swift
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: release-linux-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            release-linux-spm-
+
+      - name: Build static binary
+        run: |
+          swift build \
+            --configuration release \
+            --product amoo \
+            --static-swift-stdlib
+
+      - name: Smoke test stamped binary
+        run: |
+          test "$(.build/release/amoo --version)" = "${RELEASE_VERSION}"
+          .build/release/amoo --help >/dev/null
+
+      - name: Package tarball
+        run: |
+          VERSION="${RELEASE_VERSION}"
+          cp .build/release/amoo amoo
+          tar -czf "amoo-${VERSION}-linux-static.tar.gz" amoo
+          echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-static
+          path: ${{ env.TARBALL }}
+          retention-days: 7
+
+  publish:
+    name: Create GitHub Release
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_VERSION }}
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-universal
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-static
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_VERSION }}
           generate_release_notes: true
+          files: |
+            amoo-*-macos-universal.tar.gz
+            amoo-*-linux-static.tar.gz
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "::notice::HOMEBREW_TAP_TOKEN not set — skipping tap update. Render Formula/amoo.rb and push to the tap manually per docs/homebrew.md."
+            exit 0
+          fi
+
+          macos_sha=$(sha256sum "amoo-${VERSION}-macos-universal.tar.gz" | awk '{print $1}')
+          linux_sha=$(sha256sum "amoo-${VERSION}-linux-static.tar.gz" | awk '{print $1}')
+
+          sed -e "s/VERSION_PLACEHOLDER/${VERSION}/g" \
+              -e "s/MACOS_SHA256_PLACEHOLDER/${macos_sha}/g" \
+              -e "s/LINUX_SHA256_PLACEHOLDER/${linux_sha}/g" \
+              Formula/amoo.rb > rendered-amoo.rb
+          echo "Rendered formula:"
+          cat rendered-amoo.rb
+
+          git clone --depth 1 "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/ArjangConsulting/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          cp rendered-amoo.rb tap/Formula/amoo.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/amoo.rb
+          if git diff --cached --quiet; then
+            echo "Tap formula already up to date for ${VERSION}."
+          else
+            git commit -m "amoo ${VERSION}"
+            git push
+          fi

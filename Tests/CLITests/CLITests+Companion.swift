@@ -134,6 +134,7 @@ extension CLITests {
         let manager = CompanionManager(processRunner: runner)
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
 
+        #if os(macOS)
         try await manager.install(config: config, force: true)
 
         let commands = await runner.recordedCommands()
@@ -152,6 +153,20 @@ extension CLITests {
                 ]
             ]
         )
+        #else
+        // `buildForTesting` never reaches the injected process runner on Linux — it fails fast
+        // with `.unsupportedPlatform` instead, since XcodeGen/XcodeBuild aren't usable there.
+        do {
+            try await manager.install(config: config, force: true)
+            XCTFail("Expected unsupportedPlatform error")
+        } catch let error as CompanionError {
+            guard case .unsupportedPlatform = error else {
+                return XCTFail("Unexpected companion error: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        #endif
     }
 
     func testCompanionInstallThrowsWhenXcodegenIsMissing() async {
@@ -168,9 +183,17 @@ extension CLITests {
             try await manager.install(config: config, force: true)
             XCTFail("Expected xcodegen error")
         } catch let error as CompanionError {
+            #if os(macOS)
             guard case .xcodegeneNotFound = error else {
                 return XCTFail("Unexpected companion error: \(error)")
             }
+            #else
+            // `buildForTesting` fails fast with `.unsupportedPlatform` on Linux, never reaching
+            // the injected process runner that would have surfaced `.xcodegeneNotFound`.
+            guard case .unsupportedPlatform = error else {
+                return XCTFail("Unexpected companion error: \(error)")
+            }
+            #endif
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -191,10 +214,18 @@ extension CLITests {
             try await manager.install(config: config, force: true)
             XCTFail("Expected build failure")
         } catch let error as CompanionError {
+            #if os(macOS)
             guard case let .buildFailed(message) = error else {
                 return XCTFail("Unexpected companion error: \(error)")
             }
             XCTAssertEqual(message, "build log")
+            #else
+            // `buildForTesting` fails fast with `.unsupportedPlatform` on Linux, never reaching
+            // the injected process runner that would have surfaced `.buildFailed`.
+            guard case .unsupportedPlatform = error else {
+                return XCTFail("Unexpected companion error: \(error)")
+            }
+            #endif
         } catch {
             XCTFail("Unexpected error: \(error)")
         }

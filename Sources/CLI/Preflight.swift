@@ -3,7 +3,6 @@ import Foundation
 import GradleKit
 import ProcessRunner
 import SwiftyShell
-import XcodeBuildKit
 
 public enum PreflightPlatform: String, Sendable {
     case iOS = "ios"
@@ -120,7 +119,10 @@ public struct DefaultPreflightChecker: PreflightChecking {
                 commandDescription: "xcode-select -p",
                 remediation: "Install Xcode Command Line Tools and select an active developer directory."
             ) {
-                try await XcodeSelect(context: shellContext).printPath().run().processResult
+                // A plain `Command` rather than XcodeBuildKit's `XcodeSelect` (macOS-only type):
+                // on Linux `xcode-select` genuinely isn't installed, so this fails the same way
+                // any other missing-tool check does, through the same process-runner path.
+                try await Command("xcode-select").args(["-p"]).run(in: shellContext).processResult
             }
         )
         await checks.append(

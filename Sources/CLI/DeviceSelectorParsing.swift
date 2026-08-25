@@ -184,7 +184,7 @@ func promptSelection<T>(
 
     while true {
         print("\(prompt) [1-\(items.count)]: ", terminator: "")
-        fflush(stdout)
+        fflush(nil) // flush all open streams — avoids referencing the `stdout` global directly
 
         guard let line = readLine(strippingNewline: true)?.trimmingCharacters(in: .whitespaces) else {
             throw eofError

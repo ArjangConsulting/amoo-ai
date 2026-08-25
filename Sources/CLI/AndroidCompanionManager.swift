@@ -1,7 +1,6 @@
 import AmooCore
 import Foundation
 import GradleKit
-import Network
 import ProcessRunner
 import SwiftyShell
 
@@ -390,30 +389,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     }
 
     private func isReachable(host: String, port: Int) async -> Bool {
-        await withCheckedContinuation { continuation in
-            let box = AndroidReachabilityBox(continuation: continuation)
-            let connection = NWConnection(
-                host: NWEndpoint.Host(host),
-                port: NWEndpoint.Port(integerLiteral: UInt16(port)),
-                using: .tcp
-            )
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    connection.cancel()
-                    box.resolve(true)
-                case .failed, .cancelled:
-                    box.resolve(false)
-                default:
-                    break
-                }
-            }
-            connection.start(queue: .global())
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
-                connection.cancel()
-                box.resolve(false)
-            }
-        }
+        await isTCPPortReachable(host: host, port: port, timeoutSeconds: 1.5)
     }
 
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
@@ -432,25 +408,5 @@ final class AndroidCompanionManager: @unchecked Sendable {
             print("-----------------------------------------------------")
         }
         throw AndroidCompanionError.readyTimeout(timeoutSeconds)
-    }
-}
-
-// MARK: - Thread-safe continuation box (separate from CompanionManager's to avoid type leak)
-
-private final class AndroidReachabilityBox: @unchecked Sendable {
-    private let continuation: CheckedContinuation<Bool, Never>
-    private let lock = NSLock()
-    private var resolved = false
-
-    init(continuation: CheckedContinuation<Bool, Never>) {
-        self.continuation = continuation
-    }
-
-    func resolve(_ value: Bool) {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !resolved else { return }
-        resolved = true
-        continuation.resume(returning: value)
     }
 }

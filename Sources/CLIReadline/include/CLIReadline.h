@@ -26,3 +26,8 @@ void cli_set_command_completions(const char *command, const char *items);
 /// Returns non-zero when `candidate` should match `text` for completion.
 /// Prefix matches win; substring matches are only accepted when prefix mode is disabled.
 int cli_completion_candidate_matches(const char *candidate, const char *text, int prefer_prefix);
+
+/// Line-buffers stdout. Swift 6's strict concurrency checking flags a direct
+/// `setvbuf(stdout, ...)` from Swift as touching non-Sendable global state on Linux (Glibc's
+/// `stdout` isn't annotated the way Darwin's is); doing it in C sidesteps that entirely.
+void cli_line_buffer_stdout(void);

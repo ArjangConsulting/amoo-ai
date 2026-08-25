@@ -4,7 +4,6 @@ import CompanionProtocol
 import Foundation
 import IOSDriver
 import MCPServer
-import Network
 import OllamaClient
 import TestSession
 
@@ -208,7 +207,7 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
 /// Confirms Ollama is reachable and the requested model is available, printing status as it goes.
 private func prepareOllamaClient(options: ChatCommandOptions) async -> ChatStepResult<OllamaClient> {
     print(colored("Checking Ollama...", .gray), terminator: " ")
-    fflush(stdout)
+    fflush(nil)
     let ollama = OllamaClient(host: options.ollamaHost, port: options.ollamaPort)
     guard await ollama.isAvailable() else {
         print(colored("✗", .red))
@@ -260,7 +259,7 @@ private func ensureChatCompanionReady(
     guard !options.noCompanion else { return nil }
 
     print(colored("Checking companion on 127.0.0.1:\(companionPort)...", .gray), terminator: " ")
-    fflush(stdout)
+    fflush(nil)
 
     guard await isCompanionReachable(host: "127.0.0.1", port: companionPort) else {
         return await promptToInstallCompanion(
@@ -285,7 +284,7 @@ private func promptToInstallCompanion(
         "Install and launch companion for \(options.platform == .ios ? "iOS" : "Android")? [Y/n] ",
         terminator: ""
     )
-    fflush(stdout)
+    fflush(nil)
 
     let answer = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "y"
     guard answer.isEmpty || answer == "y" || answer == "yes" else {
@@ -335,50 +334,8 @@ private func makeChatDriver(
 
 // MARK: - Companion Reachability
 
-/// Thread-safe one-shot continuation box for reachability checks.
-private final class ChatReachabilityBox: @unchecked Sendable {
-    private let continuation: CheckedContinuation<Bool, Never>
-    private let lock = NSLock()
-    private var resolved = false
-
-    init(continuation: CheckedContinuation<Bool, Never>) {
-        self.continuation = continuation
-    }
-
-    func resolve(_ value: Bool) {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !resolved else { return }
-        resolved = true
-        continuation.resume(returning: value)
-    }
-}
-
 private func isCompanionReachable(host: String, port: Int) async -> Bool {
-    await withCheckedContinuation { continuation in
-        let box = ChatReachabilityBox(continuation: continuation)
-        let connection = NWConnection(
-            host: NWEndpoint.Host(host),
-            port: NWEndpoint.Port(integerLiteral: UInt16(port)),
-            using: .tcp
-        )
-        connection.stateUpdateHandler = { state in
-            switch state {
-            case .ready:
-                connection.cancel()
-                box.resolve(true)
-            case .failed, .cancelled:
-                box.resolve(false)
-            default:
-                break
-            }
-        }
-        connection.start(queue: .global())
-        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
-            connection.cancel()
-            box.resolve(false)
-        }
-    }
+    await isTCPPortReachable(host: host, port: port, timeoutSeconds: 2.0)
 }
 
 // MARK: - Companion Install + Launch
