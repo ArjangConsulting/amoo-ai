@@ -2,8 +2,10 @@
 # Usage: ./scripts/update-formula.sh <version>
 # Example: ./scripts/update-formula.sh 0.2.0
 #
-# Downloads the macOS and Linux release tarballs for the given version,
-# computes their SHA256 digests, and patches Formula/amoo.rb in place.
+# Downloads the macOS and Linux release tarballs for the given version, computes their
+# SHA256 digests, and renders Formula/amoo.rb into ./rendered-amoo.rb — Formula/amoo.rb
+# itself is a template checked into this repo (placeholders only) and must never be
+# hand-edited or overwritten in place.
 
 set -euo pipefail
 
@@ -18,6 +20,7 @@ BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 MACOS_TARBALL="amoo-${VERSION}-macos-universal.tar.gz"
 LINUX_TARBALL="amoo-${VERSION}-linux-static.tar.gz"
 FORMULA="Formula/amoo.rb"
+RENDERED="rendered-amoo.rb"
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -38,15 +41,14 @@ fi
 echo "  macOS: ${MACOS_SHA256}"
 echo "  Linux: ${LINUX_SHA256}"
 
-echo "Patching ${FORMULA}..."
+echo "Rendering ${FORMULA} -> ${RENDERED}..."
 
-sed -i.bak "s/^  version \".*\"/  version \"${VERSION}\"/" "${FORMULA}"
-sed -i.bak "s/sha256 \"MACOS_SHA256_PLACEHOLDER\"/sha256 \"${MACOS_SHA256}\"/" "${FORMULA}"
-sed -i.bak "s/sha256 \"LINUX_SHA256_PLACEHOLDER\"/sha256 \"${LINUX_SHA256}\"/" "${FORMULA}"
+sed -e "s/VERSION_PLACEHOLDER/${VERSION}/g" \
+    -e "s/MACOS_SHA256_PLACEHOLDER/${MACOS_SHA256}/g" \
+    -e "s/LINUX_SHA256_PLACEHOLDER/${LINUX_SHA256}/g" \
+    "${FORMULA}" | tail -n +5 >"${RENDERED}"
 
-rm -f "${FORMULA}.bak"
-
-echo "Done. ${FORMULA} updated for ${VERSION}."
+echo "Done. ${RENDERED} written for ${VERSION}."
 echo ""
-echo "Verify with:"
-echo "  grep -E 'version|sha256|url' ${FORMULA}"
+echo "Copy it into the tap:"
+echo "  cp ${RENDERED} ../homebrew-tap/Formula/amoo.rb"

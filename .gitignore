@@ -42,3 +42,6 @@ local.properties
 
 # Claude
 .claude/settings.local.json
+
+# Rendered Homebrew formula output (scripts/update-formula.sh)
+/rendered-amoo.rb

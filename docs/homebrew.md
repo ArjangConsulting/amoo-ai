@@ -56,7 +56,7 @@ the SHA256 of the **release binary** tarballs (not a source tarball):
 
 ```bash
 ./scripts/update-formula.sh <version>
-cp Formula/amoo.rb ../homebrew-tap/Formula/amoo.rb
+cp rendered-amoo.rb ../homebrew-tap/Formula/amoo.rb
 ```
 
 or compute it directly:
