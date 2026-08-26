@@ -2,6 +2,7 @@ import AmooCore
 import AuditEngine
 import Foundation
 import MCP
+import StudioProtocol
 import TestSession
 
 extension DriverToolExecutor {
@@ -121,6 +122,28 @@ extension DriverToolExecutor {
         let report = await SessionReport.make(from: session)
         let summary = "Session \(report.sessionID) — \(report.actionCount) action(s), \(report.errorCount) error(s)."
         return try .success(summary, structuredContent: Value(report))
+    }
+
+    func executeCompileSessionToPlan(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Session management not configured.")
+        }
+        guard let sessionID = arguments["session_id"] else {
+            return .error("Missing required argument: session_id")
+        }
+        guard let session = await manager.session(sessionID) else {
+            return .error("Session not found: \(sessionID)")
+        }
+        let report = await SessionReport.make(from: session)
+        let result = SessionPlanCompiler.compile(
+            report: report,
+            testName: arguments["test_name"],
+            testDescription: arguments["test_description"]
+        )
+        let summary = "Compiled session \(sessionID) into \(result.testFlow.steps.count) flow step(s),"
+            + " \(result.studioTest.compiledPlan?.toolOperations?.count ?? 0) plan operation(s),"
+            + " \(result.warnings.count) warning(s)."
+        return try .success(summary, structuredContent: Value(result))
     }
 
     // MARK: - Device discovery / app inventory

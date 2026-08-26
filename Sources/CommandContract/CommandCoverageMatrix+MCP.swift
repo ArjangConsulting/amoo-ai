@@ -385,6 +385,15 @@ public extension CommandCoverageMatrix {
             fixtureScreen: .environment,
             expectedAssertion: "session report contains recorded actions"
         ),
+        .init(
+            name: "compile_session_to_plan",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "session compiles into a replayable flow and a best-effort studio test plan"
+        ),
 
         // Device & app inventory
         .init(

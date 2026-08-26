@@ -393,6 +393,50 @@ extension MCPServerTests {
         XCTAssertEqual(sessions.count, 2)
     }
 
+    func testCompileSessionToPlanDispatchesAndReturnsBothArtifacts() async throws {
+        let stack = makeSessionStack()
+        let driver = stack.defaultDriver
+        let manager = stack.manager
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
+
+        _ = await server.execute(
+            toolName: "tap_element",
+            arguments: ["id": "submit-button", "session_id": sessionID]
+        )
+        _ = await server.execute(toolName: "end_session", arguments: ["session_id": sessionID])
+
+        let result = await server.execute(toolName: "compile_session_to_plan", arguments: ["session_id": sessionID])
+        XCTAssertFalse(result.isError, result.content)
+
+        let structured = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertNotNil(structured["testFlow"])
+        XCTAssertNotNil(structured["studioTest"])
+        XCTAssertNotNil(structured["warnings"])
+
+        let flowSteps = try XCTUnwrap(structured["testFlow"]?.objectValue?["steps"]?.arrayValue)
+        XCTAssertEqual(flowSteps.first?.objectValue?["tool"]?.stringValue, "tap_element")
+
+        let toolOperations = try XCTUnwrap(
+            structured["studioTest"]?.objectValue?["compiledPlan"]?.objectValue?["toolOperations"]?.arrayValue
+        )
+        XCTAssertEqual(toolOperations.first?.objectValue?["tool"]?.stringValue, "tap_element")
+    }
+
+    func testCompileSessionToPlanMissingSessionIDReturnsError() async {
+        let stack = makeSessionStack()
+        let driver = stack.defaultDriver
+        let manager = stack.manager
+        let executor = DriverToolExecutor(driver: driver, sessionManager: manager)
+        let server = MCPServer(executor: executor, sessionManager: manager)
+
+        let result = await server.execute(toolName: "compile_session_to_plan", arguments: [:])
+        XCTAssertTrue(result.isError)
+    }
+
     // MARK: - Routing & recording
 
     func testTapWithSessionIDRoutesToSessionDriver() async throws {

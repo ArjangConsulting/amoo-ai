@@ -390,6 +390,9 @@ extension DriverToolExecutor {
         case "get_session_report":
             return try await executeGetSessionReport(arguments: arguments)
 
+        case "compile_session_to_plan":
+            return try await executeCompileSessionToPlan(arguments: arguments)
+
         // Intent-level tools
         case "navigate_to":
             guard let description = arguments["description"] else {

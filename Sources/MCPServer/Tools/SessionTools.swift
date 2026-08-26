@@ -146,6 +146,56 @@ public enum SessionTools {
                     "actions"
                 ]
             )
+        ),
+        ToolDefinition(
+            name: "compile_session_to_plan",
+            title: "Compile Session To Plan",
+            description: "Convert a recorded session's action history into a replayable flow (runnable"
+                + " directly via `amoo flow`) and a best-effort compiledPlan (consumable by"
+                + " `amoo generate test --plan`). Actions with no Studio-tool equivalent, an"
+                + " approximate translation, or a redacted value are called out in `warnings`"
+                + " so they can be reviewed before replay or code generation.",
+            properties: [
+                "session_id": .init(type: "string", description: "Identifier returned by start_session"),
+                "test_name": .init(
+                    type: "string",
+                    description: "Name for the generated test. Defaults to 'session-<session_id>'."
+                ),
+                "test_description": .init(
+                    type: "string",
+                    description: "Description for the generated test. Defaults to a summary of the"
+                        + " session's app/device."
+                )
+            ],
+            required: ["session_id"],
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "testFlow": .init(
+                        type: "object",
+                        description: "TestFlow-shaped JSON ({platform, steps}) runnable via `amoo flow`"
+                    ),
+                    "studioTest": .init(
+                        type: "object",
+                        description: "StudioAuthoredTest JSON consumable by `amoo generate test --plan`"
+                    ),
+                    "warnings": .init(
+                        type: "array",
+                        description: "Actions excluded or approximately translated in studioTest",
+                        items: .object(
+                            properties: [
+                                "actionIndex": .init(
+                                    type: "integer",
+                                    description: "Index into the session's action list"
+                                ),
+                                "toolName": .init(type: "string", description: "Recorded MCP tool name"),
+                                "reason": .init(type: "string", description: "Why this action needs review")
+                            ],
+                            required: ["actionIndex", "toolName", "reason"]
+                        )
+                    )
+                ],
+                required: ["testFlow", "studioTest", "warnings"]
+            )
         )
     ]
 }
