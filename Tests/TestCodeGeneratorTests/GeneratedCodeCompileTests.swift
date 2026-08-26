@@ -1,3 +1,4 @@
+import AmooCore
 import StudioProtocol
 @testable import TestCodeGenerator
 import XCTest
@@ -26,7 +27,7 @@ final class GeneratedCodeCompileTests: XCTestCase {
         .init(id: "op-12", tool: "scroll", arguments: ["direction": "down", "distance": "400"])
     ]
 
-    private func makeTest(platform: String) -> StudioAuthoredTest {
+    private func makeTest(platform: Platform) -> StudioAuthoredTest {
         StudioAuthoredTest(
             formatVersion: 1,
             name: "2FA Sign In Flow",
@@ -38,12 +39,17 @@ final class GeneratedCodeCompileTests: XCTestCase {
     }
 
     func testGeneratedXCUITestCompiles() throws {
-        let result = try XCUITestEmitter().generate(makeTest(platform: "iOS"))
+        let result = try XCUITestEmitter().generate(makeTest(platform: .ios))
         try CompileVerification.verifySwiftCompiles(result.source)
     }
 
     func testGeneratedEspressoTestCompiles() throws {
-        let result = try EspressoEmitter().generate(makeTest(platform: "Android"))
+        let result = try EspressoEmitter().generate(makeTest(platform: .android))
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
+
+    func testGeneratedComposeEspressoTestCompiles() throws {
+        let result = try ComposeEspressoEmitter().generate(makeTest(platform: .android))
         try CompileVerification.verifyKotlinCompiles(result.source)
     }
 }

@@ -1,6 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("com.google.protobuf")
 }
 
@@ -23,10 +24,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     packaging {
         resources {
             excludes += setOf(
@@ -39,6 +36,13 @@ android {
                 "META-INF/io.netty.versions.properties",
             )
         }
+    }
+}
+
+// AGP 9 / Kotlin 2.4 replaced the android { kotlinOptions { } } block with the compilerOptions DSL.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 

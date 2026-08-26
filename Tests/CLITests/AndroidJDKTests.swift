@@ -27,10 +27,11 @@ final class AndroidJDKTests: XCTestCase {
         XCTAssertNil(AndroidJDK.majorVersion(ofJavaHome: root.path))
     }
 
-    /// Homebrew's `openjdk` is well past AGP's range, and it is what a machine with no explicit
-    /// JAVA_HOME picks up — the case that fails deep inside Gradle with an unrelated-looking error.
+    /// Homebrew's `openjdk` tracks the newest release, past what Gradle can run on, and it is what
+    /// a machine with no explicit JAVA_HOME picks up — the case that fails deep inside Gradle with
+    /// an unrelated-looking error.
     func testReplacesAJavaHomeThatIsTooNew() throws {
-        let tooNew = try makeJDK(named: "openjdk-26.jdk", javaVersion: "26.0.2")
+        let tooNew = try makeJDK(named: "openjdk-27.jdk", javaVersion: "27.0.1")
         _ = try makeJDK(named: "temurin-21.jdk", javaVersion: "21.0.12")
 
         let resolved = AndroidJDK.resolveJavaHome(
@@ -56,7 +57,7 @@ final class AndroidJDKTests: XCTestCase {
     func testPicksTheNewestSupportedJDKWhenSeveralAreInstalled() throws {
         _ = try makeJDK(named: "ms-17.jdk", javaVersion: "17.0.20")
         _ = try makeJDK(named: "temurin-21.jdk", javaVersion: "21.0.12")
-        _ = try makeJDK(named: "openjdk-26.jdk", javaVersion: "26.0.2")
+        _ = try makeJDK(named: "openjdk-27.jdk", javaVersion: "27.0.1")
 
         let resolved = AndroidJDK.resolveJavaHome(environment: [:], searchPaths: [root.path])
 
@@ -64,7 +65,7 @@ final class AndroidJDKTests: XCTestCase {
     }
 
     func testResolvesNothingWhenEveryInstalledJDKIsOutOfRange() throws {
-        _ = try makeJDK(named: "openjdk-26.jdk", javaVersion: "26.0.2")
+        _ = try makeJDK(named: "openjdk-27.jdk", javaVersion: "27.0.1")
         _ = try makeJDK(named: "legacy-8.jdk", javaVersion: "1.8.0_402")
 
         XCTAssertNil(AndroidJDK.resolveJavaHome(environment: [:], searchPaths: [root.path]))
@@ -72,7 +73,7 @@ final class AndroidJDKTests: XCTestCase {
 
     func testGradleEnvironmentOverridesOnlyJavaHome() throws {
         _ = try makeJDK(named: "temurin-21.jdk", javaVersion: "21.0.12")
-        let tooNew = try makeJDK(named: "openjdk-26.jdk", javaVersion: "26.0.2")
+        let tooNew = try makeJDK(named: "openjdk-27.jdk", javaVersion: "27.0.1")
 
         let environment = AndroidJDK.gradleEnvironment(
             environment: ["JAVA_HOME": tooNew, "PATH": "/usr/bin"],

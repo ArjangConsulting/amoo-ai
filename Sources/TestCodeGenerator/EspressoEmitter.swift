@@ -206,16 +206,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             """
 
         case "swipe_in_direction":
-            guard let direction = operation.arguments["direction"] else {
-                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
-            }
-            let action = switch direction.lowercased() {
-            case "up": "swipeUp()"
-            case "down": "swipeDown()"
-            case "left": "swipeLeft()"
-            case "right": "swipeRight()"
-            default: "swipeUp()"
-            }
+            let action = try "\(gesture(for: operation))()"
             let hasElement = operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil
             let target: String = if hasElement {
                 try matcher(operation, idKey: "element_id", labelKey: "element_label")
@@ -229,21 +220,8 @@ public struct EspressoEmitter: StudioCodeEmitting {
             """
 
         case "scroll":
-            guard let direction = operation.arguments["direction"] else {
-                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
-            }
-            // scroll names the direction the *content* moves, so the finger gesture is inverted:
-            // scrolling down reveals content below and is performed as a swipe up. This mirrors
-            // UIAutomatorBridge.scroll in the companion, and is why scroll is not folded into
-            // swipe_in_direction (which names the raw finger direction instead).
-            let scrollAction = switch direction.lowercased() {
-            case "up": "swipeDown()"
-            case "down": "swipeUp()"
-            case "left": "swipeRight()"
-            case "right": "swipeLeft()"
-            default: "swipeUp()"
-            }
-            return "\(indent)onView(isRoot()).perform(\(scrollAction))"
+            // GestureDirection inverts scroll for us — see its documentation for why.
+            return try "\(indent)onView(isRoot()).perform(\(gesture(for: operation))())"
 
         case "wait_for_element":
             let target = try matcher(operation)
@@ -288,6 +266,20 @@ public struct EspressoEmitter: StudioCodeEmitting {
 
         default:
             throw TestCodeGeneratorError.unsupportedTool(operation.tool)
+        }
+    }
+
+    /// Espresso's `ViewActions` gesture name for this operation's direction.
+    private static func gesture(for operation: StudioToolOperation) throws -> String {
+        guard let raw = operation.arguments["direction"] else {
+            throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
+        }
+        let direction = try GestureDirection.gestureDirection(for: operation.tool, rawDirection: raw)
+        switch direction {
+        case .up: return "swipeUp"
+        case .down: return "swipeDown"
+        case .left: return "swipeLeft"
+        case .right: return "swipeRight"
         }
     }
 

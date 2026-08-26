@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import StudioProtocol
 import Testing
@@ -217,7 +218,7 @@ struct StudioAutomationServiceTests {
             formatVersion: 1,
             name: "Smoke",
             description: "",
-            platform: "Android",
+            platform: .android,
             steps: [.init(id: "step-1", instruction: "Inspect devices", expected: "A device is available")],
             compiledPlan: plan
         )
@@ -228,14 +229,14 @@ struct StudioAutomationServiceTests {
         let service = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: nil)
         let validStep = StudioAuthoredTest.Step(id: "step-1", instruction: "Tap", expected: "Done")
         let invalidTests = [
-            StudioAuthoredTest(formatVersion: 2, name: "Test", description: "", platform: "iOS", steps: [validStep]),
-            StudioAuthoredTest(formatVersion: 1, name: "  ", description: "", platform: "iOS", steps: [validStep]),
-            StudioAuthoredTest(formatVersion: 1, name: "Test", description: "", platform: "iOS", steps: []),
+            StudioAuthoredTest(formatVersion: 2, name: "Test", description: "", platform: .ios, steps: [validStep]),
+            StudioAuthoredTest(formatVersion: 1, name: "  ", description: "", platform: .ios, steps: [validStep]),
+            StudioAuthoredTest(formatVersion: 1, name: "Test", description: "", platform: .ios, steps: []),
             StudioAuthoredTest(
                 formatVersion: 1,
                 name: "Test",
                 description: "",
-                platform: "iOS",
+                platform: .ios,
                 steps: [.init(id: "step-1", instruction: " ", expected: "Done")]
             )
         ]

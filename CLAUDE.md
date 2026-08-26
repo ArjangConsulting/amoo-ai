@@ -58,7 +58,21 @@ make companion-android-build   # gradle assembleDebug assembleAndroidTest
 | Tool | Install | Needed for |
 | --- | --- | --- |
 | `protoc` | `brew install protobuf` | gRPC Swift protobuf build plugin (all builds) |
-| **JDK 17–21** | `brew install --cask temurin@21` | Android companion. AGP 8.7 does not run on anything newer; a JDK 26 build fails with a `jlink` / `core-for-system-modules.jar` error, or a missing `com/android/aaptcompiler/ResourceCompiler` in `mergeDebugResources` — neither mentions the JDK. `make companion-android-build` and `amoo companion` resolve a supported JDK themselves (`scripts/android-jdk.sh` / `Sources/CLI/AndroidJDK.swift`), so `JAVA_HOME` only needs setting if one is installed somewhere non-standard. `swift run amoo preflight --platform android` reports which JDK was picked. |
+| **JDK 17–26** | `brew install --cask temurin@21` | Android companion. The range is the intersection of AGP 9.3 (needs 17+) and Gradle 9.5 (runs on 17–26; 27+ unsupported). A JDK outside it fails partway through the build with errors naming neither Java nor the JDK. `make companion-android-build` and `amoo companion` resolve a supported JDK themselves (`scripts/android-jdk.sh` / `Sources/CLI/AndroidJDK.swift`), so `JAVA_HOME` only needs setting if one is installed somewhere non-standard. `swift run amoo preflight --platform android` reports which JDK was picked. Do not commit a `gradle/gradle-daemon-jvm.properties` — it pins the daemon to one JDK and silently downloads it, overriding the resolution above. |
+
+### Android build stack
+
+The companion is on AGP 9.3 / Gradle 9.5 with **AGP's built-in Kotlin** — there is deliberately no
+`org.jetbrains.kotlin.android` plugin, because AGP 9's new DSL is incompatible with it. Two
+consequences worth knowing before editing `CompanionApps/Android/*.gradle.kts`:
+
+- Kotlin options go in a top-level `kotlin { compilerOptions { … } }` block. The old
+  `android { kotlinOptions { … } }` form is deprecated-as-error under Kotlin 2.4.
+- `gradle.properties` carries only `android.useAndroidX=true`. The AGP 9 upgrade needs none of the
+  `android.newDsl` / `android.builtInKotlin` / `android.r8.*` opt-out shims — if you find yourself
+  adding one, prefer fixing the underlying incompatibility, since they all disappear in AGP 10.
+- `protobuf-gradle-plugin` must be ≥ 0.10.0; earlier versions cast to the removed `BaseExtension`
+  and fail under the new DSL.
 | `iproxy` | `brew install libimobiledevice` | **Physical iOS devices only.** USB tunnel to the companion — `devicectl` has no port forwarding, unlike Android's `adb forward`. Simulators don't need it. The binary actually ships in `libusbmuxd`, pulled in and linked as a dependency of `libimobiledevice`. |
 | `kotlinc` | `brew install kotlin` | **Optional, test-only.** Real-compiles generated Espresso code in `GeneratedCodeCompileTests` (`Tests/TestCodeGeneratorTests/`). Missing → those two tests `XCTSkip` rather than fail. The Kotlin check also needs a resolved Espresso/JUnit/Hamcrest classpath, produced by `Tooling/espresso-classpath/resolve.sh` (invokes `gradle`, needs network on first run, then caches to `$TMPDIR/amoo-espresso-classpath`). The Swift-side check (`swiftc -typecheck` against the iOS Simulator SDK) needs no extra install — Xcode alone is enough. |
 

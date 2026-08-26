@@ -232,9 +232,45 @@ public struct DeviceInfo: Sendable, Equatable {
     }
 }
 
-public enum Platform: String, Sendable, Equatable {
+public enum Platform: String, Sendable, Equatable, Hashable, Codable {
     case ios
     case android
+
+    /// Accepts the loose spellings that reach us from AI-authored plans, recorded sessions and CLI
+    /// input (`iOS`, `Android`, `android-emulator`, …), and rejects everything else.
+    ///
+    /// This is the single place that turns an untyped platform string into a `Platform`. Every
+    /// entry point — `Decodable`, string-based initializers, session compilation — routes through
+    /// it, so leniency stays confined to one function and none of them can quietly disagree about
+    /// what an unrecognized value means.
+    public init?(lenient raw: String) {
+        let value = raw.lowercased()
+        if value.contains("android") {
+            self = .android
+        } else if value.contains("ios") {
+            self = .ios
+        } else {
+            return nil
+        }
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        guard let parsed = Self(lenient: raw) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported platform '\(raw)'; expected iOS or Android."
+            )
+        }
+        self = parsed
+    }
+}
+
+public enum UIToolkit: String, Codable, Sendable, Hashable, CaseIterable {
+    /// UIKit on iOS and the classic View hierarchy on Android.
+    case view
+    case compose
 }
 
 public enum DeviceState: String, Sendable, Equatable {

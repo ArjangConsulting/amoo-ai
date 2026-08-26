@@ -10,7 +10,8 @@ CACHE_DIR="${TMPDIR:-/tmp}/amoo-espresso-classpath"
 CACHE_FILE="$CACHE_DIR/classpath.txt"
 EXTRACT_DIR="$CACHE_DIR/extracted"
 
-command -v gradle >/dev/null 2>&1 || exit 1
+GRADLE_WRAPPER="$SCRIPT_DIR/../../CompanionApps/Android/gradlew"
+[ -x "$GRADLE_WRAPPER" ] || exit 1
 
 ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 ANDROID_JAR=$(find "$ANDROID_SDK/platforms" -maxdepth 2 -name "android.jar" 2>/dev/null | sort -V | tail -1)
@@ -23,7 +24,7 @@ fi
 
 mkdir -p "$EXTRACT_DIR"
 
-entries=$(cd "$SCRIPT_DIR" && gradle printClasspath -q | grep "^CLASSPATH_ENTRY:" | sed 's/CLASSPATH_ENTRY://')
+entries=$(cd "$SCRIPT_DIR" && "$GRADLE_WRAPPER" printClasspath -q | grep "^CLASSPATH_ENTRY:" | sed 's/CLASSPATH_ENTRY://')
 
 jars=()
 while IFS= read -r entry; do

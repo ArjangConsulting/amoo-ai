@@ -53,14 +53,20 @@ actor CLIStudioToolExecutor: StudioToolExecuting {
     private func connection(deviceId: String, platform: String, appId: String?) async throws -> Connection {
         let normalizedPlatform = platform.lowercased()
         let key = "\(normalizedPlatform):\(deviceId)"
-        if let existing = connections[key] { return existing }
+        if let existing = connections[key] {
+            return existing
+        }
 
         let companion: GRPCCompanionClient
         let driver: any PlatformDriver
         switch normalizedPlatform {
         case "ios":
             let port = 22087
-            try await iOSCompanionManager.ensureRunning(config: .init(port: port, deviceUDID: deviceId, targetAppID: appId))
+            try await iOSCompanionManager.ensureRunning(config: .init(
+                port: port,
+                deviceUDID: deviceId,
+                targetAppID: appId
+            ))
             companion = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: port))
             driver = await makeIOSDriver(companion: companion, deviceID: deviceId)
         case "android":

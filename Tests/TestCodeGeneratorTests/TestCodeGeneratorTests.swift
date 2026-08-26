@@ -1,3 +1,4 @@
+import AmooCore
 import StudioProtocol
 @testable import TestCodeGenerator
 import XCTest
@@ -5,7 +6,7 @@ import XCTest
 final class TestCodeGeneratorTests: XCTestCase {
     private func makeTest(
         name: String = "Sign In Flow",
-        platform: String = "iOS",
+        platform: Platform = .ios,
         operations: [StudioToolOperation]
     ) -> StudioAuthoredTest {
         StudioAuthoredTest(
@@ -54,7 +55,7 @@ final class TestCodeGeneratorTests: XCTestCase {
     }
 
     func testXCUITestEmitterThrowsWhenNoCompiledPlan() {
-        let test = StudioAuthoredTest(formatVersion: 1, name: "No Plan", description: "", platform: "iOS", steps: [])
+        let test = StudioAuthoredTest(formatVersion: 1, name: "No Plan", description: "", platform: .ios, steps: [])
         XCTAssertThrowsError(try XCUITestEmitter().generate(test)) { error in
             XCTAssertEqual(error as? TestCodeGeneratorError, .missingCompiledPlan)
         }
@@ -90,7 +91,7 @@ final class TestCodeGeneratorTests: XCTestCase {
 
     func testEspressoEmitterGeneratesTapByID() throws {
         let test = makeTest(
-            platform: "Android",
+            platform: .android,
             operations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "sign-in"])]
         )
         let result = try EspressoEmitter().generate(test)
@@ -107,7 +108,7 @@ final class TestCodeGeneratorTests: XCTestCase {
 
     func testEspressoEmitterOmitsResourceNameHelperWhenNoIDSelectorsUsed() throws {
         let test = makeTest(
-            platform: "Android",
+            platform: .android,
             operations: [.init(id: "op-1", tool: "tap_element", arguments: ["label": "Sign In"])]
         )
         let result = try EspressoEmitter().generate(test)
@@ -119,7 +120,7 @@ final class TestCodeGeneratorTests: XCTestCase {
 
     func testEspressoEmitterGeneratesSetTextReplaceText() throws {
         let test = makeTest(
-            platform: "Android",
+            platform: .android,
             operations: [.init(id: "op-1", tool: "set_text", arguments: ["id": "email", "value": "user@example.com"])]
         )
         let result = try EspressoEmitter().generate(test)
@@ -131,7 +132,7 @@ final class TestCodeGeneratorTests: XCTestCase {
 
     func testEspressoEmitterThrowsForUnknownTool() {
         let test = makeTest(
-            platform: "Android",
+            platform: .android,
             operations: [.init(id: "op-1", tool: "not_a_real_tool", arguments: [:])]
         )
         XCTAssertThrowsError(try EspressoEmitter().generate(test)) { error in
@@ -140,7 +141,7 @@ final class TestCodeGeneratorTests: XCTestCase {
     }
 
     func testEspressoEmitterGeneratesValidPressBackCall() throws {
-        let test = makeTest(platform: "Android", operations: [.init(id: "op-1", tool: "press_back", arguments: [:])])
+        let test = makeTest(platform: .android, operations: [.init(id: "op-1", tool: "press_back", arguments: [:])])
         let result = try EspressoEmitter().generate(test)
 
         XCTAssertTrue(result.source.contains("import androidx.test.espresso.Espresso.pressBack"))
@@ -149,7 +150,7 @@ final class TestCodeGeneratorTests: XCTestCase {
     }
 
     func testEspressoEmitterPreservesWaitTimeoutAndNotVisibleSemantics() throws {
-        let test = makeTest(platform: "Android", operations: [
+        let test = makeTest(platform: .android, operations: [
             .init(id: "op-1", tool: "wait_for_element", arguments: ["label": "Ready", "timeout_ms": "1750"]),
             .init(id: "op-2", tool: "assert_not_visible", arguments: ["contains_text": "Loading"])
         ])
@@ -174,7 +175,47 @@ final class TestCodeGeneratorTests: XCTestCase {
                 .invalidArgument(tool: "wait_for_element", argument: "timeout_ms", value: "not-a-number")
             )
         }
-        XCTAssertThrowsError(try EspressoEmitter().generate(makeTest(platform: "Android", operations: [operation])))
+        XCTAssertThrowsError(try EspressoEmitter().generate(makeTest(platform: .android, operations: [operation])))
+    }
+
+    func testEmittersRejectInvalidDirectionsInsteadOfSilentlySwipingUp() {
+        let operation = StudioToolOperation(id: "op-1", tool: "scroll", arguments: ["direction": "diagonal"])
+        let expected = TestCodeGeneratorError.invalidArgument(
+            tool: "scroll", argument: "direction", value: "diagonal"
+        )
+
+        XCTAssertThrowsError(try XCUITestEmitter().generate(makeTest(operations: [operation]))) {
+            XCTAssertEqual($0 as? TestCodeGeneratorError, expected)
+        }
+        XCTAssertThrowsError(try EspressoEmitter().generate(makeTest(platform: .android, operations: [operation]))) {
+            XCTAssertEqual($0 as? TestCodeGeneratorError, expected)
+        }
+        XCTAssertThrowsError(try ComposeEspressoEmitter().generate(makeTest(
+            platform: .android,
+            operations: [operation]
+        ))) {
+            XCTAssertEqual($0 as? TestCodeGeneratorError, expected)
+        }
+    }
+
+    // MARK: - ComposeEspressoEmitter
+
+    func testComposeEmitterQueriesSemanticsAndUsesV2EmptyRule() throws {
+        let test = makeTest(platform: .android, operations: [
+            .init(id: "op-1", tool: "tap_element", arguments: ["id": "submit"]),
+            .init(id: "op-2", tool: "assert_not_visible", arguments: ["label": "Loading"]),
+            .init(id: "op-3", tool: "scroll", arguments: ["direction": "down"])
+        ])
+
+        let source = try ComposeEspressoEmitter().generate(test).source
+        XCTAssertTrue(source.contains("junit4.v2.createEmptyComposeRule"))
+        // Instrumented tests driving ActivityScenario need the Android runner; without it the
+        // generated test compiles and then fails at run time, which codegen alone cannot catch.
+        XCTAssertTrue(source.contains("@RunWith(AndroidJUnit4::class)"))
+        XCTAssertTrue(source.contains(#"onNode(hasTestTag("submit"))"#))
+        XCTAssertTrue(source.contains(#"onNode(hasContentDescription("Loading")).assertIsNotDisplayed()"#))
+        XCTAssertTrue(source.contains("onRoot().performTouchInput { swipeUp() }"))
+        XCTAssertTrue(source.contains("ActivityScenario.launch<Activity>(launchIntent).use"))
     }
 
     // MARK: - Identifier naming
@@ -190,7 +231,7 @@ final class TestCodeGeneratorTests: XCTestCase {
 
         let androidTest = makeTest(
             name: "2FA Login",
-            platform: "Android",
+            platform: .android,
             operations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "x"])]
         )
         let androidResult = try EspressoEmitter().generate(androidTest)
@@ -214,7 +255,7 @@ final class TestCodeGeneratorTests: XCTestCase {
 
     func testEspressoEmitterEscapesControlCharactersInStringLiterals() throws {
         let test = makeTest(
-            platform: "Android",
+            platform: .android,
             operations: [.init(
                 id: "op-1",
                 tool: "set_text",

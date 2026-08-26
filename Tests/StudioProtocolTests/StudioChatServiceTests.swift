@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -261,7 +262,7 @@ struct StudioChatServiceTests {
                 apiKeyEnvironmentVariable: variable
             ),
             messages: [.init(id: "user-1", role: .user, content: "Hello")],
-            activeTest: .init(formatVersion: 1, name: "Test", description: "", platform: "Android", steps: [])
+            activeTest: .init(formatVersion: 1, name: "Test", description: "", platform: .android, steps: [])
         )
     }
 }

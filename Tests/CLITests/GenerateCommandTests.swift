@@ -1,3 +1,4 @@
+import AmooCore
 @testable import CLI
 import Foundation
 import StudioProtocol
@@ -6,7 +7,9 @@ import XCTest
 
 final class GenerateCommandTests: XCTestCase {
     private var emitters: StudioCodeEmitters {
-        StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+        var result = StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+        result.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
+        return result
     }
 
     private func writePlan(_ test: StudioAuthoredTest) throws -> String {
@@ -22,7 +25,7 @@ final class GenerateCommandTests: XCTestCase {
             formatVersion: 1,
             name: "Sign In",
             description: "",
-            platform: "ios",
+            platform: .ios,
             steps: [.init(id: "step-1", instruction: "Tap submit", expected: "Signed in")],
             compiledPlan: .init(
                 compiler: "session-compiler",
@@ -101,7 +104,7 @@ final class GenerateCommandTests: XCTestCase {
             formatVersion: 1,
             name: "Legacy",
             description: "",
-            platform: "ios",
+            platform: .ios,
             steps: [],
             compiledPlan: .init(
                 compiler: "ai",
@@ -126,9 +129,96 @@ final class GenerateCommandTests: XCTestCase {
         XCTAssertTrue(options.allowIncomplete)
     }
 
+    func testLegacyPlatformSpellingsStillDecode() throws {
+        // Plans written by AI or by older versions spell the platform loosely. They must keep
+        // working, since the whole point of typing the field was to stop *guessing*, not to
+        // invalidate every plan already on disk.
+        for spelling in ["iOS", "ios", "Android", "android", "android-emulator"] {
+            let json = """
+            {"formatVersion":1,"name":"Legacy","description":"","platform":"\(spelling)","steps":[],
+             "compiledPlan":{"compiler":"ai","compilerVersion":"1",
+             "toolOperations":[{"id":"op-1","tool":"press_back","arguments":{}}]}}
+            """
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("legacy-\(UUID().uuidString).json")
+            try Data(json.utf8).write(to: url)
+            defer { try? FileManager.default.removeItem(at: url) }
+
+            let result = try runGenerateTestCommand(
+                options: GenerateTestOptions(planPath: url.path, outputDirectory: nil),
+                emitters: emitters
+            )
+            XCTAssertEqual(result.exitCode, 0, "'\(spelling)' should still decode")
+        }
+    }
+
+    func testUnrecognizedPlatformIsRejectedRatherThanGuessed() throws {
+        let json = """
+        {"formatVersion":1,"name":"Weird","description":"","platform":"web","steps":[],
+         "compiledPlan":{"compiler":"ai","compilerVersion":"1",
+         "toolOperations":[{"id":"op-1","tool":"press_back","arguments":{}}]}}
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("weird-\(UUID().uuidString).json")
+        try Data(json.utf8).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+
+        // Guessing a platform here would generate a test for the wrong OS.
+        XCTAssertThrowsError(try runGenerateTestCommand(
+            options: GenerateTestOptions(planPath: url.path, outputDirectory: nil),
+            emitters: emitters
+        ))
+    }
+
+    func testUnregisteredToolkitFailsInsteadOfFallingBackToAnotherEmitter() throws {
+        let path = try writePlan(makeTest(warnings: []))
+
+        // Only the view emitters are registered here; asking for compose must not quietly emit
+        // View-based code that cannot see a Compose UI — that is the original bug.
+        let result = try runGenerateTestCommand(
+            options: GenerateTestOptions(planPath: path, outputDirectory: nil, uiToolkit: .compose),
+            emitters: StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+        )
+
+        XCTAssertEqual(result.exitCode, 64)
+        XCTAssertTrue(result.output.contains("compose"))
+        XCTAssertFalse(result.output.contains("class SignInTest"))
+    }
+
+    func testInvalidToolkitValueReportsTheAllowedValues() {
+        XCTAssertThrowsError(try parseGenerateTestOptions(args: ["--plan", "p.json", "--ui-toolkit", "swiftui"])) {
+            let message = String(describing: $0)
+            XCTAssertTrue(message.contains("swiftui"), "should name the bad value")
+            XCTAssertTrue(message.contains("compose"), "should list what is allowed")
+        }
+    }
+
     func testAllowIncompleteDefaultsToFalse() throws {
         let options = try parseGenerateTestOptions(args: ["--plan", "p.json"])
 
         XCTAssertFalse(options.allowIncomplete)
+    }
+
+    func testUIToolkitOverrideSelectsComposeEmitter() throws {
+        let test = StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Compose Flow",
+            description: "",
+            platform: .android,
+            steps: [],
+            compiledPlan: .init(
+                compiler: "ai",
+                compilerVersion: "1",
+                toolOperations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "submit"])]
+            )
+        )
+        let path = try writePlan(test)
+        let options = try parseGenerateTestOptions(args: ["--plan", path, "--ui-toolkit", "compose"])
+        let result = try runGenerateTestCommand(options: options, emitters: emitters)
+
+        XCTAssertEqual(options.uiToolkit, .compose)
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("createEmptyComposeRule"))
+        XCTAssertFalse(result.output.contains("onView("))
     }
 }

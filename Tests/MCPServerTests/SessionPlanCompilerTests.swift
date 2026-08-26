@@ -38,7 +38,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             makeAction(tool: "take_screenshot")
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         XCTAssertEqual(result.testFlow.platform, "ios")
         XCTAssertEqual(result.testFlow.deviceID, "device-1")
@@ -53,7 +53,7 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertNil(operations[2].arguments["description"])
 
         XCTAssertEqual(result.studioTest.steps.count, 4)
-        XCTAssertEqual(result.studioTest.platform, "ios")
+        XCTAssertEqual(result.studioTest.platform, .ios)
         XCTAssertEqual(result.studioTest.requirements?.appId, "com.example.app")
 
         // assert_visible is flagged approximate (description -> contains_text), everything else is clean.
@@ -61,12 +61,12 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.warnings[0].toolName, "assert_visible")
     }
 
-    func testRedactedValuePassesThroughWithWarning() {
+    func testRedactedValuePassesThroughWithWarning() throws {
         let report = makeReport(actions: [
             makeAction(tool: "set_text", arguments: ["id": "password-field", "value": "<redacted, 8 chars>"])
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         let operation = result.studioTest.compiledPlan?.toolOperations?.first
         XCTAssertEqual(operation?.arguments["value"], "<redacted, 8 chars>")
@@ -74,12 +74,12 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertTrue(result.warnings.contains { $0.reason.contains("redacted") })
     }
 
-    func testUntranslatableCoordinateTapIsExcludedFromCompiledPlanButKeptInFlow() {
+    func testUntranslatableCoordinateTapIsExcludedFromCompiledPlanButKeptInFlow() throws {
         let report = makeReport(actions: [
             makeAction(tool: "tap", arguments: ["x": "10", "y": "20"])
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         XCTAssertEqual(result.testFlow.steps.map(\.tool), ["tap"])
         XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations, [])
@@ -97,7 +97,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             )
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
         let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
 
         XCTAssertEqual(operations.map(\.tool), ["assert_not_visible", "assert_text"])
@@ -113,7 +113,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             makeAction(tool: "assert_enabled", arguments: ["description": "Play button"])
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
         let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
 
         XCTAssertEqual(operations.map(\.tool), ["assert_enabled", "assert_enabled"])
@@ -131,7 +131,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             makeAction(tool: "scroll", arguments: ["direction": "down", "distance": "400"])
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
         let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
 
         // scroll must stay its own tool rather than being folded into swipe_in_direction: the two
@@ -147,7 +147,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             makeAction(tool: "tap", arguments: ["x": "10", "y": "20"])
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         // The saved plan itself must carry the warning, not just the compile result — otherwise a
         // plan read back off disk cannot tell that a step went missing.
@@ -162,13 +162,13 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(decoded.compiledPlan?.excludedWarnings.map(\.toolName), ["tap"])
     }
 
-    func testInspectionOnlyToolsAreMarkedNotApplicableRatherThanExcluded() {
+    func testInspectionOnlyToolsAreMarkedNotApplicableRatherThanExcluded() throws {
         let report = makeReport(actions: [
             makeAction(tool: "find_elements", arguments: ["label": "Submit"]),
             makeAction(tool: "describe_screen")
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         // Query tools legitimately have no place in generated code. They must not be reported as
         // vocabulary gaps, or every session would look broken and the refusal would cry wolf.
@@ -176,12 +176,12 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings, [])
     }
 
-    func testContainsOnlyValueAssertionIsExcludedRatherThanChangedToEquality() {
+    func testContainsOnlyValueAssertionIsExcludedRatherThanChangedToEquality() throws {
         let report = makeReport(actions: [
             makeAction(tool: "assert_value", arguments: ["id": "message", "contains": "Welcome"])
         ])
 
-        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         XCTAssertEqual(result.testFlow.steps.map(\.tool), ["assert_value"])
         XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations, [])
@@ -190,7 +190,7 @@ final class SessionPlanCompilerTests: XCTestCase {
     }
 
     func testFlowEncodesRecordedDeviceUsingCLIFieldName() throws {
-        let result = SessionPlanCompiler.compile(
+        let result = try SessionPlanCompiler.compile(
             report: makeReport(actions: [makeAction(tool: "press_back")]),
             testName: nil,
             testDescription: nil
@@ -202,10 +202,10 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertNil(json["deviceID"])
     }
 
-    func testEmptySessionProducesEmptyResult() {
+    func testEmptySessionProducesEmptyResult() throws {
         let report = makeReport(actions: [])
 
-        let result = SessionPlanCompiler.compile(
+        let result = try SessionPlanCompiler.compile(
             report: report,
             testName: "custom-name",
             testDescription: "custom-desc"

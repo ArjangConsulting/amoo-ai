@@ -44,7 +44,10 @@ struct StudioProtocolTests {
 
     @Test("device creation is routed through the typed workspace")
     func deviceCreation() async throws {
-        let request = Data(#"{"jsonrpc":"2.0","id":3,"method":"devices.create","params":{"platform":"android","name":"Amoo Pixel","runtime":"system-images;android-36;google_apis;arm64-v8a","deviceType":"pixel_9"}}"#.utf8)
+        let request = Data(
+            #"{"jsonrpc":"2.0","id":3,"method":"devices.create","params":{"platform":"android","name":"Amoo Pixel","runtime":"system-images;android-36;google_apis;arm64-v8a","deviceType":"pixel_9"}}"#
+                .utf8
+        )
         let response = await StudioService(workspace: StubWorkspace()).handle(request)
         let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
         let result = try #require(object["result"] as? [String: Any])
@@ -54,7 +57,10 @@ struct StudioProtocolTests {
 
     @Test("chat requests are routed to the provider service")
     func chat() async throws {
-        let request = Data(#"{"jsonrpc":"2.0","id":4,"method":"chat.send","params":{"provider":{"id":"ollama","name":"Local","kind":"Ollama","baseUrl":"http://localhost:11434","model":"qwen","apiKeyEnvironmentVariable":""},"messages":[{"id":"user-1","role":"User","content":"Explore"}],"activeTest":{"formatVersion":1,"name":"Test","description":"","platform":"Android","steps":[]}}}"#.utf8)
+        let request = Data(
+            #"{"jsonrpc":"2.0","id":4,"method":"chat.send","params":{"provider":{"id":"ollama","name":"Local","kind":"Ollama","baseUrl":"http://localhost:11434","model":"qwen","apiKeyEnvironmentVariable":""},"messages":[{"id":"user-1","role":"User","content":"Explore"}],"activeTest":{"formatVersion":1,"name":"Test","description":"","platform":"Android","steps":[]}}}"#
+                .utf8
+        )
         let response = await StudioService(workspace: StubWorkspace(), chat: StubChat()).handle(request)
         let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
         let result = try #require(object["result"] as? [String: Any])
@@ -76,24 +82,99 @@ struct StudioProtocolTests {
 }
 
 private actor StubAutomation: StudioAutomationServing {
-    func execute(_: StudioReplRequest) async throws -> StudioReplResult { .init(output: "executed") }
-    func run(_: StudioTestRunRequest) async throws -> StudioTestRunResult { .init(message: "passed", sessionId: "session-1", reportId: "report-1") }
-    func reports() async -> StudioReportListResult { .init(reports: []) }
-    func start(_: StudioTestRunRequest) -> StudioTestStartResult { .init(runId: "run-1") }
-    func status(runId: String) -> StudioTestRunStatus { .init(runId: runId, state: .running, currentOperation: 0, totalOperations: 1, message: "running", sessionId: nil, reportId: nil) }
-    func cancel(runId: String) -> StudioTestRunStatus { .init(runId: runId, state: .cancelled, currentOperation: 0, totalOperations: 1, message: "cancelled", sessionId: nil, reportId: nil) }
+    func execute(_: StudioReplRequest) async throws -> StudioReplResult {
+        .init(output: "executed")
+    }
+
+    func run(_: StudioTestRunRequest) async throws -> StudioTestRunResult {
+        .init(
+            message: "passed",
+            sessionId: "session-1",
+            reportId: "report-1"
+        )
+    }
+
+    func reports() async -> StudioReportListResult {
+        .init(reports: [])
+    }
+
+    func start(_: StudioTestRunRequest) -> StudioTestStartResult {
+        .init(runId: "run-1")
+    }
+
+    func status(runId: String) -> StudioTestRunStatus {
+        .init(
+            runId: runId,
+            state: .running,
+            currentOperation: 0,
+            totalOperations: 1,
+            message: "running",
+            sessionId: nil,
+            reportId: nil
+        )
+    }
+
+    func cancel(runId: String) -> StudioTestRunStatus {
+        .init(
+            runId: runId,
+            state: .cancelled,
+            currentOperation: 0,
+            totalOperations: 1,
+            message: "cancelled",
+            sessionId: nil,
+            reportId: nil
+        )
+    }
 }
 
 private struct StubChat: StudioChatServing {
-    func send(_: StudioChatRequest) async throws -> StudioChatResult { StudioChatResult(message: "Ready to explore") }
-    func check(_: StudioProviderProfile) async throws -> StudioProviderCheckResult { .init(message: "connected") }
+    func send(_: StudioChatRequest) async throws -> StudioChatResult {
+        StudioChatResult(message: "Ready to explore")
+    }
+
+    func check(_: StudioProviderProfile) async throws -> StudioProviderCheckResult {
+        .init(message: "connected")
+    }
 }
 
 private struct StubWorkspace: StudioDeviceWorkspace {
-    func listDevices() async -> [StudioDevice] { [.init(id: "sim-1", name: "iPhone", platform: .ios, osVersion: "26.0", status: .running, physical: false)] }
-    func startDevice(_: String) async -> StudioOperationResult { .init(message: "started", artifactPath: nil) }
-    func createDevice(_ request: StudioCreateDeviceRequest) async -> StudioOperationResult { .init(message: "created \(request.name)", artifactPath: nil) }
-    func buildInstallRun(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "built", artifactPath: "/tmp/App.app") }
-    func reinstallRun(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "installed", artifactPath: nil) }
-    func resetData(_: StudioAppRequest) async -> StudioOperationResult { .init(message: "reset", artifactPath: nil) }
+    func listDevices() async -> [StudioDevice] {
+        [.init(
+            id: "sim-1",
+            name: "iPhone",
+            platform: .ios,
+            osVersion: "26.0",
+            status: .running,
+            physical: false
+        )]
+    }
+
+    func startDevice(_: String) async -> StudioOperationResult {
+        .init(message: "started", artifactPath: nil)
+    }
+
+    func createDevice(_ request: StudioCreateDeviceRequest) async -> StudioOperationResult {
+        .init(
+            message: "created \(request.name)",
+            artifactPath: nil
+        )
+    }
+
+    func buildInstallRun(_: StudioAppRequest) async -> StudioOperationResult {
+        .init(
+            message: "built",
+            artifactPath: "/tmp/App.app"
+        )
+    }
+
+    func reinstallRun(_: StudioAppRequest) async -> StudioOperationResult {
+        .init(
+            message: "installed",
+            artifactPath: nil
+        )
+    }
+
+    func resetData(_: StudioAppRequest) async -> StudioOperationResult {
+        .init(message: "reset", artifactPath: nil)
+    }
 }

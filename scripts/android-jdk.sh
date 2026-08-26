@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # Prints a JAVA_HOME the Android companion's Gradle build can run on, or nothing.
 #
-# AGP 8.7 does not run on a JDK newer than 21. Past that, the Gradle daemon fails partway
-# through with errors that name neither Java nor the JDK: `JdkImageTransform` failing to run
-# `jlink` over core-for-system-modules.jar, or mergeDebugResources dying on a missing
-# com/android/aaptcompiler/ResourceCompiler. Homebrew's `openjdk` is well past that range, so a
-# machine with no explicit JAVA_HOME hits this by default.
+# The range is the intersection of what the build's two pinned tools accept: AGP 9.3 requires
+# JDK 17 or newer, and Gradle 9.5 runs on JVM 17 through 26 (27+ is not yet supported). A JDK
+# outside that window fails partway through with errors that name neither Java nor the JDK, so
+# resolving it up front is cheaper than reading the eventual stack trace.
+#
+# This used to cap at 21 because AGP 8.7 could not run on anything newer. That constraint left
+# with the AGP 9 upgrade; the cap is now Gradle's, not AGP's.
 #
 # Mirrors Sources/CLI/AndroidJDK.swift, which does the same for `amoo companion`.
 set -euo pipefail
 
 MIN_VERSION=17
-MAX_VERSION=21
+MAX_VERSION=26
 
 major_version_of() {
   local release="$1/release"

@@ -11,6 +11,7 @@ public struct StudioHandshake: Codable, Equatable, Sendable {
 public struct StudioHealth: Codable, Equatable, Sendable {
     public let status: String
 }
+
 public struct StudioMCPStatus: Codable, Equatable, Sendable {
     public let available: Bool
     public let transport: String
@@ -59,42 +60,65 @@ public struct StudioService: Sendable {
                     protocolVersion: Self.protocolVersion,
                     product: "amoo",
                     version: AmooVersion.current,
-                    capabilities: ["health", "devices.list", "devices.start", "devices.create", "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "providers.check", "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel", "tests.export", "reports.list", "mcp.status"]
+                    capabilities: [
+                        "health",
+                        "devices.list",
+                        "devices.start",
+                        "devices.create",
+                        "apps.buildInstallRun",
+                        "apps.reinstallRun",
+                        "apps.resetData",
+                        "chat.send",
+                        "providers.check",
+                        "repl.execute",
+                        "tests.run",
+                        "tests.start",
+                        "tests.status",
+                        "tests.cancel",
+                        "tests.export",
+                        "reports.list",
+                        "mcp.status"
+                    ]
                 ))
             case "system.health":
                 result = try encodeValue(StudioHealth(status: "ready"))
             case "mcp.status":
-                result = try encodeValue(StudioMCPStatus(available: true, transport: "stdio", arguments: ["mcp", "serve"]))
+                result = try encodeValue(StudioMCPStatus(
+                    available: true,
+                    transport: "stdio",
+                    arguments: ["mcp", "serve"]
+                ))
             case "devices.list":
-                result = try encodeValue(StudioDeviceList(devices: await workspace.listDevices()))
+                result = try await encodeValue(StudioDeviceList(devices: workspace.listDevices()))
             case "devices.start":
-                result = try encodeValue(await workspace.startDevice(try request.required("id")))
+                result = try await encodeValue(workspace.startDevice(request.required("id")))
             case "devices.create":
-                result = try encodeValue(await workspace.createDevice(try request.createDeviceRequest()))
+                result = try await encodeValue(workspace.createDevice(request.createDeviceRequest()))
             case "apps.buildInstallRun":
-                result = try encodeValue(await workspace.buildInstallRun(try request.appRequest()))
+                result = try await encodeValue(workspace.buildInstallRun(request.appRequest()))
             case "apps.reinstallRun":
-                result = try encodeValue(await workspace.reinstallRun(try request.appRequest()))
+                result = try await encodeValue(workspace.reinstallRun(request.appRequest()))
             case "apps.resetData":
-                result = try encodeValue(await workspace.resetData(try request.appRequest()))
+                result = try await encodeValue(workspace.resetData(request.appRequest()))
             case "chat.send":
-                result = try encodeValue(try await chat.send(try request.decodeParams(StudioChatRequest.self)))
+                result = try await encodeValue(chat.send(request.decodeParams(StudioChatRequest.self)))
             case "providers.check":
-                result = try encodeValue(try await chat.check(try request.decodeParams(StudioProviderProfile.self)))
+                result = try await encodeValue(chat.check(request.decodeParams(StudioProviderProfile.self)))
             case "repl.execute":
-                result = try encodeValue(try await automation.execute(try request.decodeParams(StudioReplRequest.self)))
+                result = try await encodeValue(automation.execute(request.decodeParams(StudioReplRequest.self)))
             case "tests.run":
-                result = try encodeValue(try await automation.run(try request.decodeParams(StudioTestRunRequest.self)))
+                result = try await encodeValue(automation.run(request.decodeParams(StudioTestRunRequest.self)))
             case "tests.start":
-                result = try encodeValue(await automation.start(try request.decodeParams(StudioTestRunRequest.self)))
+                result = try await encodeValue(automation.start(request.decodeParams(StudioTestRunRequest.self)))
             case "tests.status":
-                result = try encodeValue(try await automation.status(runId: try request.required("runId")))
+                result = try await encodeValue(automation.status(runId: request.required("runId")))
             case "tests.cancel":
-                result = try encodeValue(try await automation.cancel(runId: try request.required("runId")))
+                result = try await encodeValue(automation.cancel(runId: request.required("runId")))
             case "reports.list":
-                result = try encodeValue(await automation.reports())
+                result = try await encodeValue(automation.reports())
             case "tests.export":
-                result = try encodeValue(try await automation.export(try request.decodeParams(StudioTestExportRequest.self)))
+                result = try await encodeValue(automation
+                    .export(request.decodeParams(StudioTestExportRequest.self)))
             default:
                 return encode(Response(
                     id: request.id,
@@ -134,9 +158,9 @@ private struct Request: Decodable {
     }
 
     func appRequest() throws -> StudioAppRequest {
-        StudioAppRequest(
-            deviceId: try required("deviceId"), platform: optional("platform"),
-            projectPath: optional("projectPath"), appId: try required("appId"),
+        try StudioAppRequest(
+            deviceId: required("deviceId"), platform: optional("platform"),
+            projectPath: optional("projectPath"), appId: required("appId"),
             schemeOrModule: optional("schemeOrModule"), artifactPath: optional("artifactPath")
         )
     }
@@ -146,11 +170,11 @@ private struct Request: Decodable {
         guard let platform = StudioPlatform(rawValue: platformValue.capitalized) else {
             throw StudioWorkspaceError.invalidParameter("platform")
         }
-        return StudioCreateDeviceRequest(
+        return try StudioCreateDeviceRequest(
             platform: platform,
-            name: try required("name"),
-            runtime: try required("runtime"),
-            deviceType: try required("deviceType")
+            name: required("name"),
+            runtime: required("runtime"),
+            deviceType: required("deviceType")
         )
     }
 

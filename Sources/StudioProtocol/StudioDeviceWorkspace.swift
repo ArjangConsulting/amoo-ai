@@ -7,19 +7,32 @@ public enum StudioDeviceStatus: String, Codable, Sendable { case running = "Runn
 public struct StudioDevice: Codable, Equatable, Sendable {
     public let id: String; public let name: String; public let platform: StudioPlatform
     public let osVersion: String; public let status: StudioDeviceStatus; public let physical: Bool
-    public init(id: String, name: String, platform: StudioPlatform, osVersion: String, status: StudioDeviceStatus, physical: Bool) {
-        self.id = id; self.name = name; self.platform = platform; self.osVersion = osVersion; self.status = status; self.physical = physical
+    public init(
+        id: String,
+        name: String,
+        platform: StudioPlatform,
+        osVersion: String,
+        status: StudioDeviceStatus,
+        physical: Bool
+    ) {
+        self.id = id; self.name = name; self.platform = platform; self.osVersion = osVersion; self.status = status; self
+            .physical = physical
     }
 }
+
 public struct StudioDeviceList: Codable, Sendable { public let devices: [StudioDevice] }
 public struct StudioOperationResult: Codable, Equatable, Sendable {
     public let message: String; public let artifactPath: String?
-    public init(message: String, artifactPath: String?) { self.message = message; self.artifactPath = artifactPath }
+    public init(message: String, artifactPath: String?) {
+        self.message = message; self.artifactPath = artifactPath
+    }
 }
+
 public struct StudioAppRequest: Sendable {
     public let deviceId: String; public let platform: String?; public let projectPath: String?
     public let appId: String; public let schemeOrModule: String?; public let artifactPath: String?
 }
+
 public struct StudioCreateDeviceRequest: Sendable {
     public let platform: StudioPlatform
     public let name: String
@@ -30,12 +43,15 @@ public struct StudioCreateDeviceRequest: Sendable {
         self.platform = platform; self.name = name; self.runtime = runtime; self.deviceType = deviceType
     }
 }
+
 public enum StudioWorkspaceError: Error, CustomStringConvertible {
     case invalidParameter(String), command(String), artifactNotFound(String), unsupported(String)
-    public var description: String { switch self {
-    case let .invalidParameter(v): "Missing or invalid parameter: \(v)"
-    case let .command(v), let .artifactNotFound(v), let .unsupported(v): v
-    } }
+    public var description: String {
+        switch self {
+        case let .invalidParameter(detail): "Missing or invalid parameter: \(detail)"
+        case let .command(detail), let .artifactNotFound(detail), let .unsupported(detail): detail
+        }
+    }
 }
 
 public protocol StudioDeviceWorkspace: Sendable {
@@ -75,7 +91,10 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
 
     public func startDevice(_ id: String) async -> StudioOperationResult {
         let all = await listDevices()
-        guard let device = all.first(where: { $0.id == id }) else { return .init(message: "Device is no longer available", artifactPath: nil) }
+        guard let device = all.first(where: { $0.id == id }) else { return .init(
+            message: "Device is no longer available",
+            artifactPath: nil
+        ) }
         do {
             if device.platform == .ios {
                 try await checked(["xcrun", "simctl", "boot", id])
@@ -99,7 +118,11 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
             case .ios:
                 try await checked(["xcrun", "simctl", "create", request.name, request.deviceType, request.runtime])
             case .android:
-                try await avdManager.create(name: request.name, systemImage: request.runtime, deviceType: request.deviceType)
+                try await avdManager.create(
+                    name: request.name,
+                    systemImage: request.runtime,
+                    deviceType: request.deviceType
+                )
             }
             return .init(message: "Created \(request.name)", artifactPath: nil)
         } catch {
@@ -149,20 +172,37 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
             let version = runtime.components(separatedBy: "iOS-").last?.replacingOccurrences(of: "-", with: ".") ?? ""
             return values.compactMap { value in
                 guard let id = value["udid"] as? String, let name = value["name"] as? String else { return nil }
-                return StudioDevice(id: id, name: name, platform: .ios, osVersion: version, status: (value["state"] as? String) == "Booted" ? .running : .available, physical: false)
+                return StudioDevice(
+                    id: id,
+                    name: name,
+                    platform: .ios,
+                    osVersion: version,
+                    status: (value["state"] as? String) == "Booted" ? .running : .available,
+                    physical: false
+                )
             }
         }
     }
 
     private func listAndroid() async -> [StudioDevice] {
-        let online = (try? await adb.listDevices()) ?? ""
+        let online = await (try? adb.listDevices()) ?? ""
         var devices = online.split(separator: "\n").compactMap { line -> StudioDevice? in
             let parts = line.split(separator: " ").map(String.init)
             guard parts.count > 1, parts[1] == "device" else { return nil }
-            let id = parts[0]; let model = parts.first { $0.hasPrefix("model:") }?.dropFirst(6).replacingOccurrences(of: "_", with: " ") ?? id
-            return StudioDevice(id: id, name: model, platform: .android, osVersion: "", status: .running, physical: !id.hasPrefix("emulator-"))
+            let id = parts[0]; let model = parts.first { $0.hasPrefix("model:") }?.dropFirst(6).replacingOccurrences(
+                of: "_",
+                with: " "
+            ) ?? id
+            return StudioDevice(
+                id: id,
+                name: model,
+                platform: .android,
+                osVersion: "",
+                status: .running,
+                physical: !id.hasPrefix("emulator-")
+            )
         }
-        let avds = (try? await runner.run(["emulator", "-list-avds"]).stdout) ?? ""
+        let avds = await (try? runner.run(["emulator", "-list-avds"]).stdout) ?? ""
         let runningNames = Set(devices.map(\.name))
         devices += avds.split(separator: "\n").map(String.init).filter { !runningNames.contains($0) }.map {
             StudioDevice(id: $0, name: $0, platform: .android, osVersion: "", status: .available, physical: false)
@@ -173,14 +213,37 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
     private func build(_ request: StudioAppRequest, platform: StudioPlatform) async throws -> String {
         let path = try require(request.projectPath, "projectPath"); let target = request.schemeOrModule ?? ""
         if platform == .ios {
-            let derived = FileManager.default.temporaryDirectory.appendingPathComponent("amoo-derived-\(UUID().uuidString)").path
+            let derived = FileManager.default.temporaryDirectory
+                .appendingPathComponent("amoo-derived-\(UUID().uuidString)").path
             var args = ["xcodebuild"]
-            if path.hasSuffix(".xcworkspace") { args += ["-workspace", path] } else if path.hasSuffix(".xcodeproj") { args += ["-project", path] } else { throw StudioWorkspaceError.unsupported("Choose an .xcodeproj or .xcworkspace") }
-            args += ["-scheme", try require(target, "schemeOrModule"), "-configuration", "Debug", "-sdk", "iphonesimulator", "-destination", "id=\(request.deviceId)", "-derivedDataPath", derived, "build"]
+            if path.hasSuffix(".xcworkspace") {
+                args += ["-workspace", path]
+            } else if path.hasSuffix(".xcodeproj") {
+                args += [
+                    "-project",
+                    path
+                ]
+            } else {
+                throw StudioWorkspaceError.unsupported("Choose an .xcodeproj or .xcworkspace")
+            }
+            try args += [
+                "-scheme",
+                require(target, "schemeOrModule"),
+                "-configuration",
+                "Debug",
+                "-sdk",
+                "iphonesimulator",
+                "-destination",
+                "id=\(request.deviceId)",
+                "-derivedDataPath",
+                derived,
+                "build"
+            ]
             try await checked(args)
             return try newestArtifact(in: derived, suffix: ".app")
         }
-        let root = URL(fileURLWithPath: path).hasDirectoryPath ? path : URL(fileURLWithPath: path).deletingLastPathComponent().path
+        let root = URL(fileURLWithPath: path).hasDirectoryPath ? path : URL(fileURLWithPath: path)
+            .deletingLastPathComponent().path
         let module = target.isEmpty ? "app" : target
         try await gradle.assembleDebug(projectDirectory: root, module: module)
         return try newestArtifact(in: root + "/\(module)/build/outputs/apk", suffix: ".apk")
@@ -188,18 +251,47 @@ public struct LiveStudioDeviceWorkspace: StudioDeviceWorkspace {
 
     private func installAndRun(_ request: StudioAppRequest, artifact: String, platform: StudioPlatform) async throws {
         if platform == .ios {
-            try await checked(["xcrun", "simctl", "install", request.deviceId, artifact]); try await checked(["xcrun", "simctl", "launch", request.deviceId, request.appId])
+            try await checked([
+                "xcrun",
+                "simctl",
+                "install",
+                request.deviceId,
+                artifact
+            ]); try await checked(["xcrun", "simctl", "launch", request.deviceId, request.appId])
         } else {
             try await adb.install(serial: request.deviceId, apkPath: artifact)
             try await adb.launch(serial: request.deviceId, appID: request.appId, arguments: [])
         }
     }
-    private func checked(_ args: [String]) async throws { let result = try await runner.run(args); guard result.exitCode == 0 else { throw StudioWorkspaceError.command(result.stderr.isEmpty ? result.stdout : result.stderr) } }
-    private func require(_ value: String?, _ name: String) throws -> String { guard let value, !value.isEmpty else { throw StudioWorkspaceError.invalidParameter(name) }; return value }
+
+    private func checked(_ args: [String]) async throws {
+        let result = try await runner.run(args); guard result.exitCode == 0
+        else { throw StudioWorkspaceError.command(result.stderr.isEmpty ? result.stdout : result.stderr) }
+    }
+
+    private func require(_ value: String?, _ name: String) throws -> String {
+        guard let value,
+              !value.isEmpty
+        else {
+            throw StudioWorkspaceError
+                .invalidParameter(name)
+        }; return value
+    }
+
     private func newestArtifact(in root: String, suffix: String) throws -> String {
-        let url = URL(fileURLWithPath: root); guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.contentModificationDateKey]) else { throw StudioWorkspaceError.artifactNotFound("No build output at \(root)") }
+        let url = URL(fileURLWithPath: root); guard let enumerator = FileManager.default.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { throw StudioWorkspaceError.artifactNotFound("No build output at \(root)") }
         let files = enumerator.compactMap { $0 as? URL }.filter { $0.path.hasSuffix(suffix) }
-        guard let result = files.max(by: { (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast < (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast }) else { throw StudioWorkspaceError.artifactNotFound("No \(suffix) artifact found") }
+        guard let result = files
+            .max(by: {
+                (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ??
+                    .distantPast <
+                    (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ??
+                    .distantPast
+            })
+        else { throw StudioWorkspaceError.artifactNotFound("No \(suffix) artifact found") }
         return result.path
     }
 }

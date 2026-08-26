@@ -135,11 +135,16 @@ extension DriverToolExecutor {
             return .error("Session not found: \(sessionID)")
         }
         let report = await SessionReport.make(from: session)
-        let result = SessionPlanCompiler.compile(
-            report: report,
-            testName: arguments["test_name"],
-            testDescription: arguments["test_description"]
-        )
+        let result: CompileSessionToPlanResult
+        do {
+            result = try SessionPlanCompiler.compile(
+                report: report,
+                testName: arguments["test_name"],
+                testDescription: arguments["test_description"]
+            )
+        } catch let error as SessionPlanCompilerError {
+            return .error(error.description)
+        }
         let summary = "Compiled session \(sessionID) into \(result.testFlow.steps.count) flow step(s),"
             + " \(result.studioTest.compiledPlan?.toolOperations?.count ?? 0) plan operation(s),"
             + " \(result.warnings.count) warning(s)."

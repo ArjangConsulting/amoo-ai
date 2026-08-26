@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import StudioProtocol
 import TestSession
@@ -44,6 +45,17 @@ public struct CompiledSessionFlow: Codable, Equatable, Sendable {
 /// same values returned here are also persisted inside `StudioCompiledPlan.warnings`, which is what
 /// lets `amoo generate test` detect dropped steps in a plan it reads back off disk.
 public typealias SessionPlanWarning = StudioPlanWarning
+
+public enum SessionPlanCompilerError: Error, Equatable, CustomStringConvertible {
+    case unsupportedPlatform(String)
+
+    public var description: String {
+        switch self {
+        case let .unsupportedPlatform(value):
+            "Session records an unsupported platform '\(value)'; expected iOS or Android."
+        }
+    }
+}
 
 public struct CompileSessionToPlanResult: Codable, Sendable {
     public let testFlow: CompiledSessionFlow
@@ -179,6 +191,8 @@ public enum SessionPlanCompiler {
         )
     }
 
+    // One case per Studio tool keeps the human-readable step text auditable alongside the mapping.
+    // swiftlint:disable:next cyclomatic_complexity
     private static func describe(tool: String, arguments: [String: String]) -> (instruction: String, expected: String) {
         let selector = arguments["id"] ?? arguments["label"] ?? arguments["contains_text"]
             ?? arguments["description"] ?? arguments["element_id"] ?? arguments["element_label"]
@@ -262,11 +276,17 @@ public enum SessionPlanCompiler {
         return ProcessedAction(operation: operation, step: step, warnings: warnings)
     }
 
+    /// Throws when the recorded session names a platform that is neither iOS nor Android. A session
+    /// is written by our own recorder, so that means a corrupt or hand-edited report — guessing a
+    /// platform there would generate a test for the wrong OS.
     public static func compile(
         report: SessionReport,
         testName: String?,
         testDescription: String?
-    ) -> CompileSessionToPlanResult {
+    ) throws -> CompileSessionToPlanResult {
+        guard let platform = Platform(lenient: report.platform) else {
+            throw SessionPlanCompilerError.unsupportedPlatform(report.platform)
+        }
         let flowSteps = report.actions.map {
             CompiledSessionFlow.Step(tool: $0.toolName, arguments: $0.arguments)
         }
@@ -289,7 +309,7 @@ public enum SessionPlanCompiler {
             formatVersion: 1,
             name: name,
             description: description,
-            platform: report.platform,
+            platform: platform,
             steps: steps,
             requirements: StudioTestRequirements(appId: report.appID, deviceName: report.deviceID),
             compiledPlan: StudioCompiledPlan(

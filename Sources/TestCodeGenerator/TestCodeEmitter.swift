@@ -20,6 +20,38 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
     }
 }
 
+/// The direction of a `swipe_in_direction` or `scroll` operation.
+///
+/// Shared by all three emitters because the distinction between the two tools is easy to get
+/// wrong and expensive when you do: `swipe_in_direction` names the raw finger direction, while
+/// `scroll` names the direction the *content* moves. The companions implement `scroll(.down)` as
+/// a swipe-up gesture (see `XCUITestBridge.scroll` / `UIAutomatorBridge.scroll`), so a scroll must
+/// invert before it becomes a gesture. Encoding that once keeps the emitters from disagreeing.
+enum GestureDirection: String {
+    case up, down, left, right
+
+    var inverted: Self {
+        switch self {
+        case .up: .down
+        case .down: .up
+        case .left: .right
+        case .right: .left
+        }
+    }
+
+    /// The direction to actually gesture in for `tool`, accounting for scroll's inversion.
+    static func gestureDirection(for tool: String, rawDirection: String) throws -> Self {
+        guard let parsed = Self(rawValue: rawDirection.lowercased()) else {
+            throw TestCodeGeneratorError.invalidArgument(
+                tool: tool,
+                argument: "direction",
+                value: rawDirection
+            )
+        }
+        return tool == "scroll" ? parsed.inverted : parsed
+    }
+}
+
 enum TestIdentifierNaming {
     /// PascalCases a free-form test name into a valid Swift/Kotlin identifier fragment.
     static func pascalCase(_ raw: String) -> String {

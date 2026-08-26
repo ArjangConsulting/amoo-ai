@@ -56,7 +56,8 @@ enum CompileVerification {
         let classpath = classpathResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
         guard classpathResult.exitCode == 0, classpath.isEmpty == false else {
             throw XCTSkip(
-                "Could not resolve an Espresso classpath (no network / Gradle unavailable?) — skipping Kotlin compile verification."
+                "Could not resolve an Espresso classpath (no network / Gradle unavailable?)"
+                    + " — skipping Kotlin compile verification."
             )
         }
 
@@ -109,7 +110,7 @@ enum CompileVerification {
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        return (process.terminationStatus, String(decoding: data, as: UTF8.self))
+        return (process.terminationStatus, String(bytes: data, encoding: .utf8) ?? "")
     }
 }
 

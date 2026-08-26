@@ -110,19 +110,10 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             return "\(indent)app.typeText(\(literal(text)))"
 
         case "swipe_in_direction":
-            guard let direction = operation.arguments["direction"] else {
-                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
-            }
             let target = operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil
                 ? try query(operation, idKey: "element_id", labelKey: "element_label")
                 : "app"
-            let gesture = switch direction.lowercased() {
-            case "up": "swipeUp"
-            case "down": "swipeDown"
-            case "left": "swipeLeft"
-            case "right": "swipeRight"
-            default: "swipeUp"
-            }
+            let gesture = try gesture(for: operation)
             if target == "app" {
                 return "\(indent)app.\(gesture)()"
             }
@@ -134,21 +125,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             """
 
         case "scroll":
-            guard let direction = operation.arguments["direction"] else {
-                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
-            }
-            // scroll names the direction the *content* moves, so the finger gesture is inverted:
-            // scrolling down reveals content below and is performed as a swipe up. This mirrors
-            // XCUITestBridge.scroll in the companion, and is why scroll is not folded into
-            // swipe_in_direction (which names the raw finger direction instead).
-            let gesture = switch direction.lowercased() {
-            case "up": "swipeDown"
-            case "down": "swipeUp"
-            case "left": "swipeRight"
-            case "right": "swipeLeft"
-            default: "swipeUp"
-            }
-            return "\(indent)app.\(gesture)()"
+            // GestureDirection inverts scroll for us — see its documentation for why.
+            return try "\(indent)app.\(gesture(for: operation))()"
 
         case "wait_for_element", "assert_visible":
             return try waitStatement(for: operation, exists: true)
@@ -201,6 +179,20 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         \(indent)let element_\(suffix) = \(element)
         \(indent)\(helper)(element_\(suffix), timeout: \(timeoutSeconds(for: operation)))
         """
+    }
+
+    /// XCUITest's gesture method name for this operation's direction.
+    private static func gesture(for operation: StudioToolOperation) throws -> String {
+        guard let raw = operation.arguments["direction"] else {
+            throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
+        }
+        let direction = try GestureDirection.gestureDirection(for: operation.tool, rawDirection: raw)
+        switch direction {
+        case .up: return "swipeUp"
+        case .down: return "swipeDown"
+        case .left: return "swipeLeft"
+        case .right: return "swipeRight"
+        }
     }
 
     private static func timeoutSeconds(for operation: StudioToolOperation) throws -> Double {

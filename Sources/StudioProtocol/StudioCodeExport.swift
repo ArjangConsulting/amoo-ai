@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 
 public struct StudioTestExportRequest: Codable, Sendable {
@@ -24,10 +25,37 @@ public protocol StudioCodeEmitting: Sendable {
 }
 
 public struct StudioCodeEmitters: Sendable {
-    public let ios: (any StudioCodeEmitting)?
-    public let android: (any StudioCodeEmitting)?
+    public struct PlatformToolkitKey: Hashable, Sendable {
+        public let platform: Platform
+        public let toolkit: UIToolkit
+
+        public init(platform: Platform, toolkit: UIToolkit = .view) {
+            self.platform = platform
+            self.toolkit = toolkit
+        }
+    }
+
+    private var emitters: [PlatformToolkitKey: any StudioCodeEmitting]
+
+    public init() {
+        emitters = [:]
+    }
+
     public init(ios: (any StudioCodeEmitting)? = nil, android: (any StudioCodeEmitting)? = nil) {
-        self.ios = ios
-        self.android = android
+        emitters = [:]
+        if let ios {
+            emitters[.init(platform: .ios)] = ios
+        }
+        if let android {
+            emitters[.init(platform: .android)] = android
+        }
+    }
+
+    public mutating func register(_ emitter: any StudioCodeEmitting, for key: PlatformToolkitKey) {
+        emitters[key] = emitter
+    }
+
+    public func emitter(for platform: Platform, toolkit: UIToolkit = .view) -> (any StudioCodeEmitting)? {
+        emitters[.init(platform: platform, toolkit: toolkit)]
     }
 }

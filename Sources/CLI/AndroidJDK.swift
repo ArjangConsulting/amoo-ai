@@ -2,19 +2,23 @@ import Foundation
 
 /// Finds a JDK the Android companion's Gradle build can actually run on.
 ///
-/// AGP 8.7 does not run on a JDK newer than 21: the Gradle daemon fails partway through with
-/// errors that name neither Java nor the JDK — `JdkImageTransform` failing to run `jlink` over
-/// `core-for-system-modules.jar`, or `mergeDebugResources` dying on a missing
-/// `com/android/aaptcompiler/ResourceCompiler`. Homebrew's `openjdk` is well past that range, so
-/// on a machine with no explicit `JAVA_HOME` this is the default experience.
+/// The supported range is the intersection of what the build's two pinned tools accept: AGP 9.3
+/// requires JDK 17 or newer, and Gradle 9.5 runs on JVM 17 through 26 (27+ is not yet supported).
+/// A JDK outside that window fails partway through with errors that name neither Java nor the JDK,
+/// so resolving it up front is cheaper than reading the eventual stack trace. Homebrew's `openjdk`
+/// tracks the newest release, so on a machine with no explicit `JAVA_HOME` this matters.
+///
+/// The cap used to be AGP's — AGP 8.7 could not run on anything past 21. That constraint left with
+/// the AGP 9 upgrade; the cap is now Gradle's.
 ///
 /// Rather than make every caller export `JAVA_HOME` by hand, the build entry points resolve a
 /// supported JDK themselves and hand it to Gradle.
 enum AndroidJDK {
-    /// Oldest JDK the companion's `sourceCompatibility`/`jvmTarget` of 17 can build on.
+    /// Oldest JDK the companion's `sourceCompatibility`/`jvmTarget` of 17 can build on, and also
+    /// AGP 9.3's own minimum.
     static let minimumMajorVersion = 17
-    /// Newest JDK AGP 8.7 supports.
-    static let maximumMajorVersion = 21
+    /// Newest JVM Gradle 9.5 can run on.
+    static let maximumMajorVersion = 26
 
     /// Directories macOS installs JDKs into. `/usr/libexec/java_home` searches the same two.
     static func defaultSearchPaths(homeDirectory: String = NSHomeDirectory()) -> [String] {

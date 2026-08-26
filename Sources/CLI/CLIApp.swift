@@ -96,9 +96,13 @@ public struct CLIApp {
         }
         do {
             let options = try parseGenerateTestOptions(args: commandArgs)
+            var emitters = StudioCodeEmitters()
+            emitters.register(XCUITestEmitter(), for: .init(platform: .ios))
+            emitters.register(EspressoEmitter(), for: .init(platform: .android))
+            emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
             return try runGenerateTestCommand(
                 options: options,
-                emitters: StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+                emitters: emitters
             )
         } catch {
             return CLIResult(output: String(describing: error), exitCode: 64)
@@ -113,10 +117,14 @@ public struct CLIApp {
             return CLIResult(output: "Usage: amoo studio serve", exitCode: 64)
         }
         let workspace = LiveStudioDeviceWorkspace()
+        var emitters = StudioCodeEmitters()
+        emitters.register(XCUITestEmitter(), for: .init(platform: .ios))
+        emitters.register(EspressoEmitter(), for: .init(platform: .android))
+        emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
         let automation = LiveStudioAutomationService(
             workspace: workspace,
             toolExecutor: CLIStudioToolExecutor(),
-            codeEmitters: StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+            codeEmitters: emitters
         )
         await StudioService(workspace: workspace, automation: automation).run(output: studioProtocolOutput())
         return CLIResult(output: "", exitCode: 0)

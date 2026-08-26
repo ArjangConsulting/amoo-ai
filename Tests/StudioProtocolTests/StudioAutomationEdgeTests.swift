@@ -1,3 +1,4 @@
+import AmooCore
 import StudioProtocol
 import Testing
 
@@ -49,7 +50,7 @@ struct StudioAutomationEdgeTests {
             formatVersion: 1,
             name: "Smoke",
             description: "",
-            platform: "Android",
+            platform: .android,
             steps: [.init(id: "step-1", instruction: "Inspect devices", expected: "A device is available")],
             compiledPlan: plan
         )

@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import StudioProtocol
 import TestCodeGenerator
@@ -6,6 +7,7 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
     case usage
     case missingValue(flag: String)
     case unexpectedArgument(String)
+    case invalidValue(flag: String, value: String, allowed: [String])
 
     public var description: String {
         switch self {
@@ -15,16 +17,20 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
             "Missing value for \(flag)."
         case let .unexpectedArgument(arg):
             "Unexpected argument '\(arg)'."
+        case let .invalidValue(flag, value, allowed):
+            "Invalid value '\(value)' for \(flag). Expected one of: \(allowed.joined(separator: ", "))."
         }
     }
 }
 
 func renderGenerateHelp() -> String {
     """
-    Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>] [--allow-incomplete]
+    Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>]
+                             [--ui-toolkit <view|compose>] [--allow-incomplete]
 
       --plan              Path to the authored/compiled test JSON.
       --out               Directory to write the generated file into. Prints to stdout if omitted.
+      --ui-toolkit        Override the plan's UI toolkit (defaults to its requirement, then view).
       --allow-incomplete  Generate even though the plan records steps that could not be compiled.
                           Without this, generation stops rather than emitting a test missing steps.
     """
@@ -34,12 +40,30 @@ public struct GenerateTestOptions: Sendable, Equatable {
     public var planPath: String
     public var outputDirectory: String?
     public var allowIncomplete: Bool
+    public var uiToolkit: UIToolkit?
 
-    public init(planPath: String, outputDirectory: String?, allowIncomplete: Bool = false) {
+    public init(
+        planPath: String,
+        outputDirectory: String?,
+        allowIncomplete: Bool = false,
+        uiToolkit: UIToolkit? = nil
+    ) {
         self.planPath = planPath
         self.outputDirectory = outputDirectory
         self.allowIncomplete = allowIncomplete
+        self.uiToolkit = uiToolkit
     }
+}
+
+private func parseUIToolkit(flag: String, value: String) throws -> UIToolkit {
+    guard let parsed = UIToolkit(rawValue: value.lowercased()) else {
+        throw GenerateCommandParseError.invalidValue(
+            flag: flag,
+            value: value,
+            allowed: UIToolkit.allCases.map(\.rawValue)
+        )
+    }
+    return parsed
 }
 
 public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptions {
@@ -48,6 +72,7 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
     var planPath: String?
     var outputDirectory: String?
     var allowIncomplete = false
+    var uiToolkit: UIToolkit?
     var index = 0
 
     while index < args.count {
@@ -67,6 +92,7 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
         switch flag {
         case "--plan": planPath = value
         case "--out": outputDirectory = value
+        case "--ui-toolkit": uiToolkit = try parseUIToolkit(flag: flag, value: value)
         default: throw GenerateCommandParseError.unexpectedArgument(flag)
         }
         index += 2
@@ -76,7 +102,8 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
     return GenerateTestOptions(
         planPath: planPath,
         outputDirectory: outputDirectory,
-        allowIncomplete: allowIncomplete
+        allowIncomplete: allowIncomplete,
+        uiToolkit: uiToolkit
     )
 }
 
@@ -86,16 +113,14 @@ public func runGenerateTestCommand(
 ) throws -> CLIResult {
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
     let test = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
-    let platform = test.platform.lowercased()
-    let emitter: (any StudioCodeEmitting)? = if platform.contains("android") {
-        emitters.android
-    } else if platform.contains("ios") {
-        emitters.ios
-    } else {
-        nil
-    }
+    let toolkit = options.uiToolkit ?? test.requirements?.uiToolkit ?? .view
+    let emitter = emitters.emitter(for: test.platform, toolkit: toolkit)
     guard let emitter else {
-        return CLIResult(output: "No code generator available for platform '\(test.platform)'.", exitCode: 64)
+        return CLIResult(
+            output: "No code generator available for platform '\(test.platform.rawValue)'"
+                + " and toolkit '\(toolkit.rawValue)'.",
+            exitCode: 64
+        )
     }
 
     // A plan can record steps that never made it into toolOperations. Generating anyway would

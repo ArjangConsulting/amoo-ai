@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -51,11 +52,29 @@ public struct StudioAuthoredTest: Codable, Sendable {
     public let formatVersion: Int
     public let name: String
     public let description: String
-    public let platform: String
+    public let platform: Platform
     public let steps: [Step]
     public let requirements: StudioTestRequirements?
     public let compiledPlan: StudioCompiledPlan?
     public init(
+        formatVersion: Int,
+        name: String,
+        description: String,
+        platform: Platform,
+        steps: [Step],
+        requirements: StudioTestRequirements? = nil,
+        compiledPlan: StudioCompiledPlan? = nil
+    ) {
+        self.formatVersion = formatVersion; self.name = name; self.description = description; self
+            .platform = platform; self.steps = steps; self.requirements = requirements; self.compiledPlan = compiledPlan
+    }
+
+    /// Convenience for callers constructing tests from CLI or fixture strings.
+    ///
+    /// Returns `nil` rather than guessing on an unrecognized platform: defaulting to one platform
+    /// would turn a typo into a test generated for the wrong OS, which is the same silent-degradation
+    /// failure the decoder deliberately throws on.
+    public init?(
         formatVersion: Int,
         name: String,
         description: String,
@@ -64,8 +83,16 @@ public struct StudioAuthoredTest: Codable, Sendable {
         requirements: StudioTestRequirements? = nil,
         compiledPlan: StudioCompiledPlan? = nil
     ) {
-        self.formatVersion = formatVersion; self.name = name; self.description = description; self
-            .platform = platform; self.steps = steps; self.requirements = requirements; self.compiledPlan = compiledPlan
+        guard let resolved = Platform(lenient: platform) else { return nil }
+        self.init(
+            formatVersion: formatVersion,
+            name: name,
+            description: description,
+            platform: resolved,
+            steps: steps,
+            requirements: requirements,
+            compiledPlan: compiledPlan
+        )
     }
 }
 
@@ -73,8 +100,14 @@ public struct StudioTestRequirements: Codable, Sendable {
     public let appId: String?
     public let projectPath: String?
     public let deviceName: String?
-    public init(appId: String? = nil, projectPath: String? = nil, deviceName: String? = nil) {
-        self.appId = appId; self.projectPath = projectPath; self.deviceName = deviceName
+    public let uiToolkit: UIToolkit?
+    public init(
+        appId: String? = nil,
+        projectPath: String? = nil,
+        deviceName: String? = nil,
+        uiToolkit: UIToolkit? = nil
+    ) {
+        self.appId = appId; self.projectPath = projectPath; self.deviceName = deviceName; self.uiToolkit = uiToolkit
     }
 }
 
@@ -256,7 +289,10 @@ public struct LiveStudioChatService: StudioChatServing {
         let (data, response) = try await transport.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw StudioChatError.invalidResponse }
         guard (200 ..< 300).contains(http.statusCode) else {
-            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1024), as: UTF8.self))
+            throw StudioChatError.requestFailed(
+                http.statusCode,
+                String(bytes: data.prefix(1024), encoding: .utf8) ?? "<non-UTF8 response>"
+            )
         }
         let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let content: String? = if provider.kind == .ollama {
@@ -290,7 +326,10 @@ public struct LiveStudioChatService: StudioChatServing {
         let (data, response) = try await transport.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw StudioChatError.invalidResponse }
         guard (200 ..< 300).contains(http.statusCode) else {
-            throw StudioChatError.requestFailed(http.statusCode, String(decoding: data.prefix(1024), as: UTF8.self))
+            throw StudioChatError.requestFailed(
+                http.statusCode,
+                String(bytes: data.prefix(1024), encoding: .utf8) ?? "<non-UTF8 response>"
+            )
         }
         return .init(message: "Connected to \(provider.name) at \(endpoint.host ?? provider.baseUrl).")
     }
