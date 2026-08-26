@@ -20,6 +20,13 @@ class UIAutomatorBridge {
 
         /** Dwell at the destination before lifting, so drop targets see the drag finish. */
         const val DROP_SETTLE_MS = 200L
+
+        /**
+         * How far up the tree to look for a clickable ancestor. Compose nests a matched semantics
+         * node only a few levels under its clickable owner; a larger bound would start returning
+         * whole screens as tap targets.
+         */
+        const val MAX_ANCESTOR_WALK = 5
     }
 
     private val instrumentation by lazy(LazyThreadSafetyMode.NONE) {
@@ -236,6 +243,44 @@ class UIAutomatorBridge {
 
     fun getAllElements(appId: String? = null): List<ElementSnapshot> {
         return scopedElements(appId).map { it.toSnapshot() }
+    }
+
+    /**
+     * The element a tap should actually land on, which is not always the element that matched.
+     *
+     * Classic Android Views put text, content description, resource id and clickability on one
+     * node, so "first match" was always the right target. Jetpack Compose does not: a Button
+     * becomes several sibling semantics nodes — one clickable node carrying the testTag, and
+     * separate non-clickable nodes carrying the text and the content description. Matching on a
+     * label or on text therefore resolves a node that cannot be clicked, and tapping its centre
+     * only works by accident, when its bounds happen to sit inside the real click target.
+     *
+     * So: prefer a match that is itself clickable, then the nearest clickable ancestor of a match,
+     * and only fall back to the raw match when neither exists (which keeps behaviour unchanged for
+     * genuinely non-interactive elements).
+     */
+    fun findTapTarget(
+        resourceId: String?,
+        text: String?,
+        containsText: String?,
+        appId: String? = null
+    ): ElementSnapshot? {
+        val matches = scopedElements(appId).filter { matches(it, resourceId, text, containsText) }
+        matches.firstOrNull { it.isClickable }?.let { return it.toSnapshot() }
+        matches.firstNotNullOfOrNull { nearestClickableAncestor(it) }?.let { return it.toSnapshot() }
+        return matches.firstOrNull()?.toSnapshot()
+    }
+
+    /** Walks up from [element] to the first clickable node, bounded so a deep tree cannot stall a tap. */
+    private fun nearestClickableAncestor(element: UiObject2): UiObject2? {
+        var current: UiObject2? = runCatching { element.parent }.getOrNull()
+        var depth = 0
+        while (current != null && depth < MAX_ANCESTOR_WALK) {
+            if (current.isClickable) return current
+            current = runCatching { current?.parent }.getOrNull()
+            depth++
+        }
+        return null
     }
 
     /**

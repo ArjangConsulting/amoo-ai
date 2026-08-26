@@ -132,9 +132,12 @@ class CompanionServiceImpl(
     override suspend fun tapElement(request: TapElementRequest): ActionResponse {
         val id = request.selector.id.takeUnless { it.isBlank() }
         val label = request.selector.label.takeUnless { it.isBlank() }
-            ?: request.selector.containsText.takeUnless { it.isBlank() }
+        // containsText used to be folded into `label`, which matches exactly — so tapping by a
+        // substring silently required the whole string, while find_elements with the same selector
+        // matched as a substring. Kept separate so both agree.
+        val containsText = request.selector.containsText.takeUnless { it.isBlank() }
         val appId = request.appId.takeUnless { it.isBlank() }
-        return actionResponse(touch.tapElement(id, label, appId), "element not found")
+        return actionResponse(touch.tapElement(id, label, containsText, appId), "element not found")
     }
 
     override suspend fun swipe(request: SwipeRequest): ActionResponse {

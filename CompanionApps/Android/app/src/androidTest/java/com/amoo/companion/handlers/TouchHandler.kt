@@ -16,12 +16,18 @@ class TouchHandler(private val bridge: UIAutomatorBridge) {
         return bridge.longPress(x, y, durationMs)
     }
 
-    fun tapElement(resourceId: String?, text: String?, appId: String? = null): Boolean {
-        val elements = bridge.findElements(resourceId, text, null, appId)
-        val first = elements.firstOrNull() ?: return false
+    fun tapElement(
+        resourceId: String?,
+        text: String?,
+        containsText: String? = null,
+        appId: String? = null
+    ): Boolean {
+        // findTapTarget rather than findElements: on Compose the node that matches a label or text
+        // is often not the node that can be clicked. See its documentation.
+        val target = bridge.findTapTarget(resourceId, text, containsText, appId) ?: return false
         return bridge.tap(
-            first.frame.x + first.frame.width / 2,
-            first.frame.y + first.frame.height / 2
+            target.frame.x + target.frame.width / 2,
+            target.frame.y + target.frame.height / 2
         )
     }
 }
