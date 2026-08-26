@@ -75,7 +75,7 @@ public struct CompileSessionToPlanResult: Codable, Sendable {
 /// recording, as opposed to `StudioChatService`'s conversational plan authoring.
 public enum SessionPlanCompiler {
     private struct TranslatedAction {
-        let studioTool: String
+        let studioTool: StudioTool
         let studioArguments: [String: String]
         let approximate: Bool
     }
@@ -88,8 +88,8 @@ public enum SessionPlanCompiler {
     /// implement `scroll(.down)` as a swipe-*up* gesture — see `XCUITestBridge.scroll` and
     /// `UIAutomatorBridge.scroll`), while `swipe_in_direction` names the raw finger direction.
     /// Collapsing them into one tool would silently reverse every recorded scroll.
-    private static let directTranslations: Set<String> = [
-        "tap_element", "set_text", "type_text", "swipe_in_direction", "scroll", "take_screenshot", "press_back"
+    private static let directTranslations: Set<StudioTool> = [
+        .tapElement, .setText, .typeText, .swipeInDirection, .scroll, .takeScreenshot, .pressBack
     ]
 
     /// Tools that inspect the app without changing it. They have no place in generated test code,
@@ -108,8 +108,8 @@ public enum SessionPlanCompiler {
     /// excluded from `compiledPlan.toolOperations` (but still included, untranslated, in the
     /// replayable `testFlow`).
     private static func translate(toolName: String, arguments: [String: String]) -> TranslatedAction? {
-        if directTranslations.contains(toolName) {
-            return TranslatedAction(studioTool: toolName, studioArguments: arguments, approximate: false)
+        if let tool = StudioTool(rawValue: toolName), directTranslations.contains(tool) {
+            return TranslatedAction(studioTool: tool, studioArguments: arguments, approximate: false)
         }
         switch toolName {
         case "fill_field":
@@ -131,7 +131,7 @@ public enum SessionPlanCompiler {
         var mapped = arguments
         mapped["contains_text"] = mapped["contains_text"] ?? mapped["field_description"]
         mapped["field_description"] = nil
-        return TranslatedAction(studioTool: "set_text", studioArguments: mapped, approximate: true)
+        return TranslatedAction(studioTool: .setText, studioArguments: mapped, approximate: true)
     }
 
     private static func translateAssertVisible(_ arguments: [String: String]) -> TranslatedAction {
@@ -140,7 +140,7 @@ public enum SessionPlanCompiler {
             mapped["contains_text"] = mapped["description"]
         }
         mapped["description"] = nil
-        return TranslatedAction(studioTool: "assert_visible", studioArguments: mapped, approximate: true)
+        return TranslatedAction(studioTool: .assertVisible, studioArguments: mapped, approximate: true)
     }
 
     private static func translateAssertAbsent(_ arguments: [String: String]) -> TranslatedAction {
@@ -151,7 +151,7 @@ public enum SessionPlanCompiler {
         }
         mapped["description"] = nil
         return TranslatedAction(
-            studioTool: "assert_not_visible",
+            studioTool: .assertNotVisible,
             studioArguments: mapped,
             approximate: usesDescription
         )
@@ -165,7 +165,7 @@ public enum SessionPlanCompiler {
         }
         mapped["description"] = nil
         return TranslatedAction(
-            studioTool: "assert_enabled",
+            studioTool: .assertEnabled,
             studioArguments: mapped,
             approximate: usesDescription
         )
@@ -185,46 +185,58 @@ public enum SessionPlanCompiler {
         mapped["contains"] = nil
         mapped["description"] = nil
         return TranslatedAction(
-            studioTool: "assert_text",
+            studioTool: .assertText,
             studioArguments: mapped,
             approximate: usesDescription
         )
     }
 
-    // One case per Studio tool keeps the human-readable step text auditable alongside the mapping.
-    // swiftlint:disable:next cyclomatic_complexity
-    private static func describe(tool: String, arguments: [String: String]) -> (instruction: String, expected: String) {
-        let selector = arguments["id"] ?? arguments["label"] ?? arguments["contains_text"]
-            ?? arguments["description"] ?? arguments["element_id"] ?? arguments["element_label"]
+    // swiftlint:disable cyclomatic_complexity
+
+    /// Human-readable step text for the Studio test, one case per tool.
+    ///
+    /// Exhaustive over `StudioTool` on purpose: this used to fall through to a generic
+    /// "Run <tool>." for anything it had not been taught, so a newly added tool produced a plan
+    /// whose steps read as placeholders without failing anywhere a person would notice.
+    private static func describe(
+        tool: StudioTool,
+        arguments: [String: String]
+    ) -> (instruction: String, expected: String) {
+        // Written as a loop rather than a chain of `??`: six optional-coalesces over a custom
+        // subscript pushes the type-checker into "unable to type-check in reasonable time".
+        let selectorKeys: [PlanArgument] = [.id, .label, .containsText, .description, .elementID, .elementLabel]
+        let selector = selectorKeys.lazy.compactMap { arguments[$0] }.first
         switch tool {
-        case "tap_element":
+        case .tapElement:
             return ("Tap element\(selector.map { " '\($0)'" } ?? "").", "Element is tapped.")
-        case "set_text":
+        case .setText:
             return ("Set text on element\(selector.map { " '\($0)'" } ?? "").", "Text field contains the given value.")
-        case "type_text":
+        case .typeText:
             return ("Type text.", "Text is entered.")
-        case "swipe_in_direction":
+        case .swipeInDirection:
             let direction = arguments["direction"] ?? "unknown"
             return ("Swipe \(direction).", "View scrolls \(direction).")
-        case "scroll":
+        case .scroll:
             let direction = arguments["direction"] ?? "unknown"
             return ("Scroll \(direction).", "Content scrolls \(direction).")
-        case "assert_visible":
+        case .assertVisible:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is visible.", "Element is visible.")
-        case "assert_not_visible":
+        case .assertNotVisible:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is not visible.", "Element is not visible.")
-        case "assert_enabled":
+        case .assertEnabled:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is enabled.", "Element is enabled.")
-        case "assert_text":
+        case .assertText:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected text.", "Text matches.")
-        case "take_screenshot":
+        case .takeScreenshot:
             return ("Take a screenshot.", "Screenshot is captured.")
-        case "press_back":
+        case .pressBack:
             return ("Press back.", "Previous screen is shown.")
-        default:
-            return ("Run \(tool).", "Step completes.")
+        case .waitForElement:
+            return ("Wait for element\(selector.map { " '\($0)'" } ?? "").", "Element appears.")
         }
     }
+
+    // swiftlint:enable cyclomatic_complexity
 
     private struct ProcessedAction {
         let operation: StudioToolOperation?
@@ -252,7 +264,7 @@ public enum SessionPlanCompiler {
                 kind: .approximate,
                 actionIndex: index,
                 toolName: action.toolName,
-                reason: "translated to '\(translated.studioTool)' using an approximate selector mapping;"
+                reason: "translated to '\(translated.studioTool.rawValue)' using an approximate selector mapping;"
                     + " review before generating"
             ))
         }
@@ -268,7 +280,8 @@ public enum SessionPlanCompiler {
         let stepID = "step-\(index)"
         let operation = StudioToolOperation(
             id: stepID,
-            tool: translated.studioTool,
+            // Back to a String at the boundary: the plan's wire format is unchanged.
+            tool: translated.studioTool.rawValue,
             arguments: translated.studioArguments
         )
         let described = describe(tool: translated.studioTool, arguments: translated.studioArguments)

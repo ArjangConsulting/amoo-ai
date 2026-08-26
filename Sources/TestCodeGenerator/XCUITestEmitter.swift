@@ -80,8 +80,12 @@ public struct XCUITestEmitter: StudioCodeEmitting {
     // A direct switch keeps the supported Studio-tool-to-XCUITest mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private static func statement(for operation: StudioToolOperation) throws -> String {
-        switch operation.tool {
-        case "tap_element":
+        guard let tool = StudioTool(rawValue: operation.tool) else {
+            throw TestCodeGeneratorError.unsupportedTool(operation.tool)
+        }
+        // No `default`: adding a StudioTool case must fail to compile here until it is handled.
+        switch tool {
+        case .tapElement:
             let element = try query(operation)
             let variable = "element_\(safeSuffix(operation.id))"
             return try """
@@ -90,7 +94,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)\(variable).tap()
             """
 
-        case "set_text":
+        case .setText:
             guard let value = operation.arguments["value"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
@@ -103,13 +107,13 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)\(variable).typeText(\(literal(value)))
             """
 
-        case "type_text":
+        case .typeText:
             guard let text = operation.arguments["text"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "text")
             }
             return "\(indent)app.typeText(\(literal(text)))"
 
-        case "swipe_in_direction":
+        case .swipeInDirection:
             let target = operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil
                 ? try query(operation, idKey: "element_id", labelKey: "element_label")
                 : "app"
@@ -124,17 +128,17 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)\(variable).\(gesture)()
             """
 
-        case "scroll":
+        case .scroll:
             // GestureDirection inverts scroll for us — see its documentation for why.
             return try "\(indent)app.\(gesture(for: operation))()"
 
-        case "wait_for_element", "assert_visible":
+        case .waitForElement, .assertVisible:
             return try waitStatement(for: operation, exists: true)
 
-        case "assert_not_visible":
+        case .assertNotVisible:
             return try waitStatement(for: operation, exists: false)
 
-        case "assert_enabled":
+        case .assertEnabled:
             let variable = "element_\(safeSuffix(operation.id))"
             return try """
             \(indent)let \(variable) = \(query(operation))
@@ -142,7 +146,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)XCTAssertTrue(\(variable).isEnabled)
             """
 
-        case "assert_text":
+        case .assertText:
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
@@ -153,20 +157,17 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)XCTAssertEqual(\(variable).label, \(literal(expected)))
             """
 
-        case "take_screenshot":
+        case .takeScreenshot:
             return """
             \(indent)let screenshot_\(safeSuffix(operation.id)) = XCTAttachment(screenshot: app.screenshot())
             \(indent)screenshot_\(safeSuffix(operation.id)).lifetime = .keepAlways
             \(indent)add(screenshot_\(safeSuffix(operation.id)))
             """
 
-        case "press_back":
+        case .pressBack:
             // iOS has no system "back" API from XCUITest — this is a best-effort edge-swipe gesture.
             // Adjust to your app's own back control (e.g. a navigation bar back button) if this doesn't match.
             return "\(indent)app.swipeRight() // press_back: best-effort edge-swipe back gesture"
-
-        default:
-            throw TestCodeGeneratorError.unsupportedTool(operation.tool)
         }
     }
 

@@ -79,20 +79,24 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     // A direct switch keeps the supported Studio-tool-to-Compose mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity
     private static func statement(for operation: StudioToolOperation) throws -> String {
-        switch operation.tool {
-        case "tap_element":
+        guard let tool = StudioTool(rawValue: operation.tool) else {
+            throw TestCodeGeneratorError.unsupportedTool(operation.tool)
+        }
+        // No `default`: adding a StudioTool case must fail to compile here until it is handled.
+        switch tool {
+        case .tapElement:
             return try "\(indent)\(node(operation)).assertIsDisplayed().performClick()"
-        case "set_text":
+        case .setText:
             guard let value = operation.arguments["value"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
             return try "\(indent)\(node(operation)).assertIsDisplayed().performTextReplacement(\(literal(value)))"
-        case "type_text":
+        case .typeText:
             guard let text = operation.arguments["text"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "text")
             }
             return "\(indent)composeTestRule.onNode(isFocused()).performTextInput(\(literal(text)))"
-        case "swipe_in_direction", "scroll":
+        case .swipeInDirection, .scroll:
             // GestureDirection inverts scroll for us — see its documentation for why.
             let gesture = try gesture(for: operation)
             if operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil {
@@ -100,26 +104,24 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
                 return "\(indent)\(target).assertIsDisplayed().performTouchInput { \(gesture)() }"
             }
             return "\(indent)composeTestRule.onRoot().performTouchInput { \(gesture)() }"
-        case "wait_for_element":
+        case .waitForElement:
             return try waitStatement(operation)
-        case "assert_visible":
+        case .assertVisible:
             return try "\(indent)\(node(operation)).assertIsDisplayed()"
-        case "assert_not_visible":
+        case .assertNotVisible:
             // Visibility is weaker than non-existence: an off-screen node still satisfies this tool.
             return try "\(indent)\(node(operation)).assertIsNotDisplayed()"
-        case "assert_text":
+        case .assertText:
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
             return try "\(indent)\(node(operation)).assertTextEquals(\(literal(expected)))"
-        case "assert_enabled":
+        case .assertEnabled:
             return try "\(indent)\(node(operation)).assertIsEnabled()"
-        case "take_screenshot":
+        case .takeScreenshot:
             return "\(indent)// take_screenshot: capture through the Android test runner when needed"
-        case "press_back":
+        case .pressBack:
             return "\(indent)pressBack()"
-        default:
-            throw TestCodeGeneratorError.unsupportedTool(operation.tool)
         }
     }
 

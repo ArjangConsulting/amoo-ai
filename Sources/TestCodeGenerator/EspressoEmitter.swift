@@ -176,15 +176,19 @@ public struct EspressoEmitter: StudioCodeEmitting {
     // A direct switch keeps the supported Studio-tool-to-Espresso mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private static func statement(for operation: StudioToolOperation) throws -> String {
-        switch operation.tool {
-        case "tap_element":
+        guard let tool = StudioTool(rawValue: operation.tool) else {
+            throw TestCodeGeneratorError.unsupportedTool(operation.tool)
+        }
+        // No `default`: adding a StudioTool case must fail to compile here until it is handled.
+        switch tool {
+        case .tapElement:
             let target = try matcher(operation)
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             \(indent)onView(\(target)).perform(click())
             """
 
-        case "set_text":
+        case .setText:
             guard let value = operation.arguments["value"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
@@ -194,7 +198,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(\(target)).perform(replaceText(\(literal(value))))
             """
 
-        case "type_text":
+        case .typeText:
             guard let text = operation.arguments["text"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "text")
             }
@@ -205,7 +209,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(hasFocus()).perform(replaceText(\(literal(text))))
             """
 
-        case "swipe_in_direction":
+        case .swipeInDirection:
             let action = try "\(gesture(for: operation))()"
             let hasElement = operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil
             let target: String = if hasElement {
@@ -219,28 +223,28 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(\(target)).perform(\(action))
             """
 
-        case "scroll":
+        case .scroll:
             // GestureDirection inverts scroll for us — see its documentation for why.
             return try "\(indent)onView(isRoot()).perform(\(gesture(for: operation))())"
 
-        case "wait_for_element":
+        case .waitForElement:
             let target = try matcher(operation)
             let timeout = try timeoutMilliseconds(for: operation)
             return "\(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeout)L))"
 
-        case "assert_visible":
+        case .assertVisible:
             let target = try matcher(operation)
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             \(indent)onView(\(target)).check(matches(isDisplayed()))
             """
 
-        case "assert_not_visible":
+        case .assertNotVisible:
             let target = try matcher(operation)
             let timeout = try timeoutMilliseconds(for: operation)
             return "\(indent)onView(isRoot()).perform(waitUntilNotDisplayed(\(target), \(timeout)L))"
 
-        case "assert_text":
+        case .assertText:
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
@@ -250,22 +254,19 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(\(target)).check(matches(withText(\(literal(expected)))))
             """
 
-        case "assert_enabled":
+        case .assertEnabled:
             let target = try matcher(operation)
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             \(indent)onView(\(target)).check(matches(isEnabled()))
             """
 
-        case "take_screenshot":
+        case .takeScreenshot:
             return "\(indent)// take_screenshot: capture via androidx.test.runner.screenshot.Screenshot "
                 + "in an instrumented test if needed"
 
-        case "press_back":
+        case .pressBack:
             return "\(indent)pressBack()"
-
-        default:
-            throw TestCodeGeneratorError.unsupportedTool(operation.tool)
         }
     }
 
