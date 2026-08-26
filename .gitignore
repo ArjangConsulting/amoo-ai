@@ -45,3 +45,6 @@ local.properties
 
 # Rendered Homebrew formula output (scripts/update-formula.sh)
 /rendered-amoo.rb
+
+# Heap dumps from Gradle daemon OOMs
+*.hprof

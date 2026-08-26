@@ -1,4 +1,4 @@
-.PHONY: format lint test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -44,9 +44,23 @@ companion-android-build:
 		exit 1; \
 	fi; \
 	echo "Using JAVA_HOME=$$JDK"; \
-	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew assembleDebug assembleAndroidTest
+	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :app:assembleDebug :app:assembleAndroidTest
 
 companion-build: companion-ios-build companion-android-build
+
+# Fixture apps under test, one per UI toolkit. Deliberately separate targets rather than riding
+# along in companion-android-build: each new toolkit would otherwise add to everyone's companion
+# build time, with no way to iterate on one sample app alone.
+sample-app-compose-build:
+	@JDK="$$(./scripts/android-jdk.sh)"; \
+	if [ -z "$$JDK" ]; then \
+		echo "No JDK 17-26 found. Gradle 9.5 cannot run outside that range."; \
+		echo "Install with: brew install --cask temurin@21"; \
+		exit 1; \
+	fi; \
+	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :composeSampleApp:assembleDebug
+
+sample-apps-build: sample-app-compose-build
 
 e2e-ios:
 	bash ./scripts/run-e2e-ios.sh

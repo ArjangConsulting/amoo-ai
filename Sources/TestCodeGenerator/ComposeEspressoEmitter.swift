@@ -4,6 +4,8 @@ import StudioProtocol
 public struct ComposeEspressoEmitter: StudioCodeEmitting {
     public init() {}
 
+    // SwiftLint measures the generated Kotlin template as Swift function body lines.
+    // swiftlint:disable:next function_body_length
     public func generate(_ test: StudioAuthoredTest) throws -> StudioTestExportResult {
         guard let operations = test.compiledPlan?.toolOperations, operations.isEmpty == false else {
             throw TestCodeGeneratorError.missingCompiledPlan
@@ -11,6 +13,11 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         let className = "\(TestIdentifierNaming.pascalCase(test.name))Test"
         let methodName = "test\(TestIdentifierNaming.pascalCase(test.name))"
         let body = try operations.map { try Self.statement(for: $0) }.joined(separator: "\n")
+        // Statements sit inside `ActivityScenario.launch { }`, one level deeper than they are
+        // emitted. Mirrors EspressoEmitter's launchedBody.
+        let launchedBody = body.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { "    \($0)" }
+            .joined(separator: "\n")
 
         let source = """
         import android.app.Activity
@@ -59,7 +66,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
                 ActivityScenario.launch<Activity>(launchIntent).use {
-        \(body)
+        \(launchedBody)
                 }
             }
         }
