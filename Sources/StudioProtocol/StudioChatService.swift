@@ -334,6 +334,14 @@ public struct LiveStudioChatService: StudioChatServing {
         return .init(message: "Connected to \(provider.name) at \(endpoint.host ?? provider.baseUrl).")
     }
 
+    /// The `<amoo-plan>` tag the model is told to copy. Assembled from parts so no source line runs
+    /// long — the emitted string is still a single line, which is what `extractPlan` looks for.
+    private static let planTagExample: String = {
+        let operation = #"{"id":"operation-1","tool":"tap_element","arguments":{"id":"sign-in"}}"#
+        let plan = #"{"compiler":"ai","compilerVersion":"1","toolOperations":["# + operation + "]}"
+        return "<amoo-plan>" + plan + "</amoo-plan>"
+    }()
+
     private static func testContext(_ test: StudioAuthoredTest) -> String {
         let steps = test.steps.enumerated().map { index, step in
             "\(index + 1). \(step.instruction)\(step.expected.isEmpty ? "" : " Expected: \(step.expected)")"
@@ -346,7 +354,7 @@ public struct LiveStudioChatService: StudioChatServing {
 
         When the user asks to create or revise an executable test, include one machine-readable plan
         after your explanation using exactly these tags:
-        <amoo-plan>{"compiler":"ai","compilerVersion":"1","toolOperations":[{"id":"operation-1","tool":"tap_element","arguments":{"id":"sign-in"}}]}</amoo-plan>
+        \(planTagExample)
         Allowed tools: tap_element, set_text, type_text, swipe_in_direction, scroll, wait_for_element,
         assert_visible, assert_not_visible, assert_text, assert_enabled, take_screenshot, press_back.
         Note scroll takes the direction the content moves (scroll down reveals content below),

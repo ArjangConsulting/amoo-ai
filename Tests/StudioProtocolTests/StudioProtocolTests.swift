@@ -44,9 +44,10 @@ struct StudioProtocolTests {
 
     @Test("device creation is routed through the typed workspace")
     func deviceCreation() async throws {
+        let params = #"{"platform":"android","name":"Amoo Pixel","#
+            + #""runtime":"system-images;android-36;google_apis;arm64-v8a","deviceType":"pixel_9"}"#
         let request = Data(
-            #"{"jsonrpc":"2.0","id":3,"method":"devices.create","params":{"platform":"android","name":"Amoo Pixel","runtime":"system-images;android-36;google_apis;arm64-v8a","deviceType":"pixel_9"}}"#
-                .utf8
+            (#"{"jsonrpc":"2.0","id":3,"method":"devices.create","params":"# + params + "}").utf8
         )
         let response = await StudioService(workspace: StubWorkspace()).handle(request)
         let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
@@ -57,9 +58,16 @@ struct StudioProtocolTests {
 
     @Test("chat requests are routed to the provider service")
     func chat() async throws {
+        let provider = #"{"id":"ollama","name":"Local","kind":"Ollama","#
+            + #""baseUrl":"http://localhost:11434","model":"qwen","apiKeyEnvironmentVariable":""}"#
+        let messages = #"[{"id":"user-1","role":"User","content":"Explore"}]"#
+        let activeTest = #"{"formatVersion":1,"name":"Test","description":"","#
+            + #""platform":"Android","steps":[]}"#
+        let params = #"{"provider":"# + provider
+            + #","messages":"# + messages
+            + #","activeTest":"# + activeTest + "}"
         let request = Data(
-            #"{"jsonrpc":"2.0","id":4,"method":"chat.send","params":{"provider":{"id":"ollama","name":"Local","kind":"Ollama","baseUrl":"http://localhost:11434","model":"qwen","apiKeyEnvironmentVariable":""},"messages":[{"id":"user-1","role":"User","content":"Explore"}],"activeTest":{"formatVersion":1,"name":"Test","description":"","platform":"Android","steps":[]}}}"#
-                .utf8
+            (#"{"jsonrpc":"2.0","id":4,"method":"chat.send","params":"# + params + "}").utf8
         )
         let response = await StudioService(workspace: StubWorkspace(), chat: StubChat()).handle(request)
         let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])

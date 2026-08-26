@@ -141,11 +141,13 @@ public enum StudioAutomationError: Error, CustomStringConvertible {
 }
 
 public actor LiveStudioAutomationService: StudioAutomationServing {
-    private let workspace: any StudioDeviceWorkspace
-    private let toolExecutor: (any StudioToolExecuting)?
+    // Module-internal rather than private: the REPL command surface lives in
+    // StudioAutomationService+REPL.swift, and Swift has no cross-file private.
+    let workspace: any StudioDeviceWorkspace
+    let toolExecutor: (any StudioToolExecuting)?
     private let codeEmitters: StudioCodeEmitters
     private let reportsURL: URL?
-    private var storedReports: [StudioTestReport]
+    var storedReports: [StudioTestReport]
     private var runTasks: [String: Task<Void, Never>] = [:]
     private var runStatuses: [String: StudioTestRunStatus] = [:]
 
@@ -159,10 +161,15 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         self.reportsURL = reportsURL
         self.toolExecutor = toolExecutor
         self.codeEmitters = codeEmitters
-        storedReports = reportsURL.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode(
-            [StudioTestReport].self,
-            from: $0
-        ) } ?? []
+        storedReports = Self.loadReports(from: reportsURL)
+    }
+
+    /// Missing or unreadable report files are treated as "no reports yet" rather than a failure:
+    /// the file is a cache of past runs, and refusing to start because it is absent would be worse
+    /// than starting empty.
+    private static func loadReports(from url: URL?) -> [StudioTestReport] {
+        guard let url, let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([StudioTestReport].self, from: data)) ?? []
     }
 
     public func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
@@ -170,85 +177,14 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         let emitter = codeEmitters.emitter(for: request.test.platform, toolkit: toolkit)
         guard let emitter else {
             throw StudioAutomationError.invalidTest(
-                "Code export is unavailable for platform '\(request.test.platform.rawValue)' and toolkit '\(toolkit.rawValue)'."
+                "Code export is unavailable for platform '\(request.test.platform.rawValue)'"
+                    + " and toolkit '\(toolkit.rawValue)'."
             )
         }
         do {
             return try emitter.generate(request.test)
         } catch {
             throw StudioAutomationError.invalidTest("Code export failed: \(error)")
-        }
-    }
-
-    public func execute(_ request: StudioReplRequest) async throws -> StudioReplResult {
-        let command = request.command.trimmingCharacters(in: .whitespacesAndNewlines)
-        if command.range(
-            of: #"(^|\s)(reset|erase|delete|uninstall)(\s|$)"#,
-            options: [.regularExpression, .caseInsensitive]
-        ) != nil {
-            throw StudioAutomationError.destructiveCommand
-        }
-        switch command.lowercased() {
-        case "help":
-            return .init(
-                output: "help\ndevices list\ndevices inspect <id>\ntests validate\ntests run\nsessions list\nreports list\nproviders inspect <id>\ntap_element id=<id>|label=<label>\nset_text id=<id> value=<value>\nassert_visible id=<id>|label=<label>\ntake_screenshot"
-            )
-        case "devices list":
-            let devices = await workspace.listDevices()
-            let output = devices.isEmpty ? "No devices found." : devices
-                .map { "[\($0.platform.rawValue)] \($0.name) (\($0.id)) — \($0.status.rawValue)" }
-                .joined(separator: "\n")
-            return .init(output: output)
-        case "tests validate":
-            try Self.validate(request.activeTest)
-            return .init(
-                output: "Test '\(request.activeTest.name)' is valid with \(request.activeTest.steps.count) step(s)."
-            )
-        case "tests run":
-            guard let deviceID = request.selectedDeviceId
-            else { throw StudioAutomationError.invalidTest("Choose a device before running the test.") }
-            let result = try await run(.init(
-                test: request.activeTest,
-                deviceId: deviceID,
-                providerId: request.selectedProviderId
-            ))
-            return .init(output: result.message)
-        case "sessions list":
-            return .init(output: storedReports.isEmpty ? "No sessions found." : storedReports
-                .map { "Session report \($0.id) — \($0.testName)" }.joined(separator: "\n"))
-        case "reports list":
-            return .init(output: storedReports.isEmpty ? "No reports found." : storedReports
-                .map { "[\($0.status.rawValue)] \($0.testName) — \($0.id)" }.joined(separator: "\n"))
-        default:
-            if command.lowercased().hasPrefix("devices inspect ") {
-                let id = String(command.dropFirst("devices inspect ".count))
-                guard let device = await workspace.listDevices().first(where: { $0.id == id }) else {
-                    throw StudioAutomationError.unsupportedCommand(command)
-                }
-                return .init(
-                    output: "\(device.name)\nID: \(device.id)\nPlatform: \(device.platform.rawValue)\nOS: \(device.osVersion)\nStatus: \(device.status.rawValue)"
-                )
-            }
-            if command.lowercased().hasPrefix("providers inspect "), let providerID = request.selectedProviderId {
-                return .init(output: "Selected provider profile: \(providerID). Secrets remain environment-only.")
-            }
-            if let operation = Self.parseToolOperation(command) {
-                guard let deviceID = request.selectedDeviceId else {
-                    throw StudioAutomationError.invalidTest("Choose a device before running mobile commands.")
-                }
-                guard let toolExecutor else {
-                    throw StudioAutomationError
-                        .invalidTest("Real device tool execution is unavailable in this Amoo build.")
-                }
-                let result = try await toolExecutor.execute(
-                    operation,
-                    deviceId: deviceID,
-                    platform: request.activeTest.platform.rawValue,
-                    appId: request.activeTest.requirements?.appId
-                )
-                return .init(output: result.output)
-            }
-            throw StudioAutomationError.unsupportedCommand(command)
         }
     }
 
@@ -304,6 +240,71 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         return cancelled
     }
 
+    /// Executes a compiled tool plan. Stops at the first failing operation, since later steps
+    /// almost always depend on earlier ones having landed.
+    private func runToolOperations(
+        _ toolOperations: [StudioToolOperation],
+        request: StudioTestRunRequest,
+        runID: String?
+    ) async throws -> (failures: [String], artifacts: [String]) {
+        guard let toolExecutor else {
+            throw StudioAutomationError.invalidTest("Real device tool execution is unavailable in this Amoo build.")
+        }
+        var failures: [String] = []
+        var artifacts: [String] = []
+        for (index, operation) in toolOperations.enumerated() {
+            try Task.checkCancellation()
+            updateProgress(
+                runId: runID,
+                operation: operation,
+                current: index + 1,
+                total: toolOperations.count
+            )
+            do {
+                let result = try await toolExecutor.execute(
+                    operation,
+                    deviceId: request.deviceId,
+                    platform: request.test.platform.rawValue,
+                    appId: request.test.requirements?.appId
+                )
+                artifacts.append(contentsOf: result.artifacts)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                failures.append("\(operation.id) (\(operation.tool)): \(error)")
+                break
+            }
+        }
+        return (failures, artifacts)
+    }
+
+    /// Executes a pre-`toolOperations` plan, whose steps are REPL command strings. Unlike the tool
+    /// path this runs every step, since these are independent commands rather than a sequence.
+    private func runLegacyOperations(
+        _ operations: [String],
+        request: StudioTestRunRequest
+    ) async throws -> [String] {
+        var failures: [String] = []
+        for operation in operations {
+            try Task.checkCancellation()
+            if operation.lowercased() == "tests run" {
+                failures.append("tests run: A compiled plan cannot recursively execute itself.")
+                continue
+            }
+            do {
+                _ = try await execute(.init(
+                    command: operation,
+                    activeTest: request.test,
+                    selectedDeviceId: request.deviceId,
+                    selectedProviderId: request.providerId
+                ))
+            } catch {
+                failures.append("\(operation): \(error)")
+            }
+        }
+        return failures
+    }
+
     private func run(_ request: StudioTestRunRequest, tracking runID: String?) async throws -> StudioTestRunResult {
         try Self.validate(request.test)
         let started = Date()
@@ -316,48 +317,9 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         if operations.isEmpty, toolOperations.isEmpty {
             failures.append("No compiled tool plan is available. Generate or attach a plan before execution.")
         } else if !toolOperations.isEmpty {
-            guard let toolExecutor else {
-                throw StudioAutomationError.invalidTest("Real device tool execution is unavailable in this Amoo build.")
-            }
-            for operation in toolOperations {
-                try Task.checkCancellation()
-                updateProgress(
-                    runId: runID,
-                    operation: operation,
-                    current: (toolOperations.firstIndex(of: operation) ?? 0) + 1,
-                    total: toolOperations.count
-                )
-                do {
-                    let result = try await toolExecutor.execute(
-                        operation,
-                        deviceId: request.deviceId,
-                        platform: request.test.platform.rawValue,
-                        appId: request.test.requirements?.appId
-                    )
-                    artifacts.append(contentsOf: result.artifacts)
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    failures.append("\(operation.id) (\(operation.tool)): \(error)")
-                    break
-                }
-            }
+            (failures, artifacts) = try await runToolOperations(toolOperations, request: request, runID: runID)
         } else {
-            for operation in operations {
-                try Task.checkCancellation()
-                if operation.lowercased() == "tests run" {
-                    failures.append("tests run: A compiled plan cannot recursively execute itself.")
-                    continue
-                }
-                do {
-                    _ = try await execute(.init(
-                        command: operation,
-                        activeTest: request.test,
-                        selectedDeviceId: request.deviceId,
-                        selectedProviderId: request.providerId
-                    ))
-                } catch { failures.append("\(operation): \(error)") }
-            }
+            failures = try await runLegacyOperations(operations, request: request)
         }
         let report = StudioTestReport(
             id: reportID,
@@ -437,7 +399,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         .init(reports: storedReports)
     }
 
-    private static func validate(_ test: StudioAuthoredTest) throws {
+    static func validate(_ test: StudioAuthoredTest) throws {
         guard test.formatVersion == 1
         else { throw StudioAutomationError.invalidTest("Unsupported format version \(test.formatVersion).") }
         guard test.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
@@ -454,7 +416,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         "assert_visible", "assert_not_visible", "assert_text", "take_screenshot", "press_back"
     ]
 
-    private static func parseToolOperation(_ command: String) -> StudioToolOperation? {
+    static func parseToolOperation(_ command: String) -> StudioToolOperation? {
         let tokens = tokenize(command)
         guard let tool = tokens.first, studioTools.contains(tool) else { return nil }
         let pairs: [(String, String)] = tokens.dropFirst().compactMap { token in
