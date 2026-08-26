@@ -41,6 +41,7 @@ final class SessionPlanCompilerTests: XCTestCase {
         let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
 
         XCTAssertEqual(result.testFlow.platform, "ios")
+        XCTAssertEqual(result.testFlow.deviceID, "device-1")
         XCTAssertEqual(result.testFlow.steps.map(\.tool), [
             "tap_element", "type_text", "assert_visible", "take_screenshot"
         ])
@@ -85,6 +86,51 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.warnings.count, 1)
         XCTAssertEqual(result.warnings[0].toolName, "tap")
         XCTAssertTrue(result.warnings[0].reason.contains("no Studio tool equivalent"))
+    }
+
+    func testDescriptionOnlyAssertionsRetainAStudioSelector() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "assert_absent", arguments: ["description": "Loading spinner"]),
+            makeAction(
+                tool: "assert_value",
+                arguments: ["description": "Account status", "expected": "Active"]
+            )
+        ])
+
+        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+
+        XCTAssertEqual(operations.map(\.tool), ["assert_not_visible", "assert_text"])
+        XCTAssertEqual(operations[0].arguments["contains_text"], "Loading spinner")
+        XCTAssertEqual(operations[1].arguments["contains_text"], "Account status")
+        XCTAssertEqual(operations[1].arguments["value"], "Active")
+        XCTAssertTrue(result.warnings.allSatisfy { $0.reason.contains("approximate selector mapping") })
+    }
+
+    func testContainsOnlyValueAssertionIsExcludedRatherThanChangedToEquality() {
+        let report = makeReport(actions: [
+            makeAction(tool: "assert_value", arguments: ["id": "message", "contains": "Welcome"])
+        ])
+
+        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        XCTAssertEqual(result.testFlow.steps.map(\.tool), ["assert_value"])
+        XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations, [])
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertTrue(result.warnings[0].reason.contains("no Studio tool equivalent"))
+    }
+
+    func testFlowEncodesRecordedDeviceUsingCLIFieldName() throws {
+        let result = SessionPlanCompiler.compile(
+            report: makeReport(actions: [makeAction(tool: "press_back")]),
+            testName: nil,
+            testDescription: nil
+        )
+
+        let data = try JSONEncoder().encode(result.testFlow)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["device_id"] as? String, "device-1")
+        XCTAssertNil(json["deviceID"])
     }
 
     func testEmptySessionProducesEmptyResult() {

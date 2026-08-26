@@ -172,7 +172,7 @@ public enum SessionTools {
                 properties: [
                     "testFlow": .init(
                         type: "object",
-                        description: "TestFlow-shaped JSON ({platform, steps}) runnable via `amoo flow`"
+                        description: "TestFlow-shaped JSON ({platform, device_id, steps}) runnable via `amoo flow`"
                     ),
                     "studioTest": .init(
                         type: "object",

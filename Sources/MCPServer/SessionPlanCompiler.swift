@@ -21,10 +21,18 @@ public struct CompiledSessionFlow: Codable, Equatable, Sendable {
     }
 
     public let platform: String
+    public let deviceID: String
     public let steps: [Step]
 
-    public init(platform: String, steps: [Step]) {
+    enum CodingKeys: String, CodingKey {
+        case platform
+        case deviceID = "device_id"
+        case steps
+    }
+
+    public init(platform: String, deviceID: String, steps: [Step]) {
         self.platform = platform
+        self.deviceID = deviceID
         self.steps = steps
     }
 }
@@ -85,9 +93,7 @@ public enum SessionPlanCompiler {
         case "assert_visible":
             return translateAssertVisible(arguments)
         case "assert_absent":
-            var mapped = arguments
-            mapped["description"] = nil
-            return TranslatedAction(studioTool: "assert_not_visible", studioArguments: mapped, approximate: false)
+            return translateAssertAbsent(arguments)
         case "assert_value":
             return translateAssertValue(arguments)
         default:
@@ -111,13 +117,38 @@ public enum SessionPlanCompiler {
         return TranslatedAction(studioTool: "assert_visible", studioArguments: mapped, approximate: true)
     }
 
-    private static func translateAssertValue(_ arguments: [String: String]) -> TranslatedAction {
+    private static func translateAssertAbsent(_ arguments: [String: String]) -> TranslatedAction {
         var mapped = arguments
-        mapped["value"] = mapped["value"] ?? mapped["expected"] ?? mapped["contains"]
+        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
+        if usesDescription {
+            mapped["contains_text"] = mapped["description"]
+        }
+        mapped["description"] = nil
+        return TranslatedAction(
+            studioTool: "assert_not_visible",
+            studioArguments: mapped,
+            approximate: usesDescription
+        )
+    }
+
+    private static func translateAssertValue(_ arguments: [String: String]) -> TranslatedAction? {
+        // Studio's assert_text is exact equality. A contains-only assertion cannot be translated
+        // without changing its meaning, so leave it out of the compiled plan and surface a warning.
+        guard let expected = arguments["expected"] else { return nil }
+        var mapped = arguments
+        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
+        if usesDescription {
+            mapped["contains_text"] = mapped["description"]
+        }
+        mapped["value"] = expected
         mapped["expected"] = nil
         mapped["contains"] = nil
         mapped["description"] = nil
-        return TranslatedAction(studioTool: "assert_text", studioArguments: mapped, approximate: false)
+        return TranslatedAction(
+            studioTool: "assert_text",
+            studioArguments: mapped,
+            approximate: usesDescription
+        )
     }
 
     private static func describe(tool: String, arguments: [String: String]) -> (instruction: String, expected: String) {
@@ -200,7 +231,11 @@ public enum SessionPlanCompiler {
         let flowSteps = report.actions.map {
             CompiledSessionFlow.Step(tool: $0.toolName, arguments: $0.arguments)
         }
-        let testFlow = CompiledSessionFlow(platform: report.platform, steps: flowSteps)
+        let testFlow = CompiledSessionFlow(
+            platform: report.platform,
+            deviceID: report.deviceID,
+            steps: flowSteps
+        )
 
         let processed = report.actions.enumerated().map { process(index: $0.offset, action: $0.element) }
         let toolOperations = processed.compactMap(\.operation)
