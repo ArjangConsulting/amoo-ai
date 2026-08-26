@@ -66,16 +66,28 @@ final class CommandContractE2ETests: XCTestCase {
         }
     }
 
-    func resetFixtureApp(on server: MCPServer) async {
-        switch Self.platform {
-        case .ios:
-            _ = await server.execute(toolName: "device_terminate_app", arguments: ["app_id": Self.fixtureAppID])
-            _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
-
-        case .android:
-            _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": Self.fixtureAppID])
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+    func resetFixtureApp(on server: MCPServer) async -> ToolResult {
+        _ = await server.execute(toolName: "device_terminate_app", arguments: ["app_id": Self.fixtureAppID])
+        let launch = await server.execute(
+            toolName: "device_launch_app",
+            arguments: ["app_id": Self.fixtureAppID, "timeout_ms": "15000"]
+        )
+        guard !launch.isError else {
+            return .error("Fixture app did not reach the foreground: \(launch.content)")
         }
+
+        let homeReady = await waitForElement(
+            on: server,
+            id: "fixture-home-title",
+            attempts: 50,
+            sleepMilliseconds: 200
+        )
+        guard !homeReady.isError,
+              homeReady.content.contains("fixture-home-title") || homeReady.content.contains("Fixture Home")
+        else {
+            return .error("Fixture home did not become ready after launch: \(homeReady.content)")
+        }
+        return homeReady
     }
 
     func androidLabelFallback(for id: String?) -> String? {
@@ -119,17 +131,31 @@ final class CommandContractE2ETests: XCTestCase {
 
         let successNeedles = [id, effectiveLabel, containsText].compactMap(\.self)
 
+        var consecutiveMatches = 0
+        var lastMatch: ToolResult?
         for attempt in 0 ..< attempts {
             let result = await server.execute(toolName: "find_elements", arguments: primaryArguments)
             if !result.isError, successNeedles.contains(where: { result.content.contains($0) }) {
-                return result
-            }
-
-            if let fallbackArguments {
+                consecutiveMatches += 1
+                lastMatch = result
+            } else if let fallbackArguments {
                 let fallbackResult = await server.execute(toolName: "find_elements", arguments: fallbackArguments)
                 if !fallbackResult.isError, successNeedles.contains(where: { fallbackResult.content.contains($0) }) {
-                    return fallbackResult
+                    consecutiveMatches += 1
+                    lastMatch = fallbackResult
+                } else {
+                    consecutiveMatches = 0
+                    lastMatch = nil
                 }
+            } else {
+                consecutiveMatches = 0
+                lastMatch = nil
+            }
+
+            // A single hierarchy read can catch a transient node during activity launch or
+            // recomposition. Two consecutive observations prove the screen has actually settled.
+            if consecutiveMatches >= 2, let lastMatch {
+                return lastMatch
             }
 
             if attempt < attempts - 1 {
@@ -137,14 +163,17 @@ final class CommandContractE2ETests: XCTestCase {
             }
         }
 
-        if let fallbackArguments {
-            let fallbackResult = await server.execute(toolName: "find_elements", arguments: fallbackArguments)
-            if !fallbackResult.isError, successNeedles.contains(where: { fallbackResult.content.contains($0) }) {
-                return fallbackResult
-            }
+        let primaryResult = await server.execute(toolName: "find_elements", arguments: primaryArguments)
+        let fallbackResult: ToolResult? = if let fallbackArguments {
+            await server.execute(toolName: "find_elements", arguments: fallbackArguments)
+        } else {
+            nil
         }
-
-        return await server.execute(toolName: "find_elements", arguments: primaryArguments)
+        return .error(
+            "Element did not remain visible for two consecutive observations."
+                + " primary=\(primaryResult.content)"
+                + (fallbackResult.map { " fallback=\($0.content)" } ?? "")
+        )
     }
 
     func openFixtureScreen(
@@ -162,18 +191,6 @@ final class CommandContractE2ETests: XCTestCase {
 
         func prepareHome() async -> ToolResult {
             await resetFixtureApp(on: server)
-            let homeReady = await waitForElement(
-                on: server,
-                id: "fixture-home-title",
-                attempts: Self.platform == .android ? 40 : 20,
-                sleepMilliseconds: Self.platform == .android ? 300 : 200
-            )
-            guard !homeReady.isError,
-                  homeReady.content.contains("fixture-home-title") || homeReady.content.contains("Fixture Home")
-            else {
-                return .error("Fixture home did not become ready: \(homeReady.content)")
-            }
-            return homeReady
         }
 
         let launcherByID = await server.execute(toolName: "find_elements", arguments: ["id": launcherID])
@@ -306,7 +323,8 @@ final class CommandContractE2ETests: XCTestCase {
     func testFixtureHomeQueries() async throws {
         let server = try makeServer()
 
-        await resetFixtureApp(on: server)
+        let reset = await resetFixtureApp(on: server)
+        XCTAssertFalse(reset.isError, reset.content)
 
         let titleResult = await waitForElement(on: server, id: "fixture-home-title")
         guard !titleResult.isError else {

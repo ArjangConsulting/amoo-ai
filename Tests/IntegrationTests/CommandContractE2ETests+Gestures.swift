@@ -177,7 +177,8 @@ extension CommandContractE2ETests {
     func testGestureCommands() async throws {
         let (server, driver) = try makeServerWithDriver()
         if Self.platform == .ios {
-            await resetFixtureApp(on: server)
+            let reset = await resetFixtureApp(on: server)
+            XCTAssertFalse(reset.isError, reset.content)
             let homeReady = await waitForElement(on: server, id: "fixture-home-title")
             XCTAssertFalse(homeReady.isError, homeReady.content)
             XCTAssertTrue(homeReady.content.contains("fixture-home-title"), homeReady.content)
@@ -235,7 +236,8 @@ extension CommandContractE2ETests {
 
     func testPressHomeAndRelaunch() async throws {
         let server = try makeServer()
-        await resetFixtureApp(on: server)
+        let reset = await resetFixtureApp(on: server)
+        XCTAssertFalse(reset.isError, reset.content)
 
         let homeResult = await server.execute(toolName: "press_home", arguments: [:])
         XCTAssertFalse(homeResult.isError)
@@ -255,7 +257,8 @@ extension CommandContractE2ETests {
 
     func testOpenURLAndScreenshot() async throws {
         let server = try makeServer()
-        await resetFixtureApp(on: server)
+        let reset = await resetFixtureApp(on: server)
+        XCTAssertFalse(reset.isError, reset.content)
 
         let deepLink = "amoo://deep-link?source=contract"
         let openURL = await server.execute(toolName: "open_url", arguments: ["url": deepLink])
