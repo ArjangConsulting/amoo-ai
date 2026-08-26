@@ -127,6 +127,7 @@ class _2FALoginTest {
             pressBack()
             onView(isRoot()).perform(waitUntilDisplayed(anyOf(hasResourceEntryName("submit-button"), withContentDescription("submit-button")), 5000L))
             onView(anyOf(hasResourceEntryName("submit-button"), withContentDescription("submit-button"))).check(matches(isEnabled()))
+            onView(isRoot()).perform(swipeUp())
         }
     }
 }

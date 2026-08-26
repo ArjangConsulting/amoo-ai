@@ -228,6 +228,23 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(\(target)).perform(\(action))
             """
 
+        case "scroll":
+            guard let direction = operation.arguments["direction"] else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
+            }
+            // scroll names the direction the *content* moves, so the finger gesture is inverted:
+            // scrolling down reveals content below and is performed as a swipe up. This mirrors
+            // UIAutomatorBridge.scroll in the companion, and is why scroll is not folded into
+            // swipe_in_direction (which names the raw finger direction instead).
+            let scrollAction = switch direction.lowercased() {
+            case "up": "swipeDown()"
+            case "down": "swipeUp()"
+            case "left": "swipeRight()"
+            case "right": "swipeLeft()"
+            default: "swipeUp()"
+            }
+            return "\(indent)onView(isRoot()).perform(\(scrollAction))"
+
         case "wait_for_element":
             let target = try matcher(operation)
             let timeout = try timeoutMilliseconds(for: operation)

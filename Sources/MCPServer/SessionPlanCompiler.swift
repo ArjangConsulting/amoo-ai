@@ -39,17 +39,11 @@ public struct CompiledSessionFlow: Codable, Equatable, Sendable {
 
 /// One action excluded from `compiledPlan.toolOperations`, or included with an approximate
 /// translation, surfaced so the caller knows what to review before generating code.
-public struct SessionPlanWarning: Codable, Equatable, Sendable {
-    public let actionIndex: Int
-    public let toolName: String
-    public let reason: String
-
-    public init(actionIndex: Int, toolName: String, reason: String) {
-        self.actionIndex = actionIndex
-        self.toolName = toolName
-        self.reason = reason
-    }
-}
+///
+/// Aliased to the `StudioProtocol` type so there is exactly one warning shape in the system: the
+/// same values returned here are also persisted inside `StudioCompiledPlan.warnings`, which is what
+/// lets `amoo generate test` detect dropped steps in a plan it reads back off disk.
+public typealias SessionPlanWarning = StudioPlanWarning
 
 public struct CompileSessionToPlanResult: Codable, Sendable {
     public let testFlow: CompiledSessionFlow
@@ -75,8 +69,26 @@ public enum SessionPlanCompiler {
     }
 
     /// MCP tool names that map 1:1 onto a Studio tool with no argument remapping needed.
+    ///
+    /// `scroll` is listed separately from `swipe_in_direction` on purpose, even though its
+    /// `direction`/`distance` arguments look like a subset of the latter's. The two have *inverted*
+    /// direction semantics: `scroll` names the direction the content moves (the companions
+    /// implement `scroll(.down)` as a swipe-*up* gesture — see `XCUITestBridge.scroll` and
+    /// `UIAutomatorBridge.scroll`), while `swipe_in_direction` names the raw finger direction.
+    /// Collapsing them into one tool would silently reverse every recorded scroll.
     private static let directTranslations: Set<String> = [
-        "tap_element", "set_text", "type_text", "swipe_in_direction", "take_screenshot", "press_back"
+        "tap_element", "set_text", "type_text", "swipe_in_direction", "scroll", "take_screenshot", "press_back"
+    ]
+
+    /// Tools that inspect the app without changing it. They have no place in generated test code,
+    /// so their absence from `toolOperations` is intended rather than a gap in the vocabulary —
+    /// recorded as `.notApplicable` so it reads as a deliberate decision, not a silent drop.
+    private static let queryOnlyTools: Set<String> = [
+        "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
+        "is_keyboard_visible", "current_app", "list_devices", "list_apps", "list_sessions",
+        "get_session_report", "take_screenshot_metadata", "find_element_by_description",
+        "suggest_test_actions", "analyze_ai_testability", "highlight_a11y_issues",
+        "audit_app", "audit_accessibility", "audit_security"
     ]
 
     /// MCP tool names that map onto Studio's codegen-facing tool vocabulary, and how their
@@ -180,6 +192,9 @@ public enum SessionPlanCompiler {
         case "swipe_in_direction":
             let direction = arguments["direction"] ?? "unknown"
             return ("Swipe \(direction).", "View scrolls \(direction).")
+        case "scroll":
+            let direction = arguments["direction"] ?? "unknown"
+            return ("Scroll \(direction).", "Content scrolls \(direction).")
         case "assert_visible":
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is visible.", "Element is visible.")
         case "assert_not_visible":
@@ -205,10 +220,14 @@ public enum SessionPlanCompiler {
 
     private static func process(index: Int, action: SessionAction) -> ProcessedAction {
         guard let translated = translate(toolName: action.toolName, arguments: action.arguments) else {
+            let isQueryOnly = queryOnlyTools.contains(action.toolName)
             let warning = SessionPlanWarning(
+                kind: isQueryOnly ? .notApplicable : .excluded,
                 actionIndex: index,
                 toolName: action.toolName,
-                reason: "no Studio tool equivalent; excluded from compiledPlan"
+                reason: isQueryOnly
+                    ? "inspection-only tool with no effect on the app; intentionally omitted from compiledPlan"
+                    : "no Studio tool equivalent; excluded from compiledPlan"
             )
             return ProcessedAction(operation: nil, step: nil, warnings: [warning])
         }
@@ -216,6 +235,7 @@ public enum SessionPlanCompiler {
         var warnings: [SessionPlanWarning] = []
         if translated.approximate {
             warnings.append(SessionPlanWarning(
+                kind: .approximate,
                 actionIndex: index,
                 toolName: action.toolName,
                 reason: "translated to '\(translated.studioTool)' using an approximate selector mapping;"
@@ -224,6 +244,7 @@ public enum SessionPlanCompiler {
         }
         if translated.studioArguments.values.contains(where: { $0.hasPrefix("<redacted,") }) {
             warnings.append(SessionPlanWarning(
+                kind: .redacted,
                 actionIndex: index,
                 toolName: action.toolName,
                 reason: "contains a redacted value that must be hand-filled before replay or codegen"
@@ -274,7 +295,10 @@ public enum SessionPlanCompiler {
             compiledPlan: StudioCompiledPlan(
                 compiler: "session-compiler",
                 compilerVersion: "1",
-                toolOperations: toolOperations
+                toolOperations: toolOperations,
+                // Persisted into the plan, not just returned alongside it, so a plan saved to disk
+                // still knows what went missing when `amoo generate test` reads it back later.
+                warnings: warnings.isEmpty ? [] : warnings
             )
         )
 

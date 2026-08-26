@@ -22,7 +22,8 @@ final class GeneratedCodeCompileTests: XCTestCase {
         .init(id: "op-8", tool: "assert_text", arguments: ["id": "greeting", "value": "Hi there"]),
         .init(id: "op-9", tool: "take_screenshot", arguments: [:]),
         .init(id: "op-10", tool: "press_back", arguments: [:]),
-        .init(id: "op-11", tool: "assert_enabled", arguments: ["id": "submit-button"])
+        .init(id: "op-11", tool: "assert_enabled", arguments: ["id": "submit-button"]),
+        .init(id: "op-12", tool: "scroll", arguments: ["direction": "down", "distance": "400"])
     ]
 
     private func makeTest(platform: String) -> StudioAuthoredTest {

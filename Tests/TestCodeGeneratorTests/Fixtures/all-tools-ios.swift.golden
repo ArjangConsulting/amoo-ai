@@ -78,5 +78,6 @@ final class _2FALoginTest: XCTestCase {
         let element_op_11 = app.descendants(matching: .any)["submit-button"]
         waitForExistence(element_op_11, timeout: 5.0)
         XCTAssertTrue(element_op_11.isEnabled)
+        app.swipeUp()
     }
 }

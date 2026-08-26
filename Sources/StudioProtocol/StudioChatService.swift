@@ -87,19 +87,63 @@ public struct StudioToolOperation: Codable, Equatable, Sendable {
     }
 }
 
+/// One recorded action that did not survive compilation into `StudioCompiledPlan.toolOperations`
+/// unchanged — either dropped entirely, or included with a loosened meaning.
+///
+/// These are stored *inside* the compiled plan rather than only returned alongside it, so a plan
+/// written to disk stays self-describing: `amoo generate test` reading a `.amootest` file hours
+/// later can still tell that steps went missing, instead of silently emitting a shorter test.
+public struct StudioPlanWarning: Codable, Equatable, Sendable {
+    public enum Kind: String, Codable, Sendable {
+        /// Dropped from `toolOperations`: the recorded tool has no Studio equivalent yet. This is a
+        /// gap in the vocabulary, and generating from such a plan produces an incomplete test.
+        case excluded
+        /// Deliberately omitted: a query/inspection tool with no effect on the app, which has no
+        /// place in generated test code. Expected, not a gap.
+        case notApplicable
+        /// Included, but a selector or assertion was mapped loosely and should be reviewed.
+        case approximate
+        /// Included, but carries a redacted value that must be hand-filled before the test runs.
+        case redacted
+    }
+
+    public let kind: Kind
+    public let actionIndex: Int
+    public let toolName: String
+    public let reason: String
+
+    public init(kind: Kind, actionIndex: Int, toolName: String, reason: String) {
+        self.kind = kind
+        self.actionIndex = actionIndex
+        self.toolName = toolName
+        self.reason = reason
+    }
+}
+
 public struct StudioCompiledPlan: Codable, Equatable, Sendable {
     public let compiler: String
     public let compilerVersion: String
     public let operations: [String]?
     public let toolOperations: [StudioToolOperation]?
+    /// Actions that did not compile cleanly. `nil` on plans written before this field existed —
+    /// absence means "unknown", not "none".
+    public let warnings: [StudioPlanWarning]?
+
+    /// Actions dropped because the vocabulary has no equivalent — the subset of `warnings` that
+    /// makes generated code incomplete rather than merely imprecise.
+    public var excludedWarnings: [StudioPlanWarning] {
+        (warnings ?? []).filter { $0.kind == .excluded }
+    }
+
     public init(
         compiler: String,
         compilerVersion: String,
         operations: [String] = [],
-        toolOperations: [StudioToolOperation]? = nil
+        toolOperations: [StudioToolOperation]? = nil,
+        warnings: [StudioPlanWarning]? = nil
     ) {
         self.compiler = compiler; self.compilerVersion = compilerVersion; self.operations = operations; self
-            .toolOperations = toolOperations
+            .toolOperations = toolOperations; self.warnings = warnings
     }
 }
 
@@ -264,14 +308,16 @@ public struct LiveStudioChatService: StudioChatServing {
         When the user asks to create or revise an executable test, include one machine-readable plan
         after your explanation using exactly these tags:
         <amoo-plan>{"compiler":"ai","compilerVersion":"1","toolOperations":[{"id":"operation-1","tool":"tap_element","arguments":{"id":"sign-in"}}]}</amoo-plan>
-        Allowed tools: tap_element, set_text, type_text, swipe_in_direction, wait_for_element,
+        Allowed tools: tap_element, set_text, type_text, swipe_in_direction, scroll, wait_for_element,
         assert_visible, assert_not_visible, assert_text, assert_enabled, take_screenshot, press_back.
+        Note scroll takes the direction the content moves (scroll down reveals content below),
+        which is the opposite of swipe_in_direction's raw finger direction.
         Prefer accessibility IDs, never invent secrets, and keep credentials as ${ENVIRONMENT_VARIABLE} values.
         """
     }
 
     private static let allowedPlanTools: Set<String> = [
-        "tap_element", "set_text", "type_text", "swipe_in_direction", "wait_for_element",
+        "tap_element", "set_text", "type_text", "swipe_in_direction", "scroll", "wait_for_element",
         "assert_visible", "assert_not_visible", "assert_text", "assert_enabled", "take_screenshot", "press_back"
     ]
 

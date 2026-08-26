@@ -13,7 +13,9 @@ final class DeviceHelpDriftTests: XCTestCase {
     /// MCP session lifecycle (which `amoo device` does not manage — every call is one-shot) or are
     /// covered by a dedicated `amoo` subcommand.
     private static let intentionallyOmitted: Set<String> = [
-        "start_session", "end_session", "list_sessions", "get_session_report", "list_apps",
+        "start_session", "end_session", "list_sessions", "get_session_report",
+        "compile_session_to_plan",
+        "list_apps",
         "navigate_to",
         "audit_app", "audit_accessibility", "audit_security",
         "device_boot", "device_shutdown"

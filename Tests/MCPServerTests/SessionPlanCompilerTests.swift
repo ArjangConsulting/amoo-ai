@@ -126,6 +126,56 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.warnings[0].toolName, "assert_enabled")
     }
 
+    func testScrollTranslatesAndKeepsItsOwnDirectionSemantics() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "scroll", arguments: ["direction": "down", "distance": "400"])
+        ])
+
+        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+
+        // scroll must stay its own tool rather than being folded into swipe_in_direction: the two
+        // have inverted direction semantics, so collapsing them would reverse every recorded scroll.
+        XCTAssertEqual(operations.map(\.tool), ["scroll"])
+        XCTAssertEqual(operations[0].arguments["direction"], "down")
+        XCTAssertEqual(operations[0].arguments["distance"], "400")
+        XCTAssertTrue(result.warnings.isEmpty)
+    }
+
+    func testWarningsArePersistedInsideTheCompiledPlan() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "tap", arguments: ["x": "10", "y": "20"])
+        ])
+
+        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        // The saved plan itself must carry the warning, not just the compile result — otherwise a
+        // plan read back off disk cannot tell that a step went missing.
+        let planWarnings = try XCTUnwrap(result.studioTest.compiledPlan?.warnings)
+        XCTAssertEqual(planWarnings.map(\.toolName), ["tap"])
+        XCTAssertEqual(planWarnings.map(\.kind), [.excluded])
+        XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings.count, 1)
+
+        // And it must survive a JSON round-trip, which is how it actually reaches `generate test`.
+        let data = try JSONEncoder().encode(result.studioTest)
+        let decoded = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
+        XCTAssertEqual(decoded.compiledPlan?.excludedWarnings.map(\.toolName), ["tap"])
+    }
+
+    func testInspectionOnlyToolsAreMarkedNotApplicableRatherThanExcluded() {
+        let report = makeReport(actions: [
+            makeAction(tool: "find_elements", arguments: ["label": "Submit"]),
+            makeAction(tool: "describe_screen")
+        ])
+
+        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        // Query tools legitimately have no place in generated code. They must not be reported as
+        // vocabulary gaps, or every session would look broken and the refusal would cry wolf.
+        XCTAssertEqual(result.warnings.map(\.kind), [.notApplicable, .notApplicable])
+        XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings, [])
+    }
+
     func testContainsOnlyValueAssertionIsExcludedRatherThanChangedToEquality() {
         let report = makeReport(actions: [
             makeAction(tool: "assert_value", arguments: ["id": "message", "contains": "Welcome"])

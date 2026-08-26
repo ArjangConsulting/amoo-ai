@@ -20,16 +20,25 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
 }
 
 func renderGenerateHelp() -> String {
-    "Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>]"
+    """
+    Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>] [--allow-incomplete]
+
+      --plan              Path to the authored/compiled test JSON.
+      --out               Directory to write the generated file into. Prints to stdout if omitted.
+      --allow-incomplete  Generate even though the plan records steps that could not be compiled.
+                          Without this, generation stops rather than emitting a test missing steps.
+    """
 }
 
 public struct GenerateTestOptions: Sendable, Equatable {
     public var planPath: String
     public var outputDirectory: String?
+    public var allowIncomplete: Bool
 
-    public init(planPath: String, outputDirectory: String?) {
+    public init(planPath: String, outputDirectory: String?, allowIncomplete: Bool = false) {
         self.planPath = planPath
         self.outputDirectory = outputDirectory
+        self.allowIncomplete = allowIncomplete
     }
 }
 
@@ -38,11 +47,20 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
 
     var planPath: String?
     var outputDirectory: String?
+    var allowIncomplete = false
     var index = 0
 
     while index < args.count {
         let flag = args[index]
         guard flag.hasPrefix("--") else { throw GenerateCommandParseError.unexpectedArgument(flag) }
+
+        // Valueless flags are handled before the value lookup so they don't consume the next argument.
+        if flag == "--allow-incomplete" {
+            allowIncomplete = true
+            index += 1
+            continue
+        }
+
         let valueIndex = index + 1
         guard valueIndex < args.count else { throw GenerateCommandParseError.missingValue(flag: flag) }
         let value = args[valueIndex]
@@ -55,7 +73,11 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
     }
 
     guard let planPath else { throw GenerateCommandParseError.missingValue(flag: "--plan") }
-    return GenerateTestOptions(planPath: planPath, outputDirectory: outputDirectory)
+    return GenerateTestOptions(
+        planPath: planPath,
+        outputDirectory: outputDirectory,
+        allowIncomplete: allowIncomplete
+    )
 }
 
 public func runGenerateTestCommand(
@@ -74,6 +96,26 @@ public func runGenerateTestCommand(
     }
     guard let emitter else {
         return CLIResult(output: "No code generator available for platform '\(test.platform)'.", exitCode: 64)
+    }
+
+    // A plan can record steps that never made it into toolOperations. Generating anyway would
+    // produce a test that is silently missing actions and then fails for reasons that point
+    // nowhere near the real cause, so stop unless the caller explicitly accepts a partial test.
+    let excluded = test.compiledPlan?.excludedWarnings ?? []
+    if !excluded.isEmpty, options.allowIncomplete == false {
+        let details = excluded
+            .map { "  - step \($0.actionIndex) (\($0.toolName)): \($0.reason)" }
+            .joined(separator: "\n")
+        return CLIResult(
+            output: """
+            This plan has \(excluded.count) step(s) that could not be compiled, so generating from it \
+            would produce an incomplete test:
+            \(details)
+
+            Re-record without those steps, or pass --allow-incomplete to generate anyway.
+            """,
+            exitCode: 65
+        )
     }
 
     let generated = try emitter.generate(test)
