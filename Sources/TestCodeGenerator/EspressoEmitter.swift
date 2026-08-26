@@ -29,7 +29,8 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 "wait_for_element",
                 "assert_visible",
                 "assert_not_visible",
-                "assert_text"
+                "assert_text",
+                "assert_enabled"
             ].contains($0.tool)
         }
 
@@ -53,6 +54,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         import androidx.test.espresso.assertion.ViewAssertions.matches
         import androidx.test.espresso.matcher.ViewMatchers.hasFocus
         import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+        import androidx.test.espresso.matcher.ViewMatchers.isEnabled
         import androidx.test.espresso.matcher.ViewMatchers.isRoot
         import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
         import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -251,6 +253,13 @@ public struct EspressoEmitter: StudioCodeEmitting {
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             \(indent)onView(\(target)).check(matches(withText(\(literal(expected)))))
+            """
+
+        case "assert_enabled":
+            let target = try matcher(operation)
+            return try """
+            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)onView(\(target)).check(matches(isEnabled()))
             """
 
         case "take_screenshot":

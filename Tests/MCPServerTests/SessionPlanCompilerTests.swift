@@ -107,6 +107,25 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertTrue(result.warnings.allSatisfy { $0.reason.contains("approximate selector mapping") })
     }
 
+    func testAssertEnabledTranslatesToStudioTool() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "assert_enabled", arguments: ["id": "submit-button"]),
+            makeAction(tool: "assert_enabled", arguments: ["description": "Play button"])
+        ])
+
+        let result = SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+
+        XCTAssertEqual(operations.map(\.tool), ["assert_enabled", "assert_enabled"])
+        XCTAssertEqual(operations[0].arguments["id"], "submit-button")
+        XCTAssertEqual(operations[1].arguments["contains_text"], "Play button")
+        XCTAssertNil(operations[1].arguments["description"])
+
+        // Only the description-only selector (approximate mapping) should warn.
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertEqual(result.warnings[0].toolName, "assert_enabled")
+    }
+
     func testContainsOnlyValueAssertionIsExcludedRatherThanChangedToEquality() {
         let report = makeReport(actions: [
             makeAction(tool: "assert_value", arguments: ["id": "message", "contains": "Welcome"])

@@ -96,6 +96,8 @@ public enum SessionPlanCompiler {
             return translateAssertAbsent(arguments)
         case "assert_value":
             return translateAssertValue(arguments)
+        case "assert_enabled":
+            return translateAssertEnabled(arguments)
         default:
             return nil
         }
@@ -126,6 +128,20 @@ public enum SessionPlanCompiler {
         mapped["description"] = nil
         return TranslatedAction(
             studioTool: "assert_not_visible",
+            studioArguments: mapped,
+            approximate: usesDescription
+        )
+    }
+
+    private static func translateAssertEnabled(_ arguments: [String: String]) -> TranslatedAction {
+        var mapped = arguments
+        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
+        if usesDescription {
+            mapped["contains_text"] = mapped["description"]
+        }
+        mapped["description"] = nil
+        return TranslatedAction(
+            studioTool: "assert_enabled",
             studioArguments: mapped,
             approximate: usesDescription
         )
@@ -168,6 +184,8 @@ public enum SessionPlanCompiler {
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is visible.", "Element is visible.")
         case "assert_not_visible":
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is not visible.", "Element is not visible.")
+        case "assert_enabled":
+            return ("Assert element\(selector.map { " '\($0)'" } ?? "") is enabled.", "Element is enabled.")
         case "assert_text":
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected text.", "Text matches.")
         case "take_screenshot":

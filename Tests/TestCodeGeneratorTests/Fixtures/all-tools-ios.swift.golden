@@ -75,5 +75,8 @@ final class _2FALoginTest: XCTestCase {
         screenshot_op_9.lifetime = .keepAlways
         add(screenshot_op_9)
         app.swipeRight() // press_back: best-effort edge-swipe back gesture
+        let element_op_11 = app.descendants(matching: .any)["submit-button"]
+        waitForExistence(element_op_11, timeout: 5.0)
+        XCTAssertTrue(element_op_11.isEnabled)
     }
 }

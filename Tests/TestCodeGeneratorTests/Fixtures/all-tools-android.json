@@ -19,7 +19,8 @@
       { "id": "op-7", "tool": "assert_not_visible", "arguments": { "id": "spinner" } },
       { "id": "op-8", "tool": "assert_text", "arguments": { "id": "greeting", "value": "Hi there" } },
       { "id": "op-9", "tool": "take_screenshot", "arguments": {} },
-      { "id": "op-10", "tool": "press_back", "arguments": {} }
+      { "id": "op-10", "tool": "press_back", "arguments": {} },
+      { "id": "op-11", "tool": "assert_enabled", "arguments": { "id": "submit-button" } }
     ]
   }
 }

@@ -265,14 +265,14 @@ public struct LiveStudioChatService: StudioChatServing {
         after your explanation using exactly these tags:
         <amoo-plan>{"compiler":"ai","compilerVersion":"1","toolOperations":[{"id":"operation-1","tool":"tap_element","arguments":{"id":"sign-in"}}]}</amoo-plan>
         Allowed tools: tap_element, set_text, type_text, swipe_in_direction, wait_for_element,
-        assert_visible, assert_not_visible, assert_text, take_screenshot, press_back.
+        assert_visible, assert_not_visible, assert_text, assert_enabled, take_screenshot, press_back.
         Prefer accessibility IDs, never invent secrets, and keep credentials as ${ENVIRONMENT_VARIABLE} values.
         """
     }
 
     private static let allowedPlanTools: Set<String> = [
         "tap_element", "set_text", "type_text", "swipe_in_direction", "wait_for_element",
-        "assert_visible", "assert_not_visible", "assert_text", "take_screenshot", "press_back"
+        "assert_visible", "assert_not_visible", "assert_text", "assert_enabled", "take_screenshot", "press_back"
     ]
 
     private static func extractPlan(from content: String) -> (message: String, plan: StudioCompiledPlan)? {

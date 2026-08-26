@@ -17,6 +17,7 @@ import androidx.test.espresso.action.ViewActions.swipeUp
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.hasFocus
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isEnabled
 import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -124,6 +125,8 @@ class _2FALoginTest {
             onView(anyOf(hasResourceEntryName("greeting"), withContentDescription("greeting"))).check(matches(withText("Hi there")))
             // take_screenshot: capture via androidx.test.runner.screenshot.Screenshot in an instrumented test if needed
             pressBack()
+            onView(isRoot()).perform(waitUntilDisplayed(anyOf(hasResourceEntryName("submit-button"), withContentDescription("submit-button")), 5000L))
+            onView(anyOf(hasResourceEntryName("submit-button"), withContentDescription("submit-button"))).check(matches(isEnabled()))
         }
     }
 }

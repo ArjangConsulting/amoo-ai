@@ -139,6 +139,14 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         case "assert_not_visible":
             return try waitStatement(for: operation, exists: false)
 
+        case "assert_enabled":
+            let variable = "element_\(safeSuffix(operation.id))"
+            return try """
+            \(indent)let \(variable) = \(query(operation))
+            \(indent)waitForExistence(\(variable), timeout: \(timeoutSeconds(for: operation)))
+            \(indent)XCTAssertTrue(\(variable).isEnabled)
+            """
+
         case "assert_text":
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
