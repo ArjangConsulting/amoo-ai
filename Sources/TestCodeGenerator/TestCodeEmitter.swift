@@ -4,6 +4,7 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
     case missingCompiledPlan
     case unsupportedTool(String)
     case missingArgument(tool: String, argument: String)
+    case invalidArgument(tool: String, argument: String, value: String)
 
     public var description: String {
         switch self {
@@ -13,6 +14,8 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
             "No code generator mapping exists for tool '\(tool)'."
         case let .missingArgument(tool, argument):
             "Tool '\(tool)' is missing required argument '\(argument)'."
+        case let .invalidArgument(tool, argument, value):
+            "Tool '\(tool)' has invalid argument '\(argument)': '\(value)'."
         }
     }
 }

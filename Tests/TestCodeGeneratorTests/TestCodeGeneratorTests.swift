@@ -27,7 +27,9 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertEqual(result.fileName, "SignInFlowTest.swift")
         XCTAssertTrue(result.source.contains("final class SignInFlowTest: XCTestCase"))
         XCTAssertTrue(result.source.contains("func testSignInFlow() throws"))
-        XCTAssertTrue(result.source.contains(#"app.descendants(matching: .any)["sign-in"].tap()"#))
+        XCTAssertTrue(result.source.contains(#"let element_op_1 = app.descendants(matching: .any)["sign-in"]"#))
+        XCTAssertTrue(result.source.contains("waitForHittability(element_op_1, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains("element_op_1.tap()"))
     }
 
     func testXCUITestEmitterGeneratesSetTextTapThenType() throws {
@@ -38,8 +40,10 @@ final class TestCodeGeneratorTests: XCTestCase {
         )])
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains(#"app.descendants(matching: .any)["email"].tap()"#))
-        XCTAssertTrue(result.source.contains(#"app.descendants(matching: .any)["email"].typeText("user@example.com")"#))
+        XCTAssertTrue(result.source.contains(#"let element_op_1 = app.descendants(matching: .any)["email"]"#))
+        XCTAssertTrue(result.source.contains("waitForHittability(element_op_1, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains("element_op_1.tap()"))
+        XCTAssertTrue(result.source.contains(#"element_op_1.typeText("user@example.com")"#))
     }
 
     func testXCUITestEmitterUsesLabelPredicateWhenIDMissing() throws {
@@ -77,8 +81,9 @@ final class TestCodeGeneratorTests: XCTestCase {
         ])
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains("waitForExpectations(timeout: 2.0)"))
-        XCTAssertTrue(result.source.contains(#"NSPredicate(format: "exists == false")"#))
+        XCTAssertTrue(result.source.contains("waitForExistence(element_op_1, timeout: 2.0)"))
+        XCTAssertTrue(result.source.contains("waitForNonHittability(element_op_2, timeout: 5.0)"))
+        XCTAssertFalse(result.source.contains("waitForExpectations"))
     }
 
     // MARK: - EspressoEmitter
@@ -93,8 +98,11 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertEqual(result.fileName, "SignInFlowTest.kt")
         XCTAssertTrue(result.source.contains("class SignInFlowTest"))
         XCTAssertTrue(result.source.contains("fun signInFlow()"))
-        XCTAssertTrue(result.source.contains(#"onView(hasResourceEntryName("sign-in")).perform(click())"#))
+        let matcher = #"anyOf(hasResourceEntryName("sign-in"), withContentDescription("sign-in"))"#
+        XCTAssertTrue(result.source.contains("waitUntilDisplayed(\(matcher), 5000L)"))
+        XCTAssertTrue(result.source.contains("onView(\(matcher)).perform(click())"))
         XCTAssertTrue(result.source.contains("private fun hasResourceEntryName"))
+        XCTAssertTrue(result.source.contains("ActivityScenario.launch<Activity>(launchIntent).use"))
     }
 
     func testEspressoEmitterOmitsResourceNameHelperWhenNoIDSelectorsUsed() throws {
@@ -104,7 +112,8 @@ final class TestCodeGeneratorTests: XCTestCase {
         )
         let result = try EspressoEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains(#"onView(withContentDescription("Sign In")).perform(click())"#))
+        let matcher = #"anyOf(withText("Sign In"), withContentDescription("Sign In"))"#
+        XCTAssertTrue(result.source.contains("onView(\(matcher)).perform(click())"))
         XCTAssertFalse(result.source.contains("private fun hasResourceEntryName"))
     }
 
@@ -115,8 +124,9 @@ final class TestCodeGeneratorTests: XCTestCase {
         )
         let result = try EspressoEmitter().generate(test)
 
-        XCTAssertTrue(result.source
-            .contains(#"onView(hasResourceEntryName("email")).perform(replaceText("user@example.com"))"#))
+        let matcher = #"anyOf(hasResourceEntryName("email"), withContentDescription("email"))"#
+        XCTAssertTrue(result.source.contains("waitUntilDisplayed(\(matcher), 5000L)"))
+        XCTAssertTrue(result.source.contains("onView(\(matcher)).perform(replaceText(\"user@example.com\"))"))
     }
 
     func testEspressoEmitterThrowsForUnknownTool() {
@@ -136,6 +146,35 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertTrue(result.source.contains("import androidx.test.espresso.Espresso.pressBack"))
         XCTAssertTrue(result.source.contains("pressBack()"))
         XCTAssertFalse(result.source.contains("onView(isDisplayed()).perform(pressBack())"))
+    }
+
+    func testEspressoEmitterPreservesWaitTimeoutAndNotVisibleSemantics() throws {
+        let test = makeTest(platform: "Android", operations: [
+            .init(id: "op-1", tool: "wait_for_element", arguments: ["label": "Ready", "timeout_ms": "1750"]),
+            .init(id: "op-2", tool: "assert_not_visible", arguments: ["contains_text": "Loading"])
+        ])
+        let result = try EspressoEmitter().generate(test)
+
+        XCTAssertTrue(result.source.contains("waitUntilDisplayed("))
+        XCTAssertTrue(result.source.contains("1750L"))
+        XCTAssertTrue(result.source.contains("waitUntilNotDisplayed("))
+        XCTAssertFalse(result.source.contains("doesNotExist"))
+    }
+
+    func testEmittersRejectInvalidTimeouts() {
+        let operation = StudioToolOperation(
+            id: "op-1",
+            tool: "wait_for_element",
+            arguments: ["id": "ready", "timeout_ms": "not-a-number"]
+        )
+
+        XCTAssertThrowsError(try XCUITestEmitter().generate(makeTest(operations: [operation]))) { error in
+            XCTAssertEqual(
+                error as? TestCodeGeneratorError,
+                .invalidArgument(tool: "wait_for_element", argument: "timeout_ms", value: "not-a-number")
+            )
+        }
+        XCTAssertThrowsError(try EspressoEmitter().generate(makeTest(platform: "Android", operations: [operation])))
     }
 
     // MARK: - Identifier naming
