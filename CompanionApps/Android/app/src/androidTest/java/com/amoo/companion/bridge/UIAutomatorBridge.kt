@@ -1,13 +1,16 @@
 package com.amoo.companion.bridge
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Rect
 import android.os.SystemClock
+import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
+import java.util.regex.Pattern
 
 /**
  * Single point of contact with Android's UIAutomator2 framework.
@@ -27,16 +30,43 @@ class UIAutomatorBridge {
          * whole screens as tap targets.
          */
         const val MAX_ANCESTOR_WALK = 5
+
+        /** Quiescence wait before reading the hierarchy, so a mid-transition frame is not captured. */
+        const val WAIT_FOR_IDLE_MS = 2_000L
+
+        const val LOG_TAG = "AmooCompanion"
+
+        /** Matches any application package, used to force a full multi-window root walk. */
+        val ANY_PACKAGE: Pattern = Pattern.compile(".+")
     }
 
     private val instrumentation by lazy(LazyThreadSafetyMode.NONE) {
         InstrumentationRegistry.getInstrumentation()
     }
     private val device by lazy(LazyThreadSafetyMode.NONE) {
-        UiDevice.getInstance(instrumentation)
+        UiDevice.getInstance(instrumentation).also { enableInteractiveWindowRetrieval() }
     }
     private val targetPackageName by lazy(LazyThreadSafetyMode.NONE) {
         instrumentation.targetContext.packageName
+    }
+
+    /**
+     * By default the companion's [android.app.UiAutomation] only reports the root of its own
+     * instrumentation-target window. Inspecting any *other* foreground app — i.e. a real app
+     * under test, whose package differs from the companion's — then comes back empty, because
+     * [android.app.UiAutomation.getRootInActiveWindow] returns null for it and the multi-window
+     * enumeration path is gated behind [AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS].
+     *
+     * The e2e suite never hit this: it drives `com.amoo.companion`'s own fixture Activity, which
+     * shares the instrumentation target package, so the single-window path was always enough.
+     */
+    private fun enableInteractiveWindowRetrieval() {
+        runCatching {
+            val automation = instrumentation.uiAutomation
+            val info = automation.serviceInfo ?: return
+            info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            automation.serviceInfo = info
+        }.onFailure { Log.w(LOG_TAG, "Could not enable interactive-window retrieval", it) }
     }
 
     // -- Touch --
@@ -400,7 +430,28 @@ class UIAutomatorBridge {
     }
 
     private fun currentElements(): List<UiObject2> {
-        return device.findObjects(By.depth(0))
+        device.waitForIdle(WAIT_FOR_IDLE_MS)
+
+        val roots = device.findObjects(By.depth(0)).ifEmpty {
+            // Some emulator / API-level combinations return nothing from a depth-only selector
+            // even with interactive-window retrieval enabled. Matching "any package" forces
+            // ByMatcher to walk every window root it can reach.
+            device.findObjects(By.pkg(ANY_PACKAGE))
+        }
+
+        if (roots.isEmpty()) {
+            val automation = instrumentation.uiAutomation
+            Log.w(
+                LOG_TAG,
+                "currentElements found no window roots. " +
+                    "serviceInfoFlags=${automation.serviceInfo?.flags} " +
+                    "windows=${runCatching { automation.windows.size }.getOrNull()} " +
+                    "activeRoot=${runCatching { automation.rootInActiveWindow != null }.getOrNull()} " +
+                    "currentPackage=${device.currentPackageName}"
+            )
+        }
+
+        return roots
             .flatMap { root -> sequenceOf(root) + root.children.asSequence().flatMap { collectDescendants(it) } }
             .toList()
     }
