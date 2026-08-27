@@ -164,19 +164,27 @@ actor MockAndroidCLIRunner: AndroidCLIRunning {
         self.error = error
     }
 
-    func version() async throws -> String { "1.0.15985488" }
+    func version() async throws -> String {
+        "1.0.15985488"
+    }
 
     func layout(device: String?, diff: Bool) async throws -> [AndroidLayoutSnapshotElement] {
         layoutCalls.append((device, diff))
-        if let error { throw error }
+        if let error {
+            throw error
+        }
         return elements
     }
 
     func captureScreen(device _: String?, output _: String, annotated _: Bool) async throws {}
 
-    func resolveScreen(screenshot _: String, instruction: String) async throws -> String { instruction }
+    func resolveScreen(screenshot _: String, instruction: String) async throws -> String {
+        instruction
+    }
 
-    func calls() -> [(device: String?, diff: Bool)] { layoutCalls }
+    func calls() -> [(device: String?, diff: Bool)] {
+        layoutCalls
+    }
 }
 
 struct SwipeCall {

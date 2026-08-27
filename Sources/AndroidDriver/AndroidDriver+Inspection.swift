@@ -110,11 +110,11 @@ extension AndroidDriver {
     }
 
     private func androidCLIHierarchy() async throws -> ViewNode {
-        ViewNode(id: "android-cli-root", children: try await androidCLIElements().map(\.viewNode))
+        try await ViewNode(id: "android-cli-root", children: androidCLIElements().map(\.viewNode))
     }
 
     private func androidCLIElements() async throws -> [ElementInfo] {
-        try await androidCLI.layout(device: activeSerial, diff: false).map { $0.elementInfo }
+        try await androidCLI.layout(device: activeSerial, diff: false).map(\.elementInfo)
     }
 
     private func recordComparison(companion: ViewNode, androidCLI: ViewNode) {
@@ -158,10 +158,19 @@ private extension AndroidLayoutSnapshotElement {
     }
 
     private var inferredType: ElementType {
-        if interactions.contains("scrollable") { return .scrollView }
-        if interactions.contains("checkable") { return .switchControl }
-        if interactions.contains("clickable") || interactions.contains("long-clickable") { return .button }
-        if interactions.contains("password") || (interactions.contains("focusable") && text != nil) { return .textField }
+        if interactions.contains("scrollable") {
+            return .scrollView
+        }
+        if interactions.contains("checkable") {
+            return .switchControl
+        }
+        if interactions.contains("clickable") || interactions.contains("long-clickable") {
+            return .button
+        }
+        if interactions
+            .contains("password") || (interactions.contains("focusable") && text != nil) {
+            return .textField
+        }
         return text == nil ? .other : .staticText
     }
 }
@@ -184,17 +193,27 @@ private extension Rect {
 
 private extension ElementInfo {
     func matches(_ selector: ElementSelector) -> Bool {
-        if let id = selector.id, self.id != id { return false }
-        if let label = selector.label, self.label != label { return false }
+        if let id = selector.id, self.id != id {
+            return false
+        }
+        if let label = selector.label, self.label != label {
+            return false
+        }
         if let text = selector.containsText {
             let haystack = [label, value ?? ""].joined(separator: " ").lowercased()
-            if !haystack.contains(text.lowercased()) { return false }
+            if !haystack.contains(text.lowercased()) {
+                return false
+            }
         }
         if let description = selector.description {
             let haystack = [id, label, value ?? ""].joined(separator: " ").lowercased()
-            if !haystack.contains(description.lowercased()) { return false }
+            if !haystack.contains(description.lowercased()) {
+                return false
+            }
         }
-        if selector.labeledOnly, id.isEmpty, label.isEmpty { return false }
+        if selector.labeledOnly, id.isEmpty, label.isEmpty {
+            return false
+        }
         return selector.parentSelector == nil
     }
 

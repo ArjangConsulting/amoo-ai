@@ -34,20 +34,13 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     }
 
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
-        let appID = request.appID
-        let platform = request.platform
-        let deviceHint = request.deviceHint
-        let buildPath = request.buildPath
-        let arguments = request.arguments
-        let environment = request.environment
-
         let selector = PlatformDeviceSelector(processRunner: processRunner)
-        let available = try await selector.selectDevice(hint: deviceHint, platform: platform)
+        let available = try await selector.selectDevice(hint: request.deviceHint, platform: request.platform)
 
         // Ensure platform hint is consistent with the selected device.
-        guard available.platform == platform else {
+        guard available.platform == request.platform else {
             throw BootstrapError.platformMismatch(
-                requested: platform.rawValue,
+                requested: request.platform.rawValue,
                 actual: available.platform.rawValue
             )
         }
@@ -56,7 +49,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let deviceID: String
         let port: Int
         do {
-            (deviceID, port) = try await ensureCompanion(for: available, appID: appID)
+            (deviceID, port) = try await ensureCompanion(for: available, appID: request.appID)
             if case let .ios(device) = available, device.isPhysicalDevice {
                 tunnelHandle = try await usbTunnel.open(
                     deviceUDID: device.udid,
@@ -83,59 +76,6 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             }
             throw BootstrapError.connectionFailed(error.localizedDescription)
         }
-        do {
-            // Unlike a TCP dial, this proves the companion application is serving its API.
-            try await waitForCompanionReady(companion)
-        } catch {
-            await companion.shutdown()
-            if let tunnelHandle {
-                try? await usbTunnel.close(tunnelHandle)
-            }
-            throw BootstrapError.connectionFailed(error.localizedDescription)
-        }
-
-        // Build the platform driver bound to that companion + device.
-        let platformDriver: any PlatformDriver = switch available {
-        case .ios:
-            await makeIOSDriver(companion: companion, deviceID: deviceID)
-        case .android:
-            AndroidDriver(
-                companion: companion,
-                inspectionMode: .productionDefault(),
-                serial: deviceID
-            )
-        }
-
-        // Install the app under test if a build path was supplied.
-        if let buildPath, !buildPath.isEmpty {
-            do {
-                try await platformDriver.installApp(path: buildPath)
-            } catch {
-                await companion.shutdown()
-                if let tunnelHandle {
-                    try? await usbTunnel.close(tunnelHandle)
-                }
-                throw BootstrapError.installFailed(error.localizedDescription)
-            }
-        }
-
-        // Launch the app.
-        do {
-            try await platformDriver.launchApp(
-                appID: appID,
-                arguments: arguments,
-                environment: environment
-            )
-        } catch {
-            await companion.shutdown()
-            if let tunnelHandle {
-                try? await usbTunnel.close(tunnelHandle)
-            }
-            throw BootstrapError.launchFailed(error.localizedDescription)
-        }
-
-        // Wait for the first screen to be queryable (best-effort).
-        await waitForScreenReady(driver: platformDriver)
 
         let tunnel = usbTunnel
         let cleanup: @Sendable () async -> Void = { [companion, tunnelHandle, tunnel] in
@@ -145,12 +85,68 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             }
         }
 
+        let platformDriver: any PlatformDriver
+        do {
+            // Unlike a TCP dial, this proves the companion application is serving its API.
+            try await waitForCompanionReady(companion)
+            platformDriver = await makePlatformDriver(for: available, companion: companion, deviceID: deviceID)
+            try await installAndLaunch(request, driver: platformDriver)
+        } catch {
+            await cleanup()
+            throw error
+        }
+
+        // Wait for the first screen to be queryable (best-effort).
+        await waitForScreenReady(driver: platformDriver)
+
         return BootstrapResult(
             driver: platformDriver,
             deviceID: deviceID,
-            platform: platform,
+            platform: request.platform,
             cleanup: cleanup
         )
+    }
+
+    /// Builds the platform driver bound to a ready companion + device.
+    private func makePlatformDriver(
+        for available: AvailableDevice,
+        companion: GRPCCompanionClient,
+        deviceID: String
+    ) async -> any PlatformDriver {
+        switch available {
+        case .ios:
+            await makeIOSDriver(companion: companion, deviceID: deviceID)
+        case .android:
+            AndroidDriver(
+                companion: companion,
+                inspectionMode: .productionDefault(),
+                serial: deviceID
+            )
+        }
+    }
+
+    /// Installs the app under test (when a build path was supplied) and launches it, mapping any
+    /// failure to the matching `BootstrapError` case.
+    private func installAndLaunch(
+        _ request: SessionBootstrapRequest,
+        driver: any PlatformDriver
+    ) async throws {
+        if let buildPath = request.buildPath, !buildPath.isEmpty {
+            do {
+                try await driver.installApp(path: buildPath)
+            } catch {
+                throw BootstrapError.installFailed(error.localizedDescription)
+            }
+        }
+        do {
+            try await driver.launchApp(
+                appID: request.appID,
+                arguments: request.arguments,
+                environment: request.environment
+            )
+        } catch {
+            throw BootstrapError.launchFailed(error.localizedDescription)
+        }
     }
 
     func listDevices(platform: Platform?) async throws -> [DeviceInfo] {
@@ -232,7 +228,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 try? await Task.sleep(for: .milliseconds(300))
             }
         }
-        throw lastError ?? BootstrapError.connectionFailed("Companion gRPC readiness timed out.")
+        throw BootstrapError.connectionFailed(
+            lastError?.localizedDescription ?? "Companion gRPC readiness timed out."
+        )
     }
 }
 
