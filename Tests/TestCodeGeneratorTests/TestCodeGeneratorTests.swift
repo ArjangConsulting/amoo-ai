@@ -231,10 +231,42 @@ final class TestCodeGeneratorTests: XCTestCase {
         // Instrumented tests driving ActivityScenario need the Android runner; without it the
         // generated test compiles and then fails at run time, which codegen alone cannot catch.
         XCTAssertTrue(source.contains("@RunWith(AndroidJUnit4::class)"))
-        XCTAssertTrue(source.contains(#"onNode(hasTestTag("submit"))"#))
-        XCTAssertTrue(source.contains(#"onNode(hasContentDescription("Loading")).assertIsNotDisplayed()"#))
+        XCTAssertTrue(source.contains(#"onNode(hasTestTag("submit")).assertIsDisplayed().performClick()"#))
+        XCTAssertTrue(source.contains(
+            #"composeTestRule.onAllNodes(hasContentDescription("Loading")).fetchSemanticsNodes().isEmpty() }"#
+        ))
+        XCTAssertFalse(source.contains("assertIsNotDisplayed()"))
         XCTAssertTrue(source.contains("onRoot().performTouchInput { swipeUp() }"))
         XCTAssertTrue(source.contains("ActivityScenario.launch<Activity>(launchIntent).use"))
+    }
+
+    func testComposeEmitterGuardsAssertionsWithPerStepTimeout() throws {
+        let test = makeTest(platform: .android, operations: [
+            .init(
+                id: "op-1",
+                tool: "assert_enabled",
+                arguments: ["contains_text": "Most Loved", "timeout_ms": "10000"]
+            ),
+            .init(id: "op-2", tool: "assert_visible", arguments: ["label": "New Videos"])
+        ])
+
+        let source = try ComposeEspressoEmitter().generate(test).source
+
+        // The recorded step polled up to timeout_ms; the generated code must wait the same way
+        // instead of doing a single-shot check that races app load.
+        XCTAssertTrue(source.contains(
+            #"composeTestRule.waitUntil(timeoutMillis = 10000L) { composeTestRule"#
+                + #".onAllNodes(hasText("Most Loved", substring = true))"#
+                + #".fetchSemanticsNodes().isNotEmpty() }"#
+        ))
+        XCTAssertTrue(source
+            .contains(#"composeTestRule.onNode(hasText("Most Loved", substring = true)).assertIsEnabled()"#))
+        // No timeout_ms on the second step falls back to the shared default.
+        XCTAssertTrue(source.contains(
+            #"composeTestRule.waitUntil(timeoutMillis = 5000L) { composeTestRule"#
+                + #".onAllNodes(hasContentDescription("New Videos"))"#
+                + #".fetchSemanticsNodes().isNotEmpty() }"#
+        ))
     }
 
     // MARK: - Identifier naming

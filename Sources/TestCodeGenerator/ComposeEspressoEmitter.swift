@@ -85,39 +85,49 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         // No `default`: adding a StudioTool case must fail to compile here until it is handled.
         switch tool {
         case .tapElement:
-            return try "\(indent)\(node(operation)).assertIsDisplayed().performClick()"
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node).assertIsDisplayed().performClick()"
         case .setText:
             guard let value = operation.arguments["value"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
-            return try "\(indent)\(node(operation)).assertIsDisplayed().performTextReplacement(\(literal(value)))"
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node)"
+                + ".assertIsDisplayed().performTextReplacement(\(literal(value)))"
         case .typeText:
             guard let text = operation.arguments["text"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "text")
             }
-            return "\(indent)composeTestRule.onNode(isFocused()).performTextInput(\(literal(text)))"
+            let wait = try waitForNodePresent("isFocused()", timeout: timeoutMilliseconds(for: operation))
+            return "\(wait)\n\(indent)composeTestRule.onNode(isFocused()).performTextInput(\(literal(text)))"
         case .swipeInDirection, .scroll:
             // GestureDirection inverts scroll for us — see its documentation for why.
             let gesture = try gesture(for: operation)
             if operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil {
-                let target = try node(operation, idKey: "element_id", labelKey: "element_label")
-                return "\(indent)\(target).assertIsDisplayed().performTouchInput { \(gesture)() }"
+                let target = try guardedNode(operation, idKey: "element_id", labelKey: "element_label")
+                return "\(target.wait)\n\(indent)\(target.node)"
+                    + ".assertIsDisplayed().performTouchInput { \(gesture)() }"
             }
             return "\(indent)composeTestRule.onRoot().performTouchInput { \(gesture)() }"
         case .waitForElement:
-            return try waitStatement(operation)
+            return try waitForNodePresent(semanticsMatcher(operation), timeout: timeoutMilliseconds(for: operation))
         case .assertVisible:
-            return try "\(indent)\(node(operation)).assertIsDisplayed()"
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node).assertIsDisplayed()"
         case .assertNotVisible:
-            // Visibility is weaker than non-existence: an off-screen node still satisfies this tool.
-            return try "\(indent)\(node(operation)).assertIsNotDisplayed()"
+            // Poll until no node matches, so a control that is still animating out at the moment the
+            // step runs does not fail the assertion. In a Compose tree an off-screen node in a lazy
+            // container is already absent from the semantics tree, so this also covers "scrolled away".
+            return try waitForNodeAbsent(semanticsMatcher(operation), timeout: timeoutMilliseconds(for: operation))
         case .assertText:
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
-            return try "\(indent)\(node(operation)).assertTextEquals(\(literal(expected)))"
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node).assertTextEquals(\(literal(expected)))"
         case .assertEnabled:
-            return try "\(indent)\(node(operation)).assertIsEnabled()"
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"
         case .takeScreenshot:
             return "\(indent)// take_screenshot: capture through the Android test runner when needed"
         case .pressBack:
@@ -125,26 +135,33 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         }
     }
 
-    private static func waitStatement(_ operation: StudioToolOperation) throws -> String {
-        let matcher = try semanticsMatcher(operation)
-        let timeout = try timeoutMilliseconds(for: operation)
-        return "\(indent)composeTestRule.waitUntil(timeoutMillis = \(timeout)L) { "
-            + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isNotEmpty() }"
-    }
-
-    private static func node(
+    /// A `waitUntil` that blocks until at least one node matches, plus the `onNode` handle to act on
+    /// afterwards. Mirrors `EspressoEmitter`'s `waitUntilDisplayed` guard so a generated assertion or
+    /// interaction tolerates the same load/transition delay the recording session waited out.
+    private static func guardedNode(
         _ operation: StudioToolOperation,
         idKey: String = "id",
         labelKey: String = "label",
         containsTextKey: String = "contains_text"
-    ) throws -> String {
+    ) throws -> (wait: String, node: String) {
         let matcher = try semanticsMatcher(
             operation,
             idKey: idKey,
             labelKey: labelKey,
             containsTextKey: containsTextKey
         )
-        return "composeTestRule.onNode(\(matcher))"
+        let wait = try waitForNodePresent(matcher, timeout: timeoutMilliseconds(for: operation))
+        return (wait, "composeTestRule.onNode(\(matcher))")
+    }
+
+    private static func waitForNodePresent(_ matcher: String, timeout: Int64) -> String {
+        "\(indent)composeTestRule.waitUntil(timeoutMillis = \(timeout)L) { "
+            + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isNotEmpty() }"
+    }
+
+    private static func waitForNodeAbsent(_ matcher: String, timeout: Int64) -> String {
+        "\(indent)composeTestRule.waitUntil(timeoutMillis = \(timeout)L) { "
+            + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isEmpty() }"
     }
 
     private static func semanticsMatcher(
