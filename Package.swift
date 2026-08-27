@@ -136,7 +136,11 @@ let package = Package(
         .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),
         .testTarget(name: "StudioProtocolTests", dependencies: ["StudioProtocol"]),
-        .testTarget(name: "TestCodeGeneratorTests", dependencies: ["TestCodeGenerator", "StudioProtocol"]),
+        .testTarget(
+            name: "TestCodeGeneratorTests",
+            dependencies: ["TestCodeGenerator", "StudioProtocol"],
+            exclude: ["Fixtures"]
+        ),
         .testTarget(
             name: "CLITests",
             dependencies: [
