@@ -4,6 +4,25 @@ import XCTest
 /// dependency on amoo or the companion apps once generated.
 final class _2FALoginTest: XCTestCase {
     private let defaultTimeout: TimeInterval = 5
+    private lazy var app = XCUIApplication()
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    override func tearDownWithError() throws {
+        guard testRun?.failureCount ?? 0 > 0 else { return }
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Failure screenshot"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "Failure UI hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+    }
 
     private func waitForExistence(
         _ element: XCUIElement,
@@ -47,8 +66,26 @@ final class _2FALoginTest: XCTestCase {
         )
     }
 
+    private func replaceText(in element: XCUIElement, with text: String) {
+        element.tap()
+        if let currentValue = element.value as? String, !currentValue.isEmpty {
+            element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
+        }
+        if !text.isEmpty {
+            element.typeText(text)
+        }
+    }
+
+    private func pressBack() {
+        let backButton = app.navigationBars.buttons.element(boundBy: 0)
+        if backButton.exists, backButton.isHittable {
+            backButton.tap()
+        } else {
+            app.swipeRight()
+        }
+    }
+
     func test_2FALogin() throws {
-        let app = XCUIApplication()
         app.launch()
 
         let element_op_1 = app.descendants(matching: .any)["email-field"]
@@ -56,8 +93,7 @@ final class _2FALoginTest: XCTestCase {
         element_op_1.tap()
         let element_op_2 = app.descendants(matching: .any)["email-field"]
         waitForHittability(element_op_2, timeout: 5.0)
-        element_op_2.tap()
-        element_op_2.typeText("user@example.com")
+        replaceText(in: element_op_2, with: "user@example.com")
         app.typeText("line one\nline two\ttabbed")
         let element_op_4 = app.descendants(matching: .any)["list"]
         waitForHittability(element_op_4, timeout: 5.0)
@@ -74,7 +110,7 @@ final class _2FALoginTest: XCTestCase {
         let screenshot_op_9 = XCTAttachment(screenshot: app.screenshot())
         screenshot_op_9.lifetime = .keepAlways
         add(screenshot_op_9)
-        app.swipeRight() // press_back: best-effort edge-swipe back gesture
+        pressBack()
         let element_op_11 = app.descendants(matching: .any)["submit-button"]
         waitForExistence(element_op_11, timeout: 5.0)
         XCTAssertTrue(element_op_11.isEnabled)

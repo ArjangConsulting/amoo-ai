@@ -1017,6 +1017,7 @@ private extension Amoo_ElementInfo {
             value: value.nonEmpty,
             type: ElementType(rawValue: type.lowercased()),
             frame: hasFrame ? frame.coreRect : nil,
+            hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
             isEnabled: isEnabled,
             isVisible: isVisible
         )
@@ -1031,6 +1032,7 @@ private extension Amoo_ViewNode {
             value: value.nonEmpty,
             type: ElementType(rawValue: type.lowercased()),
             frame: hasFrame ? frame.coreRect : nil,
+            hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
             isEnabled: isEnabled,
             isVisible: isVisible,
             children: children.map(\.coreViewNode)
@@ -1041,6 +1043,12 @@ private extension Amoo_ViewNode {
 private extension Amoo_Rect {
     var coreRect: Rect {
         Rect(x: x, y: y, width: width, height: height)
+    }
+}
+
+private extension Amoo_Point {
+    var corePoint: Point {
+        Point(x: x, y: y)
     }
 }
 

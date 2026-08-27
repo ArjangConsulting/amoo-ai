@@ -33,7 +33,7 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertTrue(result.source.contains("element_op_1.tap()"))
     }
 
-    func testXCUITestEmitterGeneratesSetTextTapThenType() throws {
+    func testXCUITestEmitterGeneratesSetTextReplacement() throws {
         let test = makeTest(operations: [.init(
             id: "op-1",
             tool: "set_text",
@@ -43,8 +43,27 @@ final class TestCodeGeneratorTests: XCTestCase {
 
         XCTAssertTrue(result.source.contains(#"let element_op_1 = app.descendants(matching: .any)["email"]"#))
         XCTAssertTrue(result.source.contains("waitForHittability(element_op_1, timeout: 5.0)"))
-        XCTAssertTrue(result.source.contains("element_op_1.tap()"))
-        XCTAssertTrue(result.source.contains(#"element_op_1.typeText("user@example.com")"#))
+        XCTAssertTrue(result.source.contains(#"replaceText(in: element_op_1, with: "user@example.com")"#))
+        XCTAssertTrue(result.source.contains("XCUIKeyboardKey.delete.rawValue"))
+    }
+
+    func testXCUITestEmitterFailsFastAndAttachesDiagnostics() throws {
+        let test = makeTest(operations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "submit"])])
+        let result = try XCUITestEmitter().generate(test)
+
+        XCTAssertTrue(result.source.contains("continueAfterFailure = false"))
+        XCTAssertTrue(result.source.contains("Failure screenshot"))
+        XCTAssertTrue(result.source.contains("Failure UI hierarchy"))
+    }
+
+    func testXCUITestEmitterPrefersNavigationBackButton() throws {
+        let test = makeTest(operations: [.init(id: "op-1", tool: "press_back", arguments: [:])])
+        let result = try XCUITestEmitter().generate(test)
+
+        XCTAssertTrue(result.source.contains("let backButton = app.navigationBars.buttons.element(boundBy: 0)"))
+        XCTAssertTrue(result.source.contains("backButton.tap()"))
+        XCTAssertTrue(result.source.contains("app.swipeRight()"))
+        XCTAssertTrue(result.source.contains("pressBack()"))
     }
 
     func testXCUITestEmitterUsesLabelPredicateWhenIDMissing() throws {

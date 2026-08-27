@@ -114,6 +114,8 @@ public struct ViewNode: Sendable, Equatable {
     public var value: String?
     public var type: ElementType?
     public var frame: Rect?
+    /// Preferred screen-space coordinate for interacting with the visible portion of this node.
+    public var hitPoint: Point?
     public var isEnabled: Bool
     public var isVisible: Bool
     public var children: [Self]
@@ -124,6 +126,7 @@ public struct ViewNode: Sendable, Equatable {
         value: String? = nil,
         type: ElementType? = nil,
         frame: Rect? = nil,
+        hitPoint: Point? = nil,
         isEnabled: Bool = true,
         isVisible: Bool = true,
         children: [Self] = []
@@ -133,6 +136,7 @@ public struct ViewNode: Sendable, Equatable {
         self.value = value
         self.type = type
         self.frame = frame
+        self.hitPoint = hitPoint
         self.isEnabled = isEnabled
         self.isVisible = isVisible
         self.children = children
@@ -145,6 +149,8 @@ public struct ElementInfo: Sendable, Equatable {
     public var value: String?
     public var type: ElementType?
     public var frame: Rect?
+    /// Preferred screen-space coordinate for interaction; use before falling back to frame center.
+    public var hitPoint: Point?
     public var isEnabled: Bool
     public var isVisible: Bool
 
@@ -154,6 +160,7 @@ public struct ElementInfo: Sendable, Equatable {
         value: String? = nil,
         type: ElementType? = nil,
         frame: Rect? = nil,
+        hitPoint: Point? = nil,
         isEnabled: Bool = true,
         isVisible: Bool = true
     ) {
@@ -162,6 +169,7 @@ public struct ElementInfo: Sendable, Equatable {
         self.value = value
         self.type = type
         self.frame = frame
+        self.hitPoint = hitPoint
         self.isEnabled = isEnabled
         self.isVisible = isVisible
     }

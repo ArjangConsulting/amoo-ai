@@ -6,6 +6,7 @@ struct ElementSnapshot {
     var value: String
     var type: String
     var frame: CGRect
+    var hitPoint: CGPoint
     var isEnabled: Bool
     var isVisible: Bool
 }

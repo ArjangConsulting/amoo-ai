@@ -10,23 +10,26 @@ import TestSession
 /// running on that device, opens a gRPC connection, installs + launches the
 /// app under test, and waits for the first stable screen.
 struct DefaultSessionBootstrapper: SessionBootstrapper {
-    let iOSCompanionManager: CompanionManager
-    let androidCompanionManager: AndroidCompanionManager
+    let iOSCompanionManager: any IOSCompanionManaging
+    let androidCompanionManager: any AndroidCompanionManaging
     let processRunner: any ProcessRunner
+    let usbTunnel: any USBTunneling
 
     /// How many seconds to wait for `getScreenContext` to succeed after launch
     /// before giving up on screen stabilization.
     let screenStabilizationTimeoutSeconds: Double
 
     init(
-        iOSCompanionManager: CompanionManager,
-        androidCompanionManager: AndroidCompanionManager,
+        iOSCompanionManager: any IOSCompanionManaging,
+        androidCompanionManager: any AndroidCompanionManaging,
         processRunner: any ProcessRunner = SystemProcessRunner(),
+        usbTunnel: any USBTunneling = IProxyTunnel(),
         screenStabilizationTimeoutSeconds: Double = 10
     ) {
         self.iOSCompanionManager = iOSCompanionManager
         self.androidCompanionManager = androidCompanionManager
         self.processRunner = processRunner
+        self.usbTunnel = usbTunnel
         self.screenStabilizationTimeoutSeconds = screenStabilizationTimeoutSeconds
     }
 
@@ -49,7 +52,24 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             )
         }
 
-        let (deviceID, port) = try await ensureCompanion(for: available, appID: appID)
+        var tunnelHandle: USBTunnelHandle?
+        let deviceID: String
+        let port: Int
+        do {
+            (deviceID, port) = try await ensureCompanion(for: available, appID: appID)
+            if case let .ios(device) = available, device.isPhysicalDevice {
+                tunnelHandle = try await usbTunnel.open(
+                    deviceUDID: device.udid,
+                    localPort: port,
+                    devicePort: port
+                )
+            }
+        } catch {
+            if let tunnelHandle {
+                try? await usbTunnel.close(tunnelHandle)
+            }
+            throw error
+        }
 
         // Connect the gRPC client.
         let companion: GRPCCompanionClient
@@ -58,6 +78,19 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 connection: CompanionConnection(host: "127.0.0.1", port: port)
             )
         } catch {
+            if let tunnelHandle {
+                try? await usbTunnel.close(tunnelHandle)
+            }
+            throw BootstrapError.connectionFailed(error.localizedDescription)
+        }
+        do {
+            // Unlike a TCP dial, this proves the companion application is serving its API.
+            try await waitForCompanionReady(companion)
+        } catch {
+            await companion.shutdown()
+            if let tunnelHandle {
+                try? await usbTunnel.close(tunnelHandle)
+            }
             throw BootstrapError.connectionFailed(error.localizedDescription)
         }
 
@@ -79,6 +112,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 try await platformDriver.installApp(path: buildPath)
             } catch {
                 await companion.shutdown()
+                if let tunnelHandle {
+                    try? await usbTunnel.close(tunnelHandle)
+                }
                 throw BootstrapError.installFailed(error.localizedDescription)
             }
         }
@@ -92,14 +128,21 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             )
         } catch {
             await companion.shutdown()
+            if let tunnelHandle {
+                try? await usbTunnel.close(tunnelHandle)
+            }
             throw BootstrapError.launchFailed(error.localizedDescription)
         }
 
         // Wait for the first screen to be queryable (best-effort).
         await waitForScreenReady(driver: platformDriver)
 
-        let cleanup: @Sendable () async -> Void = { [companion] in
+        let tunnel = usbTunnel
+        let cleanup: @Sendable () async -> Void = { [companion, tunnelHandle, tunnel] in
             await companion.shutdown()
+            if let tunnelHandle {
+                try? await tunnel.close(tunnelHandle)
+            }
         }
 
         return BootstrapResult(
@@ -154,14 +197,15 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             let config = CompanionConfig(
                 port: port,
                 deviceUDID: booted.udid,
+                isPhysicalDevice: booted.isPhysicalDevice,
                 targetAppID: appID
             )
-            try await iOSCompanionManager.ensureRunning(config: config)
+            try await iOSCompanionManager.ensureRunning(config: config, force: false)
             return (booted.udid, port)
         case let .android(serial, _):
             let port = 22088
             let config = AndroidCompanionConfig(port: port, serial: serial)
-            try await androidCompanionManager.ensureRunning(config: config)
+            try await androidCompanionManager.ensureRunning(config: config, force: false)
             return (serial, port)
         }
     }
@@ -174,6 +218,21 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             }
             try? await Task.sleep(for: .milliseconds(300))
         }
+    }
+
+    private func waitForCompanionReady(_ companion: any CompanionClient) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        var lastError: (any Error)?
+        while Date() < deadline {
+            do {
+                _ = try await companion.getCapabilities()
+                return
+            } catch {
+                lastError = error
+                try? await Task.sleep(for: .milliseconds(300))
+            }
+        }
+        throw lastError ?? BootstrapError.connectionFailed("Companion gRPC readiness timed out.")
     }
 }
 

@@ -92,6 +92,10 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
 /// Host-side lifecycle for the Android companion: build (Gradle), install
 /// app + test APKs, forward TCP, spawn the instrumentation runner, wait for
 /// reachability, and tear everything down on shutdown.
+protocol AndroidCompanionManaging: Sendable {
+    func ensureRunning(config: AndroidCompanionConfig, force: Bool) async throws
+}
+
 final class AndroidCompanionManager: @unchecked Sendable {
     private var instrumentProcess: (any SpawnedProcess)?
     private var activeConfig: AndroidCompanionConfig?
@@ -412,3 +416,5 @@ final class AndroidCompanionManager: @unchecked Sendable {
         throw AndroidCompanionError.readyTimeout(timeoutSeconds)
     }
 }
+
+extension AndroidCompanionManager: AndroidCompanionManaging {}

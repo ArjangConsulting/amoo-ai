@@ -7,11 +7,13 @@ import XcodeGenKit
 
 // MARK: - Configuration
 
-struct CompanionConfig {
+struct CompanionConfig: Equatable {
     var host: String
     var port: Int
     var companionDir: String
     var deviceUDID: String
+    /// Selects Xcode's physical-device destination instead of the simulator destination.
+    var isPhysicalDevice: Bool
     var readyTimeoutSeconds: Int
     /// Bundle ID of the app under test, handed to the runner so gestures resolve to it rather
     /// than to whatever happens to be frontmost when a command arrives.
@@ -22,6 +24,7 @@ struct CompanionConfig {
         port: Int = 22087,
         companionDir: String? = nil,
         deviceUDID: String,
+        isPhysicalDevice: Bool = false,
         readyTimeoutSeconds: Int = 30,
         targetAppID: String? = nil
     ) {
@@ -29,6 +32,7 @@ struct CompanionConfig {
         self.port = port
         self.companionDir = companionDir ?? Self.defaultCompanionDir()
         self.deviceUDID = deviceUDID
+        self.isPhysicalDevice = isPhysicalDevice
         self.readyTimeoutSeconds = readyTimeoutSeconds
         self.targetAppID = targetAppID
     }
@@ -97,8 +101,13 @@ enum CompanionError: Error, CustomStringConvertible {
 
 // MARK: - CompanionManager
 
+protocol IOSCompanionManaging: Sendable {
+    func ensureRunning(config: CompanionConfig, force: Bool) async throws
+}
+
 final class CompanionManager: @unchecked Sendable {
     private var companionProcess: (any SpawnedProcess)?
+    private var activeConfig: CompanionConfig?
     private let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
@@ -111,7 +120,7 @@ final class CompanionManager: @unchecked Sendable {
     func install(config: CompanionConfig, force: Bool = false) async throws {
         let productsDir = config.companionDir + "/build/Build/Products"
         if !force,
-           findXCTestRun(productsDir: productsDir) != nil,
+           findXCTestRun(productsDir: productsDir, config: config) != nil,
            sourceFingerprintMatches(config: config) {
             // Says "built", never "installed" or "running" — a previous build product on disk is
             // all this proves. Reporting it as plain success is what made a dead companion look
@@ -144,7 +153,7 @@ final class CompanionManager: @unchecked Sendable {
         }
 
         let productsDir = config.companionDir + "/build/Build/Products"
-        let xctestrunPath = findXCTestRun(productsDir: productsDir)
+        let xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
         guard let testrun = xctestrunPath else {
             throw CompanionError.buildFailed("No .xctestrun found after build.")
         }
@@ -167,6 +176,10 @@ final class CompanionManager: @unchecked Sendable {
             await shutdown()
         }
         let sourcesChanged = !sourceFingerprintMatches(config: config)
+        if config.isPhysicalDevice, companionProcess != nil, activeConfig == config, !force, !sourcesChanged {
+            print("Companion already running on physical device \(config.deviceUDID).")
+            return
+        }
         if await isReachable(host: config.host, port: config.port), !force, !sourcesChanged {
             print("Companion already running on port \(config.port).")
             return
@@ -185,14 +198,14 @@ final class CompanionManager: @unchecked Sendable {
         }
 
         let productsDir = config.companionDir + "/build/Build/Products"
-        var xctestrunPath = findXCTestRun(productsDir: productsDir)
+        var xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
 
         if force || sourcesChanged || xctestrunPath == nil {
             print("Companion sources changed or no build exists. Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building companion app") {
                 try await buildForTesting(config: config)
             }
-            xctestrunPath = findXCTestRun(productsDir: productsDir)
+            xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
         }
 
         guard let testrun = xctestrunPath else {
@@ -201,6 +214,12 @@ final class CompanionManager: @unchecked Sendable {
 
         print("Starting companion on port \(config.port)...")
         try await launchCompanion(xctestrunPath: testrun, config: config)
+
+        // A physical device does not share the host's loopback interface. Session bootstrap
+        // opens iproxy after xcodebuild has launched the runner, then performs a gRPC probe.
+        if config.isPhysicalDevice {
+            return
+        }
 
         try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
@@ -216,6 +235,7 @@ final class CompanionManager: @unchecked Sendable {
         guard let process = companionProcess else { return }
         _ = await process.teardownAndWait()
         companionProcess = nil
+        activeConfig = nil
     }
 
     // MARK: - Private
@@ -224,7 +244,7 @@ final class CompanionManager: @unchecked Sendable {
         await isTCPPortReachable(host: host, port: port, timeoutSeconds: 1.5)
     }
 
-    private func findXCTestRun(productsDir: String) -> String? {
+    private func findXCTestRun(productsDir: String, config: CompanionConfig) -> String? {
         guard
             let enumerator = FileManager.default.enumerator(
                 at: URL(fileURLWithPath: productsDir),
@@ -235,6 +255,8 @@ final class CompanionManager: @unchecked Sendable {
 
         let candidates = enumerator.compactMap { item -> URL? in
             guard let url = item as? URL, url.pathExtension == "xctestrun" else { return nil }
+            let platformMarker = config.isPhysicalDevice ? "iphoneos" : "iphonesimulator"
+            guard url.lastPathComponent.lowercased().contains(platformMarker) else { return nil }
             return url
         }
         return candidates.max(by: { lhs, rhs in
@@ -269,7 +291,7 @@ final class CompanionManager: @unchecked Sendable {
         let buildResult = try await XcodeBuild(context: shellContext)
             .trailingArgument("build-for-testing")
             .option(.scheme("AmooCompanion"))
-            .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
+            .option(.destination(xcodeDestination(for: config)))
             .option(.derivedDataPath(config.companionDir + "/build"))
             .option(.project(config.companionDir + "/AmooCompanion.xcodeproj"))
             .run()
@@ -350,6 +372,11 @@ final class CompanionManager: @unchecked Sendable {
         config.companionDir + "/build/.amoo-source-fingerprint"
     }
 
+    private func xcodeDestination(for config: CompanionConfig) -> String {
+        let platform = config.isPhysicalDevice ? "iOS" : "iOS Simulator"
+        return "platform=\(platform),id=\(config.deviceUDID)"
+    }
+
     private func launchCompanion(xctestrunPath: String, config: CompanionConfig) async throws {
         #if os(macOS)
         let logPath = NSTemporaryDirectory() + "companion-launch.log"
@@ -359,7 +386,7 @@ final class CompanionManager: @unchecked Sendable {
             companionProcess = try await XcodeBuild(context: shellContext)
                 .trailingArgument("test-without-building")
                 .option(.xctestrun(xctestrunPath))
-                .option(.destination("platform=iOS Simulator,id=\(config.deviceUDID)"))
+                .option(.destination(xcodeDestination(for: config)))
                 .trailingArguments([
                     "-only-testing",
                     "AmooCompanionUITests/CompanionRunner/testRunCompanion",
@@ -379,6 +406,7 @@ final class CompanionManager: @unchecked Sendable {
                 .stdout(.file(path: logPath, append: true))
                 .stderr(.file(path: logPath, append: true))
                 .spawn(teardown: .graceful)
+            activeConfig = config
         } catch {
             throw CompanionError.launchFailed(error.localizedDescription)
         }
@@ -406,3 +434,5 @@ final class CompanionManager: @unchecked Sendable {
         throw CompanionError.readyTimeout(timeoutSeconds)
     }
 }
+
+extension CompanionManager: IOSCompanionManaging {}

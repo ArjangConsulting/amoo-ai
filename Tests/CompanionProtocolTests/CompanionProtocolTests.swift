@@ -58,7 +58,9 @@ final class CompanionProtocolTests: XCTestCase {
         XCTAssertEqual(elements.first?.label, "Login")
         XCTAssertEqual(elements.first?.isEnabled, false)
         XCTAssertEqual(elements.first?.isVisible, false)
+        XCTAssertEqual(elements.first?.hitPoint, Point(x: 42, y: 84))
         XCTAssertEqual(hierarchy.id, "root-from-rpc")
+        XCTAssertEqual(hierarchy.hitPoint, Point(x: 160, y: 320))
         XCTAssertEqual(screenContext.summary, "Summary from rpc client")
         XCTAssertEqual(interactable.first?.id, "action-1")
         XCTAssertEqual(described.first?.label, "Fixture")
@@ -360,6 +362,10 @@ private actor MockRPCClient: CompanionRPCClient {
         element.label = "Login"
         element.isEnabled = false
         element.isVisible = false
+        element.hitPoint = Amoo_Point.with { point in
+            point.x = 42
+            point.y = 84
+        }
 
         var response = Amoo_FindElementsResponse()
         response.elements = [element]
@@ -372,6 +378,10 @@ private actor MockRPCClient: CompanionRPCClient {
 
         var node = Amoo_ViewNode()
         node.id = "root-from-rpc"
+        node.hitPoint = Amoo_Point.with { point in
+            point.x = 160
+            point.y = 320
+        }
 
         var response = Amoo_ViewHierarchyResponse()
         response.root = node

@@ -27,18 +27,24 @@ final class UnlabeledElementTests: XCTestCase {
         XCTAssertEqual(selector?.labeledOnly, true)
     }
 
-    func testUnlabeledElementRendersAsItsTypeAndFrame() async {
+    func testUnlabeledElementPrefersItsHitPoint() async {
         let driver = SelectorRecordingDriver(elements: [
-            ElementInfo(id: "", label: "", type: .button, frame: Rect(x: 330, y: 100, width: 38, height: 38))
+            ElementInfo(
+                id: "",
+                label: "",
+                type: .button,
+                frame: Rect(x: 330, y: 100, width: 38, height: 38),
+                hitPoint: Point(x: 342, y: 112)
+            )
         ])
         let executor = DriverToolExecutor(driver: driver)
 
         let result = await executor.execute(toolName: "find_elements", arguments: [:])
 
         XCTAssertFalse(result.isError)
-        // The centre, in points, is the entire usable answer for an element with no name.
+        // The viewport-safe hit point is preferred to the raw frame centre (349,119).
         XCTAssertTrue(result.content.contains("[unlabeled]"), result.content)
-        XCTAssertTrue(result.content.contains("(349,119)"), result.content)
+        XCTAssertTrue(result.content.contains("hitPoint: (342,112)"), result.content)
     }
 
     func testNamedElementStillRendersItsIdentifierAndLabel() async {

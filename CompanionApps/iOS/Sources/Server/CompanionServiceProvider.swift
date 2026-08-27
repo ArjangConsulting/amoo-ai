@@ -610,6 +610,11 @@ extension ElementSnapshot {
         rect.height = frame.size.height
         element.frame = rect
 
+        var hitPoint = Amoo_Point()
+        hitPoint.x = self.hitPoint.x
+        hitPoint.y = self.hitPoint.y
+        element.hitPoint = hitPoint
+
         return element
     }
 }
@@ -629,6 +634,11 @@ extension ViewNodeSnapshot {
         rect.width = frame.size.width
         rect.height = frame.size.height
         node.frame = rect
+
+        var hitPoint = Amoo_Point()
+        hitPoint.x = self.hitPoint.x
+        hitPoint.y = self.hitPoint.y
+        node.hitPoint = hitPoint
 
         node.children = children.map { $0.toProto() }
         return node

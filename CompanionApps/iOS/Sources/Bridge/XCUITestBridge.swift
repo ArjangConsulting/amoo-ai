@@ -420,6 +420,11 @@ final class XCUITestBridge: @unchecked Sendable {
             label: snapshot.label,
             type: "\(snapshot.elementType)",
             frame: snapshot.frame,
+            hitPoint: interactionPoint(
+                frame: snapshot.frame,
+                visibleFrame: visibleFrame,
+                viewport: viewport
+            ),
             isEnabled: snapshot.isEnabled,
             isVisible: isVisible,
             children: children
@@ -450,6 +455,7 @@ final class XCUITestBridge: @unchecked Sendable {
             label: element.label,
             type: "\(element.elementType)",
             frame: element.frame,
+            hitPoint: interactionPoint(frame: element.frame, visibleFrame: nil, viewport: viewport),
             isEnabled: element.isEnabled,
             isVisible: isVisible,
             children: children
@@ -504,6 +510,17 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return nil
+    }
+
+    /// Returns a point inside the on-screen portion of an element. A frame's geometric centre
+    /// can be clipped outside a scroll view or covered by screen bounds, making it a poor fallback
+    /// for elements that cannot be addressed by an accessibility selector.
+    private func interactionPoint(frame: CGRect, visibleFrame: CGRect?, viewport: CGRect) -> CGPoint {
+        let preferred = (visibleFrame ?? frame).standardized.intersection(viewport.standardized)
+        if !preferred.isNull, !preferred.isEmpty {
+            return CGPoint(x: preferred.midX, y: preferred.midY)
+        }
+        return CGPoint(x: frame.midX, y: frame.midY)
     }
 
     /// Resolves the application a command applies to.
@@ -738,16 +755,18 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     private func element(from snapshot: XCUIElementSnapshot, viewport: CGRect) -> ElementSnapshot {
-        ElementSnapshot(
+        let visibleFrame = snapshotVisibleFrame(snapshot)
+        return ElementSnapshot(
             id: snapshot.identifier,
             label: snapshot.label,
             value: (snapshot.value as? String) ?? "",
             type: "\(snapshot.elementType)",
             frame: snapshot.frame,
+            hitPoint: interactionPoint(frame: snapshot.frame, visibleFrame: visibleFrame, viewport: viewport),
             isEnabled: snapshot.isEnabled,
             isVisible: isSnapshotVisible(
                 snapshot,
-                visibleFrame: snapshotVisibleFrame(snapshot),
+                visibleFrame: visibleFrame,
                 viewport: viewport
             )
         )

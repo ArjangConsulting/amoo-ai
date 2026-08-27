@@ -21,6 +21,25 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         /// dependency on amoo or the companion apps once generated.
         final class \(className): XCTestCase {
             private let defaultTimeout: TimeInterval = 5
+            private lazy var app = XCUIApplication()
+
+            override func setUpWithError() throws {
+                continueAfterFailure = false
+            }
+
+            override func tearDownWithError() throws {
+                guard testRun?.failureCount ?? 0 > 0 else { return }
+
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Failure screenshot"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+
+                let hierarchy = XCTAttachment(string: app.debugDescription)
+                hierarchy.name = "Failure UI hierarchy"
+                hierarchy.lifetime = .keepAlways
+                add(hierarchy)
+            }
 
             private func waitForExistence(
                 _ element: XCUIElement,
@@ -64,8 +83,26 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 )
             }
 
+            private func replaceText(in element: XCUIElement, with text: String) {
+                element.tap()
+                if let currentValue = element.value as? String, !currentValue.isEmpty {
+                    element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
+                }
+                if !text.isEmpty {
+                    element.typeText(text)
+                }
+            }
+
+            private func pressBack() {
+                let backButton = app.navigationBars.buttons.element(boundBy: 0)
+                if backButton.exists, backButton.isHittable {
+                    backButton.tap()
+                } else {
+                    app.swipeRight()
+                }
+            }
+
             func \(methodName)() throws {
-                let app = XCUIApplication()
                 app.launch()
 
         \(body)
@@ -103,8 +140,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             return try """
             \(indent)let \(variable) = \(element)
             \(indent)waitForHittability(\(variable), timeout: \(timeoutSeconds(for: operation)))
-            \(indent)\(variable).tap()
-            \(indent)\(variable).typeText(\(literal(value)))
+            \(indent)replaceText(in: \(variable), with: \(literal(value)))
             """
 
         case .typeText:
@@ -165,9 +201,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             """
 
         case .pressBack:
-            // iOS has no system "back" API from XCUITest — this is a best-effort edge-swipe gesture.
-            // Adjust to your app's own back control (e.g. a navigation bar back button) if this doesn't match.
-            return "\(indent)app.swipeRight() // press_back: best-effort edge-swipe back gesture"
+            return "\(indent)pressBack()"
         }
     }
 

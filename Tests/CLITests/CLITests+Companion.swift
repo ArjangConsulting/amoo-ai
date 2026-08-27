@@ -169,6 +169,38 @@ extension CLITests {
         #endif
     }
 
+    func testCompanionInstallBuildsForPhysicalDeviceDestination() async throws {
+        let companionDir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
+            .success(.init(exitCode: 0, stdout: "built", stderr: ""))
+        ])
+        let manager = CompanionManager(processRunner: runner)
+        let config = CompanionConfig(
+            companionDir: companionDir,
+            deviceUDID: "PHONE-123",
+            isPhysicalDevice: true
+        )
+
+        #if os(macOS)
+        try await manager.install(config: config, force: true)
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(
+            commands[1],
+            [
+                "xcodebuild",
+                "-scheme", "AmooCompanion",
+                "-destination", "platform=iOS,id=PHONE-123",
+                "-derivedDataPath", companionDir + "/build",
+                "-project", companionDir + "/AmooCompanion.xcodeproj",
+                "build-for-testing"
+            ]
+        )
+        #endif
+    }
+
     func testCompanionInstallThrowsWhenXcodegenIsMissing() async {
         let companionDir = makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(atPath: companionDir) }

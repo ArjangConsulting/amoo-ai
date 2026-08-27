@@ -69,6 +69,9 @@ message ElementInfo {
   Rect frame = 5;
   bool is_enabled = 6;
   bool is_visible = 7;
+  // Preferred interaction coordinate in screen points. Unlike frame center, this is
+  // constrained to the portion of the element visible inside the current viewport.
+  Point hit_point = 8;
 }
 
 message ViewNode {
@@ -80,6 +83,7 @@ message ViewNode {
   Rect frame = 6;
   bool is_enabled = 7;
   bool is_visible = 8;
+  Point hit_point = 9;
 }
 
 message ActionResponse {
