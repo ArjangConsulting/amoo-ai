@@ -62,7 +62,11 @@ func runFlowCommand(path: String) async -> CLIResult {
         case .ios:
             await makeIOSDriver(companion: companion, deviceID: flow.deviceID ?? "booted")
         case .android:
-            AndroidDriver(companion: companion, serial: normalizedAndroidDeviceID(flow.deviceID))
+            AndroidDriver(
+                companion: companion,
+                inspectionMode: .productionDefault(),
+                serial: normalizedAndroidDeviceID(flow.deviceID)
+            )
         }
         let executor = DriverToolExecutor(driver: driver)
         var report: [String] = []

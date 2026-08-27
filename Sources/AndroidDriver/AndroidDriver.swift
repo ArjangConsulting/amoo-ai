@@ -9,21 +9,29 @@ public actor AndroidDriver: PlatformDriver {
         let localPath: String
     }
 
-    private let companion: any CompanionClient
+    let companion: any CompanionClient
     let adb: any ADBRunning
+    let androidCLI: any AndroidCLIRunning
+    let inspectionMode: AndroidInspectionMode
     let requestedDeviceID: String?
     private let emulator: any EmulatorRunning
     var resolvedSerial: String?
     private var activeRecordings: [String: ActiveRecording] = [:]
+    var inspectionComparison: AndroidInspectionComparison?
+    var androidCLIAvailable: Bool?
 
     public init(
         companion: any CompanionClient,
         adb: any ADBRunning = ADBRunner(),
+        androidCLI: any AndroidCLIRunning = AndroidCLIRunner(),
+        inspectionMode: AndroidInspectionMode = .companion,
         emulator: any EmulatorRunning = EmulatorRunner(),
         serial: String? = nil
     ) {
         self.companion = companion
         self.adb = adb
+        self.androidCLI = androidCLI
+        self.inspectionMode = inspectionMode
         self.emulator = emulator
         requestedDeviceID = serial
     }
@@ -247,23 +255,29 @@ public actor AndroidDriver: PlatformDriver {
     // MARK: - Accessibility (delegate to companion)
 
     public func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
-        try await companion.findElements(selector)
+        try await inspectElements(selector: selector)
     }
 
     public func findElements(_ selector: ElementSelector, appID: String?) async throws -> [ElementInfo] {
-        try await companion.findElements(selector, appID: appID, candidateBundleIDs: [])
+        guard appID == nil else {
+            return try await companion.findElements(selector, appID: appID, candidateBundleIDs: [])
+        }
+        return try await inspectElements(selector: selector)
     }
 
     public func getViewHierarchy() async throws -> ViewNode {
-        try await companion.getViewHierarchy(appID: nil, candidateBundleIDs: [])
+        try await inspectHierarchy()
     }
 
     public func getViewHierarchy(appID: String?) async throws -> ViewNode {
-        try await companion.getViewHierarchy(appID: appID, candidateBundleIDs: [])
+        guard appID == nil else {
+            return try await companion.getViewHierarchy(appID: appID, candidateBundleIDs: [])
+        }
+        return try await inspectHierarchy()
     }
 
     public func elementExists(_ selector: ElementSelector) async throws -> Bool {
-        let elements = try await companion.findElements(selector)
+        let elements = try await inspectElements(selector: selector)
         return !elements.isEmpty
     }
 

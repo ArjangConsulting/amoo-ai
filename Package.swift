@@ -22,8 +22,8 @@ let package = Package(
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/maniramezan/SwiftyShell.git", exact: "0.4.0"),
-        .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", exact: "0.3.0"),
+        .package(url: "https://github.com/maniramezan/SwiftyShell.git", exact: "0.5.0"),
+        .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", exact: "0.6.0"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
@@ -64,7 +64,8 @@ let package = Package(
                 "AmooCore",
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "ShipItKit", package: "ShipItSwifty"),
-                .product(name: "GradleKit", package: "ShipItSwifty")
+                .product(name: "GradleKit", package: "ShipItSwifty"),
+                .product(name: "AndroidCLIKit", package: "ShipItSwifty")
             ]
         ),
         .target(name: "IOSDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),

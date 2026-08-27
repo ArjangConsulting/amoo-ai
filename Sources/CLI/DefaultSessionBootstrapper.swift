@@ -66,7 +66,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         case .ios:
             await makeIOSDriver(companion: companion, deviceID: deviceID)
         case .android:
-            AndroidDriver(companion: companion, serial: deviceID)
+            AndroidDriver(
+                companion: companion,
+                inspectionMode: .productionDefault(),
+                serial: deviceID
+            )
         }
 
         // Install the app under test if a build path was supplied.

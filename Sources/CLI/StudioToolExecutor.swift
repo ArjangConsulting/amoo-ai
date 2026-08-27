@@ -73,7 +73,11 @@ actor CLIStudioToolExecutor: StudioToolExecuting {
             let port = 22088
             try await androidCompanionManager.ensureRunning(config: .init(port: port, serial: deviceId))
             companion = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: port))
-            driver = AndroidDriver(companion: companion, serial: deviceId)
+            driver = AndroidDriver(
+                companion: companion,
+                inspectionMode: .productionDefault(),
+                serial: deviceId
+            )
         default:
             throw StudioToolExecutorError.unsupportedPlatform(platform)
         }

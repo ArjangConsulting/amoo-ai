@@ -325,7 +325,11 @@ private func makeChatDriver(
         case .ios:
             return await .success(makeIOSDriver(companion: companion, deviceID: resolvedDeviceID))
         case .android:
-            return .success(AndroidDriver(companion: companion, serial: resolvedDeviceID))
+            return .success(AndroidDriver(
+                companion: companion,
+                inspectionMode: .productionDefault(),
+                serial: resolvedDeviceID
+            ))
         }
     } catch {
         return .failure(CLIResult(output: "Failed to create driver: \(error)", exitCode: 1))

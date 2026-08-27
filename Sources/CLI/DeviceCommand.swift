@@ -299,7 +299,11 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
     case .ios:
         await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
     case .android:
-        AndroidDriver(companion: companion, serial: options.deviceID)
+        AndroidDriver(
+            companion: companion,
+            inspectionMode: .productionDefault(),
+            serial: options.deviceID
+        )
     }
     let executor = DriverToolExecutor(driver: driver)
 

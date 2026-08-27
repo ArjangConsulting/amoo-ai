@@ -380,7 +380,9 @@ final class AndroidCompanionManager: @unchecked Sendable {
                     "-e", "class", "com.amoo.companion.CompanionRunner",
                     "com.amoo.companion.test/androidx.test.runner.AndroidJUnitRunner"
                 ])
-                .stdout(.file(path: logPath, append: false))
+                // The file is freshly created above; use append for both streams so SwiftyShell
+                // can safely share one destination without competing overwrite handles.
+                .stdout(.file(path: logPath, append: true))
                 .stderr(.file(path: logPath, append: true))
                 .spawn(teardown: .graceful)
         } catch {

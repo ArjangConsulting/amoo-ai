@@ -127,7 +127,11 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
         case .ios:
             await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
         case .android:
-            AndroidDriver(companion: companion, serial: options.deviceID)
+            AndroidDriver(
+                companion: companion,
+                inspectionMode: .productionDefault(),
+                serial: options.deviceID
+            )
         }
 
         // Wire up session management so `start_session` can boot devices,

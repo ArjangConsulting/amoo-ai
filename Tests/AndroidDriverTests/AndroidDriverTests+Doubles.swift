@@ -154,6 +154,31 @@ actor MockEmulatorRunner: EmulatorRunning {
     }
 }
 
+actor MockAndroidCLIRunner: AndroidCLIRunning {
+    private var elements: [AndroidLayoutSnapshotElement]
+    private var error: Error?
+    private var layoutCalls: [(device: String?, diff: Bool)] = []
+
+    init(elements: [AndroidLayoutSnapshotElement] = [], error: Error? = nil) {
+        self.elements = elements
+        self.error = error
+    }
+
+    func version() async throws -> String { "1.0.15985488" }
+
+    func layout(device: String?, diff: Bool) async throws -> [AndroidLayoutSnapshotElement] {
+        layoutCalls.append((device, diff))
+        if let error { throw error }
+        return elements
+    }
+
+    func captureScreen(device _: String?, output _: String, annotated _: Bool) async throws {}
+
+    func resolveScreen(screenshot _: String, instruction: String) async throws -> String { instruction }
+
+    func calls() -> [(device: String?, diff: Bool)] { layoutCalls }
+}
+
 struct SwipeCall {
     let from: Point
     let to: Point
@@ -192,6 +217,8 @@ actor MockCompanionClient: CompanionClient {
     private var _keyboardVisible = false
     private var _interactableElements: [ElementInfo] = []
     private var _findByDescriptionResults: [ElementInfo] = []
+    private var _hierarchy = ViewNode(id: "root")
+    private var _hierarchyCallCount = 0
 
     func startSession() async throws {}
     func getCapabilities() async throws -> [CapabilityDescriptor] {
@@ -264,7 +291,8 @@ actor MockCompanionClient: CompanionClient {
     }
 
     func getViewHierarchy(appID _: String?, candidateBundleIDs _: [String]) async throws -> ViewNode {
-        ViewNode(id: "root")
+        _hierarchyCallCount += 1
+        return _hierarchy
     }
 
     func waitForElement(
@@ -327,5 +355,13 @@ actor MockCompanionClient: CompanionClient {
 
     func setFindByDescriptionResults(_ elements: [ElementInfo]) {
         _findByDescriptionResults = elements
+    }
+
+    func setHierarchy(_ hierarchy: ViewNode) {
+        _hierarchy = hierarchy
+    }
+
+    func hierarchyCallCount() -> Int {
+        _hierarchyCallCount
     }
 }

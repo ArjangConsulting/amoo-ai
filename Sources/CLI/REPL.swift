@@ -81,7 +81,11 @@ private func runAndroidREPL(
         return
     }
 
-    let driver = AndroidDriver(companion: companion, serial: serial.isEmpty ? nil : serial)
+    let driver = AndroidDriver(
+        companion: companion,
+        inspectionMode: .productionDefault(),
+        serial: serial.isEmpty ? nil : serial
+    )
     let executor = DriverToolExecutor(driver: driver)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()

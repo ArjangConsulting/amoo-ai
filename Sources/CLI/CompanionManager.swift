@@ -374,7 +374,9 @@ final class CompanionManager: @unchecked Sendable {
                 .env("TEST_RUNNER_COMPANION_TARGET_APP", config.targetAppID ?? "")
                 .env("COMPANION_PORT", String(config.port))
                 .env("COMPANION_TARGET_APP", config.targetAppID ?? "")
-                .stdout(.file(path: logPath, append: false))
+                // The file is freshly created above; use append for both streams so SwiftyShell
+                // can safely share one destination without competing overwrite handles.
+                .stdout(.file(path: logPath, append: true))
                 .stderr(.file(path: logPath, append: true))
                 .spawn(teardown: .graceful)
         } catch {
