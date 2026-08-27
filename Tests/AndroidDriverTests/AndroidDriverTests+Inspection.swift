@@ -124,4 +124,51 @@ extension AndroidDriverTests {
             .compare
         )
     }
+
+    func testAutomaticInspectionFallsBackWhenAndroidCLIReturnsEmptyLayout() async throws {
+        // AndroidCLI succeeds but returns nothing because a companion instrumentation session
+        // holds Android's single UI-automation-owner slot. The empty result must not be trusted.
+        let androidCLI = MockAndroidCLIRunner(elements: [])
+        let companion = MockCompanionClient()
+        await companion.setHierarchy(ViewNode(
+            id: "companion-root",
+            children: [ViewNode(id: "most_loved", label: "Most Loved")]
+        ))
+        await companion.setFindElementsResponses([
+            [ElementInfo(id: "most_loved", label: "Most Loved")]
+        ])
+        let driver = AndroidDriver(
+            companion: companion,
+            androidCLI: androidCLI,
+            inspectionMode: .automatic
+        )
+
+        let hierarchy = try await driver.getViewHierarchy()
+        // Once the owner conflict is detected, the rest of the session skips AndroidCLI entirely.
+        let matches = try await driver.findElements(.init(id: "most_loved"))
+
+        XCTAssertEqual(hierarchy.id, "companion-root")
+        XCTAssertEqual(matches.map(\.id), ["most_loved"])
+        let androidCLICalls = await androidCLI.calls()
+        XCTAssertEqual(androidCLICalls.count, 1)
+    }
+
+    func testAutomaticInspectionTrustsEmptyLayoutWhenCompanionAlsoSeesNothing() async throws {
+        let androidCLI = MockAndroidCLIRunner(elements: [])
+        let companion = MockCompanionClient()
+        await companion.setHierarchy(ViewNode(id: "root"))
+        let driver = AndroidDriver(
+            companion: companion,
+            androidCLI: androidCLI,
+            inspectionMode: .automatic
+        )
+
+        let first = try await driver.getViewHierarchy()
+        _ = try await driver.getViewHierarchy()
+
+        XCTAssertTrue(first.children.isEmpty)
+        // A genuinely empty screen is not an owner conflict, so AndroidCLI stays in rotation.
+        let androidCLICalls = await androidCLI.calls()
+        XCTAssertEqual(androidCLICalls.count, 2)
+    }
 }

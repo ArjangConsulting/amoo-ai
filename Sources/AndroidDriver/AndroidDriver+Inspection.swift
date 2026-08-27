@@ -88,9 +88,17 @@ extension AndroidDriver {
     private func automaticHierarchy() async throws -> ViewNode {
         guard androidCLIAvailable != false else { return try await companionHierarchy() }
         do {
-            let hierarchy = try await androidCLIHierarchy()
+            let elements = try await androidCLIElements()
+            if elements.isEmpty {
+                let companion = try await companionHierarchy()
+                noteAndroidCLIEmptyResult(
+                    companionElementCount: companion.children.flatMap(\.flattenedElements).count,
+                    surface: "hierarchy"
+                )
+                return companion
+            }
             androidCLIAvailable = true
-            return hierarchy
+            return ViewNode(id: "android-cli-root", children: elements.map(\.viewNode))
         } catch {
             androidCLIAvailable = false
             return try await companionHierarchy()
@@ -100,13 +108,35 @@ extension AndroidDriver {
     private func automaticElements(selector: ElementSelector) async throws -> [ElementInfo] {
         guard androidCLIAvailable != false else { return try await companion.findElements(selector) }
         do {
-            let elements = try await androidCLIElements().filter { $0.matches(selector) }
+            let elements = try await androidCLIElements()
+            if elements.isEmpty {
+                let companionElements = try await companion.findElements(selector)
+                noteAndroidCLIEmptyResult(companionElementCount: companionElements.count, surface: "elements")
+                return companionElements
+            }
             androidCLIAvailable = true
-            return elements
+            return elements.filter { $0.matches(selector) }
         } catch {
             androidCLIAvailable = false
             return try await companion.findElements(selector)
         }
+    }
+
+    /// AndroidCLI 1.0 returns an empty layout — without raising an error — when it loses Android's
+    /// single UI-automation-owner race to a live companion instrumentation session (see
+    /// `docs/prerequisites.md`). An empty AndroidCLI result is therefore ambiguous: `.automatic`
+    /// cross-checks it against the companion, which owns automation for the duration of a session.
+    /// When the companion still sees elements, the empty result was the owner conflict, not a bare
+    /// screen — surface that distinctly and stop consulting AndroidCLI for the rest of the session.
+    private func noteAndroidCLIEmptyResult(companionElementCount: Int, surface: String) {
+        guard companionElementCount > 0 else { return }
+        androidCLIAvailable = false
+        writeComparisonDiagnostic(
+            "AndroidCLI \(surface) inspection returned no elements while the companion found "
+                + "\(companionElementCount); a companion instrumentation session owns Android UI "
+                + "automation, so AndroidCLI cannot read the layout — using the companion for the "
+                + "rest of this session."
+        )
     }
 
     private func androidCLIHierarchy() async throws -> ViewNode {
