@@ -18,13 +18,16 @@ final class GeneratedCodeCompileTests: XCTestCase {
         .init(id: "op-3", tool: "type_text", arguments: ["text": "line one\nline two\ttabbed"]),
         .init(id: "op-4", tool: "swipe_in_direction", arguments: ["direction": "up", "element_id": "list"]),
         .init(id: "op-5", tool: "wait_for_element", arguments: ["id": "spinner", "timeout_ms": "2000"]),
-        .init(id: "op-6", tool: "assert_visible", arguments: ["label": "Welcome"]),
-        .init(id: "op-7", tool: "assert_not_visible", arguments: ["id": "spinner"]),
-        .init(id: "op-8", tool: "assert_text", arguments: ["id": "greeting", "value": "Hi there"]),
-        .init(id: "op-9", tool: "take_screenshot", arguments: [:]),
-        .init(id: "op-10", tool: "press_back", arguments: [:]),
-        .init(id: "op-11", tool: "assert_enabled", arguments: ["id": "submit-button"]),
-        .init(id: "op-12", tool: "scroll", arguments: ["direction": "down", "distance": "400"])
+        // scroll followed by a targeted step -> performScrollToNode path.
+        .init(id: "op-6", tool: "scroll", arguments: ["direction": "down"]),
+        .init(id: "op-7", tool: "assert_visible", arguments: ["label": "Welcome"]),
+        .init(id: "op-8", tool: "assert_not_visible", arguments: ["id": "spinner"]),
+        .init(id: "op-9", tool: "assert_text", arguments: ["id": "greeting", "value": "Hi there"]),
+        .init(id: "op-10", tool: "take_screenshot", arguments: [:]),
+        .init(id: "op-11", tool: "press_back", arguments: [:]),
+        .init(id: "op-12", tool: "assert_enabled", arguments: ["id": "submit-button"]),
+        // trailing scroll with no following target -> scrollByViewport fallback path.
+        .init(id: "op-13", tool: "scroll", arguments: ["direction": "down", "distance": "400"])
     ]
 
     private func makeTest(platform: Platform) -> StudioAuthoredTest {

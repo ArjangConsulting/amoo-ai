@@ -67,7 +67,10 @@ enum CompileVerification {
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: outputDir) }
 
-        let result = run(kotlinc, ["-cp", classpath, "-d", outputDir.path, sourceFile.path])
+        // AndroidX / Compose artifacts are compiled to JVM 11+ bytecode; kotlinc defaults to a 1.8
+        // target and then refuses to inline their `inline` functions. A real AGP build targets 17,
+        // so match that here.
+        let result = run(kotlinc, ["-jvm-target", "17", "-cp", classpath, "-d", outputDir.path, sourceFile.path])
         if result.exitCode != 0 {
             XCTFail("Generated Kotlin did not compile:\n\(result.output)", file: file, line: line)
         }

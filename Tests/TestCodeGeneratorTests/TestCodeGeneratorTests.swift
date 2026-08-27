@@ -236,8 +236,60 @@ final class TestCodeGeneratorTests: XCTestCase {
             #"composeTestRule.onAllNodes(hasContentDescription("Loading")).fetchSemanticsNodes().isEmpty() }"#
         ))
         XCTAssertFalse(source.contains("assertIsNotDisplayed()"))
-        XCTAssertTrue(source.contains("onRoot().performTouchInput { swipeUp() }"))
+        // scroll is the last step here — no follow-up target, so the distance-based fallback.
+        XCTAssertTrue(source.contains("scrollByViewport(vertical = true, forward = true)"))
         XCTAssertTrue(source.contains("ActivityScenario.launch<Activity>(launchIntent).use"))
+    }
+
+    func testComposeEmitterScrollsViaSemanticsNotACoordinateSwipe() throws {
+        // A swipe on onRoot() is not routed into Compose's nested-scroll system, and a LazyColumn's
+        // scroll node can report zero bounds (making a coordinate swipe a no-op), so an unscoped
+        // scroll is driven through semantics on the axis scroll container.
+
+        // scroll followed by a targeted step -> scroll exactly until that target is on screen.
+        let scrollThenAssert = makeTest(platform: .android, operations: [
+            .init(id: "op-1", tool: "scroll", arguments: ["direction": "down"]),
+            .init(id: "op-2", tool: "assert_enabled", arguments: ["contains_text": "New Videos"])
+        ])
+        let toNodeSource = try ComposeEspressoEmitter().generate(scrollThenAssert).source
+        XCTAssertTrue(toNodeSource.contains(
+            #"scrollContainer(vertical = true).performScrollToNode(hasText("New Videos", substring = true))"#
+        ))
+        XCTAssertTrue(toNodeSource.contains("private fun scrollContainer(vertical: Boolean): SemanticsNodeInteraction"))
+        XCTAssertTrue(toNodeSource.contains("SemanticsProperties.VerticalScrollAxisRange"))
+        XCTAssertFalse(toNodeSource.contains("onRoot().performTouchInput"))
+
+        // scroll as the last step -> distance-based ScrollBy fallback, forward from the direction.
+        let trailingScroll = makeTest(platform: .android, operations: [
+            .init(id: "op-1", tool: "scroll", arguments: ["direction": "down"])
+        ])
+        let fallbackSource = try ComposeEspressoEmitter().generate(trailingScroll).source
+        XCTAssertTrue(fallbackSource.contains("scrollByViewport(vertical = true, forward = true)"))
+        XCTAssertTrue(fallbackSource.contains("performSemanticsAction(SemanticsActions.ScrollBy)"))
+
+        // Axis + direction: scroll-up is a vertical backward scroll.
+        let scrollUp = makeTest(platform: .android, operations: [
+            .init(id: "op-1", tool: "scroll", arguments: ["direction": "up"])
+        ])
+        XCTAssertTrue(
+            try ComposeEspressoEmitter().generate(scrollUp).source
+                .contains("scrollByViewport(vertical = true, forward = false)")
+        )
+
+        // The helper is only emitted when an unscoped scroll needs it.
+        let tapOnly = makeTest(platform: .android, operations: [
+            .init(id: "op-1", tool: "tap_element", arguments: ["id": "go"])
+        ])
+        XCTAssertFalse(try ComposeEspressoEmitter().generate(tapOnly).source.contains("scrollContainer"))
+
+        // An element-scoped swipe still targets that element with a real gesture.
+        let swipeCard = makeTest(platform: .android, operations: [
+            .init(id: "op-1", tool: "swipe_in_direction", arguments: ["direction": "left", "element_id": "card"])
+        ])
+        let cardSource = try ComposeEspressoEmitter().generate(swipeCard).source
+        XCTAssertTrue(cardSource.contains(
+            #"composeTestRule.onNode(hasTestTag("card")).assertIsDisplayed().performTouchInput { swipeLeft() }"#
+        ))
     }
 
     func testComposeEmitterGuardsAssertionsWithPerStepTimeout() throws {

@@ -12,7 +12,13 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         }
         let className = "\(TestIdentifierNaming.pascalCase(test.name))Test"
         let methodName = "test\(TestIdentifierNaming.pascalCase(test.name))"
-        let body = try operations.map { try Self.statement(for: $0) }.joined(separator: "\n")
+        let needsScrollHelper = operations.contains { Self.isUnscopedScroll($0) }
+        let body = try operations.indices
+            .map { index -> String in
+                let next = index + 1 < operations.count ? operations[index + 1] : nil
+                return try Self.statement(for: operations[index], next: next)
+            }
+            .joined(separator: "\n")
         // Statements sit inside `ActivityScenario.launch { }`, one level deeper than they are
         // emitted. Mirrors EspressoEmitter's launchedBody.
         let launchedBody = body.split(separator: "\n", omittingEmptySubsequences: false)
@@ -22,9 +28,12 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         let source = """
         import android.app.Activity
         import android.content.Intent
+        import androidx.compose.ui.semantics.SemanticsActions
+        import androidx.compose.ui.semantics.SemanticsProperties
+        import androidx.compose.ui.test.SemanticsMatcher
+        import androidx.compose.ui.test.SemanticsNodeInteraction
         import androidx.compose.ui.test.assertIsDisplayed
         import androidx.compose.ui.test.assertIsEnabled
-        import androidx.compose.ui.test.assertIsNotDisplayed
         import androidx.compose.ui.test.assertTextEquals
         import androidx.compose.ui.test.hasContentDescription
         import androidx.compose.ui.test.hasTestTag
@@ -33,6 +42,8 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
         import androidx.compose.ui.test.onRoot
         import androidx.compose.ui.test.performClick
+        import androidx.compose.ui.test.performScrollToNode
+        import androidx.compose.ui.test.performSemanticsAction
         import androidx.compose.ui.test.performTextInput
         import androidx.compose.ui.test.performTextReplacement
         import androidx.compose.ui.test.performTouchInput
@@ -56,7 +67,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         class \(className) {
             @get:Rule
             val composeTestRule = createEmptyComposeRule()
-
+        \(needsScrollHelper ? Self.scrollHelper + "\n" : "")
             @Test
             fun \(methodName)() {
                 val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
@@ -76,9 +87,59 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
 
     private static let indent = "        "
 
+    private static func isUnscopedScroll(_ operation: StudioToolOperation) -> Bool {
+        operation.tool == StudioTool.scroll.rawValue
+            && operation.arguments["element_id"] == nil
+            && operation.arguments["element_label"] == nil
+    }
+
+    /// Emitted once when an unscoped `scroll` is present.
+    ///
+    /// `performScrollToNode` (the value path — when the recorded step after the scroll targets an
+    /// element) and `ScrollBy` (the fallback) are both semantics-driven, so neither depends on the
+    /// scroll node's bounds — a LazyColumn's scroll node can report a zero-size rect, which makes a
+    /// `performTouchInput` swipe a silent no-op. The container is chosen by scroll axis, largest by
+    /// area, so a nested horizontal carousel never absorbs a vertical scroll.
+    private static let scrollHelper: String = {
+        let raw = """
+        private fun scrollContainer(vertical: Boolean): SemanticsNodeInteraction {
+            composeTestRule.waitForIdle()
+            val axisKey = if (vertical) {
+                SemanticsProperties.VerticalScrollAxisRange
+            } else {
+                SemanticsProperties.HorizontalScrollAxisRange
+            }
+            val targetId = composeTestRule
+                .onAllNodes(SemanticsMatcher.keyIsDefined(axisKey), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .filter { it.config.contains(SemanticsActions.ScrollBy) }
+                .maxByOrNull { it.boundsInRoot.width * it.boundsInRoot.height }
+                ?.id
+                ?: error("No scrollable node on the current screen for the requested axis")
+            return composeTestRule.onNode(
+                SemanticsMatcher("scroll container id=" + targetId) { it.id == targetId },
+                useUnmergedTree = true
+            )
+        }
+
+        private fun scrollByViewport(vertical: Boolean, forward: Boolean) {
+            val viewport = composeTestRule.onRoot().fetchSemanticsNode().boundsInRoot
+            val extent = (if (vertical) viewport.height else viewport.width).takeIf { it > 0f } ?: 2000f
+            val delta = if (forward) extent * 0.8f else -extent * 0.8f
+            scrollContainer(vertical).performSemanticsAction(SemanticsActions.ScrollBy) {
+                if (vertical) it(0f, delta) else it(delta, 0f)
+            }
+            composeTestRule.waitForIdle()
+        }
+        """
+        return raw.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.isEmpty ? "" : "    \($0)" }
+            .joined(separator: "\n")
+    }()
+
     // A direct switch keeps the supported Studio-tool-to-Compose mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity
-    private static func statement(for operation: StudioToolOperation) throws -> String {
+    private static func statement(for operation: StudioToolOperation, next: StudioToolOperation?) throws -> String {
         guard let tool = StudioTool(rawValue: operation.tool) else {
             throw TestCodeGeneratorError.unsupportedTool(operation.tool)
         }
@@ -108,6 +169,21 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
                 return "\(target.wait)\n\(indent)\(target.node)"
                     + ".assertIsDisplayed().performTouchInput { \(gesture)() }"
             }
+            if tool == .scroll {
+                // A coordinate swipe (on the root or on the scroll node) is unreliable in Compose:
+                // it is not routed into the nested-scroll system from the root, and a LazyColumn's
+                // scroll node can report zero bounds, making the gesture a no-op. Scroll via
+                // semantics instead. `gesture` is the inverted swipe direction, so swipeUp/swipeLeft
+                // mean "scroll forward".
+                let vertical = gesture == "swipeUp" || gesture == "swipeDown"
+                let forward = gesture == "swipeUp" || gesture == "swipeLeft"
+                if let next, let target = try? Self.lookAheadMatcher(for: next) {
+                    // A recorded scroll almost always exists to bring the next step's target on
+                    // screen — scroll exactly until it is, which needs no distance guess.
+                    return "\(indent)scrollContainer(vertical = \(vertical)).performScrollToNode(\(target))"
+                }
+                return "\(indent)scrollByViewport(vertical = \(vertical), forward = \(forward))"
+            }
             return "\(indent)composeTestRule.onRoot().performTouchInput { \(gesture)() }"
         case .waitForElement:
             return try waitForNodePresent(semanticsMatcher(operation), timeout: timeoutMilliseconds(for: operation))
@@ -133,6 +209,21 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         case .pressBack:
             return "\(indent)pressBack()"
         }
+    }
+
+    /// The semantics matcher for the element `next` acts on, when `next` is a step that targets one
+    /// by id / label / text — used to turn a preceding `scroll` into a `performScrollToNode`. Steps
+    /// with no positive target (a bare gesture, `press_back`, `assert_not_visible`, …) return nil so
+    /// the scroll falls back to a distance-based `ScrollBy`.
+    private static func lookAheadMatcher(for next: StudioToolOperation) throws -> String {
+        let scrollToTargets = Set(
+            [StudioTool.tapElement, .setText, .assertVisible, .assertText, .assertEnabled, .waitForElement]
+                .map(\.rawValue)
+        )
+        guard scrollToTargets.contains(next.tool) else {
+            throw TestCodeGeneratorError.unsupportedTool(next.tool)
+        }
+        return try semanticsMatcher(next)
     }
 
     /// A `waitUntil` that blocks until at least one node matches, plus the `onNode` handle to act on
