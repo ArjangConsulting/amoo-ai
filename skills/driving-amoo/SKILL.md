@@ -8,12 +8,13 @@ description: Drive a booted iOS simulator or Android emulator through the amoo C
 | Field | Value |
 |-------|-------|
 | Created | 2026-08-17 |
-| Last Updated | 2026-08-17 |
-| Applies to | `amoo device`, `amoo companion`, `amoo flow` |
+| Last Updated | 2026-08-28 |
+| Applies to | `amoo device`, `amoo companion`, `amoo flow`, `amoo generate test` |
 
 ### Update checklist
 - [ ] Diff the tool table below against `amoo device` (no args) — its listing is schema-checked by `DeviceHelpDriftTests`, this file is not
 - [ ] Re-check the unlabeled-element rendering against `XCUITestBridge.collectMatchable` and the `find_elements` formatting in `ToolExecutor+Dispatch`
+- [ ] Verify generated local names are selector-derived, readable lower camel case, and collision-safe
 
 ## What this is for
 
@@ -153,3 +154,47 @@ amoo flow path/to/onboarding.amoo.json
 
 Each step is a tool name plus its arguments — the same names and arguments as
 `amoo device`. Prefer this over re-deriving a tap sequence per session.
+
+## Export production-ready tests
+
+Use `amoo generate test --plan path/to/test.amootest` to turn a compiled Studio
+plan into a standalone XCUITest or Espresso test. Generated code is meant to be
+checked in and edited: it has no run-time dependency on amoo.
+
+For an app with established test helpers, pass an app-owned context file:
+
+```sh
+amoo generate test --plan path/to/test.amootest --context amoo.test-context.json
+```
+
+The context is JSON and should be checked in with the test target. Helpers are
+never inferred or called merely because their name looks relevant: the AI must
+explicitly select a declared helper on an operation, and generation rejects an
+unknown helper or a missing template argument.
+
+```json
+{
+  "imports": ["AppTestSupport"],
+  "baseClass": "AppUITestCase",
+  "appFactory": "makeApp()",
+  "helpers": [
+    {
+      "name": "signIn",
+      "callTemplate": "signIn(email: {{email}}, password: {{password}})"
+    }
+  ]
+}
+```
+
+Keep selectors descriptive. The exporter uses the selector to name local values,
+so namespaced IDs retain their meaningful suffix and element role:
+
+```swift
+let mostLovedSectionTitle = app.descendants(matching: .any)[
+    "sample.home.feed.sectionTitle.most_loved"
+]
+```
+
+The selector remains the stable test contract; the local name is deliberately a
+human-readable review aid. Repeated references receive a numeric suffix (for
+example, `emailField2`) so the emitted test remains valid code.

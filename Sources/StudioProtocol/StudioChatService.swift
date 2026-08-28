@@ -55,6 +55,8 @@ public struct StudioAuthoredTest: Codable, Sendable {
     public let platform: Platform
     public let steps: [Step]
     public let requirements: StudioTestRequirements?
+    /// App-owned test harness and helper metadata approved for generated tests to use.
+    public let testContext: StudioTestContext?
     public let compiledPlan: StudioCompiledPlan?
     public init(
         formatVersion: Int,
@@ -63,10 +65,12 @@ public struct StudioAuthoredTest: Codable, Sendable {
         platform: Platform,
         steps: [Step],
         requirements: StudioTestRequirements? = nil,
+        testContext: StudioTestContext? = nil,
         compiledPlan: StudioCompiledPlan? = nil
     ) {
         self.formatVersion = formatVersion; self.name = name; self.description = description; self
-            .platform = platform; self.steps = steps; self.requirements = requirements; self.compiledPlan = compiledPlan
+            .platform = platform; self.steps = steps; self.requirements = requirements; self.testContext = testContext
+        self.compiledPlan = compiledPlan
     }
 
     /// Convenience for callers constructing tests from CLI or fixture strings.
@@ -81,6 +85,7 @@ public struct StudioAuthoredTest: Codable, Sendable {
         platform: String,
         steps: [Step],
         requirements: StudioTestRequirements? = nil,
+        testContext: StudioTestContext? = nil,
         compiledPlan: StudioCompiledPlan? = nil
     ) {
         guard let resolved = Platform(lenient: platform) else { return nil }
@@ -91,8 +96,56 @@ public struct StudioAuthoredTest: Codable, Sendable {
             platform: resolved,
             steps: steps,
             requirements: requirements,
+            testContext: testContext,
             compiledPlan: compiledPlan
         )
+    }
+
+    public func replacingTestContext(_ testContext: StudioTestContext) -> Self {
+        Self(
+            formatVersion: formatVersion,
+            name: name,
+            description: description,
+            platform: platform,
+            steps: steps,
+            requirements: requirements,
+            testContext: testContext,
+            compiledPlan: compiledPlan
+        )
+    }
+}
+
+/// Checked-in, app-owned metadata that makes exported tests fit the host test target.
+/// A helper is used only when a compiled operation explicitly names it; generation never guesses.
+public struct StudioTestContext: Codable, Equatable, Sendable {
+    public struct Helper: Codable, Equatable, Sendable {
+        public let name: String
+        /// A Swift/Kotlin call expression. `{{argument_name}}` placeholders are string-literal escaped.
+        public let callTemplate: String
+        public let imports: [String]
+
+        public init(name: String, callTemplate: String, imports: [String] = []) {
+            self.name = name; self.callTemplate = callTemplate; self.imports = imports
+        }
+    }
+
+    public let imports: [String]
+    public let baseClass: String?
+    /// An expression that constructs the app under test, e.g. `makeApp()`.
+    public let appFactory: String?
+    public let helpers: [Helper]
+
+    public init(
+        imports: [String] = [],
+        baseClass: String? = nil,
+        appFactory: String? = nil,
+        helpers: [Helper] = []
+    ) {
+        self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory; self.helpers = helpers
+    }
+
+    public func helper(named name: String) -> Helper? {
+        helpers.first { $0.name == name }
     }
 }
 
@@ -115,8 +168,10 @@ public struct StudioToolOperation: Codable, Equatable, Sendable {
     public let id: String
     public let tool: String
     public let arguments: [String: String]
-    public init(id: String, tool: String, arguments: [String: String] = [:]) {
-        self.id = id; self.tool = tool; self.arguments = arguments
+    /// The context helper deliberately selected by the planner for this operation.
+    public let helper: String?
+    public init(id: String, tool: String, arguments: [String: String] = [:], helper: String? = nil) {
+        self.id = id; self.tool = tool; self.arguments = arguments; self.helper = helper
     }
 }
 

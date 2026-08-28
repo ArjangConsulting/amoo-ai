@@ -88,32 +88,32 @@ final class _2FALoginTest: XCTestCase {
     func test_2FALogin() throws {
         app.launch()
 
-        let element_op_1 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(element_op_1, timeout: 5.0)
-        element_op_1.tap()
-        let element_op_2 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(element_op_2, timeout: 5.0)
-        replaceText(in: element_op_2, with: "user@example.com")
+        let emailField = app.descendants(matching: .any)["email-field"]
+        waitForHittability(emailField, timeout: 5.0)
+        emailField.tap()
+        let emailField2 = app.descendants(matching: .any)["email-field"]
+        waitForHittability(emailField2, timeout: 5.0)
+        replaceText(in: emailField2, with: "user@example.com")
         app.typeText("line one\nline two\ttabbed")
-        let element_op_4 = app.descendants(matching: .any)["list"]
-        waitForHittability(element_op_4, timeout: 5.0)
-        element_op_4.swipeUp()
-        let element_op_5 = app.descendants(matching: .any)["spinner"]
-        waitForExistence(element_op_5, timeout: 2.0)
-        let element_op_6 = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
-        waitForHittability(element_op_6, timeout: 5.0)
-        let element_op_7 = app.descendants(matching: .any)["spinner"]
-        waitForNonHittability(element_op_7, timeout: 5.0)
-        let element_op_8 = app.descendants(matching: .any)["greeting"]
-        waitForExistence(element_op_8, timeout: 5.0)
-        XCTAssertEqual(element_op_8.label, "Hi there")
-        let screenshot_op_9 = XCTAttachment(screenshot: app.screenshot())
-        screenshot_op_9.lifetime = .keepAlways
-        add(screenshot_op_9)
+        let list = app.descendants(matching: .any)["list"]
+        waitForHittability(list, timeout: 5.0)
+        list.swipeUp()
+        let spinner = app.descendants(matching: .any)["spinner"]
+        waitForExistence(spinner, timeout: 2.0)
+        let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
+        waitForHittability(welcome, timeout: 5.0)
+        let spinner2 = app.descendants(matching: .any)["spinner"]
+        waitForNonHittability(spinner2, timeout: 5.0)
+        let greeting = app.descendants(matching: .any)["greeting"]
+        waitForExistence(greeting, timeout: 5.0)
+        XCTAssertEqual(greeting.label, "Hi there")
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
         pressBack()
-        let element_op_11 = app.descendants(matching: .any)["submit-button"]
-        waitForExistence(element_op_11, timeout: 5.0)
-        XCTAssertTrue(element_op_11.isEnabled)
+        let submitButton = app.descendants(matching: .any)["submit-button"]
+        waitForExistence(submitButton, timeout: 5.0)
+        XCTAssertTrue(submitButton.isEnabled)
         app.swipeUp()
     }
 }

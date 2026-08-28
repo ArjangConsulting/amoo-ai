@@ -28,9 +28,9 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertEqual(result.fileName, "SignInFlowTest.swift")
         XCTAssertTrue(result.source.contains("final class SignInFlowTest: XCTestCase"))
         XCTAssertTrue(result.source.contains("func testSignInFlow() throws"))
-        XCTAssertTrue(result.source.contains(#"let element_op_1 = app.descendants(matching: .any)["sign-in"]"#))
-        XCTAssertTrue(result.source.contains("waitForHittability(element_op_1, timeout: 5.0)"))
-        XCTAssertTrue(result.source.contains("element_op_1.tap()"))
+        XCTAssertTrue(result.source.contains(#"let signIn = app.descendants(matching: .any)["sign-in"]"#))
+        XCTAssertTrue(result.source.contains("waitForHittability(signIn, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains("signIn.tap()"))
     }
 
     func testXCUITestEmitterGeneratesSetTextReplacement() throws {
@@ -41,9 +41,9 @@ final class TestCodeGeneratorTests: XCTestCase {
         )])
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains(#"let element_op_1 = app.descendants(matching: .any)["email"]"#))
-        XCTAssertTrue(result.source.contains("waitForHittability(element_op_1, timeout: 5.0)"))
-        XCTAssertTrue(result.source.contains(#"replaceText(in: element_op_1, with: "user@example.com")"#))
+        XCTAssertTrue(result.source.contains(#"let email = app.descendants(matching: .any)["email"]"#))
+        XCTAssertTrue(result.source.contains("waitForHittability(email, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains(#"replaceText(in: email, with: "user@example.com")"#))
         XCTAssertTrue(result.source.contains("XCUIKeyboardKey.delete.rawValue"))
     }
 
@@ -101,9 +101,80 @@ final class TestCodeGeneratorTests: XCTestCase {
         ])
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains("waitForExistence(element_op_1, timeout: 2.0)"))
-        XCTAssertTrue(result.source.contains("waitForNonHittability(element_op_2, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains("waitForExistence(spinner, timeout: 2.0)"))
+        XCTAssertTrue(result.source.contains("waitForNonHittability(spinner2, timeout: 5.0)"))
         XCTAssertFalse(result.source.contains("waitForExpectations"))
+    }
+
+    func testXCUITestEmitterDerivesReadableNamesFromNamespacedIdentifiers() throws {
+        let test = makeTest(operations: [.init(
+            id: "step-0",
+            tool: "tap_element",
+            arguments: ["id": "sample.home.feed.sectionTitle.most_loved"]
+        )])
+
+        let result = try XCUITestEmitter().generate(test)
+
+        XCTAssertTrue(result.source.contains(
+            #"let mostLovedSectionTitle = app.descendants(matching: .any)["sample.home.feed.sectionTitle.most_loved"]"#
+        ))
+        XCTAssertTrue(result.source.contains("mostLovedSectionTitle.tap()"))
+        XCTAssertFalse(result.source.contains("element_step_0"))
+    }
+
+    func testXCUITestEmitterAvoidsSwiftKeywordsAndGeneratedScopeNames() throws {
+        let test = makeTest(operations: [.init(
+            id: "step-0",
+            tool: "tap_element",
+            arguments: ["id": "app"]
+        )])
+
+        let result = try XCUITestEmitter().generate(test)
+
+        XCTAssertTrue(result.source.contains(#"let appElement = app.descendants(matching: .any)["app"]"#))
+        XCTAssertTrue(result.source.contains("appElement.tap()"))
+    }
+
+    func testXCUITestEmitterUsesExplicitContextHelperAndHarness() throws {
+        let context = StudioTestContext(
+            imports: ["AppTestSupport"],
+            baseClass: "AppUITestCase",
+            appFactory: "makeApp()",
+            helpers: [.init(
+                name: "signIn",
+                callTemplate: "signIn(email: {{email}}, password: {{password}})"
+            )]
+        )
+        let test = StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Contextual sign in",
+            description: "",
+            platform: .ios,
+            steps: [],
+            testContext: context,
+            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
+                id: "step-0",
+                tool: "tap_element",
+                arguments: ["email": "user@example.com", "password": "secret"],
+                helper: "signIn"
+            )])
+        )
+
+        let result = try XCUITestEmitter().generate(test)
+
+        XCTAssertTrue(result.source.contains("import AppTestSupport"))
+        XCTAssertTrue(result.source.contains("final class ContextualSignInTest: AppUITestCase"))
+        XCTAssertTrue(result.source.contains("private lazy var app = makeApp()"))
+        XCTAssertTrue(result.source.contains(#"signIn(email: "user@example.com", password: "secret")"#))
+        XCTAssertFalse(result.source.contains("descendants(matching:"))
+    }
+
+    func testXCUITestEmitterRejectsAnUndeclaredContextHelper() {
+        let test = makeTest(operations: [.init(id: "step-0", tool: "tap_element", helper: "signIn")])
+
+        XCTAssertThrowsError(try XCUITestEmitter().generate(test)) {
+            XCTAssertEqual($0 as? TestCodeGeneratorError, .unknownTestHelper("signIn"))
+        }
     }
 
     // MARK: - EspressoEmitter

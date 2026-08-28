@@ -26,10 +26,12 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
 func renderGenerateHelp() -> String {
     """
     Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>]
+                             [--context <path-to-test-context.json>]
                              [--ui-toolkit <view|compose>] [--allow-incomplete]
 
       --plan              Path to the authored/compiled test JSON.
       --out               Directory to write the generated file into. Prints to stdout if omitted.
+      --context           App-owned test context JSON. Overrides testContext embedded in the plan.
       --ui-toolkit        Override the plan's UI toolkit (defaults to its requirement, then view).
       --allow-incomplete  Generate even though the plan records steps that could not be compiled.
                           Without this, generation stops rather than emitting a test missing steps.
@@ -41,17 +43,20 @@ public struct GenerateTestOptions: Sendable, Equatable {
     public var outputDirectory: String?
     public var allowIncomplete: Bool
     public var uiToolkit: UIToolkit?
+    public var contextPath: String?
 
     public init(
         planPath: String,
         outputDirectory: String?,
         allowIncomplete: Bool = false,
-        uiToolkit: UIToolkit? = nil
+        uiToolkit: UIToolkit? = nil,
+        contextPath: String? = nil
     ) {
         self.planPath = planPath
         self.outputDirectory = outputDirectory
         self.allowIncomplete = allowIncomplete
         self.uiToolkit = uiToolkit
+        self.contextPath = contextPath
     }
 }
 
@@ -73,6 +78,7 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
     var outputDirectory: String?
     var allowIncomplete = false
     var uiToolkit: UIToolkit?
+    var contextPath: String?
     var index = 0
 
     while index < args.count {
@@ -93,6 +99,7 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
         case "--plan": planPath = value
         case "--out": outputDirectory = value
         case "--ui-toolkit": uiToolkit = try parseUIToolkit(flag: flag, value: value)
+        case "--context": contextPath = value
         default: throw GenerateCommandParseError.unexpectedArgument(flag)
         }
         index += 2
@@ -103,7 +110,8 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
         planPath: planPath,
         outputDirectory: outputDirectory,
         allowIncomplete: allowIncomplete,
-        uiToolkit: uiToolkit
+        uiToolkit: uiToolkit,
+        contextPath: contextPath
     )
 }
 
@@ -112,7 +120,14 @@ public func runGenerateTestCommand(
     emitters: StudioCodeEmitters
 ) throws -> CLIResult {
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
-    let test = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
+    let decodedTest = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
+    let test: StudioAuthoredTest
+    if let contextPath = options.contextPath {
+        let contextData = try Data(contentsOf: URL(fileURLWithPath: contextPath))
+        test = decodedTest.replacingTestContext(try JSONDecoder().decode(StudioTestContext.self, from: contextData))
+    } else {
+        test = decodedTest
+    }
     let toolkit = options.uiToolkit ?? test.requirements?.uiToolkit ?? .view
     let emitter = emitters.emitter(for: test.platform, toolkit: toolkit)
     guard let emitter else {

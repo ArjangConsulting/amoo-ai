@@ -173,16 +173,17 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     }
 
     public func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
-        let toolkit = request.test.requirements?.uiToolkit ?? .view
-        let emitter = codeEmitters.emitter(for: request.test.platform, toolkit: toolkit)
+        let test = request.testContext.map(request.test.replacingTestContext) ?? request.test
+        let toolkit = test.requirements?.uiToolkit ?? .view
+        let emitter = codeEmitters.emitter(for: test.platform, toolkit: toolkit)
         guard let emitter else {
             throw StudioAutomationError.invalidTest(
-                "Code export is unavailable for platform '\(request.test.platform.rawValue)'"
+                "Code export is unavailable for platform '\(test.platform.rawValue)'"
                     + " and toolkit '\(toolkit.rawValue)'."
             )
         }
         do {
-            return try emitter.generate(request.test)
+            return try emitter.generate(test)
         } catch {
             throw StudioAutomationError.invalidTest("Code export failed: \(error)")
         }

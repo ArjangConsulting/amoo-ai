@@ -88,16 +88,16 @@ final class SignInFlowTest: XCTestCase {
     func testSignInFlow() throws {
         app.launch()
 
-        let element_op_1 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(element_op_1, timeout: 5.0)
-        element_op_1.tap()
-        let element_op_2 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(element_op_2, timeout: 5.0)
-        replaceText(in: element_op_2, with: "user@example.com")
-        let element_op_3 = app.descendants(matching: .any)["sign-in-button"]
-        waitForHittability(element_op_3, timeout: 5.0)
-        element_op_3.tap()
-        let element_op_4 = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
-        waitForHittability(element_op_4, timeout: 5.0)
+        let emailField = app.descendants(matching: .any)["email-field"]
+        waitForHittability(emailField, timeout: 5.0)
+        emailField.tap()
+        let emailField2 = app.descendants(matching: .any)["email-field"]
+        waitForHittability(emailField2, timeout: 5.0)
+        replaceText(in: emailField2, with: "user@example.com")
+        let signInButton = app.descendants(matching: .any)["sign-in-button"]
+        waitForHittability(signInButton, timeout: 5.0)
+        signInButton.tap()
+        let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
+        waitForHittability(welcome, timeout: 5.0)
     }
 }

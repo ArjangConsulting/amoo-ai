@@ -20,6 +20,14 @@ final class GenerateCommandTests: XCTestCase {
         return url.path
     }
 
+    private func writeContext(_ context: StudioTestContext) throws -> String {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-context-\(UUID().uuidString).json")
+        try JSONEncoder().encode(context).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url.path
+    }
+
     private func makeTest(warnings: [StudioPlanWarning]) -> StudioAuthoredTest {
         StudioAuthoredTest(
             formatVersion: 1,
@@ -127,6 +135,34 @@ final class GenerateCommandTests: XCTestCase {
         XCTAssertEqual(options.planPath, "p.json")
         XCTAssertEqual(options.outputDirectory, "dir")
         XCTAssertTrue(options.allowIncomplete)
+    }
+
+    func testContextFlagOverridesPlanContextAndEnablesApprovedHelpers() throws {
+        let path = try writePlan(StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Sign In",
+            description: "",
+            platform: .ios,
+            steps: [],
+            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
+                id: "op-1",
+                tool: "tap_element",
+                arguments: ["email": "user@example.com"],
+                helper: "signIn"
+            )])
+        ))
+        let contextPath = try writeContext(.init(
+            imports: ["AppTestSupport"],
+            helpers: [.init(name: "signIn", callTemplate: "signIn(email: {{email}})")]
+        ))
+
+        let options = try parseGenerateTestOptions(args: ["--plan", path, "--context", contextPath])
+        let result = try runGenerateTestCommand(options: options, emitters: emitters)
+
+        XCTAssertEqual(options.contextPath, contextPath)
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("import AppTestSupport"))
+        XCTAssertTrue(result.output.contains(#"signIn(email: "user@example.com")"#))
     }
 
     func testLegacyPlatformSpellingsStillDecode() throws {

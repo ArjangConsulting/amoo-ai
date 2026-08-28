@@ -3,8 +3,10 @@ import Foundation
 
 public struct StudioTestExportRequest: Codable, Sendable {
     public let test: StudioAuthoredTest
-    public init(test: StudioAuthoredTest) {
-        self.test = test
+    /// A caller may supply app context at export time instead of persisting it in the test plan.
+    public let testContext: StudioTestContext?
+    public init(test: StudioAuthoredTest, testContext: StudioTestContext? = nil) {
+        self.test = test; self.testContext = testContext
     }
 }
 
