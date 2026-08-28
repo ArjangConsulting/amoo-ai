@@ -142,7 +142,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             iOSCompanionManager: iOSCM,
             androidCompanionManager: androidCM
         )
-        let sessionManager = SessionManager(bootstrapper: bootstrapper)
+        let sessionManager = SessionManager(bootstrapper: bootstrapper, store: FileSessionStore())
         let executor = DriverToolExecutor(driver: driver, sessionManager: sessionManager)
         let server = MCPServer(executor: executor, sessionManager: sessionManager)
 

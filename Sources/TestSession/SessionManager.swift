@@ -5,14 +5,20 @@ import Foundation
 public actor SessionManager {
     private let bootstrapper: any SessionBootstrapper
     private let idGenerator: @Sendable () -> String
+    private let store: (any SessionStore)?
     private var sessions: [String: TestSession] = [:]
+    /// Reports loaded from disk for sessions this process never held live — the
+    /// path that lets history outlive an `amoo mcp serve` restart.
+    private var closedReports: [String: SessionReport] = [:]
 
     public init(
         bootstrapper: any SessionBootstrapper,
-        idGenerator: @escaping @Sendable () -> String = { UUID().uuidString }
+        idGenerator: @escaping @Sendable () -> String = { UUID().uuidString },
+        store: (any SessionStore)? = nil
     ) {
         self.bootstrapper = bootstrapper
         self.idGenerator = idGenerator
+        self.store = store
     }
 
     public func startSession(
@@ -59,10 +65,59 @@ public actor SessionManager {
             throw SessionError.notFound(id)
         }
         await session.close()
+        await persist(id)
     }
 
     public func allSessions() -> [TestSession] {
         Array(sessions.values)
+    }
+
+    /// Flush a live session's current history to the store. Called write-through
+    /// after every recorded action and on `endSession`, so a hard crash loses at
+    /// most the action in flight.
+    public func persist(_ id: String) async {
+        guard let store, let session = sessions[id] else { return }
+        await store.save(SessionReport.make(from: session))
+    }
+
+    /// The on-disk directory backing a session, or `nil` when no store is
+    /// configured. The MCP layer writes `plan.json` / `flow.json` here.
+    public func sessionDirectory(for id: String) -> URL? {
+        store?.directory(for: id)
+    }
+
+    /// A report for `id` from the freshest source: a live session, then a
+    /// disk report cached this process, then the store.
+    public func report(for id: String) async -> SessionReport? {
+        if let session = sessions[id] {
+            return await SessionReport.make(from: session)
+        }
+        if let cached = closedReports[id] {
+            return cached
+        }
+        if let store, let loaded = await store.loadReport(sessionID: id) {
+            closedReports[id] = loaded
+            return loaded
+        }
+        return nil
+    }
+
+    /// Every known session as a report — live sessions merged over disk reports,
+    /// live winning on id collision. Sorted by start time.
+    public func allReports() async -> [SessionReport] {
+        var byID: [String: SessionReport] = [:]
+        if let store {
+            for report in await store.loadAllReports() {
+                byID[report.sessionID] = report
+            }
+        }
+        for (id, report) in closedReports {
+            byID[id] = report
+        }
+        for (id, session) in sessions {
+            byID[id] = await SessionReport.make(from: session)
+        }
+        return byID.values.sorted { $0.startedAt < $1.startedAt }
     }
 
     public func listAvailableDevices(platform: Platform?) async throws -> [DeviceInfo] {

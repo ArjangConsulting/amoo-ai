@@ -174,10 +174,13 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
     case let .failure(result): return result
     }
 
-    let sessionManager = SessionManager(bootstrapper: DefaultSessionBootstrapper(
-        iOSCompanionManager: CompanionManager(),
-        androidCompanionManager: AndroidCompanionManager()
-    ))
+    let sessionManager = SessionManager(
+        bootstrapper: DefaultSessionBootstrapper(
+            iOSCompanionManager: CompanionManager(),
+            androidCompanionManager: AndroidCompanionManager()
+        ),
+        store: FileSessionStore()
+    )
     let executor = DriverToolExecutor(driver: driver, sessionManager: sessionManager)
     let server = MCPServer(executor: executor, sessionManager: sessionManager)
 

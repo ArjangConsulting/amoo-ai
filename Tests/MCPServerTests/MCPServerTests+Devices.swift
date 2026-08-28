@@ -294,10 +294,14 @@ extension MCPServerTests {
         let bootstrapper: MockSessionBootstrapper
     }
 
-    func makeSessionStack() -> SessionStack {
+    func makeSessionStack(store: (any SessionStore)? = nil) -> SessionStack {
         let defaultDriver = MockDriver()
         let bootstrapper = MockSessionBootstrapper()
-        let manager = SessionManager(bootstrapper: bootstrapper, idGenerator: { UUID().uuidString })
+        let manager = SessionManager(
+            bootstrapper: bootstrapper,
+            idGenerator: { UUID().uuidString },
+            store: store
+        )
         return SessionStack(defaultDriver: defaultDriver, manager: manager, bootstrapper: bootstrapper)
     }
 }

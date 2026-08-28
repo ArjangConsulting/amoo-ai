@@ -56,11 +56,7 @@ extension DriverToolExecutor {
             return .error("Missing required argument: session_id")
         }
 
-        // Capture action count before close.
-        let actionCount: Int
-        if let session = await manager.session(sessionID) {
-            actionCount = await session.actions.count
-        } else {
+        guard await manager.session(sessionID) != nil else {
             return .error("Session not found: \(sessionID)")
         }
 
@@ -70,13 +66,31 @@ extension DriverToolExecutor {
             return .error("end_session failed: \(error)")
         }
 
-        let summary: [String: Value] = [
+        var summary: [String: Value] = [
             "session_id": .string(sessionID),
-            "ended_at": .string(ISO8601DateFormatter().string(from: Date())),
-            "action_count": .int(actionCount)
+            "ended_at": .string(ISO8601DateFormatter().string(from: Date()))
         ]
+
+        // Auto-compile the recorded history into replayable artifacts on close, so
+        // every driven flow leaves a plan behind without a separate opt-in call.
+        let report = await manager.report(for: sessionID)
+        let actionCount = report?.actionCount ?? 0
+        summary["action_count"] = .int(actionCount)
+
+        var artifactNote = ""
+        if let report,
+           let directory = await manager.sessionDirectory(for: sessionID),
+           let result = try? SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil),
+           let paths = try? SessionArtifactWriter.write(result, to: directory) {
+            summary["plan_path"] = .string(paths.plan)
+            summary["flow_path"] = .string(paths.flow)
+            summary["warning_count"] = .int(result.warnings.count)
+            artifactNote = " Plan written to \(paths.plan)"
+                + (result.warnings.isEmpty ? "" : " (\(result.warnings.count) warning(s))") + "."
+        }
+
         return .success(
-            "Ended session \(sessionID) (\(actionCount) action(s) recorded).",
+            "Ended session \(sessionID) (\(actionCount) action(s) recorded).\(artifactNote)",
             structuredContent: .object(summary)
         )
     }
@@ -85,24 +99,22 @@ extension DriverToolExecutor {
         guard let manager = sessionManager else {
             return .error("Session management not configured.")
         }
-        let sessions = await manager.allSessions()
+        let reports = await manager.allReports()
         var rows: [Value] = []
         var lines: [String] = []
-        for session in sessions {
-            let count = await session.actions.count
-            let isActive = await session.isActive
+        for report in reports {
             rows.append(.object([
-                "session_id": .string(session.id),
-                "app_id": .string(session.appID),
-                "device_id": .string(session.deviceID),
-                "platform": .string(session.platform.rawValue),
-                "started_at": .string(ISO8601DateFormatter().string(from: session.startedAt)),
-                "action_count": .int(count),
-                "is_active": .bool(isActive)
+                "session_id": .string(report.sessionID),
+                "app_id": .string(report.appID),
+                "device_id": .string(report.deviceID),
+                "platform": .string(report.platform),
+                "started_at": .string(ISO8601DateFormatter().string(from: report.startedAt)),
+                "action_count": .int(report.actionCount),
+                "is_active": .bool(report.isActive)
             ]))
             lines.append(
-                "[\(session.id)] \(session.appID) on \(session.platform.rawValue) — \(count) action(s)"
-                    + (isActive ? "" : " (closed)")
+                "[\(report.sessionID)] \(report.appID) on \(report.platform) — \(report.actionCount) action(s)"
+                    + (report.isActive ? "" : " (closed)")
             )
         }
         let summary = lines.isEmpty ? "No active sessions." : lines.joined(separator: "\n")
@@ -116,10 +128,9 @@ extension DriverToolExecutor {
         guard let sessionID = arguments["session_id"] else {
             return .error("Missing required argument: session_id")
         }
-        guard let session = await manager.session(sessionID) else {
+        guard let report = await manager.report(for: sessionID) else {
             return .error("Session not found: \(sessionID)")
         }
-        let report = await SessionReport.make(from: session)
         let summary = "Session \(report.sessionID) — \(report.actionCount) action(s), \(report.errorCount) error(s)."
         return try .success(summary, structuredContent: Value(report))
     }
@@ -131,10 +142,9 @@ extension DriverToolExecutor {
         guard let sessionID = arguments["session_id"] else {
             return .error("Missing required argument: session_id")
         }
-        guard let session = await manager.session(sessionID) else {
+        guard let report = await manager.report(for: sessionID) else {
             return .error("Session not found: \(sessionID)")
         }
-        let report = await SessionReport.make(from: session)
         let result: CompileSessionToPlanResult
         do {
             result = try SessionPlanCompiler.compile(
@@ -145,9 +155,17 @@ extension DriverToolExecutor {
         } catch let error as SessionPlanCompilerError {
             return .error(error.description)
         }
+
+        // Overwrite the auto-written artifacts with this named version.
+        var artifactNote = ""
+        if let directory = await manager.sessionDirectory(for: sessionID),
+           let paths = try? SessionArtifactWriter.write(result, to: directory) {
+            artifactNote = " Written to \(paths.plan)."
+        }
+
         let summary = "Compiled session \(sessionID) into \(result.testFlow.steps.count) flow step(s),"
             + " \(result.studioTest.compiledPlan?.toolOperations?.count ?? 0) plan operation(s),"
-            + " \(result.warnings.count) warning(s)."
+            + " \(result.warnings.count) warning(s).\(artifactNote)"
         return try .success(summary, structuredContent: Value(result))
     }
 
