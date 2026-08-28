@@ -165,6 +165,56 @@ final class GenerateCommandTests: XCTestCase {
         XCTAssertTrue(result.output.contains(#"signIn(email: "user@example.com")"#))
     }
 
+    func testContextHelperIsBoundToAMatchingOperationTheCompilerLeftUnbound() throws {
+        // The session compiler never sets `helper`. An operation whose arguments match a declared
+        // helper's call template, and whose verb the helper name carries, is bound automatically.
+        let path = try writePlan(StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Retry",
+            description: "",
+            platform: .ios,
+            steps: [],
+            compiledPlan: .init(compiler: "session-compiler", compilerVersion: "1", toolOperations: [
+                .init(id: "op-1", tool: "tap_element", arguments: ["id": "retry-button"])
+            ])
+        ))
+        let contextPath = try writeContext(.init(
+            helpers: [.init(name: "tapById", callTemplate: "tapById({{id}})")]
+        ))
+
+        let options = try parseGenerateTestOptions(args: ["--plan", path, "--context", contextPath])
+        let result = try runGenerateTestCommand(options: options, emitters: emitters)
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains(#"tapById("retry-button")"#))
+    }
+
+    func testAmbiguousHelperMatchLeavesTheOperationUnbound() throws {
+        let path = try writePlan(StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Tap",
+            description: "",
+            platform: .ios,
+            steps: [],
+            compiledPlan: .init(compiler: "session-compiler", compilerVersion: "1", toolOperations: [
+                .init(id: "op-1", tool: "tap_element", arguments: ["id": "submit"])
+            ])
+        ))
+        let contextPath = try writeContext(.init(helpers: [
+            .init(name: "tapById", callTemplate: "tapById({{id}})"),
+            .init(name: "pressById", callTemplate: "pressById({{id}})")
+        ]))
+
+        let options = try parseGenerateTestOptions(args: ["--plan", path, "--context", contextPath])
+        let result = try runGenerateTestCommand(options: options, emitters: emitters)
+
+        // Two helpers fit — binding either would be a guess, so the built-in emission stands.
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertFalse(result.output.contains("tapById("))
+        XCTAssertFalse(result.output.contains("pressById("))
+        XCTAssertTrue(result.output.contains(#"app.descendants(matching: .any)["submit"]"#))
+    }
+
     func testLegacyPlatformSpellingsStillDecode() throws {
         // Plans written by AI or by older versions spell the platform loosely. They must keep
         // working, since the whole point of typing the field was to stop *guessing*, not to

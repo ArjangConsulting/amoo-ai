@@ -173,6 +173,13 @@ public struct StudioToolOperation: Codable, Equatable, Sendable {
     public init(id: String, tool: String, arguments: [String: String] = [:], helper: String? = nil) {
         self.id = id; self.tool = tool; self.arguments = arguments; self.helper = helper
     }
+
+    /// A copy that routes through `helper` instead of the tool's default emission. Used by the
+    /// `generate test` context pass to bind an operation to a declared helper whose call template
+    /// matches its selector shape — never overrides a helper the planner already chose.
+    public func bindingHelper(_ helper: String) -> Self {
+        Self(id: id, tool: tool, arguments: arguments, helper: self.helper ?? helper)
+    }
 }
 
 /// One recorded action that did not survive compilation into `StudioCompiledPlan.toolOperations`
@@ -199,12 +206,33 @@ public struct StudioPlanWarning: Codable, Equatable, Sendable {
     public let actionIndex: Int
     public let toolName: String
     public let reason: String
+    /// True when the action targeted system UI (a permission alert, the "Sign in with Apple" sheet)
+    /// or a known dismissable overlay (paywall, coach-mark, tooltip). Test-mode / mock builds usually
+    /// suppress these, so a finalize pass can drop the step once it knows the build does — but only
+    /// if the compiler tells it which steps qualify.
+    public let transient: Bool
 
-    public init(kind: Kind, actionIndex: Int, toolName: String, reason: String) {
+    public init(kind: Kind, actionIndex: Int, toolName: String, reason: String, transient: Bool = false) {
         self.kind = kind
         self.actionIndex = actionIndex
         self.toolName = toolName
         self.reason = reason
+        self.transient = transient
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, actionIndex, toolName, reason, transient
+    }
+
+    /// `transient` was added after plans were already being written to disk. Absence decodes as
+    /// `false` so an older plan still round-trips instead of failing to decode.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        actionIndex = try container.decode(Int.self, forKey: .actionIndex)
+        toolName = try container.decode(String.self, forKey: .toolName)
+        reason = try container.decode(String.self, forKey: .reason)
+        transient = try container.decodeIfPresent(Bool.self, forKey: .transient) ?? false
     }
 }
 
@@ -413,7 +441,13 @@ public struct LiveStudioChatService: StudioChatServing {
         Allowed tools: \(StudioTool.allNames.joined(separator: ", ")).
         Note scroll takes the direction the content moves (scroll down reveals content below),
         which is the opposite of swipe_in_direction's raw finger direction.
-        Prefer accessibility IDs, never invent secrets, and keep credentials as ${ENVIRONMENT_VARIABLE} values.
+        Prefer a stable accessibility identifier over a raw label or visible text for every selector
+        and every assertion — text changes with copy and locale, identifiers do not.
+        When a step inspects the screen right before a state change, encode it as an assertion
+        (assert_visible / assert_text) rather than leaving it implicit.
+        Never propose a coordinate tap for a checked-in test. If an element cannot be reached by
+        identifier, say "this element needs an accessibility identifier" instead of tapping a point.
+        Never invent secrets, and keep credentials as ${ENVIRONMENT_VARIABLE} values.
         """
     }
 

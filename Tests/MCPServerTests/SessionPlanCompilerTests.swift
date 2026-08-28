@@ -85,7 +85,81 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations, [])
         XCTAssertEqual(result.warnings.count, 1)
         XCTAssertEqual(result.warnings[0].toolName, "tap")
-        XCTAssertTrue(result.warnings[0].reason.contains("no Studio tool equivalent"))
+        // A coordinate tap gets an actionable message: where it landed, why it could not compile,
+        // and what to change — not the bare "no Studio tool equivalent".
+        XCTAssertTrue(result.warnings[0].reason.contains("(10, 20)"))
+        XCTAssertTrue(result.warnings[0].reason.contains("accessibility identifier"))
+        XCTAssertTrue(result.warnings[0].reason.contains("re-record"))
+    }
+
+    func testTrailingInspectionBeforeATransitionCompilesIntoAnAssertion() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "find_elements", arguments: ["id": "word-details-sheet"]),
+            makeAction(tool: "tap_element", arguments: ["id": "close-button"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+
+        // The inspection stood in for "I checked the sheet was up"; it becomes an assertion rather
+        // than being dropped, so the generated test actually verifies the screen.
+        XCTAssertEqual(operations.map(\.tool), ["assert_visible", "tap_element"])
+        XCTAssertEqual(operations[0].arguments["id"], "word-details-sheet")
+        XCTAssertTrue(result.warnings.contains { $0.toolName == "find_elements" && $0.kind == .approximate })
+    }
+
+    func testInspectionWithNoAssertableSelectorSuggestsAddingAnAssertion() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "describe_screen"),
+            makeAction(tool: "tap_element", arguments: ["id": "next"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations?.map(\.tool), ["tap_element"])
+        let inspection = try XCTUnwrap(result.warnings.first { $0.toolName == "describe_screen" })
+        XCTAssertEqual(inspection.kind, .notApplicable)
+        XCTAssertTrue(inspection.reason.contains("consider adding an explicit assertion"))
+    }
+
+    func testConsecutiveIdenticalRetryTapsCollapseToOneGuardedStep() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "tap_element", arguments: ["id": "retry"]),
+            makeAction(tool: "tap_element", arguments: ["id": "retry"]),
+            makeAction(tool: "tap_element", arguments: ["id": "retry"]),
+            makeAction(tool: "tap_element", arguments: ["id": "continue"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        // The literal flow still replays every tap; the compiled plan collapses the retry run.
+        XCTAssertEqual(result.testFlow.steps.count, 4)
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+        XCTAssertEqual(operations.map { $0.arguments["id"] }, ["retry", "continue"])
+        XCTAssertTrue(result.warnings.contains { $0.reason.contains("collapsed 3 consecutive identical taps") })
+    }
+
+    func testSystemUIActionsAreTaggedTransient() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "tap_element", arguments: ["label": "Allow Notifications"]),
+            makeAction(tool: "tap", arguments: ["x": "1", "y": "2", "note": "com.apple.springboard alert"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        XCTAssertTrue(result.warnings.contains { $0.toolName == "tap_element" && $0.transient })
+        XCTAssertTrue(result.warnings.contains { $0.toolName == "tap" && $0.transient })
+
+        // And transient survives the JSON round-trip into the saved plan.
+        let data = try JSONEncoder().encode(result.studioTest)
+        let decoded = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
+        XCTAssertTrue((decoded.compiledPlan?.warnings ?? []).contains { $0.transient })
+    }
+
+    func testPlanWarningWithoutTransientKeyStillDecodes() throws {
+        let json = Data(#"{"kind":"excluded","actionIndex":0,"toolName":"tap","reason":"x"}"#.utf8)
+        let warning = try JSONDecoder().decode(StudioPlanWarning.self, from: json)
+        XCTAssertFalse(warning.transient)
     }
 
     func testDescriptionOnlyAssertionsRetainAStudioSelector() throws {

@@ -8,6 +8,7 @@ final class SignInFlowTest: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        app.launch()
     }
 
     override func tearDownWithError() throws {
@@ -86,8 +87,6 @@ final class SignInFlowTest: XCTestCase {
     }
 
     func testSignInFlow() throws {
-        app.launch()
-
         let emailField = app.descendants(matching: .any)["email-field"]
         waitForHittability(emailField, timeout: 5.0)
         emailField.tap()
@@ -99,5 +98,6 @@ final class SignInFlowTest: XCTestCase {
         signInButton.tap()
         let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
         waitForHittability(welcome, timeout: 5.0)
+        XCTAssertTrue(welcome.exists, "Expected welcome to be visible.")
     }
 }

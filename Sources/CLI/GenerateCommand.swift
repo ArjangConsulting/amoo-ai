@@ -29,6 +29,10 @@ func renderGenerateHelp() -> String {
                              [--context <path-to-test-context.json>]
                              [--ui-toolkit <view|compose>] [--allow-incomplete]
 
+      Emits a skeleton test. Review the compiled-plan warnings and finalize it against your
+      project's conventions — identifier catalog, naming, test tier, dropped assertions — before
+      committing.
+
       --plan              Path to the authored/compiled test JSON.
       --out               Directory to write the generated file into. Prints to stdout if omitted.
       --context           App-owned test context JSON. Overrides testContext embedded in the plan.
@@ -121,13 +125,16 @@ public func runGenerateTestCommand(
 ) throws -> CLIResult {
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
     let decodedTest = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
-    let test: StudioAuthoredTest
+    var test: StudioAuthoredTest
     if let contextPath = options.contextPath {
         let contextData = try Data(contentsOf: URL(fileURLWithPath: contextPath))
-        test = decodedTest.replacingTestContext(try JSONDecoder().decode(StudioTestContext.self, from: contextData))
+        test = try decodedTest.replacingTestContext(JSONDecoder().decode(StudioTestContext.self, from: contextData))
     } else {
         test = decodedTest
     }
+    // Bind operations to declared helpers whose call shape matches. The session compiler never sets
+    // `helper`, so without this a context file's helpers only ever applied to hand-authored plans.
+    test = HelperBinder.bindingContextHelpers(test)
     let toolkit = options.uiToolkit ?? test.requirements?.uiToolkit ?? .view
     let emitter = emitters.emitter(for: test.platform, toolkit: toolkit)
     guard let emitter else {

@@ -33,6 +33,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
             override func setUpWithError() throws {
                 continueAfterFailure = false
+                app.launch()
             }
 
             override func tearDownWithError() throws {
@@ -111,8 +112,6 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             }
 
             func \(methodName)() throws {
-                app.launch()
-
         \(body)
             }
         }
@@ -234,9 +233,14 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         let variable = localNames.next(elementVariableName(for: operation))
         let helper = exists ? (operation.tool == "assert_visible" ? "waitForHittability" : "waitForExistence")
             : "waitForNonHittability"
+        // For assert_visible, keep the wait (it absorbs load/transition delay) but add an explicit
+        // XCTAssert so a reader sees the intent and the failure names the element.
+        let trailingAssertion = operation.tool == "assert_visible"
+            ? "\n\(indent)XCTAssertTrue(\(variable).exists, \"Expected \(variable) to be visible.\")"
+            : ""
         return try """
         \(indent)let \(variable) = \(element)
-        \(indent)\(helper)(\(variable), timeout: \(timeoutSeconds(for: operation)))
+        \(indent)\(helper)(\(variable), timeout: \(timeoutSeconds(for: operation)))\(trailingAssertion)
         """
     }
 

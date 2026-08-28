@@ -244,16 +244,24 @@ public enum SessionPlanCompiler {
         let warnings: [SessionPlanWarning]
     }
 
-    private static func process(index: Int, action: SessionAction) -> ProcessedAction {
+    private static func process(
+        index: Int,
+        action: SessionAction,
+        next: SessionAction?,
+        retryCount: Int
+    ) -> ProcessedAction {
+        let transient = looksTransient(action)
+
         guard let translated = translate(toolName: action.toolName, arguments: action.arguments) else {
-            let isQueryOnly = queryOnlyTools.contains(action.toolName)
+            if queryOnlyTools.contains(action.toolName) {
+                return processInspection(index: index, action: action, next: next, transient: transient)
+            }
             let warning = SessionPlanWarning(
-                kind: isQueryOnly ? .notApplicable : .excluded,
+                kind: .excluded,
                 actionIndex: index,
                 toolName: action.toolName,
-                reason: isQueryOnly
-                    ? "inspection-only tool with no effect on the app; intentionally omitted from compiledPlan"
-                    : "no Studio tool equivalent; excluded from compiledPlan"
+                reason: excludedReason(for: action),
+                transient: transient
             )
             return ProcessedAction(operation: nil, step: nil, warnings: [warning])
         }
@@ -276,6 +284,25 @@ public enum SessionPlanCompiler {
                 reason: "contains a redacted value that must be hand-filled before replay or codegen"
             ))
         }
+        if transient {
+            warnings.append(SessionPlanWarning(
+                kind: .approximate,
+                actionIndex: index,
+                toolName: action.toolName,
+                reason: "targets system UI or a dismissable overlay; test-mode / mock builds usually "
+                    + "suppress it — drop this step if yours does",
+                transient: true
+            ))
+        }
+        if retryCount > 1 {
+            warnings.append(SessionPlanWarning(
+                kind: .approximate,
+                actionIndex: index,
+                toolName: action.toolName,
+                reason: "collapsed \(retryCount) consecutive identical taps (a retry loop) into one "
+                    + "guarded step; the generated wait tolerates the load the taps were pushing through"
+            ))
+        }
 
         let stepID = "step-\(index)"
         let operation = StudioToolOperation(
@@ -287,6 +314,53 @@ public enum SessionPlanCompiler {
         let described = describe(tool: translated.studioTool, arguments: translated.studioArguments)
         let step = StudioAuthoredTest.Step(id: stepID, instruction: described.instruction, expected: described.expected)
         return ProcessedAction(operation: operation, step: step, warnings: warnings)
+    }
+
+    /// A `describe_screen` / `find_elements` / `get_view_hierarchy` right before a state change
+    /// usually encodes "I verified X was on screen". Compile the last such inspection into an
+    /// `assert_visible` for the element it queried; if it queried nothing assertable, keep it out
+    /// of the plan but point out that an assertion belongs there.
+    private static func processInspection(
+        index: Int,
+        action: SessionAction,
+        next: SessionAction?,
+        transient: Bool
+    ) -> ProcessedAction {
+        let precedesTransition = next.map(isTransition) ?? false
+        guard precedesTransition, let selector = inspectionSelector(action) else {
+            let reason = precedesTransition
+                ? "inspection right before a state change, but it queried nothing assertable; "
+                + "consider adding an explicit assertion here"
+                : "inspection-only tool with no effect on the app; intentionally omitted from compiledPlan"
+            return ProcessedAction(
+                operation: nil,
+                step: nil,
+                warnings: [SessionPlanWarning(
+                    kind: .notApplicable,
+                    actionIndex: index,
+                    toolName: action.toolName,
+                    reason: reason,
+                    transient: transient
+                )]
+            )
+        }
+        let stepID = "step-\(index)"
+        let operation = StudioToolOperation(
+            id: stepID,
+            tool: StudioTool.assertVisible.rawValue,
+            arguments: selector
+        )
+        let described = describe(tool: .assertVisible, arguments: selector)
+        let step = StudioAuthoredTest.Step(id: stepID, instruction: described.instruction, expected: described.expected)
+        let warning = SessionPlanWarning(
+            kind: .approximate,
+            actionIndex: index,
+            toolName: action.toolName,
+            reason: "compiled a pre-transition inspection into assert_visible on its queried element; "
+                + "confirm this is the check the recording meant to make",
+            transient: transient
+        )
+        return ProcessedAction(operation: operation, step: step, warnings: [warning])
     }
 
     /// Throws when the recorded session names a platform that is neither iOS nor Android. A session
@@ -309,7 +383,27 @@ public enum SessionPlanCompiler {
             steps: flowSteps
         )
 
-        let processed = report.actions.enumerated().map { process(index: $0.offset, action: $0.element) }
+        let (suppressed, retryCounts) = retryRuns(report.actions)
+        func nextAction(after offset: Int) -> SessionAction? {
+            var cursor = offset + 1
+            while cursor < report.actions.count {
+                if !suppressed.contains(cursor) {
+                    return report.actions[cursor]
+                }
+                cursor += 1
+            }
+            return nil
+        }
+        var processed: [ProcessedAction] = []
+        processed.reserveCapacity(report.actions.count)
+        for (offset, action) in report.actions.enumerated() where !suppressed.contains(offset) {
+            processed.append(process(
+                index: offset,
+                action: action,
+                next: nextAction(after: offset),
+                retryCount: retryCounts[offset] ?? 1
+            ))
+        }
         let toolOperations = processed.compactMap(\.operation)
         let steps = processed.compactMap(\.step)
         let warnings = processed.flatMap(\.warnings)

@@ -15,6 +15,7 @@ description: Drive a booted iOS simulator or Android emulator through the amoo C
 - [ ] Diff the tool table below against `amoo device` (no args) — its listing is schema-checked by `DeviceHelpDriftTests`, this file is not
 - [ ] Re-check the unlabeled-element rendering against `XCUITestBridge.collectMatchable` and the `find_elements` formatting in `ToolExecutor+Dispatch`
 - [ ] Verify generated local names are selector-derived, readable lower camel case, and collision-safe
+- [ ] Re-check the warning-triage table against `StudioPlanWarning.Kind` and `SessionPlanCompiler`
 
 ## What this is for
 
@@ -155,11 +156,52 @@ amoo flow path/to/onboarding.amoo.json
 Each step is a tool name plus its arguments — the same names and arguments as
 `amoo device`. Prefer this over re-deriving a tap sequence per session.
 
-## Export production-ready tests
+## Export tests: `generate test` emits a skeleton, not a finished test
 
 Use `amoo generate test --plan path/to/test.amootest` to turn a compiled Studio
-plan into a standalone XCUITest or Espresso test. Generated code is meant to be
-checked in and edited: it has no run-time dependency on amoo.
+plan into a standalone XCUITest or Espresso test. Generated code has no run-time
+dependency on amoo — but it is a **skeleton**. A repo-aware finalize pass is
+expected before you commit it:
+
+- Map every raw selector to the project's identifier catalog, and apply the
+  project's variable-naming rules.
+- Pick a test tier and the launch helper that tier uses.
+- Turn dropped inspections into real assertions (see the warning table below).
+- Wire the file into the build target and run it once.
+
+**Never commit `generate test` output unchanged.**
+
+### Triage the compiled-plan warnings
+
+`generate test` refuses to emit when the plan has `excluded` steps unless you
+pass `--allow-incomplete`. Don't reach for that flag — fix the root cause.
+
+| Warning kind | Meaning | What to do |
+| --- | --- | --- |
+| `notApplicable` | An inspection-only step with no place in test code. | Nothing — expected. |
+| `approximate` | A selector or assertion was mapped loosely (e.g. text match instead of an id), or a pre-transition inspection was compiled into an `assert_visible`. | Re-check the selector against the real element; confirm the synthesized assertion is the check you meant. |
+| `redacted` | A value was scrubbed by the recorder. | Hand-fill from a fixture before the test can run. |
+| `excluded` | The step has no Studio-tool equivalent — usually a raw coordinate tap. | Fix the source: add an accessibility identifier to the element, or drive it through an addressable ancestor, then re-record. **Do not** `--allow-incomplete`. |
+
+Steps the compiler could tell were system UI or a dismissable overlay carry
+`transient: true`. If your build runs in a test/mock mode that suppresses those
+prompts, drop the transient steps during finalize.
+
+## Repo-agnostic gotchas worth knowing before you finalize
+
+- **Merged accessibility hides children.** `.accessibilityElement(children: .combine)`
+  (SwiftUI) and merged Compose semantics collapse a subtree into one element, so
+  a child button is only reachable by coordinate. If a coordinate tap landed
+  inside a combined element, the fix is a per-child identifier in source — not a
+  coordinate in the checked-in test.
+- **Shared design-system components lack per-item ids.** Segmented pickers, top
+  bars, paywalls from a component library have no identifier per item. Match by
+  visible title and flag it `approximate`; a copy or locale change will break it.
+- **Automated-test mode may block live network.** A project can hard-block
+  outbound network in test mode. An un-mocked end-to-end plan cannot "just run
+  against staging" — if the session used a mock-server base URL (or
+  `requirements` names one), the generated test needs that mock running, and the
+  plan should say so.
 
 For an app with established test helpers, pass an app-owned context file:
 
@@ -167,10 +209,14 @@ For an app with established test helpers, pass an app-owned context file:
 amoo generate test --plan path/to/test.amootest --context amoo.test-context.json
 ```
 
-The context is JSON and should be checked in with the test target. Helpers are
-never inferred or called merely because their name looks relevant: the AI must
-explicitly select a declared helper on an operation, and generation rejects an
-unknown helper or a missing template argument.
+The context is JSON and should be checked in with the test target. A planner can
+bind a helper to an operation explicitly. Failing that, `generate test` binds one
+itself only when the match is unambiguous: the helper's `{{placeholders}}` are
+exactly the arguments the operation already carries, its name or template carries
+the operation's verb (a `tap_element` with an `id` binds to `tapById`), and no
+other helper also qualifies. Anything less certain is left unbound. Generation
+still rejects an explicitly named helper that is unknown or missing a template
+argument.
 
 ```json
 {
