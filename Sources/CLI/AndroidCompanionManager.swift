@@ -18,13 +18,28 @@ struct AndroidCompanionConfig {
         port: Int = 22088,
         companionDir: String? = nil,
         serial: String?,
-        readyTimeoutSeconds: Int = 60
+        readyTimeoutSeconds: Int = Self.defaultReadyTimeoutSeconds
     ) {
         self.host = host
         self.port = port
         self.companionDir = companionDir ?? Self.defaultCompanionDir()
         self.serial = (serial?.isEmpty == false && serial != "booted") ? serial : nil
         self.readyTimeoutSeconds = readyTimeoutSeconds
+    }
+
+    /// Android's instrumentation launch is far quicker than Xcode's, but a cold emulator under
+    /// load still exceeds the old 60s. Same reasoning as the iOS default: over-waiting costs time
+    /// only when something is genuinely broken, under-waiting reports working setups as broken.
+    /// Override with `--ready-timeout <seconds>` or `AMOO_COMPANION_READY_TIMEOUT`.
+    static let defaultReadyTimeoutSeconds = 180
+
+    static func readyTimeoutFromEnvironment(
+        _ environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Int {
+        guard let raw = environment["AMOO_COMPANION_READY_TIMEOUT"],
+              let seconds = Int(raw), seconds > 0
+        else { return defaultReadyTimeoutSeconds }
+        return seconds
     }
 
     /// The companion lives next to the amoo installation, not next to whoever invoked it.

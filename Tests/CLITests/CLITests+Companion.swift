@@ -281,6 +281,100 @@ extension CLITests {
         XCTAssertTrue(options.force)
     }
 
+    /// `booted` is `--device`'s default and what simctl accepts, but xcodebuild has no such alias:
+    /// it rejected `id=booted` outright, so every `amoo companion start` on the default device
+    /// failed. The alias must be resolved to a real UDID before it reaches xcodebuild.
+    func testCompanionResolvesBootedAliasToConcreteUDIDForXcodebuild() async throws {
+        let companionDir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+
+        let simctlJSON = """
+        {"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[
+          {"udid":"REAL-UDID-1","name":"iPhone 17 Pro","state":"Booted"},
+          {"udid":"SHUTDOWN-UDID","name":"iPhone 17","state":"Shutdown"}
+        ]}}
+        """
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
+            .success(.init(exitCode: 0, stdout: simctlJSON, stderr: "")),
+            .success(.init(exitCode: 0, stdout: "built", stderr: ""))
+        ])
+        let manager = CompanionManager(processRunner: runner)
+        let config = CompanionConfig(companionDir: companionDir, deviceUDID: "booted")
+
+        #if os(macOS)
+        try await manager.install(config: config, force: true)
+
+        let commands = await runner.recordedCommands()
+        let destinations = commands.flatMap { command -> [String] in
+            guard let index = command.firstIndex(of: "-destination"), index + 1 < command.count
+            else { return [] }
+            return [command[index + 1]]
+        }
+
+        XCTAssertEqual(destinations, ["platform=iOS Simulator,id=REAL-UDID-1"])
+        XCTAssertFalse(
+            destinations.contains { $0.contains("id=booted") },
+            "xcodebuild must never receive the `booted` alias."
+        )
+        #endif
+    }
+
+    func testCompanionCommandParserReadsReadyTimeout() {
+        let parsed = parseCompanionCommandOptions(args: [
+            "start", "--platform", "ios", "--ready-timeout", "420"
+        ])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        XCTAssertEqual(options.readyTimeoutSeconds, 420)
+    }
+
+    func testCompanionCommandParserDefaultsReadyTimeoutToNil() {
+        let parsed = parseCompanionCommandOptions(args: ["start"])
+        guard case let .success(options) = parsed else {
+            return XCTFail("Expected parser success")
+        }
+
+        // nil means "use the platform default", resolved at config construction.
+        XCTAssertNil(options.readyTimeoutSeconds)
+    }
+
+    func testCompanionCommandParserRejectsNonPositiveReadyTimeout() {
+        for value in ["0", "-5", "abc"] {
+            let parsed = parseCompanionCommandOptions(args: ["start", "--ready-timeout", value])
+            guard case let .failure(error) = parsed else {
+                return XCTFail("Expected parser failure for '\(value)'")
+            }
+            XCTAssertEqual(
+                error.description,
+                "--ready-timeout expects a positive number of seconds, got '\(value)'."
+            )
+        }
+    }
+
+    func testCompanionReadyTimeoutEnvironmentOverride() {
+        // The 30s iOS default timed out on every real start; the replacement must be generous
+        // and overridable without a code change.
+        XCTAssertEqual(CompanionConfig.defaultReadyTimeoutSeconds, 300)
+        XCTAssertEqual(
+            CompanionConfig.readyTimeoutFromEnvironment(["AMOO_COMPANION_READY_TIMEOUT": "45"]),
+            45
+        )
+        // A junk or non-positive value falls back rather than failing the launch.
+        for junk in ["", "0", "-1", "soon"] {
+            XCTAssertEqual(
+                CompanionConfig.readyTimeoutFromEnvironment(["AMOO_COMPANION_READY_TIMEOUT": junk]),
+                CompanionConfig.defaultReadyTimeoutSeconds
+            )
+        }
+        XCTAssertEqual(
+            AndroidCompanionConfig.readyTimeoutFromEnvironment([:]),
+            AndroidCompanionConfig.defaultReadyTimeoutSeconds
+        )
+    }
+
     func testCompanionCommandParserRejectsUnknownAction() {
         let parsed = parseCompanionCommandOptions(args: ["launch"])
         guard case let .failure(error) = parsed else {

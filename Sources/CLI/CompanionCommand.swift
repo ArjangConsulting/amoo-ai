@@ -23,6 +23,8 @@ struct CompanionCommandOptions {
     var force: Bool
     /// Bundle ID / package name of the app under test, bound as the gesture target.
     var appID: String?
+    /// Seconds to wait for the companion to start listening. `nil` uses the platform default.
+    var readyTimeoutSeconds: Int?
 }
 
 enum CompanionAction {
@@ -34,6 +36,7 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
     case missingAction
     case unknownAction(String)
     case unknownPlatform(String)
+    case invalidReadyTimeout(String)
 
     var description: String {
         switch self {
@@ -43,6 +46,8 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
             "Unknown companion action '\(action)'. Run 'amoo companion' for usage."
         case let .unknownPlatform(p):
             "Unknown platform '\(p)'. Expected 'ios' or 'android'."
+        case let .invalidReadyTimeout(value):
+            "--ready-timeout expects a positive number of seconds, got '\(value)'."
         }
     }
 }
@@ -67,6 +72,11 @@ func renderCompanionHelp() -> String {
                    --app <bundle-id>       App under test, bound as the gesture target
                    --companion-dir <path>  Override companion app directory
                    --force                 Rebuild before starting
+                   --ready-timeout <secs>  How long to wait for the companion to listen
+                                           (default: ios 300, android 180). xcodebuild is
+                                           silent while it installs and boots the runner, so
+                                           a slow first start looks identical to a hang.
+                                           Also settable via AMOO_COMPANION_READY_TIMEOUT.
     """
 }
 
@@ -76,6 +86,7 @@ private struct CompanionCommandFlags {
     var companionDir: String?
     var force = false
     var appID: String?
+    var readyTimeoutSeconds: Int?
 }
 
 /// Consumes and returns the next token in `remaining`, if any, without failing when absent
@@ -87,6 +98,31 @@ private func consumeOptionalValue(remaining: inout [String]) -> String? {
     return value
 }
 
+/// Applies a flag whose value must parse into something other than a plain string. Split out from
+/// `applyCompanionFlag` so adding a validated flag does not push its switch over the complexity
+/// limit; the plain string assignments stay where they read most clearly.
+private func applyValidatedCompanionFlag(
+    _ flag: String,
+    value: String,
+    flags: inout CompanionCommandFlags
+) -> CompanionCommandParseError? {
+    switch flag {
+    case "--platform":
+        guard let platform = CompanionPlatform(rawValue: value) else {
+            return .unknownPlatform(value)
+        }
+        flags.platform = platform
+    case "--ready-timeout":
+        guard let seconds = Int(value), seconds > 0 else {
+            return .invalidReadyTimeout(value)
+        }
+        flags.readyTimeoutSeconds = seconds
+    default:
+        break
+    }
+    return nil
+}
+
 /// Applies one `--flag [value]` token to `flags`, consuming its value from `remaining` when
 /// present. Returns a parse error only for a recognized flag with an invalid value.
 private func applyCompanionFlag(
@@ -95,12 +131,9 @@ private func applyCompanionFlag(
     flags: inout CompanionCommandFlags
 ) -> CompanionCommandParseError? {
     switch flag {
-    case "--platform":
+    case "--platform", "--ready-timeout":
         guard let value = consumeOptionalValue(remaining: &remaining) else { return nil }
-        guard let platform = CompanionPlatform(rawValue: value) else {
-            return .unknownPlatform(value)
-        }
-        flags.platform = platform
+        return applyValidatedCompanionFlag(flag, value: value, flags: &flags)
     case "--device":
         flags.deviceID = consumeOptionalValue(remaining: &remaining) ?? flags.deviceID
     case "--companion-dir":
@@ -164,7 +197,8 @@ func parseCompanionCommandOptions(
             deviceID: flags.deviceID,
             companionDir: flags.companionDir,
             force: flags.force,
-            appID: flags.appID
+            appID: flags.appID,
+            readyTimeoutSeconds: flags.readyTimeoutSeconds
         )
     )
 }
@@ -216,6 +250,7 @@ func runIOSCompanionStart(
     let config = CompanionConfig(
         companionDir: options.companionDir,
         deviceUDID: options.deviceID,
+        readyTimeoutSeconds: options.readyTimeoutSeconds ?? CompanionConfig.readyTimeoutFromEnvironment(),
         targetAppID: options.appID
     )
     let manager = CompanionManager(processRunner: processRunner)
@@ -247,7 +282,12 @@ func runAndroidCompanionStart(
     let companionDir =
         options.companionDir
             ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
-    let config = AndroidCompanionConfig(companionDir: companionDir, serial: options.deviceID)
+    let config = AndroidCompanionConfig(
+        companionDir: companionDir,
+        serial: options.deviceID,
+        readyTimeoutSeconds: options.readyTimeoutSeconds
+            ?? AndroidCompanionConfig.readyTimeoutFromEnvironment()
+    )
     let manager = AndroidCompanionManager(processRunner: processRunner)
 
     do {

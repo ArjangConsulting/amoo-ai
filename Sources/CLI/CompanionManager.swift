@@ -14,6 +14,13 @@ struct CompanionConfig: Equatable {
     var deviceUDID: String
     /// Selects Xcode's physical-device destination instead of the simulator destination.
     var isPhysicalDevice: Bool
+    /// How long to wait for the runner to start listening.
+    ///
+    /// This is a wait on `xcodebuild test-without-building`, which installs the runner, boots it,
+    /// and starts the XCUITest session before any of our code runs — and stays completely silent
+    /// while it does, so there is no progress to watch. Measured on a warm simulator with the
+    /// build already done, that takes well over a minute; the previous 30s default timed out every
+    /// time and reported it as if the companion were broken. See `Self.defaultReadyTimeoutSeconds`.
     var readyTimeoutSeconds: Int
     /// Bundle ID of the app under test, handed to the runner so gestures resolve to it rather
     /// than to whatever happens to be frontmost when a command arrives.
@@ -25,7 +32,7 @@ struct CompanionConfig: Equatable {
         companionDir: String? = nil,
         deviceUDID: String,
         isPhysicalDevice: Bool = false,
-        readyTimeoutSeconds: Int = 30,
+        readyTimeoutSeconds: Int = Self.defaultReadyTimeoutSeconds,
         targetAppID: String? = nil
     ) {
         self.host = host
@@ -35,6 +42,22 @@ struct CompanionConfig: Equatable {
         self.isPhysicalDevice = isPhysicalDevice
         self.readyTimeoutSeconds = readyTimeoutSeconds
         self.targetAppID = targetAppID
+    }
+
+    /// Generous on purpose: waiting too long only costs time on a genuinely broken run, whereas
+    /// waiting too little reports a working companion as broken, which is what 30s did. Override
+    /// with `amoo companion start --ready-timeout <seconds>` or `AMOO_COMPANION_READY_TIMEOUT`.
+    static let defaultReadyTimeoutSeconds = 300
+
+    /// Reads the `AMOO_COMPANION_READY_TIMEOUT` override, falling back to the default. A value
+    /// that is not a positive integer is ignored rather than failing the launch.
+    static func readyTimeoutFromEnvironment(
+        _ environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Int {
+        guard let raw = environment["AMOO_COMPANION_READY_TIMEOUT"],
+              let seconds = Int(raw), seconds > 0
+        else { return defaultReadyTimeoutSeconds }
+        return seconds
     }
 
     /// The companion lives next to the amoo installation, not next to whoever invoked it.
@@ -287,11 +310,13 @@ final class CompanionManager: @unchecked Sendable {
             throw CompanionError.buildFailed("xcodegen failed: \(genResult.stderr)")
         }
 
-        // Build for testing
+        // Build for testing. Resolves `booted` the same way the launch does — `build-for-testing`
+        // takes the same `-destination` and rejects the alias just as readily.
+        let buildDeviceUDID = try await resolvedDeviceUDID(for: config)
         let buildResult = try await XcodeBuild(context: shellContext)
             .trailingArgument("build-for-testing")
             .option(.scheme("AmooCompanion"))
-            .option(.destination(xcodeDestination(for: config)))
+            .option(.destination(xcodeDestination(for: config, deviceUDID: buildDeviceUDID)))
             .option(.derivedDataPath(config.companionDir + "/build"))
             .option(.project(config.companionDir + "/AmooCompanion.xcodeproj"))
             .run()
@@ -372,9 +397,35 @@ final class CompanionManager: @unchecked Sendable {
         config.companionDir + "/build/.amoo-source-fingerprint"
     }
 
-    private func xcodeDestination(for config: CompanionConfig) -> String {
+    private func xcodeDestination(for config: CompanionConfig, deviceUDID: String) -> String {
         let platform = config.isPhysicalDevice ? "iOS" : "iOS Simulator"
-        return "platform=\(platform),id=\(config.deviceUDID)"
+        return "platform=\(platform),id=\(deviceUDID)"
+    }
+
+    /// Turns the `booted` placeholder into a concrete simulator UDID.
+    ///
+    /// `booted` is `--device`'s default and is what `simctl` accepts, but `xcodebuild` has no such
+    /// alias — it rejected `id=booted` outright and dumped its whole destination list, so every
+    /// `amoo companion start` on the default device failed. Physical devices are always addressed
+    /// by real UDID already, so only the simulator path needs resolving.
+    private func resolvedDeviceUDID(for config: CompanionConfig) async throws -> String {
+        guard config.isPhysicalDevice == false,
+              config.deviceUDID.isEmpty || config.deviceUDID == "booted"
+        else { return config.deviceUDID }
+
+        let json = try? await SimctlRunner(context: shellContext).listDevices()
+        let booted = json.map(parseBootedDevices(json:)) ?? []
+        guard let device = booted.first else {
+            throw CompanionError.launchFailed(
+                "No booted simulator found. Boot one (`xcrun simctl boot <udid>`) or pass"
+                    + " `--device <udid>` — xcodebuild does not understand `--device booted`."
+            )
+        }
+        if booted.count > 1 {
+            print("Multiple booted simulators; using \(device.name) (\(device.udid)).")
+            print("Pass --device <udid> to choose a different one.")
+        }
+        return device.udid
     }
 
     private func launchCompanion(xctestrunPath: String, config: CompanionConfig) async throws {
@@ -382,11 +433,13 @@ final class CompanionManager: @unchecked Sendable {
         let logPath = NSTemporaryDirectory() + "companion-launch.log"
         FileManager.default.createFile(atPath: logPath, contents: nil)
 
+        let deviceUDID = try await resolvedDeviceUDID(for: config)
+
         do {
             companionProcess = try await XcodeBuild(context: shellContext)
                 .trailingArgument("test-without-building")
                 .option(.xctestrun(xctestrunPath))
-                .option(.destination(xcodeDestination(for: config)))
+                .option(.destination(xcodeDestination(for: config, deviceUDID: deviceUDID)))
                 .trailingArguments([
                     "-only-testing",
                     "AmooCompanionUITests/CompanionRunner/testRunCompanion",
