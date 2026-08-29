@@ -77,26 +77,57 @@ final class XCUITestContextTests: XCTestCase {
         XCTAssertTrue(result.source.contains("import SignInKit"))
     }
 
-    func testXCUITestEmitterLeavesLaunchToASuppliedBaseClass() throws {
-        let test = StudioAuthoredTest(
+    private func makeTest(context: StudioTestContext) -> StudioAuthoredTest {
+        StudioAuthoredTest(
             formatVersion: 1,
             name: "Contextual sign in",
             description: "",
             platform: .ios,
             steps: [],
-            testContext: StudioTestContext(baseClass: "AppUITestCase"),
+            testContext: context,
             compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
                 id: "step-0",
                 tool: "tap_element",
                 arguments: ["id": "sign-in"]
             )])
         )
+    }
 
-        let result = try XCUITestEmitter().generate(test)
+    func testXCUITestEmitterAlwaysChainsToSuper() throws {
+        let result = try XCUITestEmitter().generate(makeTest(context: .init(baseClass: "AppUITestCase")))
 
         XCTAssertTrue(result.source.contains("try super.setUpWithError()"))
         XCTAssertTrue(result.source.contains("try super.tearDownWithError()"))
+    }
+
+    func testXCUITestEmitterStillLaunchesWhenABaseClassIsNamedButDoesNotLaunch() throws {
+        // Naming a base class is not a claim that it launches the app. SampleApp's checked-in
+        // context names `XCTestCase` explicitly and relies on the emitter to launch; inferring
+        // otherwise would run every generated test against an app that never started.
+        let context = StudioTestContext(
+            baseClass: "XCTestCase",
+            appFactory: "SampleAppLauncher.withMockServer()"
+        )
+
+        let result = try XCUITestEmitter().generate(makeTest(context: context))
+
+        XCTAssertTrue(result.source.contains("app.launch()"))
+    }
+
+    func testXCUITestEmitterOmitsLaunchOnlyWhenTheHarnessDeclaresIt() throws {
+        let context = StudioTestContext(baseClass: "AppUITestCase", harnessLaunchesApp: true)
+
+        let result = try XCUITestEmitter().generate(makeTest(context: context))
+
         XCTAssertFalse(result.source.contains("app.launch()"))
+    }
+
+    func testTestContextWithoutHarnessLaunchesAppKeyStillDecodes() throws {
+        let json = Data(#"{"imports":[],"baseClass":"XCTestCase","helpers":[]}"#.utf8)
+
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: json)
+
+        XCTAssertFalse(context.harnessLaunchesApp)
     }
 
     func testXCUITestEmitterRejectsAnUndeclaredContextHelper() {

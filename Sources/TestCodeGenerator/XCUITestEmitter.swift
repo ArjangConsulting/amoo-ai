@@ -19,13 +19,12 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
             .joined(separator: "\n")
-        // A supplied base class is assumed to own the app's launch (that is what an app's UI-test
-        // base class is for), so only the default XCTestCase skeleton launches for itself. Either
-        // way the overrides chain to super, or the base class's own setUp never runs.
-        let customBaseClass = test.testContext?.baseClass
-        let baseClass = customBaseClass ?? "XCTestCase"
+        // The emitter launches unless the context declares that the harness already does. Naming a
+        // base class is not that declaration — see `StudioTestContext.harnessLaunchesApp`. The
+        // overrides chain to super either way, or a supplied base class's own setUp never runs.
+        let baseClass = test.testContext?.baseClass ?? "XCTestCase"
         let appFactory = test.testContext?.appFactory ?? "XCUIApplication()"
-        let launch = customBaseClass == nil ? "\n        app.launch()" : ""
+        let launch = test.testContext?.harnessLaunchesApp == true ? "" : "\n        app.launch()"
 
         let source = """
         import XCTest\(contextImports.isEmpty ? "" : "\n\(contextImports)")

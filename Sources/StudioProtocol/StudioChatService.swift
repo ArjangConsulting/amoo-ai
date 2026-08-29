@@ -131,17 +131,43 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
 
     public let imports: [String]
     public let baseClass: String?
-    /// An expression that constructs the app under test, e.g. `makeApp()`.
+    /// An expression that constructs the app under test, e.g. `makeApp()`. Constructs only — the
+    /// emitter adds `app.launch()` itself unless `harnessLaunchesApp` says otherwise.
     public let appFactory: String?
+    /// `true` when the base class or app factory already launches the app, so the generated
+    /// `setUpWithError` must not launch it a second time.
+    ///
+    /// This is declared, never inferred. A supplied `baseClass` is not evidence either way: an
+    /// app may name `XCTestCase` explicitly and still expect the emitter to launch, and a custom
+    /// base class may do nothing but register fixtures. Guessing here either double-launches or
+    /// silently runs every generated test against an app that was never launched.
+    public let harnessLaunchesApp: Bool
     public let helpers: [Helper]
 
     public init(
         imports: [String] = [],
         baseClass: String? = nil,
         appFactory: String? = nil,
+        harnessLaunchesApp: Bool = false,
         helpers: [Helper] = []
     ) {
-        self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory; self.helpers = helpers
+        self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
+        self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case imports, baseClass, appFactory, harnessLaunchesApp, helpers
+    }
+
+    /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
+    /// as `false` — the emitter keeps launching — so an existing file behaves exactly as before.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        imports = try container.decodeIfPresent([String].self, forKey: .imports) ?? []
+        baseClass = try container.decodeIfPresent(String.self, forKey: .baseClass)
+        appFactory = try container.decodeIfPresent(String.self, forKey: .appFactory)
+        harnessLaunchesApp = try container.decodeIfPresent(Bool.self, forKey: .harnessLaunchesApp) ?? false
+        helpers = try container.decodeIfPresent([Helper].self, forKey: .helpers) ?? []
     }
 
     public func helper(named name: String) -> Helper? {

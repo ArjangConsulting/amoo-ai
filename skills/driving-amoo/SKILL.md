@@ -233,10 +233,15 @@ itself only when the match is unambiguous:
 Anything less certain is left unbound. Generation still rejects an explicitly
 named helper that is unknown or missing a template argument.
 
-If you supply a `baseClass`, the generated XCUITest assumes that base class
-launches the app (that is what an app's UI-test base class is for) and omits its
-own `app.launch()`. Its `setUpWithError` / `tearDownWithError` always chain to
-`super`.
+The generated XCUITest's `setUpWithError` / `tearDownWithError` always chain to
+`super`, so a supplied `baseClass` gets its own setup run.
+
+By default the emitter adds `app.launch()` itself, so `appFactory` should
+*construct* the app without launching it. If your base class or factory already
+launches, say so explicitly with `"harnessLaunchesApp": true` — naming a
+`baseClass` is not that declaration, since an app may name `XCTestCase` outright
+and still rely on the emitter. Omitting the field keeps the emitter launching,
+which is what every context file written before this flag existed expects.
 
 ```json
 {
