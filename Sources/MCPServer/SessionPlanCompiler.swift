@@ -285,23 +285,10 @@ public enum SessionPlanCompiler {
             ))
         }
         if transient {
-            warnings.append(SessionPlanWarning(
-                kind: .approximate,
-                actionIndex: index,
-                toolName: action.toolName,
-                reason: "targets system UI or a dismissable overlay; test-mode / mock builds usually "
-                    + "suppress it — drop this step if yours does",
-                transient: true
-            ))
+            warnings.append(transientWarning(index: index, toolName: action.toolName))
         }
         if retryCount > 1 {
-            warnings.append(SessionPlanWarning(
-                kind: .approximate,
-                actionIndex: index,
-                toolName: action.toolName,
-                reason: "collapsed \(retryCount) consecutive identical taps (a retry loop) into one "
-                    + "guarded step; the generated wait tolerates the load the taps were pushing through"
-            ))
+            warnings.append(retryWarning(index: index, toolName: action.toolName, retryCount: retryCount))
         }
 
         let stepID = "step-\(index)"

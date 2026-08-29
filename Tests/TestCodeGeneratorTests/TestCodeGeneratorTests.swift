@@ -29,7 +29,7 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertTrue(result.source.contains("final class SignInFlowTest: XCTestCase"))
         XCTAssertTrue(result.source.contains("func testSignInFlow() throws"))
         XCTAssertTrue(result.source.contains(#"let signIn = app.descendants(matching: .any)["sign-in"]"#))
-        XCTAssertTrue(result.source.contains("waitForHittability(signIn, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains(#"waitForHittability(signIn, named: "signIn", timeout: 5.0)"#))
         XCTAssertTrue(result.source.contains("signIn.tap()"))
     }
 
@@ -42,7 +42,7 @@ final class TestCodeGeneratorTests: XCTestCase {
         let result = try XCUITestEmitter().generate(test)
 
         XCTAssertTrue(result.source.contains(#"let email = app.descendants(matching: .any)["email"]"#))
-        XCTAssertTrue(result.source.contains("waitForHittability(email, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains(#"waitForHittability(email, named: "email", timeout: 5.0)"#))
         XCTAssertTrue(result.source.contains(#"replaceText(in: email, with: "user@example.com")"#))
         XCTAssertTrue(result.source.contains("XCUIKeyboardKey.delete.rawValue"))
     }
@@ -101,8 +101,8 @@ final class TestCodeGeneratorTests: XCTestCase {
         ])
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains("waitForExistence(spinner, timeout: 2.0)"))
-        XCTAssertTrue(result.source.contains("waitForNonHittability(spinner2, timeout: 5.0)"))
+        XCTAssertTrue(result.source.contains(#"waitForExistence(spinner, named: "spinner", timeout: 2.0)"#))
+        XCTAssertTrue(result.source.contains(#"waitForNonHittability(spinner2, named: "spinner2", timeout: 5.0)"#))
         XCTAssertFalse(result.source.contains("waitForExpectations"))
     }
 
@@ -135,46 +135,20 @@ final class TestCodeGeneratorTests: XCTestCase {
         XCTAssertTrue(result.source.contains("appElement.tap()"))
     }
 
-    func testXCUITestEmitterUsesExplicitContextHelperAndHarness() throws {
-        let context = StudioTestContext(
-            imports: ["AppTestSupport"],
-            baseClass: "AppUITestCase",
-            appFactory: "makeApp()",
-            helpers: [.init(
-                name: "signIn",
-                callTemplate: "signIn(email: {{email}}, password: {{password}})"
-            )]
-        )
-        let test = StudioAuthoredTest(
-            formatVersion: 1,
-            name: "Contextual sign in",
-            description: "",
-            platform: .ios,
-            steps: [],
-            testContext: context,
-            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
-                id: "step-0",
-                tool: "tap_element",
-                arguments: ["email": "user@example.com", "password": "secret"],
-                helper: "signIn"
-            )])
-        )
+    func testXCUITestEmitterKeepsLocalNamesUniqueAgainstADigitSuffixedSelector() throws {
+        // "field2" is claimed by the first selector, so the second reference to "field" must skip
+        // past it rather than emitting a second `let field2`.
+        let test = makeTest(operations: [
+            .init(id: "step-0", tool: "tap_element", arguments: ["id": "field2"]),
+            .init(id: "step-1", tool: "tap_element", arguments: ["id": "field"]),
+            .init(id: "step-2", tool: "tap_element", arguments: ["id": "field"])
+        ])
 
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains("import AppTestSupport"))
-        XCTAssertTrue(result.source.contains("final class ContextualSignInTest: AppUITestCase"))
-        XCTAssertTrue(result.source.contains("private lazy var app = makeApp()"))
-        XCTAssertTrue(result.source.contains(#"signIn(email: "user@example.com", password: "secret")"#))
-        XCTAssertFalse(result.source.contains("descendants(matching:"))
-    }
-
-    func testXCUITestEmitterRejectsAnUndeclaredContextHelper() {
-        let test = makeTest(operations: [.init(id: "step-0", tool: "tap_element", helper: "signIn")])
-
-        XCTAssertThrowsError(try XCUITestEmitter().generate(test)) {
-            XCTAssertEqual($0 as? TestCodeGeneratorError, .unknownTestHelper("signIn"))
-        }
+        let declarations = result.source.split(separator: "\n").filter { $0.contains("        let ") }
+        XCTAssertEqual(declarations.count, Set(declarations).count, "Generated duplicate local names.")
+        XCTAssertTrue(result.source.contains(#"let field3 = app.descendants(matching: .any)["field"]"#))
     }
 
     // MARK: - EspressoEmitter

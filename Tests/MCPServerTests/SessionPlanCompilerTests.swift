@@ -136,7 +136,33 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.testFlow.steps.count, 4)
         let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
         XCTAssertEqual(operations.map { $0.arguments["id"] }, ["retry", "continue"])
-        XCTAssertTrue(result.warnings.contains { $0.reason.contains("collapsed 3 consecutive identical taps") })
+        XCTAssertTrue(result.warnings.contains { $0.reason.contains("3 identical taps in quick succession") })
+        // The warning has to say the collapse is a guess, or a cumulative tap run is lost silently.
+        XCTAssertTrue(result.warnings.contains { $0.reason.contains("restore all 3 taps") })
+    }
+
+    func testDeliberatelyRepeatedTapsAreNotCollapsed() throws {
+        // A stepper being incremented: identical taps, but paced by a person rather than hammered.
+        let start = Date()
+        let actions = (0 ..< 3).map { index in
+            SessionAction(
+                timestamp: start.addingTimeInterval(Double(index) * 2),
+                toolName: "tap_element",
+                arguments: ["id": "quantity.increment"],
+                result: "ok",
+                isError: false
+            )
+        }
+
+        let result = try SessionPlanCompiler.compile(
+            report: makeReport(actions: actions),
+            testName: nil,
+            testDescription: nil
+        )
+
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+        XCTAssertEqual(operations.count, 3)
+        XCTAssertFalse(result.warnings.contains { $0.reason.contains("quick succession") })
     }
 
     func testSystemUIActionsAreTaggedTransient() throws {
@@ -154,6 +180,30 @@ final class SessionPlanCompilerTests: XCTestCase {
         let data = try JSONEncoder().encode(result.studioTest)
         let decoded = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
         XCTAssertTrue((decoded.compiledPlan?.warnings ?? []).contains { $0.transient })
+    }
+
+    func testAppOwnedIdentifiersAreNotMistakenForTransientOverlays() throws {
+        // A `transient` false positive tells the finalize pass a real step is disposable, so overlay
+        // words must not match inside an app's own identifiers, nor as a substring of a longer word.
+        let report = makeReport(actions: [
+            makeAction(tool: "tap_element", arguments: ["id": "settings.permissions.row"]),
+            makeAction(tool: "tap_element", arguments: ["id": "app.paywall.subscribe.button"]),
+            makeAction(tool: "tap_element", arguments: ["label": "Paywalls are great"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        XCTAssertFalse(result.warnings.contains(where: \.transient))
+    }
+
+    func testOverlayWordsInHumanFacingTextAreTaggedTransient() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "tap_element", arguments: ["label": "Dismiss paywall"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        XCTAssertTrue(result.warnings.contains(where: \.transient))
     }
 
     func testPlanWarningWithoutTransientKeyStillDecodes() throws {

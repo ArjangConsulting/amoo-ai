@@ -19,8 +19,13 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
             .joined(separator: "\n")
-        let baseClass = test.testContext?.baseClass ?? "XCTestCase"
+        // A supplied base class is assumed to own the app's launch (that is what an app's UI-test
+        // base class is for), so only the default XCTestCase skeleton launches for itself. Either
+        // way the overrides chain to super, or the base class's own setUp never runs.
+        let customBaseClass = test.testContext?.baseClass
+        let baseClass = customBaseClass ?? "XCTestCase"
         let appFactory = test.testContext?.appFactory ?? "XCUIApplication()"
+        let launch = customBaseClass == nil ? "\n        app.launch()" : ""
 
         let source = """
         import XCTest\(contextImports.isEmpty ? "" : "\n\(contextImports)")
@@ -32,33 +37,35 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             private lazy var app = \(appFactory)
 
             override func setUpWithError() throws {
-                continueAfterFailure = false
-                app.launch()
+                try super.setUpWithError()
+                continueAfterFailure = false\(launch)
             }
 
             override func tearDownWithError() throws {
-                guard testRun?.failureCount ?? 0 > 0 else { return }
+                if testRun?.failureCount ?? 0 > 0 {
+                    let screenshot = XCTAttachment(screenshot: app.screenshot())
+                    screenshot.name = "Failure screenshot"
+                    screenshot.lifetime = .keepAlways
+                    add(screenshot)
 
-                let screenshot = XCTAttachment(screenshot: app.screenshot())
-                screenshot.name = "Failure screenshot"
-                screenshot.lifetime = .keepAlways
-                add(screenshot)
-
-                let hierarchy = XCTAttachment(string: app.debugDescription)
-                hierarchy.name = "Failure UI hierarchy"
-                hierarchy.lifetime = .keepAlways
-                add(hierarchy)
+                    let hierarchy = XCTAttachment(string: app.debugDescription)
+                    hierarchy.name = "Failure UI hierarchy"
+                    hierarchy.lifetime = .keepAlways
+                    add(hierarchy)
+                }
+                try super.tearDownWithError()
             }
 
             private func waitForExistence(
                 _ element: XCUIElement,
+                named name: String = "Element",
                 timeout: TimeInterval? = nil,
                 file: StaticString = #filePath,
                 line: UInt = #line
             ) {
                 XCTAssertTrue(
                     element.waitForExistence(timeout: timeout ?? defaultTimeout),
-                    "Element did not exist before the timeout.\\n\\(element.debugDescription)",
+                    "\\(name) did not exist before the timeout.\\n\\(element.debugDescription)",
                     file: file,
                     line: line
                 )
@@ -66,13 +73,14 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
             private func waitForHittability(
                 _ element: XCUIElement,
+                named name: String = "Element",
                 timeout: TimeInterval? = nil,
                 file: StaticString = #filePath,
                 line: UInt = #line
             ) {
                 XCTAssertTrue(
                     element.wait(for: \\.isHittable, toEqual: true, timeout: timeout ?? defaultTimeout),
-                    "Element was not visible and hittable before the timeout.\\n\\(element.debugDescription)",
+                    "\\(name) was not visible and hittable before the timeout.\\n\\(element.debugDescription)",
                     file: file,
                     line: line
                 )
@@ -80,13 +88,14 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
             private func waitForNonHittability(
                 _ element: XCUIElement,
+                named name: String = "Element",
                 timeout: TimeInterval? = nil,
                 file: StaticString = #filePath,
                 line: UInt = #line
             ) {
                 XCTAssertTrue(
                     element.wait(for: \\.isHittable, toEqual: false, timeout: timeout ?? defaultTimeout),
-                    "Element was still visible and hittable after the timeout.\\n\\(element.debugDescription)",
+                    "\\(name) was still visible and hittable after the timeout.\\n\\(element.debugDescription)",
                     file: file,
                     line: line
                 )
@@ -141,7 +150,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             let variable = localNames.next(elementVariableName(for: operation))
             return try """
             \(indent)let \(variable) = \(element)
-            \(indent)waitForHittability(\(variable), timeout: \(timeoutSeconds(for: operation)))
+            \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)\(variable).tap()
             """
 
@@ -153,7 +162,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             let variable = localNames.next(elementVariableName(for: operation))
             return try """
             \(indent)let \(variable) = \(element)
-            \(indent)waitForHittability(\(variable), timeout: \(timeoutSeconds(for: operation)))
+            \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)replaceText(in: \(variable), with: \(literal(value)))
             """
 
@@ -178,7 +187,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             ))
             return try """
             \(indent)let \(variable) = \(target)
-            \(indent)waitForHittability(\(variable), timeout: \(timeoutSeconds(for: operation)))
+            \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)\(variable).\(gesture)()
             """
 
@@ -196,7 +205,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             let variable = localNames.next(elementVariableName(for: operation))
             return try """
             \(indent)let \(variable) = \(query(operation))
-            \(indent)waitForExistence(\(variable), timeout: \(timeoutSeconds(for: operation)))
+            \(indent)\(waitCall("waitForExistence", variable, operation))
             \(indent)XCTAssertTrue(\(variable).isEnabled)
             """
 
@@ -207,7 +216,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             let variable = localNames.next(elementVariableName(for: operation))
             return try """
             \(indent)let \(variable) = \(query(operation))
-            \(indent)waitForExistence(\(variable), timeout: \(timeoutSeconds(for: operation)))
+            \(indent)\(waitCall("waitForExistence", variable, operation))
             \(indent)XCTAssertEqual(\(variable).label, \(literal(expected)))
             """
 
@@ -233,15 +242,23 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         let variable = localNames.next(elementVariableName(for: operation))
         let helper = exists ? (operation.tool == "assert_visible" ? "waitForHittability" : "waitForExistence")
             : "waitForNonHittability"
-        // For assert_visible, keep the wait (it absorbs load/transition delay) but add an explicit
-        // XCTAssert so a reader sees the intent and the failure names the element.
-        let trailingAssertion = operation.tool == "assert_visible"
-            ? "\n\(indent)XCTAssertTrue(\(variable).exists, \"Expected \(variable) to be visible.\")"
-            : ""
+        // The wait already asserts, and `continueAfterFailure = false` stops the test there, so a
+        // trailing XCTAssert would be unreachable. Name the element in the wait instead — that is
+        // what makes the failure readable.
         return try """
         \(indent)let \(variable) = \(element)
-        \(indent)\(helper)(\(variable), timeout: \(timeoutSeconds(for: operation)))\(trailingAssertion)
+        \(indent)\(waitCall(helper, variable, operation))
         """
+    }
+
+    /// One call to a generated wait helper. `named:` carries the local variable's name so a
+    /// timeout failure says which element it was waiting on.
+    private static func waitCall(
+        _ helper: String,
+        _ variable: String,
+        _ operation: StudioToolOperation
+    ) throws -> String {
+        try "\(helper)(\(variable), named: \(literal(variable)), timeout: \(timeoutSeconds(for: operation)))"
     }
 
     private static func elementVariableName(

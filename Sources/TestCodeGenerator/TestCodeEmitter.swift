@@ -40,19 +40,24 @@ enum TestHelperRendering {
         }
 
         var call = helper.callTemplate
-        while let start = call.range(of: "{{"), let end = call.range(of: "}}", range: start.upperBound..<call.endIndex) {
-            let placeholder = String(call[start.upperBound..<end.lowerBound])
+        while let start = call.range(of: "{{"), let end = call.range(
+            of: "}}",
+            range: start.upperBound ..< call.endIndex
+        ) {
+            let placeholder = String(call[start.upperBound ..< end.lowerBound])
             guard let value = operation.arguments[placeholder] else {
                 throw TestCodeGeneratorError.invalidTestHelperTemplate(helper: helperName, placeholder: placeholder)
             }
-            call.replaceSubrange(start.lowerBound..<end.upperBound, with: literal(value))
+            call.replaceSubrange(start.lowerBound ..< end.upperBound, with: literal(value))
         }
         return call
     }
 
     static func imports(for context: StudioTestContext?) -> [String] {
-        Array(Set(context?.imports ?? []
-            + (context?.helpers.flatMap(\.imports) ?? []))).sorted()
+        // Parenthesise both operands: `+` binds tighter than `??`, so writing this as
+        // `context?.imports ?? [] + helperImports` silently drops every helper import.
+        let declared = (context?.imports ?? []) + (context?.helpers.flatMap(\.imports) ?? [])
+        return Array(Set(declared)).sorted()
     }
 }
 
@@ -118,11 +123,11 @@ enum TestIdentifierNaming {
         if let id, !id.isEmpty {
             let components = id.split(separator: ".", omittingEmptySubsequences: true).map(String.init)
             if let last = components.last {
-                let descriptiveName: String
-                if components.count > 1, let preceding = components.dropLast().last, isElementRole(preceding) {
-                    descriptiveName = "\(last) \(preceding)"
+                let descriptiveName: String = if components.count > 1, let preceding = components.dropLast().last,
+                                                 isElementRole(preceding) {
+                    "\(last) \(preceding)"
                 } else {
-                    descriptiveName = last
+                    last
                 }
                 return camelCase(descriptiveName, fallback: "element")
             }
@@ -156,12 +161,24 @@ enum TestIdentifierNaming {
 }
 
 /// Keeps repeated references legal without giving up the semantic name of the element.
+///
+/// Tracks the names actually handed out rather than a per-base counter: a selector ending in a
+/// digit (`…field2`) would otherwise claim `field2` and collide with the second reference to
+/// `field`, emitting two `let field2` bindings in one function.
 struct LocalNameAllocator {
-    private var counts: [String: Int] = [:]
+    private var used: Set<String> = []
 
     mutating func next(_ base: String) -> String {
-        let count = (counts[base] ?? 0) + 1
-        counts[base] = count
-        return count == 1 ? base : "\(base)\(count)"
+        if used.insert(base).inserted {
+            return base
+        }
+        var suffix = 2
+        while true {
+            let candidate = "\(base)\(suffix)"
+            if used.insert(candidate).inserted {
+                return candidate
+            }
+            suffix += 1
+        }
     }
 }

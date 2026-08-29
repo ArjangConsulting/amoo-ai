@@ -62,8 +62,8 @@ public actor DriverToolExecutor: ToolExecutor {
             isError: result.isError
         )
         await session.record(action)
-        // Write-through to disk so a mid-session crash or a server restart still
-        // leaves a compilable history behind.
+        // Persist so a mid-session crash or a server restart still leaves a compilable history
+        // behind. The manager batches the actual writes — see `SessionManager.persist`.
         await manager.persist(sessionID)
     }
 

@@ -1,3 +1,4 @@
+import Foundation
 import StudioProtocol
 import TestSession
 
@@ -18,18 +19,63 @@ extension SessionPlanCompiler {
         stateChangingTools.contains(action.toolName)
     }
 
-    /// Substrings that mark an action as touching system UI or a dismissable overlay. Deliberately
-    /// narrow: a false positive tells the finalize pass that a real step is disposable.
-    static let transientMarkers: [String] = [
-        "com.apple.springboard", "springboard", "sign in with apple", "system alert",
-        "permission", "allow notifications", "app tracking transparency", "att prompt",
-        "location permission", "camera permission", "microphone permission", "photo permission",
-        "paywall", "coach mark", "coachmark", "tooltip", "onboarding tooltip"
+    /// Phrases specific enough to mean system UI wherever they appear — a bundle identifier or a
+    /// system-authored prompt title. Safe to match against any argument value.
+    static let systemUIMarkers: [String] = [
+        "com.apple.springboard", "sign in with apple", "system alert", "allow notifications",
+        "app tracking transparency", "att prompt", "location permission", "camera permission",
+        "microphone permission", "photo permission", "notification permission"
+    ]
+
+    /// Words that suggest a dismissable overlay but are perfectly ordinary inside an app's own
+    /// identifiers — an app whose feature *is* the paywall, or a `settings.permissions.row`. These
+    /// match only whole words in human-facing text, never inside an accessibility identifier, since
+    /// a false positive tells the finalize pass that a real step is disposable.
+    static let overlayMarkers: [[String]] = [
+        ["paywall"], ["coach", "mark"], ["coachmark"], ["tooltip"], ["upsell"]
+    ]
+
+    /// Argument keys carrying text a person wrote for a person to read, as opposed to a selector.
+    private static let humanFacingArgumentKeys: Set<String> = [
+        "label", "element_label", "text", "contains_text", "element_contains_text",
+        "description", "title", "message"
     ]
 
     static func looksTransient(_ action: SessionAction) -> Bool {
-        let haystack = ([action.toolName] + Array(action.arguments.values)).map { $0.lowercased() }
-        return transientMarkers.contains { marker in haystack.contains { $0.contains(marker) } }
+        let allValues = ([action.toolName] + Array(action.arguments.values)).map { $0.lowercased() }
+        if systemUIMarkers.contains(where: { marker in allValues.contains { $0.contains(marker) } }) {
+            return true
+        }
+        let humanFacing = action.arguments
+            .filter { humanFacingArgumentKeys.contains($0.key) }
+            .flatMap { words($0.value) }
+        return overlayMarkers.contains { contains(humanFacing, run: $0) }
+    }
+
+    /// Lowercased word tokens, splitting on non-alphanumerics and camel humps.
+    private static func words(_ text: String) -> [String] {
+        text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).flatMap { chunk -> [String] in
+            var tokens: [String] = []
+            var current = ""
+            for character in chunk {
+                if character.isUppercase, current.isEmpty == false {
+                    tokens.append(current)
+                    current = ""
+                }
+                current.append(character)
+            }
+            if current.isEmpty == false {
+                tokens.append(current)
+            }
+            return tokens.map { $0.lowercased() }
+        }
+    }
+
+    private static func contains(_ tokens: [String], run: [String]) -> Bool {
+        guard run.isEmpty == false, tokens.count >= run.count else { return false }
+        return tokens.indices.dropLast(run.count - 1).contains { start in
+            Array(tokens[start ..< start + run.count]) == run
+        }
     }
 
     /// The Studio selector an inspection tool queried by, if any — the basis for turning the
@@ -79,10 +125,41 @@ extension SessionPlanCompiler {
             + "then re-record rather than passing --allow-incomplete."
     }
 
-    /// The 2nd..Nth identical `tap_element` of a retry run (a user hammering a button past a flaky
-    /// load), mapped to the run's first index. The finalize path emits one guarded step per run —
-    /// its wait tolerates the load the taps were pushing through — while the literal `testFlow`
-    /// still replays every recorded tap.
+    static func transientWarning(index: Int, toolName: String) -> SessionPlanWarning {
+        SessionPlanWarning(
+            kind: .approximate,
+            actionIndex: index,
+            toolName: toolName,
+            reason: "targets system UI or a dismissable overlay; test-mode / mock builds usually "
+                + "suppress it — drop this step if yours does",
+            transient: true
+        )
+    }
+
+    /// Says outright that the collapse is an inference. A cumulative tap run read as a retry loop
+    /// changes what the test asserts, and only this warning can tell the finalize pass to check.
+    static func retryWarning(index: Int, toolName: String, retryCount: Int) -> SessionPlanWarning {
+        SessionPlanWarning(
+            kind: .approximate,
+            actionIndex: index,
+            toolName: toolName,
+            reason: "\(retryCount) identical taps in quick succession, read as a retry loop and "
+                + "collapsed into one guarded step whose wait absorbs the load they were pushing "
+                + "through. If they were cumulative instead — a stepper, a quantity, a keypad — "
+                + "restore all \(retryCount) taps; testFlow still records them"
+        )
+    }
+
+    /// Taps this close together were not deliberate repeats a person counted out; they are the
+    /// hammering of a button that did not respond. Repeats spaced wider than this — a stepper being
+    /// incremented, a keypad being typed on — are kept verbatim, because collapsing them would
+    /// change the quantity the test asserts.
+    static let retryTapInterval: TimeInterval = 0.6
+
+    /// The 2nd..Nth identical `tap_element` of a suspected retry run, mapped to the run's first
+    /// index. The finalize path emits one guarded step per run — its wait tolerates the load the
+    /// taps were pushing through — while the literal `testFlow` still replays every recorded tap.
+    /// Collapsing is a guess, so every collapsed run also carries a warning saying so.
     static func retryRuns(_ actions: [SessionAction]) -> (suppressed: Set<Int>, counts: [Int: Int]) {
         var suppressed: Set<Int> = []
         var counts: [Int: Int] = [:]
@@ -96,7 +173,8 @@ extension SessionPlanCompiler {
             var runEnd = index + 1
             while runEnd < actions.count,
                   actions[runEnd].toolName == "tap_element",
-                  actions[runEnd].arguments == action.arguments {
+                  actions[runEnd].arguments == action.arguments,
+                  actions[runEnd].timestamp.timeIntervalSince(actions[runEnd - 1].timestamp) <= retryTapInterval {
                 suppressed.insert(runEnd)
                 runEnd += 1
             }

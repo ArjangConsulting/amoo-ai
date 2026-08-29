@@ -178,14 +178,20 @@ pass `--allow-incomplete`. Don't reach for that flag — fix the root cause.
 
 | Warning kind | Meaning | What to do |
 | --- | --- | --- |
-| `notApplicable` | An inspection-only step with no place in test code. | Nothing — expected. |
-| `approximate` | A selector or assertion was mapped loosely (e.g. text match instead of an id), or a pre-transition inspection was compiled into an `assert_visible`. | Re-check the selector against the real element; confirm the synthesized assertion is the check you meant. |
+| `notApplicable` | An inspection-only step with no place in test code. | Usually nothing. **Except** when the reason says the inspection sat right before a state change but queried nothing assertable — that one is a missing assertion; write it by hand. |
+| `approximate` | A selector or assertion was mapped loosely (e.g. text match instead of an id), a pre-transition inspection was compiled into an `assert_visible`, or a run of identical taps was collapsed. | Re-check the selector against the real element; confirm the synthesized assertion is the check you meant; see the repeated-taps note below. |
 | `redacted` | A value was scrubbed by the recorder. | Hand-fill from a fixture before the test can run. |
 | `excluded` | The step has no Studio-tool equivalent — usually a raw coordinate tap. | Fix the source: add an accessibility identifier to the element, or drive it through an addressable ancestor, then re-record. **Do not** `--allow-incomplete`. |
 
 Steps the compiler could tell were system UI or a dismissable overlay carry
 `transient: true`. If your build runs in a test/mock mode that suppresses those
 prompts, drop the transient steps during finalize.
+
+**Repeated taps are a guess.** Several identical taps in quick succession are read
+as one person hammering an unresponsive button, and collapse into a single guarded
+step. If they were cumulative instead — a stepper, a quantity field, a keypad — the
+compiled plan now says 1 where the recording said N. The warning names the count,
+and `flow.json` still holds every tap; restore them during finalize.
 
 ## Repo-agnostic gotchas worth knowing before you finalize
 
@@ -211,12 +217,26 @@ amoo generate test --plan path/to/test.amootest --context amoo.test-context.json
 
 The context is JSON and should be checked in with the test target. A planner can
 bind a helper to an operation explicitly. Failing that, `generate test` binds one
-itself only when the match is unambiguous: the helper's `{{placeholders}}` are
-exactly the arguments the operation already carries, its name or template carries
-the operation's verb (a `tap_element` with an `id` binds to `tapById`), and no
-other helper also qualifies. Anything less certain is left unbound. Generation
-still rejects an explicitly named helper that is unknown or missing a template
-argument.
+itself only when the match is unambiguous:
+
+- Every `{{placeholder}}` names an argument the operation actually carries.
+- Every argument that *decides what the step does* — the selector (`id`, `label`,
+  `contains_text`), plus `value` / `text` / `expected` / `direction` — is consumed
+  by a placeholder. A `set_text` never binds to a helper that takes only the
+  selector, because the text being typed would silently vanish. Incidental
+  arguments like `timeout_ms` may go unused.
+- The helper's name or call template carries the operation's verb as a **whole
+  word** — a `tap_element` with an `id` binds to `tapById`; `tapCenter` is not a
+  `set_text` helper just because it contains the letters `enter`.
+- No other helper also qualifies.
+
+Anything less certain is left unbound. Generation still rejects an explicitly
+named helper that is unknown or missing a template argument.
+
+If you supply a `baseClass`, the generated XCUITest assumes that base class
+launches the app (that is what an app's UI-test base class is for) and omits its
+own `app.launch()`. Its `setUpWithError` / `tearDownWithError` always chain to
+`super`.
 
 ```json
 {

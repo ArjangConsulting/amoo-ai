@@ -7,33 +7,36 @@ final class _2FALoginTest: XCTestCase {
     private lazy var app = XCUIApplication()
 
     override func setUpWithError() throws {
+        try super.setUpWithError()
         continueAfterFailure = false
         app.launch()
     }
 
     override func tearDownWithError() throws {
-        guard testRun?.failureCount ?? 0 > 0 else { return }
+        if testRun?.failureCount ?? 0 > 0 {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Failure screenshot"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
 
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Failure screenshot"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-
-        let hierarchy = XCTAttachment(string: app.debugDescription)
-        hierarchy.name = "Failure UI hierarchy"
-        hierarchy.lifetime = .keepAlways
-        add(hierarchy)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Failure UI hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        try super.tearDownWithError()
     }
 
     private func waitForExistence(
         _ element: XCUIElement,
+        named name: String = "Element",
         timeout: TimeInterval? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout ?? defaultTimeout),
-            "Element did not exist before the timeout.\n\(element.debugDescription)",
+            "\(name) did not exist before the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -41,13 +44,14 @@ final class _2FALoginTest: XCTestCase {
 
     private func waitForHittability(
         _ element: XCUIElement,
+        named name: String = "Element",
         timeout: TimeInterval? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertTrue(
             element.wait(for: \.isHittable, toEqual: true, timeout: timeout ?? defaultTimeout),
-            "Element was not visible and hittable before the timeout.\n\(element.debugDescription)",
+            "\(name) was not visible and hittable before the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -55,13 +59,14 @@ final class _2FALoginTest: XCTestCase {
 
     private func waitForNonHittability(
         _ element: XCUIElement,
+        named name: String = "Element",
         timeout: TimeInterval? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertTrue(
             element.wait(for: \.isHittable, toEqual: false, timeout: timeout ?? defaultTimeout),
-            "Element was still visible and hittable after the timeout.\n\(element.debugDescription)",
+            "\(name) was still visible and hittable after the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -88,31 +93,30 @@ final class _2FALoginTest: XCTestCase {
 
     func test_2FALogin() throws {
         let emailField = app.descendants(matching: .any)["email-field"]
-        waitForHittability(emailField, timeout: 5.0)
+        waitForHittability(emailField, named: "emailField", timeout: 5.0)
         emailField.tap()
         let emailField2 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(emailField2, timeout: 5.0)
+        waitForHittability(emailField2, named: "emailField2", timeout: 5.0)
         replaceText(in: emailField2, with: "user@example.com")
         app.typeText("line one\nline two\ttabbed")
         let list = app.descendants(matching: .any)["list"]
-        waitForHittability(list, timeout: 5.0)
+        waitForHittability(list, named: "list", timeout: 5.0)
         list.swipeUp()
         let spinner = app.descendants(matching: .any)["spinner"]
-        waitForExistence(spinner, timeout: 2.0)
+        waitForExistence(spinner, named: "spinner", timeout: 2.0)
         let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
-        waitForHittability(welcome, timeout: 5.0)
-        XCTAssertTrue(welcome.exists, "Expected welcome to be visible.")
+        waitForHittability(welcome, named: "welcome", timeout: 5.0)
         let spinner2 = app.descendants(matching: .any)["spinner"]
-        waitForNonHittability(spinner2, timeout: 5.0)
+        waitForNonHittability(spinner2, named: "spinner2", timeout: 5.0)
         let greeting = app.descendants(matching: .any)["greeting"]
-        waitForExistence(greeting, timeout: 5.0)
+        waitForExistence(greeting, named: "greeting", timeout: 5.0)
         XCTAssertEqual(greeting.label, "Hi there")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.lifetime = .keepAlways
         add(screenshot)
         pressBack()
         let submitButton = app.descendants(matching: .any)["submit-button"]
-        waitForExistence(submitButton, timeout: 5.0)
+        waitForExistence(submitButton, named: "submitButton", timeout: 5.0)
         XCTAssertTrue(submitButton.isEnabled)
         app.swipeUp()
     }

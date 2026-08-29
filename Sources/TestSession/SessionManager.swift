@@ -10,6 +10,16 @@ public actor SessionManager {
     /// Reports loaded from disk for sessions this process never held live — the
     /// path that lets history outlive an `amoo mcp serve` restart.
     private var closedReports: [String: SessionReport] = [:]
+    /// Recorded-but-not-yet-written action counts and last flush times, per session.
+    private var unflushedActions: [String: Int] = [:]
+    private var lastFlush: [String: Date] = [:]
+    /// Serializes store writes so they land in the order they were produced.
+    private var writeChain: Task<Void, Never>?
+
+    /// Flush after this many recorded actions, or this long since the last flush, whichever
+    /// comes first. Together they bound both the write amplification and the crash window.
+    private static let flushActionThreshold = 10
+    private static let flushInterval: TimeInterval = 5
 
     public init(
         bootstrapper: any SessionBootstrapper,
@@ -65,19 +75,49 @@ public actor SessionManager {
             throw SessionError.notFound(id)
         }
         await session.close()
-        await persist(id)
+        await flush(id)
     }
 
     public func allSessions() -> [TestSession] {
         Array(sessions.values)
     }
 
-    /// Flush a live session's current history to the store. Called write-through
-    /// after every recorded action and on `endSession`, so a hard crash loses at
-    /// most the action in flight.
+    /// Note a recorded action and flush the session's history to the store once enough have
+    /// accumulated (or enough time has passed).
+    ///
+    /// Each flush re-encodes the session's *whole* history and atomically rewrites `report.json`,
+    /// so flushing on every single action is quadratic in the length of a recording. Batching
+    /// bounds that; the window is the most actions a hard crash can lose, and `endSession` always
+    /// flushes, so an orderly close never loses any.
     public func persist(_ id: String) async {
+        guard store != nil, sessions[id] != nil else { return }
+        let pending = (unflushedActions[id] ?? 0) + 1
+        unflushedActions[id] = pending
+        let elapsed = Date().timeIntervalSince(lastFlush[id] ?? .distantPast)
+        guard pending >= Self.flushActionThreshold || elapsed >= Self.flushInterval else { return }
+        await flush(id)
+    }
+
+    /// Write a live session's current history to the store now, regardless of the batching window.
+    public func flush(_ id: String) async {
         guard let store, let session = sessions[id] else { return }
-        await store.save(SessionReport.make(from: session))
+        unflushedActions[id] = 0
+        lastFlush[id] = Date()
+        let report = await SessionReport.make(from: session)
+        // `FileSessionStore.save` does blocking file I/O, which would otherwise hold up every other
+        // caller of this actor. Hand it to a chained task instead: off the actor, but still strictly
+        // ordered, so a later report can never be overwritten by an earlier one.
+        let previous = writeChain
+        writeChain = Task {
+            await previous?.value
+            await store.save(report)
+        }
+    }
+
+    /// Wait for every queued store write to land. Used by tests and by any caller that is about to
+    /// read `report.json` back from disk.
+    public func drainPendingWrites() async {
+        await writeChain?.value
     }
 
     /// The on-disk directory backing a session, or `nil` when no store is

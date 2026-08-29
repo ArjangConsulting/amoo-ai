@@ -79,6 +79,8 @@ final class SessionStoreTests: XCTestCase {
 
         _ = try await manager.startSession(appID: "com.example", platform: .ios)
         try await manager.endSession("s-persist")
+        // Store writes are queued off the manager's actor; wait for them before reading back.
+        await manager.drainPendingWrites()
 
         let onDisk = await store.loadReport(sessionID: "s-persist")
         XCTAssertEqual(onDisk?.sessionID, "s-persist")
@@ -98,6 +100,7 @@ final class SessionStoreTests: XCTestCase {
         )
         _ = try await first.startSession(appID: "com.example", platform: .android)
         try await first.endSession("s-restart")
+        await first.drainPendingWrites()
 
         // Second "process": fresh manager, empty in-memory registry.
         let second = SessionManager(bootstrapper: StubBootstrapper(), store: store)

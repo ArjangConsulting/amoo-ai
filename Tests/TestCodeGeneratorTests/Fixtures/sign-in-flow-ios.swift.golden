@@ -7,33 +7,36 @@ final class SignInFlowTest: XCTestCase {
     private lazy var app = XCUIApplication()
 
     override func setUpWithError() throws {
+        try super.setUpWithError()
         continueAfterFailure = false
         app.launch()
     }
 
     override func tearDownWithError() throws {
-        guard testRun?.failureCount ?? 0 > 0 else { return }
+        if testRun?.failureCount ?? 0 > 0 {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Failure screenshot"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
 
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Failure screenshot"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-
-        let hierarchy = XCTAttachment(string: app.debugDescription)
-        hierarchy.name = "Failure UI hierarchy"
-        hierarchy.lifetime = .keepAlways
-        add(hierarchy)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Failure UI hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        try super.tearDownWithError()
     }
 
     private func waitForExistence(
         _ element: XCUIElement,
+        named name: String = "Element",
         timeout: TimeInterval? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout ?? defaultTimeout),
-            "Element did not exist before the timeout.\n\(element.debugDescription)",
+            "\(name) did not exist before the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -41,13 +44,14 @@ final class SignInFlowTest: XCTestCase {
 
     private func waitForHittability(
         _ element: XCUIElement,
+        named name: String = "Element",
         timeout: TimeInterval? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertTrue(
             element.wait(for: \.isHittable, toEqual: true, timeout: timeout ?? defaultTimeout),
-            "Element was not visible and hittable before the timeout.\n\(element.debugDescription)",
+            "\(name) was not visible and hittable before the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -55,13 +59,14 @@ final class SignInFlowTest: XCTestCase {
 
     private func waitForNonHittability(
         _ element: XCUIElement,
+        named name: String = "Element",
         timeout: TimeInterval? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertTrue(
             element.wait(for: \.isHittable, toEqual: false, timeout: timeout ?? defaultTimeout),
-            "Element was still visible and hittable after the timeout.\n\(element.debugDescription)",
+            "\(name) was still visible and hittable after the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -88,16 +93,15 @@ final class SignInFlowTest: XCTestCase {
 
     func testSignInFlow() throws {
         let emailField = app.descendants(matching: .any)["email-field"]
-        waitForHittability(emailField, timeout: 5.0)
+        waitForHittability(emailField, named: "emailField", timeout: 5.0)
         emailField.tap()
         let emailField2 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(emailField2, timeout: 5.0)
+        waitForHittability(emailField2, named: "emailField2", timeout: 5.0)
         replaceText(in: emailField2, with: "user@example.com")
         let signInButton = app.descendants(matching: .any)["sign-in-button"]
-        waitForHittability(signInButton, timeout: 5.0)
+        waitForHittability(signInButton, named: "signInButton", timeout: 5.0)
         signInButton.tap()
         let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
-        waitForHittability(welcome, timeout: 5.0)
-        XCTAssertTrue(welcome.exists, "Expected welcome to be visible.")
+        waitForHittability(welcome, named: "welcome", timeout: 5.0)
     }
 }

@@ -77,16 +77,28 @@ extension DriverToolExecutor {
         let actionCount = report?.actionCount ?? 0
         summary["action_count"] = .int(actionCount)
 
+        // `end_session` advertises plan_path/flow_path in its output schema, so a failure to produce
+        // them has to be visible — silently omitting the keys is indistinguishable from "no store
+        // configured", and the caller cannot tell it needs to re-run compile_session_to_plan.
         var artifactNote = ""
-        if let report,
-           let directory = await manager.sessionDirectory(for: sessionID),
-           let result = try? SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil),
-           let paths = try? SessionArtifactWriter.write(result, to: directory) {
-            summary["plan_path"] = .string(paths.plan)
-            summary["flow_path"] = .string(paths.flow)
-            summary["warning_count"] = .int(result.warnings.count)
-            artifactNote = " Plan written to \(paths.plan)"
-                + (result.warnings.isEmpty ? "" : " (\(result.warnings.count) warning(s))") + "."
+        let directory = await manager.sessionDirectory(for: sessionID)
+        if let report, let directory {
+            do {
+                let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+                let paths = try SessionArtifactWriter.write(result, to: directory)
+                summary["plan_path"] = .string(paths.plan)
+                summary["flow_path"] = .string(paths.flow)
+                summary["warning_count"] = .int(result.warnings.count)
+                artifactNote = " Plan written to \(paths.plan)"
+                    + (result.warnings.isEmpty ? "" : " (\(result.warnings.count) warning(s))") + "."
+            } catch {
+                summary["artifact_error"] = .string("\(error)")
+                artifactNote = " Could not write replay artifacts: \(error)."
+                    + " Re-run compile_session_to_plan to retry."
+            }
+        } else if directory == nil {
+            artifactNote = " No session store is configured, so no replay artifacts were written;"
+                + " call compile_session_to_plan to keep this run."
         }
 
         return .success(
@@ -156,11 +168,19 @@ extension DriverToolExecutor {
             return .error(error.description)
         }
 
-        // Overwrite the auto-written artifacts with this named version.
+        // Overwrite the auto-written artifacts with this named version. Say so either way: the
+        // caller's next step is `amoo generate test --plan <path>`, and a silent no-write leaves it
+        // pointing at a stale file.
         var artifactNote = ""
-        if let directory = await manager.sessionDirectory(for: sessionID),
-           let paths = try? SessionArtifactWriter.write(result, to: directory) {
-            artifactNote = " Written to \(paths.plan)."
+        if let directory = await manager.sessionDirectory(for: sessionID) {
+            do {
+                let paths = try SessionArtifactWriter.write(result, to: directory)
+                artifactNote = " Written to \(paths.plan)."
+            } catch {
+                artifactNote = " Compiled in memory only — writing to \(directory.path) failed: \(error)."
+            }
+        } else {
+            artifactNote = " No session store is configured, so nothing was written to disk."
         }
 
         let summary = "Compiled session \(sessionID) into \(result.testFlow.steps.count) flow step(s),"
