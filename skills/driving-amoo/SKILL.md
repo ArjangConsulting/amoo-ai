@@ -187,11 +187,36 @@ Steps the compiler could tell were system UI or a dismissable overlay carry
 `transient: true`. If your build runs in a test/mock mode that suppresses those
 prompts, drop the transient steps during finalize.
 
-**Repeated taps are a guess.** Several identical taps in quick succession are read
-as one person hammering an unresponsive button, and collapse into a single guarded
-step. If they were cumulative instead — a stepper, a quantity field, a keypad — the
-compiled plan now says 1 where the recording said N. The warning names the count,
-and `flow.json` still holds every tap; restore them during finalize.
+### Repeated taps: a tunable guess, with the evidence attached
+
+Several identical taps close together are read as one person hammering an
+unresponsive button, and collapse into a single guarded step. If they were
+cumulative instead — a stepper, a quantity field, a keypad — the plan says 1 where
+the recording said N. `flow.json` always keeps every tap.
+
+**Why this can't be decided automatically.** Telling the two apart means knowing
+whether the app responded to the first tap, and nothing a session records answers
+that: `tap_element`'s recorded result is `Tapped verified element [id] label`,
+built from the element tapped, so it is byte-identical whether the screen changed
+or not. Timing is a proxy, and the populations overlap — a PIN entered quickly is
+faster than a slow retry. So the window is a **default to tune per app**, not a
+constant to trust.
+
+Tune it with `retry_tap_interval_ms` on `compile_session_to_plan`, or
+`AMOO_RETRY_TAP_INTERVAL_MS` for every compile. Default is 600ms.
+
+- A hammered button kept as N steps → **raise** it.
+- A deliberate repeat wrongly collapsed → **lower** it.
+
+You don't have to guess at the value. Every run of 2+ identical taps is reported in
+`retryRunObservations` with its gaps and whether it collapsed — including the runs
+the window *rejected*, which are exactly the evidence for raising it. The text
+summary lists the kept runs inline. Compile a few real sessions, look at where the
+two clusters fall, and pick a value that separates them for this app.
+
+A run whose taps are not uniformly fast is left intact rather than partially
+collapsed: mixed cadence is ambiguous, and a partial collapse would change the tap
+count on a guess.
 
 ## Repo-agnostic gotchas worth knowing before you finalize
 

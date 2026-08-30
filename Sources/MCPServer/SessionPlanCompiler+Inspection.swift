@@ -136,33 +136,108 @@ extension SessionPlanCompiler {
         )
     }
 
-    /// Says outright that the collapse is an inference. A cumulative tap run read as a retry loop
-    /// changes what the test asserts, and only this warning can tell the finalize pass to check.
-    static func retryWarning(index: Int, toolName: String, retryCount: Int) -> SessionPlanWarning {
-        SessionPlanWarning(
+    /// Says outright that the collapse is an inference, and shows the numbers behind it. A
+    /// cumulative tap run read as a retry loop changes what the test asserts, so the reader needs
+    /// both the verdict and the evidence — the gaps and the threshold they were compared against.
+    static func retryWarning(
+        index: Int,
+        toolName: String,
+        retryCount: Int,
+        interval: TimeInterval,
+        gaps: [Double]
+    ) -> SessionPlanWarning {
+        let gapText = gaps.map { String(format: "%.2fs", $0) }.joined(separator: ", ")
+        return SessionPlanWarning(
             kind: .approximate,
             actionIndex: index,
             toolName: toolName,
-            reason: "\(retryCount) identical taps in quick succession, read as a retry loop and "
-                + "collapsed into one guarded step whose wait absorbs the load they were pushing "
-                + "through. If they were cumulative instead — a stepper, a quantity, a keypad — "
-                + "restore all \(retryCount) taps; testFlow still records them"
+            reason: "\(retryCount) identical taps \(gapText.isEmpty ? "" : "(gaps \(gapText)) ")"
+                + "all within the \(String(format: "%.2fs", interval)) retry window, so they were "
+                + "read as a retry loop and collapsed into one guarded step. If they were "
+                + "cumulative instead — a stepper, a quantity, a keypad — restore all "
+                + "\(retryCount) taps; testFlow still records them. Tune the window with "
+                + "retry_tap_interval_ms or AMOO_RETRY_TAP_INTERVAL_MS"
         )
     }
 
-    /// Taps this close together were not deliberate repeats a person counted out; they are the
-    /// hammering of a button that did not respond. Repeats spaced wider than this — a stepper being
+    /// Taps this close together are read as the hammering of a button that did not respond, rather
+    /// than deliberate repeats a person counted out. Repeats spaced wider — a stepper being
     /// incremented, a keypad being typed on — are kept verbatim, because collapsing them would
     /// change the quantity the test asserts.
-    static let retryTapInterval: TimeInterval = 0.6
+    ///
+    /// **This default is not derived from data, and cannot be.** Distinguishing the two cases needs
+    /// to know whether the app responded to the first tap, and nothing a session records answers
+    /// that: `SessionAction.result` is `"Tapped verified element [id] label"`, built from the
+    /// element tapped, so it is byte-identical whether the screen changed or not. Timing is a proxy,
+    /// and the populations overlap — a PIN entered quickly beats a slow retry.
+    ///
+    /// So it is tunable rather than fixed, and every collapsed run reports the gaps it saw
+    /// (`RetryRunObservation`) so a real value can be chosen from real recordings.
+    public static let defaultRetryTapInterval: TimeInterval = 0.6
 
-    /// The 2nd..Nth identical `tap_element` of a suspected retry run, mapped to the run's first
-    /// index. The finalize path emits one guarded step per run — its wait tolerates the load the
-    /// taps were pushing through — while the literal `testFlow` still replays every recorded tap.
-    /// Collapsing is a guess, so every collapsed run also carries a warning saying so.
-    static func retryRuns(_ actions: [SessionAction]) -> (suppressed: Set<Int>, counts: [Int: Int]) {
+    /// Reads `AMOO_RETRY_TAP_INTERVAL_MS`, falling back to the default. A non-positive or
+    /// unparseable value is ignored rather than failing a compile.
+    public static func retryTapIntervalFromEnvironment(
+        _ environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> TimeInterval {
+        guard let raw = environment["AMOO_RETRY_TAP_INTERVAL_MS"],
+              let milliseconds = Double(raw), milliseconds > 0
+        else { return defaultRetryTapInterval }
+        return milliseconds / 1000
+    }
+
+    /// What a run of identical taps actually looked like. Reported alongside the plan so the
+    /// threshold can be tuned from recordings instead of guessed at — including for runs that were
+    /// *not* collapsed, which are the ones that say the threshold is too low.
+    public struct RetryRunObservation: Codable, Equatable, Sendable {
+        public let actionIndex: Int
+        public let toolName: String
+        public let selector: String
+        public let tapCount: Int
+        /// Seconds between consecutive taps, in order.
+        public let gaps: [Double]
+        public let collapsed: Bool
+
+        public init(
+            actionIndex: Int,
+            toolName: String,
+            selector: String,
+            tapCount: Int,
+            gaps: [Double],
+            collapsed: Bool
+        ) {
+            self.actionIndex = actionIndex
+            self.toolName = toolName
+            self.selector = selector
+            self.tapCount = tapCount
+            self.gaps = gaps
+            self.collapsed = collapsed
+        }
+    }
+
+    /// What the retry pass concluded about one action, passed to `process` as a unit so the
+    /// three values can't drift apart at the call site.
+    struct RetryContext {
+        /// Taps folded into this action, 1 when nothing was collapsed.
+        var count: Int = 1
+        var interval: TimeInterval = SessionPlanCompiler.defaultRetryTapInterval
+        var gaps: [Double] = []
+    }
+
+    struct RetryAnalysis {
         var suppressed: Set<Int> = []
         var counts: [Int: Int] = [:]
+        var observations: [RetryRunObservation] = []
+    }
+
+    /// Groups consecutive identical `tap_element` actions and decides which runs to collapse.
+    ///
+    /// The 2nd..Nth tap of a collapsed run is suppressed from `toolOperations` and mapped to the
+    /// run's first index; the literal `testFlow` still replays every recorded tap. Every run of two
+    /// or more is reported in `observations` whether collapsed or not, since the runs the threshold
+    /// *rejects* are exactly the evidence for raising it.
+    static func retryRuns(_ actions: [SessionAction], interval: TimeInterval) -> RetryAnalysis {
+        var analysis = RetryAnalysis()
         var index = 0
         while index < actions.count {
             let action = actions[index]
@@ -170,19 +245,37 @@ extension SessionPlanCompiler {
                 index += 1
                 continue
             }
+            // Group every consecutive identical tap first, then decide — measuring only the runs we
+            // already intended to collapse would hide the ones arguing the threshold is wrong.
             var runEnd = index + 1
             while runEnd < actions.count,
                   actions[runEnd].toolName == "tap_element",
-                  actions[runEnd].arguments == action.arguments,
-                  actions[runEnd].timestamp.timeIntervalSince(actions[runEnd - 1].timestamp) <= retryTapInterval {
-                suppressed.insert(runEnd)
+                  actions[runEnd].arguments == action.arguments {
                 runEnd += 1
             }
-            if runEnd - index > 1 {
-                counts[index] = runEnd - index
+            let members = Array(actions[index ..< runEnd])
+            if members.count > 1 {
+                let gaps = zip(members, members.dropFirst()).map {
+                    $1.timestamp.timeIntervalSince($0.timestamp)
+                }
+                let collapsed = gaps.allSatisfy { $0 <= interval }
+                if collapsed {
+                    for offset in (index + 1) ..< runEnd {
+                        analysis.suppressed.insert(offset)
+                    }
+                    analysis.counts[index] = members.count
+                }
+                analysis.observations.append(RetryRunObservation(
+                    actionIndex: index,
+                    toolName: action.toolName,
+                    selector: inspectionSelector(action)?.first.map { "\($0.key)=\($0.value)" } ?? "",
+                    tapCount: members.count,
+                    gaps: gaps.map { ($0 * 1000).rounded() / 1000 },
+                    collapsed: collapsed
+                ))
             }
             index = runEnd
         }
-        return (suppressed, counts)
+        return analysis
     }
 }

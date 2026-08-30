@@ -147,6 +147,27 @@ extension DriverToolExecutor {
         return try .success(summary, structuredContent: Value(report))
     }
 
+    /// Puts the repeated-tap evidence in the text summary, not only the structured payload: the
+    /// runs the window *declined* to collapse are what tell a caller it is set too low, and nobody
+    /// tunes a threshold they cannot see.
+    private func retryRunNote(for result: CompileSessionToPlanResult) -> String {
+        guard result.retryRunObservations.isEmpty == false else { return "" }
+        let collapsed = result.retryRunObservations.filter(\.collapsed)
+        let kept = result.retryRunObservations.filter { $0.collapsed == false }
+
+        var note = " Repeated-tap runs at the"
+            + " \(String(format: "%.2fs", result.retryTapIntervalSeconds)) window:"
+            + " \(collapsed.count) collapsed, \(kept.count) kept."
+        for run in kept {
+            let gaps = run.gaps.map { String(format: "%.2fs", $0) }.joined(separator: ", ")
+            note += " [kept] \(run.tapCount)x \(run.selector) (gaps \(gaps))."
+        }
+        if kept.isEmpty == false {
+            note += " Raise retry_tap_interval_ms if those were retry loops."
+        }
+        return note
+    }
+
     func executeCompileSessionToPlan(arguments: [String: String]) async throws -> ToolResult {
         guard let manager = sessionManager else {
             return .error("Session management not configured.")
@@ -157,12 +178,23 @@ extension DriverToolExecutor {
         guard let report = await manager.report(for: sessionID) else {
             return .error("Session not found: \(sessionID)")
         }
+        // An explicit interval beats the env default. Reject junk rather than silently falling back:
+        // a caller who passed the argument is tuning deliberately and needs to know it did nothing.
+        var requestedInterval: TimeInterval?
+        if let raw = arguments["retry_tap_interval_ms"] {
+            guard let milliseconds = Double(raw), milliseconds > 0 else {
+                return .error("retry_tap_interval_ms must be a positive number of milliseconds, got '\(raw)'.")
+            }
+            requestedInterval = milliseconds / 1000
+        }
+
         let result: CompileSessionToPlanResult
         do {
             result = try SessionPlanCompiler.compile(
                 report: report,
                 testName: arguments["test_name"],
-                testDescription: arguments["test_description"]
+                testDescription: arguments["test_description"],
+                retryTapInterval: requestedInterval
             )
         } catch let error as SessionPlanCompilerError {
             return .error(error.description)
@@ -183,9 +215,11 @@ extension DriverToolExecutor {
             artifactNote = " No session store is configured, so nothing was written to disk."
         }
 
+        let retryNote = retryRunNote(for: result)
+
         let summary = "Compiled session \(sessionID) into \(result.testFlow.steps.count) flow step(s),"
             + " \(result.studioTest.compiledPlan?.toolOperations?.count ?? 0) plan operation(s),"
-            + " \(result.warnings.count) warning(s).\(artifactNote)"
+            + " \(result.warnings.count) warning(s).\(artifactNote)\(retryNote)"
         return try .success(summary, structuredContent: Value(result))
     }
 

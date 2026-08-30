@@ -61,11 +61,46 @@ public struct CompileSessionToPlanResult: Codable, Sendable {
     public let testFlow: CompiledSessionFlow
     public let studioTest: StudioAuthoredTest
     public let warnings: [SessionPlanWarning]
+    /// Every run of two or more consecutive identical taps, collapsed or not, with the gaps that
+    /// decided it. This is the evidence for tuning `retryTapInterval` — the default is a guess, and
+    /// the runs it *declines* to collapse are as informative as the ones it does.
+    public let retryRunObservations: [SessionPlanCompiler.RetryRunObservation]
+    /// The interval this compile actually used, so a report is interpretable on its own.
+    public let retryTapIntervalSeconds: Double
 
-    public init(testFlow: CompiledSessionFlow, studioTest: StudioAuthoredTest, warnings: [SessionPlanWarning]) {
+    public init(
+        testFlow: CompiledSessionFlow,
+        studioTest: StudioAuthoredTest,
+        warnings: [SessionPlanWarning],
+        retryRunObservations: [SessionPlanCompiler.RetryRunObservation] = [],
+        retryTapIntervalSeconds: Double = SessionPlanCompiler.defaultRetryTapInterval
+    ) {
         self.testFlow = testFlow
         self.studioTest = studioTest
         self.warnings = warnings
+        self.retryRunObservations = retryRunObservations
+        self.retryTapIntervalSeconds = retryTapIntervalSeconds
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case testFlow, studioTest, warnings, retryRunObservations, retryTapIntervalSeconds
+    }
+
+    /// Both new fields post-date plans already written to disk, so absence decodes to the
+    /// pre-existing behaviour rather than failing to read an older artifact.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        testFlow = try container.decode(CompiledSessionFlow.self, forKey: .testFlow)
+        studioTest = try container.decode(StudioAuthoredTest.self, forKey: .studioTest)
+        warnings = try container.decodeIfPresent([SessionPlanWarning].self, forKey: .warnings) ?? []
+        retryRunObservations = try container.decodeIfPresent(
+            [SessionPlanCompiler.RetryRunObservation].self,
+            forKey: .retryRunObservations
+        ) ?? []
+        retryTapIntervalSeconds = try container.decodeIfPresent(
+            Double.self,
+            forKey: .retryTapIntervalSeconds
+        ) ?? SessionPlanCompiler.defaultRetryTapInterval
     }
 }
 
@@ -74,7 +109,7 @@ public struct CompileSessionToPlanResult: Codable, Sendable {
 /// `amoo generate test --plan`). No LLM involved — this mirrors the mechanical nature of a
 /// recording, as opposed to `StudioChatService`'s conversational plan authoring.
 public enum SessionPlanCompiler {
-    private struct TranslatedAction {
+    struct TranslatedAction {
         let studioTool: StudioTool
         let studioArguments: [String: String]
         let approximate: Bool
@@ -127,77 +162,14 @@ public enum SessionPlanCompiler {
         }
     }
 
-    private static func translateFillField(_ arguments: [String: String]) -> TranslatedAction {
-        var mapped = arguments
-        mapped["contains_text"] = mapped["contains_text"] ?? mapped["field_description"]
-        mapped["field_description"] = nil
-        return TranslatedAction(studioTool: .setText, studioArguments: mapped, approximate: true)
-    }
-
-    private static func translateAssertVisible(_ arguments: [String: String]) -> TranslatedAction {
-        var mapped = arguments
-        if mapped["id"] == nil, mapped["label"] == nil, mapped["contains_text"] == nil {
-            mapped["contains_text"] = mapped["description"]
-        }
-        mapped["description"] = nil
-        return TranslatedAction(studioTool: .assertVisible, studioArguments: mapped, approximate: true)
-    }
-
-    private static func translateAssertAbsent(_ arguments: [String: String]) -> TranslatedAction {
-        var mapped = arguments
-        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
-        if usesDescription {
-            mapped["contains_text"] = mapped["description"]
-        }
-        mapped["description"] = nil
-        return TranslatedAction(
-            studioTool: .assertNotVisible,
-            studioArguments: mapped,
-            approximate: usesDescription
-        )
-    }
-
-    private static func translateAssertEnabled(_ arguments: [String: String]) -> TranslatedAction {
-        var mapped = arguments
-        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
-        if usesDescription {
-            mapped["contains_text"] = mapped["description"]
-        }
-        mapped["description"] = nil
-        return TranslatedAction(
-            studioTool: .assertEnabled,
-            studioArguments: mapped,
-            approximate: usesDescription
-        )
-    }
-
-    private static func translateAssertValue(_ arguments: [String: String]) -> TranslatedAction? {
-        // Studio's assert_text is exact equality. A contains-only assertion cannot be translated
-        // without changing its meaning, so leave it out of the compiled plan and surface a warning.
-        guard let expected = arguments["expected"] else { return nil }
-        var mapped = arguments
-        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
-        if usesDescription {
-            mapped["contains_text"] = mapped["description"]
-        }
-        mapped["value"] = expected
-        mapped["expected"] = nil
-        mapped["contains"] = nil
-        mapped["description"] = nil
-        return TranslatedAction(
-            studioTool: .assertText,
-            studioArguments: mapped,
-            approximate: usesDescription
-        )
-    }
-
     // swiftlint:disable cyclomatic_complexity
 
     /// Human-readable step text for the Studio test, one case per tool.
     ///
     /// Exhaustive over `StudioTool` on purpose: this used to fall through to a generic
     /// "Run <tool>." for anything it had not been taught, so a newly added tool produced a plan
-    /// whose steps read as placeholders without failing anywhere a person would notice.
+    /// whose steps read as placeholders without failing anywhere a person would notice. One case
+    /// per tool is the point here, so the complexity count is expected rather than a smell.
     private static func describe(
         tool: StudioTool,
         arguments: [String: String]
@@ -248,7 +220,7 @@ public enum SessionPlanCompiler {
         index: Int,
         action: SessionAction,
         next: SessionAction?,
-        retryCount: Int
+        retry: RetryContext
     ) -> ProcessedAction {
         let transient = looksTransient(action)
 
@@ -287,8 +259,14 @@ public enum SessionPlanCompiler {
         if transient {
             warnings.append(transientWarning(index: index, toolName: action.toolName))
         }
-        if retryCount > 1 {
-            warnings.append(retryWarning(index: index, toolName: action.toolName, retryCount: retryCount))
+        if retry.count > 1 {
+            warnings.append(retryWarning(
+                index: index,
+                toolName: action.toolName,
+                retryCount: retry.count,
+                interval: retry.interval,
+                gaps: retry.gaps
+            ))
         }
 
         let stepID = "step-\(index)"
@@ -353,11 +331,58 @@ public enum SessionPlanCompiler {
     /// Throws when the recorded session names a platform that is neither iOS nor Android. A session
     /// is written by our own recorder, so that means a corrupt or hand-edited report — guessing a
     /// platform there would generate a test for the wrong OS.
+    /// Runs `process` over the actions the retry pass kept, giving each one its retry context.
+    ///
+    /// `next` deliberately skips suppressed actions: the pre-transition inspection heuristic asks
+    /// "what happens after this?", and a suppressed duplicate tap is not a distinct next step.
+    private static func processActions(
+        _ actions: [SessionAction],
+        retries: RetryAnalysis,
+        interval: TimeInterval
+    ) -> [ProcessedAction] {
+        let gapsByIndex = Dictionary(
+            uniqueKeysWithValues: retries.observations.map { ($0.actionIndex, $0.gaps) }
+        )
+        func nextAction(after offset: Int) -> SessionAction? {
+            var cursor = offset + 1
+            while cursor < actions.count {
+                if !retries.suppressed.contains(cursor) {
+                    return actions[cursor]
+                }
+                cursor += 1
+            }
+            return nil
+        }
+
+        var processed: [ProcessedAction] = []
+        processed.reserveCapacity(actions.count)
+        for (offset, action) in actions.enumerated() where !retries.suppressed.contains(offset) {
+            processed.append(process(
+                index: offset,
+                action: action,
+                next: nextAction(after: offset),
+                retry: RetryContext(
+                    count: retries.counts[offset] ?? 1,
+                    interval: interval,
+                    gaps: gapsByIndex[offset] ?? []
+                )
+            ))
+        }
+        return processed
+    }
+
+    /// - Parameter retryTapInterval: How close together identical taps must be to read as a retry
+    ///   loop rather than deliberate repeats. Defaults to `AMOO_RETRY_TAP_INTERVAL_MS`, then
+    ///   `defaultRetryTapInterval`. See that property for why this is tunable and not a fixed
+    ///   constant — every run of repeated taps reports its gaps in `retryRunObservations` so the
+    ///   value can be chosen from real recordings.
     public static func compile(
         report: SessionReport,
         testName: String?,
-        testDescription: String?
+        testDescription: String?,
+        retryTapInterval: TimeInterval? = nil
     ) throws -> CompileSessionToPlanResult {
+        let interval = retryTapInterval ?? retryTapIntervalFromEnvironment()
         guard let platform = Platform(lenient: report.platform) else {
             throw SessionPlanCompilerError.unsupportedPlatform(report.platform)
         }
@@ -370,27 +395,8 @@ public enum SessionPlanCompiler {
             steps: flowSteps
         )
 
-        let (suppressed, retryCounts) = retryRuns(report.actions)
-        func nextAction(after offset: Int) -> SessionAction? {
-            var cursor = offset + 1
-            while cursor < report.actions.count {
-                if !suppressed.contains(cursor) {
-                    return report.actions[cursor]
-                }
-                cursor += 1
-            }
-            return nil
-        }
-        var processed: [ProcessedAction] = []
-        processed.reserveCapacity(report.actions.count)
-        for (offset, action) in report.actions.enumerated() where !suppressed.contains(offset) {
-            processed.append(process(
-                index: offset,
-                action: action,
-                next: nextAction(after: offset),
-                retryCount: retryCounts[offset] ?? 1
-            ))
-        }
+        let retries = retryRuns(report.actions, interval: interval)
+        let processed = processActions(report.actions, retries: retries, interval: interval)
         let toolOperations = processed.compactMap(\.operation)
         let steps = processed.compactMap(\.step)
         let warnings = processed.flatMap(\.warnings)
@@ -416,6 +422,12 @@ public enum SessionPlanCompiler {
             )
         )
 
-        return CompileSessionToPlanResult(testFlow: testFlow, studioTest: studioTest, warnings: warnings)
+        return CompileSessionToPlanResult(
+            testFlow: testFlow,
+            studioTest: studioTest,
+            warnings: warnings,
+            retryRunObservations: retries.observations,
+            retryTapIntervalSeconds: interval
+        )
     }
 }

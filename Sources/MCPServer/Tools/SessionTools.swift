@@ -180,6 +180,16 @@ public enum SessionTools {
                     type: "string",
                     description: "Description for the generated test. Defaults to a summary of the"
                         + " session's app/device."
+                ),
+                "retry_tap_interval_ms": .init(
+                    type: "number",
+                    description: "How close together identical taps must be to read as a retry loop"
+                        + " and collapse into one step. Default 600ms (or"
+                        + " AMOO_RETRY_TAP_INTERVAL_MS). Raise it if a hammered button was kept as"
+                        + " N steps; lower it if a deliberate repeat — a stepper, a quantity, a"
+                        + " keypad — was wrongly collapsed. `retryRunObservations` in the output"
+                        + " reports every repeated-tap run with its gaps, collapsed or not, which"
+                        + " is how you pick a value for this app rather than guessing."
                 )
             ],
             required: ["session_id"],
@@ -207,6 +217,36 @@ public enum SessionTools {
                             ],
                             required: ["actionIndex", "toolName", "reason"]
                         )
+                    ),
+                    "retryRunObservations": .init(
+                        type: "array",
+                        description: "Every run of 2+ consecutive identical taps, collapsed or not,"
+                            + " with the gaps that decided it. The tuning evidence for"
+                            + " retry_tap_interval_ms.",
+                        items: .object(
+                            properties: [
+                                "actionIndex": .init(
+                                    type: "integer",
+                                    description: "Index of the run's first tap"
+                                ),
+                                "selector": .init(type: "string", description: "The tapped element"),
+                                "tapCount": .init(type: "integer", description: "Taps in the run"),
+                                "gaps": .init(
+                                    type: "array",
+                                    description: "Seconds between consecutive taps, in order"
+                                ),
+                                "collapsed": .init(
+                                    type: "boolean",
+                                    description: "Whether the run was folded into a single step"
+                                )
+                            ],
+                            required: ["actionIndex", "tapCount", "gaps", "collapsed"]
+                        )
+                    ),
+                    "retryTapIntervalSeconds": .init(
+                        type: "number",
+                        description: "The retry window this compile used, so the observations are"
+                            + " interpretable on their own"
                     )
                 ],
                 required: ["testFlow", "studioTest", "warnings"]

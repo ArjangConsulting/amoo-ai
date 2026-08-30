@@ -136,7 +136,7 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.testFlow.steps.count, 4)
         let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
         XCTAssertEqual(operations.map { $0.arguments["id"] }, ["retry", "continue"])
-        XCTAssertTrue(result.warnings.contains { $0.reason.contains("3 identical taps in quick succession") })
+        XCTAssertTrue(result.warnings.contains { $0.reason.contains("3 identical taps") })
         // The warning has to say the collapse is a guess, or a cumulative tap run is lost silently.
         XCTAssertTrue(result.warnings.contains { $0.reason.contains("restore all 3 taps") })
     }
