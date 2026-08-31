@@ -71,11 +71,26 @@ fi
 # signature and PID so concurrent targets cannot overwrite each other's data.
 export LLVM_PROFILE_FILE="$CODECOV_DIR/amoo-%m-%p.profraw"
 
+# --disable-sandbox: the GRPCProtobufGenerator build-tool plugin runs
+# protoc-gen-swift / protoc-gen-grpc-swift-2 during the build. Under
+# --enable-code-coverage those executables are instrumented too and try to flush
+# an LLVM profile on exit; SwiftPM's plugin sandbox denies the write (read-only
+# working dir, no LLVM_PROFILE_FILE passed through) and each one prints
+#
+#   LLVM Profile Error: Failed to write file "default.profraw": Operation not permitted
+#
+# ~10 times per run. There is no switch to leave plugin tools uninstrumented, so
+# drop the sandbox for this build instead: the codegen tools then write their
+# (unused) profiles next to the real ones and stay silent. The plugin is
+# first-party (grpc-swift's protobuf generator); this script is CI-only and does
+# not change `make check` / `swift test`, which keep the sandbox. Coverage
+# aggregation is unaffected -- `llvm-cov export` only resolves symbols in the
+# -object test binaries, and the codegen tools are not among them.
 echo "Running tests with code coverage enabled..."
 HOME="$WORKSPACE_HOME" \
 CLANG_MODULE_CACHE_PATH="$WORKSPACE_CLANG_CACHE" \
 SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
-swift test --enable-code-coverage
+swift test --enable-code-coverage --disable-sandbox
 
 RAW_PROFILES=("$CODECOV_DIR"/*.profraw)
 ALL_MACOS_ENTRIES=("$PRODUCTS_DIR"/*.xctest/Contents/MacOS/*)
