@@ -48,7 +48,7 @@ jobs:
 
       - name: Install tooling
         run: |
-          brew install protobuf swiftformat swiftlint
+          brew install protobuf swiftformat swiftlint xcodegen kotlin
 
       - name: Cache SPM dependencies
         uses: actions/cache@v4
@@ -67,6 +67,9 @@ jobs:
 
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
+
+      - name: Build companion projects
+        run: make companion-build
 
   build-macos:
     name: Build macOS Universal Binary
@@ -146,7 +149,13 @@ jobs:
       - name: Package tarball
         run: |
           VERSION="${RELEASE_VERSION}"
-          tar -czf "amoo-${VERSION}-macos-universal.tar.gz" amoo
+          tar -czf "amoo-${VERSION}-macos-universal.tar.gz" \
+            amoo \
+            CompanionApps/iOS \
+            CompanionApps/Android
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'amoo'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/iOS/project.yml'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           echo "TARBALL=amoo-${VERSION}-macos-universal.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -212,7 +221,11 @@ jobs:
         run: |
           VERSION="${RELEASE_VERSION}"
           cp .build/release/amoo amoo
-          tar -czf "amoo-${VERSION}-linux-static.tar.gz" amoo
+          tar -czf "amoo-${VERSION}-linux-static.tar.gz" \
+            amoo \
+            CompanionApps/Android
+          tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'amoo'
+          tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact

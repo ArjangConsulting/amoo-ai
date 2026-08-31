@@ -1,8 +1,6 @@
 import StudioProtocol
 
-/// Emits an XCTestCase driving `XCUIApplication` directly — no amoo companion app involved at run time.
-// The emitter deliberately keeps its generated XCTest harness and exhaustive tool mapping
-// together so additions can be reviewed as one output contract.
+// Emits an XCTestCase driving `XCUIApplication` directly — no amoo companion app involved at run time.
 // swiftlint:disable:next type_body_length
 public struct XCUITestEmitter: StudioCodeEmitting {
     public init() {}
@@ -335,7 +333,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
     }
 
     // Named components make this tuple an internal rendering detail, never an API value.
-    // swiftlint:disable:next large_tuple
+    // swiftlint:disable large_tuple
     private static func lookup(
         _ operation: StudioToolOperation,
         context: StudioTestContext?,
@@ -353,6 +351,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         lookups[element] = variable
         return (element, variable, "\(indent)let \(variable) = \(element)")
     }
+
+    // swiftlint:enable large_tuple
 
     private static func query(
         _ operation: StudioToolOperation,

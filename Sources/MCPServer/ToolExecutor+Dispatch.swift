@@ -496,13 +496,3 @@ extension DriverToolExecutor {
 
     // swiftlint:enable cyclomatic_complexity function_body_length
 }
-
-/// Reads a boolean tool argument. Every argument arrives as a string, and MCP clients spell a flag
-/// as any of these, so accepting one spelling would reject calls that plainly meant true.
-func boolArgument(_ raw: String?) -> Bool? {
-    switch raw?.lowercased() {
-    case "true", "1", "yes": true
-    case "false", "0", "no": false
-    default: nil
-    }
-}

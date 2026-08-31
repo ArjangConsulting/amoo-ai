@@ -1,12 +1,11 @@
 import StudioProtocol
 
-/// Emits a Kotlin Espresso instrumented test — no amoo companion app involved at run time.
-///
-/// Companion-normalized element `id`s are runtime resource names or content descriptions as strings;
-/// idiomatic Espresso (`withId(R.id.foo)`) needs a compile-time `R` reference this generator can't
-/// resolve. Generated code falls back to a small `hasResourceEntryName` matcher instead of `R.id`,
-/// with a comment pointing at the substitution — swap it for `withId(R.id...)` where convenient.
-// The generated harness and exhaustive tool mapping form one reviewable output contract.
+// Emits a Kotlin Espresso instrumented test — no amoo companion app involved at run time.
+//
+// Companion-normalized element `id`s are runtime resource names or content descriptions as strings;
+// idiomatic Espresso (`withId(R.id.foo)`) needs a compile-time `R` reference this generator can't
+// resolve. Generated code falls back to a small `hasResourceEntryName` matcher instead of `R.id`,
+// with a comment pointing at the substitution — swap it for `withId(R.id...)` where convenient.
 // swiftlint:disable:next type_body_length
 public struct EspressoEmitter: StudioCodeEmitting {
     public init() {}

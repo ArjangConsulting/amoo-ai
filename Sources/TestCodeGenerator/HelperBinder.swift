@@ -57,6 +57,7 @@ public enum HelperBinder {
         .assertVisible: [["assert"], ["expect"], ["verify"], ["visible"], ["shown"], ["displayed"]],
         .assertNotVisible: [["assert"], ["expect"], ["verify"], ["hidden"], ["absent"], ["gone"]],
         .assertText: [["assert"], ["expect"], ["verify"], ["text"], ["equals"]],
+        .assertValue: [["assert"], ["expect"], ["verify"], ["value"], ["equals"]],
         .assertEnabled: [["assert"], ["expect"], ["verify"], ["enabled"]],
         .takeScreenshot: [["screenshot"], ["snapshot"]],
         .pressBack: [["back"], ["navigate", "up"], ["pop"]]
