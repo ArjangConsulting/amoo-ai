@@ -176,7 +176,7 @@ extension SessionPlanCompiler {
     ///
     /// **Why 0.3s and not something larger.** amoo's primary driver is an AI agent issuing tool
     /// calls, and a `tap_element` round-trip through the companion costs ~0.45s before any pacing
-    /// the caller intends. Measured against sample-app: taps requested 0.1s apart recorded 0.561s
+    /// the caller intends. Measured against a sample app: taps requested 0.1s apart recorded 0.561s
     /// and 0.557s; taps requested 0.05s apart recorded 0.576s and 0.678s — the same intent landing
     /// either side of a 0.6s window on transport jitter alone. Any threshold inside that band
     /// decides on latency rather than intent, so the default sits *below* the round-trip floor.

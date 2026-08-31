@@ -24,20 +24,20 @@ final class ElementVariableNamingTests: XCTestCase {
         XCTAssertEqual(
             TestIdentifierNaming.elementVariableBase(
                 id: "app.task_list.row.a40fb286-e7ca-42ad-9163-5a316ba856bd",
-                label: "Cigarettes"
+                label: "Groceries"
             ),
-            "cigarettesHabitRow"
+            "groceriesTaskRow"
         )
     }
 
     func testElementVariableBaseWorkedExamples() {
         XCTAssertEqual(
-            TestIdentifierNaming.elementVariableBase(id: "app.tab.tasks", label: "Habits"),
-            "habitsTab"
+            TestIdentifierNaming.elementVariableBase(id: "app.tab.tasks", label: "Tasks"),
+            "tasksTab"
         )
         XCTAssertEqual(
-            TestIdentifierNaming.elementVariableBase(id: "app.task_list.create_button", label: "Create Habit"),
-            "createHabitButton"
+            TestIdentifierNaming.elementVariableBase(id: "app.task_list.create_button", label: "New Task"),
+            "newTaskButton"
         )
         XCTAssertEqual(
             TestIdentifierNaming.elementVariableBase(label: "Delete", elementType: "button"),
@@ -67,12 +67,12 @@ final class ElementVariableNamingTests: XCTestCase {
         XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("1048576")) // numeric record id
         XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("aGVsbG8gd29ybGQgb3BhcXVl")) // long mixed blob
         XCTAssertFalse(TestIdentifierNaming.isOpaqueToken("create_button"))
-        XCTAssertFalse(TestIdentifierNaming.isOpaqueToken("habits"))
+        XCTAssertFalse(TestIdentifierNaming.isOpaqueToken("tasks"))
 
         // When the trailing segment is opaque, naming falls back to the role only — never the hash.
         let base = TestIdentifierNaming.elementVariableBase(id: "app.task_list.row.a40fb286e7ca42ad")
         XCTAssertFalse(base.lowercased().contains("a40fb286"))
-        XCTAssertEqual(base, "habitCatalogRow")
+        XCTAssertEqual(base, "taskListRow")
     }
 
     func testLongDescriptiveIdentifierSegmentIsNotMistakenForAnOpaqueBlob() {
@@ -86,8 +86,8 @@ final class ElementVariableNamingTests: XCTestCase {
 
     func testElementVariableBaseStripsPunctuationEmojiAndCompositeLabelProse() {
         XCTAssertEqual(
-            TestIdentifierNaming.elementVariableBase(label: "🚬 Cigarettes", elementType: "cell"),
-            "cigarettesCell"
+            TestIdentifierNaming.elementVariableBase(label: "🧾 Groceries", elementType: "cell"),
+            "groceriesCell"
         )
         XCTAssertEqual(
             TestIdentifierNaming.elementVariableBase(label: "Don't Panic!", elementType: "button"),
@@ -97,9 +97,9 @@ final class ElementVariableNamingTests: XCTestCase {
         XCTAssertEqual(
             TestIdentifierNaming.elementVariableBase(
                 id: "app.task_list.row.a40fb286-e7ca-42ad-9163-5a316ba856bd",
-                label: "🚬 Cigarettes, Track how many cigarettes you smoked today., Unit"
+                label: "🧾 Groceries, three items to buy this week, Aisle 5"
             ),
-            "cigarettesHabitRow"
+            "groceriesTaskRow"
         )
     }
 
@@ -129,12 +129,12 @@ final class ElementVariableNamingTests: XCTestCase {
     func testElementVariableBaseIsDeterministicAcrossRepeatedCalls() {
         let inputs = (
             id: "app.task_list.row.a40fb286-e7ca-42ad-9163-5a316ba856bd",
-            label: "🚬 Cigarettes, Track how many cigarettes you smoked today."
+            label: "🧾 Groceries, three items to buy this week"
         )
         let names = (0 ..< 25).map { _ in
             TestIdentifierNaming.elementVariableBase(id: inputs.id, label: inputs.label)
         }
-        XCTAssertEqual(Set(names), ["cigarettesHabitRow"])
+        XCTAssertEqual(Set(names), ["groceriesTaskRow"])
     }
 
     func testXCUITestEmitterNamesElementScopedSwipeFromResolvedLabelNotUUID() throws {
@@ -144,33 +144,33 @@ final class ElementVariableNamingTests: XCTestCase {
             arguments: [
                 "direction": "left",
                 "element_id": "app.task_list.row.a40fb286-e7ca-42ad-9163-5a316ba856bd",
-                "element_label": "🚬 Cigarettes, Track how many cigarettes you smoked today., Unit"
+                "element_label": "🧾 Groceries, three items to buy this week, Aisle 5"
             ]
         )])
 
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains("let cigarettesHabitRow = app.descendants(matching: .any)["))
-        XCTAssertTrue(result.source.contains("cigarettesHabitRow.swipeLeft()"))
+        XCTAssertTrue(result.source.contains("let groceriesTaskRow = app.descendants(matching: .any)["))
+        XCTAssertTrue(result.source.contains("groceriesTaskRow.swipeLeft()"))
         // The UUID stays in the selector string (the stable contract) but never in an identifier.
         XCTAssertFalse(result.source.contains("let a40fb286"))
         XCTAssertFalse(result.source.contains("a40fb286E7ca"))
         for line in result.source.split(separator: "\n") where line.contains("let ") && line.contains("Row =") {
-            XCTAssertTrue(line.contains("let cigarettesHabitRow ="))
+            XCTAssertTrue(line.contains("let groceriesTaskRow ="))
         }
     }
 
     func testXCUITestEmitterAppendsNumericSuffixForDuplicateLabels() throws {
-        // Two distinct selectors that both derive `cigarettes` must get distinct, deterministic names.
+        // Two distinct selectors that both derive `groceries` must get distinct, deterministic names.
         let test = makeTest(operations: [
-            .init(id: "s0", tool: "tap_element", arguments: ["label": "Cigarettes"]),
-            .init(id: "s1", tool: "tap_element", arguments: ["contains_text": "Cigarettes"])
+            .init(id: "s0", tool: "tap_element", arguments: ["label": "Groceries"]),
+            .init(id: "s1", tool: "tap_element", arguments: ["contains_text": "Groceries"])
         ])
 
         let result = try XCUITestEmitter().generate(test)
 
-        XCTAssertTrue(result.source.contains("let cigarettes ="))
-        XCTAssertTrue(result.source.contains("let cigarettes2 ="))
-        XCTAssertFalse(result.source.contains("let cigarettes3 ="))
+        XCTAssertTrue(result.source.contains("let groceries ="))
+        XCTAssertTrue(result.source.contains("let groceries2 ="))
+        XCTAssertFalse(result.source.contains("let groceries3 ="))
     }
 }

@@ -120,7 +120,7 @@ enum TestIdentifierNaming {
     /// 1. the accessible label / visible text;
     /// 2. a role inferred from the element type or from a role-shaped accessibility-ID segment
     ///    (`tab`, `button`, `row`, `field`, …), plus a semantic container segment when a label
-    ///    anchored the name (`app.task_list.row.<uuid>` + "Cigarettes" → `cigarettesHabitRow`);
+    ///    anchored the name (`app.task_list.row.<uuid>` + "Groceries" → `groceriesTaskRow`);
     /// 3. the last meaningful (non-opaque, non-role) identifier segment;
     /// 4. `element`.
     ///
@@ -128,8 +128,8 @@ enum TestIdentifierNaming {
     /// they only ever appear in a name when nothing else exists (and even then a short deterministic
     /// suffix from `LocalNameAllocator` resolves collisions, never the raw ID).
     ///
-    /// Examples: `app.tab.tasks` + "Habits" → `habitsTab`;
-    /// `app.task_list.create_button` + "Create Habit" → `createHabitButton`;
+    /// Examples: `app.tab.tasks` + "Tasks" → `tasksTab`;
+    /// `app.task_list.create_button` + "New Task" → `newTaskButton`;
     /// `sample.home.feed.sectionTitle.most_loved` → `mostLovedSectionTitle`.
     static func elementVariableBase(
         id: String? = nil,
@@ -167,7 +167,7 @@ enum TestIdentifierNaming {
 
     /// The label wins; failing that, the last identifier segment that is neither opaque nor a bare
     /// role; failing that, any contains-text filter. Combined SwiftUI/Compose accessibility labels
-    /// arrive comma-joined ("🚬 Cigarettes, Track how many…, Unit") — only the first clause names
+    /// arrive comma-joined ("🧾 Groceries, three items to buy…, Aisle 5") — only the first clause names
     /// the element, the rest is prose that would bloat the variable name.
     private static func primaryTokens(
         label: String?,
@@ -187,7 +187,7 @@ enum TestIdentifierNaming {
         return (words(from: containsText), false)
     }
 
-    /// A semantic container segment (`habit_catalog` → `habit`), trusted only when a label anchored
+    /// A semantic container segment (`task_list` → `task`), trusted only when a label anchored
     /// the name so a namespaced ID with no label keeps its `<segment><role>` shape.
     private static func containerTokens(
         segments: [String],
@@ -212,7 +212,7 @@ enum TestIdentifierNaming {
         return stripped
     }
 
-    /// The role suffix, dropped when `primary` already ends with it (`habitsTab`, not `habitsTabTab`).
+    /// The role suffix, dropped when `primary` already ends with it (`tasksTab`, not `tasksTabTab`).
     private static func roleTokens(from role: String?, following primary: [String]) -> [String] {
         guard let role else { return [] }
         let tokens = words(from: role)
@@ -305,7 +305,7 @@ enum TestIdentifierNaming {
     }
 
     /// Container-shaped words dropped from a semantic container segment so
-    /// `habit_catalog` contributes `habit`, not `habitCatalog`.
+    /// `task_list` contributes `task`, not `taskList`.
     private static let containerNoiseWords: Set<String> = [
         "catalog", "catalogue", "list", "grid", "collection", "container", "screen",
         "view", "section", "stack", "group", "scroll", "page", "table", "carousel"
@@ -346,7 +346,7 @@ enum TestIdentifierNaming {
         if knownRoles.contains(normalized) {
             return true
         }
-        // `create_button`, `habits_tab`: a role as the trailing token of an underscore segment.
+        // `create_button`, `tasks_tab`: a role as the trailing token of an underscore segment.
         if let tail = value.split(separator: "_").last.map({ String($0).lowercased() }),
            tail != normalized, knownRoles.contains(tail) {
             return true

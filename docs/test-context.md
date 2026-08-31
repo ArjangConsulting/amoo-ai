@@ -55,7 +55,7 @@ fields are kept). The plan's embedded `testContext` is what `amoo generate test`
   // operation's selector id matches a key here, the generated lookup uses the expression
   // instead of a raw string literal.
   "selectorExpressions": {
-    "app.task_list.row.weed": "AppUIAutomationID.habit.weed"
+    "app.task_list.row.chore": "AppUIAutomationID.task.chore"
   },
 
   // Optional lookup template for mapped ids. Default keeps the standalone XCUITest shape:
@@ -70,7 +70,7 @@ default when absent, so an older file keeps working unchanged.
 
 ## Example
 
-A host app with a `AppUITestCase` base class that already launches the app, and a `tapHabitRow`
+A host app with a `AppUITestCase` base class that already launches the app, and an `assertRowVisible`
 helper:
 
 ```json
@@ -80,17 +80,17 @@ helper:
   "appFactory": "AppUITestCase.launchedApp()",
   "harnessLaunchesApp": true,
   "helpers": [
-    { "name": "assertHabitVisible", "callTemplate": "assertHabitVisible({{contains_text}})" }
+    { "name": "assertRowVisible", "callTemplate": "assertRowVisible({{contains_text}})" }
   ],
   "selectorExpressions": {
-    "app.task_list.create_button": "AppUIAutomationID.habitCatalog.createButton"
+    "app.task_list.create_button": "AppUIAutomationID.taskList.createButton"
   }
 }
 ```
 
 Generated `setUp` then constructs the app through the factory and does **not** add `app.launch()`;
-the create-button tap resolves through `AppUIAutomationID.habitCatalog.createButton`; and any
-operation the planner bound to `assertHabitVisible` emits that call rather than an inline predicate.
+the create-button tap resolves through `AppUIAutomationID.taskList.createButton`; and any
+operation the planner bound to `assertRowVisible` emits that call rather than an inline predicate.
 
 ## Complete XCUITest example
 
@@ -111,7 +111,7 @@ The minimal context every host app needs — a support module, a base class, an 
 
 Supplied at `start_session` (`context_json` above, or `context_path` to a checked-in file), it is
 persisted with the session, folded into `plan.json` by `end_session`, and `amoo generate test`
-emits (for a one-step `tap app.tab.habits` / `assert_visible app.tab.habits` plan):
+emits (for a one-step `tap app.tab.tasks` / `assert_visible app.tab.tasks` plan):
 
 ```swift
 import XCTest
@@ -137,11 +137,11 @@ final class ContextExampleTest: MyAppUITestCase {
     // waitForExistence / waitForHittability / waitForAbsence / replaceText / pressBack helpers …
 
     func testContextExample() throws {
-        let habitsTab = app.descendants(matching: .any)["app.tab.habits"]
-        waitForHittability(habitsTab, named: "habitsTab", timeout: 5.0)
-        habitsTab.tap()
+        let tasksTab = app.descendants(matching: .any)["app.tab.tasks"]
+        waitForHittability(tasksTab, named: "tasksTab", timeout: 5.0)
+        tasksTab.tap()
 
-        waitForHittability(habitsTab, named: "habitsTab", timeout: 5.0)
+        waitForHittability(tasksTab, named: "tasksTab", timeout: 5.0)
     }
 }
 ```

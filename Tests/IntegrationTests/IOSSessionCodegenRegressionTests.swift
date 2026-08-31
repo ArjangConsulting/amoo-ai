@@ -5,17 +5,17 @@ import TestCodeGenerator
 import TestSession
 import XCTest
 
-/// End-to-end guard for the "Skip onboarding, open Habits, delete Cigarettes, add Cigarettes,
+/// End-to-end guard for the "Skip onboarding, open Tasks, delete Groceries, add Groceries,
 /// generate XCTest" acceptance scenario. Compiles a recorded session the way
 /// `compile_session_to_plan` does, then generates an XCUITest, and asserts the properties the
 /// agent guidance promises: deterministic launch setup, a semantic element-scoped swipe named from
 /// the row's label (never its UUID), and explicit delete / add assertions.
 final class IOSSessionCodegenRegressionTests: XCTestCase {
     private let rowID = "app.task_list.row.a40fb286-e7ca-42ad-9163-5a316ba856bd"
-    private let compositeLabel = "🚬 Cigarettes, Track how many cigarettes you smoked today., Unit"
+    private let compositeLabel = "🧾 Groceries, three items to buy this week, Aisle 5"
 
     /// `attachObservedLabel` matches by id only, so most observations need no geometry; the swipe
-    /// target ("Cigarettes" row) gets a real frame so `resolveTarget` can bind the coordinate swipe.
+    /// target ("Groceries" row) gets a real frame so `resolveTarget` can bind the coordinate swipe.
     private func el(
         _ id: String?,
         _ label: String?,
@@ -45,23 +45,23 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
     }
 
     private func recordedActions() -> [SessionAction] {
-        let cigarettesRow = el(rowID, compositeLabel, frame: RecordedRect(x: 16, y: 210, width: 370, height: 94))
+        let groceriesRow = el(rowID, compositeLabel, frame: RecordedRect(x: 16, y: 210, width: 370, height: 94))
         return [
-            find("Habits", [el("app.tab.tasks", "Habits")]),
+            find("Tasks", [el("app.tab.tasks", "Tasks")]),
             step("tap_element", ["id": "app.tab.tasks"]),
-            find("Cigarettes", [cigarettesRow, el(nil, "🚬 Cigarettes")]),
+            find("Groceries", [groceriesRow, el(nil, "🧾 Groceries")]),
             // The raw point swipe the agent issued after find_elements — inside the row's frame.
             step("swipe", ["from_x": "201", "from_y": "257", "to_x": "20", "to_y": "257", "duration_ms": "400"]),
             find("Delete", [el("trash", "Delete", type: "button")]),
             step("tap_element", ["id": "trash"]),
-            step("assert_absent", ["contains_text": "Cigarettes", "timeout_ms": "5000"]),
-            find("Create Habit", [el("app.task_list.create_button", "Create Habit")]),
+            step("assert_absent", ["contains_text": "Groceries", "timeout_ms": "5000"]),
+            find("New Task", [el("app.task_list.create_button", "New Task")]),
             step("tap_element", ["id": "app.task_list.create_button"]),
-            find("Cigarettes", [el(nil, "Cigarettes")]),
-            step("tap_element", ["label": "Cigarettes"]),
+            find("Groceries", [el(nil, "Groceries")]),
+            step("tap_element", ["label": "Groceries"]),
             find("Add", [el("checkmark", "Add")]),
             step("tap_element", ["id": "checkmark"]),
-            step("assert_visible", ["contains_text": "Cigarettes", "timeout_ms": "5000"])
+            step("assert_visible", ["contains_text": "Groceries", "timeout_ms": "5000"])
         ]
     }
 
@@ -84,13 +84,13 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
                 "APP_UI_TEST_SKIP_ONBOARDING": "1",
                 "APP_UI_TEST_RESET_STATE": "1"
             ],
-            testName: "Skip Onboarding Delete and Add Habit"
+            testName: "Skip Onboarding Delete and Add Task"
         )
     }
 
     private func assertAcceptanceCriteria(_ source: String, file: StaticString = #filePath, line: UInt = #line) {
         // Descriptive test name from the requested flow.
-        XCTAssertTrue(source.contains("func testSkipOnboardingDeleteAndAddHabit()"), file: file, line: line)
+        XCTAssertTrue(source.contains("func testSkipOnboardingDeleteAndAddTask()"), file: file, line: line)
         // Deterministic launch setup.
         XCTAssertTrue(
             source.contains(#"app.launchEnvironment["APP_UI_TEST_SKIP_ONBOARDING"] = "1""#),
@@ -105,11 +105,11 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         // Semantic element resolution before the swipe → an element-scoped gesture,
         // named from the row's label, not its UUID.
         XCTAssertTrue(
-            source.contains("let cigarettesHabitRow = app.descendants(matching: .any)["),
+            source.contains("let groceriesTaskRow = app.descendants(matching: .any)["),
             file: file,
             line: line
         )
-        XCTAssertTrue(source.contains("cigarettesHabitRow.swipeLeft()"), file: file, line: line)
+        XCTAssertTrue(source.contains("groceriesTaskRow.swipeLeft()"), file: file, line: line)
         XCTAssertFalse(source.contains("app.swipeLeft()"), file: file, line: line)
         XCTAssertFalse(source.contains("a40fb286E7ca"), file: file, line: line)
         XCTAssertFalse(source.contains("let a40fb286"), file: file, line: line)
@@ -124,14 +124,14 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         XCTAssertFalse(source.contains("delete2"), file: file, line: line)
         XCTAssertFalse(source.contains("add2"), file: file, line: line)
         // Two identically-labelled elements with different roles: the catalog row vs. the option
-        // tapped on the create screen. Neither may degrade to `cigarettes` / `cigarettes2`.
-        XCTAssertTrue(source.contains("cigarettesPresetOption"), file: file, line: line)
-        XCTAssertFalse(source.contains("cigarettes2"), file: file, line: line)
+        // tapped on the create screen. Neither may degrade to `groceries` / `groceries2`.
+        XCTAssertTrue(source.contains("groceriesPresetOption"), file: file, line: line)
+        XCTAssertFalse(source.contains("groceries2"), file: file, line: line)
         // Delete assertion + add assertion.
-        XCTAssertTrue(source.contains(#"waitForAbsence(cigarettes, named: "cigarettes""#), file: file, line: line)
+        XCTAssertTrue(source.contains(#"waitForAbsence(groceries, named: "groceries""#), file: file, line: line)
         XCTAssertTrue(
             source
-                .range(of: #"waitForHittability\(cigarettes, named: "cigarettes""#, options: .regularExpression) != nil,
+                .range(of: #"waitForHittability\(groceries, named: "groceries""#, options: .regularExpression) != nil,
             file: file,
             line: line
         )
@@ -150,14 +150,14 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
     }
 
     /// The MCP `initialize` instructions promise that `find_elements` + a coordinate gesture yields
-    /// an element-scoped `cigarettesHabitRow.swipeLeft()`. Prove the generator actually emits that
+    /// an element-scoped `groceriesTaskRow.swipeLeft()`. Prove the generator actually emits that
     /// identifier for the documented input, so the example can't rot.
     func testMCPInstructionsElementScopedSwipeExampleMatchesGeneratorOutput() throws {
-        XCTAssertTrue(MCPStdioServer.instructions.contains("cigarettesHabitRow.swipeLeft()"))
+        XCTAssertTrue(MCPStdioServer.instructions.contains("groceriesTaskRow.swipeLeft()"))
 
         let test = StudioAuthoredTest(
             formatVersion: 1,
-            name: "Delete Cigarettes",
+            name: "Delete Groceries",
             description: "",
             platform: .ios,
             steps: [.init(id: "s", instruction: "swipe", expected: "row swipes")],
@@ -172,24 +172,24 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
             )])
         )
         let source = try XCUITestEmitter().generate(test).source
-        XCTAssertTrue(source.contains("cigarettesHabitRow.swipeLeft()"))
+        XCTAssertTrue(source.contains("groceriesTaskRow.swipeLeft()"))
         XCTAssertFalse(source.contains("a40fb286E7ca"))
     }
 
     /// The canonical row-swipe workflow: `find_elements` then `swipe_in_direction` with the row's
     /// `element_id` (no coordinate fallback). The recorder stores it id-only; the compiler must
     /// still recover the row label from the prior observation so the gesture is named
-    /// `cigarettesHabitRow`, not `habitCatalogRow`.
+    /// `groceriesTaskRow`, not `taskListRow`.
     func testElementScopedSwipeRecordingKeepsRowIdentity() throws {
-        let cigarettesRow = el(rowID, compositeLabel, frame: RecordedRect(x: 16, y: 210, width: 370, height: 94))
+        let groceriesRow = el(rowID, compositeLabel, frame: RecordedRect(x: 16, y: 210, width: 370, height: 94))
         let actions: [SessionAction] = [
-            find("Habits", [el("app.tab.tasks", "Habits")]),
+            find("Tasks", [el("app.tab.tasks", "Tasks")]),
             step("tap_element", ["id": "app.tab.tasks"]),
-            find("Cigarettes", [cigarettesRow]),
+            find("Groceries", [groceriesRow]),
             step("swipe_in_direction", ["direction": "left", "element_id": rowID]),
             find("Delete", [el("trash", "Delete", type: "button")]),
             step("tap_element", ["id": "trash"]),
-            step("assert_absent", ["contains_text": "Cigarettes"])
+            step("assert_absent", ["contains_text": "Groceries"])
         ]
         let report = SessionReport(
             sessionID: "s",
@@ -206,8 +206,8 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         )
         let compiled = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
         let source = try XCUITestEmitter().generate(compiled.studioTest).source
-        XCTAssertTrue(source.contains("cigarettesHabitRow.swipeLeft()"))
-        XCTAssertFalse(source.contains("habitCatalogRow"))
+        XCTAssertTrue(source.contains("groceriesTaskRow.swipeLeft()"))
+        XCTAssertFalse(source.contains("taskListRow"))
         // The UUID stays in the selector string (the stable contract) but never in an identifier.
         XCTAssertFalse(source.contains("let a40fb286"))
         XCTAssertFalse(source.contains("a40fb286E7ca"))
@@ -221,32 +221,5 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
             return try XCUITestEmitter().generate(compiled.studioTest).source
         }
         XCTAssertEqual(Set(sources).count, 1, "Code generation is not deterministic across runs.")
-    }
-
-    /// Opportunistically re-runs the real on-disk Sample recording when it is present, writing the
-    /// refreshed plan and generated test into the scratch dir. Skips cleanly on machines without it.
-    func testRealSampleRecordingRegeneratesWhenAvailable() async throws {
-        let sessionID = "00000000-0000-4000-8000-000000000000"
-        let root = URL(fileURLWithPath: NSString(string:
-            "~/Library/Application Support/Amoo/sessions"
-        ).expandingTildeInPath)
-        try XCTSkipUnless(
-            FileManager.default.fileExists(atPath: root.appendingPathComponent(sessionID).path),
-            "Sample recording not on this machine"
-        )
-        guard let report = await FileSessionStore(root: root).loadReport(sessionID: sessionID) else {
-            throw XCTSkip("Sample recording present but not decodable")
-        }
-        let compiled = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
-        let generated = try XCUITestEmitter().generate(compiled.studioTest)
-        assertAcceptanceCriteria(generated.source)
-
-        if let scratch = ProcessInfo.processInfo.environment["AMOO_SCRATCH_DIR"] {
-            let dir = URL(fileURLWithPath: scratch)
-            try? JSONEncoder().encode(compiled.studioTest).write(to: dir.appendingPathComponent("sample-plan.json"))
-            try? generated.source.write(
-                to: dir.appendingPathComponent(generated.fileName), atomically: true, encoding: .utf8
-            )
-        }
     }
 }

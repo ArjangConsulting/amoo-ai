@@ -35,11 +35,11 @@ final class SessionPlanCompilerTests: XCTestCase {
 
     func testCoordinateSwipeUsesPriorResolvedElementAndSemanticNameAndLaunchConfiguration() throws {
         let lookup = SessionAction(
-            timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": "Cigarettes"],
-            result: "Found 1 element(s):\n\u{001B}[34m[app.task.row.cigarettes]\u{001B}[0m Cigarettes hitPoint: (201,257) pts 370x94",
+            timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": "Groceries"],
+            result: "Found 1 element(s):\n\u{001B}[34m[app.task.row.groceries]\u{001B}[0m Groceries hitPoint: (201,257) pts 370x94",
             isError: false, intent: .diagnostic,
             observedElements: [.init(
-                id: "app.task.row.cigarettes", label: "Cigarettes",
+                id: "app.task.row.groceries", label: "Groceries",
                 frame: .init(x: 16, y: 210, width: 370, height: 94), hitPoint: .init(x: 201, y: 257)
             )]
         )
@@ -50,7 +50,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             timestamp: Date(),
             toolName: "get_screen_context",
             arguments: [:],
-            result: "Habits",
+            result: "Tasks",
             isError: false,
             intent: .diagnostic
         )
@@ -69,7 +69,7 @@ final class SessionPlanCompilerTests: XCTestCase {
         let swipeOperation = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations?.first {
             $0.tool == "swipe_in_direction"
         })
-        XCTAssertEqual(swipeOperation.arguments["element_id"], "app.task.row.cigarettes")
+        XCTAssertEqual(swipeOperation.arguments["element_id"], "app.task.row.groceries")
         XCTAssertEqual(swipeOperation.arguments["direction"], "left")
         // No caller/recording name: the fallback reports only what is certain (the skip-onboarding
         // launch flag) rather than guessing verbs from the tool mix.
@@ -81,8 +81,8 @@ final class SessionPlanCompilerTests: XCTestCase {
 
     func testLegacyTextObservationStillAssociatesAcrossNonMutatingDiagnostics() throws {
         let lookup = SessionAction(
-            timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": "Cigarettes"],
-            result: "Found 1 element(s):\n\u{001B}[34m[legacy.cigarettes]\u{001B}[0m Cigarettes hitPoint: (201,257) pts 370x94",
+            timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": "Groceries"],
+            result: "Found 1 element(s):\n\u{001B}[34m[legacy.groceries]\u{001B}[0m Groceries hitPoint: (201,257) pts 370x94",
             isError: false, intent: .diagnostic
         )
         let report = makeReport(actions: [
@@ -103,7 +103,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             report: report, testName: nil, testDescription: nil
         ).studioTest.compiledPlan?.toolOperations)
         XCTAssertEqual(operations.last?.tool, "swipe_in_direction")
-        XCTAssertEqual(operations.last?.arguments["element_id"], "legacy.cigarettes")
+        XCTAssertEqual(operations.last?.arguments["element_id"], "legacy.groceries")
     }
 
     func testExplicitSessionNameWinsOverSemanticFallback() throws {
@@ -129,7 +129,7 @@ final class SessionPlanCompilerTests: XCTestCase {
             )
         }
         let report = makeReport(actions: [
-            find("app.task_list.create_button", "Create Habit"),
+            find("app.task_list.create_button", "New Task"),
             makeAction(tool: "tap_element", arguments: ["id": "app.task_list.create_button"]),
             find("trash", "Delete"),
             makeAction(tool: "tap_element", arguments: ["id": "trash"])
@@ -140,7 +140,7 @@ final class SessionPlanCompilerTests: XCTestCase {
         )
         let create = try XCTUnwrap(ops.first { $0.arguments["id"] == "app.task_list.create_button" })
         // Namespaced id → the label rides along as a naming hint, never as the selector.
-        XCTAssertEqual(create.arguments["name_hint"], "Create Habit")
+        XCTAssertEqual(create.arguments["name_hint"], "New Task")
         XCTAssertNil(create.arguments["label"])
         // Self-descriptive id → left alone, so `trash` stays `trash` rather than colliding on "Delete".
         let trash = try XCTUnwrap(ops.first { $0.arguments["id"] == "trash" })
@@ -208,7 +208,7 @@ final class SessionPlanCompilerTests: XCTestCase {
 
     func testAssertValuePreservesValueSemantics() throws {
         let report = makeReport(actions: [
-            makeAction(tool: "assert_value", arguments: ["id": "weed", "expected": "0"])
+            makeAction(tool: "assert_value", arguments: ["id": "chore", "expected": "0"])
         ])
 
         let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)

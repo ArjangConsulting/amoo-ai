@@ -67,7 +67,7 @@ public enum ActionTools {
                 + " this tool with that row's element_id (preferred) or element_label. The companion"
                 + " fails rather than guessing when the id/label does not uniquely identify one"
                 + " element, and the recorded step keeps the row's identity, so generated code emits"
-                + " an element-scoped gesture (e.g. cigarettesHabitRow.swipeLeft()). Only when the"
+                + " an element-scoped gesture (e.g. groceriesTaskRow.swipeLeft()). Only when the"
                 + " row has no stable id or label, fall back to the coordinate `swipe` tool with the"
                 + " point-space coordinates from find_elements — the recorder then binds that gesture"
                 + " to the resolved element. Never read coordinates off a screenshot.",

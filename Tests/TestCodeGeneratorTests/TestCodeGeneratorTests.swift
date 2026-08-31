@@ -110,23 +110,23 @@ final class TestCodeGeneratorTests: XCTestCase {
 
     func testXCUITestEmitterAssertsAccessibilityValueNotLabel() throws {
         let result = try XCUITestEmitter().generate(makeTest(operations: [
-            .init(id: "op-1", tool: "assert_value", arguments: ["id": "weed", "value": "0"])
+            .init(id: "op-1", tool: "assert_value", arguments: ["id": "chore", "value": "0"])
         ]))
 
-        XCTAssertTrue(result.source.contains(#"XCTAssertEqual(weed.value as? String, "0")"#))
-        XCTAssertFalse(result.source.contains(#"XCTAssertEqual(weed.label, "0")"#))
+        XCTAssertTrue(result.source.contains(#"XCTAssertEqual(chore.value as? String, "0")"#))
+        XCTAssertFalse(result.source.contains(#"XCTAssertEqual(chore.label, "0")"#))
     }
 
     func testXCUITestEmitterUsesRepositorySelectorContext() throws {
-        var test = makeTest(operations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "weed-uuid"])])
+        var test = makeTest(operations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "chore-uuid"])])
         test = test.replacingTestContext(.init(
-            selectorExpressions: ["weed-uuid": "AppUIAutomationID.habit.weed"],
+            selectorExpressions: ["chore-uuid": "AppUIAutomationID.task.chore"],
             idLookupTemplate: "app.element(id: {{id}})"
         ))
 
         let result = try XCUITestEmitter().generate(test)
-        XCTAssertTrue(result.source.contains("let weed = app.element(id: AppUIAutomationID.habit.weed)"))
-        XCTAssertFalse(result.source.contains("weed-uuid"))
+        XCTAssertTrue(result.source.contains("let chore = app.element(id: AppUIAutomationID.task.chore)"))
+        XCTAssertFalse(result.source.contains("chore-uuid"))
     }
 
     func testXCUITestEmitterDerivesReadableNamesFromNamespacedIdentifiers() throws {

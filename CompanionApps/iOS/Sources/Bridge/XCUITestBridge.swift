@@ -34,7 +34,7 @@ final class XCUITestBridge: @unchecked Sendable {
     ///
     /// `target.snapshot()` is the entire cost of a query RPC — measured on a booted iPhone 17 Pro,
     /// `find_elements` is 188ms and `describe_screen` 429ms, while a no-op RPC (`current_app`) is
-    /// 3ms. So the gRPC hop is free and the tree walk is everything. Agents habitually query
+    /// 3ms. So the gRPC hop is free and the tree walk is everything. Agents often query
     /// several times between actions ("did it appear?", "what's on screen?", then a selector
     /// lookup), and each of those was re-walking an identical tree.
     ///
@@ -80,7 +80,7 @@ final class XCUITestBridge: @unchecked Sendable {
         var replacedMethod = false
 
         // Only the PRE-event wait is skipped. Measured on a booted iPhone 17 Pro against
-        // sample-app, alternating between two tabs and querying immediately with no settle time:
+        // a sample app, alternating between two tabs and querying immediately with no settle time:
         //
         //                       no-op tap   tab-switching tap   stale reads
         //   quiescence kept       0.426s         0.439s              —

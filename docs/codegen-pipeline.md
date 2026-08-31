@@ -80,8 +80,8 @@ Three cooperating layers — a change in the wrong one is silently overridden:
    - `attachGestureTargetLabel` — carries a row label onto an element-scoped
      `swipe_in_direction` / `scroll` as `element_label`.
    - `annotatePresetOptionTaps` — a bare-label tap in a create → choose → confirm flow gets
-     `name_hint = "<label> preset option"` so a picker option (`waterPresetOption`) does not
-     collide with the catalog row of the same name (`waterHabitRow`).
+     `name_hint = "<label> preset option"` so a picker option (`laundryPresetOption`) does not
+     collide with the catalog row of the same name (`laundryTaskRow`).
 2. **Emitter, name derivation** (`TestCodeEmitter.swift` — `TestIdentifierNaming.elementVariableBase`):
    label / role / container tokens from the label and the accessibility-id path; opaque tokens
    (UUIDs, hashes, numeric ids) are dropped, never used in an identifier. `name_hint` wins over the
