@@ -503,9 +503,16 @@ class UIAutomatorBridge {
     private fun currentElements(): List<NodeRecord> {
         device.waitForIdle(WAIT_FOR_IDLE_MS)
         val automation = instrumentation.uiAutomation
-        val roots = runCatching { automation.windows.mapNotNull { it.root } }
-            .getOrNull()
-            .orEmpty()
+        // `AccessibilityWindowInfo` and the `AccessibilityNodeInfo` roots/children obtained below
+        // both need `recycle()`: minSdk is 26, and recycle() only became a no-op at API 33 (it is
+        // real cleanup below that). Un-recycled nodes stay in the client-side node cache
+        // (AccessibilityInteractionClient) for the life of the instrumentation process, so a
+        // companion left running through many sessions on 26-32 would leak one node per element
+        // per query, indefinitely. Recycling here is free where it doesn't matter (33+) and
+        // correct where it does — there is no on-device way to demonstrate the leak itself on
+        // this project's API 35 test emulator, but the requirement is documented, not conditional.
+        val windows = runCatching { automation.windows }.getOrNull().orEmpty()
+        val roots = windows.mapNotNull { it.root }
             .ifEmpty { listOfNotNull(automation.rootInActiveWindow) }
 
         if (roots.isEmpty()) {
@@ -518,8 +525,13 @@ class UIAutomatorBridge {
         }
 
         val out = ArrayList<NodeRecord>()
-        for (root in roots) {
-            collectRecords(root, nearestClickable = null, depth = 0, into = out)
+        try {
+            for (root in roots) {
+                collectRecords(root, nearestClickable = null, depth = 0, into = out)
+            }
+        } finally {
+            for (root in roots) root.recycleQuietly()
+            for (window in windows) runCatching { window.recycle() }
         }
         return out
     }
@@ -536,8 +548,18 @@ class UIAutomatorBridge {
         val ancestorForChildren = if (record.isClickable) record else nearestClickable
         for (index in 0 until node.childCount) {
             val child = runCatching { node.getChild(index) }.getOrNull() ?: continue
-            collectRecords(child, ancestorForChildren, depth + 1, into)
+            try {
+                collectRecords(child, ancestorForChildren, depth + 1, into)
+            } finally {
+                child.recycleQuietly()
+            }
         }
+    }
+
+    /** [AccessibilityNodeInfo.recycle] on an object obtained via `runCatching`, so a node that
+     *  went stale mid-walk (the app changed under us) doesn't throw on the way out. */
+    private fun AccessibilityNodeInfo.recycleQuietly() {
+        runCatching { recycle() }
     }
 
     private fun AccessibilityNodeInfo.toRecord(nearestClickable: NodeRecord?): NodeRecord {
