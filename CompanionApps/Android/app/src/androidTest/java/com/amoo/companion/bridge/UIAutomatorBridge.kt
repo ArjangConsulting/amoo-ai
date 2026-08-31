@@ -8,6 +8,7 @@ import android.view.InputDevice
 import android.view.MotionEvent
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import java.util.regex.Pattern
@@ -48,13 +49,14 @@ class UIAutomatorBridge {
         val ANY_PACKAGE: Pattern = Pattern.compile(".+")
     }
 
-    private val instrumentation by lazy(LazyThreadSafetyMode.NONE) {
+    // Netty may deliver the first two RPCs concurrently, so initialization must be serialized too.
+    private val instrumentation by lazy {
         InstrumentationRegistry.getInstrumentation()
     }
-    private val device by lazy(LazyThreadSafetyMode.NONE) {
+    private val device by lazy {
         UiDevice.getInstance(instrumentation).also { enableInteractiveWindowRetrieval() }
     }
-    private val targetPackageName by lazy(LazyThreadSafetyMode.NONE) {
+    private val targetPackageName by lazy {
         instrumentation.targetContext.packageName
     }
 
@@ -76,8 +78,8 @@ class UIAutomatorBridge {
      *   action taken through the companion.
      * - [ELEMENT_CACHE_TTL_MS] is short, bounding the window in which the app can recycle a node
      *   on its own (an async load, an animation, a timer) without us knowing.
-     * - Reads go through [snapshotOrNull], which drops a node that went stale anyway rather than
-     *   failing the whole query.
+     * - Every query goes through [withCurrentElements], which retries the full operation once when
+     *   any property access finds a recycled node.
      *
      * The TTL also keeps polling assertions correct: assert_visible / assert_enabled /
      * assert_screen_changed loop host-side, so the companion cannot tell a poll from a one-shot
@@ -87,10 +89,29 @@ class UIAutomatorBridge {
      */
     private var cachedElements: List<UiObject2>? = null
     private var cachedElementsAt: Long = 0L
+    private var elementCacheGeneration: Long = 0L
+    private val elementCacheLock = Any()
 
     /** Drops the cached tree. Called by every RPC that can change what is on screen. */
     private fun invalidateElementCache() {
-        cachedElements = null
+        synchronized(elementCacheLock) {
+            cachedElements = null
+            elementCacheGeneration++
+        }
+    }
+
+    /**
+     * Invalidates on both sides of a mutation. The leading invalidation prevents the action from
+     * consuming old handles; the trailing one prevents a concurrent query that overlapped the
+     * gesture from publishing its mid-transition tree after the first invalidation.
+     */
+    private inline fun <T> mutatingOperation(block: () -> T): T {
+        invalidateElementCache()
+        return try {
+            block()
+        } finally {
+            invalidateElementCache()
+        }
     }
 
     /**
@@ -114,21 +135,18 @@ class UIAutomatorBridge {
 
     // -- Touch --
 
-    fun tap(x: Int, y: Int): Boolean {
-        invalidateElementCache()
-        return device.click(x, y)
-    }
+    fun tap(x: Int, y: Int): Boolean = mutatingOperation { device.click(x, y) }
 
     fun longPress(x: Int, y: Int, durationMs: Int): Boolean {
-        invalidateElementCache()
-        return device.swipe(x, y, x, y, durationMs / 5) // swipe in-place simulates long press
+        return mutatingOperation {
+            device.swipe(x, y, x, y, durationMs / 5) // swipe in-place simulates long press
+        }
     }
 
     // -- Gestures --
 
     fun swipe(fromX: Int, fromY: Int, toX: Int, toY: Int, steps: Int): Boolean {
-        invalidateElementCache()
-        return device.swipe(fromX, fromY, toX, toY, steps)
+        return mutatingOperation { device.swipe(fromX, fromY, toX, toY, steps) }
     }
 
     /**
@@ -140,41 +158,42 @@ class UIAutomatorBridge {
      * directly, which is the only way to control the hold.
      */
     fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean {
-        invalidateElementCache()
-        val downTime = SystemClock.uptimeMillis()
+        return mutatingOperation {
+            val downTime = SystemClock.uptimeMillis()
 
-        if (!injectPointerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, fromX, fromY)) {
-            return false
-        }
-
-        // Dwell at the origin. No events needed — the view's own long-press timer runs
-        // from the DOWN it already received.
-        if (holdMs > 0) {
-            SystemClock.sleep(holdMs.toLong())
-        }
-
-        val steps = (durationMs / MOVE_INTERVAL_MS).coerceAtLeast(1)
-        for (step in 1..steps) {
-            val progress = step.toFloat() / steps
-            val x = fromX + (toX - fromX) * progress
-            val y = fromY + (toY - fromY) * progress
-            val eventTime = SystemClock.uptimeMillis()
-            if (!injectPointerEvent(MotionEvent.ACTION_MOVE, downTime, eventTime, x, y)) {
-                return false
+            if (!injectPointerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, fromX, fromY)) {
+                return@mutatingOperation false
             }
-            SystemClock.sleep(MOVE_INTERVAL_MS.toLong())
+
+            // Dwell at the origin. No events needed — the view's own long-press timer runs
+            // from the DOWN it already received.
+            if (holdMs > 0) {
+                SystemClock.sleep(holdMs.toLong())
+            }
+
+            val steps = (durationMs / MOVE_INTERVAL_MS).coerceAtLeast(1)
+            for (step in 1..steps) {
+                val progress = step.toFloat() / steps
+                val x = fromX + (toX - fromX) * progress
+                val y = fromY + (toY - fromY) * progress
+                val eventTime = SystemClock.uptimeMillis()
+                if (!injectPointerEvent(MotionEvent.ACTION_MOVE, downTime, eventTime, x, y)) {
+                    return@mutatingOperation false
+                }
+                SystemClock.sleep(MOVE_INTERVAL_MS.toLong())
+            }
+
+            // Settle at the destination before lifting so drop targets register the finish.
+            SystemClock.sleep(DROP_SETTLE_MS)
+
+            injectPointerEvent(
+                MotionEvent.ACTION_UP,
+                downTime,
+                SystemClock.uptimeMillis(),
+                toX,
+                toY
+            )
         }
-
-        // Settle at the destination before lifting so drop targets register the finish.
-        SystemClock.sleep(DROP_SETTLE_MS)
-
-        return injectPointerEvent(
-            MotionEvent.ACTION_UP,
-            downTime,
-            SystemClock.uptimeMillis(),
-            toX,
-            toY
-        )
     }
 
     private fun injectPointerEvent(
@@ -202,17 +221,18 @@ class UIAutomatorBridge {
     }
 
     fun scroll(direction: Direction, distance: Int): Boolean {
-        invalidateElementCache()
-        val (w, h) = device.displayWidth to device.displayHeight
-        val cx = w / 2
-        val cy = h / 2
-        val steps = 20
+        return mutatingOperation {
+            val (w, h) = device.displayWidth to device.displayHeight
+            val cx = w / 2
+            val cy = h / 2
+            val steps = 20
 
-        return when (direction) {
-            Direction.UP -> device.swipe(cx, cy, cx, cy + distance, steps)
-            Direction.DOWN -> device.swipe(cx, cy, cx, cy - distance, steps)
-            Direction.LEFT -> device.swipe(cx, cy, cx + distance, cy, steps)
-            Direction.RIGHT -> device.swipe(cx, cy, cx - distance, cy, steps)
+            when (direction) {
+                Direction.UP -> device.swipe(cx, cy, cx, cy + distance, steps)
+                Direction.DOWN -> device.swipe(cx, cy, cx, cy - distance, steps)
+                Direction.LEFT -> device.swipe(cx, cy, cx + distance, cy, steps)
+                Direction.RIGHT -> device.swipe(cx, cy, cx - distance, cy, steps)
+            }
         }
     }
 
@@ -223,31 +243,32 @@ class UIAutomatorBridge {
         resourceId: String?,
         text: String?
     ): Boolean {
-        invalidateElementCache()
-        val steps = (durationMs / 5).coerceAtLeast(1)
-        val (w, h) = device.displayWidth to device.displayHeight
+        return mutatingOperation {
+            val steps = (durationMs / 5).coerceAtLeast(1)
+            val (w, h) = device.displayWidth to device.displayHeight
 
-        if (resourceId != null || text != null) {
-            val selector = androidx.test.uiautomator.UiSelector().let { s ->
-                var result = s
-                if (resourceId != null) result = result.resourceId(resourceId)
-                if (text != null) result = result.text(text)
-                result
+            if (resourceId != null || text != null) {
+                val selector = androidx.test.uiautomator.UiSelector().let { s ->
+                    var result = s
+                    if (resourceId != null) result = result.resourceId(resourceId)
+                    if (text != null) result = result.text(text)
+                    result
+                }
+                val obj = device.findObject(selector)
+                if (obj != null && obj.exists()) {
+                    val bounds = obj.bounds
+                    val cx = bounds.centerX()
+                    val cy = bounds.centerY()
+                    val (dx, dy) = directionDelta(direction, distance)
+                    return@mutatingOperation device.swipe(cx, cy, cx + dx, cy + dy, steps)
+                }
             }
-            val obj = device.findObject(selector)
-            if (obj != null && obj.exists()) {
-                val bounds = obj.bounds
-                val cx = bounds.centerX()
-                val cy = bounds.centerY()
-                val (dx, dy) = directionDelta(direction, distance)
-                return device.swipe(cx, cy, cx + dx, cy + dy, steps)
-            }
+
+            val cx = w / 2
+            val cy = h / 2
+            val (dx, dy) = directionDelta(direction, distance)
+            device.swipe(cx, cy, cx + dx, cy + dy, steps)
         }
-
-        val cx = w / 2
-        val cy = h / 2
-        val (dx, dy) = directionDelta(direction, distance)
-        return device.swipe(cx, cy, cx + dx, cy + dy, steps)
     }
 
     private fun directionDelta(direction: Direction, distance: Int): Pair<Int, Int> = when (direction) {
@@ -260,54 +281,48 @@ class UIAutomatorBridge {
     // -- Text --
 
     fun typeText(text: String) {
-        invalidateElementCache()
-        device.waitForIdle(2000)
-        val focused = device.findObject(By.focused(true))
-            ?: device.findObject(By.clazz("android.widget.EditText"))
-        focused?.text = text
+        mutatingOperation {
+            device.waitForIdle(2000)
+            val focused = device.findObject(By.focused(true))
+                ?: device.findObject(By.clazz("android.widget.EditText"))
+            focused?.text = text
+        }
     }
 
     fun clearText() {
-        invalidateElementCache()
-        device.waitForIdle(2000)
-        val focused = device.findObject(By.focused(true))
-            ?: device.findObject(By.clazz("android.widget.EditText"))
-        focused?.clear()
+        mutatingOperation {
+            device.waitForIdle(2000)
+            val focused = device.findObject(By.focused(true))
+                ?: device.findObject(By.clazz("android.widget.EditText"))
+            focused?.clear()
+        }
     }
 
     fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
-        invalidateElementCache()
-        device.waitForIdle(2000)
-        // `freshElements`, not `currentElements`: this is the one mutating RPC that queries inside
-        // its own body. Going through the caching path would repopulate the cache with pre-typing
-        // state *after* the leading invalidation, leaving the next query reading a field that still
-        // looks empty. `freshElements` deliberately does not populate.
-        val candidates = freshElements().filter { matches(it, resourceId, label, containsText) }
-        // A selector matching by label usually hits the field's own TextView label first, and
-        // setting text on that silently does nothing. Prefer an actual editable node.
-        val target = candidates.firstOrNull { it.className?.contains("EditText") == true }
-            ?: candidates.firstOrNull()
-            ?: return false
-        val before = target.text.orEmpty()
-        target.click()
-        target.text = value
-        val after = target.text.orEmpty()
-        // A password field reports a mask rather than what was typed, so an exact match is not
-        // always available — but the content still has to have moved off what was there before.
-        return after == value || (value.isNotEmpty() && after.isNotEmpty() && after != before)
+        return mutatingOperation {
+            device.waitForIdle(2000)
+            // `freshElements`, not `currentElements`: this mutating RPC queries inside its body.
+            // Going through the caching path could expose pre-typing state to a concurrent query.
+            // `freshElements` deliberately does not populate.
+            val candidates = freshElements().filter { matches(it, resourceId, label, containsText) }
+            // A label selector often hits the field's TextView first. Prefer an editable node.
+            val target = candidates.firstOrNull { it.className?.contains("EditText") == true }
+                ?: candidates.firstOrNull()
+                ?: return@mutatingOperation false
+            val before = target.text.orEmpty()
+            target.click()
+            target.text = value
+            val after = target.text.orEmpty()
+            // Password fields report masks, but their content still has to change.
+            after == value || (value.isNotEmpty() && after.isNotEmpty() && after != before)
+        }
     }
 
     // -- Navigation --
 
-    fun pressBack(): Boolean {
-        invalidateElementCache()
-        return device.pressBack()
-    }
+    fun pressBack(): Boolean = mutatingOperation { device.pressBack() }
 
-    fun pressHome(): Boolean {
-        invalidateElementCache()
-        return device.pressHome()
-    }
+    fun pressHome(): Boolean = mutatingOperation { device.pressHome() }
 
     // -- Accessibility --
 
@@ -327,16 +342,20 @@ class UIAutomatorBridge {
         appId: String? = null,
         labeledOnly: Boolean = false
     ): List<ElementSnapshot> {
-        return scopedElements(appId)
-            .filter { element ->
-                matches(element, resourceId, text, containsText)
-            }
-            .mapNotNull { snapshotOrNull(it) }
-            .filter { !labeledOnly || it.id.isNotBlank() || it.label.isNotBlank() }
+        return withCurrentElements { elements ->
+            scopedElements(elements, appId)
+                .filter { element ->
+                    matches(element, resourceId, text, containsText)
+                }
+                .map { it.toSnapshot() }
+                .filter { !labeledOnly || it.id.isNotBlank() || it.label.isNotBlank() }
+        }
     }
 
     fun getAllElements(appId: String? = null): List<ElementSnapshot> {
-        return scopedElements(appId).mapNotNull { snapshotOrNull(it) }
+        return withCurrentElements { elements ->
+            scopedElements(elements, appId).map { it.toSnapshot() }
+        }
     }
 
     /**
@@ -359,10 +378,14 @@ class UIAutomatorBridge {
         containsText: String?,
         appId: String? = null
     ): ElementSnapshot? {
-        val matches = scopedElements(appId).filter { matches(it, resourceId, text, containsText) }
-        matches.firstOrNull { it.isClickable }?.let { return snapshotOrNull(it) }
-        matches.firstNotNullOfOrNull { nearestClickableAncestor(it) }?.let { return snapshotOrNull(it) }
-        return matches.firstOrNull()?.let { snapshotOrNull(it) }
+        return withCurrentElements { elements ->
+            val matches = scopedElements(elements, appId)
+                .filter { matches(it, resourceId, text, containsText) }
+            matches.firstOrNull { it.isClickable }?.let { return@withCurrentElements it.toSnapshot() }
+            matches.firstNotNullOfOrNull { nearestClickableAncestor(it) }
+                ?.let { return@withCurrentElements it.toSnapshot() }
+            matches.firstOrNull()?.toSnapshot()
+        }
     }
 
     /** Walks up from [element] to the first clickable node, bounded so a deep tree cannot stall a tap. */
@@ -387,17 +410,18 @@ class UIAutomatorBridge {
      * separate lookup, and "fall back to system UI when nothing matches" falls out for free:
      * an empty filtered result just returns the unfiltered list, which already contains it.
      */
-    private fun scopedElements(appId: String?): List<UiObject2> {
-        val all = currentElements()
+    private fun scopedElements(all: List<UiObject2>, appId: String?): List<UiObject2> {
         if (appId.isNullOrBlank()) return all
         val scoped = all.filter { it.applicationPackage == appId }
         return scoped.ifEmpty { all }
     }
 
     fun getInteractableElements(): List<ElementSnapshot> {
-        return currentElements()
-            .filter { it.isClickable || it.isLongClickable || it.className?.contains("EditText") == true }
-            .mapNotNull { snapshotOrNull(it) }
+        return withCurrentElements { elements ->
+            elements
+                .filter { it.isClickable || it.isLongClickable || it.className?.contains("EditText") == true }
+                .map { it.toSnapshot() }
+        }
     }
 
     fun findByDescription(description: String): List<ElementSnapshot> {
@@ -408,6 +432,7 @@ class UIAutomatorBridge {
     }
 
     /** App explicitly bound via [setTargetPackageName], for query/gesture scoping. Unbound by default. */
+    @Volatile
     private var boundTargetPackageName: String? = null
 
     fun currentPackageName(): String {
@@ -440,14 +465,6 @@ class UIAutomatorBridge {
         file.delete()
         return bytes
     }
-
-    /**
-     * [toSnapshot] on a node the app recycled throws StaleObjectException. A cached tree makes
-     * that reachable, so every conversion goes through here: one dead node drops out of the
-     * result rather than failing the whole query.
-     */
-    private fun snapshotOrNull(element: UiObject2): ElementSnapshot? =
-        runCatching { element.toSnapshot() }.getOrNull()
 
     private fun UiObject2.toSnapshot(): ElementSnapshot {
         val bounds = visibleBounds ?: Rect()
@@ -503,12 +520,36 @@ class UIAutomatorBridge {
     }
 
     private fun currentElements(): List<UiObject2> {
-        cachedElements?.let { cached ->
-            if (SystemClock.uptimeMillis() - cachedElementsAt < ELEMENT_CACHE_TTL_MS) return cached
+        val generation = synchronized(elementCacheLock) {
+            cachedElements?.let { cached ->
+                if (SystemClock.uptimeMillis() - cachedElementsAt < ELEMENT_CACHE_TTL_MS) return cached
+            }
+            elementCacheGeneration
         }
-        return freshElements().also {
-            cachedElements = it
-            cachedElementsAt = SystemClock.uptimeMillis()
+
+        val fresh = freshElements()
+        synchronized(elementCacheLock) {
+            // Never publish a tree whose collection overlapped an invalidation. The caller may
+            // still use its own result, but later RPCs must fetch state from after the mutation.
+            if (generation == elementCacheGeneration) {
+                cachedElements = fresh
+                cachedElementsAt = SystemClock.uptimeMillis()
+            }
+        }
+        return fresh
+    }
+
+    /**
+     * A UiObject2 is a live handle and any property access can throw after its backing node is
+     * recycled. Retry the whole operation once with a fresh tree; partial results would make a
+     * selector appear absent merely because its node changed during the walk.
+     */
+    private inline fun <T> withCurrentElements(operation: (List<UiObject2>) -> T): T {
+        try {
+            return operation(currentElements())
+        } catch (_: StaleObjectException) {
+            invalidateElementCache()
+            return operation(currentElements())
         }
     }
 

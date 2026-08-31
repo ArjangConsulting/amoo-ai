@@ -208,10 +208,18 @@ extension DriverToolExecutor {
             guard matched.isVisible, matched.isEnabled else {
                 return .error("tap_element failed: matched element is not visible and enabled")
             }
-            try await driver.tapElement(
-                selector,
-                appID: appID
-            )
+            // The verification query already resolved the element and returned XCTest/UIAutomator's
+            // preferred screen-space hit point. Re-sending the selector makes the companion take and
+            // walk another accessibility snapshot immediately before the gesture, duplicating the
+            // most expensive part of this tool. Use that verified coordinate for the same gesture.
+            // Fall back to the frame center for older companions that do not provide hit points.
+            if let point = matched.hitPoint ?? matched.frame.map({ frame in
+                Point(x: frame.x + frame.width / 2, y: frame.y + frame.height / 2)
+            }) {
+                try await driver.tap(at: point)
+            } else {
+                try await driver.tapElement(selector, appID: appID)
+            }
             return .success(
                 "Tapped verified element [\(matched.id)] \(matched.label)",
                 structuredContent: .object([

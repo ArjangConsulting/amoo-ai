@@ -62,11 +62,62 @@ final class XCUITestBridge: @unchecked Sendable {
 
     private var cachedSnapshot: CachedSnapshot?
 
+    /// XCTest waits for the target process to quiesce before and after every synthesized event.
+    /// That is useful for standalone XCTest methods, but redundant here: the companion returns
+    /// after injection and the host's assertion tools perform their own bounded polling. On an
+    /// otherwise idle simulator those two implicit waits account for most of a ~430ms no-op tap.
+    ///
+    /// XCTest exposes no public switch, but its process flags are Objective-C runtime methods.
+    /// Override the installed Xcode's pre/post-event flags, falling back to its older wait-method
+    /// signatures. The lookup is guarded, so a future Xcode that removes or renames these methods
+    /// simply retains the slower public behavior. Set `AMOO_IOS_WAIT_FOR_QUIESCENCE=1` to retain
+    /// XCTest's waits while diagnosing an app that depends on them.
+    private static let fastInteractionEnabled: Bool = {
+        guard ProcessInfo.processInfo.environment["AMOO_IOS_WAIT_FOR_QUIESCENCE"] != "1",
+              let processClass = NSClassFromString("XCUIApplicationProcess")
+        else { return false }
+
+        var replacedMethod = false
+
+        // Current XCTest asks these process flags immediately around event synthesis. Prefer
+        // overriding them because snapshots and lifecycle operations retain their normal waits.
+        let skipWait: @convention(block) (AnyObject) -> Bool = { _ in true }
+        for name in ["shouldSkipPreEventQuiescence", "shouldSkipPostEventQuiescence"] {
+            let selector = NSSelectorFromString(name)
+            if let method = class_getInstanceMethod(processClass, selector) {
+                method_setImplementation(method, imp_implementationWithBlock(skipWait))
+                replacedMethod = true
+            }
+        }
+
+        if replacedMethod {
+            return true
+        }
+
+        // Older XCTest versions have no skip flags. Fall back to replacing their wait entrypoint.
+        let currentSelector = NSSelectorFromString("waitForQuiescenceIncludingAnimationsIdle:isPreEvent:")
+        if let method = class_getInstanceMethod(processClass, currentSelector) {
+            let noWait: @convention(block) (AnyObject, Bool, Bool) -> Void = { _, _, _ in }
+            method_setImplementation(method, imp_implementationWithBlock(noWait))
+            replacedMethod = true
+        }
+
+        let legacySelector = NSSelectorFromString("waitForQuiescenceIncludingAnimationsIdle:")
+        if let method = class_getInstanceMethod(processClass, legacySelector) {
+            let noWait: @convention(block) (AnyObject, Bool) -> Void = { _, _ in }
+            method_setImplementation(method, imp_implementationWithBlock(noWait))
+            replacedMethod = true
+        }
+
+        return replacedMethod
+    }()
+
     /// Deliberately short. It exists to collapse the burst of queries an agent issues about one
     /// screen state, not to hold a tree across anything a person would perceive as a wait.
     private static let snapshotCacheTTL: TimeInterval = 0.15
 
     init(app: XCUIApplication, targetBundleID: String? = nil, hostBundleID: String? = nil) {
+        _ = Self.fastInteractionEnabled
         self.app = app
         self.targetBundleID = targetBundleID.flatMap { $0.isEmpty ? nil : $0 }
         self.hostBundleID = hostBundleID ?? Self.bundleID(of: app)
@@ -157,10 +208,10 @@ final class XCUITestBridge: @unchecked Sendable {
 
     // MARK: - Touch
 
-    func tap(x: Double, y: Double) {
+    func tap(x: Double, y: Double) async {
         defer { invalidateSnapshotCache() }
         clearLastTappedElement()
-        gestureCoordinate(x: x, y: y).tap()
+        await tapWithoutCacheInvalidation(x: x, y: y)
     }
 
     func doubleTap(x: Double, y: Double) {
@@ -180,6 +231,36 @@ final class XCUITestBridge: @unchecked Sendable {
     private func gestureCoordinate(x: Double, y: Double) -> XCUICoordinate {
         gestureTarget().coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: x, dy: y))
+    }
+
+    /// Uses XCTest's runner-daemon event API when present. Unlike `XCUICoordinate.tap()`, this
+    /// returns when synthesis completes without adding an implicit post-event confirmation wait.
+    private func tapWithoutCacheInvalidation(x: Double, y: Double) async {
+        let target = gestureTarget()
+        guard FastTapSynthesizer.isAvailable else {
+            gestureCoordinate(x: x, y: y).tap()
+            return
+        }
+        do {
+            try await FastTapSynthesizer.tap(
+                at: CGPoint(x: x, y: y),
+                orientation: interfaceOrientation(of: target)
+            )
+        } catch {
+            // Runtime lookup keeps future XCTest changes from breaking all taps. A synthesis error
+            // happens before confirmation, so retrying through the public path is safe here.
+            print("Fast tap unavailable; falling back to XCUICoordinate.tap(): \(error)")
+            gestureCoordinate(x: x, y: y).tap()
+        }
+    }
+
+    private func interfaceOrientation(of application: XCUIApplication) -> UIInterfaceOrientation {
+        let selector = NSSelectorFromString("interfaceOrientation")
+        guard application.responds(to: selector) else { return .portrait }
+        let implementation = application.method(for: selector)
+        typealias Method = @convention(c) (AnyObject, Selector) -> Int
+        let rawValue = unsafeBitCast(implementation, to: Method.self)(application, selector)
+        return UIInterfaceOrientation(rawValue: rawValue) ?? .portrait
     }
 
     /// The app a gesture is delivered through.
@@ -333,9 +414,9 @@ final class XCUITestBridge: @unchecked Sendable {
         text: String,
         bundleID: String?,
         candidateBundleIDs: [String]
-    ) -> Bool {
+    ) async -> Bool {
         defer { invalidateSnapshotCache() }
-        guard tapElement(
+        guard await tapElement(
             id: id,
             label: label,
             containsText: containsText,
@@ -414,7 +495,7 @@ final class XCUITestBridge: @unchecked Sendable {
         containsText: String?,
         bundleID: String? = nil,
         candidateBundleIDs: [String] = []
-    ) -> Bool {
+    ) async -> Bool {
         defer { invalidateSnapshotCache() }
         // Shares `findElements`' search order, so a control in a system sheet is tappable by
         // label without the caller naming the process it happens to live in. The tap itself is by
@@ -433,7 +514,7 @@ final class XCUITestBridge: @unchecked Sendable {
             guard !frame.isNull, !frame.isEmpty else { continue }
             lastTappedElementID = candidate.id.isEmpty ? nil : candidate.id
             lastTappedElementLabel = candidate.label.isEmpty ? nil : candidate.label
-            gestureCoordinate(x: frame.midX, y: frame.midY).tap()
+            await tapWithoutCacheInvalidation(x: frame.midX, y: frame.midY)
             return true
         }
 

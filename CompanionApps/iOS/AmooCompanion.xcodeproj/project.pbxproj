@@ -12,6 +12,7 @@
 		1F6023E24D0D241D559834E7 /* common.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DA386AD027DAC8AB386D13 /* common.grpc.swift */; };
 		32B0682FF21997215E093E62 /* TouchHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D4A7475E32DD66B2F9F07F /* TouchHandler.swift */; };
 		45C8894B3FDB0B038ED63391 /* ai.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB1758DAB4D25453D047AFE /* ai.grpc.swift */; };
+		4755379A3C6A0E6C7FBFA55F /* FastTapSynthesizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012370845E5450FB1A67FEDF /* FastTapSynthesizer.swift */; };
 		4B2F6117FEBB289FB5F6313B /* CompanionServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E97E4108591B5D20A7C7A03 /* CompanionServer.swift */; };
 		5D08265AB9EFDB252C87CC66 /* accessibility.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE71619A8386E729F68A73C4 /* accessibility.pb.swift */; };
 		60E77A54BC227699930C68D1 /* accessibility.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E201427CBB3B635E92E9D0A1 /* accessibility.grpc.swift */; };
@@ -46,6 +47,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		012370845E5450FB1A67FEDF /* FastTapSynthesizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FastTapSynthesizer.swift; sourceTree = "<group>"; };
 		0E97E4108591B5D20A7C7A03 /* CompanionServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionServer.swift; sourceTree = "<group>"; };
 		14B81131AADDD8CDE7E99184 /* AccessibilityHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityHandler.swift; sourceTree = "<group>"; };
 		1575E25536877DB7E4E95DD1 /* CompanionRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionRunner.swift; sourceTree = "<group>"; };
@@ -168,6 +170,7 @@
 			isa = PBXGroup;
 			children = (
 				906954D0E31E68A568846AE7 /* ElementSnapshot.swift */,
+				012370845E5450FB1A67FEDF /* FastTapSynthesizer.swift */,
 				F9CE7CCB4CD474B7C638685D /* ScrollDirection.swift */,
 				5BAB2764C1BE905427CB1E01 /* ViewNodeSnapshot.swift */,
 				46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */,
@@ -267,6 +270,7 @@
 				4B2F6117FEBB289FB5F6313B /* CompanionServer.swift in Sources */,
 				032B5480207F2BBE0EFE428E /* CompanionServiceProvider.swift in Sources */,
 				E51D3855CD2E98F1C523B19E /* ElementSnapshot.swift in Sources */,
+				4755379A3C6A0E6C7FBFA55F /* FastTapSynthesizer.swift in Sources */,
 				DB391C92C3387EAC874FDA78 /* GestureHandler.swift in Sources */,
 				91E461BFA8B50F12CC1147BD /* ScrollDirection.swift in Sources */,
 				B3B756594712CF1FACD8AD4B /* TextHandler.swift in Sources */,
