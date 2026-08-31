@@ -56,10 +56,16 @@ app-scoped queries have nothing to scope to.
 
 ## Pick the cheapest tool that answers the question
 
+Costs below are measured medians on a booted iPhone 17 Pro, first query against a
+screen. Repeat queries about the *same* screen are much cheaper — the companion
+caches the accessibility tree for 150ms and drops it on any action — so a
+look-then-act pair costs about one snapshot, not two.
+
 | Question | Tool | Cost |
 | --- | --- | --- |
-| Is the right app frontmost? | `current_app` | trivial |
-| Did the expected screen/label appear? | `describe_screen`, `find_elements` | one accessibility snapshot |
+| Is the right app frontmost? | `current_app` | ~3ms — no snapshot at all |
+| Did a *specific* thing appear? | `find_elements id=…` | ~190ms cold, ~30ms cached |
+| What is on screen generally? | `describe_screen` | ~430ms cold, ~140ms cached |
 | Did anything change at all? | `assert_screen_changed from_token=<token>` | one snapshot, polls internally |
 | Interact with a labeled control | `tap_element`, `set_text`, `fill_field` | one snapshot + one gesture |
 | What does this *look* like? | `take_screenshot output=<path>` | PNG capture + an image read |
@@ -70,6 +76,13 @@ app-scoped queries have nothing to scope to.
 reliably than a screenshot, because they return text you can assert on. Reach for
 a screenshot when the question is genuinely visual — layout, spacing, a pricing
 table, an icon with no label — or when you need to show the user what happened.
+
+**Prefer a scoped `find_elements` over `describe_screen` for verification.** When
+you know what you are looking for — and after an action you almost always do —
+`find_elements id=<the thing>` costs roughly a quarter of `describe_screen` and
+gives a direct yes/no instead of a summary you have to read. Keep
+`describe_screen` for orientation: the first look at an unfamiliar screen, or when
+an action did something you did not expect and you need the whole picture.
 
 Two habits worth keeping:
 

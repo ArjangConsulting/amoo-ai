@@ -34,6 +34,14 @@ class UIAutomatorBridge {
         /** Quiescence wait before reading the hierarchy, so a mid-transition frame is not captured. */
         const val WAIT_FOR_IDLE_MS = 2_000L
 
+        /**
+         * Deliberately short: long enough to collapse the burst of queries an agent issues
+         * about one screen state, short enough that a live UiObject2 handle cannot go stale
+         * unnoticed, and short enough that a host-side polling assertion still observes a
+         * change well inside its timeout.
+         */
+        const val ELEMENT_CACHE_TTL_MS = 150L
+
         const val LOG_TAG = "AmooCompanion"
 
         /** Matches any application package, used to force a full multi-window root walk. */
@@ -48,6 +56,41 @@ class UIAutomatorBridge {
     }
     private val targetPackageName by lazy(LazyThreadSafetyMode.NONE) {
         instrumentation.targetContext.packageName
+    }
+
+    /**
+     * The window roots and descendants from the most recent query, reused for queries that arrive
+     * before anything can have changed them.
+     *
+     * [currentElements] is the whole cost of a query: a [UiDevice.waitForIdle] followed by a full
+     * walk of every window root. Agents habitually query several times about one screen state —
+     * "did it appear?", "what's on screen?", then a selector lookup — and each of those was paying
+     * for both again. The iOS bridge caches [androidx.test.uiautomator.UiObject2]'s equivalent for
+     * the same reason; see XCUITestBridge.cachedSnapshot for the measured numbers there.
+     *
+     * Unlike iOS's XCUIElementSnapshot, a [UiObject2] is a *live* handle to an accessibility node,
+     * not an immutable copy: the node behind it can be recycled, after which any property read
+     * throws StaleObjectException. Three things keep that safe:
+     *
+     * - Every mutating RPC calls [invalidateElementCache], so a cached handle never outlives an
+     *   action taken through the companion.
+     * - [ELEMENT_CACHE_TTL_MS] is short, bounding the window in which the app can recycle a node
+     *   on its own (an async load, an animation, a timer) without us knowing.
+     * - Reads go through [snapshotOrNull], which drops a node that went stale anyway rather than
+     *   failing the whole query.
+     *
+     * The TTL also keeps polling assertions correct: assert_visible / assert_enabled /
+     * assert_screen_changed loop host-side, so the companion cannot tell a poll from a one-shot
+     * query and has nothing to bypass on. With expiry a poll sees a change at worst one TTL late;
+     * without it the loop would re-read identical state until its deadline and report a timeout
+     * for a change that did happen.
+     */
+    private var cachedElements: List<UiObject2>? = null
+    private var cachedElementsAt: Long = 0L
+
+    /** Drops the cached tree. Called by every RPC that can change what is on screen. */
+    private fun invalidateElementCache() {
+        cachedElements = null
     }
 
     /**
@@ -71,15 +114,20 @@ class UIAutomatorBridge {
 
     // -- Touch --
 
-    fun tap(x: Int, y: Int): Boolean = device.click(x, y)
+    fun tap(x: Int, y: Int): Boolean {
+        invalidateElementCache()
+        return device.click(x, y)
+    }
 
     fun longPress(x: Int, y: Int, durationMs: Int): Boolean {
+        invalidateElementCache()
         return device.swipe(x, y, x, y, durationMs / 5) // swipe in-place simulates long press
     }
 
     // -- Gestures --
 
     fun swipe(fromX: Int, fromY: Int, toX: Int, toY: Int, steps: Int): Boolean {
+        invalidateElementCache()
         return device.swipe(fromX, fromY, toX, toY, steps)
     }
 
@@ -92,6 +140,7 @@ class UIAutomatorBridge {
      * directly, which is the only way to control the hold.
      */
     fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean {
+        invalidateElementCache()
         val downTime = SystemClock.uptimeMillis()
 
         if (!injectPointerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, fromX, fromY)) {
@@ -153,6 +202,7 @@ class UIAutomatorBridge {
     }
 
     fun scroll(direction: Direction, distance: Int): Boolean {
+        invalidateElementCache()
         val (w, h) = device.displayWidth to device.displayHeight
         val cx = w / 2
         val cy = h / 2
@@ -173,6 +223,7 @@ class UIAutomatorBridge {
         resourceId: String?,
         text: String?
     ): Boolean {
+        invalidateElementCache()
         val steps = (durationMs / 5).coerceAtLeast(1)
         val (w, h) = device.displayWidth to device.displayHeight
 
@@ -209,6 +260,7 @@ class UIAutomatorBridge {
     // -- Text --
 
     fun typeText(text: String) {
+        invalidateElementCache()
         device.waitForIdle(2000)
         val focused = device.findObject(By.focused(true))
             ?: device.findObject(By.clazz("android.widget.EditText"))
@@ -216,6 +268,7 @@ class UIAutomatorBridge {
     }
 
     fun clearText() {
+        invalidateElementCache()
         device.waitForIdle(2000)
         val focused = device.findObject(By.focused(true))
             ?: device.findObject(By.clazz("android.widget.EditText"))
@@ -223,8 +276,13 @@ class UIAutomatorBridge {
     }
 
     fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
+        invalidateElementCache()
         device.waitForIdle(2000)
-        val candidates = currentElements().filter { matches(it, resourceId, label, containsText) }
+        // `freshElements`, not `currentElements`: this is the one mutating RPC that queries inside
+        // its own body. Going through the caching path would repopulate the cache with pre-typing
+        // state *after* the leading invalidation, leaving the next query reading a field that still
+        // looks empty. `freshElements` deliberately does not populate.
+        val candidates = freshElements().filter { matches(it, resourceId, label, containsText) }
         // A selector matching by label usually hits the field's own TextView label first, and
         // setting text on that silently does nothing. Prefer an actual editable node.
         val target = candidates.firstOrNull { it.className?.contains("EditText") == true }
@@ -241,9 +299,15 @@ class UIAutomatorBridge {
 
     // -- Navigation --
 
-    fun pressBack(): Boolean = device.pressBack()
+    fun pressBack(): Boolean {
+        invalidateElementCache()
+        return device.pressBack()
+    }
 
-    fun pressHome(): Boolean = device.pressHome()
+    fun pressHome(): Boolean {
+        invalidateElementCache()
+        return device.pressHome()
+    }
 
     // -- Accessibility --
 
@@ -267,12 +331,12 @@ class UIAutomatorBridge {
             .filter { element ->
                 matches(element, resourceId, text, containsText)
             }
-            .map { it.toSnapshot() }
+            .mapNotNull { snapshotOrNull(it) }
             .filter { !labeledOnly || it.id.isNotBlank() || it.label.isNotBlank() }
     }
 
     fun getAllElements(appId: String? = null): List<ElementSnapshot> {
-        return scopedElements(appId).map { it.toSnapshot() }
+        return scopedElements(appId).mapNotNull { snapshotOrNull(it) }
     }
 
     /**
@@ -296,9 +360,9 @@ class UIAutomatorBridge {
         appId: String? = null
     ): ElementSnapshot? {
         val matches = scopedElements(appId).filter { matches(it, resourceId, text, containsText) }
-        matches.firstOrNull { it.isClickable }?.let { return it.toSnapshot() }
-        matches.firstNotNullOfOrNull { nearestClickableAncestor(it) }?.let { return it.toSnapshot() }
-        return matches.firstOrNull()?.toSnapshot()
+        matches.firstOrNull { it.isClickable }?.let { return snapshotOrNull(it) }
+        matches.firstNotNullOfOrNull { nearestClickableAncestor(it) }?.let { return snapshotOrNull(it) }
+        return matches.firstOrNull()?.let { snapshotOrNull(it) }
     }
 
     /** Walks up from [element] to the first clickable node, bounded so a deep tree cannot stall a tap. */
@@ -333,7 +397,7 @@ class UIAutomatorBridge {
     fun getInteractableElements(): List<ElementSnapshot> {
         return currentElements()
             .filter { it.isClickable || it.isLongClickable || it.className?.contains("EditText") == true }
-            .map { it.toSnapshot() }
+            .mapNotNull { snapshotOrNull(it) }
     }
 
     fun findByDescription(description: String): List<ElementSnapshot> {
@@ -353,6 +417,7 @@ class UIAutomatorBridge {
     fun targetPackageNameBinding(): String? = boundTargetPackageName
 
     fun setTargetPackageName(bundleId: String?) {
+        invalidateElementCache()
         boundTargetPackageName = bundleId
     }
 
@@ -375,6 +440,14 @@ class UIAutomatorBridge {
         file.delete()
         return bytes
     }
+
+    /**
+     * [toSnapshot] on a node the app recycled throws StaleObjectException. A cached tree makes
+     * that reachable, so every conversion goes through here: one dead node drops out of the
+     * result rather than failing the whole query.
+     */
+    private fun snapshotOrNull(element: UiObject2): ElementSnapshot? =
+        runCatching { element.toSnapshot() }.getOrNull()
 
     private fun UiObject2.toSnapshot(): ElementSnapshot {
         val bounds = visibleBounds ?: Rect()
@@ -430,6 +503,16 @@ class UIAutomatorBridge {
     }
 
     private fun currentElements(): List<UiObject2> {
+        cachedElements?.let { cached ->
+            if (SystemClock.uptimeMillis() - cachedElementsAt < ELEMENT_CACHE_TTL_MS) return cached
+        }
+        return freshElements().also {
+            cachedElements = it
+            cachedElementsAt = SystemClock.uptimeMillis()
+        }
+    }
+
+    private fun freshElements(): List<UiObject2> {
         device.waitForIdle(WAIT_FOR_IDLE_MS)
 
         val roots = device.findObjects(By.depth(0)).ifEmpty {
