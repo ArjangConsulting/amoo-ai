@@ -16,6 +16,13 @@ public actor SessionManager {
     /// Serializes store writes so they land in the order they were produced.
     private var writeChain: Task<Void, Never>?
 
+    /// Per-session codegen intent supplied through the control plane (`start_session` /
+    /// `compile_session_to_plan`): a descriptive test name/description and a reference to the
+    /// app-owned `StudioTestContext` JSON. Kept here — not in the recorded action history — so
+    /// `end_session`'s auto-compile reproduces the same plan an explicit `compile_session_to_plan`
+    /// would, without a control-plane call ever becoming a recorded test step.
+    private var sessionCodegenIntent: [String: SessionCodegenIntent] = [:]
+
     /// Flush after this many recorded actions, or this long since the last flush, whichever
     /// comes first. Together they bound both the write amplification and the crash window.
     private static let flushActionThreshold = 10
@@ -175,6 +182,59 @@ public actor SessionManager {
         for session in active {
             await session.close()
         }
+    }
+}
+
+/// Control-plane codegen intent for a session: a descriptive name/description and a path to the
+/// checked-in `StudioTestContext` JSON the generated test must fit. Persisted by `SessionManager`
+/// so `end_session` compiles the same plan an explicit `compile_session_to_plan` would.
+public struct SessionCodegenIntent: Sendable, Equatable {
+    public var testName: String?
+    public var testDescription: String?
+    /// Absolute path to an app-owned test-context JSON file, resolved at compile time.
+    public var contextPath: String?
+    /// Inline test-context JSON, an alternative to `contextPath` for callers that cannot pass a path.
+    public var contextJSON: String?
+
+    public init(
+        testName: String? = nil,
+        testDescription: String? = nil,
+        contextPath: String? = nil,
+        contextJSON: String? = nil
+    ) {
+        self.testName = testName
+        self.testDescription = testDescription
+        self.contextPath = contextPath
+        self.contextJSON = contextJSON
+    }
+
+    /// Fields set on `other` win; unset fields keep the current value. Lets `compile_session_to_plan`
+    /// refine an intent that `start_session` seeded without clearing what it did not mention.
+    public func merging(_ other: Self) -> Self {
+        Self(
+            testName: other.testName ?? testName,
+            testDescription: other.testDescription ?? testDescription,
+            contextPath: other.contextPath ?? contextPath,
+            contextJSON: other.contextJSON ?? contextJSON
+        )
+    }
+
+    var isEmpty: Bool {
+        testName == nil && testDescription == nil && contextPath == nil && contextJSON == nil
+    }
+}
+
+public extension SessionManager {
+    /// Merge control-plane codegen intent into a session (see `SessionCodegenIntent`).
+    func rememberCodegenIntent(_ intent: SessionCodegenIntent, for id: String) {
+        guard !intent.isEmpty else { return }
+        let base = sessionCodegenIntent[id] ?? SessionCodegenIntent()
+        sessionCodegenIntent[id] = base.merging(intent)
+    }
+
+    /// The codegen intent accumulated for a session, if any.
+    func codegenIntent(for id: String) -> SessionCodegenIntent? {
+        sessionCodegenIntent[id]
     }
 }
 

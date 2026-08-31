@@ -1,5 +1,10 @@
 # Architecture
 
+> **Working on a specific subsystem?** The recording → plan → generated-test path has its own map:
+> [`docs/codegen-pipeline.md`](docs/codegen-pipeline.md). App-owned generated-test context:
+> [`docs/test-context.md`](docs/test-context.md). MCP server usage: [`docs/mcp-server.md`](docs/mcp-server.md).
+> Contributor build/lint/test conventions: [`AGENTS.md`](AGENTS.md).
+
 ## Design Principles
 
 1. **Protocol boundaries** — Every module exposes a protocol (Swift `protocol`). Consumers depend on protocols, not concrete implementations.

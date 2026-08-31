@@ -127,6 +127,19 @@ public enum SessionPlanCompiler {
         .tapElement, .setText, .typeText, .swipeInDirection, .scroll, .takeScreenshot, .pressBack
     ]
 
+    /// amoo's own session / codegen lifecycle tools. They never touch the app under test, so they
+    /// must never surface as a step — not even as an `XCTFail` placeholder — in a generated test.
+    ///
+    /// The recorder already keeps these out of a session's action history (`ToolExecutor`), but a
+    /// plan compiled from an older recording, a hand-edited `report.json`, or a session whose
+    /// explicit `compile_session_to_plan` predates that filter can still contain one. Classifying
+    /// them here as `.notApplicable` rather than letting them fall through to `.excluded` keeps a
+    /// stray control-plane call from tripping the incomplete-plan gate or the trailing `XCTFail`.
+    static let controlPlaneTools: Set<String> = [
+        "start_session", "start_test_session", "end_session", "end_test_session",
+        "list_sessions", "get_session_report", "compile_session_to_plan"
+    ]
+
     /// Tools that inspect the app without changing it. They have no place in generated test code,
     /// so their absence from `toolOperations` is intended rather than a gap in the vocabulary —
     /// recorded as `.notApplicable` so it reads as a deliberate decision, not a silent drop.
@@ -177,6 +190,22 @@ public enum SessionPlanCompiler {
         retry: RetryContext
     ) -> ProcessedAction {
         let transient = looksTransient(action)
+
+        // amoo's own lifecycle calls are never an application test step. Drop them before any
+        // vocabulary check so a recorded `compile_session_to_plan` (from an `end_session` recompile
+        // or an explicit call) becomes a `.notApplicable` note, never an `.excluded` gap.
+        if controlPlaneTools.contains(action.toolName) {
+            return ProcessedAction(
+                operation: nil,
+                step: nil,
+                warnings: [SessionPlanWarning(
+                    kind: .notApplicable,
+                    actionIndex: index,
+                    toolName: action.toolName,
+                    reason: "amoo session/codegen control-plane call; never part of the generated test"
+                )]
+            )
+        }
 
         // A failed selector is evidence from exploration, never a replayable test instruction.
         // Check isError as well as intent so plans compiled from recordings made before intent was
@@ -353,7 +382,10 @@ public enum SessionPlanCompiler {
                 recentElements = legacyRecordedElements(from: action.result)
             }
             let effectiveAction = attachObservedLabel(
-                semanticCoordinateSwipe(action, recentElements: recentElements),
+                attachGestureTargetLabel(
+                    semanticCoordinateSwipe(action, recentElements: recentElements),
+                    recentElements: recentElements
+                ),
                 recentElements: recentElements
             )
             processed.append(process(
@@ -399,12 +431,23 @@ public enum SessionPlanCompiler {
 
         let retries = retryRuns(report.actions, interval: interval)
         let processed = processActions(report.actions, retries: retries, interval: interval)
-        let toolOperations = processed.compactMap(\.operation)
+        let toolOperations = annotatePresetOptionTaps(processed.compactMap(\.operation))
         let steps = processed.compactMap(\.step)
         let warnings = processed.flatMap(\.warnings)
 
-        let name = testName ?? report.testName ?? semanticTestName(for: report)
-        let description = testDescription
+        // A recording made through the MCP flow keeps `compile_session_to_plan` out of its history,
+        // so its `test_name` / `test_description` would otherwise be lost when `end_session` (or a
+        // re-run of `amoo generate plan`) recompiles the report. Recover them from any control-plane
+        // call the history still carries, so the descriptive name survives a recompile.
+        let recordedName = report.actions.last {
+            controlPlaneTools.contains($0.toolName) && ($0.arguments["test_name"]?.isEmpty == false)
+        }?.arguments["test_name"]
+        let recordedDescription = report.actions.last {
+            controlPlaneTools.contains($0.toolName) && ($0.arguments["test_description"]?.isEmpty == false)
+        }?.arguments["test_description"]
+
+        let name = testName ?? report.testName ?? recordedName ?? semanticTestName(for: report)
+        let description = testDescription ?? recordedDescription
             ?? "Generated from session \(report.sessionID) (\(report.appID) on \(report.deviceID))"
 
         let studioTest = StudioAuthoredTest(

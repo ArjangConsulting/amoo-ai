@@ -98,3 +98,24 @@ Each step names a normal device/MCP tool. Exact `${ENV_NAME}` argument values ar
 process environment so credentials do not enter source control. The runner stops at the first
 failed action or assertion and prints the verified result for every completed step. See
 [`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format.
+
+## Generating tests from a recorded session
+
+`compile_session_to_plan` turns a session's action history into a plan; `amoo generate test --plan`
+turns that plan into a standalone XCUITest / Espresso file. amoo's own lifecycle calls
+(`start_session`, `end_session`, `compile_session_to_plan`, …) are never recorded as test steps, so
+a complete app-interaction recording generates without `--allow-incomplete` and with no trailing
+`XCTFail`.
+
+To make the generated file fit a host test target — its base class, launch/assertion helpers, and
+identifier catalog — pass an **app-owned test context**. Agents can supply it at session or compile
+time (`start_session` / `compile_session_to_plan` accept `context_path` or `context_json`), and it
+is persisted with the session so an `end_session` recompile keeps it. See
+[`docs/test-context.md`](test-context.md) for the schema.
+
+Offline, recompile a recorded `report.json` without re-running the server:
+
+```bash
+amoo generate plan --report report.json --context test-context.json --out out/
+amoo generate test --plan out/plan.json
+```

@@ -15,4 +15,7 @@ if [[ "$swift_files_count" -eq 0 ]]; then
   exit 0
 fi
 
+# SwiftFormat is not idempotent on this codebase (some rules only converge on a second pass),
+# so run it twice — the second pass is a fast no-op when the first already reached a fixpoint.
+swiftformat . --config .swiftformat --cache ignore
 swiftformat . --config .swiftformat --cache ignore

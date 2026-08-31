@@ -1,10 +1,14 @@
-.PHONY: format lint test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
 
 lint:
 	./scripts/ci/lint.sh
+
+# One pre-commit gate: format (twice, see format.sh), then lint, then the Swift test suite.
+# Does not build the companion apps — run `make companion-build` after touching CompanionApps/.
+check: format lint test
 
 test:
 	@if [ -f Package.swift ]; then \

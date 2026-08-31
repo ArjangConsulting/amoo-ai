@@ -52,11 +52,21 @@ public actor DriverToolExecutor: ToolExecutor {
         return defaultDriver
     }
 
+    /// amoo's own session / codegen lifecycle tools. A call to one is not an application test step,
+    /// so it must never enter a session's recorded action history — otherwise `compile_session_to_plan`
+    /// (which runs while the session is still active) records *itself*, and the compiler then has to
+    /// carry it as a dropped step and the generator emits a trailing `XCTFail` for it.
+    static let controlPlaneTools: Set<String> = [
+        "start_session", "start_test_session", "end_session", "end_test_session",
+        "list_sessions", "get_session_report", "compile_session_to_plan"
+    ]
+
     private func recordIfNeeded(
         toolName: String,
         arguments: [String: String],
         result: ToolResult
     ) async {
+        guard Self.controlPlaneTools.contains(toolName) == false else { return }
         guard let sessionID = arguments["session_id"],
               let manager = sessionManager,
               let session = await manager.session(sessionID),

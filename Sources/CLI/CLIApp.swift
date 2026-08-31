@@ -88,6 +88,17 @@ public struct CLIApp {
     }
 
     private func handleGenerateCommand(remaining: [String]) -> CLIResult {
+        if remaining.first == "plan" {
+            let commandArgs = Array(remaining.dropFirst())
+            if isHelpRequest(commandArgs) {
+                return CLIResult(output: renderGeneratePlanHelp(), exitCode: 0)
+            }
+            do {
+                return try runGeneratePlanCommand(options: parseGeneratePlanOptions(args: commandArgs))
+            } catch {
+                return CLIResult(output: String(describing: error), exitCode: 64)
+            }
+        }
         guard remaining.first == "test" else {
             return CLIResult(output: renderGenerateHelp(), exitCode: remaining.isEmpty ? 0 : 64)
         }
@@ -252,6 +263,8 @@ func renderCLIHelp() -> String {
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       flow <path.amoo.json>        Run a reusable checked-in device flow
+      generate plan ...            Recompile a recorded session report into plan.json
+      generate test ...            Emit a standalone XCUITest/Espresso test from a plan
       audit ...                    Run app audit rules
       chat                         Interactive AI chat (Ollama + MCP tools)
       mcp serve                    Run the local MCP stdio server for AI clients

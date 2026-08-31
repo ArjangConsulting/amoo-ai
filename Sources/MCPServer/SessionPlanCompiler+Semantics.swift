@@ -52,6 +52,82 @@ extension SessionPlanCompiler {
         )
     }
 
+    /// An element-scoped `swipe_in_direction` / `scroll` that the recorder stored id-only. The
+    /// matching `find_elements` observation still carries the row's label, which is what makes the
+    /// generated gesture read `waterHabitRow.swipeLeft()` rather than `habitCatalogRow.swipeLeft()`.
+    /// The `element_id` stays the selector — the label is a naming hint only.
+    static func attachGestureTargetLabel(_ action: SessionAction, recentElements: [RecordedElement])
+        -> SessionAction {
+        guard ["swipe_in_direction", "scroll"].contains(action.toolName),
+              let id = action.arguments["element_id"], !id.isEmpty,
+              (action.arguments["element_label"] ?? "").isEmpty,
+              let observed = recentElements.first(where: { $0.id == id }) else { return action }
+        var arguments = action.arguments
+        if let label = observed.label, !label.isEmpty {
+            arguments["element_label"] = label
+        }
+        if let elementType = observed.elementType, arguments["element_type"] == nil {
+            arguments["element_type"] = elementType
+        }
+        guard arguments != action.arguments else { return action }
+        return SessionAction(
+            timestamp: action.timestamp,
+            toolName: action.toolName,
+            arguments: arguments,
+            result: action.result,
+            isError: action.isError,
+            intent: action.intent,
+            observedElements: action.observedElements,
+            gestureTarget: action.gestureTarget
+        )
+    }
+
+    /// Distinguishes two identically-labelled elements that play different roles by the shape of the
+    /// flow around them. A bare-label `tap_element` that sits between a "create / add / new" trigger
+    /// and a later "add / save / done / confirm" tap is selecting one option on a creation screen —
+    /// a *preset option* — not the catalog row of the same name. Naming it `waterPresetOption` keeps
+    /// it from colliding with `waterHabitRow` (or degrading to `water` / `water2`).
+    ///
+    /// Writes `name_hint`, a naming-only key: the selector (`label`) and the recorded step text are
+    /// untouched. Deterministic — it depends only on the ordered operations, never on wall-clock or
+    /// iteration order.
+    static func annotatePresetOptionTaps(_ operations: [StudioToolOperation]) -> [StudioToolOperation] {
+        guard let triggerIndex = operations.firstIndex(where: isCreationTrigger) else { return operations }
+        return operations.enumerated().map { index, operation in
+            guard index > triggerIndex,
+                  operation.tool == StudioTool.tapElement.rawValue,
+                  (operation.arguments["id"] ?? "").isEmpty,
+                  operation.arguments["name_hint"] == nil,
+                  let label = operation.arguments["label"], !label.isEmpty,
+                  operations[(index + 1)...].contains(where: isConfirmationTap) else { return operation }
+            var arguments = operation.arguments
+            arguments["name_hint"] = "\(label) preset option"
+            return StudioToolOperation(
+                id: operation.id,
+                tool: operation.tool,
+                arguments: arguments,
+                helper: operation.helper
+            )
+        }
+    }
+
+    private static func isCreationTrigger(_ operation: StudioToolOperation) -> Bool {
+        guard operation.tool == StudioTool.tapElement.rawValue else { return false }
+        let haystack = [operation.arguments["id"], operation.arguments["label"]]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
+        return ["create", "add ", "add_", "new", "plus"].contains { haystack.contains($0) }
+            || haystack == "add" || haystack.hasSuffix(" add")
+    }
+
+    private static func isConfirmationTap(_ operation: StudioToolOperation) -> Bool {
+        guard operation.tool == StudioTool.tapElement.rawValue else { return false }
+        let label = (operation.arguments["label"] ?? "").lowercased()
+        let id = (operation.arguments["id"] ?? "").lowercased()
+        return ["add", "save", "done", "confirm", "ok", "create"].contains(label)
+            || ["checkmark", "done", "save", "confirm", "create"].contains { id.contains($0) }
+    }
+
     /// `trash`, `checkmark`, `submitButton` — a single, non-namespaced identifier that is already a
     /// readable all-letter word needs no naming hint. `app.task_list.create_button`, `btn_1`,
     /// `e5f2` do not qualify and still take the label.

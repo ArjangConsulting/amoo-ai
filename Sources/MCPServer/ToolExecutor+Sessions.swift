@@ -36,6 +36,18 @@ extension DriverToolExecutor {
                 environment: environment,
                 testName: testName
             )
+            // Persist the codegen intent (descriptive name/description + app-owned test-context
+            // reference) so `end_session`'s auto-compile reproduces the plan an explicit
+            // `compile_session_to_plan` would — without recording a control-plane call as a step.
+            await manager.rememberCodegenIntent(
+                SessionCodegenIntent(
+                    testName: testName,
+                    testDescription: arguments["test_description"],
+                    contextPath: arguments["context_path"],
+                    contextJSON: arguments["context_json"]
+                ),
+                for: session.id
+            )
             let summary: [String: Value] = [
                 "session_id": .string(session.id),
                 "app_id": .string(session.appID),
@@ -84,9 +96,15 @@ extension DriverToolExecutor {
         // configured", and the caller cannot tell it needs to re-run compile_session_to_plan.
         var artifactNote = ""
         let directory = await manager.sessionDirectory(for: sessionID)
+        let intent = await manager.codegenIntent(for: sessionID)
         if let report, let directory {
             do {
-                let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+                var result = try SessionPlanCompiler.compile(
+                    report: report,
+                    testName: intent?.testName ?? report.testName,
+                    testDescription: intent?.testDescription
+                )
+                result = try Self.applyingTestContext(intent, to: result)
                 let paths = try SessionArtifactWriter.write(result, to: directory)
                 summary["plan_path"] = .string(paths.plan)
                 summary["flow_path"] = .string(paths.flow)
@@ -190,16 +208,32 @@ extension DriverToolExecutor {
             requestedInterval = milliseconds / 1000
         }
 
-        let result: CompileSessionToPlanResult
+        // Refine (or seed) the session's codegen intent so a later `end_session` recompile keeps the
+        // same descriptive name and app-owned test context this explicit call used.
+        await manager.rememberCodegenIntent(
+            SessionCodegenIntent(
+                testName: arguments["test_name"],
+                testDescription: arguments["test_description"],
+                contextPath: arguments["context_path"],
+                contextJSON: arguments["context_json"]
+            ),
+            for: sessionID
+        )
+        let intent = await manager.codegenIntent(for: sessionID)
+
+        var result: CompileSessionToPlanResult
         do {
             result = try SessionPlanCompiler.compile(
                 report: report,
-                testName: arguments["test_name"],
-                testDescription: arguments["test_description"],
+                testName: arguments["test_name"] ?? intent?.testName ?? report.testName,
+                testDescription: arguments["test_description"] ?? intent?.testDescription,
                 retryTapInterval: requestedInterval
             )
+            result = try Self.applyingTestContext(intent, to: result)
         } catch let error as SessionPlanCompilerError {
             return .error(error.description)
+        } catch {
+            return .error("compile_session_to_plan failed to load test context: \(error)")
         }
 
         // Overwrite the auto-written artifacts with this named version. Say so either way: the
@@ -223,6 +257,33 @@ extension DriverToolExecutor {
             + " \(result.studioTest.compiledPlan?.toolOperations?.count ?? 0) plan operation(s),"
             + " \(result.warnings.count) warning(s).\(artifactNote)\(retryNote)"
         return try .success(summary, structuredContent: Value(result))
+    }
+
+    /// Loads the app-owned `StudioTestContext` named by a session's codegen intent (a file path or
+    /// inline JSON) and folds it into the compiled plan, so the generated test uses the host's base
+    /// class, app factory, imports, helpers, and selector expressions with no hand-editing.
+    /// A no-op when the intent carries no context reference.
+    static func applyingTestContext(
+        _ intent: SessionCodegenIntent?,
+        to result: CompileSessionToPlanResult
+    ) throws -> CompileSessionToPlanResult {
+        guard let intent else { return result }
+        let data: Data
+        if let json = intent.contextJSON, !json.isEmpty {
+            data = Data(json.utf8)
+        } else if let path = intent.contextPath, !path.isEmpty {
+            data = try Data(contentsOf: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
+        } else {
+            return result
+        }
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: data)
+        return CompileSessionToPlanResult(
+            testFlow: result.testFlow,
+            studioTest: result.studioTest.replacingTestContext(context),
+            warnings: result.warnings,
+            retryRunObservations: result.retryRunObservations,
+            retryTapIntervalSeconds: result.retryTapIntervalSeconds
+        )
     }
 
     // MARK: - Device discovery / app inventory

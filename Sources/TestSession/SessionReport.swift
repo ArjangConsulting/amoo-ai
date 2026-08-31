@@ -81,6 +81,48 @@ public struct SessionReport: Sendable, Codable, Equatable {
         case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName
     }
 
+    /// ISO-8601 *with* fractional seconds. The single source of truth for how a `report.json` is
+    /// written and read — used by `FileSessionStore` and by every offline reader
+    /// (`amoo generate plan`, tests), so a report round-trips identically whichever path touches it.
+    ///
+    /// `JSONEncoder.dateEncodingStrategy = .iso8601` uses `ISO8601DateFormatter`'s defaults, which
+    /// omit fractional seconds — that truncated every action timestamp to a whole second on the way
+    /// to disk and silently destroyed the only data the retry-collapse heuristic runs on (a live
+    /// compile saw gaps of 2.461s / 2.449s; the same session recompiled after a restart saw 2.0s /
+    /// 2.0s). `Date.ISO8601FormatStyle` is a `Sendable` value type, so it can live in a `static let`
+    /// under strict concurrency. Reads accept the no-fraction form too, for reports written before
+    /// this fix.
+    private static let fractionalStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+    private static let plainStyle = Date.ISO8601FormatStyle()
+
+    public static func makeJSONEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(fractionalStyle.format(date))
+        }
+        return encoder
+    }
+
+    public static func makeJSONDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            if let date = try? fractionalStyle.parse(raw) {
+                return date
+            }
+            if let date = try? plainStyle.parse(raw) {
+                return date
+            }
+            throw DecodingError.dataCorrupted(DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Expected an ISO-8601 date, got '\(raw)'."
+            ))
+        }
+        return decoder
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(

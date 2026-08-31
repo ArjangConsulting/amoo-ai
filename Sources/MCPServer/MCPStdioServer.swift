@@ -31,20 +31,21 @@ public struct MCPStdioServer: Sendable {
     `tap_element` / `set_text` / `swipe_in_direction`. Prefer a stable accessibility id, then a \
     visible label, then a text filter — and any of those over raw coordinates.
 
-    3. List-row gestures. For a tap or swipe on one row of a list (SwiftUI `.swipeActions`, \
-    per-row buttons), call `find_elements` for that row first. If you must then issue a \
-    coordinate `swipe`/`tap` because label/id resolution would mistarget a sibling row, the \
-    recorder binds that gesture to the element you just resolved, and the compiler emits an \
-    element-scoped gesture such as `cigarettesHabitRow.swipeLeft()` that keeps the row's \
-    identity. Never read coordinates off a screenshot — screenshots are pixels, gestures are \
-    points.
+    3. List-row gestures — one canonical workflow. To tap or swipe one row of a list (SwiftUI \
+    `.swipeActions`, per-row buttons): call `find_elements` for that row, then call \
+    `swipe_in_direction` with the row's `element_id` (preferred) or `element_label`. That is the \
+    reliable path — the companion fails rather than guessing when the id/label is ambiguous, and \
+    the recorded step keeps the row's identity, so the compiler emits an element-scoped gesture \
+    such as `cigarettesHabitRow.swipeLeft()`. Only if the row has no stable id or label, fall \
+    back to a coordinate `swipe`: the recorder then binds it to the element you just resolved. \
+    Never read coordinates off a screenshot — screenshots are pixels, gestures are points.
 
     4. Verify every mutation with an explicit semantic assertion. After a delete, call \
-    `assert_not_visible` (or `find_elements` and check the count) on a text/label — not a \
+    `assert_absent` (or `find_elements` and check the count) on a text/label — not a \
     screenshot. After an add, `assert_visible` the new element. These become the test's \
     assertions; an unverified mutation compiles to an action with nothing checking it.
 
-    5. End, compile, and inspect before generating. `end_test_session`, then \
+    5. End, compile, and inspect before generating. `end_session`, then \
     `compile_session_to_plan`, then read every warning. An `excluded` / incomplete-plan warning \
     means a required action was dropped: that is a FAILED codegen result, not a finished test. \
     Fix the recording — add an accessibility identifier, drive through an addressable ancestor, \

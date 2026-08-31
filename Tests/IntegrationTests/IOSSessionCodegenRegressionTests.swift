@@ -123,6 +123,10 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         )
         XCTAssertFalse(source.contains("delete2"), file: file, line: line)
         XCTAssertFalse(source.contains("add2"), file: file, line: line)
+        // Two identically-labelled elements with different roles: the catalog row vs. the option
+        // tapped on the create screen. Neither may degrade to `cigarettes` / `cigarettes2`.
+        XCTAssertTrue(source.contains("cigarettesPresetOption"), file: file, line: line)
+        XCTAssertFalse(source.contains("cigarettes2"), file: file, line: line)
         // Delete assertion + add assertion.
         XCTAssertTrue(source.contains(#"waitForAbsence(cigarettes, named: "cigarettes""#), file: file, line: line)
         XCTAssertTrue(
@@ -169,6 +173,43 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         )
         let source = try XCUITestEmitter().generate(test).source
         XCTAssertTrue(source.contains("cigarettesHabitRow.swipeLeft()"))
+        XCTAssertFalse(source.contains("a40fb286E7ca"))
+    }
+
+    /// The canonical row-swipe workflow: `find_elements` then `swipe_in_direction` with the row's
+    /// `element_id` (no coordinate fallback). The recorder stores it id-only; the compiler must
+    /// still recover the row label from the prior observation so the gesture is named
+    /// `cigarettesHabitRow`, not `habitCatalogRow`.
+    func testElementScopedSwipeRecordingKeepsRowIdentity() throws {
+        let cigarettesRow = el(rowID, compositeLabel, frame: RecordedRect(x: 16, y: 210, width: 370, height: 94))
+        let actions: [SessionAction] = [
+            find("Habits", [el("app.tab.tasks", "Habits")]),
+            step("tap_element", ["id": "app.tab.tasks"]),
+            find("Cigarettes", [cigarettesRow]),
+            step("swipe_in_direction", ["direction": "left", "element_id": rowID]),
+            find("Delete", [el("trash", "Delete", type: "button")]),
+            step("tap_element", ["id": "trash"]),
+            step("assert_absent", ["contains_text": "Cigarettes"])
+        ]
+        let report = SessionReport(
+            sessionID: "s",
+            appID: "com.example.tasks",
+            deviceID: "sim",
+            platform: "ios",
+            startedAt: Date(),
+            endedAt: Date(),
+            durationSeconds: 1,
+            actionCount: actions.count,
+            errorCount: 0,
+            isActive: false,
+            actions: actions
+        )
+        let compiled = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let source = try XCUITestEmitter().generate(compiled.studioTest).source
+        XCTAssertTrue(source.contains("cigarettesHabitRow.swipeLeft()"))
+        XCTAssertFalse(source.contains("habitCatalogRow"))
+        // The UUID stays in the selector string (the stable contract) but never in an identifier.
+        XCTAssertFalse(source.contains("let a40fb286"))
         XCTAssertFalse(source.contains("a40fb286E7ca"))
     }
 

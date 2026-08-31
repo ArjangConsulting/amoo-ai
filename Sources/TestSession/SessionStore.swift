@@ -55,7 +55,7 @@ public struct FileSessionStore: SessionStore {
         let directory = directory(for: report.sessionID)
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let data = try Self.encoder.encode(report)
+            let data = try SessionReport.makeJSONEncoder().encode(report)
             try data.write(to: directory.appending(path: "report.json"), options: .atomic)
         } catch {
             // Best-effort: a live session must not fail because its history could
@@ -66,7 +66,7 @@ public struct FileSessionStore: SessionStore {
     public func loadReport(sessionID: String) async -> SessionReport? {
         let url = directory(for: sessionID).appending(path: "report.json")
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? Self.decoder.decode(SessionReport.self, from: data)
+        return try? SessionReport.makeJSONDecoder().decode(SessionReport.self, from: data)
     }
 
     public func loadAllReports() async -> [SessionReport] {
@@ -83,47 +83,4 @@ public struct FileSessionStore: SessionStore {
         }
         return reports
     }
-
-    /// ISO-8601 *with* fractional seconds.
-    ///
-    /// `JSONEncoder.dateEncodingStrategy = .iso8601` uses `ISO8601DateFormatter`'s defaults, which
-    /// omit fractional seconds — so every action timestamp was truncated to a whole second on the
-    /// way to disk. That silently destroyed the only data the retry-collapse heuristic runs on: a
-    /// live compile saw gaps of 2.461s and 2.449s, and the same session recompiled after a restart
-    /// saw 2.0s and 2.0s. Sub-second gaps fared worse — 0.56s quantised to 0.0s or 1.0s depending
-    /// on which side of a second boundary it fell — so the same recording could compile to a
-    /// different plan depending on whether the session was still in memory.
-    /// `Date.ISO8601FormatStyle` rather than `ISO8601DateFormatter`: the format style is a
-    /// `Sendable` value type, so it can be shared from a `static let` under strict concurrency.
-    private static let fractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-    /// Reports written before the fix have no fractional part, so decoding accepts both forms.
-    private static let plain = Date.ISO8601FormatStyle()
-
-    private static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            var container = encoder.singleValueContainer()
-            try container.encode(fractional.format(date))
-        }
-        return encoder
-    }()
-
-    private static let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let raw = try decoder.singleValueContainer().decode(String.self)
-            if let date = try? fractional.parse(raw) {
-                return date
-            }
-            if let date = try? plain.parse(raw) {
-                return date
-            }
-            throw DecodingError.dataCorrupted(DecodingError.Context(
-                codingPath: decoder.codingPath,
-                debugDescription: "Expected an ISO-8601 date, got '\(raw)'."
-            ))
-        }
-        return decoder
-    }()
 }

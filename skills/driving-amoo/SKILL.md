@@ -188,7 +188,7 @@ follow it whether you drive amoo through MCP or the CLI:
 
 1. **Start from deterministic launch state.** If the caller gave you launch
    arguments or environment (skip-onboarding, reset-state, a mock-server URL),
-   pass them to `start_test_session` / `amoo companion start`. The plan records
+   pass them to `start_session` / `amoo companion start`. The plan records
    them under `requirements` and the generated test replays them in `setUp`. Don't
    tap through onboarding you were handed a flag to skip.
 2. **Resolve every target semantically before acting.** `describe_screen` to
@@ -196,20 +196,22 @@ follow it whether you drive amoo through MCP or the CLI:
    element, then act with `tap_element` / `set_text` / `swipe_in_direction`.
    Selector priority: accessibility id → visible label → text filter → (last
    resort) coordinates.
-3. **List-row gestures: `find_elements` first, then the gesture.** For a tap or
-   swipe on one row of a list (SwiftUI `.swipeActions`, per-row buttons), query
-   that row first. If you then have to issue a coordinate `swipe`/`tap` because
-   id/label resolution would hit the wrong sibling, the recorder binds that
-   gesture to the element you just resolved (`SessionAction.gestureTarget` /
-   `observedElements`), and the compiler turns it back into an element-scoped
-   gesture — `cigarettesHabitRow.swipeLeft()`, not `app.swipeLeft()`. Never read
-   coordinates off a screenshot (pixels vs points).
+3. **List-row gestures — one canonical workflow.** For a tap or swipe on one row
+   of a list (SwiftUI `.swipeActions`, per-row buttons): `find_elements` for the
+   row, then call `swipe_in_direction` with that row's `element_id` (preferred) or
+   `element_label`. The companion fails rather than guessing on an ambiguous
+   id/label, the recorded step keeps the row's identity, and the compiler emits an
+   element-scoped gesture — `cigarettesHabitRow.swipeLeft()`, not `app.swipeLeft()`.
+   Only when the row has no stable id or label, fall back to a coordinate
+   `swipe`/`tap`: the recorder binds it to the element you just resolved
+   (`SessionAction.gestureTarget` / `observedElements`) so codegen still recovers
+   the row. Never read coordinates off a screenshot (pixels vs points).
 4. **Verify every mutation with an explicit semantic assertion.** After a delete,
-   `assert_not_visible` (or `find_elements` + count) on a text/label. After an
+   `assert_absent` (or `find_elements` + count) on a text/label. After an
    add, `assert_visible` the new element. An unverified mutation compiles to an
    action with nothing asserting on it.
 5. **End, compile, then read the warnings before generating.**
-   `end_test_session` → `compile_session_to_plan` → inspect
+   `end_session` → `compile_session_to_plan` → inspect
    `compiledPlan.warnings`. An `excluded` / incomplete-plan warning means a
    required action was dropped: treat that as a **failed** codegen result, not a
    finished test. Fix the recording (add an identifier, drive through an
@@ -233,11 +235,14 @@ A correct run of that request looks like:
 - Session started with the app's skip-onboarding / reset-state launch environment
   (not tapped through).
 - `find_elements` resolves the "Cigarettes" habit-catalog row **before** the
-  swipe-to-delete; the recorded coordinate swipe carries that row's identity.
+  swipe; the recorded `swipe_in_direction` carries that row's `element_id`.
 - Generated code contains `cigarettesHabitRow.swipeLeft()` (or `cigarettesRow`) —
   **never** a UUID-derived name like `a40fb286E7ca…Row`.
+- Two identically-labelled elements with different roles get distinct semantic
+  names (a catalog row `cigarettesHabitRow` vs a picker option
+  `cigarettesPresetOption`), never `cigarettes` / `cigarettes2`.
 - `setUp` sets `app.launchEnvironment[...]` for each provided flag.
-- A delete assertion (`assert_not_visible` / `waitForAbsence` on "Cigarettes")
+- A delete assertion (`assert_absent` / `waitForAbsence` on "Cigarettes")
   and an add assertion (`assert_visible` / `waitForHittability` on "Cigarettes").
 - No `--allow-incomplete` — and if the agent used it, an explicit note of which
   steps are missing and why.
@@ -258,6 +263,15 @@ expected before you commit it:
 - Wire the file into the build target and run it once.
 
 **Never commit `generate test` output unchanged.**
+
+**Skip most of that finalize pass with an app-owned test context.** A checked-in
+`test-context.json` gives generation the host's `baseClass`, `appFactory`,
+`harnessLaunchesApp`, `imports`, reusable `helpers`, and a `selectorExpressions`
+id catalog — see [`docs/test-context.md`](../../docs/test-context.md). Supply it
+at generate time (`--context`), when recompiling a report
+(`amoo generate plan --report report.json --context … --out …`), or through MCP at
+`start_session` / `compile_session_to_plan` (`context_path` / `context_json`,
+persisted with the session so an `end_session` recompile keeps it).
 
 ### Triage the compiled-plan warnings
 

@@ -325,12 +325,13 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         labelKey: String = "label",
         containsTextKey: String = "contains_text"
     ) -> String {
-        // `name_hint` is a naming-only key the session compiler attaches from a `find_elements`
-        // observation. It never affects the selector, so the id/label the query actually uses
-        // stays the contract.
+        // `name_hint` is a naming-only key the session compiler attaches — from a `find_elements`
+        // observation, or from a role it inferred from the flow (a picker's `…PresetOption`). It
+        // never affects the selector, so the id/label the query actually uses stays the contract;
+        // it wins over the raw label precisely because it is the compiler's more specific answer.
         TestIdentifierNaming.elementVariableBase(
             id: operation.arguments[idKey],
-            label: operation.arguments[labelKey] ?? operation.arguments["name_hint"],
+            label: operation.arguments["name_hint"] ?? operation.arguments[labelKey],
             containsText: operation.arguments[containsTextKey],
             elementType: operation.arguments["element_type"] ?? operation.arguments["type"]
         )

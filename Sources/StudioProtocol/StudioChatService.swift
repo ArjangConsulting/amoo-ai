@@ -143,6 +143,18 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         public init(name: String, callTemplate: String, imports: [String] = []) {
             self.name = name; self.callTemplate = callTemplate; self.imports = imports
         }
+
+        // swiftlint:disable:next nesting
+        private enum CodingKeys: String, CodingKey { case name, callTemplate, imports }
+
+        /// `imports` is optional in a checked-in context file — a helper that pulls in no module of
+        /// its own just omits it. Without this, a hand-written context JSON fails to decode.
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            name = try container.decode(String.self, forKey: .name)
+            callTemplate = try container.decode(String.self, forKey: .callTemplate)
+            imports = try container.decodeIfPresent([String].self, forKey: .imports) ?? []
+        }
     }
 
     public let imports: [String]

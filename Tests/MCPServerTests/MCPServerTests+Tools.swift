@@ -258,15 +258,16 @@ extension MCPServerTests {
     }
 
     /// The row-mistargeting failure mode (label/id resolution hitting the wrong row inside a
-    /// list with per-row actions, e.g. SwiftUI List `.swipeActions`) cost real debugging time
-    /// because nothing in the tool schema warned about it or pointed at the reliable
-    /// find_elements + coordinate-tool workaround. Pin the guidance in the description so it
-    /// can't silently regress.
+    /// list with per-row actions, e.g. SwiftUI List `.swipeActions`) cost real debugging time.
+    /// The schema now pins the one canonical workflow — find_elements, then swipe_in_direction
+    /// with the row's element_id, coordinates only as a fallback — so it can't silently regress
+    /// or drift back to "prefer coordinates".
     func testSwipeInDirectionDescriptionWarnsAboutRowMistargeting() {
         let definition = ActionTools.definitions.first { $0.name == "swipe_in_direction" }
         XCTAssertNotNil(definition)
         XCTAssertTrue(definition?.description.contains("find_elements") == true)
         XCTAssertTrue(definition?.description.lowercased().contains("list") == true)
+        XCTAssertTrue(definition?.description.contains("element_id (preferred)") == true)
     }
 
     func testTapElementDescriptionWarnsAboutRowMistargeting() {

@@ -28,6 +28,23 @@ public enum SessionTools {
                     type: "string",
                     description: "Optional descriptive generated-test name, persisted with the session."
                 ),
+                "test_description": .init(
+                    type: "string",
+                    description: "Optional one-line description of the flow, persisted with the session"
+                        + " and carried into the compiled plan."
+                ),
+                "context_path": .init(
+                    type: "string",
+                    description: "Optional path to an app-owned test-context JSON (imports, baseClass,"
+                        + " appFactory, harnessLaunchesApp, helpers, selectorExpressions). Persisted with"
+                        + " the session so end_session and compile_session_to_plan fold it into the plan"
+                        + " — the generated test then fits the host test target with no hand-editing."
+                ),
+                "context_json": .init(
+                    type: "string",
+                    description: "Inline test-context JSON, an alternative to context_path for callers"
+                        + " that cannot pass a file path."
+                ),
                 "launch_args": .init(
                     type: "string",
                     description: "Comma-separated arguments passed to the app at launch."
@@ -185,6 +202,18 @@ public enum SessionTools {
                     type: "string",
                     description: "Description for the generated test. Defaults to a summary of the"
                         + " session's app/device."
+                ),
+                "context_path": .init(
+                    type: "string",
+                    description: "Optional path to an app-owned test-context JSON (imports, baseClass,"
+                        + " appFactory, harnessLaunchesApp, helpers, selectorExpressions). Folded into"
+                        + " the plan's testContext and persisted with the session, so a later"
+                        + " end_session recompile and `amoo generate test` reuse it without a"
+                        + " CLI-only --context override."
+                ),
+                "context_json": .init(
+                    type: "string",
+                    description: "Inline test-context JSON, an alternative to context_path."
                 ),
                 "retry_tap_interval_ms": .init(
                     type: "number",

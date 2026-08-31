@@ -46,7 +46,10 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "swipe",
-            description: "Swipe from one point to another",
+            description: "Swipe between two screen coordinates. For a swipe on a list row, prefer"
+                + " swipe_in_direction with the row's element_id; use this coordinate form only when"
+                + " the row has no stable id or label, passing the point from find_elements so the"
+                + " recorder can bind the gesture back to that element for codegen.",
             properties: [
                 "from_x": .init(type: "string", description: "Start X coordinate"),
                 "from_y": .init(type: "string", description: "Start Y coordinate"),
@@ -58,15 +61,16 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "swipe_in_direction",
-            description: "Swipe in a direction from screen center or a specific element."
-                + " Resolving the target by element_id/element_label can mistarget a row inside a"
-                + " list with per-row actions (e.g. SwiftUI List .swipeActions): if the label"
-                + " doesn't uniquely and currently identify one element, the swipe fails rather"
-                + " than guessing, but a stale or ambiguous label can still land on the wrong row"
-                + " in some cases. For a swipe on a specific row/element, prefer calling"
-                + " find_elements first to get its authoritative point-space coordinates, then"
-                + " drive the coordinate-based swipe tool directly with those coordinates — this is"
-                + " the reliable path for row-specific gestures.",
+            description: "Swipe in a direction from screen center or a specific element. This is the"
+                + " canonical workflow for a swipe on one row of a list with per-row actions (e.g."
+                + " SwiftUI List .swipeActions): call find_elements for the target row, then call"
+                + " this tool with that row's element_id (preferred) or element_label. The companion"
+                + " fails rather than guessing when the id/label does not uniquely identify one"
+                + " element, and the recorded step keeps the row's identity, so generated code emits"
+                + " an element-scoped gesture (e.g. cigarettesHabitRow.swipeLeft()). Only when the"
+                + " row has no stable id or label, fall back to the coordinate `swipe` tool with the"
+                + " point-space coordinates from find_elements — the recorder then binds that gesture"
+                + " to the resolved element. Never read coordinates off a screenshot.",
             properties: [
                 "direction": .init(type: "string", description: "Swipe direction: up, down, left, or right"),
                 "distance": .init(type: "string", description: "Swipe distance in points. Defaults to 300."),
@@ -148,9 +152,9 @@ public enum ActionTools {
                 + " For a control inside a list with per-row actions (e.g. SwiftUI List"
                 + " .swipeActions), resolving by label can be unreliable if the label isn't unique"
                 + " or the tree has shifted since the label was read — this can tap the wrong row."
-                + " For row-specific or otherwise precise taps, prefer calling find_elements first"
-                + " to get the element's authoritative point-space coordinates, then use the"
-                + " coordinate-based tap tool directly.",
+                + " For row-specific or otherwise precise taps, call find_elements first and pass"
+                + " the resolved element's id here; only when the row has no stable id or label,"
+                + " use the coordinate `tap` tool with the point from find_elements.",
             properties: [
                 "id": .init(type: "string", description: "Accessibility identifier of the element"),
                 "label": .init(type: "string", description: "Exact accessibility label of the element"),
