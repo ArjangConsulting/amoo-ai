@@ -75,6 +75,15 @@ final class ElementVariableNamingTests: XCTestCase {
         XCTAssertEqual(base, "habitCatalogRow")
     }
 
+    func testLongDescriptiveIdentifierSegmentIsNotMistakenForAnOpaqueBlob() {
+        // 31 chars, has a digit, no separator — but it contains real words, so it is a name.
+        XCTAssertFalse(TestIdentifierNaming.isOpaqueToken("recommendationsCarouselV2Section"))
+        XCTAssertEqual(
+            TestIdentifierNaming.elementVariableBase(id: "home.feed.recommendationsCarouselV2Section"),
+            "recommendationsCarouselV2Section"
+        )
+    }
+
     func testElementVariableBaseStripsPunctuationEmojiAndCompositeLabelProse() {
         XCTAssertEqual(
             TestIdentifierNaming.elementVariableBase(label: "🚬 Cigarettes", elementType: "cell"),

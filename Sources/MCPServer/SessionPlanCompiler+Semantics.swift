@@ -9,26 +9,37 @@ import TestSession
 /// `file_length` budget.
 extension SessionPlanCompiler {
     /// Selector-based element actions the recorder stores id-only. A matching `find_elements`
-    /// observation still carries the element's label, which is what the code generator needs to name
-    /// a readable local variable — the id stays the selector, the label is a naming hint.
+    /// observation still carries the element's label and type, which is what the code generator
+    /// needs to name a readable local variable — the id stays the selector.
     static let idSelectorTools: Set<String> = [
         "tap_element", "double_tap", "long_press", "set_text", "type_text", "fill_field",
         "assert_visible", "assert_absent", "wait_for_element", "assert_enabled",
         "assert_text", "assert_value"
     ]
 
+    /// Copies the label/type from the `find_elements` observation of this action's target onto the
+    /// action as *naming* hints — never as the selector. The hint goes in `name_hint`, a key the
+    /// code generator reads for variable names but `describe()` and the query logic ignore, so the
+    /// recorded step text and the selector both stay keyed on the id.
+    ///
+    /// Skipped when the id is already a clean self-descriptive token (`trash`, `checkmark`): a hint
+    /// of "Delete" there would collide with a neighbouring "Delete" text element into
+    /// `delete` / `delete2`, where the bare id gives the clearer `trash`.
     static func attachObservedLabel(_ action: SessionAction, recentElements: [RecordedElement])
         -> SessionAction {
         guard idSelectorTools.contains(action.toolName),
               let id = action.arguments["id"], !id.isEmpty,
-              (action.arguments["label"] ?? "").isEmpty,
-              let observed = recentElements.first(where: { $0.id == id }),
-              let label = observed.label, !label.isEmpty else { return action }
+              action.arguments["name_hint"] == nil,
+              !isSelfDescriptiveIdentifier(id),
+              let observed = recentElements.first(where: { $0.id == id }) else { return action }
         var arguments = action.arguments
-        arguments["label"] = label
+        if let label = observed.label, !label.isEmpty, (arguments["label"] ?? "").isEmpty {
+            arguments["name_hint"] = label
+        }
         if let elementType = observed.elementType, arguments["element_type"] == nil {
             arguments["element_type"] = elementType
         }
+        guard arguments != action.arguments else { return action }
         return SessionAction(
             timestamp: action.timestamp,
             toolName: action.toolName,
@@ -39,6 +50,15 @@ extension SessionPlanCompiler {
             observedElements: action.observedElements,
             gestureTarget: action.gestureTarget
         )
+    }
+
+    /// `trash`, `checkmark`, `submitButton` — a single, non-namespaced identifier that is already a
+    /// readable all-letter word needs no naming hint. `app.task_list.create_button`, `btn_1`,
+    /// `e5f2` do not qualify and still take the label.
+    static func isSelfDescriptiveIdentifier(_ id: String) -> Bool {
+        guard !id.contains(".") else { return false }
+        let letters = id.filter(\.isLetter)
+        return letters.count >= 4 && letters.count == id.count
     }
 
     /// Turns a recorded point swipe back into the element gesture the user performed when the
@@ -99,6 +119,11 @@ extension SessionPlanCompiler {
                   let width = Double(plainResult[widthRange]), let height = Double(plainResult[heightRange]) else {
                 return nil
             }
+            // The text format reports only the hit point and the size, so the frame is
+            // reconstructed assuming the hit point is the frame centre. That is exact for most
+            // controls and close enough for the containment/nearest checks in `resolveTarget`;
+            // recordings with structured `observedElements` carry the real frame and never hit
+            // this path.
             return RecordedElement(
                 id: String(plainResult[idRange]),
                 label: nil,
@@ -131,25 +156,16 @@ extension SessionPlanCompiler {
         ].contains(tool)
     }
 
+    /// Last-resort name when neither the caller nor the recording named the test. Deliberately
+    /// neutral: the recorder does not know the user's intent — only the driving agent does, via
+    /// `compile_session_to_plan`'s `test_name` or `amoo generate test --test-name`. Guessing a verb
+    /// ("delete", "add") from the tool mix produces confident, wrong names on any other flow, so
+    /// this reports only what is certain — a leading skip-onboarding launch flag — then `flow`.
+    /// Collisions between generated files are handled by `amoo generate test`'s numeric suffixing.
     static func semanticTestName(for report: SessionReport) -> String {
-        var words: [String] = []
-        if report.launchEnvironment.keys.contains(where: { $0.localizedCaseInsensitiveContains("SKIP_ONBOARDING") }) {
-            words += ["skip", "onboarding"]
-        }
-        let tools = report.actions.map(\.toolName)
-        if tools.contains("swipe") {
-            words.append("delete")
-        }
-        if report.actions.contains(where: {
-            $0
-                .toolName == "tap_element" &&
-                ($0.arguments["label"] == "Add" || $0.arguments["id"]?.contains("create") == true)
-        }) {
-            words += ["and", "add", "habit"]
-        }
-        if words.isEmpty {
-            words = ["recorded", "flow"]
-        }
+        let skipsOnboarding = report.launchEnvironment.keys
+            .contains { $0.localizedCaseInsensitiveContains("SKIP_ONBOARDING") }
+        let words = skipsOnboarding ? ["skip", "onboarding", "flow"] : ["recorded", "flow"]
         return words.enumerated().map { index, word in
             index == 0 ? word : word.prefix(1).uppercased() + word.dropFirst()
         }.joined()

@@ -113,6 +113,16 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         XCTAssertFalse(source.contains("app.swipeLeft()"), file: file, line: line)
         XCTAssertFalse(source.contains("a40fb286E7ca"), file: file, line: line)
         XCTAssertFalse(source.contains("let a40fb286"), file: file, line: line)
+        // Icon buttons keep their own clean identifier — the neighbouring "Delete"/"Add" text
+        // must not pull them into `delete2` / `add2`.
+        XCTAssertTrue(source.contains(#"let trash = app.descendants(matching: .any)["trash"]"#), file: file, line: line)
+        XCTAssertTrue(
+            source.contains(#"let checkmark = app.descendants(matching: .any)["checkmark"]"#),
+            file: file,
+            line: line
+        )
+        XCTAssertFalse(source.contains("delete2"), file: file, line: line)
+        XCTAssertFalse(source.contains("add2"), file: file, line: line)
         // Delete assertion + add assertion.
         XCTAssertTrue(source.contains(#"waitForAbsence(cigarettes, named: "cigarettes""#), file: file, line: line)
         XCTAssertTrue(

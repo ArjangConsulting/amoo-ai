@@ -243,13 +243,38 @@ enum TestIdentifierNaming {
         if hexNoDashes.count >= 16, hexNoDashes.allSatisfy(\.isHexDigit) {
             return true
         }
+        // A long, separator-free run of mixed letters and digits (base64-ish blobs, nanoids). Guard
+        // it with the longest same-case letter run: a real identifier like
+        // `recommendationsCarouselV2Section` has a long lowercase word in it; a random blob does not.
         let hasLetter = value.contains { $0.isLetter }
         let hasDigit = value.contains { $0.isNumber }
         let hasSeparator = value.contains { $0 == "_" || $0 == "-" }
-        if value.count >= 20, hasLetter, hasDigit, !hasSeparator {
+        if value.count >= 20, hasLetter, hasDigit, !hasSeparator, longestSameCaseLetterRun(value) < 5 {
             return true
         }
         return false
+    }
+
+    /// Longest run of consecutive letters of the same case (non-letters reset the run).
+    private static func longestSameCaseLetterRun(_ value: String) -> Int {
+        var longest = 0
+        var current = 0
+        var lastWasUppercase: Bool?
+        for character in value {
+            guard character.isLetter else {
+                current = 0
+                lastWasUppercase = nil
+                continue
+            }
+            if lastWasUppercase == character.isUppercase {
+                current += 1
+            } else {
+                current = 1
+            }
+            lastWasUppercase = character.isUppercase
+            longest = max(longest, current)
+        }
+        return longest
     }
 
     private static func isUUID(_ value: String) -> Bool {

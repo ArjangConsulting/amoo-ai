@@ -71,7 +71,9 @@ final class SessionPlanCompilerTests: XCTestCase {
         })
         XCTAssertEqual(swipeOperation.arguments["element_id"], "app.task.row.cigarettes")
         XCTAssertEqual(swipeOperation.arguments["direction"], "left")
-        XCTAssertEqual(result.studioTest.name, "skipOnboardingDeleteAndAddHabit")
+        // No caller/recording name: the fallback reports only what is certain (the skip-onboarding
+        // launch flag) rather than guessing verbs from the tool mix.
+        XCTAssertEqual(result.studioTest.name, "skipOnboardingFlow")
         XCTAssertEqual(result.studioTest.requirements?.launchArguments, ["-AppleLanguages", "(en)"])
         XCTAssertEqual(result.studioTest.requirements?.launchEnvironment["APP_AUTOMATED_TESTING"], "1")
         XCTAssertFalse(result.warnings.contains { $0.kind == .excluded && $0.toolName == "swipe" })
@@ -116,6 +118,34 @@ final class SessionPlanCompilerTests: XCTestCase {
             try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil).studioTest.name,
             "My explicit flow!"
         )
+    }
+
+    func testObservedLabelIsAttachedAsNamingHintForNamespacedIDOnly() throws {
+        func find(_ id: String, _ label: String) -> SessionAction {
+            SessionAction(
+                timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": label],
+                result: "Found 1 element(s)", isError: false, intent: .diagnostic,
+                observedElements: [.init(id: id, label: label, frame: nil, hitPoint: nil)]
+            )
+        }
+        let report = makeReport(actions: [
+            find("app.task_list.create_button", "Create Habit"),
+            makeAction(tool: "tap_element", arguments: ["id": "app.task_list.create_button"]),
+            find("trash", "Delete"),
+            makeAction(tool: "tap_element", arguments: ["id": "trash"])
+        ])
+        let ops = try XCTUnwrap(
+            SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+                .studioTest.compiledPlan?.toolOperations
+        )
+        let create = try XCTUnwrap(ops.first { $0.arguments["id"] == "app.task_list.create_button" })
+        // Namespaced id → the label rides along as a naming hint, never as the selector.
+        XCTAssertEqual(create.arguments["name_hint"], "Create Habit")
+        XCTAssertNil(create.arguments["label"])
+        // Self-descriptive id → left alone, so `trash` stays `trash` rather than colliding on "Delete".
+        let trash = try XCTUnwrap(ops.first { $0.arguments["id"] == "trash" })
+        XCTAssertNil(trash.arguments["name_hint"])
+        XCTAssertNil(trash.arguments["label"])
     }
 
     func testHappyPathTranslatesRecognizedTools() throws {
