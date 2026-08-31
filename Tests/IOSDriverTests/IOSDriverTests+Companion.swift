@@ -138,7 +138,11 @@ extension IOSDriverTests {
 
         let exists = try await driver.elementExists(.init(id: "login"))
         try await driver.waitForElement(.init(id: "login"), timeout: .defaultSwipe)
-        try await driver.waitForElementToDisappear(.init(id: "spinner"), timeout: Duration(milliseconds: 250))
+        // Budget generously: the mock clears the element on the second poll (~100ms in), so this
+        // exercises the disappear path, not the timeout ceiling (that is
+        // `testWaitForElementToDisappearTimesOutWhenElementPersists`). A tight 250ms budget raced
+        // the 100ms poll interval and flaked on loaded CI runners.
+        try await driver.waitForElementToDisappear(.init(id: "spinner"), timeout: Duration(milliseconds: 5000))
 
         let waitCalls = await companion.waitForElementCalls()
         XCTAssertTrue(exists)
