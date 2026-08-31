@@ -279,14 +279,17 @@ extension DriverToolExecutor {
             let hierarchy = try await driver.getViewHierarchy(
                 appID: queryScopeAppID(arguments: arguments, driver: driver)
             )
-            if arguments["format"]?.lowercased() == "full" {
-                return .success(renderViewNode(hierarchy, indent: 0))
+            // Full tree by default: the tool's own schema/description promise "the full UI view
+            // hierarchy tree", and existing callers (including the E2E suite) read node content
+            // out of it with no format argument. `format=summary` is an opt-in for a caller that
+            // only needs node/interactable counts and wants to skip the token cost of the full tree.
+            if arguments["format"]?.lowercased() == "summary" {
+                let summary = hierarchySummary(hierarchy)
+                return .success(
+                    "Hierarchy root=\(hierarchy.id) nodes=\(summary.nodes) interactable=\(summary.interactable)."
+                )
             }
-            let summary = hierarchySummary(hierarchy)
-            return .success(
-                "Hierarchy root=\(hierarchy.id) nodes=\(summary.nodes) interactable=\(summary.interactable). "
-                    + "Pass format=full only when the complete tree is required."
-            )
+            return .success(renderViewNode(hierarchy, indent: 0))
 
         case "get_screen_context":
             let context = try await driver.getScreenContext()

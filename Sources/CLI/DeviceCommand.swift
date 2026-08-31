@@ -60,7 +60,7 @@ Common tools:
       [bundle_id=<id>]
   find_elements [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [labeled_only=<true|false>] [scope=<app|system>] [bundle_id=<id>]
-  get_view_hierarchy [scope=<app|system>] [bundle_id=<id>]
+  get_view_hierarchy [scope=<app|system>] [bundle_id=<id>] [format=<full|summary>]
   get_screen_context
   is_keyboard_visible
   current_app

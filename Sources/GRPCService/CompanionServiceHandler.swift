@@ -34,13 +34,13 @@ package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtoc
     ) async throws -> Amoo_CapabilitiesResponse {
         let capabilities = try await companion.getCapabilities()
 
+        // Forward the wrapped companion's own answer rather than asserting one. This handler used
+        // to unconditionally claim "protocol.amoo.v1 supported" regardless of what the real
+        // companion reported, which made it a lie for any caller checking compatibility through
+        // this proxy, and would have collided with the real companion's own entry now that both
+        // companion apps report this key themselves.
         var response = Amoo_CapabilitiesResponse()
         response.capabilities = capabilities.map(\.protoCapabilityDescriptor)
-        var protocolCapability = Amoo_CapabilityDescriptor()
-        protocolCapability.key = "protocol.amoo.v1"
-        protocolCapability.tier = .required
-        protocolCapability.supported = true
-        response.capabilities.append(protocolCapability)
         return response
     }
 

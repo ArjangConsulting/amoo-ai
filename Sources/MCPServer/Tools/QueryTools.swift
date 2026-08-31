@@ -47,6 +47,13 @@ public enum QueryTools {
                 "bundle_id": .init(
                     type: "string",
                     description: "Explicit bundle/package id to query, overriding scope."
+                ),
+                "format": .init(
+                    type: "string",
+                    description: "'full' (default) returns the complete tree. 'summary' returns"
+                        + " only node/interactable counts, cheaper in tokens when you don't need"
+                        + " the tree content itself — prefer find_elements or describe_screen for"
+                        + " a specific question instead of a summary of everything."
                 )
             ]
         ),
