@@ -27,7 +27,7 @@ func renderGenerateHelp() -> String {
     """
     Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>]
                              [--context <path-to-test-context.json>]
-                             [--ui-toolkit <view|compose>] [--allow-incomplete]
+                             [--ui-toolkit <view|compose>] [--test-name <name>] [--allow-incomplete]
 
       Emits a skeleton test. Review the compiled-plan warnings and finalize it against your
       project's conventions — identifier catalog, naming, test tier, dropped assertions — before
@@ -37,6 +37,7 @@ func renderGenerateHelp() -> String {
       --out               Directory to write the generated file into. Prints to stdout if omitted.
       --context           App-owned test context JSON. Overrides testContext embedded in the plan.
       --ui-toolkit        Override the plan's UI toolkit (defaults to its requirement, then view).
+      --test-name         Override the recorded/semantic test name; sanitized for generated code.
       --allow-incomplete  Generate even though the plan records steps that could not be compiled.
                           Without this, generation stops rather than emitting a test missing steps.
     """
@@ -48,19 +49,22 @@ public struct GenerateTestOptions: Sendable, Equatable {
     public var allowIncomplete: Bool
     public var uiToolkit: UIToolkit?
     public var contextPath: String?
+    public var testName: String?
 
     public init(
         planPath: String,
         outputDirectory: String?,
         allowIncomplete: Bool = false,
         uiToolkit: UIToolkit? = nil,
-        contextPath: String? = nil
+        contextPath: String? = nil,
+        testName: String? = nil
     ) {
         self.planPath = planPath
         self.outputDirectory = outputDirectory
         self.allowIncomplete = allowIncomplete
         self.uiToolkit = uiToolkit
         self.contextPath = contextPath
+        self.testName = testName
     }
 }
 
@@ -85,7 +89,8 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
         outputDirectory: parsed.outputDirectory,
         allowIncomplete: parsed.allowIncomplete,
         uiToolkit: parsed.uiToolkit,
-        contextPath: parsed.contextPath
+        contextPath: parsed.contextPath,
+        testName: parsed.testName
     )
 }
 
@@ -95,6 +100,7 @@ private struct ParsedGenerateArguments {
     var allowIncomplete = false
     var uiToolkit: UIToolkit?
     var contextPath: String?
+    var testName: String?
 }
 
 private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateArguments {
@@ -103,6 +109,7 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
     var allowIncomplete = false
     var uiToolkit: UIToolkit?
     var contextPath: String?
+    var testName: String?
     var index = 0
 
     while index < args.count {
@@ -124,6 +131,7 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
         case "--out": outputDirectory = value
         case "--ui-toolkit": uiToolkit = try parseUIToolkit(flag: flag, value: value)
         case "--context": contextPath = value
+        case "--test-name": testName = value
         default: throw GenerateCommandParseError.unexpectedArgument(flag)
         }
         index += 2
@@ -134,7 +142,8 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
         outputDirectory: outputDirectory,
         allowIncomplete: allowIncomplete,
         uiToolkit: uiToolkit,
-        contextPath: contextPath
+        contextPath: contextPath,
+        testName: testName
     )
 }
 
@@ -150,6 +159,9 @@ public func runGenerateTestCommand(
         test = try decodedTest.replacingTestContext(JSONDecoder().decode(StudioTestContext.self, from: contextData))
     } else {
         test = decodedTest
+    }
+    if let testName = options.testName {
+        test = test.replacingName(testName)
     }
     // Bind operations to declared helpers whose call shape matches. The session compiler never sets
     // `helper`, so without this a context file's helpers only ever applied to hand-authored plans.
@@ -204,7 +216,7 @@ public func runGenerateTestCommand(
         )
     }
 
-    let generated = try emitter.generate(test)
+    var generated = try emitter.generate(test)
 
     guard let outputDirectory = options.outputDirectory else {
         return CLIResult(output: generated.source, exitCode: 0)
@@ -212,7 +224,13 @@ public func runGenerateTestCommand(
 
     let directoryURL = URL(fileURLWithPath: outputDirectory)
     try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-    let fileURL = directoryURL.appendingPathComponent(generated.fileName)
+    var fileURL = directoryURL.appendingPathComponent(generated.fileName)
+    var collisionSuffix = 2
+    while FileManager.default.fileExists(atPath: fileURL.path) {
+        generated = try emitter.generate(test.replacingName("\(test.name) \(collisionSuffix)"))
+        fileURL = directoryURL.appendingPathComponent(generated.fileName)
+        collisionSuffix += 1
+    }
     try generated.source.write(to: fileURL, atomically: true, encoding: .utf8)
     return CLIResult(output: "Wrote \(fileURL.path)", exitCode: 0)
 }

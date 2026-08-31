@@ -11,7 +11,7 @@ scoped to a platform or target type.
 | **`libimobiledevice`** | **`brew install libimobiledevice`** | **Physical iOS devices** — supplies `iproxy`, the USB tunnel to the companion. Not needed for simulators. |
 | JDK 17–21 | `brew install --cask temurin@21` | Android companion. AGP 8.7 does not run on anything newer. The build resolves an installed JDK in this range on its own, so `JAVA_HOME` rarely needs setting. |
 | Android SDK + platform-tools | Android Studio | Anything Android |
-| Android CLI 1.0+ | [Android CLI](https://developer.android.com/tools/agents/android-cli) | **Recommended for Android inspection** — structured layouts and visual targeting. Amoo falls back to its companion when unavailable. |
+| Android CLI 1.0+ | [Android CLI](https://developer.android.com/tools/agents/android-cli) | Optional diagnostic inspector for structured-layout comparison. Amoo's companion is the production default. |
 
 Install everything for iOS work, including physical-device support:
 
@@ -31,8 +31,10 @@ simulator-only setup still passes preflight. See
 
 ## Android inspection backend
 
-Production Android commands use Android CLI for unscoped hierarchy and element inspection, with
-automatic fallback to Amoo's companion. Override the strategy when diagnosing behavior:
+Production Android commands use Amoo's companion for hierarchy and element inspection. It is the
+authoritative source because it preserves package scope, parent semantics, Compose clickable
+ancestors, and the complete accessibility tree while the instrumentation session owns Android's
+UI-automation connection. Override the strategy when diagnosing behavior:
 
 ```bash
 AMOO_ANDROID_INSPECTION_MODE=companion amoo device --platform android get_view_hierarchy
@@ -41,9 +43,12 @@ AMOO_ANDROID_INSPECTION_MODE=compare amoo device --platform android get_view_hie
 ```
 
 `compare` keeps the companion result authoritative and writes element counts and identity overlap
-to stderr when both inspectors can acquire the device. Android currently allows only one active
+plus companion-only / Android-CLI-only identity counts to stderr when both inspectors can acquire
+the device. Android currently allows only one active
 UI-automation owner: while Amoo's instrumentation is running, Android CLI 1.0 may return an empty
-or truncated layout. For a reliable A/B measurement, collect the companion sample, stop its
+or truncated layout. A non-empty Android CLI result is therefore not proof that the layout is
+complete, which is why `automatic` is companion-first and uses Android CLI only if companion
+inspection fails. For a reliable A/B measurement, collect the companion sample, stop its
 instrumentation, then collect the Android CLI sample against the unchanged screen. Queries scoped
 to a package or system process always use the companion because Android CLI's current `layout`
 command has no package-scoping option.

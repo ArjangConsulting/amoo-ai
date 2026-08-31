@@ -36,6 +36,11 @@ package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtoc
 
         var response = Amoo_CapabilitiesResponse()
         response.capabilities = capabilities.map(\.protoCapabilityDescriptor)
+        var protocolCapability = Amoo_CapabilityDescriptor()
+        protocolCapability.key = "protocol.amoo.v1"
+        protocolCapability.tier = .required
+        protocolCapability.supported = true
+        response.capabilities.append(protocolCapability)
         return response
     }
 

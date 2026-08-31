@@ -661,15 +661,29 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Session
 
     public func startSession() async throws {
+        let clock = ContinuousClock()
+        let start = clock.now
         var request = Amoo_StartSessionRequest()
         request.requestedSessionID = sessionID ?? UUID().uuidString
 
         let response = try await rpcClient.startSession(request)
         sessionID = response.sessionID.isEmpty ? request.requestedSessionID : response.sessionID
+        PerformanceTelemetry.record(
+            "rpc_round_trip",
+            operation: "StartSession",
+            duration: start.duration(to: clock.now)
+        )
     }
 
     public func getCapabilities() async throws -> [CapabilityDescriptor] {
+        let clock = ContinuousClock()
+        let start = clock.now
         let response = try await rpcClient.getCapabilities(Amoo_CapabilitiesRequest())
+        PerformanceTelemetry.record(
+            "rpc_round_trip",
+            operation: "GetCapabilities",
+            duration: start.duration(to: clock.now)
+        )
         return response.capabilities.map { descriptor in
             CapabilityDescriptor(
                 key: descriptor.key,

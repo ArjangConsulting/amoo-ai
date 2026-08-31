@@ -1,5 +1,6 @@
 import Foundation
 import MCP
+import TestSession
 
 public struct ToolInputProperty: Sendable, Equatable {
     public var type: String
@@ -131,17 +132,20 @@ public struct ToolResult: Sendable, Equatable {
     public var structuredContent: Value?
     /// Optional image (screenshot, annotated overlay, …) returned as an MCP image content block.
     public var image: ToolImageContent?
+    public var observedElements: [RecordedElement]
 
     public init(
         content: String,
         isError: Bool = false,
         structuredContent: Value? = nil,
-        image: ToolImageContent? = nil
+        image: ToolImageContent? = nil,
+        observedElements: [RecordedElement] = []
     ) {
         self.content = content
         self.isError = isError
         self.structuredContent = structuredContent
         self.image = image
+        self.observedElements = observedElements
     }
 
     public static func success(_ content: String) -> Self {

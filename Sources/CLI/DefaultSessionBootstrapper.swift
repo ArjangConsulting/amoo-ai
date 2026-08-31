@@ -34,6 +34,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     }
 
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
+        let clock = ContinuousClock()
+        let bootstrapStart = clock.now
         let selector = PlatformDeviceSelector(processRunner: processRunner)
         let available = try await selector.selectDevice(hint: request.deviceHint, platform: request.platform)
 
@@ -49,7 +51,13 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let deviceID: String
         let port: Int
         do {
+            let companionStart = clock.now
             (deviceID, port) = try await ensureCompanion(for: available, appID: request.appID)
+            PerformanceTelemetry.record(
+                "companion_startup",
+                operation: request.platform.rawValue,
+                duration: companionStart.duration(to: clock.now)
+            )
             if case let .ios(device) = available, device.isPhysicalDevice {
                 tunnelHandle = try await usbTunnel.open(
                     deviceUDID: device.udid,
@@ -99,6 +107,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         // Wait for the first screen to be queryable (best-effort).
         await waitForScreenReady(driver: platformDriver)
 
+        PerformanceTelemetry.record(
+            "session_bootstrap",
+            operation: request.platform.rawValue,
+            duration: bootstrapStart.duration(to: clock.now)
+        )
         return BootstrapResult(
             driver: platformDriver,
             deviceID: deviceID,
@@ -221,9 +234,24 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         var lastError: (any Error)?
         while Date() < deadline {
             do {
-                _ = try await companion.getCapabilities()
+                let capabilities = try await companion.getCapabilities()
+                guard capabilities.contains(where: { $0.key == "protocol.amoo.v1" && $0.supported }) else {
+                    throw BootstrapError.connectionFailed(
+                        "Companion protocol is incompatible with this Amoo CLI. Update/reinstall the companion "
+                            + "with `amoo companion install --platform ios` (or android), then restart the session."
+                    )
+                }
                 return
+            } catch let error as BootstrapError {
+                throw error
             } catch {
+                if error.localizedDescription.localizedCaseInsensitiveContains("rpc isn't implemented")
+                    || error.localizedDescription.localizedCaseInsensitiveContains("unimplemented") {
+                    throw BootstrapError.connectionFailed(
+                        "The running companion does not implement the RPCs required by this Amoo CLI. "
+                            + "Update/reinstall it with `amoo companion install --platform ios` (or android)."
+                    )
+                }
                 lastError = error
                 try? await Task.sleep(for: .milliseconds(300))
             }

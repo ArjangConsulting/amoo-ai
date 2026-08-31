@@ -20,6 +20,8 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        let clock = ContinuousClock()
+        let start = clock.now
         let result: ToolResult
         do {
             result = try await dispatch(toolName: toolName, arguments: arguments)
@@ -27,6 +29,13 @@ public actor DriverToolExecutor: ToolExecutor {
             result = .error("\(toolName) failed: \(error)")
         }
         await recordIfNeeded(toolName: toolName, arguments: arguments, result: result)
+        let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
+        PerformanceTelemetry.record(
+            category,
+            operation: toolName,
+            duration: start.duration(to: clock.now),
+            metadata: ["success": String(!result.isError)]
+        )
         return result
     }
 
@@ -60,7 +69,8 @@ public actor DriverToolExecutor: ToolExecutor {
             arguments: redactArguments(toolName: toolName, arguments: arguments),
             result: result.content,
             isError: result.isError,
-            intent: sessionIntent(toolName: toolName, isError: result.isError)
+            intent: sessionIntent(toolName: toolName, isError: result.isError),
+            observedElements: result.observedElements
         )
         await session.record(action)
         // Persist so a mid-session crash or a server restart still leaves a compilable history
@@ -178,6 +188,20 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         return result
     }
+}
+
+func hierarchySummary(_ root: ViewNode) -> (nodes: Int, interactable: Int) {
+    var nodes = 0
+    var interactable = 0
+    var stack = [root]
+    while let node = stack.popLast() {
+        nodes += 1
+        if node.isVisible, node.isEnabled, !node.id.isEmpty || !node.label.isEmpty {
+            interactable += 1
+        }
+        stack.append(contentsOf: node.children)
+    }
+    return (nodes, interactable)
 }
 
 func boolArgument(_ raw: String?) -> Bool? {

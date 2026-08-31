@@ -4,6 +4,41 @@ import Foundation
 import XCTest
 
 final class TestSessionTests: XCTestCase {
+    func testRecorderPersistsStructuredGestureTargetAcrossDiagnosticActions() async {
+        let session = TestSession(
+            id: "s",
+            appID: "app",
+            deviceID: "device",
+            platform: .ios,
+            driver: NoopDriver(),
+            cleanup: {}
+        )
+        await session.record(SessionAction(
+            timestamp: Date(), toolName: "find_elements", arguments: [:], result: "display text may change",
+            isError: false, intent: .diagnostic,
+            observedElements: [.init(
+                id: "habit.row",
+                label: "Habit",
+                frame: .init(x: 0, y: 200, width: 400, height: 100),
+                hitPoint: .init(x: 200, y: 250)
+            )]
+        ))
+        await session.record(SessionAction(
+            timestamp: Date(),
+            toolName: "get_screen_context",
+            arguments: [:],
+            result: "ok",
+            isError: false,
+            intent: .diagnostic
+        ))
+        await session.record(SessionAction(timestamp: Date(), toolName: "swipe", arguments: [
+            "from_x": "340", "from_y": "250", "to_x": "50", "to_y": "250"
+        ], result: "ok", isError: false))
+        let target = await session.actions.last?.gestureTarget
+        XCTAssertEqual(target?.elementID, "habit.row")
+        XCTAssertEqual(target?.resolution, .frameContainsPoint)
+    }
+
     func testRecordAccumulatesActionsWhileActive() async {
         let session = TestSession(
             id: "s1",

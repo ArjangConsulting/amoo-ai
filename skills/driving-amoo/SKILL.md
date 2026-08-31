@@ -14,7 +14,9 @@ description: Drive a booted iOS simulator or Android emulator through the amoo C
 ### Update checklist
 - [ ] Diff the tool table below against `amoo device` (no args) — its listing is schema-checked by `DeviceHelpDriftTests`, this file is not
 - [ ] Re-check the unlabeled-element rendering against `XCUITestBridge.collectMatchable` and the `find_elements` formatting in `ToolExecutor+Dispatch`
-- [ ] Verify generated local names are selector-derived, readable lower camel case, and collision-safe
+- [ ] Verify generated local names are semantic-first (label → role → stable id token, never a UUID/hash), readable lower camel case, and collision-safe — see `TestIdentifierNaming.elementVariableBase` and its tests
+- [ ] Keep the "Record a session that generates a good test" checklist aligned with the MCP `initialize` instructions (`MCPStdioServer.instructions`, pinned by `MCPInstructionsAlignmentTests`)
+- [ ] Re-check the acceptance scenario against `IOSSessionCodegenRegressionTests`
 - [ ] Re-check the warning-triage table against `StudioPlanWarning.Kind` and `SessionPlanCompiler`
 
 ## What this is for
@@ -177,6 +179,71 @@ amoo flow path/to/onboarding.amoo.json
 Each step is a tool name plus its arguments — the same names and arguments as
 `amoo device`. Prefer this over re-deriving a tap sequence per session.
 
+## Record a session that generates a good test
+
+A session that "passed" is not the deliverable — the deliverable is a plan that
+`amoo generate test` turns into a readable, complete test. The MCP `initialize`
+instructions carry the same list (kept in sync by `MCPInstructionsAlignmentTests`);
+follow it whether you drive amoo through MCP or the CLI:
+
+1. **Start from deterministic launch state.** If the caller gave you launch
+   arguments or environment (skip-onboarding, reset-state, a mock-server URL),
+   pass them to `start_test_session` / `amoo companion start`. The plan records
+   them under `requirements` and the generated test replays them in `setUp`. Don't
+   tap through onboarding you were handed a flag to skip.
+2. **Resolve every target semantically before acting.** `describe_screen` to
+   orient, `find_elements id=…` / `contains_text=…` to confirm the specific
+   element, then act with `tap_element` / `set_text` / `swipe_in_direction`.
+   Selector priority: accessibility id → visible label → text filter → (last
+   resort) coordinates.
+3. **List-row gestures: `find_elements` first, then the gesture.** For a tap or
+   swipe on one row of a list (SwiftUI `.swipeActions`, per-row buttons), query
+   that row first. If you then have to issue a coordinate `swipe`/`tap` because
+   id/label resolution would hit the wrong sibling, the recorder binds that
+   gesture to the element you just resolved (`SessionAction.gestureTarget` /
+   `observedElements`), and the compiler turns it back into an element-scoped
+   gesture — `cigarettesHabitRow.swipeLeft()`, not `app.swipeLeft()`. Never read
+   coordinates off a screenshot (pixels vs points).
+4. **Verify every mutation with an explicit semantic assertion.** After a delete,
+   `assert_not_visible` (or `find_elements` + count) on a text/label. After an
+   add, `assert_visible` the new element. An unverified mutation compiles to an
+   action with nothing asserting on it.
+5. **End, compile, then read the warnings before generating.**
+   `end_test_session` → `compile_session_to_plan` → inspect
+   `compiledPlan.warnings`. An `excluded` / incomplete-plan warning means a
+   required action was dropped: treat that as a **failed** codegen result, not a
+   finished test. Fix the recording (add an identifier, drive through an
+   addressable ancestor, re-record) rather than reaching for `--allow-incomplete`.
+6. **Review the generated variable names and markers.** Names come from labels and
+   inferred roles; a UUID/hash/record-id-derived name, or an
+   `XCTFail("Uncompiled required action …")`, means the plan was incomplete — go
+   back to step 5. Give the test a descriptive name from the requested flow with
+   `amoo generate test --test-name "…"`.
+7. **Report back** the plan path, the generated file path, every compiled-plan
+   warning, and any limitation (mock server required, transient system-UI steps,
+   approximate selectors). If you passed `--allow-incomplete`, say which steps are
+   missing and why.
+
+### Acceptance scenario
+
+> *Skip onboarding, open Habits, delete Cigarettes, add Cigarettes, generate XCTest.*
+
+A correct run of that request looks like:
+
+- Session started with the app's skip-onboarding / reset-state launch environment
+  (not tapped through).
+- `find_elements` resolves the "Cigarettes" habit-catalog row **before** the
+  swipe-to-delete; the recorded coordinate swipe carries that row's identity.
+- Generated code contains `cigarettesHabitRow.swipeLeft()` (or `cigarettesRow`) —
+  **never** a UUID-derived name like `a40fb286E7ca…Row`.
+- `setUp` sets `app.launchEnvironment[...]` for each provided flag.
+- A delete assertion (`assert_not_visible` / `waitForAbsence` on "Cigarettes")
+  and an add assertion (`assert_visible` / `waitForHittability` on "Cigarettes").
+- No `--allow-incomplete` — and if the agent used it, an explicit note of which
+  steps are missing and why.
+
+`IOSSessionCodegenRegressionTests` locks this in end-to-end.
+
 ## Export tests: `generate test` emits a skeleton, not a finished test
 
 Use `amoo generate test --plan path/to/test.amootest` to turn a compiled Studio
@@ -333,15 +400,34 @@ which is what every context file written before this flag existed expects.
 }
 ```
 
-Keep selectors descriptive. The exporter uses the selector to name local values,
-so namespaced IDs retain their meaningful suffix and element role:
+### Generated variable names are semantic-first
 
-```swift
-let mostLovedSectionTitle = app.descendants(matching: .any)[
-    "sample.home.feed.sectionTitle.most_loved"
-]
-```
+The exporter names each local from the semantics the recording already carries,
+**never** from an opaque identifier token. Priority (`TestIdentifierNaming.elementVariableBase`):
 
-The selector remains the stable test contract; the local name is deliberately a
-human-readable review aid. Repeated references to the same selector reuse one
-local binding; distinct colliding selectors receive numeric suffixes.
+1. the accessible label / visible text;
+2. a role inferred from the element type or a role-shaped accessibility-ID
+   segment (`tab`, `button`, `row`, `field`, `toggle`, …), plus a semantic
+   container segment when a label anchored the name;
+3. the last meaningful (non-opaque, non-role) identifier segment;
+4. `element`.
+
+UUIDs, hashes, numeric record ids and other opaque trailing segments are dropped
+entirely — a collision is resolved by a short deterministic numeric suffix
+(`cigarettesHabitRow`, then `cigarettesHabitRow2`), never by falling back to the
+id. Examples:
+
+| accessibility id | label | generated name |
+| --- | --- | --- |
+| `app.tab.tasks` | `Habits` | `habitsTab` |
+| `app.task_list.create_button` | `Create Habit` | `createHabitButton` |
+| `app.task_list.row.<uuid>` | `Cigarettes` | `cigarettesHabitRow` |
+| — | `Delete` | `deleteButton` |
+| `sample.home.feed.sectionTitle.most_loved` | — | `mostLovedSectionTitle` |
+
+The selector remains the stable test contract; the local name is a human-readable
+review aid. Repeated references to the same selector reuse one binding; distinct
+colliding selectors receive numeric suffixes. If you see a UUID- or
+hash-derived name in generated code, the plan was incomplete or a `find_elements`
+observation was missing before the gesture — fix the recording, don't rename by
+hand.

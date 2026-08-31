@@ -37,7 +37,8 @@ public actor SessionManager {
         deviceHint: String? = nil,
         buildPath: String? = nil,
         arguments: [String] = [],
-        environment: [String: String] = [:]
+        environment: [String: String] = [:],
+        testName: String? = nil
     ) async throws -> TestSession {
         let bootstrap = try await bootstrapper.bootstrap(
             SessionBootstrapRequest(
@@ -56,6 +57,9 @@ public actor SessionManager {
             deviceID: bootstrap.deviceID,
             platform: bootstrap.platform,
             driver: bootstrap.driver,
+            launchArguments: arguments,
+            launchEnvironment: environment,
+            testName: testName,
             cleanup: bootstrap.cleanup
         )
         sessions[id] = session

@@ -159,7 +159,10 @@ let package = Package(
                 "CompanionProtocol",
                 "MCPServer",
                 "ProcessRunner",
-                "CommandContract"
+                "CommandContract",
+                "TestSession",
+                "StudioProtocol",
+                "TestCodeGenerator"
             ]
         )
     ]

@@ -11,16 +11,54 @@ public struct MCPStdioServer: Sendable {
         "2024-11-05"
     ]
 
-    private static let instructions = "Use these tools to inspect and control a local iOS simulator or Android emulator"
-        + " through amoo. Prefer accessibility identifiers and labels over coordinates when possible."
-        + " Exception: for a tap or swipe on a specific row/element — especially inside a list with"
-        + " per-row actions such as a SwiftUI List's .swipeActions — label/id resolution alone can"
-        + " mistarget the wrong row. Call find_elements first to get that element's authoritative"
-        + " point-space coordinates, then drive the coordinate-based tap/swipe tools directly with"
-        + " those coordinates. Do not derive coordinates from a screenshot's pixel dimensions —"
-        + " screenshots are in pixels while gestures take points, and the two do not convert"
-        + " cleanly. To verify a UI mutation such as a delete succeeded, prefer find_elements with"
-        + " a text/label filter and check the result count rather than reading a screenshot."
+    /// Sent verbatim in every `initialize` / `server/discover` response and cached by clients, so
+    /// keep it self-contained. `MCPInstructionsAlignmentTests` pins the points a caller must be able
+    /// to rely on when it records a session for `compile_session_to_plan` + `amoo generate test`.
+    static let instructions = """
+    Use these tools to inspect and drive a booted iOS simulator or Android emulator through amoo, \
+    and — when recording a session for `compile_session_to_plan` and `amoo generate test` — to \
+    produce a plan that generates a readable, complete XCUITest/Espresso test.
+
+    A passing session is not the goal; a good generated test is. That means:
+
+    1. Deterministic launch state. If the caller supplies launch arguments or environment (a \
+    skip-onboarding flag, a reset-state flag, a mock-server URL), start the session with them so \
+    the plan records them and the generated test reproduces them in setUp. Do not tap through \
+    onboarding you were given a flag to skip.
+
+    2. Resolve elements semantically before you act. Use `describe_screen` to orient on an \
+    unfamiliar screen and `find_elements` to confirm a specific target, then act through \
+    `tap_element` / `set_text` / `swipe_in_direction`. Prefer a stable accessibility id, then a \
+    visible label, then a text filter — and any of those over raw coordinates.
+
+    3. List-row gestures. For a tap or swipe on one row of a list (SwiftUI `.swipeActions`, \
+    per-row buttons), call `find_elements` for that row first. If you must then issue a \
+    coordinate `swipe`/`tap` because label/id resolution would mistarget a sibling row, the \
+    recorder binds that gesture to the element you just resolved, and the compiler emits an \
+    element-scoped gesture such as `cigarettesHabitRow.swipeLeft()` that keeps the row's \
+    identity. Never read coordinates off a screenshot — screenshots are pixels, gestures are \
+    points.
+
+    4. Verify every mutation with an explicit semantic assertion. After a delete, call \
+    `assert_not_visible` (or `find_elements` and check the count) on a text/label — not a \
+    screenshot. After an add, `assert_visible` the new element. These become the test's \
+    assertions; an unverified mutation compiles to an action with nothing checking it.
+
+    5. End, compile, and inspect before generating. `end_test_session`, then \
+    `compile_session_to_plan`, then read every warning. An `excluded` / incomplete-plan warning \
+    means a required action was dropped: that is a FAILED codegen result, not a finished test. \
+    Fix the recording — add an accessibility identifier, drive through an addressable ancestor, \
+    re-record — rather than passing `--allow-incomplete`. If you pass it anyway, report which \
+    steps are missing and why.
+
+    6. Review the generated code. Local variable names come from labels and inferred roles, never \
+    from UUIDs, hashes, or record ids; a UUID/hash-derived name or an \
+    `XCTFail("Uncompiled required action …")` means the plan was incomplete. Give the test a \
+    descriptive name from the flow the caller asked for (`amoo generate test --test-name`).
+
+    7. Report back the plan path, the generated file path, every compiled-plan warning, and any \
+    limitation (mock server required, transient system-UI steps, approximate selectors).
+    """
     private static let cacheTTLMilliseconds = 3_600_000
 
     private let server: MCPServer

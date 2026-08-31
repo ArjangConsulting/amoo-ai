@@ -9,10 +9,11 @@ public enum AndroidInspectionMode: String, Sendable, Equatable {
     case automatic
     case compare
 
-    /// Production defaults to AndroidCLI with transparent companion fallback. Set
+    /// The companion is the authoritative production inspector: it preserves package scope,
+    /// parent semantics, Compose click targets, and the complete accessibility tree. Set
     /// `AMOO_ANDROID_INSPECTION_MODE` to `companion`, `android-cli`, or `compare` to override it.
     public static func productionDefault(environment: [String: String] = ProcessInfo.processInfo.environment) -> Self {
-        environment["AMOO_ANDROID_INSPECTION_MODE"].flatMap(Self.init(rawValue:)) ?? .automatic
+        environment["AMOO_ANDROID_INSPECTION_MODE"].flatMap(Self.init(rawValue:)) ?? .companion
     }
 }
 
@@ -20,11 +21,21 @@ public struct AndroidInspectionComparison: Sendable, Equatable {
     public let companionElementCount: Int
     public let androidCLIElementCount: Int
     public let matchingIdentityCount: Int
+    public let companionOnlyIdentityCount: Int
+    public let androidCLIOnlyIdentityCount: Int
 
-    public init(companionElementCount: Int, androidCLIElementCount: Int, matchingIdentityCount: Int) {
+    public init(
+        companionElementCount: Int,
+        androidCLIElementCount: Int,
+        matchingIdentityCount: Int,
+        companionOnlyIdentityCount: Int = 0,
+        androidCLIOnlyIdentityCount: Int = 0
+    ) {
         self.companionElementCount = companionElementCount
         self.androidCLIElementCount = androidCLIElementCount
         self.matchingIdentityCount = matchingIdentityCount
+        self.companionOnlyIdentityCount = companionOnlyIdentityCount
+        self.androidCLIOnlyIdentityCount = androidCLIOnlyIdentityCount
     }
 }
 
@@ -86,57 +97,24 @@ extension AndroidDriver {
     }
 
     private func automaticHierarchy() async throws -> ViewNode {
-        guard androidCLIAvailable != false else { return try await companionHierarchy() }
+        // A non-empty AndroidCLI layout can still be truncated when it loses Android's single
+        // UI-automation-owner race to the live companion. There is no reliable completeness bit,
+        // so automatic mode must keep the companion authoritative and use CLI only as recovery.
         do {
-            let elements = try await androidCLIElements()
-            if elements.isEmpty {
-                let companion = try await companionHierarchy()
-                noteAndroidCLIEmptyResult(
-                    companionElementCount: companion.children.flatMap(\.flattenedElements).count,
-                    surface: "hierarchy"
-                )
-                return companion
-            }
-            androidCLIAvailable = true
-            return ViewNode(id: "android-cli-root", children: elements.map(\.viewNode))
-        } catch {
-            androidCLIAvailable = false
             return try await companionHierarchy()
+        } catch {
+            writeComparisonDiagnostic("Companion hierarchy inspection failed: \(error); falling back to AndroidCLI")
+            return try await androidCLIHierarchy()
         }
     }
 
     private func automaticElements(selector: ElementSelector) async throws -> [ElementInfo] {
-        guard androidCLIAvailable != false else { return try await companion.findElements(selector) }
         do {
-            let elements = try await androidCLIElements()
-            if elements.isEmpty {
-                let companionElements = try await companion.findElements(selector)
-                noteAndroidCLIEmptyResult(companionElementCount: companionElements.count, surface: "elements")
-                return companionElements
-            }
-            androidCLIAvailable = true
-            return elements.filter { $0.matches(selector) }
-        } catch {
-            androidCLIAvailable = false
             return try await companion.findElements(selector)
+        } catch {
+            writeComparisonDiagnostic("Companion element inspection failed: \(error); falling back to AndroidCLI")
+            return try await androidCLIElements().filter { $0.matches(selector) }
         }
-    }
-
-    /// AndroidCLI 1.0 returns an empty layout — without raising an error — when it loses Android's
-    /// single UI-automation-owner race to a live companion instrumentation session (see
-    /// `docs/prerequisites.md`). An empty AndroidCLI result is therefore ambiguous: `.automatic`
-    /// cross-checks it against the companion, which owns automation for the duration of a session.
-    /// When the companion still sees elements, the empty result was the owner conflict, not a bare
-    /// screen — surface that distinctly and stop consulting AndroidCLI for the rest of the session.
-    private func noteAndroidCLIEmptyResult(companionElementCount: Int, surface: String) {
-        guard companionElementCount > 0 else { return }
-        androidCLIAvailable = false
-        writeComparisonDiagnostic(
-            "AndroidCLI \(surface) inspection returned no elements while the companion found "
-                + "\(companionElementCount); a companion instrumentation session owns Android UI "
-                + "automation, so AndroidCLI cannot read the layout — using the companion for the "
-                + "rest of this session."
-        )
     }
 
     private func androidCLIHierarchy() async throws -> ViewNode {
@@ -154,16 +132,21 @@ extension AndroidDriver {
     private func recordComparison(companion: [ElementInfo], androidCLI: [ElementInfo]) {
         let companionIDs = Set(companion.map(\.comparisonIdentity).filter { !$0.isEmpty })
         let cliIDs = Set(androidCLI.map(\.comparisonIdentity).filter { !$0.isEmpty })
+        let matchingIDs = companionIDs.intersection(cliIDs)
         inspectionComparison = AndroidInspectionComparison(
             companionElementCount: companion.count,
             androidCLIElementCount: androidCLI.count,
-            matchingIdentityCount: companionIDs.intersection(cliIDs).count
+            matchingIdentityCount: matchingIDs.count,
+            companionOnlyIdentityCount: companionIDs.subtracting(cliIDs).count,
+            androidCLIOnlyIdentityCount: cliIDs.subtracting(companionIDs).count
         )
         if let inspectionComparison {
             writeComparisonDiagnostic(
                 "companion=\(inspectionComparison.companionElementCount) "
                     + "android-cli=\(inspectionComparison.androidCLIElementCount) "
-                    + "matching=\(inspectionComparison.matchingIdentityCount)"
+                    + "matching=\(inspectionComparison.matchingIdentityCount) "
+                    + "companion-only=\(inspectionComparison.companionOnlyIdentityCount) "
+                    + "android-cli-only=\(inspectionComparison.androidCLIOnlyIdentityCount)"
             )
         }
     }

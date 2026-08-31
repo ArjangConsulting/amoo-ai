@@ -15,9 +15,17 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         let methodName = "test\(TestIdentifierNaming.pascalCase(test.name))"
         var localNames = LocalNameAllocator()
         var lookups = [String: String]()
-        let body = try operations.map {
+        var statements = try operations.map {
             try Self.statement(for: $0, context: test.testContext, localNames: &localNames, lookups: &lookups)
-        }.joined(separator: "\n")
+        }
+        for warning in (test.compiledPlan?.excludedWarnings ?? []).reversed() {
+            let message = "Uncompiled required action \(warning.actionIndex) (\(warning.toolName)): \(warning.reason)"
+            statements.insert(
+                "        XCTFail(\(Self.literal(message)))",
+                at: min(warning.actionIndex, statements.count)
+            )
+        }
+        let body = statements.joined(separator: "\n")
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
             .joined(separator: "\n")
@@ -26,7 +34,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         // overrides chain to super either way, or a supplied base class's own setUp never runs.
         let baseClass = test.testContext?.baseClass ?? "XCTestCase"
         let appFactory = test.testContext?.appFactory ?? "XCUIApplication()"
-        let launch = test.testContext?.harnessLaunchesApp == true ? "" : "\n        app.launch()"
+        let launchConfiguration = Self.launchConfiguration(for: test)
+        let launch = test.testContext?.harnessLaunchesApp == true ? "" : "\n\(launchConfiguration)        app.launch()"
 
         let source = """
         import XCTest\(contextImports.isEmpty ? "" : "\n\(contextImports)")
@@ -130,6 +139,19 @@ public struct XCUITestEmitter: StudioCodeEmitting {
     }
 
     private static let indent = "        "
+
+    private static func launchConfiguration(for test: StudioAuthoredTest) -> String {
+        guard let requirements = test.requirements else { return "" }
+        var lines: [String] = []
+        if requirements.launchArguments.isEmpty == false {
+            let joined = requirements.launchArguments.map(literal).joined(separator: ", ")
+            lines.append("        app.launchArguments = [\(joined)]")
+        }
+        for (key, value) in requirements.launchEnvironment.sorted(by: { $0.key < $1.key }) {
+            lines.append("        app.launchEnvironment[\(literal(key))] = \(literal(value))")
+        }
+        return lines.isEmpty ? "" : lines.joined(separator: "\n") + "\n"
+    }
 
     // A direct switch keeps the supported Studio-tool-to-XCUITest mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -306,7 +328,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         TestIdentifierNaming.elementVariableBase(
             id: operation.arguments[idKey],
             label: operation.arguments[labelKey],
-            containsText: operation.arguments[containsTextKey]
+            containsText: operation.arguments[containsTextKey],
+            elementType: operation.arguments["element_type"] ?? operation.arguments["type"]
         )
     }
 

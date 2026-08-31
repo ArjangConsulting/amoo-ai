@@ -24,6 +24,7 @@ extension DriverToolExecutor {
         let launchArgs: [String] = arguments["launch_args"]
             .map { $0.split(separator: ",").map(String.init) } ?? []
         let environment = Self.parseEnvironment(arguments["environment"])
+        let testName = arguments["test_name"]
 
         do {
             let session = try await manager.startSession(
@@ -32,7 +33,8 @@ extension DriverToolExecutor {
                 deviceHint: deviceHint,
                 buildPath: buildPath,
                 arguments: launchArgs,
-                environment: environment
+                environment: environment,
+                testName: testName
             )
             let summary: [String: Value] = [
                 "session_id": .string(session.id),

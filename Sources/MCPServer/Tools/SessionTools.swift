@@ -24,6 +24,10 @@ public enum SessionTools {
                     type: "string",
                     description: "Optional path to an .app bundle or .apk to install before launching."
                 ),
+                "test_name": .init(
+                    type: "string",
+                    description: "Optional descriptive generated-test name, persisted with the session."
+                ),
                 "launch_args": .init(
                     type: "string",
                     description: "Comma-separated arguments passed to the app at launch."
@@ -174,7 +178,8 @@ public enum SessionTools {
                 "session_id": .init(type: "string", description: "Identifier returned by start_session"),
                 "test_name": .init(
                     type: "string",
-                    description: "Name for the generated test. Defaults to 'session-<session_id>'."
+                    description: "Name for the generated test. Overrides the session name; otherwise a semantic"
+                        + " name is inferred from the recorded flow."
                 ),
                 "test_description": .init(
                     type: "string",

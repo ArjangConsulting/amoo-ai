@@ -17,6 +17,9 @@ public struct SessionReport: Sendable, Codable, Equatable {
     public let errorCount: Int
     public let isActive: Bool
     public let actions: [SessionAction]
+    public let launchArguments: [String]
+    public let launchEnvironment: [String: String]
+    public let testName: String?
 
     public init(
         sessionID: String,
@@ -29,7 +32,10 @@ public struct SessionReport: Sendable, Codable, Equatable {
         actionCount: Int,
         errorCount: Int,
         isActive: Bool,
-        actions: [SessionAction]
+        actions: [SessionAction],
+        launchArguments: [String] = [],
+        launchEnvironment: [String: String] = [:],
+        testName: String? = nil
     ) {
         self.sessionID = sessionID
         self.appID = appID
@@ -42,6 +48,9 @@ public struct SessionReport: Sendable, Codable, Equatable {
         self.errorCount = errorCount
         self.isActive = isActive
         self.actions = actions
+        self.launchArguments = launchArguments
+        self.launchEnvironment = launchEnvironment
+        self.testName = testName
     }
 
     public static func make(from session: TestSession) async -> Self {
@@ -60,7 +69,35 @@ public struct SessionReport: Sendable, Codable, Equatable {
             actionCount: actions.count,
             errorCount: actions.reduce(0) { $0 + ($1.isError ? 1 : 0) },
             isActive: isActive,
-            actions: actions
+            actions: actions,
+            launchArguments: session.launchArguments,
+            launchEnvironment: session.launchEnvironment,
+            testName: session.testName
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sessionID, appID, deviceID, platform, startedAt, endedAt, durationSeconds
+        case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            sessionID: c.decode(String.self, forKey: .sessionID),
+            appID: c.decode(String.self, forKey: .appID),
+            deviceID: c.decode(String.self, forKey: .deviceID),
+            platform: c.decode(String.self, forKey: .platform),
+            startedAt: c.decode(Date.self, forKey: .startedAt),
+            endedAt: c.decodeIfPresent(Date.self, forKey: .endedAt),
+            durationSeconds: c.decode(Double.self, forKey: .durationSeconds),
+            actionCount: c.decode(Int.self, forKey: .actionCount),
+            errorCount: c.decode(Int.self, forKey: .errorCount),
+            isActive: c.decode(Bool.self, forKey: .isActive),
+            actions: c.decode([SessionAction].self, forKey: .actions),
+            launchArguments: c.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
+            launchEnvironment: c.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:],
+            testName: c.decodeIfPresent(String.self, forKey: .testName)
         )
     }
 }

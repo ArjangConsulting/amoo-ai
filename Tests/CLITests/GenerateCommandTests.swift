@@ -87,6 +87,46 @@ final class GenerateCommandTests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("class SignInTest"))
+        XCTAssertTrue(result.output.contains("XCTFail(\"Uncompiled required action 2 (scroll):"))
+    }
+
+    func testGenerationNameOverrideSanitizesInvalidCharacters() throws {
+        let path = try writePlan(makeTest(warnings: []))
+        let options = try parseGenerateTestOptions(args: ["--plan", path, "--test-name", "42 delete/add habits!"])
+        let result = try runGenerateTestCommand(options: options, emitters: emitters)
+        XCTAssertTrue(result.output.contains("func test_42DeleteAddHabits()"))
+    }
+
+    func testLaunchConfigurationIsSortedAndEmittedBeforeLaunch() throws {
+        let test = StudioAuthoredTest(
+            formatVersion: 1, name: "Launch", description: "", platform: .ios, steps: [],
+            requirements: .init(launchArguments: ["-reset"], launchEnvironment: ["Z": "2", "A": "1"]),
+            compiledPlan: .init(compiler: "test", compilerVersion: "1", toolOperations: [
+                .init(id: "op", tool: "press_back")
+            ])
+        )
+        let result = try runGenerateTestCommand(
+            options: .init(planPath: writePlan(test), outputDirectory: nil), emitters: emitters
+        )
+        XCTAssertTrue(result.output.contains("app.launchArguments = [\"-reset\"]"))
+        XCTAssertLessThan(
+            try XCTUnwrap(result.output.range(of: "launchEnvironment[\"A\"]")?.lowerBound),
+            try XCTUnwrap(result.output.range(of: "launchEnvironment[\"Z\"]")?.lowerBound)
+        )
+    }
+
+    func testOutputNameCollisionUsesStableNumericSuffixWithoutOverwriting() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let options = try GenerateTestOptions(
+            planPath: writePlan(makeTest(warnings: [])),
+            outputDirectory: directory.path
+        )
+        _ = try runGenerateTestCommand(options: options, emitters: emitters)
+        let second = try runGenerateTestCommand(options: options, emitters: emitters)
+        XCTAssertTrue(second.output.hasSuffix("SignIn2Test.swift"))
+        let source = try String(contentsOf: directory.appendingPathComponent("SignIn2Test.swift"), encoding: .utf8)
+        XCTAssertTrue(source.contains("class SignIn2Test"))
     }
 
     func testRedactedValuesBlockGenerationUntilTheyAreReplacedWithFixtures() throws {

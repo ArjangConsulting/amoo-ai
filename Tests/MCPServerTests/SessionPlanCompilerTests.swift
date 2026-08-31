@@ -30,6 +30,91 @@ final class SessionPlanCompilerTests: XCTestCase {
         )
     }
 
+    func testCoordinateSwipeUsesPriorResolvedElementAndSemanticNameAndLaunchConfiguration() throws {
+        let lookup = SessionAction(
+            timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": "Cigarettes"],
+            result: "Found 1 element(s):\n\u{001B}[34m[app.task.row.cigarettes]\u{001B}[0m Cigarettes hitPoint: (201,257) pts 370x94",
+            isError: false, intent: .diagnostic,
+            observedElements: [.init(
+                id: "app.task.row.cigarettes", label: "Cigarettes",
+                frame: .init(x: 16, y: 210, width: 370, height: 94), hitPoint: .init(x: 201, y: 257)
+            )]
+        )
+        let swipe = makeAction(tool: "swipe", arguments: [
+            "from_x": "340", "from_y": "257", "to_x": "55", "to_y": "257", "duration_ms": "400"
+        ])
+        let interveningQuery = SessionAction(
+            timestamp: Date(),
+            toolName: "get_screen_context",
+            arguments: [:],
+            result: "Habits",
+            isError: false,
+            intent: .diagnostic
+        )
+        let base = makeReport(actions: [
+            lookup, interveningQuery, swipe, makeAction(tool: "tap_element", arguments: ["label": "Add"])
+        ])
+        let report = SessionReport(
+            sessionID: base.sessionID, appID: base.appID, deviceID: base.deviceID, platform: base.platform,
+            startedAt: base.startedAt, endedAt: base.endedAt, durationSeconds: base.durationSeconds,
+            actionCount: base.actionCount, errorCount: 0, isActive: false, actions: base.actions,
+            launchArguments: ["-AppleLanguages", "(en)"],
+            launchEnvironment: ["APP_UI_TEST_SKIP_ONBOARDING": "1", "APP_AUTOMATED_TESTING": "1"]
+        )
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+        let swipeOperation = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations?.first {
+            $0.tool == "swipe_in_direction"
+        })
+        XCTAssertEqual(swipeOperation.arguments["element_id"], "app.task.row.cigarettes")
+        XCTAssertEqual(swipeOperation.arguments["direction"], "left")
+        XCTAssertEqual(result.studioTest.name, "skipOnboardingDeleteAndAddHabit")
+        XCTAssertEqual(result.studioTest.requirements?.launchArguments, ["-AppleLanguages", "(en)"])
+        XCTAssertEqual(result.studioTest.requirements?.launchEnvironment["APP_AUTOMATED_TESTING"], "1")
+        XCTAssertFalse(result.warnings.contains { $0.kind == .excluded && $0.toolName == "swipe" })
+    }
+
+    func testLegacyTextObservationStillAssociatesAcrossNonMutatingDiagnostics() throws {
+        let lookup = SessionAction(
+            timestamp: Date(), toolName: "find_elements", arguments: ["contains_text": "Cigarettes"],
+            result: "Found 1 element(s):\n\u{001B}[34m[legacy.cigarettes]\u{001B}[0m Cigarettes hitPoint: (201,257) pts 370x94",
+            isError: false, intent: .diagnostic
+        )
+        let report = makeReport(actions: [
+            lookup,
+            SessionAction(
+                timestamp: Date(),
+                toolName: "take_screenshot_metadata",
+                arguments: [:],
+                result: "ok",
+                isError: false,
+                intent: .diagnostic
+            ),
+            makeAction(tool: "swipe", arguments: [
+                "from_x": "340", "from_y": "257", "to_x": "55", "to_y": "257"
+            ])
+        ])
+        let operations = try XCTUnwrap(SessionPlanCompiler.compile(
+            report: report, testName: nil, testDescription: nil
+        ).studioTest.compiledPlan?.toolOperations)
+        XCTAssertEqual(operations.last?.tool, "swipe_in_direction")
+        XCTAssertEqual(operations.last?.arguments["element_id"], "legacy.cigarettes")
+    }
+
+    func testExplicitSessionNameWinsOverSemanticFallback() throws {
+        let base = makeReport(actions: [makeAction(tool: "tap_element", arguments: ["id": "go"])])
+        let report = SessionReport(
+            sessionID: base.sessionID, appID: base.appID, deviceID: base.deviceID, platform: base.platform,
+            startedAt: base.startedAt, endedAt: base.endedAt, durationSeconds: base.durationSeconds,
+            actionCount: base.actionCount, errorCount: 0, isActive: false, actions: base.actions,
+            testName: "My explicit flow!"
+        )
+        XCTAssertEqual(
+            try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil).studioTest.name,
+            "My explicit flow!"
+        )
+    }
+
     func testHappyPathTranslatesRecognizedTools() throws {
         let report = makeReport(actions: [
             makeAction(tool: "tap_element", arguments: ["id": "submit-button"]),

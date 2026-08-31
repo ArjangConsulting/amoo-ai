@@ -227,6 +227,7 @@ actor MockCompanionClient: CompanionClient {
     private var _findByDescriptionResults: [ElementInfo] = []
     private var _hierarchy = ViewNode(id: "root")
     private var _hierarchyCallCount = 0
+    private var inspectionError: ProcessRunnerError?
 
     func startSession() async throws {}
     func getCapabilities() async throws -> [CapabilityDescriptor] {
@@ -292,6 +293,9 @@ actor MockCompanionClient: CompanionClient {
         appID _: String?,
         candidateBundleIDs _: [String]
     ) async throws -> [ElementInfo] {
+        if let inspectionError {
+            throw inspectionError
+        }
         if !_findElementsResponses.isEmpty {
             return _findElementsResponses.removeFirst()
         }
@@ -300,6 +304,9 @@ actor MockCompanionClient: CompanionClient {
 
     func getViewHierarchy(appID _: String?, candidateBundleIDs _: [String]) async throws -> ViewNode {
         _hierarchyCallCount += 1
+        if let inspectionError {
+            throw inspectionError
+        }
         return _hierarchy
     }
 
@@ -367,6 +374,10 @@ actor MockCompanionClient: CompanionClient {
 
     func setHierarchy(_ hierarchy: ViewNode) {
         _hierarchy = hierarchy
+    }
+
+    func setInspectionError(_ error: ProcessRunnerError?) {
+        inspectionError = error
     }
 
     func hierarchyCallCount() -> Int {

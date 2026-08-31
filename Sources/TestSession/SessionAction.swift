@@ -1,5 +1,69 @@
 import Foundation
 
+public struct RecordedElement: Sendable, Codable, Equatable {
+    public let id: String?
+    public let label: String?
+    public let elementType: String?
+    public let frame: RecordedRect?
+    public let hitPoint: RecordedPoint?
+
+    public init(
+        id: String?,
+        label: String?,
+        elementType: String? = nil,
+        frame: RecordedRect?,
+        hitPoint: RecordedPoint?
+    ) {
+        self.id = id
+        self.label = label
+        self.elementType = elementType
+        self.frame = frame
+        self.hitPoint = hitPoint
+    }
+}
+
+public struct RecordedPoint: Sendable, Codable, Equatable {
+    public let x: Double
+    public let y: Double
+    public init(x: Double, y: Double) {
+        self.x = x; self.y = y
+    }
+}
+
+public struct RecordedRect: Sendable, Codable, Equatable {
+    public let x: Double
+    public let y: Double
+    public let width: Double
+    public let height: Double
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.x = x; self.y = y; self.width = width; self.height = height
+    }
+
+    public func contains(_ point: RecordedPoint) -> Bool {
+        point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height
+    }
+}
+
+public struct RecordedGestureTarget: Sendable, Codable, Equatable {
+    public enum Resolution: String, Sendable, Codable { case frameContainsPoint, nearestHitPoint }
+    public let elementID: String?
+    public let elementLabel: String?
+    public let elementType: String?
+    public let resolution: Resolution
+
+    public init(
+        elementID: String?,
+        elementLabel: String?,
+        elementType: String? = nil,
+        resolution: Resolution
+    ) {
+        self.elementID = elementID
+        self.elementLabel = elementLabel
+        self.elementType = elementType
+        self.resolution = resolution
+    }
+}
+
 /// One recorded tool invocation inside a session. Arguments are already
 /// redacted by the recorder — never store raw secrets here.
 public struct SessionAction: Sendable, Codable, Equatable {
@@ -19,6 +83,8 @@ public struct SessionAction: Sendable, Codable, Equatable {
     public let result: String
     public let isError: Bool
     public let intent: Intent
+    public let observedElements: [RecordedElement]
+    public let gestureTarget: RecordedGestureTarget?
 
     public init(
         timestamp: Date,
@@ -26,7 +92,9 @@ public struct SessionAction: Sendable, Codable, Equatable {
         arguments: [String: String],
         result: String,
         isError: Bool,
-        intent: Intent = .testStep
+        intent: Intent = .testStep,
+        observedElements: [RecordedElement] = [],
+        gestureTarget: RecordedGestureTarget? = nil
     ) {
         self.timestamp = timestamp
         self.toolName = toolName
@@ -34,10 +102,12 @@ public struct SessionAction: Sendable, Codable, Equatable {
         self.result = result
         self.isError = isError
         self.intent = intent
+        self.observedElements = observedElements
+        self.gestureTarget = gestureTarget
     }
 
     private enum CodingKeys: String, CodingKey {
-        case timestamp, toolName, arguments, result, isError, intent
+        case timestamp, toolName, arguments, result, isError, intent, observedElements, gestureTarget
     }
 
     /// Existing recordings predate intent classification. They preserve their former replayable
@@ -50,5 +120,20 @@ public struct SessionAction: Sendable, Codable, Equatable {
         result = try container.decode(String.self, forKey: .result)
         isError = try container.decode(Bool.self, forKey: .isError)
         intent = try container.decodeIfPresent(Intent.self, forKey: .intent) ?? .testStep
+        observedElements = try container.decodeIfPresent([RecordedElement].self, forKey: .observedElements) ?? []
+        gestureTarget = try container.decodeIfPresent(RecordedGestureTarget.self, forKey: .gestureTarget)
+    }
+
+    public func recordingGestureTarget(_ target: RecordedGestureTarget) -> Self {
+        Self(
+            timestamp: timestamp,
+            toolName: toolName,
+            arguments: arguments,
+            result: result,
+            isError: isError,
+            intent: intent,
+            observedElements: observedElements,
+            gestureTarget: target
+        )
     }
 }

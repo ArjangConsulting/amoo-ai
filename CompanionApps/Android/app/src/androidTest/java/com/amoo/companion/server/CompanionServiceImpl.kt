@@ -77,6 +77,7 @@ class CompanionServiceImpl(
     override suspend fun getCapabilities(request: CapabilitiesRequest): CapabilitiesResponse {
         request
         val capabilities = listOf(
+            capability("protocol.amoo.v1", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.tap", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.doubleTap", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.longPress", CapabilityTier.CAPABILITY_TIER_REQUIRED),

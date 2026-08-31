@@ -113,40 +113,220 @@ enum TestIdentifierNaming {
         return reservedLocalNames.contains(identifier) ? "\(identifier)Element" : identifier
     }
 
-    /// Uses the meaningful end of namespaced accessibility IDs. For example,
-    /// `sample.home.feed.sectionTitle.most_loved` becomes `mostLovedSectionTitle`.
+    /// Derives a readable lower-camel-case local name from the semantic information a recording
+    /// already carries, **never** from opaque identifier tokens.
+    ///
+    /// Priority, highest first:
+    /// 1. the accessible label / visible text;
+    /// 2. a role inferred from the element type or from a role-shaped accessibility-ID segment
+    ///    (`tab`, `button`, `row`, `field`, …), plus a semantic container segment when a label
+    ///    anchored the name (`app.task_list.row.<uuid>` + "Cigarettes" → `cigarettesHabitRow`);
+    /// 3. the last meaningful (non-opaque, non-role) identifier segment;
+    /// 4. `element`.
+    ///
+    /// UUIDs, hashes, numeric record IDs and other opaque trailing segments are dropped entirely —
+    /// they only ever appear in a name when nothing else exists (and even then a short deterministic
+    /// suffix from `LocalNameAllocator` resolves collisions, never the raw ID).
+    ///
+    /// Examples: `app.tab.tasks` + "Habits" → `habitsTab`;
+    /// `app.task_list.create_button` + "Create Habit" → `createHabitButton`;
+    /// `sample.home.feed.sectionTitle.most_loved` → `mostLovedSectionTitle`.
     static func elementVariableBase(
         id: String? = nil,
         label: String? = nil,
-        containsText: String? = nil
+        containsText: String? = nil,
+        elementType: String? = nil
     ) -> String {
-        if let id, !id.isEmpty {
-            let components = id.split(separator: ".", omittingEmptySubsequences: true).map(String.init)
-            if let last = components.last {
-                let descriptiveName: String = if components.count > 1, let preceding = components.dropLast().last,
-                                                 isElementRole(preceding) {
-                    "\(last) \(preceding)"
-                } else {
-                    last
-                }
-                return camelCase(descriptiveName, fallback: "element")
-            }
+        let segments = (id ?? "")
+            .split(separator: ".", omittingEmptySubsequences: true)
+            .map(String.init)
+        let appRoot = segments.count >= 3 ? segments.first : nil
+        let roleSegmentIndex = segments.lastIndex(where: { isElementRole($0) })
+
+        let (primary, primaryFromLabel) = primaryTokens(
+            label: label, containsText: containsText, segments: segments, appRoot: appRoot
+        )
+        let container = primaryFromLabel
+            ? containerTokens(
+                segments: segments,
+                appRoot: appRoot,
+                roleSegmentIndex: roleSegmentIndex,
+                primary: primary
+            )
+            : []
+        let roleSource = roleSegmentIndex.map { roleWord(from: segments[$0]) }
+            ?? elementType.flatMap(roleWord(forElementType:))
+        let role = roleTokens(from: roleSource, following: primary)
+
+        var combined = dropAdjacentDuplicates(primary + container + role)
+        if combined.isEmpty {
+            combined = ["element"]
         }
-        if let label, !label.isEmpty {
-            return camelCase(label, fallback: "element")
-        }
-        if let containsText, !containsText.isEmpty {
-            return camelCase(containsText, fallback: "element")
-        }
-        return "element"
+        return camelCase(combined.prefix(4).joined(separator: " "), fallback: "element")
     }
+
+    /// The label wins; failing that, the last identifier segment that is neither opaque nor a bare
+    /// role; failing that, any contains-text filter. Combined SwiftUI/Compose accessibility labels
+    /// arrive comma-joined ("🚬 Cigarettes, Track how many…, Unit") — only the first clause names
+    /// the element, the rest is prose that would bloat the variable name.
+    private static func primaryTokens(
+        label: String?,
+        containsText: String?,
+        segments: [String],
+        appRoot: String?
+    ) -> (tokens: [String], fromLabel: Bool) {
+        let labelClause = label?.split(separator: ",").first.map(String.init) ?? label
+        let fromLabel = words(from: labelClause)
+        if !fromLabel.isEmpty {
+            return (fromLabel, true)
+        }
+        if let index = segments.lastIndex(where: { !isOpaqueToken($0) && !isElementRole($0) }),
+           segments[index] != appRoot {
+            return (words(from: segments[index]), false)
+        }
+        return (words(from: containsText), false)
+    }
+
+    /// A semantic container segment (`habit_catalog` → `habit`), trusted only when a label anchored
+    /// the name so a namespaced ID with no label keeps its `<segment><role>` shape.
+    private static func containerTokens(
+        segments: [String],
+        appRoot: String?,
+        roleSegmentIndex: Int?,
+        primary: [String]
+    ) -> [String] {
+        // A standalone identifier such as `trash` is the selector, not an ancestor/container.
+        // Only infer a container when the identifier path itself carries a role segment
+        // (`app.task_list.row.<uuid>`). Element type still supplies the role independently.
+        guard roleSegmentIndex != nil else { return [] }
+        let segment = segments.indices.reversed().first { offset in
+            offset != roleSegmentIndex && segments[offset] != appRoot
+                && !isOpaqueToken(segments[offset]) && !isElementRole(segments[offset])
+        }.map { segments[$0] }
+        guard let segment else { return [] }
+        let stripped = words(from: segment).filter { !containerNoiseWords.contains($0.lowercased()) }
+        let primaryLower = Set(primary.map { $0.lowercased() })
+        guard !stripped.isEmpty, !Set(stripped.map { $0.lowercased() }).isSubset(of: primaryLower) else {
+            return []
+        }
+        return stripped
+    }
+
+    /// The role suffix, dropped when `primary` already ends with it (`habitsTab`, not `habitsTabTab`).
+    private static func roleTokens(from role: String?, following primary: [String]) -> [String] {
+        guard let role else { return [] }
+        let tokens = words(from: role)
+        let tail = primary.map { $0.lowercased() }.suffix(tokens.count)
+        return tail.elementsEqual(tokens.map { $0.lowercased() }) ? [] : tokens
+    }
+
+    /// Identifier segments the naming must never treat as semantic: UUIDs, hex hashes, numeric
+    /// record IDs, and long mixed opaque blobs.
+    static func isOpaqueToken(_ token: String) -> Bool {
+        var value = token
+        while let first = value.first, "{(".contains(first) {
+            value.removeFirst()
+        }
+        while let last = value.last, "})".contains(last) {
+            value.removeLast()
+        }
+        if value.isEmpty {
+            return true
+        }
+        if isUUID(value) {
+            return true
+        }
+        if value.allSatisfy(\.isNumber) {
+            return true
+        }
+        let hexNoDashes = value.replacingOccurrences(of: "-", with: "")
+        if hexNoDashes.count >= 16, hexNoDashes.allSatisfy(\.isHexDigit) {
+            return true
+        }
+        let hasLetter = value.contains { $0.isLetter }
+        let hasDigit = value.contains { $0.isNumber }
+        let hasSeparator = value.contains { $0 == "_" || $0 == "-" }
+        if value.count >= 20, hasLetter, hasDigit, !hasSeparator {
+            return true
+        }
+        return false
+    }
+
+    private static func isUUID(_ value: String) -> Bool {
+        let groups = value.split(separator: "-", omittingEmptySubsequences: false)
+        guard groups.count == 5 else { return false }
+        let lengths = [8, 4, 4, 4, 12]
+        return zip(groups, lengths).allSatisfy { group, length in
+            group.count == length && group.allSatisfy(\.isHexDigit)
+        }
+    }
+
+    private static func words(from raw: String?) -> [String] {
+        guard let raw, !raw.isEmpty else { return [] }
+        // Drop apostrophes so "Don't" reads as one word ("dont"), not "Don" + "t".
+        return raw
+            .filter { $0 != "'" && $0 != "\u{2019}" }
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+    }
+
+    private static func dropAdjacentDuplicates(_ words: [String]) -> [String] {
+        var result: [String] = []
+        for word in words where result.last?.lowercased() != word.lowercased() {
+            result.append(word)
+        }
+        return result
+    }
+
+    /// Container-shaped words dropped from a semantic container segment so
+    /// `habit_catalog` contributes `habit`, not `habitCatalog`.
+    private static let containerNoiseWords: Set<String> = [
+        "catalog", "catalogue", "list", "grid", "collection", "container", "screen",
+        "view", "section", "stack", "group", "scroll", "page", "table", "carousel"
+    ]
+
+    private static func roleWord(from segment: String) -> String {
+        let normalized = segment.filter { $0.isLetter || $0.isNumber }.lowercased()
+        if let known = knownRoles.first(where: { normalized == $0 || normalized.hasSuffix($0) }) {
+            // Preserve the segment's own casing when it is exactly the role (e.g. `sectionTitle`).
+            return normalized == known ? segment : known
+        }
+        return segment
+    }
+
+    private static func roleWord(forElementType type: String) -> String? {
+        elementTypeRoles[type.lowercased().filter(\.isLetter)]
+    }
+
+    /// XCUI/Compose element type → the role word it contributes to a generated name. Keyed by the
+    /// type lowercased with separators stripped, so `text_field` and `textField` both resolve.
+    private static let elementTypeRoles: [String: String] = [
+        "button": "button", "link": "button", "cell": "cell",
+        "switch": "toggle", "toggle": "toggle",
+        "textfield": "field", "searchfield": "field", "securetextfield": "field",
+        "tab": "tab", "tabbar": "tab",
+        "image": "image", "statictext": "label",
+        "slider": "slider", "stepper": "stepper"
+    ]
+
+    private static let knownRoles = [
+        "button", "cell", "field", "textfield", "image", "label", "link", "row",
+        "sectiontitle", "section", "switch", "tab", "text", "title", "toggle", "view",
+        "menu", "picker", "slider", "stepper", "checkbox", "chip", "card", "item"
+    ]
 
     private static func isElementRole(_ value: String) -> Bool {
         let normalized = value.filter { $0.isLetter || $0.isNumber }.lowercased()
-        return [
-            "button", "cell", "field", "image", "label", "link", "row", "section", "sectiontitle",
-            "switch", "tab", "text", "textfield", "title", "toggle", "view"
-        ].contains(normalized)
+        if knownRoles.contains(normalized) {
+            return true
+        }
+        // `create_button`, `habits_tab`: a role as the trailing token of an underscore segment.
+        if let tail = value.split(separator: "_").last.map({ String($0).lowercased() }),
+           tail != normalized, knownRoles.contains(tail) {
+            return true
+        }
+        return false
     }
 
     /// Local variables live alongside `app`, and must never be Swift keywords or contextual names.

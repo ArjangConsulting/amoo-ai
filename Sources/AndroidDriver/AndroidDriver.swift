@@ -18,7 +18,6 @@ public actor AndroidDriver: PlatformDriver {
     var resolvedSerial: String?
     private var activeRecordings: [String: ActiveRecording] = [:]
     var inspectionComparison: AndroidInspectionComparison?
-    var androidCLIAvailable: Bool?
 
     public init(
         companion: any CompanionClient,

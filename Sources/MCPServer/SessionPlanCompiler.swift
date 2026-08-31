@@ -162,56 +162,6 @@ public enum SessionPlanCompiler {
         }
     }
 
-    // swiftlint:disable cyclomatic_complexity
-
-    /// Human-readable step text for the Studio test, one case per tool.
-    ///
-    /// Exhaustive over `StudioTool` on purpose: this used to fall through to a generic
-    /// "Run <tool>." for anything it had not been taught, so a newly added tool produced a plan
-    /// whose steps read as placeholders without failing anywhere a person would notice. One case
-    /// per tool is the point here, so the complexity count is expected rather than a smell.
-    private static func describe(
-        tool: StudioTool,
-        arguments: [String: String]
-    ) -> (instruction: String, expected: String) {
-        // Written as a loop rather than a chain of `??`: six optional-coalesces over a custom
-        // subscript pushes the type-checker into "unable to type-check in reasonable time".
-        let selectorKeys: [PlanArgument] = [.id, .label, .containsText, .description, .elementID, .elementLabel]
-        let selector = selectorKeys.lazy.compactMap { arguments[$0] }.first
-        switch tool {
-        case .tapElement:
-            return ("Tap element\(selector.map { " '\($0)'" } ?? "").", "Element is tapped.")
-        case .setText:
-            return ("Set text on element\(selector.map { " '\($0)'" } ?? "").", "Text field contains the given value.")
-        case .typeText:
-            return ("Type text.", "Text is entered.")
-        case .swipeInDirection:
-            let direction = arguments["direction"] ?? "unknown"
-            return ("Swipe \(direction).", "View scrolls \(direction).")
-        case .scroll:
-            let direction = arguments["direction"] ?? "unknown"
-            return ("Scroll \(direction).", "Content scrolls \(direction).")
-        case .assertVisible:
-            return ("Assert element\(selector.map { " '\($0)'" } ?? "") is visible.", "Element is visible.")
-        case .assertNotVisible:
-            return ("Assert element\(selector.map { " '\($0)'" } ?? "") is not visible.", "Element is not visible.")
-        case .assertEnabled:
-            return ("Assert element\(selector.map { " '\($0)'" } ?? "") is enabled.", "Element is enabled.")
-        case .assertText:
-            return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected text.", "Text matches.")
-        case .assertValue:
-            return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected value.", "Value matches.")
-        case .takeScreenshot:
-            return ("Take a screenshot.", "Screenshot is captured.")
-        case .pressBack:
-            return ("Press back.", "Previous screen is shown.")
-        case .waitForElement:
-            return ("Wait for element\(selector.map { " '\($0)'" } ?? "").", "Element appears.")
-        }
-    }
-
-    // swiftlint:enable cyclomatic_complexity
-
     private struct ProcessedAction {
         let operation: StudioToolOperation?
         let step: StudioAuthoredTest.Step?
@@ -243,6 +193,9 @@ public enum SessionPlanCompiler {
                     transient: transient
                 )]
             )
+        }
+        if action.intent == .diagnostic, queryOnlyTools.contains(action.toolName) {
+            return processInspection(index: index, action: action, next: next, transient: transient)
         }
         if action.intent == .diagnostic || action.intent == .recovery {
             return ProcessedAction(
@@ -326,7 +279,9 @@ public enum SessionPlanCompiler {
         transient: Bool
     ) -> ProcessedAction {
         let precedesTransition = next.map(isTransition) ?? false
-        guard precedesTransition, let selector = inspectionSelector(action) else {
+        let isSuccessfulTrailingAssertion = next == nil && action.toolName == "find_elements"
+            && action.result.contains("Found 0 element(s)") == false
+        guard precedesTransition || isSuccessfulTrailingAssertion, let selector = inspectionSelector(action) else {
             let reason = precedesTransition
                 ? "inspection right before a state change, but it queried nothing assertable; "
                 + "consider adding an explicit assertion here"
@@ -389,11 +344,21 @@ public enum SessionPlanCompiler {
         }
 
         var processed: [ProcessedAction] = []
+        var recentElements: [RecordedElement] = []
         processed.reserveCapacity(actions.count)
         for (offset, action) in actions.enumerated() where !retries.suppressed.contains(offset) {
+            if action.observedElements.isEmpty == false {
+                recentElements = action.observedElements
+            } else if action.toolName == "find_elements" {
+                recentElements = legacyRecordedElements(from: action.result)
+            }
+            let effectiveAction = attachObservedLabel(
+                semanticCoordinateSwipe(action, recentElements: recentElements),
+                recentElements: recentElements
+            )
             processed.append(process(
                 index: offset,
-                action: action,
+                action: effectiveAction,
                 next: nextAction(after: offset),
                 retry: RetryContext(
                     count: retries.counts[offset] ?? 1,
@@ -401,6 +366,9 @@ public enum SessionPlanCompiler {
                     gaps: gapsByIndex[offset] ?? []
                 )
             ))
+            if invalidatesRecordedGeometry(action.toolName) {
+                recentElements = []
+            }
         }
         return processed
     }
@@ -435,7 +403,7 @@ public enum SessionPlanCompiler {
         let steps = processed.compactMap(\.step)
         let warnings = processed.flatMap(\.warnings)
 
-        let name = testName ?? "session-\(report.sessionID)"
+        let name = testName ?? report.testName ?? semanticTestName(for: report)
         let description = testDescription
             ?? "Generated from session \(report.sessionID) (\(report.appID) on \(report.deviceID))"
 
@@ -445,7 +413,12 @@ public enum SessionPlanCompiler {
             description: description,
             platform: platform,
             steps: steps,
-            requirements: StudioTestRequirements(appId: report.appID, deviceName: report.deviceID),
+            requirements: StudioTestRequirements(
+                appId: report.appID,
+                deviceName: report.deviceID,
+                launchArguments: report.launchArguments,
+                launchEnvironment: report.launchEnvironment
+            ),
             compiledPlan: StudioCompiledPlan(
                 compiler: "session-compiler",
                 compilerVersion: "1",

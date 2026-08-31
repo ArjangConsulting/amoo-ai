@@ -259,13 +259,32 @@ extension DriverToolExecutor {
                 }
                 return "\(colored("[\(element.id)]", .blue)) \(colored(element.label, .yellow))\(position)\(size)"
             }
-            return .success("Found \(elements.count) element(s):\n\(descriptions.joined(separator: "\n"))")
+            let recorded = elements.map { element in
+                RecordedElement(
+                    id: element.id.isEmpty ? nil : element.id,
+                    label: element.label.isEmpty ? nil : element.label,
+                    elementType: element.type?.rawValue,
+                    frame: element.frame.map { RecordedRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height) },
+                    hitPoint: element.hitPoint.map { RecordedPoint(x: $0.x, y: $0.y) }
+                )
+            }
+            return ToolResult(
+                content: "Found \(elements.count) element(s):\n\(descriptions.joined(separator: "\n"))",
+                observedElements: recorded
+            )
 
         case "get_view_hierarchy":
             let hierarchy = try await driver.getViewHierarchy(
                 appID: queryScopeAppID(arguments: arguments, driver: driver)
             )
-            return .success(renderViewNode(hierarchy, indent: 0))
+            if arguments["format"]?.lowercased() == "full" {
+                return .success(renderViewNode(hierarchy, indent: 0))
+            }
+            let summary = hierarchySummary(hierarchy)
+            return .success(
+                "Hierarchy root=\(hierarchy.id) nodes=\(summary.nodes) interactable=\(summary.interactable). "
+                    + "Pass format=full only when the complete tree is required."
+            )
 
         case "get_screen_context":
             let context = try await driver.getScreenContext()

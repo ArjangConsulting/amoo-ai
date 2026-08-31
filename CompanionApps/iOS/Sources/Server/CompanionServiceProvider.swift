@@ -47,6 +47,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         context _: ServerContext
     ) async throws -> Amoo_CapabilitiesResponse {
         let capabilities: [(String, Amoo_CapabilityTier)] = [
+            ("protocol.amoo.v1", .required),
             ("action.tap", .required),
             ("action.doubleTap", .required),
             ("action.longPress", .required),

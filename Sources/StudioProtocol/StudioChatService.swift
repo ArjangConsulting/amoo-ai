@@ -116,6 +116,19 @@ public struct StudioAuthoredTest: Codable, Sendable {
             compiledPlan: compiledPlan
         )
     }
+
+    public func replacingName(_ name: String) -> Self {
+        Self(
+            formatVersion: formatVersion,
+            name: name,
+            description: description,
+            platform: platform,
+            steps: steps,
+            requirements: requirements,
+            testContext: testContext,
+            compiledPlan: compiledPlan
+        )
+    }
 }
 
 /// Checked-in, app-owned metadata that makes exported tests fit the host test target.
@@ -194,13 +207,34 @@ public struct StudioTestRequirements: Codable, Sendable {
     public let projectPath: String?
     public let deviceName: String?
     public let uiToolkit: UIToolkit?
+    public let launchArguments: [String]
+    public let launchEnvironment: [String: String]
     public init(
         appId: String? = nil,
         projectPath: String? = nil,
         deviceName: String? = nil,
-        uiToolkit: UIToolkit? = nil
+        uiToolkit: UIToolkit? = nil,
+        launchArguments: [String] = [],
+        launchEnvironment: [String: String] = [:]
     ) {
         self.appId = appId; self.projectPath = projectPath; self.deviceName = deviceName; self.uiToolkit = uiToolkit
+        self.launchArguments = launchArguments; self.launchEnvironment = launchEnvironment
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case appId, projectPath, deviceName, uiToolkit, launchArguments, launchEnvironment
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            appId: c.decodeIfPresent(String.self, forKey: .appId),
+            projectPath: c.decodeIfPresent(String.self, forKey: .projectPath),
+            deviceName: c.decodeIfPresent(String.self, forKey: .deviceName),
+            uiToolkit: c.decodeIfPresent(UIToolkit.self, forKey: .uiToolkit),
+            launchArguments: c.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
+            launchEnvironment: c.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
+        )
     }
 }
 
