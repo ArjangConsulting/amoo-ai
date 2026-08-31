@@ -23,6 +23,7 @@ final class GeneratedCodeCompileTests: XCTestCase {
         .init(id: "op-7", tool: "assert_visible", arguments: ["label": "Welcome"]),
         .init(id: "op-8", tool: "assert_not_visible", arguments: ["id": "spinner"]),
         .init(id: "op-9", tool: "assert_text", arguments: ["id": "greeting", "value": "Hi there"]),
+        .init(id: "op-9b", tool: "assert_value", arguments: ["id": "email-field", "value": "user@example.com"]),
         .init(id: "op-10", tool: "take_screenshot", arguments: [:]),
         .init(id: "op-11", tool: "press_back", arguments: [:]),
         .init(id: "op-12", tool: "assert_enabled", arguments: ["id": "submit-button"]),

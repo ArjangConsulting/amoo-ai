@@ -25,6 +25,8 @@ public enum StudioTool: String, CaseIterable, Codable, Sendable, Hashable {
     case assertVisible = "assert_visible"
     case assertNotVisible = "assert_not_visible"
     case assertText = "assert_text"
+    /// Compares an element's editable/accessibility value, not its visible label/text.
+    case assertValue = "assert_value"
     case assertEnabled = "assert_enabled"
     case takeScreenshot = "take_screenshot"
     case pressBack = "press_back"

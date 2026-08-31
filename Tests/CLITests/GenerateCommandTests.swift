@@ -89,7 +89,7 @@ final class GenerateCommandTests: XCTestCase {
         XCTAssertTrue(result.output.contains("class SignInTest"))
     }
 
-    func testNonExcludingWarningsDoNotBlockGeneration() throws {
+    func testRedactedValuesBlockGenerationUntilTheyAreReplacedWithFixtures() throws {
         let path = try writePlan(makeTest(warnings: [
             .init(kind: .approximate, actionIndex: 0, toolName: "assert_visible", reason: "loose selector"),
             .init(kind: .notApplicable, actionIndex: 1, toolName: "find_elements", reason: "inspection only"),
@@ -101,10 +101,10 @@ final class GenerateCommandTests: XCTestCase {
             emitters: emitters
         )
 
-        // Only dropped steps make a test incomplete. Blocking on the others would make the refusal
-        // routine noise, and users would reflexively pass --allow-incomplete every time.
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertTrue(result.output.contains("class SignInTest"))
+        XCTAssertEqual(result.exitCode, 65)
+        XCTAssertTrue(result.output.contains("redacted value"))
+        XCTAssertTrue(result.output.contains("fixture"))
+        XCTAssertFalse(result.output.contains("class SignInTest"))
     }
 
     func testPlansWrittenBeforeWarningsExistedStillGenerate() throws {

@@ -102,8 +102,31 @@ final class TestCodeGeneratorTests: XCTestCase {
         let result = try XCUITestEmitter().generate(test)
 
         XCTAssertTrue(result.source.contains(#"waitForExistence(spinner, named: "spinner", timeout: 2.0)"#))
-        XCTAssertTrue(result.source.contains(#"waitForNonHittability(spinner2, named: "spinner2", timeout: 5.0)"#))
+        XCTAssertTrue(result.source.contains(#"waitForAbsence(spinner, named: "spinner", timeout: 5.0)"#))
+        XCTAssertTrue(result.source.contains("element.wait(for: \\.exists, toEqual: false"))
+        XCTAssertEqual(result.source.components(separatedBy: #"let spinner ="#).count - 1, 1)
         XCTAssertFalse(result.source.contains("waitForExpectations"))
+    }
+
+    func testXCUITestEmitterAssertsAccessibilityValueNotLabel() throws {
+        let result = try XCUITestEmitter().generate(makeTest(operations: [
+            .init(id: "op-1", tool: "assert_value", arguments: ["id": "weed", "value": "0"])
+        ]))
+
+        XCTAssertTrue(result.source.contains(#"XCTAssertEqual(weed.value as? String, "0")"#))
+        XCTAssertFalse(result.source.contains(#"XCTAssertEqual(weed.label, "0")"#))
+    }
+
+    func testXCUITestEmitterUsesRepositorySelectorContext() throws {
+        var test = makeTest(operations: [.init(id: "op-1", tool: "tap_element", arguments: ["id": "weed-uuid"])])
+        test = test.replacingTestContext(.init(
+            selectorExpressions: ["weed-uuid": "AppUIAutomationID.habit.weed"],
+            idLookupTemplate: "app.element(id: {{id}})"
+        ))
+
+        let result = try XCUITestEmitter().generate(test)
+        XCTAssertTrue(result.source.contains("let weed = app.element(id: AppUIAutomationID.habit.weed)"))
+        XCTAssertFalse(result.source.contains("weed-uuid"))
     }
 
     func testXCUITestEmitterDerivesReadableNamesFromNamespacedIdentifiers() throws {
@@ -115,8 +138,10 @@ final class TestCodeGeneratorTests: XCTestCase {
 
         let result = try XCUITestEmitter().generate(test)
 
+        let expectedDeclaration = #"let mostLovedSectionTitle = app.descendants(matching: .any)["#
+            + #""sample.home.feed.sectionTitle.most_loved"]"#
         XCTAssertTrue(result.source.contains(
-            #"let mostLovedSectionTitle = app.descendants(matching: .any)["sample.home.feed.sectionTitle.most_loved"]"#
+            expectedDeclaration
         ))
         XCTAssertTrue(result.source.contains("mostLovedSectionTitle.tap()"))
         XCTAssertFalse(result.source.contains("element_step_0"))
@@ -136,8 +161,8 @@ final class TestCodeGeneratorTests: XCTestCase {
     }
 
     func testXCUITestEmitterKeepsLocalNamesUniqueAgainstADigitSuffixedSelector() throws {
-        // "field2" is claimed by the first selector, so the second reference to "field" must skip
-        // past it rather than emitting a second `let field2`.
+        // A selector may be reused, but a different selector that happens to have a digit suffix
+        // must still receive a distinct legal name.
         let test = makeTest(operations: [
             .init(id: "step-0", tool: "tap_element", arguments: ["id": "field2"]),
             .init(id: "step-1", tool: "tap_element", arguments: ["id": "field"]),
@@ -148,9 +173,12 @@ final class TestCodeGeneratorTests: XCTestCase {
 
         let declarations = result.source.split(separator: "\n").filter { $0.contains("        let ") }
         XCTAssertEqual(declarations.count, Set(declarations).count, "Generated duplicate local names.")
-        XCTAssertTrue(result.source.contains(#"let field3 = app.descendants(matching: .any)["field"]"#))
+        XCTAssertEqual(result.source.components(separatedBy: #"let field ="#).count - 1, 1)
+        XCTAssertEqual(result.source.components(separatedBy: "field.tap()").count - 1, 2)
     }
+}
 
+extension TestCodeGeneratorTests {
     // MARK: - EspressoEmitter
 
     func testEspressoEmitterGeneratesTapByID() throws {

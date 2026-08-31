@@ -57,7 +57,7 @@ final class SignInFlowTest: XCTestCase {
         )
     }
 
-    private func waitForNonHittability(
+    private func waitForAbsence(
         _ element: XCUIElement,
         named name: String = "Element",
         timeout: TimeInterval? = nil,
@@ -65,8 +65,8 @@ final class SignInFlowTest: XCTestCase {
         line: UInt = #line
     ) {
         XCTAssertTrue(
-            element.wait(for: \.isHittable, toEqual: false, timeout: timeout ?? defaultTimeout),
-            "\(name) was still visible and hittable after the timeout.\n\(element.debugDescription)",
+            element.wait(for: \.exists, toEqual: false, timeout: timeout ?? defaultTimeout),
+            "\(name) still existed after the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -95,9 +95,9 @@ final class SignInFlowTest: XCTestCase {
         let emailField = app.descendants(matching: .any)["email-field"]
         waitForHittability(emailField, named: "emailField", timeout: 5.0)
         emailField.tap()
-        let emailField2 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(emailField2, named: "emailField2", timeout: 5.0)
-        replaceText(in: emailField2, with: "user@example.com")
+
+        waitForHittability(emailField, named: "emailField", timeout: 5.0)
+        replaceText(in: emailField, with: "user@example.com")
         let signInButton = app.descendants(matching: .any)["sign-in-button"]
         waitForHittability(signInButton, named: "signInButton", timeout: 5.0)
         signInButton.tap()

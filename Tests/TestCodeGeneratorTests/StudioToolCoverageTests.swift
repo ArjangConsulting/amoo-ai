@@ -20,7 +20,7 @@ final class StudioToolCoverageTests: XCTestCase {
             ["text": "hello"]
         case .swipeInDirection, .scroll:
             ["direction": "down"]
-        case .assertText:
+        case .assertText, .assertValue:
             ["id": "greeting", "value": "hi"]
         case .takeScreenshot, .pressBack:
             [:]

@@ -142,7 +142,8 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     }()
 
     // A direct switch keeps the supported Studio-tool-to-Compose mapping auditable in one place.
-    // swiftlint:disable:next cyclomatic_complexity
+    // Exhaustive tool rendering is clearer as one switch than as disconnected partial mappings.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private static func statement(
         for operation: StudioToolOperation,
         next: StudioToolOperation?,
@@ -212,6 +213,12 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             }
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertTextEquals(\(literal(expected)))"
+        case .assertValue:
+            guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
+            }
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node).assertTextEquals(\(literal(expected)))"
         case .assertEnabled:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"
@@ -228,8 +235,16 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     /// the scroll falls back to a distance-based `ScrollBy`.
     private static func lookAheadMatcher(for next: StudioToolOperation) throws -> String {
         let scrollToTargets = Set(
-            [StudioTool.tapElement, .setText, .assertVisible, .assertText, .assertEnabled, .waitForElement]
-                .map(\.rawValue)
+            [
+                StudioTool.tapElement,
+                .setText,
+                .assertVisible,
+                .assertText,
+                .assertValue,
+                .assertEnabled,
+                .waitForElement
+            ]
+            .map(\.rawValue)
         )
         guard scrollToTargets.contains(next.tool) else {
             throw TestCodeGeneratorError.unsupportedTool(next.tool)

@@ -288,6 +288,27 @@ itself only when the match is unambiguous:
 Anything less certain is left unbound. Generation still rejects an explicitly
 named helper that is unknown or missing a template argument.
 
+Use `selectorExpressions` and `idLookupTemplate` to translate recorder IDs into
+the repository's identifier catalog without making that catalog an Amo default:
+
+```json
+{
+  "imports": ["AppUITestSupport"],
+  "baseClass": "AppUITestCase",
+  "appFactory": "forAutomatedTesting(skipOnboarding: false, resetState: true)",
+  "harnessLaunchesApp": true,
+  "idLookupTemplate": "app.element(id: {{id}})",
+  "selectorExpressions": {
+    "0A0D-raw-recording-id": "AppUIAutomationID.habit.weed"
+  }
+}
+```
+
+Mapped expressions are caller-owned code and are used only for IDs listed in the
+context. Unmapped IDs retain the portable default lookup. Redacted values block
+export until a caller replaces them with an approved fixture/helper; Amo never
+emits a `<redacted, …>` marker as executable test data.
+
 The generated XCUITest's `setUpWithError` / `tearDownWithError` always chain to
 `super`, so a supplied `baseClass` gets its own setup run.
 
@@ -322,5 +343,5 @@ let mostLovedSectionTitle = app.descendants(matching: .any)[
 ```
 
 The selector remains the stable test contract; the local name is deliberately a
-human-readable review aid. Repeated references receive a numeric suffix (for
-example, `emailField2`) so the emitted test remains valid code.
+human-readable review aid. Repeated references to the same selector reuse one
+local binding; distinct colliding selectors receive numeric suffixes.

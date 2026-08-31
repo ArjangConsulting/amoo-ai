@@ -57,7 +57,7 @@ final class _2FALoginTest: XCTestCase {
         )
     }
 
-    private func waitForNonHittability(
+    private func waitForAbsence(
         _ element: XCUIElement,
         named name: String = "Element",
         timeout: TimeInterval? = nil,
@@ -65,8 +65,8 @@ final class _2FALoginTest: XCTestCase {
         line: UInt = #line
     ) {
         XCTAssertTrue(
-            element.wait(for: \.isHittable, toEqual: false, timeout: timeout ?? defaultTimeout),
-            "\(name) was still visible and hittable after the timeout.\n\(element.debugDescription)",
+            element.wait(for: \.exists, toEqual: false, timeout: timeout ?? defaultTimeout),
+            "\(name) still existed after the timeout.\n\(element.debugDescription)",
             file: file,
             line: line
         )
@@ -95,9 +95,9 @@ final class _2FALoginTest: XCTestCase {
         let emailField = app.descendants(matching: .any)["email-field"]
         waitForHittability(emailField, named: "emailField", timeout: 5.0)
         emailField.tap()
-        let emailField2 = app.descendants(matching: .any)["email-field"]
-        waitForHittability(emailField2, named: "emailField2", timeout: 5.0)
-        replaceText(in: emailField2, with: "user@example.com")
+
+        waitForHittability(emailField, named: "emailField", timeout: 5.0)
+        replaceText(in: emailField, with: "user@example.com")
         app.typeText("line one\nline two\ttabbed")
         let list = app.descendants(matching: .any)["list"]
         waitForHittability(list, named: "list", timeout: 5.0)
@@ -106,11 +106,14 @@ final class _2FALoginTest: XCTestCase {
         waitForExistence(spinner, named: "spinner", timeout: 2.0)
         let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
         waitForHittability(welcome, named: "welcome", timeout: 5.0)
-        let spinner2 = app.descendants(matching: .any)["spinner"]
-        waitForNonHittability(spinner2, named: "spinner2", timeout: 5.0)
+
+        waitForAbsence(spinner, named: "spinner", timeout: 5.0)
         let greeting = app.descendants(matching: .any)["greeting"]
         waitForExistence(greeting, named: "greeting", timeout: 5.0)
         XCTAssertEqual(greeting.label, "Hi there")
+
+        waitForExistence(emailField, named: "emailField", timeout: 5.0)
+        XCTAssertEqual(emailField.value as? String, "user@example.com")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.lifetime = .keepAlways
         add(screenshot)

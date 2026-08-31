@@ -123,6 +123,8 @@ class _2FALoginTest {
             onView(isRoot()).perform(waitUntilNotDisplayed(anyOf(hasResourceEntryName("spinner"), withContentDescription("spinner")), 5000L))
             onView(isRoot()).perform(waitUntilDisplayed(anyOf(hasResourceEntryName("greeting"), withContentDescription("greeting")), 5000L))
             onView(anyOf(hasResourceEntryName("greeting"), withContentDescription("greeting"))).check(matches(withText("Hi there")))
+            onView(isRoot()).perform(waitUntilDisplayed(anyOf(hasResourceEntryName("email-field"), withContentDescription("email-field")), 5000L))
+            onView(anyOf(hasResourceEntryName("email-field"), withContentDescription("email-field"))).check(matches(withText("user@example.com")))
             // take_screenshot: capture via androidx.test.runner.screenshot.Screenshot in an instrumented test if needed
             pressBack()
             onView(isRoot()).perform(waitUntilDisplayed(anyOf(hasResourceEntryName("submit-button"), withContentDescription("submit-button")), 5000L))

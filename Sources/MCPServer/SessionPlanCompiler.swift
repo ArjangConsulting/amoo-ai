@@ -199,6 +199,8 @@ public enum SessionPlanCompiler {
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is enabled.", "Element is enabled.")
         case .assertText:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected text.", "Text matches.")
+        case .assertValue:
+            return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected value.", "Value matches.")
         case .takeScreenshot:
             return ("Take a screenshot.", "Screenshot is captured.")
         case .pressBack:
@@ -216,6 +218,8 @@ public enum SessionPlanCompiler {
         let warnings: [SessionPlanWarning]
     }
 
+    // Keeps the ordered action-classification and warning pipeline visible in one place.
+    // swiftlint:disable:next function_body_length
     private static func process(
         index: Int,
         action: SessionAction,
@@ -223,6 +227,36 @@ public enum SessionPlanCompiler {
         retry: RetryContext
     ) -> ProcessedAction {
         let transient = looksTransient(action)
+
+        // A failed selector is evidence from exploration, never a replayable test instruction.
+        // Check isError as well as intent so plans compiled from recordings made before intent was
+        // introduced receive the same safety guarantee.
+        if action.isError || action.intent == .failedProbe {
+            return ProcessedAction(
+                operation: nil,
+                step: nil,
+                warnings: [SessionPlanWarning(
+                    kind: .notApplicable,
+                    actionIndex: index,
+                    toolName: action.toolName,
+                    reason: "failed exploratory action omitted from compiledPlan: \(action.result)",
+                    transient: transient
+                )]
+            )
+        }
+        if action.intent == .diagnostic || action.intent == .recovery {
+            return ProcessedAction(
+                operation: nil,
+                step: nil,
+                warnings: [SessionPlanWarning(
+                    kind: .notApplicable,
+                    actionIndex: index,
+                    toolName: action.toolName,
+                    reason: "\(action.intent.rawValue) action intentionally omitted from compiledPlan",
+                    transient: transient
+                )]
+            )
+        }
 
         guard let translated = translate(toolName: action.toolName, arguments: action.arguments) else {
             if queryOnlyTools.contains(action.toolName) {

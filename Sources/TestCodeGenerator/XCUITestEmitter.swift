@@ -1,6 +1,9 @@
 import StudioProtocol
 
 /// Emits an XCTestCase driving `XCUIApplication` directly — no amoo companion app involved at run time.
+// The emitter deliberately keeps its generated XCTest harness and exhaustive tool mapping
+// together so additions can be reviewed as one output contract.
+// swiftlint:disable:next type_body_length
 public struct XCUITestEmitter: StudioCodeEmitting {
     public init() {}
 
@@ -13,8 +16,9 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         let className = "\(TestIdentifierNaming.pascalCase(test.name))Test"
         let methodName = "test\(TestIdentifierNaming.pascalCase(test.name))"
         var localNames = LocalNameAllocator()
+        var lookups = [String: String]()
         let body = try operations.map {
-            try Self.statement(for: $0, context: test.testContext, localNames: &localNames)
+            try Self.statement(for: $0, context: test.testContext, localNames: &localNames, lookups: &lookups)
         }.joined(separator: "\n")
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
@@ -85,7 +89,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 )
             }
 
-            private func waitForNonHittability(
+            private func waitForAbsence(
                 _ element: XCUIElement,
                 named name: String = "Element",
                 timeout: TimeInterval? = nil,
@@ -93,8 +97,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 line: UInt = #line
             ) {
                 XCTAssertTrue(
-                    element.wait(for: \\.isHittable, toEqual: false, timeout: timeout ?? defaultTimeout),
-                    "\\(name) was still visible and hittable after the timeout.\\n\\(element.debugDescription)",
+                    element.wait(for: \\.exists, toEqual: false, timeout: timeout ?? defaultTimeout),
+                    "\\(name) still existed after the timeout.\\n\\(element.debugDescription)",
                     file: file,
                     line: line
                 )
@@ -134,7 +138,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
     private static func statement(
         for operation: StudioToolOperation,
         context: StudioTestContext?,
-        localNames: inout LocalNameAllocator
+        localNames: inout LocalNameAllocator,
+        lookups: inout [String: String]
     ) throws -> String {
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
@@ -145,10 +150,11 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         // No `default`: adding a StudioTool case must fail to compile here until it is handled.
         switch tool {
         case .tapElement:
-            let element = try query(operation)
-            let variable = localNames.next(elementVariableName(for: operation))
+            let (_, variable, declaration) = try lookup(
+                operation, context: context, localNames: &localNames, lookups: &lookups
+            )
             return try """
-            \(indent)let \(variable) = \(element)
+            \(declaration)
             \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)\(variable).tap()
             """
@@ -157,10 +163,11 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             guard let value = operation.arguments["value"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
-            let element = try query(operation)
-            let variable = localNames.next(elementVariableName(for: operation))
+            let (_, variable, declaration) = try lookup(
+                operation, context: context, localNames: &localNames, lookups: &lookups
+            )
             return try """
-            \(indent)let \(variable) = \(element)
+            \(declaration)
             \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)replaceText(in: \(variable), with: \(literal(value)))
             """
@@ -195,15 +202,29 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             return try "\(indent)app.\(gesture(for: operation))()"
 
         case .waitForElement, .assertVisible:
-            return try waitStatement(for: operation, exists: true, localNames: &localNames)
+            return try waitStatement(
+                for: operation,
+                exists: true,
+                context: context,
+                localNames: &localNames,
+                lookups: &lookups
+            )
 
         case .assertNotVisible:
-            return try waitStatement(for: operation, exists: false, localNames: &localNames)
+            return try waitStatement(
+                for: operation,
+                exists: false,
+                context: context,
+                localNames: &localNames,
+                lookups: &lookups
+            )
 
         case .assertEnabled:
-            let variable = localNames.next(elementVariableName(for: operation))
+            let (_, variable, declaration) = try lookup(
+                operation, context: context, localNames: &localNames, lookups: &lookups
+            )
             return try """
-            \(indent)let \(variable) = \(query(operation))
+            \(declaration)
             \(indent)\(waitCall("waitForExistence", variable, operation))
             \(indent)XCTAssertTrue(\(variable).isEnabled)
             """
@@ -212,11 +233,26 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
-            let variable = localNames.next(elementVariableName(for: operation))
+            let (_, variable, declaration) = try lookup(
+                operation, context: context, localNames: &localNames, lookups: &lookups
+            )
             return try """
-            \(indent)let \(variable) = \(query(operation))
+            \(declaration)
             \(indent)\(waitCall("waitForExistence", variable, operation))
             \(indent)XCTAssertEqual(\(variable).label, \(literal(expected)))
+            """
+
+        case .assertValue:
+            guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
+            }
+            let (_, variable, declaration) = try lookup(
+                operation, context: context, localNames: &localNames, lookups: &lookups
+            )
+            return try """
+            \(declaration)
+            \(indent)\(waitCall("waitForExistence", variable, operation))
+            \(indent)XCTAssertEqual(\(variable).value as? String, \(literal(expected)))
             """
 
         case .takeScreenshot:
@@ -235,17 +271,20 @@ public struct XCUITestEmitter: StudioCodeEmitting {
     private static func waitStatement(
         for operation: StudioToolOperation,
         exists: Bool,
-        localNames: inout LocalNameAllocator
+        context: StudioTestContext?,
+        localNames: inout LocalNameAllocator,
+        lookups: inout [String: String]
     ) throws -> String {
-        let element = try query(operation)
-        let variable = localNames.next(elementVariableName(for: operation))
+        let (_, variable, declaration) = try lookup(
+            operation, context: context, localNames: &localNames, lookups: &lookups
+        )
         let helper = exists ? (operation.tool == "assert_visible" ? "waitForHittability" : "waitForExistence")
-            : "waitForNonHittability"
+            : "waitForAbsence"
         // The wait already asserts, and `continueAfterFailure = false` stops the test there, so a
         // trailing XCTAssert would be unreachable. Name the element in the wait instead — that is
         // what makes the failure readable.
         return try """
-        \(indent)let \(variable) = \(element)
+        \(declaration)
         \(indent)\(waitCall(helper, variable, operation))
         """
     }
@@ -295,13 +334,38 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         return Double(milliseconds) / 1000
     }
 
+    // Named components make this tuple an internal rendering detail, never an API value.
+    // swiftlint:disable:next large_tuple
+    private static func lookup(
+        _ operation: StudioToolOperation,
+        context: StudioTestContext?,
+        localNames: inout LocalNameAllocator,
+        lookups: inout [String: String]
+    ) throws -> (element: String, variable: String, declaration: String) {
+        let element = try query(operation, context: context)
+        if let variable = lookups[element] {
+            return (element, variable, "")
+        }
+        let mappedID = operation.arguments["id"].flatMap { context?.selectorExpressions[$0] }
+        let base = mappedID.map { TestIdentifierNaming.elementVariableBase(id: $0) }
+            ?? elementVariableName(for: operation)
+        let variable = localNames.next(base)
+        lookups[element] = variable
+        return (element, variable, "\(indent)let \(variable) = \(element)")
+    }
+
     private static func query(
         _ operation: StudioToolOperation,
+        context: StudioTestContext? = nil,
         idKey: String = "id",
         labelKey: String = "label",
         containsTextKey: String = "contains_text"
     ) throws -> String {
         if let id = operation.arguments[idKey] {
+            if let mapped = context?.selectorExpressions[id] {
+                let template = context?.idLookupTemplate ?? "app.descendants(matching: .any)[{{id}}]"
+                return template.replacingOccurrences(of: "{{id}}", with: mapped)
+            }
             return "app.descendants(matching: .any)[\(literal(id))]"
         }
         if let label = operation.arguments[labelKey] {

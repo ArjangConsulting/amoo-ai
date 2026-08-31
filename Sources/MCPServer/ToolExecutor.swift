@@ -59,12 +59,29 @@ public actor DriverToolExecutor: ToolExecutor {
             toolName: toolName,
             arguments: redactArguments(toolName: toolName, arguments: arguments),
             result: result.content,
-            isError: result.isError
+            isError: result.isError,
+            intent: sessionIntent(toolName: toolName, isError: result.isError)
         )
         await session.record(action)
         // Persist so a mid-session crash or a server restart still leaves a compilable history
         // behind. The manager batches the actual writes — see `SessionManager.persist`.
         await manager.persist(sessionID)
+    }
+
+    private func sessionIntent(toolName: String, isError: Bool) -> SessionAction.Intent {
+        if isError {
+            return .failedProbe
+        }
+        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled"].contains(toolName) {
+            return .assertion
+        }
+        if [
+            "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
+            "take_screenshot", "take_screenshot_metadata", "current_app", "list_devices", "list_apps"
+        ].contains(toolName) {
+            return .diagnostic
+        }
+        return .testStep
     }
 
     /// Strip out sensitive fields before persisting an action to session history.
@@ -160,6 +177,14 @@ public actor DriverToolExecutor: ToolExecutor {
             }
         }
         return result
+    }
+}
+
+func boolArgument(_ raw: String?) -> Bool? {
+    switch raw?.lowercased() {
+    case "true", "1", "yes": true
+    case "false", "0", "no": false
+    default: nil
     }
 }
 

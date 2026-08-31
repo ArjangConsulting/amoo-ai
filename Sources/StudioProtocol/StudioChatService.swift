@@ -1,4 +1,7 @@
 import AmooCore
+
+// The provider clients and their shared plan-validation boundary intentionally live together.
+// swiftlint:disable file_length
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -143,20 +146,29 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     /// silently runs every generated test against an app that was never launched.
     public let harnessLaunchesApp: Bool
     public let helpers: [Helper]
+    /// Raw recorded accessibility IDs mapped to a repository-owned Swift/Kotlin identifier
+    /// expression, e.g. `{"uuid": "AppUIAutomationID.habit.weed"}`.
+    public let selectorExpressions: [String: String]
+    /// Optional expression template for mapped IDs, e.g. `app.element(id: {{id}})`. The default
+    /// keeps the standalone XCUITest lookup shape.
+    public let idLookupTemplate: String?
 
     public init(
         imports: [String] = [],
         baseClass: String? = nil,
         appFactory: String? = nil,
         harnessLaunchesApp: Bool = false,
-        helpers: [Helper] = []
+        helpers: [Helper] = [],
+        selectorExpressions: [String: String] = [:],
+        idLookupTemplate: String? = nil
     ) {
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
+        self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
     }
 
     private enum CodingKeys: String, CodingKey {
-        case imports, baseClass, appFactory, harnessLaunchesApp, helpers
+        case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -168,6 +180,8 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         appFactory = try container.decodeIfPresent(String.self, forKey: .appFactory)
         harnessLaunchesApp = try container.decodeIfPresent(Bool.self, forKey: .harnessLaunchesApp) ?? false
         helpers = try container.decodeIfPresent([Helper].self, forKey: .helpers) ?? []
+        selectorExpressions = try container.decodeIfPresent([String: String].self, forKey: .selectorExpressions) ?? [:]
+        idLookupTemplate = try container.decodeIfPresent(String.self, forKey: .idLookupTemplate)
     }
 
     public func helper(named name: String) -> Helper? {

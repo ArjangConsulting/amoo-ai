@@ -6,6 +6,8 @@ import StudioProtocol
 /// idiomatic Espresso (`withId(R.id.foo)`) needs a compile-time `R` reference this generator can't
 /// resolve. Generated code falls back to a small `hasResourceEntryName` matcher instead of `R.id`,
 /// with a comment pointing at the substitution — swap it for `withId(R.id...)` where convenient.
+// The generated harness and exhaustive tool mapping form one reviewable output contract.
+// swiftlint:disable:next type_body_length
 public struct EspressoEmitter: StudioCodeEmitting {
     public init() {}
 
@@ -30,6 +32,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 "assert_visible",
                 "assert_not_visible",
                 "assert_text",
+                "assert_value",
                 "assert_enabled"
             ].contains($0.tool)
         }
@@ -256,6 +259,18 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
             let target = try matcher(operation)
+            return try """
+            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)onView(\(target)).check(matches(withText(\(literal(expected)))))
+            """
+
+        case .assertValue:
+            guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
+            }
+            let target = try matcher(operation)
+            // On Android Views, the accessibility value represented by assert_value is exposed as
+            // text. Compose has its own semantics-specific implementation below.
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             \(indent)onView(\(target)).check(matches(withText(\(literal(expected)))))

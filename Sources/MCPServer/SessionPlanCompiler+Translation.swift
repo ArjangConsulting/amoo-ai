@@ -63,7 +63,7 @@ extension SessionPlanCompiler {
         mapped["contains"] = nil
         mapped["description"] = nil
         return TranslatedAction(
-            studioTool: .assertText,
+            studioTool: .assertValue,
             studioArguments: mapped,
             approximate: usesDescription
         )

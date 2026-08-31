@@ -74,6 +74,32 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertTrue(result.warnings.contains { $0.reason.contains("redacted") })
     }
 
+    func testFailedProbeIsNeverEmittedAsAnExecutableOperation() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "tap_element", arguments: ["id": "obsolete-alcohol"], isError: true),
+            makeAction(tool: "tap_element", arguments: ["id": "continue"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations?.map { $0.arguments["id"] }, ["continue"])
+        XCTAssertTrue(result.warnings.contains {
+            $0.toolName == "tap_element" && $0.reason.contains("failed exploratory action")
+        })
+    }
+
+    func testAssertValuePreservesValueSemantics() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "assert_value", arguments: ["id": "weed", "expected": "0"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        let operation = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations?.first)
+        XCTAssertEqual(operation.tool, "assert_value")
+        XCTAssertEqual(operation.arguments["value"], "0")
+    }
+
     func testUntranslatableCoordinateTapIsExcludedFromCompiledPlanButKeptInFlow() throws {
         let report = makeReport(actions: [
             makeAction(tool: "tap", arguments: ["x": "10", "y": "20"])
@@ -224,7 +250,7 @@ final class SessionPlanCompilerTests: XCTestCase {
         let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
         let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
 
-        XCTAssertEqual(operations.map(\.tool), ["assert_not_visible", "assert_text"])
+        XCTAssertEqual(operations.map(\.tool), ["assert_not_visible", "assert_value"])
         XCTAssertEqual(operations[0].arguments["contains_text"], "Loading spinner")
         XCTAssertEqual(operations[1].arguments["contains_text"], "Account status")
         XCTAssertEqual(operations[1].arguments["value"], "Active")

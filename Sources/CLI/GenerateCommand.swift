@@ -78,6 +78,26 @@ private func parseUIToolkit(flag: String, value: String) throws -> UIToolkit {
 public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptions {
     guard !args.isEmpty else { throw GenerateCommandParseError.usage }
 
+    let parsed = try parseGenerateArguments(args)
+    guard let planPath = parsed.planPath else { throw GenerateCommandParseError.missingValue(flag: "--plan") }
+    return GenerateTestOptions(
+        planPath: planPath,
+        outputDirectory: parsed.outputDirectory,
+        allowIncomplete: parsed.allowIncomplete,
+        uiToolkit: parsed.uiToolkit,
+        contextPath: parsed.contextPath
+    )
+}
+
+private struct ParsedGenerateArguments {
+    var planPath: String?
+    var outputDirectory: String?
+    var allowIncomplete = false
+    var uiToolkit: UIToolkit?
+    var contextPath: String?
+}
+
+private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateArguments {
     var planPath: String?
     var outputDirectory: String?
     var allowIncomplete = false
@@ -109,8 +129,7 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
         index += 2
     }
 
-    guard let planPath else { throw GenerateCommandParseError.missingValue(flag: "--plan") }
-    return GenerateTestOptions(
+    return ParsedGenerateArguments(
         planPath: planPath,
         outputDirectory: outputDirectory,
         allowIncomplete: allowIncomplete,
@@ -160,6 +179,26 @@ public func runGenerateTestCommand(
             \(details)
 
             Re-record without those steps, or pass --allow-incomplete to generate anyway.
+            """,
+            exitCode: 65
+        )
+    }
+
+    // Redaction deliberately removes the original value from the session artifact. Emitting the
+    // marker as text would create a test that compiles but exercises a fictitious user flow.
+    // Context helpers may still be used after a caller replaces the value in the plan/fixture.
+    let redacted = (test.compiledPlan?.warnings ?? []).filter { $0.kind == .redacted }
+    if !redacted.isEmpty {
+        let details = redacted
+            .map { "  - step \($0.actionIndex) (\($0.toolName)): \($0.reason)" }
+            .joined(separator: "\n")
+        return CLIResult(
+            output: """
+            This plan contains \(redacted.count) redacted value(s), so generation would emit
+            placeholders as executable input:
+            \(details)
+
+            Replace each value with an approved fixture or a named context helper, then generate again.
             """,
             exitCode: 65
         )
