@@ -33,6 +33,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         self.screenStabilizationTimeoutSeconds = screenStabilizationTimeoutSeconds
     }
 
+    // The linear lifecycle keeps cleanup ownership visible across every failure boundary.
+    // swiftlint:disable:next function_body_length
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
         let clock = ContinuousClock()
         let bootstrapStart = clock.now

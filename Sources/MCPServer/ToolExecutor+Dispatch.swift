@@ -1,3 +1,5 @@
+// The dispatcher is intentionally exhaustive so the public tool catalog has one routing point.
+// swiftlint:disable file_length
 import AmooCore
 import AuditEngine
 import Foundation

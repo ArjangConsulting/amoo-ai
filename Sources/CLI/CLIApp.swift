@@ -23,10 +23,11 @@ public struct CLIResult: Sendable, Equatable {
 public struct CLIApp {
     /// The version reported by `amoo --version`.
     ///
-    /// For released binaries this is overwritten at build time by the release workflow, which
-    /// stamps it from the git tag (see `.github/workflows/release.yml`). The literal below is the
-    /// fallback for local/dev builds and should track the most recent release tag.
-    public static let versionString = "0.1.0"
+    /// `AmooVersion.current` is stamped from the git tag by the release workflow. Keeping the
+    /// CLI on that shared value ensures every public protocol reports the same version.
+    public static var versionString: String {
+        AmooVersion.current
+    }
 
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking

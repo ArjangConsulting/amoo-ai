@@ -147,6 +147,8 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
     )
 }
 
+// Validation and emission intentionally remain one linear, fail-fast pipeline.
+// swiftlint:disable:next function_body_length
 public func runGenerateTestCommand(
     options: GenerateTestOptions,
     emitters: StudioCodeEmitters

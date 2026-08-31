@@ -106,9 +106,9 @@ jobs:
 
       - name: Stamp version from tag
         run: |
-          sed -i.bak 's/public static let versionString = "[^"]*"/public static let versionString = "'"${RELEASE_VERSION}"'"/' Sources/CLI/CLIApp.swift
-          rm -f Sources/CLI/CLIApp.swift.bak
-          grep -q "public static let versionString = \"${RELEASE_VERSION}\"" Sources/CLI/CLIApp.swift
+          sed -i.bak 's/public static let current = "[^"]*"/public static let current = "'"${RELEASE_VERSION}"'"/' Sources/AmooCore/Version.swift
+          rm -f Sources/AmooCore/Version.swift.bak
+          grep -q "public static let current = \"${RELEASE_VERSION}\"" Sources/AmooCore/Version.swift
 
       - name: Cache SPM dependencies
         uses: actions/cache@v4
@@ -190,9 +190,9 @@ jobs:
 
       - name: Stamp version from tag
         run: |
-          sed -i.bak 's/public static let versionString = "[^"]*"/public static let versionString = "'"${RELEASE_VERSION}"'"/' Sources/CLI/CLIApp.swift
-          rm -f Sources/CLI/CLIApp.swift.bak
-          grep -q "public static let versionString = \"${RELEASE_VERSION}\"" Sources/CLI/CLIApp.swift
+          sed -i.bak 's/public static let current = "[^"]*"/public static let current = "'"${RELEASE_VERSION}"'"/' Sources/AmooCore/Version.swift
+          rm -f Sources/AmooCore/Version.swift.bak
+          grep -q "public static let current = \"${RELEASE_VERSION}\"" Sources/AmooCore/Version.swift
 
       - name: Swift version
         run: swift --version

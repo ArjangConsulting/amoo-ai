@@ -3,6 +3,8 @@ import Foundation
 @testable import TestSession
 import XCTest
 
+// Compact action fixtures keep recorded event fields readable as a single unit.
+// swiftlint:disable multiline_arguments
 final class TestSessionTests: XCTestCase {
     func testRecorderPersistsStructuredGestureTargetAcrossDiagnosticActions() async {
         let session = TestSession(
@@ -327,3 +329,4 @@ private actor RecordingDriver: PlatformDriver {
 }
 
 private struct NoopDriver: PlatformDriver, Sendable {}
+// swiftlint:enable multiline_arguments

@@ -226,14 +226,14 @@ public struct StudioTestRequirements: Codable, Sendable {
     }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
-            appId: c.decodeIfPresent(String.self, forKey: .appId),
-            projectPath: c.decodeIfPresent(String.self, forKey: .projectPath),
-            deviceName: c.decodeIfPresent(String.self, forKey: .deviceName),
-            uiToolkit: c.decodeIfPresent(UIToolkit.self, forKey: .uiToolkit),
-            launchArguments: c.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
-            launchEnvironment: c.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
+            appId: container.decodeIfPresent(String.self, forKey: .appId),
+            projectPath: container.decodeIfPresent(String.self, forKey: .projectPath),
+            deviceName: container.decodeIfPresent(String.self, forKey: .deviceName),
+            uiToolkit: container.decodeIfPresent(UIToolkit.self, forKey: .uiToolkit),
+            launchArguments: container.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
+            launchEnvironment: container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
         )
     }
 }

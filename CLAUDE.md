@@ -45,6 +45,10 @@ make lint          # swiftformat --lint + swiftlint --strict
 make format
 ```
 
+Every code contribution must pass `make lint` before it is committed or submitted for review.
+Run it after the final code edit, even when formatting was already run, because SwiftFormat and
+SwiftLint enforce different rules. Do not defer lint cleanup to CI or a release-preparation pass.
+
 The companion apps are **not** covered by `swift build` — they build through Xcode and
 Gradle, so verify them separately after changing anything under `CompanionApps/`:
 

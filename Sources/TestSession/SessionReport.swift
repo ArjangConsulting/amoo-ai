@@ -82,22 +82,22 @@ public struct SessionReport: Sendable, Codable, Equatable {
     }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
-            sessionID: c.decode(String.self, forKey: .sessionID),
-            appID: c.decode(String.self, forKey: .appID),
-            deviceID: c.decode(String.self, forKey: .deviceID),
-            platform: c.decode(String.self, forKey: .platform),
-            startedAt: c.decode(Date.self, forKey: .startedAt),
-            endedAt: c.decodeIfPresent(Date.self, forKey: .endedAt),
-            durationSeconds: c.decode(Double.self, forKey: .durationSeconds),
-            actionCount: c.decode(Int.self, forKey: .actionCount),
-            errorCount: c.decode(Int.self, forKey: .errorCount),
-            isActive: c.decode(Bool.self, forKey: .isActive),
-            actions: c.decode([SessionAction].self, forKey: .actions),
-            launchArguments: c.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
-            launchEnvironment: c.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:],
-            testName: c.decodeIfPresent(String.self, forKey: .testName)
+            sessionID: container.decode(String.self, forKey: .sessionID),
+            appID: container.decode(String.self, forKey: .appID),
+            deviceID: container.decode(String.self, forKey: .deviceID),
+            platform: container.decode(String.self, forKey: .platform),
+            startedAt: container.decode(Date.self, forKey: .startedAt),
+            endedAt: container.decodeIfPresent(Date.self, forKey: .endedAt),
+            durationSeconds: container.decode(Double.self, forKey: .durationSeconds),
+            actionCount: container.decode(Int.self, forKey: .actionCount),
+            errorCount: container.decode(Int.self, forKey: .errorCount),
+            isActive: container.decode(Bool.self, forKey: .isActive),
+            actions: container.decode([SessionAction].self, forKey: .actions),
+            launchArguments: container.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
+            launchEnvironment: container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:],
+            testName: container.decodeIfPresent(String.self, forKey: .testName)
         )
     }
 }

@@ -1,3 +1,4 @@
+import AmooCore
 import AuditEngine
 @testable import CLI
 import CLIReadline
@@ -8,6 +9,12 @@ import SwiftyShell
 import XCTest
 
 final class CLITests: XCTestCase {
+    func testCLIVersionUsesTheSharedAmooVersion() async {
+        XCTAssertEqual(CLIApp.versionString, AmooVersion.current)
+        let result = await CLIApp().run(args: ["--version"])
+        XCTAssertEqual(result.output, AmooVersion.current)
+    }
+
     func testFlowJSONDecodesReusableSteps() throws {
         let data = Data("""
         {

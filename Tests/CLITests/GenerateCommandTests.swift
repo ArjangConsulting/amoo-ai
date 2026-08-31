@@ -5,6 +5,8 @@ import StudioProtocol
 import TestCodeGenerator
 import XCTest
 
+// Compact authored-test fixtures keep the complete input visible beside each expectation.
+// swiftlint:disable multiline_arguments
 final class GenerateCommandTests: XCTestCase {
     private var emitters: StudioCodeEmitters {
         var result = StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
@@ -348,3 +350,5 @@ final class GenerateCommandTests: XCTestCase {
         XCTAssertFalse(result.output.contains("onView("))
     }
 }
+
+// swiftlint:enable multiline_arguments

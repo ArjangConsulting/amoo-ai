@@ -5,6 +5,9 @@ import StudioProtocol
 import TestSession
 import XCTest
 
+// Compact, inline report fixtures are easier to audit when their related fields remain together.
+// swiftlint:disable line_length multiline_arguments
+// swiftlint:disable:next type_body_length
 final class SessionPlanCompilerTests: XCTestCase {
     private func makeAction(
         tool: String,
@@ -453,3 +456,5 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertTrue(result.warnings.isEmpty)
     }
 }
+
+// swiftlint:enable line_length multiline_arguments

@@ -21,7 +21,7 @@ Run the release build and blocking test suite before tagging:
 ```
 
 The checked-in development version is not the pending tag: the release workflow stamps the tag
-into `CLIApp.versionString` in its isolated checkout, then asserts both packaged binaries report
+into `AmooVersion.current` in its isolated checkout, then asserts both packaged binaries report
 that exact version before publishing them.
 
 ## Tag the Release
