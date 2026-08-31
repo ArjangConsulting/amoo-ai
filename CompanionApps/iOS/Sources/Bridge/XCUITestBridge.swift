@@ -29,15 +29,86 @@ final class XCUITestBridge: @unchecked Sendable {
     /// receives the gesture instead of having the bound app activated out from under it.
     private var targetBundleID: String?
 
+    /// The most recent accessibility snapshot, reused for queries that arrive before anything can
+    /// have changed it.
+    ///
+    /// `target.snapshot()` is the entire cost of a query RPC — measured on a booted iPhone 17 Pro,
+    /// `find_elements` is 188ms and `describe_screen` 429ms, while a no-op RPC (`current_app`) is
+    /// 3ms. So the gRPC hop is free and the tree walk is everything. Agents habitually query
+    /// several times between actions ("did it appear?", "what's on screen?", then a selector
+    /// lookup), and each of those was re-walking an identical tree.
+    ///
+    /// Correctness rests on two things:
+    ///
+    /// - **Every action invalidates.** `invalidateSnapshotCache()` is called by each gesture, text
+    ///   entry and lifecycle RPC. If a new mutating RPC is added and forgets to call it, queries
+    ///   after that action return pre-action state — so the call belongs next to the gesture, not
+    ///   in a wrapper someone can route around.
+    /// - **A short TTL bounds what invalidation cannot catch.** An app changes on its own: a
+    ///   network response lands, an animation settles, a timer fires. No invalidation hook sees
+    ///   any of that, so an entry expires on time as well as on action.
+    ///
+    /// The TTL is also what keeps polling assertions correct. `assert_visible`, `assert_enabled`
+    /// and `assert_screen_changed` loop *host-side*, so the companion cannot tell a poll from a
+    /// one-shot query and has nothing to bypass on. With expiry, a poll observes a change at worst
+    /// one TTL late — a bounded delay inside a multi-second timeout. Without expiry the same loop
+    /// would re-read identical bytes until its deadline and report a timeout for a change that did
+    /// happen, which is why this cache must never be given an unbounded lifetime.
+    private struct CachedSnapshot {
+        let bundleID: String?
+        let snapshot: XCUIElementSnapshot
+        let takenAt: Date
+    }
+
+    private var cachedSnapshot: CachedSnapshot?
+
+    /// Deliberately short. It exists to collapse the burst of queries an agent issues about one
+    /// screen state, not to hold a tree across anything a person would perceive as a wait.
+    private static let snapshotCacheTTL: TimeInterval = 0.15
+
     init(app: XCUIApplication, targetBundleID: String? = nil, hostBundleID: String? = nil) {
         self.app = app
         self.targetBundleID = targetBundleID.flatMap { $0.isEmpty ? nil : $0 }
         self.hostBundleID = hostBundleID ?? Self.bundleID(of: app)
     }
 
+    /// A snapshot of `target`, reusing the cached one when it is for the same app and still within
+    /// the TTL. Use for one-shot queries.
+    private func snapshot(of target: XCUIApplication) -> XCUIElementSnapshot? {
+        let bundleID = Self.bundleID(of: target)
+        if let cached = cachedSnapshot,
+           cached.bundleID == bundleID,
+           Date().timeIntervalSince(cached.takenAt) < Self.snapshotCacheTTL {
+            return cached.snapshot
+        }
+        return freshSnapshot(of: target)
+    }
+
+    /// A snapshot taken now, ignoring and replacing the cache.
+    ///
+    /// Every polling caller must use this. `assert_visible`, `assert_enabled` and
+    /// `assert_screen_changed` loop until the screen changes; served a cached tree they would
+    /// re-read the same bytes until the deadline and report a timeout for a change that did in
+    /// fact happen. A stale read there converts a passing assertion into a guaranteed failure.
+    private func freshSnapshot(of target: XCUIApplication) -> XCUIElementSnapshot? {
+        guard let snapshot = try? target.snapshot() else { return nil }
+        cachedSnapshot = CachedSnapshot(
+            bundleID: Self.bundleID(of: target),
+            snapshot: snapshot,
+            takenAt: Date()
+        )
+        return snapshot
+    }
+
+    /// Drops the cached tree. Called by every RPC that can change what is on screen.
+    private func invalidateSnapshotCache() {
+        cachedSnapshot = nil
+    }
+
     /// Rebinds the app under test mid-session. A real flow crosses app boundaries, so the target
     /// cannot be fixed for the lifetime of the companion.
     func setTargetApp(bundleID: String?) {
+        defer { invalidateSnapshotCache() }
         targetBundleID = bundleID.flatMap { $0.isEmpty ? nil : $0 }
     }
 
@@ -87,15 +158,18 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Touch
 
     func tap(x: Double, y: Double) {
+        defer { invalidateSnapshotCache() }
         clearLastTappedElement()
         gestureCoordinate(x: x, y: y).tap()
     }
 
     func doubleTap(x: Double, y: Double) {
+        defer { invalidateSnapshotCache() }
         gestureCoordinate(x: x, y: y).doubleTap()
     }
 
     func longPress(x: Double, y: Double, durationSeconds: TimeInterval) {
+        defer { invalidateSnapshotCache() }
         gestureCoordinate(x: x, y: y).press(forDuration: durationSeconds)
     }
 
@@ -133,6 +207,7 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Gestures
 
     func swipe(fromX: Double, fromY: Double, toX: Double, toY: Double, durationSeconds: TimeInterval) {
+        defer { invalidateSnapshotCache() }
         let start = gestureCoordinate(x: fromX, y: fromY)
         let end = gestureCoordinate(x: toX, y: toY)
         start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .default, thenHoldForDuration: 0)
@@ -152,6 +227,7 @@ final class XCUITestBridge: @unchecked Sendable {
         durationSeconds: TimeInterval,
         holdSeconds: TimeInterval
     ) {
+        defer { invalidateSnapshotCache() }
         let start = gestureCoordinate(x: fromX, y: fromY)
         let end = gestureCoordinate(x: toX, y: toY)
 
@@ -173,6 +249,7 @@ final class XCUITestBridge: @unchecked Sendable {
     private static let dropSettleSeconds: TimeInterval = 0.2
 
     func scroll(direction: ScrollDirection, distance: Double) {
+        defer { invalidateSnapshotCache() }
         let target = gestureTarget()
         switch direction {
         case .up:
@@ -205,6 +282,7 @@ final class XCUITestBridge: @unchecked Sendable {
         label: String?,
         containsText: String?
     ) -> Bool {
+        defer { invalidateSnapshotCache() }
         let target = gestureTarget()
         let hasSelector = id != nil || label != nil || containsText != nil
         if hasSelector {
@@ -231,12 +309,14 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Text
 
     func typeText(_ text: String) {
+        defer { invalidateSnapshotCache() }
         guard let textInput = resolvedTextInput() else { return }
         focusForTextEntry(textInput)
         gestureTarget().typeText(text)
     }
 
     func clearText(characterCount: Int?) {
+        defer { invalidateSnapshotCache() }
         guard let textInput = resolvedTextInput() else { return }
         focusForTextEntry(textInput)
 
@@ -254,6 +334,7 @@ final class XCUITestBridge: @unchecked Sendable {
         bundleID: String?,
         candidateBundleIDs: [String]
     ) -> Bool {
+        defer { invalidateSnapshotCache() }
         guard tapElement(
             id: id,
             label: label,
@@ -276,10 +357,12 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Navigation
 
     func pressBack() {
+        defer { invalidateSnapshotCache() }
         gestureTarget().navigationBars.buttons.element(boundBy: 0).tap()
     }
 
     func pressHome() {
+        defer { invalidateSnapshotCache() }
         XCUIDevice.shared.press(.home)
     }
 
@@ -332,6 +415,7 @@ final class XCUITestBridge: @unchecked Sendable {
         bundleID: String? = nil,
         candidateBundleIDs: [String] = []
     ) -> Bool {
+        defer { invalidateSnapshotCache() }
         // Shares `findElements`' search order, so a control in a system sheet is tappable by
         // label without the caller naming the process it happens to live in. The tap itself is by
         // coordinate, which is process-agnostic — only the lookup needed the scope.
@@ -363,7 +447,7 @@ final class XCUITestBridge: @unchecked Sendable {
         // Use snapshot() to fetch the entire element tree in a single IPC call.
         // This is dramatically faster than querying individual XCUIElement properties,
         // where each .identifier, .label, .frame etc. is a separate round-trip.
-        if let snapshot = try? target.snapshot() {
+        if let snapshot = snapshot(of: target) {
             return buildHierarchyFromSnapshot(snapshot, depth: 0, maxDepth: maxDepth, viewport: viewport, isRoot: true)
         }
         return buildHierarchy(element: target, depth: 0, maxDepth: maxDepth, viewport: viewport, isRoot: true)
@@ -688,7 +772,7 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Visibility is derived geometrically rather than from `isHittable`, which is itself a
     /// per-element round trip.
     private func matchableElements(in target: XCUIApplication, labeledOnly: Bool = false) -> [ElementSnapshot] {
-        guard let root = try? target.snapshot() else { return [] }
+        guard let root = snapshot(of: target) else { return [] }
         let viewport = visibleViewport(for: target)
         var named: [ElementSnapshot] = []
         var unlabeled: [ElementSnapshot] = []
