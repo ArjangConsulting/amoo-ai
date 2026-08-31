@@ -19,8 +19,8 @@ final class TestSessionTests: XCTestCase {
             timestamp: Date(), toolName: "find_elements", arguments: [:], result: "display text may change",
             isError: false, intent: .diagnostic,
             observedElements: [.init(
-                id: "habit.row",
-                label: "Habit",
+                id: "task.row",
+                label: "Task",
                 frame: .init(x: 0, y: 200, width: 400, height: 100),
                 hitPoint: .init(x: 200, y: 250)
             )]
@@ -37,7 +37,7 @@ final class TestSessionTests: XCTestCase {
             "from_x": "340", "from_y": "250", "to_x": "50", "to_y": "250"
         ], result: "ok", isError: false))
         let target = await session.actions.last?.gestureTarget
-        XCTAssertEqual(target?.elementID, "habit.row")
+        XCTAssertEqual(target?.elementID, "task.row")
         XCTAssertEqual(target?.resolution, .frameContainsPoint)
     }
 

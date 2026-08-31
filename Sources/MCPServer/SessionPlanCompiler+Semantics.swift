@@ -54,7 +54,7 @@ extension SessionPlanCompiler {
 
     /// An element-scoped `swipe_in_direction` / `scroll` that the recorder stored id-only. The
     /// matching `find_elements` observation still carries the row's label, which is what makes the
-    /// generated gesture read `waterHabitRow.swipeLeft()` rather than `habitCatalogRow.swipeLeft()`.
+    /// generated gesture read `laundryTaskRow.swipeLeft()` rather than `taskListRow.swipeLeft()`.
     /// The `element_id` stays the selector — the label is a naming hint only.
     static func attachGestureTargetLabel(_ action: SessionAction, recentElements: [RecordedElement])
         -> SessionAction {
@@ -85,8 +85,8 @@ extension SessionPlanCompiler {
     /// Distinguishes two identically-labelled elements that play different roles by the shape of the
     /// flow around them. A bare-label `tap_element` that sits between a "create / add / new" trigger
     /// and a later "add / save / done / confirm" tap is selecting one option on a creation screen —
-    /// a *preset option* — not the catalog row of the same name. Naming it `waterPresetOption` keeps
-    /// it from colliding with `waterHabitRow` (or degrading to `water` / `water2`).
+    /// a *preset option* — not the catalog row of the same name. Naming it `laundryPresetOption` keeps
+    /// it from colliding with `laundryTaskRow` (or degrading to `laundry` / `laundry2`).
     ///
     /// Writes `name_hint`, a naming-only key: the selector (`label`) and the recorded step text are
     /// untouched. Deterministic — it depends only on the ordered operations, never on wall-clock or
@@ -159,7 +159,7 @@ extension SessionPlanCompiler {
         arguments["element_id"] = target.elementID
         // Keep the resolved label even when an id drives the selector: the id stays the stable test
         // contract, but the label is what makes the generated variable name readable
-        // (`cigarettesHabitRow`, not `habitCatalogRow`).
+        // (`groceriesTaskRow`, not `taskListRow`).
         arguments["element_label"] = target.elementLabel
         arguments["element_type"] = target.elementType
         for key in ["from_x", "from_y", "to_x", "to_y"] {

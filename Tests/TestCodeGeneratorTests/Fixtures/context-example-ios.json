@@ -4,7 +4,7 @@
   "description": "Minimal app-owned test context: support module, base class, app factory, harnessLaunchesApp",
   "platform": "iOS",
   "steps": [
-    { "id": "step-1", "instruction": "Open Habits and confirm it loaded", "expected": "Habits tab is shown" }
+    { "id": "step-1", "instruction": "Open Tasks and confirm it loaded", "expected": "Tasks tab is shown" }
   ],
   "testContext": {
     "imports": ["MyUITestSupport"],
@@ -19,8 +19,8 @@
     "compiler": "session-compiler",
     "compilerVersion": "1",
     "toolOperations": [
-      { "id": "op-1", "tool": "tap_element", "arguments": { "id": "app.tab.habits" } },
-      { "id": "op-2", "tool": "assert_visible", "arguments": { "id": "app.tab.habits" } }
+      { "id": "op-1", "tool": "tap_element", "arguments": { "id": "app.tab.tasks" } },
+      { "id": "op-2", "tool": "assert_visible", "arguments": { "id": "app.tab.tasks" } }
     ]
   }
 }

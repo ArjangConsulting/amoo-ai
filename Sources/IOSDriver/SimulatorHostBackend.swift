@@ -258,7 +258,7 @@ extension SimulatorHostBackend {
     private static func extractOldPlistValue(_ line: String, key: String) -> String? {
         // Match patterns like:
         //   CFBundleIdentifier = "com.example.app";
-        //   CFBundleDisplayName = SampleApp;
+        //   CFBundleDisplayName = ExampleApp;
         guard line.contains(key) else { return nil }
         let parts = line.split(separator: "=", maxSplits: 1)
         guard parts.count == 2 else { return nil }

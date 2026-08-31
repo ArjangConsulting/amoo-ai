@@ -94,9 +94,9 @@ final class GenerateCommandTests: XCTestCase {
 
     func testGenerationNameOverrideSanitizesInvalidCharacters() throws {
         let path = try writePlan(makeTest(warnings: []))
-        let options = try parseGenerateTestOptions(args: ["--plan", path, "--test-name", "42 delete/add habits!"])
+        let options = try parseGenerateTestOptions(args: ["--plan", path, "--test-name", "42 delete/add tasks!"])
         let result = try runGenerateTestCommand(options: options, emitters: emitters)
-        XCTAssertTrue(result.output.contains("func test_42DeleteAddHabits()"))
+        XCTAssertTrue(result.output.contains("func test_42DeleteAddTasks()"))
     }
 
     func testLaunchConfigurationIsSortedAndEmittedBeforeLaunch() throws {

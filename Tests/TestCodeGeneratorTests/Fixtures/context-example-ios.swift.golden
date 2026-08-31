@@ -92,10 +92,10 @@ final class ContextExampleTest: MyAppUITestCase {
     }
 
     func testContextExample() throws {
-        let habitsTab = app.descendants(matching: .any)["app.tab.habits"]
-        waitForHittability(habitsTab, named: "habitsTab", timeout: 5.0)
-        habitsTab.tap()
+        let tasksTab = app.descendants(matching: .any)["app.tab.tasks"]
+        waitForHittability(tasksTab, named: "tasksTab", timeout: 5.0)
+        tasksTab.tap()
 
-        waitForHittability(habitsTab, named: "habitsTab", timeout: 5.0)
+        waitForHittability(tasksTab, named: "tasksTab", timeout: 5.0)
     }
 }

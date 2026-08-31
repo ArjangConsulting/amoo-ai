@@ -172,7 +172,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public let harnessLaunchesApp: Bool
     public let helpers: [Helper]
     /// Raw recorded accessibility IDs mapped to a repository-owned Swift/Kotlin identifier
-    /// expression, e.g. `{"uuid": "AppUIAutomationID.habit.weed"}`.
+    /// expression, e.g. `{"uuid": "AppUIAutomationID.task.chore"}`.
     public let selectorExpressions: [String: String]
     /// Optional expression template for mapped IDs, e.g. `app.element(id: {{id}})`. The default
     /// keeps the standalone XCUITest lookup shape.

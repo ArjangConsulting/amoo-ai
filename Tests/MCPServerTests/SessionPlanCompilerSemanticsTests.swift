@@ -85,13 +85,13 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
     // MARK: - Part 2: element-scoped swipe keeps row identity
 
     func testElementScopedSwipeGetsLabelFromPriorFindElements() throws {
-        let rowID = "app.habit_catalog.row.1a4f72d9-2750-4c70-9eca-9bdef50ba34a"
+        let rowID = "app.task_list.row.1a4f72d9-2750-4c70-9eca-9bdef50ba34a"
         let result = try SessionPlanCompiler.compile(
             report: report([
-                action("find_elements", ["contains_text": "Water"], intent: .diagnostic, observed: [
+                action("find_elements", ["contains_text": "Laundry"], intent: .diagnostic, observed: [
                     RecordedElement(
                         id: rowID,
-                        label: "💧 Water, Track total water intake., Unit",
+                        label: "🧺 Laundry, wash and fold the whites, Sunday",
                         frame: nil,
                         hitPoint: nil
                     )
@@ -103,36 +103,36 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
         )
         let swipe = try XCTUnwrap(operations(result).first { $0.tool == "swipe_in_direction" })
         XCTAssertEqual(swipe.arguments["element_id"], rowID, "the id stays the selector")
-        XCTAssertEqual(swipe.arguments["element_label"], "💧 Water, Track total water intake., Unit")
+        XCTAssertEqual(swipe.arguments["element_label"], "🧺 Laundry, wash and fold the whites, Sunday")
     }
 
     // MARK: - Part 2: same label, different roles
 
     /// Same label on different screens: a catalog row (id path carries `row`) vs. a bare-label
-    /// option tapped on the create screen. They must not collapse to `water` / `water2`.
+    /// option tapped on the create screen. They must not collapse to `laundry` / `laundry2`.
     func testSameLabelRowVersusPickerOptionGetDistinctNames() throws {
-        let rowID = "app.habit_catalog.row.1a4f72d9-2750-4c70-9eca-9bdef50ba34a"
+        let rowID = "app.task_list.row.1a4f72d9-2750-4c70-9eca-9bdef50ba34a"
         let result = try SessionPlanCompiler.compile(
             report: report([
-                action("find_elements", ["contains_text": "Water"], intent: .diagnostic, observed: [
-                    RecordedElement(id: rowID, label: "💧 Water", frame: nil, hitPoint: nil)
+                action("find_elements", ["contains_text": "Laundry"], intent: .diagnostic, observed: [
+                    RecordedElement(id: rowID, label: "🧺 Laundry", frame: nil, hitPoint: nil)
                 ]),
                 action("swipe_in_direction", ["direction": "left", "element_id": rowID]),
                 action("tap_element", ["id": "trash"]),
-                action("assert_absent", ["contains_text": "Water"], intent: .assertion),
-                action("tap_element", ["id": "app.habit_catalog.create_button"]),
-                action("tap_element", ["label": "Water"]),
+                action("assert_absent", ["contains_text": "Laundry"], intent: .assertion),
+                action("tap_element", ["id": "app.task_list.create_button"]),
+                action("tap_element", ["label": "Laundry"]),
                 action("tap_element", ["label": "Add"]),
-                action("assert_visible", ["contains_text": "Water"], intent: .assertion)
+                action("assert_visible", ["contains_text": "Laundry"], intent: .assertion)
             ]),
             testName: nil, testDescription: nil
         )
         let ops = operations(result)
-        let pickerTap = try XCTUnwrap(ops.first { $0.tool == "tap_element" && $0.arguments["label"] == "Water" })
-        XCTAssertEqual(pickerTap.arguments["name_hint"], "Water preset option")
+        let pickerTap = try XCTUnwrap(ops.first { $0.tool == "tap_element" && $0.arguments["label"] == "Laundry" })
+        XCTAssertEqual(pickerTap.arguments["name_hint"], "Laundry preset option")
         // The row swipe keeps its row-shaped identity separately.
         let swipe = try XCTUnwrap(ops.first { $0.tool == "swipe_in_direction" })
-        XCTAssertEqual(swipe.arguments["element_label"], "💧 Water")
+        XCTAssertEqual(swipe.arguments["element_label"], "🧺 Laundry")
     }
 
     /// Same label in the same collection with no derivable role distinction: two bare-label taps,
@@ -141,8 +141,8 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
     func testSameLabelSameCollectionIsNotGivenAPresetRole() throws {
         let result = try SessionPlanCompiler.compile(
             report: report([
-                action("tap_element", ["label": "Water"]),
-                action("tap_element", ["label": "Water"])
+                action("tap_element", ["label": "Laundry"]),
+                action("tap_element", ["label": "Laundry"])
             ]),
             testName: nil, testDescription: nil
         )
@@ -166,12 +166,12 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
 
     func testCompilationIsDeterministicForTheSameReport() throws {
         let actions: [SessionAction] = [
-            action("find_elements", ["contains_text": "Water"], intent: .diagnostic, observed: [
-                RecordedElement(id: "app.habit_catalog.row.uuid", label: "💧 Water", frame: nil, hitPoint: nil)
+            action("find_elements", ["contains_text": "Laundry"], intent: .diagnostic, observed: [
+                RecordedElement(id: "app.task_list.row.uuid", label: "🧺 Laundry", frame: nil, hitPoint: nil)
             ]),
-            action("swipe_in_direction", ["direction": "left", "element_id": "app.habit_catalog.row.uuid"]),
-            action("tap_element", ["id": "app.habit_catalog.create_button"]),
-            action("tap_element", ["label": "Water"]),
+            action("swipe_in_direction", ["direction": "left", "element_id": "app.task_list.row.uuid"]),
+            action("tap_element", ["id": "app.task_list.create_button"]),
+            action("tap_element", ["label": "Laundry"]),
             action("tap_element", ["label": "Add"])
         ]
         let encoder = JSONEncoder()

@@ -91,7 +91,7 @@ gives a direct yes/no instead of a summary you have to read. Keep
 `describe_screen` for orientation: the first look at an unfamiliar screen, or when
 an action did something you did not expect and you need the whole picture.
 
-Two habits worth keeping:
+Two practices worth keeping:
 
 - **Don't poll in a loop.** One `describe_screen` after an action answers "did it
   change". If you need to wait for something, `assert_visible`,
@@ -206,7 +206,7 @@ preview* you may run while the session is still open; it is never a required ste
    row, then call `swipe_in_direction` with that row's `element_id` (preferred) or
    `element_label`. The companion fails rather than guessing on an ambiguous
    id/label, the recorded step keeps the row's identity, and the compiler emits an
-   element-scoped gesture — `cigarettesHabitRow.swipeLeft()`, not `app.swipeLeft()`.
+   element-scoped gesture — `groceriesTaskRow.swipeLeft()`, not `app.swipeLeft()`.
    Only when the row has no stable id or label, fall back to a coordinate
    `swipe`/`tap`: the recorder binds it to the element you just resolved
    (`SessionAction.gestureTarget` / `observedElements`) so codegen still recovers
@@ -240,22 +240,22 @@ preview* you may run while the session is still open; it is never a required ste
 
 ### Acceptance scenario
 
-> *Skip onboarding, open Habits, delete Cigarettes, add Cigarettes, generate XCTest.*
+> *Skip onboarding, open Tasks, delete Groceries, add Groceries, generate XCTest.*
 
 A correct run of that request looks like:
 
 - Session started with the app's skip-onboarding / reset-state launch environment
   (not tapped through).
-- `find_elements` resolves the "Cigarettes" habit-catalog row **before** the
+- `find_elements` resolves the "Groceries" task-list row **before** the
   swipe; the recorded `swipe_in_direction` carries that row's `element_id`.
-- Generated code contains `cigarettesHabitRow.swipeLeft()` (or `cigarettesRow`) —
+- Generated code contains `groceriesTaskRow.swipeLeft()` (or `groceriesRow`) —
   **never** a UUID-derived name like `a40fb286E7ca…Row`.
 - Two identically-labelled elements with different roles get distinct semantic
-  names (a catalog row `cigarettesHabitRow` vs a picker option
-  `cigarettesPresetOption`), never `cigarettes` / `cigarettes2`.
+  names (a catalog row `groceriesTaskRow` vs a picker option
+  `groceriesPresetOption`), never `groceries` / `groceries2`.
 - `setUp` sets `app.launchEnvironment[...]` for each provided flag.
-- A delete assertion (`assert_absent` / `waitForAbsence` on "Cigarettes")
-  and an add assertion (`assert_visible` / `waitForHittability` on "Cigarettes").
+- A delete assertion (`assert_absent` / `waitForAbsence` on "Groceries")
+  and an add assertion (`assert_visible` / `waitForHittability` on "Groceries").
 - No `--allow-incomplete` — and if the agent used it, an explicit note of which
   steps are missing and why.
 
@@ -320,7 +320,7 @@ Tune it with `retry_tap_interval_ms` on `compile_session_to_plan`, or
 `AMOO_RETRY_TAP_INTERVAL_MS` for every compile. **Default is 300ms**, deliberately
 below the ~450ms `tap_element` round-trip: an agent's taps are ~0.5s apart no matter
 what it intends, so a larger window would collapse deliberate repeats on transport
-latency alone. Measured against sample-app, taps requested 0.05s apart recorded at
+latency alone. Measured against a sample app, taps requested 0.05s apart recorded at
 0.576s and 0.678s — the same intent landing either side of a 600ms window.
 
 The practical effect is that collapsing is **opt-in for agent-driven recordings**:
@@ -392,7 +392,7 @@ the repository's identifier catalog without making that catalog an Amo default:
   "harnessLaunchesApp": true,
   "idLookupTemplate": "app.element(id: {{id}})",
   "selectorExpressions": {
-    "0A0D-raw-recording-id": "AppUIAutomationID.habit.weed"
+    "0A0D-raw-recording-id": "AppUIAutomationID.task.chore"
   }
 }
 ```
@@ -440,14 +440,14 @@ The exporter names each local from the semantics the recording already carries,
 
 UUIDs, hashes, numeric record ids and other opaque trailing segments are dropped
 entirely — a collision is resolved by a short deterministic numeric suffix
-(`cigarettesHabitRow`, then `cigarettesHabitRow2`), never by falling back to the
+(`groceriesTaskRow`, then `groceriesTaskRow2`), never by falling back to the
 id. Examples:
 
 | accessibility id | label | generated name |
 | --- | --- | --- |
-| `app.tab.tasks` | `Habits` | `habitsTab` |
-| `app.task_list.create_button` | `Create Habit` | `createHabitButton` |
-| `app.task_list.row.<uuid>` | `Cigarettes` | `cigarettesHabitRow` |
+| `app.tab.tasks` | `Tasks` | `tasksTab` |
+| `app.task_list.create_button` | `New Task` | `newTaskButton` |
+| `app.task_list.row.<uuid>` | `Groceries` | `groceriesTaskRow` |
 | — | `Delete` | `deleteButton` |
 | `sample.home.feed.sectionTitle.most_loved` | — | `mostLovedSectionTitle` |
 

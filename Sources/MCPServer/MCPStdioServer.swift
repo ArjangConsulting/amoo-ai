@@ -42,7 +42,7 @@ public struct MCPStdioServer: Sendable {
     `swipe_in_direction` with the row's `element_id` (preferred) or `element_label`. That is the \
     reliable path — the companion fails rather than guessing when the id/label is ambiguous, and \
     the recorded step keeps the row's identity, so the compiler emits an element-scoped gesture \
-    such as `cigarettesHabitRow.swipeLeft()`. Only if the row has no stable id or label, fall \
+    such as `groceriesTaskRow.swipeLeft()`. Only if the row has no stable id or label, fall \
     back to a coordinate `swipe`: the recorder then binds it to the element you just resolved. \
     Never read coordinates off a screenshot — screenshots are pixels, gestures are points.
 

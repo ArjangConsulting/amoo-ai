@@ -41,7 +41,7 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
     func testInstructionsCiteTheElementScopedSwipeExample() {
         // The concrete example must stay verbatim so IntegrationTests can assert the generator
         // produces exactly this identifier for the documented input.
-        XCTAssertTrue(instructions.contains("cigarettesHabitRow.swipeLeft()"))
+        XCTAssertTrue(instructions.contains("groceriesTaskRow.swipeLeft()"))
     }
 
     func testInstructionsNameOnlyExposedToolsForAssertionsAndLifecycle() {

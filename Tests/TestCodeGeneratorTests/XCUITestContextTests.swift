@@ -101,7 +101,7 @@ final class XCUITestContextTests: XCTestCase {
     }
 
     func testXCUITestEmitterStillLaunchesWhenABaseClassIsNamedButDoesNotLaunch() throws {
-        // Naming a base class is not a claim that it launches the app. SampleApp's checked-in
+        // Naming a base class is not a claim that it launches the app. A sample app's checked-in
         // context names `XCTestCase` explicitly and relies on the emitter to launch; inferring
         // otherwise would run every generated test against an app that never started.
         let context = StudioTestContext(

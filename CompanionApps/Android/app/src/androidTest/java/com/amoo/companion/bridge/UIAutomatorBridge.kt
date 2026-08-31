@@ -58,7 +58,7 @@ class UIAutomatorBridge {
 
     // There is deliberately no element cache here, unlike the iOS bridge.
     //
-    // One was tried and removed. Measured on a booted emulator against sample-app, a single
+    // One was tried and removed. Measured on a booted emulator against a sample app, a single
     // `find_elements` costs ~2.7s — the cache's 150ms TTL had expired roughly eighteen times over
     // before any second query could arrive, so it never once served a hit. Before/after numbers
     // were identical (2.73s vs 2.69s), and all it added was live `UiObject2` handles held across
@@ -470,7 +470,7 @@ class UIAutomatorBridge {
      * accessor (`text`, `contentDescription`, `resourceName`, `className`, `visibleBounds`,
      * `isEnabled`) refreshes the node over IPC, so building one snapshot cost roughly six round
      * trips and `matches` + `toSnapshot` together cost about nine. Profiled on a booted emulator
-     * against sample-app, a 77-node screen spent 13ms walking the tree and ~2.6s on those reads —
+     * against a sample app, a 77-node screen spent 13ms walking the tree and ~2.6s on those reads —
      * about 5.7ms per property, ~460 round trips per query.
      *
      * `AccessibilityNodeInfo` already carries all of it locally once fetched, so the same screen
