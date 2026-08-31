@@ -1,6 +1,7 @@
 @testable import CLI
 import Foundation
 import StudioProtocol
+import TestCodeGenerator
 import TestSession
 import XCTest
 
@@ -104,6 +105,62 @@ final class GeneratePlanCommandTests: XCTestCase {
         let plan = try JSONDecoder().decode(StudioAuthoredTest.self, from: Data(result.output.utf8))
         XCTAssertEqual(plan.testContext?.baseClass, "AppUITestCase")
         XCTAssertEqual(plan.testContext?.harnessLaunchesApp, true)
+    }
+
+    /// The self-contained Water round trip (add -> visible -> delete -> absent -> add -> visible)
+    /// expressed purely as MCP tool calls, driven through the CLI surface: `amoo generate plan`
+    /// then `amoo generate test` with **no** `--allow-incomplete`. Nothing here depends on a
+    /// host app's seeded state.
+    private func selfContainedWaterActions() -> [SessionAction] {
+        let rowID = "app.habit_catalog.row.7f1c0e64-2f43-4d1e-9a1a-2c9b7e5d0a11"
+        let rowLabel = "💧 Water, Track total water intake., Unit"
+        return [
+            action("find_elements", ["contains_text": "Create Habit"], intent: .diagnostic, observed: [
+                RecordedElement(id: "app.habit_catalog.create_button", label: "Create Habit", frame: nil, hitPoint: nil)
+            ]),
+            action("tap_element", ["id": "app.habit_catalog.create_button"]),
+            action("tap_element", ["label": "Water"]),
+            action("tap_element", ["id": "checkmark"]),
+            action("assert_visible", ["contains_text": "Water"], intent: .assertion),
+            action("find_elements", ["contains_text": "Water"], intent: .diagnostic, observed: [
+                RecordedElement(id: rowID, label: rowLabel, frame: nil, hitPoint: nil)
+            ]),
+            action("swipe_in_direction", ["direction": "left", "element_id": rowID]),
+            action("tap_element", ["id": "trash"]),
+            action("assert_absent", ["contains_text": "Water"], intent: .assertion),
+            action("tap_element", ["id": "app.habit_catalog.create_button"]),
+            action("tap_element", ["label": "Water"]),
+            action("tap_element", ["id": "checkmark"]),
+            action("assert_visible", ["contains_text": "Water"], intent: .assertion)
+        ]
+    }
+
+    func testWaterFixtureGeneratesWithoutAllowIncomplete() throws {
+        let reportPath = try writeReport(selfContainedWaterActions())
+        let planResult = try runGeneratePlanCommand(options: GeneratePlanOptions(
+            reportPath: reportPath, outputDirectory: nil, contextPath: nil,
+            testName: "Water Habit Round Trip", testDescription: nil
+        ))
+        XCTAssertEqual(planResult.exitCode, 0)
+
+        let planURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("water-cli-plan-\(UUID().uuidString).json")
+        try Data(planResult.output.utf8).write(to: planURL)
+        addTeardownBlock { try? FileManager.default.removeItem(at: planURL) }
+
+        let emitters = StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
+        let generated = try runGenerateTestCommand(
+            options: GenerateTestOptions(planPath: planURL.path, outputDirectory: nil, allowIncomplete: false),
+            emitters: emitters
+        )
+
+        XCTAssertEqual(generated.exitCode, 0, generated.output)
+        XCTAssertTrue(generated.output.contains("func testWaterHabitRoundTrip()"))
+        XCTAssertTrue(generated.output.contains("waterHabitRow.swipeLeft()"))
+        XCTAssertTrue(generated.output.contains("waterPresetOption"))
+        XCTAssertFalse(generated.output.contains("water2"))
+        XCTAssertTrue(generated.output.contains(#"waitForAbsence(water, named: "water""#))
+        XCTAssertFalse(generated.output.contains("XCTFail("))
     }
 
     func testParsesFlagsAndRequiresReport() {
