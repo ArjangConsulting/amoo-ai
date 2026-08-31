@@ -87,6 +87,69 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(onDisk?.isActive, false)
     }
 
+    /// The retry-collapse heuristic runs entirely on sub-second gaps between actions, so a store
+    /// that rounds timestamps to the second makes the same recording compile differently depending
+    /// on whether the session is still in memory. `.iso8601` did exactly that.
+    func testActionTimestampsKeepSubSecondPrecisionAcrossDisk() async throws {
+        let root = makeTempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileSessionStore(root: root)
+
+        let base = Date(timeIntervalSince1970: 1_772_000_000.0)
+        let stamps = [base, base.addingTimeInterval(0.561), base.addingTimeInterval(1.118)]
+        let report = SessionReport(
+            sessionID: "s-precision",
+            appID: "com.example",
+            deviceID: "device-1",
+            platform: "ios",
+            startedAt: base,
+            endedAt: nil,
+            durationSeconds: 2,
+            actionCount: stamps.count,
+            errorCount: 0,
+            isActive: false,
+            actions: stamps.map {
+                SessionAction(
+                    timestamp: $0,
+                    toolName: "tap_element",
+                    arguments: ["id": "x"],
+                    result: "ok",
+                    isError: false
+                )
+            }
+        )
+
+        await store.save(report)
+        let reloaded = await store.loadReport(sessionID: "s-precision")
+        let loaded = try XCTUnwrap(reloaded)
+
+        let gaps = zip(loaded.actions, loaded.actions.dropFirst()).map {
+            $1.timestamp.timeIntervalSince($0.timestamp)
+        }
+        XCTAssertEqual(gaps[0], 0.561, accuracy: 0.002)
+        XCTAssertEqual(gaps[1], 0.557, accuracy: 0.002)
+    }
+
+    /// Reports written before the fractional-seconds fix must still load.
+    func testReportWithoutFractionalSecondsStillDecodes() async throws {
+        let root = makeTempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = root.appending(path: "s-legacy", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let json = """
+        {"sessionID":"s-legacy","appID":"com.example","deviceID":"d","platform":"ios",
+         "startedAt":"2026-08-31T00:00:23Z","durationSeconds":2,"actionCount":1,
+         "errorCount":0,"isActive":false,
+         "actions":[{"timestamp":"2026-08-31T00:00:26Z","toolName":"tap_element",
+                     "arguments":{},"result":"ok","isError":false}]}
+        """
+        try Data(json.utf8).write(to: directory.appending(path: "report.json"))
+
+        let loaded = await FileSessionStore(root: root).loadReport(sessionID: "s-legacy")
+
+        XCTAssertEqual(loaded?.actions.count, 1)
+    }
+
     func testReportResolvesFromDiskAfterProcessRestart() async throws {
         let root = makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }

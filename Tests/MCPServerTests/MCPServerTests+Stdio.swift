@@ -23,8 +23,13 @@ extension MCPServerTests {
         let messages = [
             #"{"jsonrpc":"2.0","id":"discover","method":"server/discover","params":{\#(modernMeta)}}"#,
             #"{"jsonrpc":"2.0","id":"modern-list","method":"tools/list","params":{\#(modernMeta)}}"#,
+            // Argument validation fails before any device is touched, so this asserts the modern
+            // error envelope without depending on ambient state. It used to send a *valid*
+            // tap(x:10,y:20) and rely on there being no reachable companion — so the test passed
+            // on an idle machine and failed the moment anyone had a companion running, which is
+            // exactly when they are doing real work.
             #"{"jsonrpc":"2.0","id":"modern-call","method":"tools/call","params":{"name":"tap","#
-                + #""arguments":{"x":10,"y":20},\#(modernMeta)}}"#,
+                + #""arguments":{"x":"not-a-number"},\#(modernMeta)}}"#,
             #"{"jsonrpc":"2.0","id":"unsupported","method":"tools/list","params":{"_meta":{"#
                 + #""io.modelcontextprotocol/protocolVersion":"1900-01-01","#
                 + #""io.modelcontextprotocol/clientCapabilities":{}}}}"#,
