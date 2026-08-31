@@ -174,6 +174,18 @@ extension DriverToolExecutor {
     }
 
     enum ElementAssertionKind {
+        /// On screen. Deliberately weaker than `.enabled`: a disabled-but-present control is
+        /// visible, and asserting otherwise would make `assert_visible` silently mean
+        /// "visible and interactive".
+        ///
+        /// `assert_visible` takes a precise selector *or* a natural-language `description`, and
+        /// routes here only for the former. It used to accept `description` alone, which made it
+        /// the odd one out beside `assert_enabled` / `assert_absent` — both take either — and
+        /// forced a caller holding an exact accessibility id to degrade it into a text guess.
+        /// `SessionPlanCompiler.translateAssertVisible` has always expected a recorded
+        /// `assert_visible` to be able to carry id/label/contains_text; until now the tool could
+        /// never produce one.
+        case visible
         case enabled
         case absent
         case value
@@ -193,6 +205,10 @@ extension DriverToolExecutor {
             switch kind {
             case .absent where match == nil:
                 return assertionSuccess("Element is absent", element: nil)
+            case .visible:
+                if let match, match.isVisible {
+                    return assertionSuccess("Element is visible", element: match)
+                }
             case .enabled:
                 if let match, match.isVisible, match.isEnabled {
                     return assertionSuccess("Element is visible and enabled", element: match)

@@ -67,10 +67,15 @@ look-then-act pair costs about one snapshot, not two.
 | Did a *specific* thing appear? | `find_elements id=…` | ~190ms cold, ~30ms cached |
 | What is on screen generally? | `describe_screen` | ~430ms cold, ~140ms cached |
 | Did anything change at all? | `assert_screen_changed from_token=<token>` | one snapshot, polls internally |
-| Interact with a labeled control | `tap_element`, `set_text`, `fill_field` | one snapshot + one gesture |
-| What does this *look* like? | `take_screenshot output=<path>` | PNG capture + an image read |
-| Where is this unlabeled icon? | `find_elements` with no selector | one snapshot; reports frames for unlabeled elements too |
-| Nothing above can reach it | `tap x= y=` | cheap to run, easy to get wrong |
+| Interact with a labeled control | `tap_element`, `set_text`, `fill_field` | ~440ms, almost all of it the gesture |
+| What does this *look* like? | `take_screenshot scale=0.25 output=<path>` | ~260ms + an image read |
+| Where is this unlabeled icon? | `find_elements` with no selector | same as above; reports frames for unlabeled elements too |
+| Nothing above can reach it | `tap x= y=` | ~430ms; cheap to run, easy to get wrong |
+
+Gestures, not queries, are what a flow actually spends its time on: a tap that lands
+on nothing still costs ~430ms, because XCUITest waits for the app to settle after
+every synthesised event. Cutting query calls is worth doing, but the way to make a
+long flow faster is to take fewer *actions*, not fewer looks.
 
 `describe_screen` and `find_elements` answer "did it work" faster and more
 reliably than a screenshot, because they return text you can assert on. Reach for
@@ -92,7 +97,10 @@ Two habits worth keeping:
   internally — one call, not a sleep loop.
 - **Don't shell out to `simctl io screenshot`.** `take_screenshot output=<path>`
   writes the same PNG to disk (and `scale=0.5` cuts it to roughly a quarter of
-  the bytes, plenty for reading layout and state).
+  the bytes, plenty for reading layout and state). A screenshot is not the
+  expensive option it looks like — at `scale=0.25` it costs about 260ms, less than
+  a first `describe_screen` on a screen. What makes it expensive is *reading* the
+  image, not capturing it, so it is still the wrong tool for "did X appear?".
 
 ## Coordinates: points vs. pixels, and the second conversion
 

@@ -71,7 +71,7 @@ Common tools:
   analyze_ai_testability
   highlight_a11y_issues
   find_element_by_description description=<text>
-  assert_visible description=<text> [timeout_ms=<n>]
+  assert_visible [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>] [timeout_ms=<n>]
   assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [timeout_ms=<n>]
   assert_absent [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]

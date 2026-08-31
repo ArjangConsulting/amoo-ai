@@ -67,12 +67,18 @@ public enum IntentTools {
         ToolDefinition(
             name: "assert_visible",
             title: "Assert Visible",
-            description: "Poll for an element matching the description until it appears or the timeout expires."
+            description: "Poll until an element is visible or the timeout expires. Takes a precise"
+                + " selector (id / label / contains_text) or, failing that, a natural-language"
+                + " `description`. Prefer a selector: `description` is a text search over labels"
+                + " and identifiers, so it can match the wrong element."
                 + " Returns a pass/fail result with the matched element details.",
             properties: [
+                "id": .init(type: "string", description: "Accessibility identifier. Preferred."),
+                "label": .init(type: "string", description: "Exact accessibility label"),
+                "contains_text": .init(type: "string", description: "Substring of the label"),
                 "description": .init(
                     type: "string",
-                    description: "Natural-language description of the element to find"
+                    description: "Natural-language description, used only when no selector is given"
                 ),
                 "session_id": .init(
                     type: "string",
@@ -83,7 +89,9 @@ public enum IntentTools {
                     description: "Max time to wait for the element to appear (default 5000)"
                 )
             ],
-            required: ["description"],
+            // No `required`: one of id / label / contains_text / description must be present, which
+            // a flat required list cannot express. The dispatch rejects the empty case by hand.
+            required: [],
             outputSchema: ToolOutputSchema(
                 properties: [
                     "passed": .init(type: "boolean", description: "Whether the element appeared in time"),

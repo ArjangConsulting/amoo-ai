@@ -416,8 +416,17 @@ extension DriverToolExecutor {
             )
 
         case "assert_visible":
+            // Selector first, `description` as the fuzzy fallback — see `ElementAssertionKind`.
+            if let selector = preferredSelector(arguments: arguments, includeDescription: false) {
+                return try await executeElementAssertion(
+                    kind: .visible,
+                    selector: selector,
+                    arguments: arguments,
+                    driver: driver
+                )
+            }
             guard let description = arguments["description"] else {
-                return .error("Missing required argument: description")
+                return .error("An element selector is required: id, label, contains_text, or description")
             }
             let timeout = arguments["timeout_ms"].flatMap(Int.init) ?? 5000
             return try await executeAssertVisible(
