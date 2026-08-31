@@ -98,7 +98,7 @@ final class SessionPlanCompilerRetryTests: XCTestCase {
 
         let warning = try XCTUnwrap(result.warnings.first { $0.reason.contains("identical taps") })
         XCTAssertTrue(warning.reason.contains("gaps 0.25s"), warning.reason)
-        XCTAssertTrue(warning.reason.contains("0.60s retry window"), warning.reason)
+        XCTAssertTrue(warning.reason.contains("0.30s retry window"), warning.reason)
         XCTAssertTrue(warning.reason.contains("retry_tap_interval_ms"), warning.reason)
     }
 

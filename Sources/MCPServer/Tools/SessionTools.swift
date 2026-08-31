@@ -184,7 +184,9 @@ public enum SessionTools {
                 "retry_tap_interval_ms": .init(
                     type: "number",
                     description: "How close together identical taps must be to read as a retry loop"
-                        + " and collapse into one step. Default 600ms (or"
+                        + " and collapse into one step. Default 300ms — deliberately below the"
+                        + " ~450ms companion round-trip, so agent-issued taps are never collapsed"
+                        + " on transport latency alone. (or"
                         + " AMOO_RETRY_TAP_INTERVAL_MS). Raise it if a hammered button was kept as"
                         + " N steps; lower it if a deliberate repeat — a stepper, a quantity, a"
                         + " keypad — was wrongly collapsed. `retryRunObservations` in the output"

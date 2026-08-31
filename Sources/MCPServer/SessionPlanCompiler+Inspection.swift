@@ -173,7 +173,20 @@ extension SessionPlanCompiler {
     ///
     /// So it is tunable rather than fixed, and every collapsed run reports the gaps it saw
     /// (`RetryRunObservation`) so a real value can be chosen from real recordings.
-    public static let defaultRetryTapInterval: TimeInterval = 0.6
+    ///
+    /// **Why 0.3s and not something larger.** amoo's primary driver is an AI agent issuing tool
+    /// calls, and a `tap_element` round-trip through the companion costs ~0.45s before any pacing
+    /// the caller intends. Measured against sample-app: taps requested 0.1s apart recorded 0.561s
+    /// and 0.557s; taps requested 0.05s apart recorded 0.576s and 0.678s — the same intent landing
+    /// either side of a 0.6s window on transport jitter alone. Any threshold inside that band
+    /// decides on latency rather than intent, so the default sits *below* the round-trip floor.
+    ///
+    /// The effect is that collapsing is opt-in for agent-driven recordings: nothing is silently
+    /// folded away, and a caller who knows a run was a retry loop raises the window (the kept runs
+    /// are reported with their gaps, so they can see what to raise it to). A human driving a
+    /// recorder directly, with no MCP hop, can still produce genuine sub-300ms hammering, which is
+    /// the case this default continues to catch.
+    public static let defaultRetryTapInterval: TimeInterval = 0.3
 
     /// Reads `AMOO_RETRY_TAP_INTERVAL_MS`, falling back to the default. A non-positive or
     /// unparseable value is ignored rather than failing a compile.

@@ -8,7 +8,7 @@ description: Drive a booted iOS simulator or Android emulator through the amoo C
 | Field | Value |
 |-------|-------|
 | Created | 2026-08-17 |
-| Last Updated | 2026-08-28 |
+| Last Updated | 2026-08-31 |
 | Applies to | `amoo device`, `amoo companion`, `amoo flow`, `amoo generate test` |
 
 ### Update checklist
@@ -203,7 +203,16 @@ faster than a slow retry. So the window is a **default to tune per app**, not a
 constant to trust.
 
 Tune it with `retry_tap_interval_ms` on `compile_session_to_plan`, or
-`AMOO_RETRY_TAP_INTERVAL_MS` for every compile. Default is 600ms.
+`AMOO_RETRY_TAP_INTERVAL_MS` for every compile. **Default is 300ms**, deliberately
+below the ~450ms `tap_element` round-trip: an agent's taps are ~0.5s apart no matter
+what it intends, so a larger window would collapse deliberate repeats on transport
+latency alone. Measured against sample-app, taps requested 0.05s apart recorded at
+0.576s and 0.678s — the same intent landing either side of a 600ms window.
+
+The practical effect is that collapsing is **opt-in for agent-driven recordings**:
+nothing is folded away silently, and you raise the window when you know a run was a
+retry loop. A human driving a recorder directly can still produce genuine sub-300ms
+hammering, which the default still catches.
 
 - A hammered button kept as N steps → **raise** it.
 - A deliberate repeat wrongly collapsed → **lower** it.
