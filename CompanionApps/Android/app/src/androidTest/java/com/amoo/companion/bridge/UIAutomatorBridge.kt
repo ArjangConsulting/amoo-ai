@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.StaleObjectException
@@ -31,6 +32,9 @@ class UIAutomatorBridge {
          * whole screens as tap targets.
          */
         const val MAX_ANCESTOR_WALK = 5
+
+        /** Bounds the accessibility walk so a pathological tree cannot stall a query. */
+        const val MAX_TREE_DEPTH = 60
 
         /** Quiescence wait before reading the hierarchy, so a mid-transition frame is not captured. */
         const val WAIT_FOR_IDLE_MS = 2_000L
@@ -243,7 +247,11 @@ class UIAutomatorBridge {
 
     fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
         device.waitForIdle(2000)
-        val candidates = currentElements().filter { matches(it, resourceId, label, containsText) }
+        // The only path that still needs live [UiObject2] handles: the others just read the tree,
+        // but this one has to type into the node it finds. Its per-node property reads are the cost
+        // documented on [NodeRecord], which is acceptable for a single text entry and not for a
+        // query issued after every action.
+        val candidates = uiObjectTree().filter { uiMatches(it, resourceId, label, containsText) }
         // A label selector often hits the field's TextView first. Prefer an editable node.
         val target = candidates.firstOrNull { it.className?.contains("EditText") == true }
             ?: candidates.firstOrNull()
@@ -320,22 +328,10 @@ class UIAutomatorBridge {
             val matches = scopedElements(elements, appId)
                 .filter { matches(it, resourceId, text, containsText) }
             matches.firstOrNull { it.isClickable }?.let { return@withCurrentElements it.toSnapshot() }
-            matches.firstNotNullOfOrNull { nearestClickableAncestor(it) }
+            matches.firstNotNullOfOrNull { it.clickableAncestor }
                 ?.let { return@withCurrentElements it.toSnapshot() }
             matches.firstOrNull()?.toSnapshot()
         }
-    }
-
-    /** Walks up from [element] to the first clickable node, bounded so a deep tree cannot stall a tap. */
-    private fun nearestClickableAncestor(element: UiObject2): UiObject2? {
-        var current: UiObject2? = runCatching { element.parent }.getOrNull()
-        var depth = 0
-        while (current != null && depth < MAX_ANCESTOR_WALK) {
-            if (current.isClickable) return current
-            current = runCatching { current?.parent }.getOrNull()
-            depth++
-        }
-        return null
     }
 
     /**
@@ -348,16 +344,16 @@ class UIAutomatorBridge {
      * separate lookup, and "fall back to system UI when nothing matches" falls out for free:
      * an empty filtered result just returns the unfiltered list, which already contains it.
      */
-    private fun scopedElements(all: List<UiObject2>, appId: String?): List<UiObject2> {
+    private fun scopedElements(all: List<NodeRecord>, appId: String?): List<NodeRecord> {
         if (appId.isNullOrBlank()) return all
-        val scoped = all.filter { it.applicationPackage == appId }
+        val scoped = all.filter { it.packageName == appId }
         return scoped.ifEmpty { all }
     }
 
     fun getInteractableElements(): List<ElementSnapshot> {
         return withCurrentElements { elements ->
             elements
-                .filter { it.isClickable || it.isLongClickable || it.className?.contains("EditText") == true }
+                .filter { it.isClickable || it.isLongClickable || it.type.contains("EditText") }
                 .map { it.toSnapshot() }
         }
     }
@@ -403,36 +399,30 @@ class UIAutomatorBridge {
         return bytes
     }
 
-    private fun UiObject2.toSnapshot(): ElementSnapshot {
-        val bounds = visibleBounds ?: Rect()
-        val contentDescription = contentDescription?.toString().orEmpty()
-        val resourceName = resourceName.orEmpty()
-        val textValue = text?.toString().orEmpty()
-        val normalizedID = normalizedElementID(resourceName, contentDescription)
-
-        return ElementSnapshot(
-            id = normalizedID,
-            label = textValue.ifBlank { contentDescription },
-            value = textValue,
-            type = className ?: "",
-            frame = FrameRect(bounds.left, bounds.top, bounds.width(), bounds.height()),
-            isEnabled = isEnabled,
-            isVisible = true
-        )
-    }
+    private fun NodeRecord.toSnapshot(): ElementSnapshot = ElementSnapshot(
+        id = id,
+        label = label,
+        value = value,
+        type = type,
+        frame = FrameRect(bounds.left, bounds.top, bounds.width(), bounds.height()),
+        isEnabled = isEnabled,
+        isVisible = isVisible
+    )
 
     private fun matches(
-        element: UiObject2,
+        element: NodeRecord,
         resourceId: String?,
         text: String?,
         containsText: String?
     ): Boolean {
-        val elementText = element.text?.toString().orEmpty()
-        val contentDescription = element.contentDescription?.toString().orEmpty()
-        val resourceName = element.resourceName.orEmpty()
-        val normalizedID = normalizedElementID(resourceName, contentDescription)
+        val elementText = element.value
+        val contentDescription = element.contentDescription
+        val resourceName = element.resourceName
+        val normalizedID = element.id
 
-        if (resourceId != null && resourceId != normalizedID && resourceId != contentDescription && resourceId != resourceName) {
+        if (resourceId != null && resourceId != normalizedID &&
+            resourceId != contentDescription && resourceId != resourceName
+        ) {
             return false
         }
 
@@ -444,7 +434,11 @@ class UIAutomatorBridge {
             return false
         }
 
-        return resourceId != null || text != null || containsText != null
+        // No selector means "everything on screen", which is how an icon-only control with neither
+        // id nor label is found at all — `find_elements` with no arguments is the documented way in
+        // (see skills/driving-amoo). This used to return false here, so that call answered 0
+        // elements on Android while iOS listed the whole tree.
+        return true
     }
 
     private fun normalizedElementID(resourceName: String, contentDescription: String): String {
@@ -461,7 +455,7 @@ class UIAutomatorBridge {
      * recycled. Retry the whole operation once with a fresh tree; partial results would make a
      * selector appear absent merely because its node changed during the walk.
      */
-    private inline fun <T> withCurrentElements(operation: (List<UiObject2>) -> T): T {
+    private inline fun <T> withCurrentElements(operation: (List<NodeRecord>) -> T): T {
         try {
             return operation(currentElements())
         } catch (_: StaleObjectException) {
@@ -469,7 +463,134 @@ class UIAutomatorBridge {
         }
     }
 
-    private fun currentElements(): List<UiObject2> {
+    /**
+     * Every field a query needs, read once from one [AccessibilityNodeInfo].
+     *
+     * This exists for speed, and the margin is large. A [UiObject2] is a cursor, not a value: each
+     * accessor (`text`, `contentDescription`, `resourceName`, `className`, `visibleBounds`,
+     * `isEnabled`) refreshes the node over IPC, so building one snapshot cost roughly six round
+     * trips and `matches` + `toSnapshot` together cost about nine. Profiled on a booted emulator
+     * against sample-app, a 77-node screen spent 13ms walking the tree and ~2.6s on those reads —
+     * about 5.7ms per property, ~460 round trips per query.
+     *
+     * `AccessibilityNodeInfo` already carries all of it locally once fetched, so the same screen
+     * needs one fetch per node instead of nine.
+     */
+    private class NodeRecord(
+        val id: String,
+        val label: String,
+        val value: String,
+        val type: String,
+        /** Kept alongside [label]: an element can carry both text and a content description, and
+         *  a selector may name either. Deriving one from the other loses that. */
+        val contentDescription: String,
+        val resourceName: String,
+        val packageName: String,
+        val bounds: Rect,
+        val isEnabled: Boolean,
+        val isVisible: Boolean,
+        val isClickable: Boolean,
+        val isLongClickable: Boolean,
+        /**
+         * Nearest clickable ancestor, resolved while walking rather than by climbing `parent`
+         * afterwards — a parent walk is another IPC per step, and the walk already knows the
+         * answer. Compose needs this: a Button becomes sibling semantics nodes where the one
+         * carrying the text is not the one that is clickable.
+         */
+        val clickableAncestor: NodeRecord? = null
+    )
+
+    private fun currentElements(): List<NodeRecord> {
+        device.waitForIdle(WAIT_FOR_IDLE_MS)
+        val automation = instrumentation.uiAutomation
+        val roots = runCatching { automation.windows.mapNotNull { it.root } }
+            .getOrNull()
+            .orEmpty()
+            .ifEmpty { listOfNotNull(automation.rootInActiveWindow) }
+
+        if (roots.isEmpty()) {
+            Log.w(
+                LOG_TAG,
+                "currentElements found no window roots. " +
+                    "serviceInfoFlags=${automation.serviceInfo?.flags} " +
+                    "currentPackage=${device.currentPackageName}"
+            )
+        }
+
+        val out = ArrayList<NodeRecord>()
+        for (root in roots) {
+            collectRecords(root, nearestClickable = null, depth = 0, into = out)
+        }
+        return out
+    }
+
+    private fun collectRecords(
+        node: AccessibilityNodeInfo,
+        nearestClickable: NodeRecord?,
+        depth: Int,
+        into: MutableList<NodeRecord>
+    ) {
+        if (depth > MAX_TREE_DEPTH) return
+        val record = runCatching { node.toRecord(nearestClickable) }.getOrNull() ?: return
+        into.add(record)
+        val ancestorForChildren = if (record.isClickable) record else nearestClickable
+        for (index in 0 until node.childCount) {
+            val child = runCatching { node.getChild(index) }.getOrNull() ?: continue
+            collectRecords(child, ancestorForChildren, depth + 1, into)
+        }
+    }
+
+    private fun AccessibilityNodeInfo.toRecord(nearestClickable: NodeRecord?): NodeRecord {
+        val rect = Rect().also { getBoundsInScreen(it) }
+        val contentDescription = contentDescription?.toString().orEmpty()
+        val resourceName = viewIdResourceName.orEmpty()
+        val textValue = text?.toString().orEmpty()
+        return NodeRecord(
+            id = normalizedElementID(resourceName, contentDescription),
+            label = textValue.ifBlank { contentDescription },
+            value = textValue,
+            type = className?.toString().orEmpty(),
+            contentDescription = contentDescription,
+            resourceName = resourceName,
+            packageName = packageName?.toString().orEmpty(),
+            bounds = rect,
+            isEnabled = isEnabled,
+            isVisible = isVisibleToUser,
+            isClickable = isClickable,
+            isLongClickable = isLongClickable,
+            clickableAncestor = nearestClickable
+        )
+    }
+
+    /** [matches] over a live handle. Only [setText] needs this; see the note there. */
+    private fun uiMatches(
+        element: UiObject2,
+        resourceId: String?,
+        text: String?,
+        containsText: String?
+    ): Boolean {
+        val elementText = runCatching { element.text?.toString() }.getOrNull().orEmpty()
+        val contentDescription = runCatching { element.contentDescription?.toString() }.getOrNull().orEmpty()
+        val resourceName = runCatching { element.resourceName }.getOrNull().orEmpty()
+        val normalizedID = normalizedElementID(resourceName, contentDescription)
+
+        if (resourceId != null && resourceId != normalizedID &&
+            resourceId != contentDescription && resourceId != resourceName
+        ) {
+            return false
+        }
+        if (text != null && text != elementText && text != contentDescription) {
+            return false
+        }
+        if (containsText != null && !elementText.contains(containsText) &&
+            !contentDescription.contains(containsText)
+        ) {
+            return false
+        }
+        return true
+    }
+
+    private fun uiObjectTree(): List<UiObject2> {
         device.waitForIdle(WAIT_FOR_IDLE_MS)
 
         val roots = device.findObjects(By.depth(0)).ifEmpty {
