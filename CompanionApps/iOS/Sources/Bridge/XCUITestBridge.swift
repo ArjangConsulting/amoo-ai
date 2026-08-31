@@ -79,10 +79,25 @@ final class XCUITestBridge: @unchecked Sendable {
 
         var replacedMethod = false
 
-        // Current XCTest asks these process flags immediately around event synthesis. Prefer
-        // overriding them because snapshots and lifecycle operations retain their normal waits.
+        // Only the PRE-event wait is skipped. Measured on a booted iPhone 17 Pro against
+        // sample-app, alternating between two tabs and querying immediately with no settle time:
+        //
+        //                       no-op tap   tab-switching tap   stale reads
+        //   quiescence kept       0.426s         0.439s              —
+        //   pre + post skipped    0.291s         0.346s           6/20  (30%)
+        //   pre only skipped      0.286s         0.390s           0/20
+        //
+        // Nearly all the saving is the pre-event wait, and it is free: skipping it costs nothing
+        // in correctness because the companion resolves the element itself before injecting.
+        // The post-event wait is the opposite — it costs ~44ms, but only on a tap that actually
+        // changes the screen, which is exactly when something needs waiting for. Skipping it
+        // makes a one-shot `describe_screen` or `find_elements` issued straight after a tap
+        // return a mid-animation frame. Assertions poll and would converge, but a recorded
+        // session captures that transitional state verbatim, and `SessionPlanCompiler`'s
+        // pre-transition-inspection heuristic can then bake a transient element into a
+        // generated test.
         let skipWait: @convention(block) (AnyObject) -> Bool = { _ in true }
-        for name in ["shouldSkipPreEventQuiescence", "shouldSkipPostEventQuiescence"] {
+        for name in ["shouldSkipPreEventQuiescence"] {
             let selector = NSSelectorFromString(name)
             if let method = class_getInstanceMethod(processClass, selector) {
                 method_setImplementation(method, imp_implementationWithBlock(skipWait))
@@ -94,20 +109,26 @@ final class XCUITestBridge: @unchecked Sendable {
             return true
         }
 
-        // Older XCTest versions have no skip flags. Fall back to replacing their wait entrypoint.
+        // Older XCTest versions have no skip flags, only the wait entrypoint itself. That one
+        // carries `isPreEvent:`, so it can still be made to skip the pre-event wait alone —
+        // chain to the original implementation for post-event rather than no-oping both.
         let currentSelector = NSSelectorFromString("waitForQuiescenceIncludingAnimationsIdle:isPreEvent:")
         if let method = class_getInstanceMethod(processClass, currentSelector) {
-            let noWait: @convention(block) (AnyObject, Bool, Bool) -> Void = { _, _, _ in }
-            method_setImplementation(method, imp_implementationWithBlock(noWait))
+            typealias WaitMethod = @convention(c) (AnyObject, Selector, Bool, Bool) -> Void
+            let original = unsafeBitCast(method_getImplementation(method), to: WaitMethod.self)
+            let skipPreEventOnly: @convention(block) (AnyObject, Bool, Bool)
+                -> Void = { target, animations, isPreEvent in
+                    guard isPreEvent else {
+                        original(target, currentSelector, animations, isPreEvent)
+                        return
+                    }
+                }
+            method_setImplementation(method, imp_implementationWithBlock(skipPreEventOnly))
             replacedMethod = true
         }
 
-        let legacySelector = NSSelectorFromString("waitForQuiescenceIncludingAnimationsIdle:")
-        if let method = class_getInstanceMethod(processClass, legacySelector) {
-            let noWait: @convention(block) (AnyObject, Bool) -> Void = { _, _ in }
-            method_setImplementation(method, imp_implementationWithBlock(noWait))
-            replacedMethod = true
-        }
+        // The legacy signature has no `isPreEvent:` flag, so skipping it would take the post-event
+        // wait with it. Leave it alone: the slower public behaviour beats a fast, racy one.
 
         return replacedMethod
     }()
