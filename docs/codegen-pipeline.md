@@ -26,8 +26,12 @@ Entry points that drive this offline (no `amoo mcp serve`):
   (`Sources/CLI/GeneratePlanCommand.swift`).
 - `amoo generate test --plan plan.json [--context …]` — steps H–I
   (`Sources/CLI/GenerateCommand.swift`).
-- MCP `compile_session_to_plan` / `end_session` — step D, writing `plan.json` + `flow.json` via
-  `SessionArtifactWriter`.
+- MCP `end_session` — step D on session close, writing `plan.json` + `flow.json` via
+  `SessionArtifactWriter`. This is the canonical path: an agent ends the session, then inspects
+  and generates.
+- MCP `compile_session_to_plan` — the same step D, but callable while the session is still open.
+  An *optional preview*; it does not change the plan `end_session` writes, and (like every
+  lifecycle call) it is never recorded as an app step.
 
 ## Who owns what
 

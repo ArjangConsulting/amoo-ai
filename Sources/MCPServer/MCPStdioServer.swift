@@ -16,8 +16,14 @@ public struct MCPStdioServer: Sendable {
     /// to rely on when it records a session for `compile_session_to_plan` + `amoo generate test`.
     static let instructions = """
     Use these tools to inspect and drive a booted iOS simulator or Android emulator through amoo, \
-    and — when recording a session for `compile_session_to_plan` and `amoo generate test` — to \
-    produce a plan that generates a readable, complete XCUITest/Espresso test.
+    and — when recording a session for `amoo generate test` — to produce a plan that generates a \
+    readable, complete XCUITest/Espresso test.
+
+    Canonical workflow: `start_session` -> drive the app under test -> `end_session` (this \
+    already compiles the recorded history and writes `plan.json`) -> inspect the plan and its \
+    warnings -> `amoo generate test`. `compile_session_to_plan` is an optional preview of the \
+    plan you may call while the session is still open; it is never a required step and running \
+    it does not change the final plan `end_session` writes.
 
     A passing session is not the goal; a good generated test is. That means:
 
@@ -45,12 +51,15 @@ public struct MCPStdioServer: Sendable {
     screenshot. After an add, `assert_visible` the new element. These become the test's \
     assertions; an unverified mutation compiles to an action with nothing checking it.
 
-    5. End, compile, and inspect before generating. `end_session`, then \
-    `compile_session_to_plan`, then read every warning. An `excluded` / incomplete-plan warning \
-    means a required action was dropped: that is a FAILED codegen result, not a finished test. \
-    Fix the recording — add an accessibility identifier, drive through an addressable ancestor, \
-    re-record — rather than passing `--allow-incomplete`. If you pass it anyway, report which \
-    steps are missing and why.
+    5. End the session, then inspect the plan before generating. `end_session` already compiles \
+    the recorded history and writes `plan.json`; you do not call `compile_session_to_plan` as a \
+    follow-up step. Read `plan.json` and every `compiledPlan.warnings` entry. An `excluded` / \
+    incomplete-plan warning means a required app-under-test action was dropped: that is a FAILED \
+    codegen result, not a finished test. Fix the recording — add an accessibility identifier, \
+    drive through an addressable ancestor, re-record — rather than passing `--allow-incomplete`. \
+    If you pass it anyway, report which steps are missing and why. amoo's own lifecycle calls \
+    (`start_session`, `end_session`, `compile_session_to_plan`, `get_session_report`) are never \
+    recorded as app actions and never produce an `XCTFail` for uncompiled work.
 
     6. Review the generated code. Local variable names come from labels and inferred roles, never \
     from UUIDs, hashes, or record ids; a UUID/hash-derived name or an \

@@ -186,11 +186,14 @@ public enum SessionTools {
         ToolDefinition(
             name: "compile_session_to_plan",
             title: "Compile Session To Plan",
-            description: "Convert a recorded session's action history into a replayable flow (runnable"
-                + " directly via `amoo flow`) and a best-effort compiledPlan (consumable by"
-                + " `amoo generate test --plan`). Actions with no Studio-tool equivalent, an"
-                + " approximate translation, or a redacted value are called out in `warnings`"
-                + " so they can be reviewed before replay or code generation.",
+            description: "OPTIONAL preview. Convert a recorded session's action history into a"
+                + " replayable flow (runnable directly via `amoo flow`) and a best-effort"
+                + " compiledPlan (consumable by `amoo generate test --plan`), without ending the"
+                + " session. The canonical workflow does not need this call: `end_session` compiles"
+                + " and writes the same plan.json/flow.json on close, and calling this first does"
+                + " not change that final plan. Use it only to inspect the plan mid-session."
+                + " Actions with no Studio-tool equivalent, an approximate translation, or a"
+                + " redacted value are called out in `warnings` for review before code generation.",
             properties: [
                 "session_id": .init(type: "string", description: "Identifier returned by start_session"),
                 "test_name": .init(

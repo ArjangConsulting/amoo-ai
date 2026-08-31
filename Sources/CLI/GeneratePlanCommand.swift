@@ -18,6 +18,8 @@ func renderGeneratePlanHelp() -> String {
 
       Recompiles a recorded session into plan.json / flow.json using the same compiler as the
       MCP `compile_session_to_plan` tool. Prints the plan JSON to stdout when --out is omitted.
+      The MCP `end_session` tool already writes plan.json on close; this is the offline path for
+      re-running that compile against a saved report.json.
 
       --report            Path to the recorded session report.json.
       --out               Directory to write plan.json and flow.json into.

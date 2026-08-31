@@ -101,11 +101,16 @@ failed action or assertion and prints the verified result for every completed st
 
 ## Generating tests from a recorded session
 
-`compile_session_to_plan` turns a session's action history into a plan; `amoo generate test --plan`
-turns that plan into a standalone XCUITest / Espresso file. amoo's own lifecycle calls
-(`start_session`, `end_session`, `compile_session_to_plan`, …) are never recorded as test steps, so
-a complete app-interaction recording generates without `--allow-incomplete` and with no trailing
-`XCTFail`.
+The canonical workflow is `start_session` → drive the app → `end_session` → inspect `plan.json` →
+`amoo generate test`. `end_session` **already** compiles the recorded history and writes
+`plan.json` + `flow.json`; `compile_session_to_plan` is an optional preview you can call earlier,
+while the session is still open, and it does not change the plan `end_session` writes. `amoo
+generate test --plan` turns that plan into a standalone XCUITest / Espresso file.
+
+amoo's own lifecycle calls (`start_session`, `end_session`, `compile_session_to_plan`,
+`get_session_report`, …) are never recorded as app-under-test steps, so a complete app-interaction
+recording generates without `--allow-incomplete` and with no trailing `XCTFail` — not even when an
+explicit `compile_session_to_plan` preceded `end_session`.
 
 To make the generated file fit a host test target — its base class, launch/assertion helpers, and
 identifier catalog — pass an **app-owned test context**. Agents can supply it at session or compile

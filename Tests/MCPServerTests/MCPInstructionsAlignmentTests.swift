@@ -63,4 +63,65 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         XCTAssertTrue(instructions.localizedCaseInsensitiveContains("launch"))
         XCTAssertTrue(instructions.localizedCaseInsensitiveContains("setUp"))
     }
+
+    /// Part 1: the one canonical lifecycle is `start_session` → drive → `end_session` → inspect →
+    /// generate, with `compile_session_to_plan` demoted to an optional preview. The instructions
+    /// must not tell agents to run `compile_session_to_plan` as a step after `end_session`.
+    func testInstructionsDescribeTheCanonicalLifecycleWorkflow() {
+        XCTAssertTrue(instructions.contains("Canonical workflow: `start_session`"))
+        XCTAssertTrue(instructions.contains("`end_session` (this already compiles"))
+        XCTAssertTrue(instructions.localizedCaseInsensitiveContains("optional preview"))
+        XCTAssertTrue(instructions.contains("it is never a required step"))
+        // The redundant "end_session, then compile_session_to_plan" chain must be gone.
+        XCTAssertFalse(instructions.contains("End, compile, and inspect"))
+        XCTAssertFalse(instructions.localizedCaseInsensitiveContains(
+            "`end_session`, then `compile_session_to_plan`"
+        ))
+        XCTAssertTrue(instructions.contains("you do not call `compile_session_to_plan` as a follow-up step"))
+    }
+
+    /// Part 1: lifecycle / control-plane calls never become app actions and never produce an
+    /// uncompiled-action `XCTFail`.
+    func testInstructionsStateLifecycleCallsNeverBecomeTestSteps() {
+        XCTAssertTrue(instructions.contains(
+            "are never recorded as app actions and never produce an `XCTFail` for uncompiled work"
+        ))
+    }
+
+    // MARK: - Skill ↔ instructions drift (Part 5)
+
+    private func skillMarkdown(file: StaticString = #filePath, line: UInt = #line) throws -> String {
+        // Tests/MCPServerTests/<this file>  ->  repo root is three levels up.
+        let repoRoot = URL(fileURLWithPath: "\(#filePath)")
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let skill = repoRoot.appendingPathComponent("skills/driving-amoo/SKILL.md")
+        return try String(contentsOf: skill, encoding: .utf8)
+    }
+
+    /// The `driving-amoo` skill and the `initialize` instructions must describe the SAME canonical
+    /// lifecycle and name only exposed tools, so an agent gets one story regardless of entry point.
+    func testDrivingAmooSkillMatchesTheCanonicalWorkflowAndToolNames() throws {
+        let skill = try skillMarkdown()
+
+        // One canonical workflow, compile demoted to optional preview.
+        XCTAssertTrue(skill.contains("**Canonical workflow:**"))
+        XCTAssertTrue(skill.contains("`start_session`"))
+        XCTAssertTrue(skill.contains("`end_session`"))
+        XCTAssertTrue(skill.contains("`amoo generate test`"))
+        XCTAssertTrue(skill.localizedCaseInsensitiveContains("optional"))
+        XCTAssertTrue(skill.contains("never a required step"))
+
+        // The redundant "end_session -> compile_session_to_plan -> inspect" chain must be gone.
+        XCTAssertFalse(skill.contains("`end_session` → `compile_session_to_plan` → inspect"))
+        XCTAssertFalse(skill.contains("End, compile, then read the warnings"))
+
+        // Absence assertion: the exposed tool name only.
+        XCTAssertTrue(skill.contains("assert_absent"))
+        XCTAssertFalse(skill.contains("assert_not_visible"))
+        XCTAssertFalse(skill.contains("end_test_session"))
+        XCTAssertFalse(skill.contains("start_test_session"))
+
+        // Generated-test quality — not a green simulator session — is the objective.
+        XCTAssertTrue(skill.localizedCaseInsensitiveContains("not the deliverable"))
+    }
 }

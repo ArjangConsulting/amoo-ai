@@ -184,7 +184,12 @@ Each step is a tool name plus its arguments — the same names and arguments as
 A session that "passed" is not the deliverable — the deliverable is a plan that
 `amoo generate test` turns into a readable, complete test. The MCP `initialize`
 instructions carry the same list (kept in sync by `MCPInstructionsAlignmentTests`);
-follow it whether you drive amoo through MCP or the CLI:
+follow it whether you drive amoo through MCP or the CLI.
+
+**Canonical workflow:** `start_session` → drive the app under test → `end_session`
+(which compiles the history and writes `plan.json`) → inspect `plan.json` and its
+warnings → `amoo generate test`. `compile_session_to_plan` is an *optional
+preview* you may run while the session is still open; it is never a required step.
 
 1. **Start from deterministic launch state.** If the caller gave you launch
    arguments or environment (skip-onboarding, reset-state, a mock-server URL),
@@ -210,12 +215,19 @@ follow it whether you drive amoo through MCP or the CLI:
    `assert_absent` (or `find_elements` + count) on a text/label. After an
    add, `assert_visible` the new element. An unverified mutation compiles to an
    action with nothing asserting on it.
-5. **End, compile, then read the warnings before generating.**
-   `end_session` → `compile_session_to_plan` → inspect
-   `compiledPlan.warnings`. An `excluded` / incomplete-plan warning means a
-   required action was dropped: treat that as a **failed** codegen result, not a
-   finished test. Fix the recording (add an identifier, drive through an
-   addressable ancestor, re-record) rather than reaching for `--allow-incomplete`.
+5. **End the session, then read the plan warnings before generating.**
+   `end_session` already compiles the recorded history and writes `plan.json` —
+   there is no separate `compile_session_to_plan` step in the canonical flow (it
+   is an optional preview you can call earlier, while the session is still open,
+   and it does not change the plan `end_session` writes). Inspect `plan.json` and
+   every `compiledPlan.warnings` entry. An `excluded` / incomplete-plan warning
+   means a required **app-under-test** action was dropped: treat that as a
+   **failed** codegen result, not a finished test. Fix the recording (add an
+   identifier, drive through an addressable ancestor, re-record) rather than
+   reaching for `--allow-incomplete`. amoo's own lifecycle calls
+   (`start_session`, `end_session`, `compile_session_to_plan`,
+   `get_session_report`) are never recorded as app actions and never emit a
+   trailing `XCTFail` for uncompiled work.
 6. **Review the generated variable names and markers.** Names come from labels and
    inferred roles; a UUID/hash/record-id-derived name, or an
    `XCTFail("Uncompiled required action …")`, means the plan was incomplete — go
