@@ -20,7 +20,11 @@ final class GoldenFixtureTests: XCTestCase {
         Fixture(name: "sign-in-flow-ios", emitter: XCUITestEmitter(), expectedExtension: "swift"),
         Fixture(name: "sign-in-flow-android", emitter: EspressoEmitter(), expectedExtension: "kt"),
         Fixture(name: "all-tools-ios", emitter: XCUITestEmitter(), expectedExtension: "swift"),
-        Fixture(name: "all-tools-android", emitter: EspressoEmitter(), expectedExtension: "kt")
+        Fixture(name: "all-tools-android", emitter: EspressoEmitter(), expectedExtension: "kt"),
+        // The documented app-owned test context from docs/test-context.md — pins the full
+        // generated scaffold (import, base class, no duplicate app.launch(), super chaining) so
+        // the doc's "Complete XCUITest example" cannot silently drift from the emitter.
+        Fixture(name: "context-example-ios", emitter: XCUITestEmitter(), expectedExtension: "swift")
     ]
 
     private var fixturesDirectory: URL {

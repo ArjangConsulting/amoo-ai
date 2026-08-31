@@ -130,6 +130,36 @@ final class XCUITestContextTests: XCTestCase {
         XCTAssertFalse(context.harnessLaunchesApp)
     }
 
+    /// The exact schema documented in `docs/test-context.md` — including `idLookupTemplate: null`
+    /// and empty `helpers` / `selectorExpressions` — decodes and produces the documented scaffold:
+    /// the support module is imported, the base class is subclassed, `harnessLaunchesApp` suppresses
+    /// the emitter's own `app.launch()`, and both overrides still chain to `super`.
+    func testDocumentedXCUITestContextSchemaGeneratesTheExpectedScaffold() throws {
+        let json = Data("""
+        {
+          "imports": ["MyUITestSupport"],
+          "baseClass": "MyAppUITestCase",
+          "appFactory": "makeTestApplication()",
+          "harnessLaunchesApp": true,
+          "helpers": [],
+          "selectorExpressions": {},
+          "idLookupTemplate": null
+        }
+        """.utf8)
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: json)
+
+        let result = try XCUITestEmitter().generate(makeTest(context: context))
+
+        XCTAssertTrue(result.source.contains("import MyUITestSupport"))
+        XCTAssertTrue(result.source.contains("final class ContextualSignInTest: MyAppUITestCase"))
+        XCTAssertTrue(result.source.contains("private lazy var app = makeTestApplication()"))
+        // harnessLaunchesApp: true -> no duplicate launch.
+        XCTAssertFalse(result.source.contains("app.launch()"))
+        // super chaining preserved.
+        XCTAssertTrue(result.source.contains("try super.setUpWithError()"))
+        XCTAssertTrue(result.source.contains("try super.tearDownWithError()"))
+    }
+
     func testXCUITestEmitterRejectsAnUndeclaredContextHelper() {
         let test = makeTest(operations: [.init(id: "step-0", tool: "tap_element", helper: "signIn")])
 
