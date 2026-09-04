@@ -89,7 +89,7 @@ Common tools:
   set_location latitude=<n> longitude=<n>
   clear_location
   set_appearance appearance=<light|dark>
-  list_devices [platform=<ios|android>]
+  list_devices [platform=<ios|android>] [include_offline=<true|false>]
   open_url url=<url>
 
 Coordinates:

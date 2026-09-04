@@ -4,7 +4,21 @@ public enum DeviceTools {
     public static let definitions: [ToolDefinition] = [
         ToolDefinition(
             name: "device_boot",
-            description: "Boot the simulator/emulator device"
+            description: "Boot the simulator/emulator device. With no device_hint this boots the"
+                + " server's bound device; pass device_hint to choose one when several are"
+                + " attached (e.g. a physical device plus a simulator).",
+            properties: [
+                "device_hint": .init(
+                    type: "string",
+                    description: "UDID/serial, device name, or the class hint 'simulator' / 'device'."
+                        + " Resolved through the same selector start_session uses. Requires a server"
+                        + " started with `amoo mcp serve` (session management)."
+                ),
+                "platform": .init(
+                    type: "string",
+                    description: "Platform for device_hint resolution: 'ios' or 'android'. Defaults to 'ios'."
+                )
+            ]
         ),
         ToolDefinition(
             name: "device_shutdown",
@@ -104,11 +118,17 @@ public enum DeviceTools {
             name: "list_devices",
             title: "List Devices",
             description: "Enumerate booted simulators and online Android emulators/devices."
-                + " Optionally filter by platform.",
+                + " Optionally filter by platform, or set include_offline to also list installed"
+                + " simulators/emulators that are not currently booted.",
             properties: [
                 "platform": .init(
                     type: "string",
                     description: "Optional platform filter: 'ios' or 'android'. Omit for both."
+                ),
+                "include_offline": .init(
+                    type: "string",
+                    description: "'true' to also list not-booted simulators / offline AVDs so a"
+                        + " caller can pick one to boot. Defaults to false (running devices only)."
                 )
             ],
             outputSchema: ToolOutputSchema(

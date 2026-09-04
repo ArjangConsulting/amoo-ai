@@ -171,8 +171,16 @@ public actor SessionManager {
         return byID.values.sorted { $0.startedAt < $1.startedAt }
     }
 
-    public func listAvailableDevices(platform: Platform?) async throws -> [DeviceInfo] {
-        try await bootstrapper.listDevices(platform: platform)
+    public func listAvailableDevices(
+        platform: Platform?,
+        includeOffline: Bool = false
+    ) async throws -> [DeviceInfo] {
+        try await bootstrapper.listDevices(platform: platform, includeOffline: includeOffline)
+    }
+
+    /// Boot (or resolve, if already running) the device matching `hint`.
+    public func bootDevice(hint: String, platform: Platform) async throws -> DeviceInfo {
+        try await bootstrapper.bootDevice(hint: hint, platform: platform)
     }
 
     /// Closes every active session. Used during MCP server shutdown.
