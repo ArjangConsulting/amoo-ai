@@ -7,6 +7,8 @@ import com.amoo.companion.handlers.TextHandler
 import com.amoo.companion.handlers.TouchHandler
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
+import java.net.InetAddress
+import java.net.InetSocketAddress
 
 /**
  * Manages the gRPC server lifecycle for the Android companion.
@@ -34,7 +36,16 @@ class CompanionServer(
      * this target.
      */
     fun start() {
-        server = NettyServerBuilder.forPort(port)
+        // Bind the ipv4 wildcard explicitly rather than `forPort(port)`. On this image both land
+        // on a dual-stack `tcp6 [::]:<port>` socket (that is just how the JDK renders an ipv4
+        // wildcard while `java.net.preferIPv4Stack` is false), and that socket already accepts the
+        // ipv4-mapped connections `adb forward` makes — its device end always dials ipv4
+        // `127.0.0.1:<port>`. The explicit `0.0.0.0` documents that requirement and keeps the
+        // listener reachable even if a future image flips `preferIPv4Stack` or sets
+        // `IPV6_V6ONLY`, either of which would otherwise leave a `forPort` listener refusing every
+        // forwarded connection while still showing a LISTEN socket in `netstat` — from the host,
+        // indistinguishable from a companion that is slow to start.
+        server = NettyServerBuilder.forAddress(InetSocketAddress(InetAddress.getByName("0.0.0.0"), port))
             .addService(CompanionServiceImpl(touch, gesture, text, accessibility))
             .intercept(DescriptionBackfillInterceptor())
             .build()

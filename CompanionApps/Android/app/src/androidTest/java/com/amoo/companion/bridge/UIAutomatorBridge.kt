@@ -1,10 +1,13 @@
 package com.amoo.companion.bridge
 
+import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Rect
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.view.InputDevice
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.platform.app.InstrumentationRegistry
@@ -266,7 +269,23 @@ class UIAutomatorBridge {
 
     // -- Navigation --
 
-    fun pressBack(): Boolean = device.pressBack()
+    fun pressBack(): Boolean {
+        device.waitForIdle(WAIT_FOR_IDLE_MS)
+        // `UiDevice.pressBack()` only returns true if it observes a TYPE_WINDOW_CONTENT_CHANGED
+        // event within ~1s of the key press. A Compose destination change frequently emits only
+        // TYPE_WINDOW_STATE_CHANGED, or the new content settles after the transition animation —
+        // so the navigation happens while the call reports "back navigation failed".
+        // `performGlobalAction` dispatches the same Back and reports only whether the action was
+        // accepted, which is the signal the caller actually wants. Key injection is the fallback.
+        val dispatched = runCatching {
+            instrumentation.uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        }.getOrDefault(false)
+        if (dispatched) {
+            device.waitForIdle(WAIT_FOR_IDLE_MS)
+            return true
+        }
+        return device.pressKeyCode(KeyEvent.KEYCODE_BACK)
+    }
 
     fun pressHome(): Boolean = device.pressHome()
 
@@ -503,6 +522,16 @@ class UIAutomatorBridge {
     private fun currentElements(): List<NodeRecord> {
         device.waitForIdle(WAIT_FOR_IDLE_MS)
         val automation = instrumentation.uiAutomation
+        // Drop the process-wide `AccessibilityCache` before every read. Without this, after a
+        // navigation `automation.windows` keeps returning a stale `AccessibilityWindowInfo` whose
+        // `.root` is the *previous* screen's tree — nothing here invalidates it, so `find_elements`
+        // / `describe_screen` stay pinned to the old screen while `take_screenshot` (a different
+        // path) correctly shows the new one. Re-reading from the service is the per-query cost
+        // this file already accepts and documents at length above. `clearCache()` is API 34+ and
+        // public; there is no earlier public entry point, but the supported devices are 34+.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            runCatching { automation.clearCache() }
+        }
         // `AccessibilityWindowInfo` and the `AccessibilityNodeInfo` roots/children obtained below
         // both need `recycle()`: minSdk is 26, and recycle() only became a no-op at API 33 (it is
         // real cleanup below that). Un-recycled nodes stay in the client-side node cache
