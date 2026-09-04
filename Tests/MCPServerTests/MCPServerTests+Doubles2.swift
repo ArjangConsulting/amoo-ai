@@ -54,9 +54,24 @@ actor MockSessionBootstrapper: SessionBootstrapper {
         lastBootHint = hint
         lastBootPlatform = platform
         guard let bootResult else {
-            throw SessionBootstrapError.deviceBootUnsupported
+            throw SessionBootstrapError.unsupported
         }
         return bootResult
+    }
+
+    private(set) var lastWarmPlatform: Platform?
+    private(set) var lastWarmDeviceHint: String?
+    private(set) var lastStatusPlatform: Platform?
+
+    func warmCompanion(platform: Platform, deviceHint: String?, appID _: String?) async throws -> String {
+        lastWarmPlatform = platform
+        lastWarmDeviceHint = deviceHint
+        return "companion warm started (\(platform.rawValue))"
+    }
+
+    func companionStatus(platform: Platform, deviceHint _: String?) async throws -> String {
+        lastStatusPlatform = platform
+        return "companion status: building (\(platform.rawValue), port 22087)"
     }
 }
 

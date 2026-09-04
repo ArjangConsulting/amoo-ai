@@ -69,7 +69,8 @@ public actor DriverToolExecutor: ToolExecutor {
     /// carry it as a dropped step and the generator emits a trailing `XCTFail` for it.
     static let controlPlaneTools: Set<String> = [
         "start_session", "start_test_session", "end_session", "end_test_session",
-        "list_sessions", "get_session_report", "compile_session_to_plan"
+        "list_sessions", "get_session_report", "compile_session_to_plan",
+        "companion_warm", "companion_status"
     ]
 
     private func recordIfNeeded(

@@ -56,10 +56,11 @@ final class MCPServerTests: XCTestCase {
     func testEveryDriverRoutedToolAdvertisesSessionID() {
         let server = MCPServer()
         let defs = server.toolDefinitions()
-        // Tools that don't route through resolveDriver: start_session,
-        // list_sessions don't accept session_id by design. Everything else
+        // Tools that don't route through resolveDriver: start_session and
+        // list_sessions by design, and the companion-lifecycle tools, which act
+        // on a platform/device rather than an open session. Everything else
         // should advertise it.
-        let exempt: Set = ["start_session", "list_sessions"]
+        let exempt: Set = ["start_session", "list_sessions", "companion_warm", "companion_status"]
         for def in defs where !exempt.contains(def.name) {
             XCTAssertNotNil(
                 def.properties["session_id"],

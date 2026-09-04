@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import GradleKit
 import ProcessRunner
@@ -30,6 +31,11 @@ struct CompanionCommandOptions {
 enum CompanionAction {
     case install
     case start
+    /// Build + install the companion test bundle now (the slow, minutes-long part) without
+    /// holding a process open, so a later `start` / `start_session` only has to launch and wait.
+    case warm
+    /// Report where a `warm` is (building / built / ready / failed / not_started) without blocking.
+    case status
 }
 
 enum CompanionCommandParseError: Error, CustomStringConvertible {
@@ -77,6 +83,16 @@ func renderCompanionHelp() -> String {
                                            silent while it installs and boots the runner, so
                                            a slow first start looks identical to a hang.
                                            Also settable via AMOO_COMPANION_READY_TIMEOUT.
+
+      warm       Build + install the companion bundle now — the slow, minutes-long part —
+                 without holding a process open. Run it as step 0 (background it with '&'),
+                 poll 'companion status', then 'companion start'. Same --platform / --device
+                 / --companion-dir / --force options as install.
+
+      status     Print one line: 'ready' (a companion is listening), 'built' (bundle ready,
+                 not launched), 'building' / 'launching' (a warm is in progress), 'failed',
+                 or 'not_started'. Non-blocking. Exit code 0 = usable, 2 = in progress,
+                 1 = needs action. Same --platform / --device / --companion-dir options.
     """
 }
 
@@ -180,6 +196,10 @@ func parseCompanionCommandOptions(
         action = .install
     case "start":
         action = .start
+    case "warm":
+        action = .warm
+    case "status":
+        action = .status
     default:
         return .failure(.unknownAction(actionStr))
     }
@@ -205,6 +225,8 @@ func parseCompanionCommandOptions(
 
 // MARK: - Execution
 
+// A flat (action × platform) dispatch — four two-line cases, no branching logic worth extracting.
+// swiftlint:disable:next cyclomatic_complexity
 func runCompanionCommand(
     options: CompanionCommandOptions,
     processRunner: any ProcessRunner = SystemProcessRunner(),
@@ -232,6 +254,24 @@ func runCompanionCommand(
                 processRunner: processRunner,
                 currentDirectory: currentDirectory
             )
+        }
+    case .warm:
+        switch options.platform {
+        case .ios:
+            await runIOSCompanionWarm(options: options, processRunner: processRunner)
+        case .android:
+            await runAndroidCompanionWarm(
+                options: options,
+                processRunner: processRunner,
+                currentDirectory: currentDirectory
+            )
+        }
+    case .status:
+        switch options.platform {
+        case .ios:
+            await runIOSCompanionStatus(options: options)
+        case .android:
+            await runAndroidCompanionStatus(options: options, currentDirectory: currentDirectory)
         }
     }
 }

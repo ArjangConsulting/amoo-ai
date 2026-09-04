@@ -19,6 +19,14 @@ public protocol SessionBootstrapper: Sendable {
     /// `"simulator"` / `"device"`), or resolve it if already running, and return its info.
     /// Defaults to throwing — only a bootstrapper wired to the build toolchain can do this.
     func bootDevice(hint: String, platform: Platform) async throws -> DeviceInfo
+
+    /// Kick off building + installing the companion test bundle in the background and return
+    /// immediately. Poll `companionStatus` for progress. Defaults to throwing.
+    func warmCompanion(platform: Platform, deviceHint: String?, appID: String?) async throws -> String
+
+    /// A one-line, non-blocking report of where the companion is: reachable, built, building,
+    /// failed, or not started. Defaults to throwing.
+    func companionStatus(platform: Platform, deviceHint: String?) async throws -> String
 }
 
 public extension SessionBootstrapper {
@@ -27,18 +35,27 @@ public extension SessionBootstrapper {
     }
 
     func bootDevice(hint _: String, platform _: Platform) async throws -> DeviceInfo {
-        throw SessionBootstrapError.deviceBootUnsupported
+        throw SessionBootstrapError.unsupported
+    }
+
+    func warmCompanion(platform _: Platform, deviceHint _: String?, appID _: String?) async throws -> String {
+        throw SessionBootstrapError.unsupported
+    }
+
+    func companionStatus(platform _: Platform, deviceHint _: String?) async throws -> String {
+        throw SessionBootstrapError.unsupported
     }
 }
 
 public enum SessionBootstrapError: Error, CustomStringConvertible {
-    /// The active bootstrapper cannot boot a device by hint (no build toolchain wired in).
-    case deviceBootUnsupported
+    /// The active bootstrapper is not wired to the build toolchain, so it cannot boot a device by
+    /// hint or manage the companion lifecycle directly.
+    case unsupported
 
     public var description: String {
         switch self {
-        case .deviceBootUnsupported:
-            "This server cannot boot a device by hint; boot the simulator/emulator yourself first."
+        case .unsupported:
+            "This server is not configured for device/companion management; do it from the CLI instead."
         }
     }
 }
