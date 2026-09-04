@@ -53,6 +53,10 @@ that wait in the middle of the task, where it can outlast a command timeout and
 look like a hang. If a device call fails with a connection error, amoo prints the
 exact `companion start` line to run; that is a sequencing mistake, not a bug.
 
+`amoo` is on `PATH` once installed. From a source checkout it is not — use
+`swift run amoo …` or the built binary at `.build/release/amoo …` (after
+`swift build -c release`) everywhere these examples say `amoo`.
+
 `--app <bundle-id>` binds the gesture target. Without it, taps still land, but
 app-scoped queries have nothing to scope to.
 

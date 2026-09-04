@@ -86,7 +86,7 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
     case buildFailed(String)
     case installFailed(String)
     case launchFailed(String)
-    case readyTimeout(Int)
+    case readyTimeout(seconds: Int, port: Int)
 
     var description: String {
         switch self {
@@ -96,8 +96,15 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
             "Android companion install failed: \(reason)"
         case let .launchFailed(reason):
             "Android companion launch failed: \(reason)"
-        case let .readyTimeout(seconds):
-            "Android companion did not become reachable after \(seconds)s."
+        case let .readyTimeout(seconds, port):
+            """
+            Android companion did not become reachable after \(seconds)s. A companion left \
+            running by an earlier session can hold port \(port) in a half-open state that passes \
+            a TCP check but never serves gRPC. Recover with:
+              adb shell am force-stop com.amoo.companion
+              adb forward --remove tcp:\(port)
+            then retry (optionally with a larger --ready-timeout).
+            """
         }
     }
 }
@@ -154,7 +161,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         let sourcesChanged = !sourceFingerprintMatches(config: config)
         if force {
             if activeConfig == nil {
-                await stopExternalCompanion(config: config)
+                await clearStaleCompanion(config: config)
             } else {
                 await shutdown()
             }
@@ -171,7 +178,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             // also clears `activeConfig` and drops the runner handle — otherwise the next call
             // reuses a config describing a process that is no longer serving.
             if activeConfig == nil {
-                await stopExternalCompanion(config: config)
+                await clearStaleCompanion(config: config)
             } else {
                 await shutdown()
             }
@@ -201,6 +208,12 @@ final class AndroidCompanionManager: @unchecked Sendable {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
         }
 
+        // Always clear a stale instance before (re)launching. We only reach here because the
+        // companion is not already serving, so anything still holding the port is dead and would
+        // otherwise wedge the launch below.
+        print("Clearing any stale Android companion on port \(config.port)...")
+        await clearStaleCompanion(config: config)
+
         print("Forwarding 127.0.0.1:\(config.port) → device:\(config.port)...")
         try await forwardPort(config: config)
 
@@ -208,14 +221,41 @@ final class AndroidCompanionManager: @unchecked Sendable {
         try await launchInstrumentation(config: config)
         activeConfig = config
 
-        try await withCLILoadingIndicator("Waiting for Android companion on port \(config.port)") {
-            try await self.waitUntilReachable(
-                host: config.host,
-                port: config.port,
-                timeoutSeconds: config.readyTimeoutSeconds
-            )
+        // `--ready-timeout` (default 180s / `AMOO_COMPANION_READY_TIMEOUT`) bounds the wait for the
+        // gRPC port. `waitUntilReachable` enforces it on the poll loop; the surrounding task-group
+        // race is the backstop for a wedged `adb` call in between, so the command fails with a
+        // recovery hint instead of hanging silently.
+        try await withReadyDeadline(seconds: config.readyTimeoutSeconds, port: config.port) {
+            try await withCLILoadingIndicator("Waiting for Android companion on port \(config.port)") {
+                try await self.waitUntilReachable(
+                    host: config.host,
+                    port: config.port,
+                    timeoutSeconds: config.readyTimeoutSeconds
+                )
+            }
         }
         print(colored("Android companion ready.", .bold, .green))
+    }
+
+    /// Runs `operation` with an outer wall-clock cap of `seconds` + a fixed slack, so a hung `adb`
+    /// invocation surfaces as `.readyTimeout` rather than an unbounded wait. The inner
+    /// `waitUntilReachable` normally trips first (and keeps its launch-log dump); this only wins
+    /// when something upstream of the poll loop stops making progress.
+    private func withReadyDeadline(
+        seconds: Int,
+        port: Int,
+        _ operation: @escaping @Sendable () async throws -> Void
+    ) async throws {
+        let budget = seconds + 30
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: .seconds(Double(budget)))
+                throw AndroidCompanionError.readyTimeout(seconds: budget, port: port)
+            }
+            defer { group.cancelAll() }
+            try await group.next()
+        }
     }
 
     func shutdown() async {
@@ -227,16 +267,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         guard let config = activeConfig else { return }
         activeConfig = nil
 
-        _ = try? await Adb(context: shellContext)
-            .serial(config.serial)
-            .amForceStop(package: "com.amoo.companion.test")
-            .run()
-            .processResult
-        _ = try? await Adb(context: shellContext)
-            .serial(config.serial)
-            .removeForwardTCP(localPort: config.port)
-            .run()
-            .processResult
+        await clearStaleCompanion(config: config)
     }
 
     // MARK: - Private
@@ -268,12 +299,22 @@ final class AndroidCompanionManager: @unchecked Sendable {
         try writeSourceFingerprint(config: config)
     }
 
-    private func stopExternalCompanion(config: AndroidCompanionConfig) async {
-        _ = try? await Adb(context: shellContext)
-            .serial(config.serial)
-            .amForceStop(package: "com.amoo.companion.test")
-            .run()
-            .processResult
+    /// Force-stops both companion packages and drops the TCP forward, so a companion left behind
+    /// by a prior or crashed session cannot hold the port.
+    ///
+    /// `am instrument` only ever force-stops the `.test` package, but the gRPC server runs inside
+    /// `com.amoo.companion` itself — so a stale server process keeps `:22088` bound in a half-open
+    /// state (`FIN_WAIT2` / `CLOSE_WAIT`) that a bare TCP probe accepts while every gRPC call is
+    /// refused. Left in place it makes `waitUntilReachable` burn the full `--ready-timeout` with
+    /// no diagnostic. Safe to call when nothing is running; costs ~1s.
+    private func clearStaleCompanion(config: AndroidCompanionConfig) async {
+        for package in ["com.amoo.companion.test", "com.amoo.companion"] {
+            _ = try? await Adb(context: shellContext)
+                .serial(config.serial)
+                .amForceStop(package: package)
+                .run()
+                .processResult
+        }
         _ = try? await Adb(context: shellContext)
             .serial(config.serial)
             .removeForwardTCP(localPort: config.port)
@@ -428,7 +469,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             print(log.suffix(3000))
             print("-----------------------------------------------------")
         }
-        throw AndroidCompanionError.readyTimeout(timeoutSeconds)
+        throw AndroidCompanionError.readyTimeout(seconds: timeoutSeconds, port: port)
     }
 }
 
