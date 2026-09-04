@@ -56,6 +56,31 @@ exact `companion start` line to run; that is a sequencing mistake, not a bug.
 `--app <bundle-id>` binds the gesture target. Without it, taps still land, but
 app-scoped queries have nothing to scope to.
 
+### Driving via MCP (`amoo mcp serve`)
+
+Every example below uses the `amoo device` CLI. When you reach amoo through MCP
+instead (`amoo mcp serve` exposes the same tools), the lifecycle is a bit
+different — there is no separate `amoo companion start` step:
+
+- **`start_session`** is the entrypoint. It boots the device, ensures the
+  companion is built + running, installs the build (`build_path`), launches the
+  app with any `launch_args` / `environment`, and returns a `session_id`. Pass
+  that `session_id` to every subsequent tool call so it routes to that session's
+  driver.
+- **`companion_warm`** (then poll **`companion_status`**) does the one-time
+  companion build ahead of time, so the first `start_session` is not the call
+  that eats the multi-minute cold build. Fire it as step 0.
+- **`device_boot`** takes a `device_hint` (UDID / name / `"simulator"` /
+  `"device"`) when several devices are attached; **`list_devices`** takes
+  `include_offline=true` to show not-yet-booted simulators so you can pick one.
+- **`end_session`** terminates the app and releases the session (this already
+  compiles the recorded history and writes `plan.json` — see the recording
+  section). `compile_session_to_plan` is an optional mid-session preview.
+- **`webview_eval` / `webview_dom`** read state out of a `WKWebView` /
+  `WebView` that the accessibility snapshot cannot see (a custom web player).
+  Android works today; iOS needs a debug-inspectable webview and the bridge in
+  `docs/webview-introspection.md`.
+
 ## Pick the cheapest tool that answers the question
 
 Costs below are measured medians on a booted iPhone 17 Pro, first query against a

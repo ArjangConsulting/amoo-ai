@@ -25,6 +25,14 @@ public struct MCPStdioServer: Sendable {
     plan you may call while the session is still open; it is never a required step and running \
     it does not change the final plan `end_session` writes.
 
+    `start_session` is the one entrypoint: it boots the device, ensures the companion is built \
+    and running, installs the build, and launches the app — there is no separate companion-start \
+    call. Thread the returned `session_id` through every later tool call. If you want the \
+    one-time companion build off the critical path, call `companion_warm` first and poll \
+    `companion_status`. Pass `device_hint` to `device_boot` when more than one device is \
+    attached. `webview_eval` / `webview_dom` reach state inside a WKWebView/WebView that the \
+    accessibility snapshot cannot see.
+
     A passing session is not the goal; a good generated test is. That means:
 
     1. Deterministic launch state. If the caller supplies launch arguments or environment (a \
