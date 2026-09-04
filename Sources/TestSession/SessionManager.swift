@@ -183,6 +183,20 @@ public actor SessionManager {
         try await bootstrapper.bootDevice(hint: hint, platform: platform)
     }
 
+    /// Start building + installing the companion in the background; returns immediately.
+    public func warmCompanion(
+        platform: Platform,
+        deviceHint: String?,
+        appID: String?
+    ) async throws -> String {
+        try await bootstrapper.warmCompanion(platform: platform, deviceHint: deviceHint, appID: appID)
+    }
+
+    /// Non-blocking one-line companion readiness report.
+    public func companionStatus(platform: Platform, deviceHint: String?) async throws -> String {
+        try await bootstrapper.companionStatus(platform: platform, deviceHint: deviceHint)
+    }
+
     /// Closes every active session. Used during MCP server shutdown.
     public func closeAll() async {
         let active = Array(sessions.values)

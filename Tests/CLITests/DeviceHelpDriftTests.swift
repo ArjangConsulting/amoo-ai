@@ -15,6 +15,7 @@ final class DeviceHelpDriftTests: XCTestCase {
     private static let intentionallyOmitted: Set<String> = [
         "start_session", "end_session", "list_sessions", "get_session_report",
         "compile_session_to_plan",
+        "companion_warm", "companion_status",
         "list_apps",
         "navigate_to",
         "audit_app", "audit_accessibility", "audit_security",

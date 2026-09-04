@@ -2,7 +2,9 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    static let mcpCommands: [CommandCoverage] = [
+    static let mcpCommands: [CommandCoverage] = mcpBaseCommands + mcpCompanionCommands
+
+    static let mcpBaseCommands: [CommandCoverage] = [
         // Device lifecycle and app management
         .init(
             name: "device_boot",

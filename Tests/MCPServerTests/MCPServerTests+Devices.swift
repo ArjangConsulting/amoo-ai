@@ -86,6 +86,50 @@ extension MCPServerTests {
         XCTAssertTrue(calls.contains("boot"))
     }
 
+    func testCompanionWarmRoutesThroughSessionManager() async {
+        let stack = makeSessionStack()
+        let manager = stack.manager
+        let server = MCPServer(
+            executor: DriverToolExecutor(driver: stack.defaultDriver, sessionManager: manager),
+            sessionManager: manager
+        )
+
+        let result = await server.execute(
+            toolName: "companion_warm",
+            arguments: ["platform": "android", "device_hint": "emulator-5554"]
+        )
+        XCTAssertFalse(result.isError)
+        let status = result.structuredContent?.objectValue?["status"]?.stringValue
+        XCTAssertEqual(status, "companion warm started (android)")
+        let platform = await stack.bootstrapper.lastWarmPlatform
+        let hint = await stack.bootstrapper.lastWarmDeviceHint
+        XCTAssertEqual(platform, .android)
+        XCTAssertEqual(hint, "emulator-5554")
+    }
+
+    func testCompanionStatusRoutesThroughSessionManager() async {
+        let stack = makeSessionStack()
+        let manager = stack.manager
+        let server = MCPServer(
+            executor: DriverToolExecutor(driver: stack.defaultDriver, sessionManager: manager),
+            sessionManager: manager
+        )
+
+        let result = await server.execute(toolName: "companion_status", arguments: [:])
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("companion status:"))
+        let platform = await stack.bootstrapper.lastStatusPlatform
+        XCTAssertEqual(platform, .ios)
+    }
+
+    func testCompanionToolsRequireSessionManager() async {
+        let server = MCPServer(executor: DriverToolExecutor(driver: MockDriver()))
+        let warm = await server.execute(toolName: "companion_warm", arguments: [:])
+        XCTAssertTrue(warm.isError)
+        let status = await server.execute(toolName: "companion_status", arguments: [:])
+        XCTAssertTrue(status.isError)
+    }
+
     func testListAppsCallsDriverListApps() async throws {
         let driver = AppListMockDriver()
         let executor = DriverToolExecutor(driver: driver)

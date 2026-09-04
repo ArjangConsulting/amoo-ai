@@ -291,6 +291,47 @@ extension DriverToolExecutor {
         )
     }
 
+    // MARK: - Companion lifecycle
+
+    func executeCompanionWarm(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Companion management requires `amoo mcp serve`.")
+        }
+        let platformRaw = arguments["platform"] ?? "ios"
+        guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+        }
+        do {
+            let status = try await manager.warmCompanion(
+                platform: platform,
+                deviceHint: arguments["device_hint"],
+                appID: arguments["app_id"]
+            )
+            return .success(status, structuredContent: .object(["status": .string(status)]))
+        } catch {
+            return .error("companion_warm failed: \(error)")
+        }
+    }
+
+    func executeCompanionStatus(arguments: [String: String]) async throws -> ToolResult {
+        guard let manager = sessionManager else {
+            return .error("Companion management requires `amoo mcp serve`.")
+        }
+        let platformRaw = arguments["platform"] ?? "ios"
+        guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+        }
+        do {
+            let status = try await manager.companionStatus(
+                platform: platform,
+                deviceHint: arguments["device_hint"]
+            )
+            return .success(status, structuredContent: .object(["status": .string(status)]))
+        } catch {
+            return .error("companion_status failed: \(error)")
+        }
+    }
+
     // MARK: - Device discovery / app inventory
 
     func executeListDevices(arguments: [String: String]) async throws -> ToolResult {

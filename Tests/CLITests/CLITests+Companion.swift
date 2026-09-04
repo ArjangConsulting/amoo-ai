@@ -395,4 +395,46 @@ extension CLITests {
 
         XCTAssertEqual(error.description, "Unknown platform 'desktop'. Expected 'ios' or 'android'.")
     }
+
+    func testCompanionCommandParserAcceptsWarmAndStatus() {
+        for action in ["warm", "status"] {
+            guard case .success = parseCompanionCommandOptions(args: [action, "--platform", "ios"]) else {
+                return XCTFail("Expected parser success for '\(action)'")
+            }
+        }
+    }
+
+    func testCompanionStatusStoreRoundTrips() {
+        let dir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        let store = CompanionStatusStore(companionDir: dir)
+        XCTAssertNil(store.read())
+
+        store.write(warmRecord(.building, platform: "ios", device: "booted", port: 22087, detail: "building"))
+        let read = store.read()
+        XCTAssertEqual(read?.phase, .building)
+        XCTAssertEqual(read?.port, 22087)
+        XCTAssertEqual(read?.detail, "building")
+    }
+
+    func testCompanionStatusResultReportsNotStartedThenRecordPhases() async {
+        let dir = makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        let store = CompanionStatusStore(companionDir: dir)
+
+        // Nothing written, nothing listening on this unused port.
+        let none = await companionStatusResult(platform: "ios", host: "127.0.0.1", port: 59999, store: store)
+        XCTAssertTrue(none.output.contains("not_started"))
+        XCTAssertEqual(none.exitCode, 1)
+
+        store.write(warmRecord(.building, platform: "ios", device: "booted", port: 59999, detail: nil))
+        let building = await companionStatusResult(platform: "ios", host: "127.0.0.1", port: 59999, store: store)
+        XCTAssertTrue(building.output.contains("building"))
+        XCTAssertEqual(building.exitCode, 2)
+
+        store.write(warmRecord(.failed, platform: "ios", device: "booted", port: 59999, detail: "boom"))
+        let failed = await companionStatusResult(platform: "ios", host: "127.0.0.1", port: 59999, store: store)
+        XCTAssertTrue(failed.output.contains("failed"))
+        XCTAssertEqual(failed.exitCode, 1)
+    }
 }

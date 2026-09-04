@@ -49,7 +49,7 @@ public struct MCPServer: Sendable {
                 + AssistantTools.definitions
         ).map { $0.allowingSessionID() }
 
-        return driverRouted + SessionTools.definitions + IntentTools.definitions
+        return driverRouted + SessionTools.definitions + CompanionTools.definitions + IntentTools.definitions
     }
 }
 

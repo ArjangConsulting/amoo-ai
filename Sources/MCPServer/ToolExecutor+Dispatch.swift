@@ -438,6 +438,12 @@ extension DriverToolExecutor {
         case "compile_session_to_plan":
             return try await executeCompileSessionToPlan(arguments: arguments)
 
+        case "companion_warm":
+            return try await executeCompanionWarm(arguments: arguments)
+
+        case "companion_status":
+            return try await executeCompanionStatus(arguments: arguments)
+
         // Intent-level tools
         case "navigate_to":
             guard let description = arguments["description"] else {
