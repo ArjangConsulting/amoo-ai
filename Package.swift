@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "ProcessRunner", targets: ["ProcessRunner"]),
         .library(name: "GRPCService", targets: ["GRPCService"]),
         .library(name: "MCPServer", targets: ["MCPServer"]),
+        .library(name: "WebInspector", targets: ["WebInspector"]),
         .library(name: "AuditEngine", targets: ["AuditEngine"]),
         .library(name: "CommandContract", targets: ["CommandContract"]),
         .library(name: "TestSession", targets: ["TestSession"]),
@@ -68,6 +69,7 @@ let package = Package(
                 .product(name: "AndroidCLIKit", package: "ShipItSwifty")
             ]
         ),
+        .target(name: "WebInspector"),
         .target(name: "IOSDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
         .target(name: "AndroidDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
         .target(name: "AuditEngine", dependencies: ["AmooCore"]),
@@ -96,6 +98,7 @@ let package = Package(
                 "ProcessRunner",
                 "TestSession",
                 "StudioProtocol",
+                "WebInspector",
                 .product(name: "MCP", package: "swift-sdk")
             ]
         ),
@@ -114,6 +117,7 @@ let package = Package(
                 "TestSession",
                 "StudioProtocol",
                 "TestCodeGenerator",
+                "WebInspector",
                 .product(name: "GradleKit", package: "ShipItSwifty"),
                 .product(name: "XcodeBuildKit", package: "ShipItSwifty"),
                 .product(name: "XcodeGenKit", package: "ShipItSwifty"),
@@ -132,7 +136,8 @@ let package = Package(
             ]
         ),
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
-        .testTarget(name: "MCPServerTests", dependencies: ["MCPServer", "ProcessRunner"]),
+        .testTarget(name: "MCPServerTests", dependencies: ["MCPServer", "ProcessRunner", "WebInspector"]),
+        .testTarget(name: "WebInspectorTests", dependencies: ["WebInspector"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
         .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),

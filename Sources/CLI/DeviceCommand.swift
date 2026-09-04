@@ -72,6 +72,8 @@ Common tools:
   analyze_ai_testability
   highlight_a11y_issues
   find_element_by_description description=<text>
+  webview_eval expression=<js> [bundle_id=<id>] [all_frames=<true|false>] [timeout_ms=<n>]
+  webview_dom [bundle_id=<id>] [mode=<html|a11y>] [max_bytes=<n>]
   assert_visible [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>] [timeout_ms=<n>]
   assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [timeout_ms=<n>]
@@ -306,10 +308,21 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
             serial: options.deviceID
         )
     }
-    let executor = DriverToolExecutor(driver: driver, foreignBuildDetector: ForeignBuildDetector())
+    let executor = DriverToolExecutor(
+        driver: driver,
+        foreignBuildDetector: ForeignBuildDetector(),
+        webInspector: makeWebInspecting(processRunner: SystemProcessRunner())
+    )
+
+    // The WebView tools need to know which platform's debug bridge to use; `--platform` is a
+    // device flag, not a tool argument, so surface it as one for them.
+    var toolArguments = options.arguments
+    if options.tool.hasPrefix("webview_") {
+        toolArguments["platform"] = options.platform.rawValue
+    }
 
     let result = await withCLILoadingIndicator("Running \(options.tool)") {
-        await executor.execute(toolName: options.tool, arguments: options.arguments)
+        await executor.execute(toolName: options.tool, arguments: toolArguments)
     }
     await companion.shutdown()
 
