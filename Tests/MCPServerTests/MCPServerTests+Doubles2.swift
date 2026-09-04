@@ -7,12 +7,25 @@ import XCTest
 
 actor MockSessionBootstrapper: SessionBootstrapper {
     private var devices: [DeviceInfo] = []
+    private var offlineDevices: [DeviceInfo] = []
+    private var bootResult: DeviceInfo?
     private(set) var lastDriver: MockDriver?
     private(set) var lastLaunchArguments: [String] = []
     private(set) var lastLaunchEnvironment: [String: String] = [:]
+    private(set) var lastListIncludeOffline: Bool?
+    private(set) var lastBootHint: String?
+    private(set) var lastBootPlatform: Platform?
 
     func setDevices(_ values: [DeviceInfo]) {
         devices = values
+    }
+
+    func setOfflineDevices(_ values: [DeviceInfo]) {
+        offlineDevices = values
+    }
+
+    func setBootResult(_ value: DeviceInfo) {
+        bootResult = value
     }
 
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
@@ -30,6 +43,20 @@ actor MockSessionBootstrapper: SessionBootstrapper {
 
     func listDevices(platform _: Platform?) async throws -> [DeviceInfo] {
         devices
+    }
+
+    func listDevices(platform _: Platform?, includeOffline: Bool) async throws -> [DeviceInfo] {
+        lastListIncludeOffline = includeOffline
+        return includeOffline ? devices + offlineDevices : devices
+    }
+
+    func bootDevice(hint: String, platform: Platform) async throws -> DeviceInfo {
+        lastBootHint = hint
+        lastBootPlatform = platform
+        guard let bootResult else {
+            throw SessionBootstrapError.deviceBootUnsupported
+        }
+        return bootResult
     }
 }
 

@@ -13,8 +13,14 @@ extension DriverToolExecutor {
         switch toolName {
         // Device lifecycle
         case "device_boot":
-            try await driver.boot()
-            let info = try await driver.deviceInfo()
+            let info: DeviceInfo
+            if let hint = arguments["device_hint"], !hint.isEmpty, let manager = sessionManager {
+                let platform = Platform(rawValue: (arguments["platform"] ?? "ios").lowercased()) ?? .ios
+                info = try await manager.bootDevice(hint: hint, platform: platform)
+            } else {
+                try await driver.boot()
+                info = try await driver.deviceInfo()
+            }
             guard info.state == .booted else {
                 throw AmooError.commandFailed(command: "device_boot", output: "device state is \(info.state.rawValue)")
             }

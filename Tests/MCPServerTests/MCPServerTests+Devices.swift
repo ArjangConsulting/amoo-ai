@@ -24,6 +24,66 @@ extension MCPServerTests {
         XCTAssertFalse(result.isError)
         let devices = try XCTUnwrap(result.structuredContent?.objectValue?["devices"]?.arrayValue)
         XCTAssertEqual(devices.count, 2)
+        let passedOffline = await bootstrapper.lastListIncludeOffline
+        XCTAssertEqual(passedOffline, false)
+    }
+
+    func testListDevicesIncludeOfflineForwardsFlagAndMergesResults() async throws {
+        let stack = makeSessionStack()
+        let manager = stack.manager
+        let bootstrapper = stack.bootstrapper
+        await bootstrapper.setDevices([
+            DeviceInfo(id: "udid-booted", name: "iPhone 17", platform: .ios, osVersion: "26.0", state: .booted)
+        ])
+        await bootstrapper.setOfflineDevices([
+            DeviceInfo(id: "udid-off", name: "iPhone 17 Pro", platform: .ios, osVersion: "26.0", state: .shutdown)
+        ])
+        let server = MCPServer(
+            executor: DriverToolExecutor(driver: stack.defaultDriver, sessionManager: manager),
+            sessionManager: manager
+        )
+
+        let result = await server.execute(toolName: "list_devices", arguments: ["include_offline": "true"])
+        XCTAssertFalse(result.isError)
+        let devices = try XCTUnwrap(result.structuredContent?.objectValue?["devices"]?.arrayValue)
+        XCTAssertEqual(devices.count, 2)
+        let passedOffline = await bootstrapper.lastListIncludeOffline
+        XCTAssertEqual(passedOffline, true)
+    }
+
+    func testDeviceBootWithDeviceHintRoutesThroughSessionManager() async {
+        let stack = makeSessionStack()
+        let manager = stack.manager
+        let bootstrapper = stack.bootstrapper
+        await bootstrapper.setBootResult(
+            DeviceInfo(id: "udid-sim", name: "iPhone 17", platform: .ios, osVersion: "26.0", state: .booted)
+        )
+        let server = MCPServer(
+            executor: DriverToolExecutor(driver: stack.defaultDriver, sessionManager: manager),
+            sessionManager: manager
+        )
+
+        let result = await server.execute(
+            toolName: "device_boot",
+            arguments: ["device_hint": "iPhone 17", "platform": "ios"]
+        )
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("iPhone 17"))
+        XCTAssertEqual(result.structuredContent?.objectValue?["device_id"]?.stringValue, "udid-sim")
+        let hint = await bootstrapper.lastBootHint
+        let platform = await bootstrapper.lastBootPlatform
+        XCTAssertEqual(hint, "iPhone 17")
+        XCTAssertEqual(platform, .ios)
+    }
+
+    func testDeviceBootWithoutHintUsesDefaultDriver() async {
+        let driver = MockDriver()
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+
+        let result = await server.execute(toolName: "device_boot", arguments: [:])
+        XCTAssertFalse(result.isError)
+        let calls = await driver.calls
+        XCTAssertTrue(calls.contains("boot"))
     }
 
     func testListAppsCallsDriverListApps() async throws {

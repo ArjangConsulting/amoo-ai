@@ -194,6 +194,90 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         return result
     }
 
+    func listDevices(platform: Platform?, includeOffline: Bool) async throws -> [DeviceInfo] {
+        var result = try await listDevices(platform: platform)
+        guard includeOffline else { return result }
+        let known = Set(result.map(\.id))
+
+        if platform == nil || platform == .ios {
+            let sims = await DeviceSelector(processRunner: processRunner).listAvailableSimulators()
+            result += sims
+                .filter { !known.contains($0.udid) }
+                .map {
+                    DeviceInfo(
+                        id: $0.udid,
+                        name: $0.name,
+                        platform: .ios,
+                        osVersion: $0.osVersion,
+                        state: .shutdown
+                    )
+                }
+        }
+        if platform == nil || platform == .android {
+            let avds = await AndroidDeviceSelector(processRunner: processRunner).listAvailableVirtualDevices()
+            result += avds
+                .filter { !known.contains($0.name) }
+                .map { DeviceInfo(id: $0.name, name: $0.name, platform: .android, osVersion: "", state: .shutdown) }
+        }
+        return result
+    }
+
+    func bootDevice(hint: String, platform: Platform) async throws -> DeviceInfo {
+        switch platform {
+        case .ios:
+            return try await bootIOSDevice(hint: hint)
+        case .android:
+            let online = await AndroidDeviceSelector(processRunner: processRunner).listOnlineDevices()
+            let lowered = hint.lowercased()
+            let match = lowered == "device" || lowered == "simulator" || lowered == "emulator"
+                ? online.first
+                : online.first { $0.serial == hint || $0.name.lowercased() == lowered }
+            guard let match else {
+                throw BootstrapError.launchFailed(
+                    "No online Android device matches '\(hint)'. Start the emulator first — "
+                        + "amoo does not boot AVDs."
+                )
+            }
+            return DeviceInfo(id: match.serial, name: match.name, platform: .android, osVersion: "", state: .booted)
+        }
+    }
+
+    private func bootIOSDevice(hint: String) async throws -> DeviceInfo {
+        let selector = DeviceSelector(processRunner: processRunner)
+        let lowered = hint.lowercased()
+        let wantsClass = lowered == "simulator" || lowered == "device"
+
+        let booted = await selector.listBootedDevices()
+        let runningMatch = booted.first { device in
+            if wantsClass {
+                return lowered == "device" ? device.isPhysicalDevice : !device.isPhysicalDevice
+            }
+            return device.udid == hint || device.name.lowercased() == lowered
+        }
+        if let runningMatch {
+            return DeviceInfo(
+                id: runningMatch.udid,
+                name: runningMatch.name,
+                platform: .ios,
+                osVersion: runningMatch.osVersion,
+                state: .booted
+            )
+        }
+        if lowered == "device" {
+            throw BootstrapError.launchFailed("No connected physical iOS device found to boot into.")
+        }
+
+        // A shut-down simulator: resolve a real UDID, then boot it.
+        let available = await selector.listAvailableSimulators()
+        let target = wantsClass
+            ? available.first
+            : available.first { $0.udid == hint || $0.name.lowercased() == lowered }
+        let udid = target?.udid ?? hint
+        let backend = SimulatorHostBackend(simctl: SimctlRunner())
+        try await backend.boot(device: udid)
+        return try await backend.deviceInfo(device: udid)
+    }
+
     // MARK: - Private
 
     /// Ensures the appropriate companion is running for the selected device and

@@ -307,7 +307,11 @@ extension DriverToolExecutor {
             platformFilter = nil
         }
 
-        let devices = try await manager.listAvailableDevices(platform: platformFilter)
+        let includeOffline = boolArgument(arguments["include_offline"]) ?? false
+        let devices = try await manager.listAvailableDevices(
+            platform: platformFilter,
+            includeOffline: includeOffline
+        )
         var rows: [Value] = []
         var lines: [String] = []
         for device in devices {
