@@ -93,6 +93,7 @@ let package = Package(
                 "AmooCore",
                 "GRPCService",
                 "AuditEngine",
+                "ProcessRunner",
                 "TestSession",
                 "StudioProtocol",
                 .product(name: "MCP", package: "swift-sdk")
@@ -131,7 +132,7 @@ let package = Package(
             ]
         ),
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
-        .testTarget(name: "MCPServerTests", dependencies: ["MCPServer"]),
+        .testTarget(name: "MCPServerTests", dependencies: ["MCPServer", "ProcessRunner"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
         .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),

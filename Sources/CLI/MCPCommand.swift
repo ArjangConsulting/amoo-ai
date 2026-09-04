@@ -4,6 +4,7 @@ import CompanionProtocol
 import Foundation
 import IOSDriver
 import MCPServer
+import ProcessRunner
 import TestSession
 
 enum MCPCommandParseError: Error, CustomStringConvertible {
@@ -143,7 +144,11 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             androidCompanionManager: androidCM
         )
         let sessionManager = SessionManager(bootstrapper: bootstrapper, store: FileSessionStore())
-        let executor = DriverToolExecutor(driver: driver, sessionManager: sessionManager)
+        let executor = DriverToolExecutor(
+            driver: driver,
+            sessionManager: sessionManager,
+            foreignBuildDetector: ForeignBuildDetector()
+        )
         let server = MCPServer(executor: executor, sessionManager: sessionManager)
 
         do {

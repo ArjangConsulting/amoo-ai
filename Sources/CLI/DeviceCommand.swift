@@ -3,6 +3,7 @@ import AndroidDriver
 import CompanionProtocol
 import IOSDriver
 import MCPServer
+import ProcessRunner
 
 // MARK: - DeviceCommandOptions
 
@@ -305,7 +306,7 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
             serial: options.deviceID
         )
     }
-    let executor = DriverToolExecutor(driver: driver)
+    let executor = DriverToolExecutor(driver: driver, foreignBuildDetector: ForeignBuildDetector())
 
     let result = await withCLILoadingIndicator("Running \(options.tool)") {
         await executor.execute(toolName: options.tool, arguments: options.arguments)

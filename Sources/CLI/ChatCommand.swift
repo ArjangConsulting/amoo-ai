@@ -5,6 +5,7 @@ import Foundation
 import IOSDriver
 import MCPServer
 import OllamaClient
+import ProcessRunner
 import TestSession
 
 struct ChatCommandOptions {
@@ -181,7 +182,11 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
         ),
         store: FileSessionStore()
     )
-    let executor = DriverToolExecutor(driver: driver, sessionManager: sessionManager)
+    let executor = DriverToolExecutor(
+        driver: driver,
+        sessionManager: sessionManager,
+        foreignBuildDetector: ForeignBuildDetector()
+    )
     let server = MCPServer(executor: executor, sessionManager: sessionManager)
 
     let systemPrompt = """

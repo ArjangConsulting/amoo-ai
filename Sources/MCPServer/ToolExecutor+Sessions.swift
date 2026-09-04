@@ -25,6 +25,7 @@ extension DriverToolExecutor {
             .map { $0.split(separator: ",").map(String.init) } ?? []
         let environment = Self.parseEnvironment(arguments["environment"])
         let testName = arguments["test_name"]
+        let contentionWarning = await foreignBuildDetector.contentionWarning()
 
         do {
             let session = try await manager.startSession(
@@ -48,14 +49,18 @@ extension DriverToolExecutor {
                 ),
                 for: session.id
             )
-            let summary: [String: Value] = [
+            var summary: [String: Value] = [
                 "session_id": .string(session.id),
                 "app_id": .string(session.appID),
                 "device_id": .string(session.deviceID),
                 "platform": .string(session.platform.rawValue)
             ]
-            let text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
+            var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
                 + " device \(session.deviceID)."
+            if let contentionWarning {
+                summary["warnings"] = .array([.string(contentionWarning)])
+                text += "\n⚠️ \(contentionWarning)"
+            }
             return .success(text, structuredContent: .object(summary))
         } catch {
             return .error("start_session failed: \(error)")
