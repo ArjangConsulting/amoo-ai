@@ -4,6 +4,7 @@ import Foundation
 import MCP
 import ProcessRunner
 import TestSession
+import WebInspector
 
 public protocol ToolExecutor: Sendable {
     func execute(toolName: String, arguments: [String: String]) async -> ToolResult
@@ -19,15 +20,21 @@ public actor DriverToolExecutor: ToolExecutor {
     /// Defaults to `.disabled` so unit tests stay hermetic; `amoo mcp serve` / `amoo device`
     /// pass a live one.
     let foreignBuildDetector: ForeignBuildDetector
+    /// Resolves a WebView debugging client for `webview_eval` / `webview_dom`. Defaults to
+    /// `UnconfiguredWebInspector` so those tools report "not configured" rather than guess a
+    /// transport; `amoo mcp serve` / `amoo device` pass a live resolver.
+    let webInspector: any WebInspecting
 
     public init(
         driver: any PlatformDriver,
         sessionManager: SessionManager? = nil,
-        foreignBuildDetector: ForeignBuildDetector = .disabled
+        foreignBuildDetector: ForeignBuildDetector = .disabled,
+        webInspector: any WebInspecting = UnconfiguredWebInspector()
     ) {
         defaultDriver = driver
         self.sessionManager = sessionManager
         self.foreignBuildDetector = foreignBuildDetector
+        self.webInspector = webInspector
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {

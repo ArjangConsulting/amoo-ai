@@ -60,7 +60,10 @@ final class MCPServerTests: XCTestCase {
         // list_sessions by design, and the companion-lifecycle tools, which act
         // on a platform/device rather than an open session. Everything else
         // should advertise it.
-        let exempt: Set = ["start_session", "list_sessions", "companion_warm", "companion_status"]
+        let exempt: Set = [
+            "start_session", "list_sessions", "companion_warm", "companion_status",
+            "webview_eval", "webview_dom"
+        ]
         for def in defs where !exempt.contains(def.name) {
             XCTAssertNotNil(
                 def.properties["session_id"],
