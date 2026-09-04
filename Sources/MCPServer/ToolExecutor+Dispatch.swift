@@ -31,8 +31,15 @@ extension DriverToolExecutor {
             guard let path = arguments["path"] else {
                 return .error("Missing required argument: path")
             }
+            let contention = await foreignBuildDetector.contentionWarning()
             try await driver.installApp(path: path)
-            return .success("App installed from \(path)")
+            guard let contention else {
+                return .success("App installed from \(path)")
+            }
+            return .success(
+                "App installed from \(path)\n⚠️ \(contention)",
+                structuredContent: .object(["warnings": .array([.string(contention)])])
+            )
 
         case "device_launch_app":
             guard let appID = arguments["app_id"] else {

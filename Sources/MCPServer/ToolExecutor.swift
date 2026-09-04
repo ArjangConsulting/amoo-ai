@@ -2,6 +2,7 @@ import AmooCore
 import AuditEngine
 import Foundation
 import MCP
+import ProcessRunner
 import TestSession
 
 public protocol ToolExecutor: Sendable {
@@ -13,10 +14,20 @@ public actor DriverToolExecutor: ToolExecutor {
     /// Kept for backward compatibility with the original `amoo mcp serve` flow.
     let defaultDriver: any PlatformDriver
     let sessionManager: SessionManager?
+    /// Probes for a concurrent `xcodebuild`/`xctest` that amoo did not start, so `start_session`
+    /// and `device_install_app` can warn the caller that an install may race or be killed.
+    /// Defaults to `.disabled` so unit tests stay hermetic; `amoo mcp serve` / `amoo device`
+    /// pass a live one.
+    let foreignBuildDetector: ForeignBuildDetector
 
-    public init(driver: any PlatformDriver, sessionManager: SessionManager? = nil) {
+    public init(
+        driver: any PlatformDriver,
+        sessionManager: SessionManager? = nil,
+        foreignBuildDetector: ForeignBuildDetector = .disabled
+    ) {
         defaultDriver = driver
         self.sessionManager = sessionManager
+        self.foreignBuildDetector = foreignBuildDetector
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
