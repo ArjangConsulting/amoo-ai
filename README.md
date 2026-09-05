@@ -57,9 +57,12 @@ swift run amoo preflight --platform android
 scripts/run-e2e-android.sh
 ```
 
-To let an AI drive a managed session, configure it to run `amoo mcp serve`, then call
-`start_session` with `platform` and `app_id`. Keep the returned `session_id` on every device call.
-See the [MCP guide](docs/mcp-server.md) for setup and smaller tool profiles.
+To let an AI drive a managed session, register amoo as an MCP server with your client — run
+`scripts/install-mcp.sh` to auto-detect and configure Claude Code, Claude Desktop, Codex, Cursor,
+or Windsurf (it asks before writing anything), or configure it by hand to run `amoo mcp serve`.
+Then call `start_session` with `platform` and `app_id`, keeping the returned `session_id` on every
+device call. See the [MCP guide](docs/mcp-server.md) for per-client config snippets, the installer
+script's options, and smaller tool profiles.
 
 See [docs/prerequisites.md](docs/prerequisites.md) for the full dependency table and rationale.
 
