@@ -71,6 +71,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Toolchain runtime deps swiftly expects but will not install itself; without
+          # libcurl4-openssl-dev `swiftly install` exits non-zero after a successful install.
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
           if [ ! -x "$HOME/.local/share/swiftly/bin/swiftly" ]; then
             arch="$(uname -m)"
             curl -fsSL -O "https://download.swift.org/swiftly/linux/swiftly-${arch}.tar.gz"
