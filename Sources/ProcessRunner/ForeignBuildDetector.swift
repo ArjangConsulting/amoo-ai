@@ -1,5 +1,7 @@
 #if canImport(Darwin)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
 #endif
 import Foundation
 
@@ -78,11 +80,10 @@ struct NullProcessRunner: ProcessRunner {
     }
 }
 
-/// This process's PID and every ancestor PID up to (but not including) `launchd`.
+/// This process's PID and every ancestor PID up to (but not including) `launchd` / `init`.
 public enum ProcessAncestry {
     public static func current(limit: Int = 64) -> Set<Int32> {
         var result: Set<Int32> = []
-        #if canImport(Darwin)
         var pid = getpid()
         var hops = 0
         while pid > 1, hops < limit {
@@ -91,12 +92,11 @@ public enum ProcessAncestry {
             pid = parent
             hops += 1
         }
-        #endif
         return result
     }
 
-    #if canImport(Darwin)
     static func parentPID(of pid: pid_t) -> pid_t? {
+        #if canImport(Darwin)
         var info = kinfo_proc()
         var size = MemoryLayout<kinfo_proc>.stride
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
@@ -104,6 +104,21 @@ public enum ProcessAncestry {
         guard rc == 0, size > 0 else { return nil }
         let ppid = info.kp_eproc.e_ppid
         return ppid > 0 ? ppid : nil
+        #elseif os(Linux)
+        // `/proc/<pid>/stat` is "pid (comm) state ppid …"; `comm` may contain spaces and
+        // parentheses, so split on the fields that follow the final ')'.
+        guard
+            let stat = try? String(contentsOfFile: "/proc/\(pid)/stat", encoding: .utf8),
+            let lastParen = stat.lastIndex(of: ")")
+        else {
+            return nil
+        }
+        let fields = stat[stat.index(after: lastParen)...]
+            .split(separator: " ", omittingEmptySubsequences: true)
+        guard fields.count >= 2, let ppid = pid_t(fields[1]), ppid > 0 else { return nil }
+        return ppid
+        #else
+        return nil
+        #endif
     }
-    #endif
 }
