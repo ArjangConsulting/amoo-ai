@@ -116,4 +116,4 @@ done
 log "Companion is reachable after ${WAITED}s."
 
 log "Running integration tests..."
-(cd "$REPO_ROOT" && COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="android" E2E_DEVICE_ID="$DEVICE_SERIAL" E2E_APP_ID="com.amoo.companion" swift test --filter IntegrationTests)
+(cd "$REPO_ROOT" && COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="android" E2E_DEVICE_ID="$DEVICE_SERIAL" E2E_APP_ID="com.amoo.companion" swift test --filter "${AMOO_E2E_FILTER:-IntegrationTests}")

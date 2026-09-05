@@ -39,10 +39,18 @@ final class CommandContractE2ETests: XCTestCase {
 
     override func setUp() async throws {
         guard Self.isPortOpen(Self.companionPort) else {
-            throw XCTSkip("Companion not running on port \(Self.companionPort). Use the platform e2e script.")
+            throw Self
+                .environmentFailure("Companion not running on port \(Self.companionPort). Use the platform e2e script.")
         }
 
         try await waitForCompanionReady()
+    }
+
+    static func environmentFailure(_ message: String) -> any Error {
+        if ProcessInfo.processInfo.environment["AMOO_E2E_STRICT"] == "1" {
+            return NSError(domain: "Amoo.StrictE2E", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+        return XCTSkip(message)
     }
 
     func waitForCompanionReady(attempts: Int = 30, sleepMilliseconds: UInt64 = 500) async throws {
@@ -57,7 +65,7 @@ final class CommandContractE2ETests: XCTestCase {
                 return
             } catch {
                 if attempt == attempts - 1 {
-                    throw XCTSkip(
+                    throw Self.environmentFailure(
                         "Companion is reachable on port \(Self.companionPort) but not ready for gRPC yet: \(error)"
                     )
                 }
@@ -84,7 +92,7 @@ final class CommandContractE2ETests: XCTestCase {
 
         let titleResult = await waitForElement(on: server, id: "fixture-home-title")
         guard !titleResult.isError else {
-            throw XCTSkip(
+            throw Self.environmentFailure(
                 "Fixture home query is not stable in the current live companion session: \(titleResult.content)"
             )
         }
@@ -96,20 +104,22 @@ final class CommandContractE2ETests: XCTestCase {
 
         let hierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         guard !hierarchy.isError else {
-            throw XCTSkip("Live hierarchy query failed in the current environment: \(hierarchy.content)")
+            throw Self
+                .environmentFailure("Live hierarchy query failed in the current environment: \(hierarchy.content)")
         }
         XCTAssertFalse(hierarchy.isError)
         XCTAssertTrue(
             hierarchy.content.contains("Fixture Home") ||
                 hierarchy.content.contains("Fixture") ||
-                hierarchy.content.contains("com.apple.springboard") ||
-                hierarchy.content.contains("com.android.launcher") ||
                 hierarchy.content.contains("com.amoo.companion")
         )
 
         let screenContext = await server.execute(toolName: "get_screen_context", arguments: [:])
         guard !screenContext.isError else {
-            throw XCTSkip("Live screen context query failed in the current environment: \(screenContext.content)")
+            throw Self
+                .environmentFailure(
+                    "Live screen context query failed in the current environment: \(screenContext.content)"
+                )
         }
         XCTAssertFalse(screenContext.isError)
         XCTAssertFalse(screenContext.content.isEmpty)

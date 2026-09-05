@@ -1,3 +1,6 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
+
 .PHONY: format lint check test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
@@ -33,7 +36,7 @@ companion-ios-project:
 companion-ios-protos:
 	./CompanionApps/iOS/generate-protos.sh
 
-companion-ios-build: companion-ios-project
+companion-ios-build: companion-ios-protos companion-ios-project
 	cd CompanionApps/iOS && xcodebuild build-for-testing \
 		-project AmooCompanion.xcodeproj \
 		-scheme AmooCompanion \
@@ -43,7 +46,7 @@ companion-ios-build: companion-ios-project
 companion-android-build:
 	@JDK="$$(./scripts/android-jdk.sh)"; \
 	if [ -z "$$JDK" ]; then \
-		echo "No JDK 17-21 found. AGP 8.7 cannot run on a newer one."; \
+		echo "No JDK 17-26 found. AGP 9.3 / Gradle 9.5 requires a supported JDK."; \
 		echo "Install with: brew install --cask temurin@21"; \
 		exit 1; \
 	fi; \
