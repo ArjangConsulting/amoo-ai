@@ -4,6 +4,7 @@ import GRPCService
 import TestSession
 
 public struct MCPServer: Sendable {
+    private let profile: ToolProfile
     private let deviceService: DeviceService
     private let executor: (any ToolExecutor)?
     public let sessionManager: SessionManager?
@@ -11,8 +12,10 @@ public struct MCPServer: Sendable {
     public init(
         deviceService: DeviceService = .init(),
         executor: (any ToolExecutor)? = nil,
-        sessionManager: SessionManager? = nil
+        sessionManager: SessionManager? = nil,
+        profile: ToolProfile = .all
     ) {
+        self.profile = profile
         self.deviceService = deviceService
         self.executor = executor
         self.sessionManager = sessionManager
@@ -27,6 +30,9 @@ public struct MCPServer: Sendable {
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        guard profile.includes(toolName) else {
+            return .error("Tool is not available in this catalog profile.")
+        }
         guard let executor else {
             return .error("No tool executor configured. Connect a device driver first.")
         }
@@ -49,11 +55,14 @@ public struct MCPServer: Sendable {
                 + AssistantTools.definitions
         ).map { $0.allowingSessionID() }
 
-        return driverRouted
+        return (driverRouted
             + SessionTools.definitions
             + CompanionTools.definitions
             + WebViewTools.definitions
-            + IntentTools.definitions
+            + IntentTools.definitions.map { $0.allowingSessionID() }
+            + BatchTools.definitions)
+            .map(ToolContracts.enrich)
+            .filter { profile.includes($0.name) }
     }
 }
 
@@ -62,13 +71,32 @@ extension ToolDefinition {
     /// property. Driver-routed tools opt in to this so AI clients can scope
     /// calls to a session created by `start_session`.
     func allowingSessionID() -> ToolDefinition {
-        guard properties["session_id"] == nil else { return self }
         var copy = self
         copy.properties["session_id"] = ToolInputProperty(
             type: "string",
             description: "Optional session id; routes this call to that session's driver"
                 + " and records it in the session's action history"
         )
+        if [
+            "find_elements",
+            "tap_element",
+            "set_text",
+            "fill_field",
+            "assert_visible",
+            "assert_enabled",
+            "assert_absent",
+            "assert_value"
+        ].contains(name) {
+            copy.properties["parent_id"] = .init(
+                type: "string",
+                description: "Restrict to descendants of this identifier"
+            )
+        }
+        if ["type_text", "set_text", "fill_field", "assert_value"].contains(name) {
+            copy.properties["record_value"] = .init(
+                type: "string", description: "fixture records non-sensitive test data; default secret redacts it"
+            )
+        }
         return copy
     }
 }

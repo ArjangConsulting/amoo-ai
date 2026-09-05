@@ -25,6 +25,7 @@ extension DriverToolExecutor {
             .map { $0.split(separator: ",").map(String.init) } ?? []
         let environment = Self.parseEnvironment(arguments["environment"])
         let testName = arguments["test_name"]
+        let contextJSON = try Self.contextSnapshot(arguments)
         let contentionWarning = await foreignBuildDetector.contentionWarning()
 
         do {
@@ -45,7 +46,7 @@ extension DriverToolExecutor {
                     testName: testName,
                     testDescription: arguments["test_description"],
                     contextPath: arguments["context_path"],
-                    contextJSON: arguments["context_json"]
+                    contextJSON: contextJSON
                 ),
                 for: session.id
             )
@@ -90,6 +91,8 @@ extension DriverToolExecutor {
             "ended_at": .string(ISO8601DateFormatter().string(from: Date()))
         ]
 
+        summary["recording_health"] = await .string(manager.recordingHealth(for: sessionID))
+
         // Auto-compile the recorded history into replayable artifacts on close, so
         // every driven flow leaves a plan behind without a separate opt-in call.
         let report = await manager.report(for: sessionID)
@@ -132,14 +135,15 @@ extension DriverToolExecutor {
         )
     }
 
-    func executeListSessions() async -> ToolResult {
+    func executeListSessions(arguments: [String: String] = [:]) async throws -> ToolResult {
         guard let manager = sessionManager else {
             return .error("Session management not configured.")
         }
-        let reports = await manager.allReports()
+        let reports = await manager.allReports(includeActions: false)
         var rows: [Value] = []
         var lines: [String] = []
-        for report in reports {
+        let page = try QueryPage(arguments)
+        for report in reports.dropFirst(page.offset).prefix(page.limit) {
             rows.append(.object([
                 "session_id": .string(report.sessionID),
                 "app_id": .string(report.appID),
@@ -155,7 +159,10 @@ extension DriverToolExecutor {
             )
         }
         let summary = lines.isEmpty ? "No active sessions." : lines.joined(separator: "\n")
-        return .success(summary, structuredContent: .object(["sessions": .array(rows)]))
+        return .success(
+            summary,
+            structuredContent: paginationFields(key: "sessions", rows: rows, total: reports.count, page: page)
+        )
     }
 
     func executeGetSessionReport(arguments: [String: String]) async throws -> ToolResult {
@@ -169,7 +176,19 @@ extension DriverToolExecutor {
             return .error("Session not found: \(sessionID)")
         }
         let summary = "Session \(report.sessionID) — \(report.actionCount) action(s), \(report.errorCount) error(s)."
-        return try .success(summary, structuredContent: Value(report))
+        let page = try QueryPage(arguments)
+        let data = try SessionReport.makeJSONEncoder().encode(report)
+        var fields = try JSONDecoder().decode(Value.self, from: data).objectValue ?? [:]
+        let actions = fields["actions"]?.arrayValue ?? []
+        let selected = Array(actions.dropFirst(page.offset).prefix(page.limit))
+        let next = page.offset + selected.count
+        fields["recording_health"] = await .string(manager.recordingHealth(for: sessionID))
+        fields["actions"] = .array(selected)
+        fields["has_more"] = .bool(next < actions.count)
+        if next < actions.count {
+            fields["next_offset"] = .int(next)
+        }
+        return .success(summary, structuredContent: .object(fields))
     }
 
     /// Puts the repeated-tap evidence in the text summary, not only the structured payload: the
@@ -213,6 +232,8 @@ extension DriverToolExecutor {
             requestedInterval = milliseconds / 1000
         }
 
+        let contextJSON = try Self.contextSnapshot(arguments)
+
         // Refine (or seed) the session's codegen intent so a later `end_session` recompile keeps the
         // same descriptive name and app-owned test context this explicit call used.
         await manager.rememberCodegenIntent(
@@ -220,7 +241,7 @@ extension DriverToolExecutor {
                 testName: arguments["test_name"],
                 testDescription: arguments["test_description"],
                 contextPath: arguments["context_path"],
-                contextJSON: arguments["context_json"]
+                contextJSON: contextJSON
             ),
             for: sessionID
         )
@@ -289,6 +310,19 @@ extension DriverToolExecutor {
             retryRunObservations: result.retryRunObservations,
             retryTapIntervalSeconds: result.retryTapIntervalSeconds
         )
+    }
+
+    static func contextSnapshot(_ arguments: [String: String]) throws -> String? {
+        let json: String
+        if let inline = arguments["context_json"], !inline.isEmpty {
+            json = inline
+        } else if let path = arguments["context_path"], !path.isEmpty {
+            json = try String(contentsOfFile: (path as NSString).expandingTildeInPath, encoding: .utf8)
+        } else {
+            return nil
+        }
+        _ = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
+        return json
     }
 
     // MARK: - Companion lifecycle
@@ -369,10 +403,11 @@ extension DriverToolExecutor {
         return .success(text, structuredContent: .object(["devices": .array(rows)]))
     }
 
-    func formatListApps(_ apps: [AppInfo]) -> ToolResult {
+    func formatListApps(_ apps: [AppInfo], arguments: [String: String] = [:]) throws -> ToolResult {
         var rows: [Value] = []
         var lines: [String] = []
-        for app in apps {
+        let page = try QueryPage(arguments)
+        for app in apps.dropFirst(page.offset).prefix(page.limit) {
             var fields: [String: Value] = ["app_id": .string(app.appID)]
             if let name = app.name {
                 fields["name"] = .string(name)
@@ -385,7 +420,10 @@ extension DriverToolExecutor {
             lines.append(suffix.isEmpty ? app.appID : "\(app.appID) — \(suffix)")
         }
         let text = lines.isEmpty ? "No installed apps reported." : lines.joined(separator: "\n")
-        return .success(text, structuredContent: .object(["apps": .array(rows)]))
+        return .success(
+            text,
+            structuredContent: paginationFields(key: "apps", rows: rows, total: apps.count, page: page)
+        )
     }
 
     // MARK: - Intent tools

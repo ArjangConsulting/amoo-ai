@@ -121,6 +121,10 @@ func parseMCPServeOptions(args: [String]) -> Result<MCPServeOptions, MCPCommandP
 }
 
 func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
+    let rawProfile = ProcessInfo.processInfo.environment["AMOO_TOOL_PROFILE"] ?? "all"
+    guard let profile = ToolProfile(rawValue: rawProfile) else {
+        return CLIResult(output: "AMOO_TOOL_PROFILE must be all, drive, record, or audit.", exitCode: 1)
+    }
     do {
         let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
         let companion = try GRPCCompanionClient.makeLive(connection: connection)
@@ -150,7 +154,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             foreignBuildDetector: ForeignBuildDetector(),
             webInspector: makeWebInspecting(processRunner: SystemProcessRunner())
         )
-        let server = MCPServer(executor: executor, sessionManager: sessionManager)
+        let server = MCPServer(executor: executor, sessionManager: sessionManager, profile: profile)
 
         do {
             try await MCPStdioServer(server: server).run()

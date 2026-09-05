@@ -7,13 +7,13 @@ import XCTest
 
 final class CompanionProtocolTests: XCTestCase {
     func testCapabilitiesAreReturned() async throws {
-        let client = GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087))
+        let client = GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087))
         let capabilities = try await client.getCapabilities()
         XCTAssertFalse(capabilities.isEmpty)
     }
 
     func testSessionAndQueryMethods() async throws {
-        let client = GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087))
+        let client = GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087))
 
         try await client.startSession()
         try await client.tap(at: Point(x: 1, y: 2))

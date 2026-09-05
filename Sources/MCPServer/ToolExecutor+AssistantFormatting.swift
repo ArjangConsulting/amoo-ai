@@ -90,21 +90,9 @@ extension DriverToolExecutor {
     }
 
     func isLikelySystemElement(_ element: ElementInfo) -> Bool {
-        let raw = "\(element.id) \(element.label) \(element.value ?? "")".lowercased()
-        let systemTerms = [
-            "wifi", "wi-fi", "battery", "signal", "carrier", "clock", "time", "cellular", "status bar",
-            "home indicator", "dynamic island", "control center"
-        ]
-
-        if systemTerms.contains(where: { raw.contains($0) }) {
-            return true
-        }
-
-        if element.type == .navigationBar, raw.contains("back") {
-            return false
-        }
-
-        return raw.hasPrefix("status") || raw.contains("system")
+        // Labels are app-owned content, never a reliable process boundary. Query scope selects
+        // app/system UI; do not hide controls in clock, battery, or settings applications.
+        false
     }
 
     func collectAccessibilityDiagnostics(

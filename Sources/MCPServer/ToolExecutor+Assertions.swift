@@ -47,12 +47,13 @@ extension DriverToolExecutor {
             label: target.label.isEmpty ? nil : target.label
         )
         try await driver.tapElement(selector)
-        try? await Task.sleep(for: .milliseconds(800))
+        try await Task.sleep(for: .milliseconds(800))
 
         // Wait for screen change up to the requested timeout.
         let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000.0)
         var current = initial
         while Date() < deadline {
+            try Task.checkCancellation()
             current = await (try? driver.getScreenContext()) ?? current
             if current.summary != initial.summary {
                 break
@@ -87,6 +88,9 @@ extension DriverToolExecutor {
         )
         var lastFrontmost: String?
         repeat {
+            if Task.isCancelled {
+                return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
+            }
             let current = try? await driver.currentApp()
             let frontmost = current?.bundleID
             if let frontmost, !frontmost.isEmpty {
@@ -139,33 +143,39 @@ extension DriverToolExecutor {
             return .error("set_text failed: matched field is not visible and enabled")
         }
         let stableSelector = matched.id.isEmpty
-            ? ElementSelector(label: matched.label)
-            : ElementSelector(id: matched.id)
+            ? ElementSelector(label: matched.label, parentSelector: selector.parentSelector)
+            : ElementSelector(id: matched.id, parentSelector: selector.parentSelector)
         let before = matched.value ?? ""
         try await driver.setText(stableSelector, text: value)
 
-        let updated = try await driver.findElements(stableSelector, appID: appID).first
-        let observed = updated?.value ?? ""
-        // A secure field reports a mask rather than what was typed, so an exact match is not
-        // always available. Falling back to "non-empty" alone would pass on a field that never
-        // changed — the value has to have actually moved off what was there before.
-        let verified = observed == value || (!value.isEmpty && !observed.isEmpty && observed != before)
-        guard verified else {
-            return ToolResult(
-                content: "set_text failed: field [\(matched.id)] did not expose an updated value.",
-                isError: true,
-                structuredContent: .object([
-                    "verified": .bool(false),
-                    "element_id": .string(matched.id),
-                    "element_label": .string(matched.label),
-                    "value_length": .int(value.count)
-                ])
-            )
-        }
-        return .success(
-            "Filled verified field [\(matched.id)] \(matched.label) with \(value.count) char(s).",
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        var mode = "unverified"
+        repeat {
+            if Task.isCancelled {
+                return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
+            }
+            try Task.checkCancellation()
+            let updated = try await resolveElement(selector: stableSelector, driver: driver, appID: appID)
+            if updated?.value == value {
+                mode = "exact"
+                break
+            }
+            if matched.isSecureTextEntry, let observed = updated?.value,
+               !observed.isEmpty, observed != before, !value.isEmpty {
+                mode = "masked_change"
+                break
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        } while ContinuousClock.now < deadline
+        let verified = mode == "exact"
+        return ToolResult(
+            content: mode == "unverified"
+                ? "set_text failed: field did not expose the requested value."
+                : "Filled field [\(matched.id)] \(matched.label) with \(value.count) char(s) (\(mode)).",
+            isError: mode == "unverified",
             structuredContent: .object([
-                "verified": .bool(true),
+                "verified": .bool(verified),
+                "verification_mode": .string(mode),
                 "element_id": .string(matched.id),
                 "element_label": .string(matched.label),
                 "value_length": .int(value.count)
@@ -201,6 +211,9 @@ extension DriverToolExecutor {
         let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
         repeat {
+            if Task.isCancelled {
+                return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
+            }
             let match = try await resolveElement(selector: selector, driver: driver, appID: appID)
             switch kind {
             case .absent where match == nil:
@@ -259,8 +272,12 @@ extension DriverToolExecutor {
     ) async -> ToolResult {
         let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
         repeat {
-            if let context = try? await driver.getScreenContext() {
-                let current = screenToken(context.summary)
+            if Task.isCancelled {
+                return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
+            }
+            if let observation = try? await driver.observeScreen() {
+                let context = observation.context
+                let current = observation.token
                 if current != baseline {
                     return .success(
                         "Screen changed",
@@ -286,18 +303,30 @@ extension DriverToolExecutor {
         includeDescription: Bool = false
     ) -> ElementSelector? {
         if let id = arguments["id"], !id.isEmpty {
-            return ElementSelector(id: id)
+            return ElementSelector(
+                id: id,
+                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
+            )
         }
         if let label = arguments["label"], !label.isEmpty {
-            return ElementSelector(label: label)
+            return ElementSelector(
+                label: label,
+                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
+            )
         }
         if let text = arguments["contains_text"], !text.isEmpty {
-            return ElementSelector(containsText: text)
+            return ElementSelector(
+                containsText: text,
+                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
+            )
         }
         if includeDescription,
            let description = arguments["field_description"] ?? arguments["description"],
            !description.isEmpty {
-            return ElementSelector(description: description)
+            return ElementSelector(
+                description: description,
+                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
+            )
         }
         return nil
     }
@@ -308,17 +337,22 @@ extension DriverToolExecutor {
         appID: String? = nil
     ) async throws -> ElementInfo? {
         if selector.description == nil {
-            return try await driver.findElements(selector, appID: appID).first
+            return try await uniqueElement(driver.findElements(selector, appID: appID))
         }
         guard let description = selector.description else { return nil }
-        let all = try await filterAppRelevantElements(driver.findElements(ElementSelector(), appID: appID))
-        if let exactID = all.first(where: { $0.id.caseInsensitiveCompare(description) == .orderedSame }) {
+        let all = try await filterAppRelevantElements(driver.findElements(
+            ElementSelector(parentSelector: selector.parentSelector), appID: appID
+        ))
+        if let exactID = try uniqueElement(all.filter { $0.id.caseInsensitiveCompare(description) == .orderedSame }) {
             return exactID
         }
-        if let exactLabel = all.first(where: { $0.label.caseInsensitiveCompare(description) == .orderedSame }) {
+        if let exactLabel = try uniqueElement(all
+            .filter { $0.label.caseInsensitiveCompare(description) == .orderedSame }) {
             return exactLabel
         }
-        return try await findFirstNavigableElement(query: description, driver: driver)
+        return try await findFirstNavigableElement(
+            query: description, driver: driver, appID: appID, parent: selector.parentSelector
+        )
     }
 
     func screenToken(_ summary: String) -> String {
@@ -339,6 +373,9 @@ extension DriverToolExecutor {
         let lowered = description.lowercased()
         var lastScreenSummary = ""
         repeat {
+            if Task.isCancelled {
+                return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
+            }
             if let context = try? await driver.getScreenContext() {
                 lastScreenSummary = context.summary
             }
@@ -375,18 +412,21 @@ extension DriverToolExecutor {
 
     func findFirstNavigableElement(
         query: String,
-        driver: any PlatformDriver
+        driver: any PlatformDriver,
+        appID: String? = nil,
+        parent: ParentSelector? = nil
     ) async throws -> ElementInfo? {
         let lowered = query.lowercased()
-        let allElements = try await driver.findElements(ElementSelector())
+        let allElements = try await driver.findElements(ElementSelector(parentSelector: parent), appID: appID)
         let filtered = filterAppRelevantElements(allElements)
-        if let match = filtered.first(where: {
+        if let match = try uniqueElement(filtered.filter {
             $0.label.lowercased().contains(lowered) || $0.id.lowercased().contains(lowered)
         }) {
             return match
         }
+        guard appID == nil, parent == nil else { return nil }
         let semantic = await (try? driver.findByDescription(query)) ?? []
-        return semantic.first
+        return try uniqueElement(semantic)
     }
 
     func screenContextMatches(_ context: ScreenContext, query lowered: String) -> Bool {

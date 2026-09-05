@@ -104,6 +104,8 @@ public struct CompileSessionToPlanResult: Codable, Sendable {
     }
 }
 
+// Compiler pipeline helpers are split across extensions.
+// swiftlint:disable type_body_length
 /// Deterministically translates a recorded `SessionReport` into both a directly-replayable
 /// `CompiledSessionFlow` (for `amoo flow`) and a best-effort `StudioAuthoredTest` (for
 /// `amoo generate test --plan`). No LLM involved — this mirrors the mechanical nature of a
@@ -130,14 +132,10 @@ public enum SessionPlanCompiler {
     /// amoo's own session / codegen lifecycle tools. They never touch the app under test, so they
     /// must never surface as a step — not even as an `XCTFail` placeholder — in a generated test.
     ///
-    /// The recorder already keeps these out of a session's action history (`ToolExecutor`), but a
-    /// plan compiled from an older recording, a hand-edited `report.json`, or a session whose
-    /// explicit `compile_session_to_plan` predates that filter can still contain one. Classifying
-    /// them here as `.notApplicable` rather than letting them fall through to `.excluded` keeps a
-    /// stray control-plane call from tripping the incomplete-plan gate or the trailing `XCTFail`.
+    /// Legacy recordings may still contain these calls; ignore them instead of emitting failing test steps.
     static let controlPlaneTools: Set<String> = [
         "start_session", "start_test_session", "end_session", "end_test_session",
-        "list_sessions", "get_session_report", "compile_session_to_plan"
+        "list_sessions", "get_session_report", "compile_session_to_plan", "run_steps"
     ]
 
     /// Tools that inspect the app without changing it. They have no place in generated test code,
@@ -264,7 +262,7 @@ public enum SessionPlanCompiler {
                     + " review before generating"
             ))
         }
-        if translated.studioArguments.values.contains(where: { $0.hasPrefix("<redacted,") }) {
+        if translated.studioArguments.values.contains(where: { $0.contains("<redacted") }) {
             warnings.append(SessionPlanWarning(
                 kind: .redacted,
                 actionIndex: index,
@@ -405,6 +403,8 @@ public enum SessionPlanCompiler {
         return processed
     }
 
+    // Preserve ordered plan construction and validation.
+    // swiftlint:disable function_body_length
     /// - Parameter retryTapInterval: How close together identical taps must be to read as a retry
     ///   loop rather than deliberate repeats. Defaults to `AMOO_RETRY_TAP_INTERVAL_MS`, then
     ///   `defaultRetryTapInterval`. See that property for why this is tunable and not a fixed
@@ -433,7 +433,16 @@ public enum SessionPlanCompiler {
         let processed = processActions(report.actions, retries: retries, interval: interval)
         let toolOperations = annotatePresetOptionTaps(processed.compactMap(\.operation))
         let steps = processed.compactMap(\.step)
-        let warnings = processed.flatMap(\.warnings)
+        var warnings = processed.flatMap(\.warnings)
+        if (report.launchArguments + Array(report.launchEnvironment.values))
+            .contains(where: { $0.contains("<redacted") }) {
+            warnings.append(SessionPlanWarning(
+                kind: .redacted,
+                actionIndex: 0,
+                toolName: "start_session",
+                reason: "Launch metadata contains redacted secrets; bind runtime credentials before exporting."
+            ))
+        }
 
         // A recording made through the MCP flow keeps `compile_session_to_plan` out of its history,
         // so its `test_name` / `test_description` would otherwise be lost when `end_session` (or a
@@ -446,11 +455,12 @@ public enum SessionPlanCompiler {
             controlPlaneTools.contains($0.toolName) && ($0.arguments["test_description"]?.isEmpty == false)
         }?.arguments["test_description"]
 
-        let name = testName ?? report.testName ?? recordedName ?? semanticTestName(for: report)
-        let description = testDescription ?? recordedDescription
+        let name = testName ?? report.codegenIntent?.testName ?? report
+            .testName ?? recordedName ?? semanticTestName(for: report)
+        let description = testDescription ?? report.codegenIntent?.testDescription ?? recordedDescription
             ?? "Generated from session \(report.sessionID) (\(report.appID) on \(report.deviceID))"
 
-        let studioTest = StudioAuthoredTest(
+        var studioTest = StudioAuthoredTest(
             formatVersion: 1,
             name: name,
             description: description,
@@ -472,6 +482,10 @@ public enum SessionPlanCompiler {
             )
         )
 
+        if let json = report.codegenIntent?.contextJSON {
+            let context = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
+            studioTest = studioTest.replacingTestContext(context)
+        }
         return CompileSessionToPlanResult(
             testFlow: testFlow,
             studioTest: studioTest,
@@ -481,3 +495,6 @@ public enum SessionPlanCompiler {
         )
     }
 }
+
+// swiftlint:enable function_body_length
+// swiftlint:enable type_body_length

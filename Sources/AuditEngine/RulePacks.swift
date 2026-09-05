@@ -52,7 +52,7 @@ public struct InsecureTextFieldRule: AuditRule {
         let sensitiveLabels = ["password", "pin", "ssn", "credit card", "cvv", "secret", "token"]
         var findings: [AuditFinding] = []
 
-        let textFields = input.elements.filter { $0.type == .textField }
+        let textFields = input.elements.filter { $0.type == .textField && !$0.isSecureTextEntry }
         for field in textFields {
             let label = field.label.lowercased()
             let isSensitive = sensitiveLabels.contains { label.contains($0) }
@@ -91,28 +91,16 @@ public struct DeepLinkValidationRule: AuditRule {
 
     public init() {}
 
-    public func evaluate(_ input: AuditInput) async throws -> [AuditFinding] {
-        let webViews = input.elements.filter { $0.type == .webView }
-        guard !webViews.isEmpty else { return [] }
-
-        return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID)",
+    public func evidenceCoverage(_: AuditInput) -> AuditRuleEvaluation {
+        AuditRuleEvaluation(
             ruleID: metadata.id,
-            severity: metadata.defaultSeverity,
-            confidence: 0.5,
-            summary: "Found \(webViews.count) web view(s) that may load content from deep links without validation.",
-            remediation: "Validate and sanitize all URLs before loading in web views."
-                + " Use allowlists for trusted domains.",
-            evidence: webViews.map { wv in
-                AuditEvidence(
-                    kind: .selector,
-                    summary: "WebView id=\(wv.id)",
-                    sourceRef: wv.id,
-                    attributes: ["type": wv.type?.rawValue ?? "webView"]
-                )
-            },
-            tags: ["security", "deeplink", "webview"]
-        )]
+            status: .insufficientEvidence,
+            reason: "Screen inspection cannot establish URL validation; exercise explicit deep-link scenarios."
+        )
+    }
+
+    public func evaluate(_: AuditInput) async throws -> [AuditFinding] {
+        []
     }
 }
 

@@ -1,5 +1,6 @@
 import Foundation
 @testable import MCPServer
+@testable import SessionCompiler
 import StudioProtocol
 import TestCodeGenerator
 import TestSession

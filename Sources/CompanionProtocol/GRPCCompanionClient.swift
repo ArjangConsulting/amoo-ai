@@ -485,34 +485,34 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func startSession(_ request: Amoo_StartSessionRequest) async throws
         -> Amoo_StartSessionResponse {
-        try await client.startSession(request)
+        try await client.startSession(request, options: Self.gestureCallOptions)
     }
 
     package func getCapabilities(
         _ request: Amoo_CapabilitiesRequest
     ) async throws -> Amoo_CapabilitiesResponse {
-        try await client.getCapabilities(request)
+        try await client.getCapabilities(request, options: Self.gestureCallOptions)
     }
 
     package func endSession(_ request: Amoo_EndSessionRequest) async throws
         -> Amoo_EndSessionResponse {
-        try await client.endSession(request)
+        try await client.endSession(request, options: Self.gestureCallOptions)
     }
 
     package func tap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
-        try await client.tap(request)
+        try await client.tap(request, options: Self.gestureCallOptions)
     }
 
     package func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
-        try await client.doubleTap(request)
+        try await client.doubleTap(request, options: Self.gestureCallOptions)
     }
 
     package func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse {
-        try await client.longPress(request)
+        try await client.longPress(request, options: Self.gestureCallOptions)
     }
 
     package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
-        try await client.tapElement(request)
+        try await client.tapElement(request, options: Self.gestureCallOptions)
     }
 
     package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
@@ -533,88 +533,90 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     }
 
     package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
-        try await client.typeText(request)
+        try await client.typeText(request, options: Self.gestureCallOptions)
     }
 
     package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
-        try await client.clearText(request)
+        try await client.clearText(request, options: Self.gestureCallOptions)
     }
 
     package func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
-        try await client.setText(request)
+        try await client.setText(request, options: Self.gestureCallOptions)
     }
 
     package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
-        try await client.pressBack(request)
+        try await client.pressBack(request, options: Self.gestureCallOptions)
     }
 
     package func pressHome(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
-        try await client.pressHome(request)
+        try await client.pressHome(request, options: Self.gestureCallOptions)
     }
 
     package func findElements(_ request: Amoo_FindElementsRequest) async throws
         -> Amoo_FindElementsResponse {
-        try await client.findElements(request)
+        try await client.findElements(request, options: Self.gestureCallOptions)
     }
 
     package func getViewHierarchy(
         _ request: Amoo_ViewHierarchyRequest
     ) async throws -> Amoo_ViewHierarchyResponse {
-        try await client.getViewHierarchy(request)
+        try await client.getViewHierarchy(request, options: Self.gestureCallOptions)
     }
 
     package func waitForElement(
         _ request: Amoo_WaitForElementRequest
     ) async throws -> Amoo_WaitForElementResponse {
-        try await client.waitForElement(request)
+        var options = Self.gestureCallOptions
+        options.timeout = .milliseconds(Int64(max(0, request.timeout.milliseconds)) + 2000)
+        return try await client.waitForElement(request, options: options)
     }
 
     package func isKeyboardVisible(_ request: Amoo_Empty) async throws
         -> Amoo_KeyboardVisibleResponse {
-        try await client.isKeyboardVisible(request)
+        try await client.isKeyboardVisible(request, options: Self.gestureCallOptions)
     }
 
     package func getCurrentApp(_ request: Amoo_Empty) async throws
         -> Amoo_CurrentAppResponse {
-        try await client.getCurrentApp(request)
+        try await client.getCurrentApp(request, options: Self.gestureCallOptions)
     }
 
     package func getScreenInfo(_ request: Amoo_Empty) async throws
         -> Amoo_ScreenInfoResponse {
-        try await client.getScreenInfo(request)
+        try await client.getScreenInfo(request, options: Self.gestureCallOptions)
     }
 
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
         -> Amoo_ActionResponse {
-        try await client.setTargetApp(request)
+        try await client.setTargetApp(request, options: Self.gestureCallOptions)
     }
 
     package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
         -> Amoo_GetAppStateResponse {
-        try await client.getAppState(request)
+        try await client.getAppState(request, options: Self.gestureCallOptions)
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
         -> Amoo_ScreenshotResponse {
-        try await client.takeScreenshot(request)
+        try await client.takeScreenshot(request, options: Self.gestureCallOptions)
     }
 
     package func getScreenContext(
         _ request: Amoo_ScreenContextRequest
     ) async throws -> Amoo_ScreenContextResponse {
-        try await client.getScreenContext(request)
+        try await client.getScreenContext(request, options: Self.gestureCallOptions)
     }
 
     package func findByDescription(
         _ request: Amoo_FindByDescriptionRequest
     ) async throws -> Amoo_FindElementsResponse {
-        try await client.findByDescription(request)
+        try await client.findByDescription(request, options: Self.gestureCallOptions)
     }
 
     package func getInteractableElements(
         _ request: Amoo_Empty
     ) async throws -> Amoo_InteractableElementsResponse {
-        try await client.getInteractableElements(request)
+        try await client.getInteractableElements(request, options: Self.gestureCallOptions)
     }
 
     package func shutdown() async {
@@ -634,9 +636,15 @@ public actor GRPCCompanionClient: CompanionClient {
     /// Construct an in-memory stub client. Useful for tests and offline development —
     /// it does **not** open a network connection. For a real gRPC client use
     /// ``makeLive(connection:)``.
+    @available(*, deprecated, message: "Use makeLive(connection:) for devices or makeFixture(connection:) for tests.")
     public init(connection: CompanionConnection) {
         self.connection = connection
         rpcClient = InMemoryCompanionRPCClient()
+    }
+
+    /// Explicit in-memory fixture; never opens a device connection.
+    public static func makeFixture(connection: CompanionConnection) -> GRPCCompanionClient {
+        GRPCCompanionClient(connection: connection, rpcClient: InMemoryCompanionRPCClient())
     }
 
     /// Construct a client backed by a live gRPC connection.
@@ -1029,11 +1037,12 @@ private extension Amoo_ElementInfo {
             id: id.nonEmpty ?? "",
             label: label.nonEmpty ?? "",
             value: value.nonEmpty,
-            type: ElementType(rawValue: type.lowercased()),
+            type: ElementType(nativeName: type),
             frame: hasFrame ? frame.coreRect : nil,
             hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
             isEnabled: isEnabled,
-            isVisible: isVisible
+            isVisible: isVisible,
+            isSecureTextEntry: isSecureTextEntry
         )
     }
 }
@@ -1044,12 +1053,13 @@ private extension Amoo_ViewNode {
             id: id.nonEmpty ?? "",
             label: label.nonEmpty ?? "",
             value: value.nonEmpty,
-            type: ElementType(rawValue: type.lowercased()),
+            type: ElementType(nativeName: type),
             frame: hasFrame ? frame.coreRect : nil,
             hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
             isEnabled: isEnabled,
             isVisible: isVisible,
-            children: children.map(\.coreViewNode)
+            children: children.map(\.coreViewNode),
+            isSecureTextEntry: isSecureTextEntry
         )
     }
 }

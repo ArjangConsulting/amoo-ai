@@ -77,6 +77,10 @@ func amooExecutableCandidates() -> [URL] {
 
 /// Mock driver that returns elements triggering audit rules.
 actor AuditMockDriver: PlatformDriver {
+    func currentApp() async throws -> CurrentApp {
+        CurrentApp(bundleID: "com.test", targetBundleID: "com.test")
+    }
+
     func boot() async throws {}
     func shutdown() async throws {}
     func deviceInfo() async throws -> DeviceInfo {

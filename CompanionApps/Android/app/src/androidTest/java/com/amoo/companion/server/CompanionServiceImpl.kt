@@ -404,6 +404,7 @@ private fun ElementSnapshot.toElementInfo(): ElementInfo {
         .setFrame(rect)
         .setIsEnabled(isEnabled)
         .setIsVisible(isVisible)
+        .setIsSecureTextEntry(isSecureTextEntry)
         .build()
 }
 
@@ -423,5 +424,6 @@ private fun ElementSnapshot.toViewNode(): ViewNode {
         .setFrame(rect)
         .setIsEnabled(isEnabled)
         .setIsVisible(isVisible)
+        .setIsSecureTextEntry(isSecureTextEntry)
         .build()
 }

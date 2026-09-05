@@ -10,6 +10,7 @@ import TestSession
 /// running on that device, opens a gRPC connection, installs + launches the
 /// app under test, and waits for the first stable screen.
 struct DefaultSessionBootstrapper: SessionBootstrapper {
+    private static let leases = DeviceLeaseRegistry()
     let iOSCompanionManager: any IOSCompanionManaging
     let androidCompanionManager: any AndroidCompanionManaging
     let processRunner: any ProcessRunner
@@ -33,14 +34,41 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         self.screenStabilizationTimeoutSeconds = screenStabilizationTimeoutSeconds
     }
 
-    // The linear lifecycle keeps cleanup ownership visible across every failure boundary.
-    // swiftlint:disable:next function_body_length
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
         let clock = ContinuousClock()
         let bootstrapStart = clock.now
         let selector = PlatformDeviceSelector(processRunner: processRunner)
         let available = try await selector.selectDevice(hint: request.deviceHint, platform: request.platform)
 
+        let deviceKey = switch available {
+        case let .ios(device): "ios:\(device.udid)"
+        case let .android(serial, _): "android:\(serial)"
+        }
+        let owner = try await Self.leases.acquire(deviceKey)
+        do {
+            return try await bootstrap(
+                request,
+                available: available,
+                start: bootstrapStart,
+                deviceKey: deviceKey,
+                owner: owner
+            )
+        } catch {
+            await Self.leases.release(deviceKey, owner: owner)
+            throw error
+        }
+    }
+
+    // Keep resource acquisition and rollback in one linear lifecycle.
+    // swiftlint:disable:next function_body_length
+    private func bootstrap(
+        _ request: SessionBootstrapRequest,
+        available: AvailableDevice,
+        start bootstrapStart: ContinuousClock.Instant,
+        deviceKey: String,
+        owner: UUID
+    ) async throws -> BootstrapResult {
+        let clock = ContinuousClock()
         // Ensure platform hint is consistent with the selected device.
         guard available.platform == request.platform else {
             throw BootstrapError.platformMismatch(
@@ -93,6 +121,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             if let tunnelHandle {
                 try? await tunnel.close(tunnelHandle)
             }
+            await Self.leases.release(deviceKey, owner: owner)
         }
 
         let platformDriver: any PlatformDriver

@@ -36,16 +36,8 @@ class CompanionServer(
      * this target.
      */
     fun start() {
-        // Bind the ipv4 wildcard explicitly rather than `forPort(port)`. On this image both land
-        // on a dual-stack `tcp6 [::]:<port>` socket (that is just how the JDK renders an ipv4
-        // wildcard while `java.net.preferIPv4Stack` is false), and that socket already accepts the
-        // ipv4-mapped connections `adb forward` makes — its device end always dials ipv4
-        // `127.0.0.1:<port>`. The explicit `0.0.0.0` documents that requirement and keeps the
-        // listener reachable even if a future image flips `preferIPv4Stack` or sets
-        // `IPV6_V6ONLY`, either of which would otherwise leave a `forPort` listener refusing every
-        // forwarded connection while still showing a LISTEN socket in `netstat` — from the host,
-        // indistinguishable from a companion that is slow to start.
-        server = NettyServerBuilder.forAddress(InetSocketAddress(InetAddress.getByName("0.0.0.0"), port))
+        // USB forwarding connects to device IPv4 loopback. Never expose automation to the LAN.
+        server = NettyServerBuilder.forAddress(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port))
             .addService(CompanionServiceImpl(touch, gesture, text, accessibility))
             .intercept(DescriptionBackfillInterceptor())
             .build()

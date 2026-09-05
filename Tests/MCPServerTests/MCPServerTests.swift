@@ -253,7 +253,7 @@ final class MCPServerTests: XCTestCase {
 
         let context = await server.execute(toolName: "get_screen_context", arguments: [:])
         XCTAssertFalse(context.isError)
-        XCTAssertEqual(context.content, "Mock screen")
+        XCTAssertEqual(context.content, "Screen with 1 visible nodes")
 
         let hierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(hierarchy.isError)

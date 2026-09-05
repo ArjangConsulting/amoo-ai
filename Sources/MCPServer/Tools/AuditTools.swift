@@ -4,7 +4,7 @@ public enum AuditTools {
     public static let definitions: [ToolDefinition] = [
         ToolDefinition(
             name: "audit_app",
-            description: "Run a full audit on the current app screen."
+            description: "Inspect the current app screen for audit findings."
                 + " Evaluates security, quality, UX, and testability rules against the current UI state.",
             properties: [
                 "app_id": .init(type: "string", description: "The app's bundle identifier or package name"),
@@ -15,7 +15,8 @@ public enum AuditTools {
                 ),
                 "fail_on": .init(
                     type: "string",
-                    description: "Minimum severity to fail on: critical, high, medium, low. Defaults to high."
+                    description: "Minimum severity to fail on: critical, high, medium, low."
+                        + " Omit for a report without a failure threshold."
                 )
             ],
             required: ["app_id"]
@@ -32,7 +33,7 @@ public enum AuditTools {
         ToolDefinition(
             name: "audit_security",
             description: "Check the current screen for security issues:"
-                + " debug indicators, insecure text fields, unvalidated web views.",
+                + " debug indicators and insecure text fields. Deep-link validation requires scenario evidence.",
             properties: [
                 "app_id": .init(type: "string", description: "The app's bundle identifier or package name")
             ],

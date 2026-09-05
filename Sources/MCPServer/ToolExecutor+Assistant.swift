@@ -8,9 +8,10 @@ extension DriverToolExecutor {
     // MARK: - Assistant Tool Execution
 
     func executeDescribeScreen(driver: any PlatformDriver) async throws -> ToolResult {
-        let context = try await driver.getScreenContext()
-        let hierarchy = try await driver.getViewHierarchy()
-        let interactable = try await driver.getInteractableElements()
+        let observation = try await driver.observeScreen()
+        let context = observation.context
+        let hierarchy = observation.hierarchy
+        let interactable = observation.interactableElements
         let description = formatScreenDescription(
             context: context,
             hierarchy: hierarchy,
@@ -21,7 +22,11 @@ extension DriverToolExecutor {
             screenTitle: context.screenTitle?.isEmpty == false ? context.screenTitle : nil,
             interactableCount: interactable.count
         )
-        return try .success(description, structuredContent: Value(report))
+        var fields = try Value(report).objectValue ?? [:]
+        fields["actions"] = .array(interactable.prefix(7).map(elementFields))
+        fields["has_more"] = .bool(interactable.count > 7)
+        fields["screen_token"] = .string(observation.token)
+        return .success(description, structuredContent: .object(fields))
     }
 
     func executeSuggestActions(driver: any PlatformDriver) async throws -> ToolResult {
@@ -30,11 +35,11 @@ extension DriverToolExecutor {
     }
 
     func buildSuggestionReport(driver: any PlatformDriver) async throws -> TestActionSuggestionReport {
-        let context = try await driver.getScreenContext()
-        let hierarchy = try await driver.getViewHierarchy()
-        let screenshot = try await driver.takeScreenshot(format: .png)
-        let allElements = try await driver.findElements(ElementSelector())
-        let interactable = try await driver.getInteractableElements()
+        let observation = try await driver.observeScreen()
+        let context = observation.context
+        let hierarchy = observation.hierarchy
+        let allElements = observation.elements
+        let interactable = observation.interactableElements
         let filteredElements = filterAppRelevantElements(interactable)
         let diagnostics = collectAccessibilityDiagnostics(
             allElements: allElements,
@@ -53,7 +58,7 @@ extension DriverToolExecutor {
             interactableElements: filteredElements,
             diagnostics: diagnostics,
             developerFeedback: developerFeedback,
-            screenshot: screenshot
+            screenshot: nil
         )
 
         return deterministicSuggestionReport(for: request)
@@ -152,10 +157,15 @@ extension DriverToolExecutor {
         )
     }
 
+    // Image capture, optional file output, and geometry share one response boundary.
+    // swiftlint:disable:next function_body_length
     func executeTakeScreenshot(
         driver: any PlatformDriver,
         arguments: [String: String]
     ) async throws -> ToolResult {
+        guard boolArgument(arguments["return_image"]) != false || arguments["output"]?.isEmpty == false else {
+            throw ToolExecutionError(code: "invalid_argument", message: "output is required when return_image=false")
+        }
         let requestedFormat = ImageFormat(parsing: arguments["format"])
         let screenshot = try await driver.takeScreenshot(format: requestedFormat)
         // Trust the format the driver actually produced — some drivers ignore the
@@ -231,7 +241,8 @@ extension DriverToolExecutor {
             content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
                 + "\(savedNote)\(formatNote)\(geometryNote)",
             structuredContent: .object(fields),
-            image: ToolImageContent(data: data, mimeType: actualFormat.mimeType)
+            image: boolArgument(arguments["return_image"]) == false
+                ? nil : ToolImageContent(data: data, mimeType: actualFormat.mimeType)
         )
     }
 }

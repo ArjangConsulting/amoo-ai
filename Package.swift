@@ -17,6 +17,7 @@ let package = Package(
         .library(name: "AuditEngine", targets: ["AuditEngine"]),
         .library(name: "CommandContract", targets: ["CommandContract"]),
         .library(name: "TestSession", targets: ["TestSession"]),
+        .library(name: "SessionCompiler", targets: ["SessionCompiler"]),
         .library(name: "OllamaClient", targets: ["OllamaClient"]),
         .library(name: "StudioProtocol", targets: ["StudioProtocol"]),
         .library(name: "TestCodeGenerator", targets: ["TestCodeGenerator"]),
@@ -75,6 +76,7 @@ let package = Package(
         .target(name: "AuditEngine", dependencies: ["AmooCore"]),
         .target(name: "CommandContract", dependencies: ["AmooCore"]),
         .target(name: "TestSession", dependencies: ["AmooCore"]),
+        .target(name: "SessionCompiler", dependencies: ["AmooCore", "StudioProtocol", "TestSession"]),
         .target(name: "OllamaClient"),
         .target(name: "StudioProtocol", dependencies: ["AmooCore", "ProcessRunner"]),
         .target(name: "TestCodeGenerator", dependencies: ["StudioProtocol"]),
@@ -97,6 +99,7 @@ let package = Package(
                 "AuditEngine",
                 "ProcessRunner",
                 "TestSession",
+                "SessionCompiler",
                 "StudioProtocol",
                 "WebInspector",
                 .product(name: "MCP", package: "swift-sdk")
@@ -115,6 +118,7 @@ let package = Package(
                 "AuditEngine",
                 "ProcessRunner",
                 "TestSession",
+                "SessionCompiler",
                 "StudioProtocol",
                 "TestCodeGenerator",
                 "WebInspector",
@@ -136,7 +140,10 @@ let package = Package(
             ]
         ),
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
-        .testTarget(name: "MCPServerTests", dependencies: ["MCPServer", "ProcessRunner", "WebInspector"]),
+        .testTarget(
+            name: "MCPServerTests",
+            dependencies: ["MCPServer", "SessionCompiler", "ProcessRunner", "WebInspector"]
+        ),
         .testTarget(name: "WebInspectorTests", dependencies: ["WebInspector"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
         .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
@@ -167,6 +174,7 @@ let package = Package(
                 "ProcessRunner",
                 "CommandContract",
                 "TestSession",
+                "SessionCompiler",
                 "StudioProtocol",
                 "TestCodeGenerator"
             ]

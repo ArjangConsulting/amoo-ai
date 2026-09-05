@@ -286,6 +286,8 @@ public nonisolated struct Amoo_ElementInfo: Sendable {
   /// Clears the value of `hitPoint`. Subsequent reads from it will return its default value.
   public mutating func clearHitPoint() {self._hitPoint = nil}
 
+  public var isSecureTextEntry: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -330,6 +332,8 @@ public nonisolated struct Amoo_ViewNode: Sendable {
   public var hasHitPoint: Bool {self._hitPoint != nil}
   /// Clears the value of `hitPoint`. Subsequent reads from it will return its default value.
   public mutating func clearHitPoint() {self._hitPoint = nil}
+
+  public var isSecureTextEntry: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -667,7 +671,7 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ElementInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}value\0\u{1}type\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}value\0\u{1}type\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -683,6 +687,7 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isEnabled) }()
       case 7: try { try decoder.decodeSingularBoolField(value: &self.isVisible) }()
       case 8: try { try decoder.decodeSingularMessageField(value: &self._hitPoint) }()
+      case 9: try { try decoder.decodeSingularBoolField(value: &self.isSecureTextEntry) }()
       default: break
       }
     }
@@ -717,6 +722,9 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     try { if let v = self._hitPoint {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     } }()
+    if self.isSecureTextEntry != false {
+      try visitor.visitSingularBoolField(value: self.isSecureTextEntry, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -729,6 +737,7 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.isEnabled != rhs.isEnabled {return false}
     if lhs.isVisible != rhs.isVisible {return false}
     if lhs._hitPoint != rhs._hitPoint {return false}
+    if lhs.isSecureTextEntry != rhs.isSecureTextEntry {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -736,7 +745,7 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Amoo_ViewNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ViewNode"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}children\0\u{1}type\0\u{1}value\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}children\0\u{1}type\0\u{1}value\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -753,6 +762,7 @@ nonisolated extension Amoo_ViewNode: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 7: try { try decoder.decodeSingularBoolField(value: &self.isEnabled) }()
       case 8: try { try decoder.decodeSingularBoolField(value: &self.isVisible) }()
       case 9: try { try decoder.decodeSingularMessageField(value: &self._hitPoint) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self.isSecureTextEntry) }()
       default: break
       }
     }
@@ -790,6 +800,9 @@ nonisolated extension Amoo_ViewNode: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._hitPoint {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     } }()
+    if self.isSecureTextEntry != false {
+      try visitor.visitSingularBoolField(value: self.isSecureTextEntry, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -803,6 +816,7 @@ nonisolated extension Amoo_ViewNode: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs.isEnabled != rhs.isEnabled {return false}
     if lhs.isVisible != rhs.isVisible {return false}
     if lhs._hitPoint != rhs._hitPoint {return false}
+    if lhs.isSecureTextEntry != rhs.isSecureTextEntry {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -8,5 +8,6 @@ struct ElementSnapshot {
     var frame: CGRect
     var hitPoint: CGPoint
     var isEnabled: Bool
+    var isSecureTextEntry: Bool = false
     var isVisible: Bool
 }

@@ -9,8 +9,12 @@ import TestSession
 extension DriverToolExecutor {
     // swiftlint:disable cyclomatic_complexity function_body_length
     func dispatch(toolName: String, arguments: [String: String]) async throws -> ToolResult {
-        let driver = await resolveDriver(arguments: arguments)
+        let driver = try await Self.controlPlaneTools.contains(toolName)
+            ? defaultDriver : resolveDriver(arguments: arguments)
         switch toolName {
+        case "run_steps":
+            return try await executeBatch(arguments: arguments)
+
         // Device lifecycle
         case "device_boot":
             let info: DeviceInfo
@@ -217,7 +221,7 @@ extension DriverToolExecutor {
                 return .error("At least one of id, label, or contains_text is required")
             }
             let appID = queryScopeAppID(arguments: arguments, driver: driver)
-            guard let matched = try await driver.findElements(selector, appID: appID).first else {
+            guard let matched = try await resolveElement(selector: selector, driver: driver, appID: appID) else {
                 return .error("tap_element failed: no element matched the selector")
             }
             guard matched.isVisible, matched.isEnabled else {
@@ -246,47 +250,7 @@ extension DriverToolExecutor {
 
         // Queries
         case "find_elements":
-            let selector = ElementSelector(
-                id: arguments["id"],
-                label: arguments["label"],
-                containsText: arguments["contains_text"],
-                description: arguments["description"],
-                labeledOnly: boolArgument(arguments["labeled_only"]) ?? false
-            )
-            let elements = try await driver.findElements(
-                selector,
-                appID: queryScopeAppID(arguments: arguments, driver: driver)
-            )
-            // Hit points are included so a match is directly tappable: without them the only way to
-            // act on a found element was a screenshot round trip to read its position off the
-            // image — in pixels, needing conversion. These are points, ready for `tap`.
-            //
-            // An element with neither id nor label would otherwise render as two empty brackets.
-            // It is listed as its type, because for an unlabeled control its geometry is the whole
-            // answer — `tap` at the hit point is the only way to reach it.
-            let descriptions = elements.map { element in
-                let point = element.hitPoint ?? element.frame?.centre
-                let position = point.map { " hitPoint: (\(Int($0.x)),\(Int($0.y))) pts" } ?? ""
-                let size = element.frame.map { " \(Int($0.width))x\(Int($0.height))" } ?? ""
-                guard !element.id.isEmpty || !element.label.isEmpty else {
-                    let type = element.type?.rawValue ?? "element"
-                    return "\(colored("[unlabeled]", .blue)) \(colored(type, .yellow))\(position)\(size)"
-                }
-                return "\(colored("[\(element.id)]", .blue)) \(colored(element.label, .yellow))\(position)\(size)"
-            }
-            let recorded = elements.map { element in
-                RecordedElement(
-                    id: element.id.isEmpty ? nil : element.id,
-                    label: element.label.isEmpty ? nil : element.label,
-                    elementType: element.type?.rawValue,
-                    frame: element.frame.map { RecordedRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height) },
-                    hitPoint: element.hitPoint.map { RecordedPoint(x: $0.x, y: $0.y) }
-                )
-            }
-            return ToolResult(
-                content: "Found \(elements.count) element(s):\n\(descriptions.joined(separator: "\n"))",
-                observedElements: recorded
-            )
+            return try await executeFindElements(arguments: arguments, driver: driver)
 
         case "get_view_hierarchy":
             let hierarchy = try await driver.getViewHierarchy(
@@ -302,15 +266,16 @@ extension DriverToolExecutor {
                     "Hierarchy root=\(hierarchy.id) nodes=\(summary.nodes) interactable=\(summary.interactable)."
                 )
             }
-            return .success(renderViewNode(hierarchy, indent: 0))
+            return try renderHierarchy(hierarchy, arguments: arguments)
 
         case "get_screen_context":
-            let context = try await driver.getScreenContext()
+            let observation = try await driver.observeScreen()
+            let context = observation.context
             return .success(
                 context.summary,
                 structuredContent: .object([
                     "screen_summary": .string(context.summary),
-                    "screen_token": .string(screenToken(context.summary))
+                    "screen_token": .string(observation.token)
                 ])
             )
 
@@ -377,6 +342,9 @@ extension DriverToolExecutor {
             guard let mode = arguments["appearance"] else {
                 return .error("Missing required argument: appearance (light|dark)")
             }
+            guard ["dark", "light"].contains(mode) else {
+                throw ToolExecutionError(code: "invalid_argument", message: "appearance must be light or dark")
+            }
             let appearance: Appearance = mode == "dark" ? .dark : .light
             try await driver.setAppearance(appearance)
             return .success("Appearance set to \(mode)")
@@ -420,7 +388,7 @@ extension DriverToolExecutor {
 
         case "list_apps":
             let apps = try await driver.listApps()
-            return formatListApps(apps)
+            return try formatListApps(apps, arguments: arguments)
 
         // Session management
         case "start_session":
@@ -430,7 +398,7 @@ extension DriverToolExecutor {
             return try await executeEndSession(arguments: arguments)
 
         case "list_sessions":
-            return await executeListSessions()
+            return try await executeListSessions(arguments: arguments)
 
         case "get_session_report":
             return try await executeGetSessionReport(arguments: arguments)

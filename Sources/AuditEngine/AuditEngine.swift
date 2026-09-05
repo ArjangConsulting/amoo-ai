@@ -9,7 +9,11 @@ public struct AuditEngine: Sendable {
 
     public func run(_ input: AuditInput) async throws -> AuditReport {
         var collected: [AuditFinding] = []
+        var evaluations: [AuditRuleEvaluation] = []
         for rule in rules {
+            let coverage = rule.evidenceCoverage(input)
+            evaluations.append(coverage)
+            guard coverage.status == .evaluated else { continue }
             let findings = try await rule.evaluate(input)
             collected.append(contentsOf: findings.map { finding in
                 guard finding.confidence < lowConfidenceThreshold else { return finding }
@@ -25,6 +29,6 @@ public struct AuditEngine: Sendable {
                 )
             })
         }
-        return AuditReport(appID: input.appID, findings: collected)
+        return AuditReport(appID: input.appID, findings: collected, evaluations: evaluations)
     }
 }

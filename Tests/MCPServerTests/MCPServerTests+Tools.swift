@@ -57,19 +57,20 @@ extension MCPServerTests {
             arguments: ["app_id": "com.test", "fail_on": "low"]
         )
         // If there are findings at low or above, isError should be true
-        if result.content.contains("finding") {
+        if result.content.contains("finding(s)") {
             XCTAssertTrue(result.isError)
         }
     }
 
     func testAuditPassesCleanApp() async {
         let driver = MockDriver() // Clean mock with no problematic elements
+        try? await driver.launchApp(appID: "com.clean", arguments: [], environment: [:])
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
         let result = await server.execute(toolName: "audit_app", arguments: ["app_id": "com.clean"])
         XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("Audit passed") || result.content.contains("finding"))
+        XCTAssertTrue(result.content.contains("No findings") || result.content.contains("finding"))
     }
 
     // MARK: - Assistant Tool Tests
@@ -81,7 +82,7 @@ extension MCPServerTests {
 
         let result = await server.execute(toolName: "describe_screen", arguments: [:])
         XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("Screen summary: Mock screen"))
+        XCTAssertTrue(result.content.contains("Screen summary: Screen with 1 visible nodes"))
         XCTAssertTrue(result.content.contains("Interactable elements: 0"))
         XCTAssertNotNil(result.structuredContent)
     }
@@ -94,7 +95,7 @@ extension MCPServerTests {
         let result = await server.execute(toolName: "describe_screen", arguments: [:])
         let structured = try XCTUnwrap(result.structuredContent)
         let fields = try XCTUnwrap(structured.objectValue)
-        XCTAssertEqual(fields["summary"]?.stringValue, "Mock screen")
+        XCTAssertEqual(fields["summary"]?.stringValue, "Screen with 1 visible nodes")
         XCTAssertEqual(fields["interactableCount"]?.intValue, 0)
     }
 
@@ -106,7 +107,7 @@ extension MCPServerTests {
         let result = await server.execute(toolName: "describe_screen", arguments: [:])
 
         XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("Screen summary: Debug mode enabled - Test screen"))
+        XCTAssertTrue(result.content.contains("Screen title: Test screen"))
         XCTAssertTrue(result.content.contains("Interactable elements: 2"))
         XCTAssertTrue(result.content.contains("Key actions: button Submit; button Cancel"))
     }
@@ -372,7 +373,7 @@ extension MCPServerTests {
         XCTAssertFalse(report.isError)
 
         let json = try JSONEncoder().encode(XCTUnwrap(report.structuredContent))
-        let decoded = try JSONDecoder().decode(SessionReport.self, from: json)
+        let decoded = try SessionReport.makeJSONDecoder().decode(SessionReport.self, from: json)
         let typeTextAction = try XCTUnwrap(decoded.actions.first { $0.toolName == "type_text" })
         XCTAssertEqual(typeTextAction.arguments["text"], "<redacted, 11 chars>")
         XCTAssertNotEqual(typeTextAction.arguments["text"], "supersecret")
@@ -482,7 +483,10 @@ extension MCPServerTests {
             arguments: ["session_id": sessionID]
         )
         let structured = try XCTUnwrap(report.structuredContent)
-        let decoded = try JSONDecoder().decode(SessionReport.self, from: JSONEncoder().encode(structured))
+        let decoded = try SessionReport.makeJSONDecoder().decode(
+            SessionReport.self,
+            from: JSONEncoder().encode(structured)
+        )
         XCTAssertTrue(
             decoded.actions.allSatisfy { $0.toolName != "tap" },
             "Tap without session_id should not be recorded in the session"

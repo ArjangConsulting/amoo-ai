@@ -7,5 +7,6 @@ data class ElementSnapshot(
     val type: String,
     val frame: FrameRect,
     val isEnabled: Boolean,
-    val isVisible: Boolean
+    val isVisible: Boolean,
+    val isSecureTextEntry: Boolean = false
 )

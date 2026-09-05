@@ -601,6 +601,7 @@ extension ElementSnapshot {
         element.label = label
         element.value = value
         element.type = type
+        element.isSecureTextEntry = isSecureTextEntry
         element.isEnabled = isEnabled
         element.isVisible = isVisible
 
@@ -625,6 +626,8 @@ extension ViewNodeSnapshot {
         var node = Amoo_ViewNode()
         node.id = id
         node.label = label
+        node.value = value
+        node.isSecureTextEntry = isSecureTextEntry
         node.type = type
         node.isEnabled = isEnabled
         node.isVisible = isVisible
