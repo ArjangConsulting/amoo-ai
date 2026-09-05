@@ -24,7 +24,7 @@ packages:
 
 settings:
   base:
-    SWIFT_VERSION: "6.3"
+    SWIFT_VERSION: "6"
 
 targets:
   AmooCompanion:

@@ -175,10 +175,18 @@ driver_cov = aggregate([
     "/Sources/ProcessRunner/",
     "/Sources/GRPCService/",
     "/Sources/MCPServer/",
+    "/Sources/SessionCompiler/",
 ])
 
 if root_cov is None:
     root_cov = 0.0
+
+modules = sorted({Path(entry["filename"]).parts[Path(entry["filename"]).parts.index("Sources") + 1]
+                  for entry in files if f"{repo_root}/Sources/" in entry.get("filename", "")})
+for module in modules:
+    coverage = aggregate([f"{repo_root}/Sources/{module}/"])
+    if coverage is not None:
+        print(f"Module {module}: {coverage:.2f}%")
 
 print(f"Repo coverage: {root_cov:.2f}% (min {root_min:.2f}%)")
 if core_cov is None:

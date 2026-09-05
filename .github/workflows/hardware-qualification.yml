@@ -1,0 +1,64 @@
+name: Physical device qualification
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: amoo-hardware
+  cancel-in-progress: false
+jobs:
+  qualify:
+    if: vars.AMOO_ENABLE_HARDWARE_TESTS == 'true'
+    runs-on: [self-hosted, macOS, amoo-hardware]
+    timeout-minutes: 45
+    strategy:
+      max-parallel: 1
+      matrix:
+        platform: [ios, android]
+    env:
+      E2E_PLATFORM: ${{ matrix.platform }}
+      E2E_DEVICE_ID: ${{ matrix.platform == 'ios' && vars.AMOO_IOS_DEVICE_ID || vars.AMOO_ANDROID_DEVICE_ID }}
+      COMPANION_PORT: ${{ matrix.platform == 'ios' && '22087' || '22088' }}
+      E2E_APP_ID: com.amoo.companion
+      AMOO_E2E_STRICT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build -c release
+      - name: Start companion and qualify dedicated hardware
+        shell: bash
+        run: |
+          set -euo pipefail
+          companion_pid=""
+          tunnel_pid=""
+          cleanup() {
+            if [ -n "$companion_pid" ]; then kill -TERM "$companion_pid" 2>/dev/null || true; fi
+            if [ -n "$tunnel_pid" ]; then kill -TERM "$tunnel_pid" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+          if [ "$E2E_PLATFORM" = ios ]; then
+            iproxy "$COMPANION_PORT:$COMPANION_PORT" -u "$E2E_DEVICE_ID" > tunnel.log 2>&1 &
+            tunnel_pid=$!
+          fi
+          .build/release/amoo companion start --platform "$E2E_PLATFORM" --device "$E2E_DEVICE_ID" --app "$E2E_APP_ID" > companion.log 2>&1 &
+          companion_pid=$!
+          ready=false
+          for attempt in $(seq 1 120); do
+            kill -0 "$companion_pid" || { cat companion.log; exit 1; }
+            if .build/release/amoo device --platform "$E2E_PLATFORM" --port "$COMPANION_PORT" current_app > /dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [ "$ready" = true ] || { cat companion.log; exit 1; }
+          swift test --filter 'IntegrationTests.CommandContractE2ETests/test(StartAndEndSession|FixtureHomeQueries|NavigateToDetailsAndScroll|TextEntryAndClearing)' 2>&1 | tee hardware.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardware-${{ matrix.platform }}
+          path: |
+            hardware.log
+            companion.log
+            tunnel.log
