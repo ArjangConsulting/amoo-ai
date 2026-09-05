@@ -1,5 +1,9 @@
 # Architecture
 
+> This document includes design goals and future extensions. For implemented ownership, persistence
+> guarantees and module boundaries, start with [Current architecture](docs/current-architecture.md)
+> and the [Support matrix](docs/support-matrix.md).
+
 > **Working on a specific subsystem?** The recording → plan → generated-test path has its own map:
 > [`docs/codegen-pipeline.md`](docs/codegen-pipeline.md). App-owned generated-test context:
 > [`docs/test-context.md`](docs/test-context.md). MCP server usage: [`docs/mcp-server.md`](docs/mcp-server.md).
@@ -754,10 +758,10 @@ CI quality gates are mandatory:
 
 - `swiftformat --lint` must pass.
 - `swiftlint --strict` must pass.
-- `AmooCore` line coverage >= 85%.
-- Driver/protocol modules line coverage >= 75%.
-- Repo-wide line coverage >= 80% before `v1.0.0`.
-- PRs cannot reduce coverage by more than 1% without explicit reviewer approval.
+- Enforced floors: repository 67%, `AmooCore` 70%, combined driver/protocol group 74%, CLI 45%.
+- Individual module values are reported; the group floor is not a per-module floor.
+- Higher floors and a base-revision regression gate are future improvements, not current CI guarantees.
+- See `scripts/ci/test_coverage.sh` for the executable policy.
 
 ---
 
