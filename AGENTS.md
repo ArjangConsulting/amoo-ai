@@ -10,7 +10,7 @@ it (`CLAUDE.md` for Claude Code); everything here applies regardless of which ag
 
 ## Tech Stack
 
-- **Primary language**: Swift (Swift tools 6.0, macOS 15+). Other languages where appropriate.
+- **Primary language**: Swift (Swift tools 6.2, macOS 15+). Other languages where appropriate.
 - **Communication**: gRPC (language-agnostic) between host drivers and the on-device companions.
 - **AI integration**: MCP stdio server + skills (`skills/`), for external local AI clients.
 - **Platforms**: iOS (simulators + devices), Android (emulators + devices), at feature parity.
@@ -39,8 +39,8 @@ make companion-android-build   # gradle assembleDebug assembleAndroidTest
 
 ### Test conventions and mechanics
 
-- Tests are **XCTest** (`final class X: XCTestCase`), not Swift Testing, despite the Swift-modern
-  convention elsewhere — match the surrounding file.
+- Most tests are **XCTest** (`final class X: XCTestCase`); some existing targets use Swift Testing.
+  Match the surrounding target and file instead of migrating unrelated tests.
 - Logic is deliberately split across `Foo.swift` + `Foo+Feature.swift` extension files to satisfy
   the `file_length` lint rule (`SessionPlanCompiler` → `.swift` / `+Semantics` / `+Inspection` /
   `+Translation`; `DriverToolExecutor` → `ToolExecutor.swift` + `ToolExecutor+*.swift`; likewise

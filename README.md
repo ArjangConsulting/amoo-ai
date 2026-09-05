@@ -25,7 +25,7 @@ Or build from source (see Quick Start below).
 
 ## Quick Start
 
-Install `protoc` (required for every build):
+Use Swift 6.2 or newer (see `Package.swift`), macOS 15+ for iOS tooling, and install `protoc`:
 
 ```bash
 brew install protobuf xcodegen libimobiledevice
@@ -47,12 +47,26 @@ make lint
 Run the iOS end-to-end flow against a booted simulator:
 
 ```bash
-scripts/run-e2e-ios.sh --skip-build
+scripts/run-e2e-ios.sh
 ```
+
+For Android, install a supported JDK (17–26) and Android SDK, then run:
+
+```bash
+swift run amoo preflight --platform android
+scripts/run-e2e-android.sh
+```
+
+To let an AI drive a managed session, configure it to run `amoo mcp serve`, then call
+`start_session` with `platform` and `app_id`. Keep the returned `session_id` on every device call.
+See the [MCP guide](docs/mcp-server.md) for setup and smaller tool profiles.
 
 See [docs/prerequisites.md](docs/prerequisites.md) for the full dependency table and rationale.
 
 ## Documentation
+
+- [Support and qualification](docs/support-matrix.md) — platform boundaries, CI and hardware qualification
+- [Current architecture](docs/current-architecture.md) — runtime ownership and data flow
 
 - [Prerequisites](docs/prerequisites.md) — external tooling, install steps, `make` targets
 - [Physical iOS Devices](docs/physical-ios-devices.md) — `iproxy`, pairing, provisioning, current constraints
