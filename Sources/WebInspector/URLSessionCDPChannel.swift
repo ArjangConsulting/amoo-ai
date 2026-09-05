@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// `CDPChannelFactory` over `URLSession` — HTTP GET for `/json`, a `URLSessionWebSocketTask` for
 /// the debugger socket. This is the real transport for Android (and the iwdp iOS bridge).
