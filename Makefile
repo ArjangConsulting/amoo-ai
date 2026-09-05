@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: format lint check test coverage ci build swift-build companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build verify-linux companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -29,6 +29,13 @@ build: swift-build companion-build
 
 swift-build:
 	./scripts/with-protoc.sh swift build
+
+# Reproduce the CI "Build & Test (Linux)" job locally inside the swift:6.3-noble container.
+# Needs Docker. Builds/tests into .build-linux/ so the host .build/ is untouched.
+#   make verify-linux            # build + test (mirrors ci.yml)
+#   ./scripts/verify-linux.sh build | test | shell
+verify-linux:
+	./scripts/verify-linux.sh ci
 
 companion-ios-project:
 	cd CompanionApps/iOS && xcodegen generate
