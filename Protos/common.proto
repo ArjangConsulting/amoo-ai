@@ -72,6 +72,7 @@ message ElementInfo {
   // Preferred interaction coordinate in screen points. Unlike frame center, this is
   // constrained to the portion of the element visible inside the current viewport.
   Point hit_point = 8;
+  bool is_secure_text_entry = 9;
 }
 
 message ViewNode {
@@ -84,6 +85,7 @@ message ViewNode {
   bool is_enabled = 7;
   bool is_visible = 8;
   Point hit_point = 9;
+  bool is_secure_text_entry = 10;
 }
 
 message ActionResponse {

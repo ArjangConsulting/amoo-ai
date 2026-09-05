@@ -45,6 +45,25 @@ extension ElementInfo {
         var element = Amoo_ElementInfo()
         element.id = id
         element.label = label
+        element.value = value ?? ""
+        element.type = type?.rawValue ?? ""
+        element.isEnabled = isEnabled
+        element.isVisible = isVisible
+        element.isSecureTextEntry = isSecureTextEntry
+        if let frame {
+            var rect = Amoo_Rect()
+            rect.x = frame.x
+            rect.y = frame.y
+            rect.width = frame.width
+            rect.height = frame.height
+            element.frame = rect
+        }
+        if let hitPoint {
+            var point = Amoo_Point()
+            point.x = hitPoint.x
+            point.y = hitPoint.y
+            element.hitPoint = point
+        }
         return element
     }
 }
@@ -54,6 +73,7 @@ extension ViewNode {
         var node = Amoo_ViewNode()
         node.id = id
         node.label = label
+        node.isSecureTextEntry = isSecureTextEntry
         if let value {
             node.value = value
         }

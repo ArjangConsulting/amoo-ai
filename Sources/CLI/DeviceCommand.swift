@@ -42,6 +42,7 @@ Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <too
                    [--env KEY=VALUE ...] [--arg VALUE ...]
 
 Common tools:
+  run_steps session_id=<id> steps=<JSON-array>
   tap x=<n> y=<n> [unit=<points|pixels|normalized>]
   double_tap x=<n> y=<n> [unit=<points|pixels|normalized>]
   long_press x=<n> y=<n> [duration_ms=<n>]
@@ -49,24 +50,26 @@ Common tools:
   swipe_in_direction direction=<up|down|left|right> [distance=<n>] [duration_ms=<n>]
       [element_id=<id>] [element_label=<label>]
   scroll direction=<up|down|left|right> [distance=<n>]
-  type_text text=<text>
+  type_text text=<text> [record_value=<fixture>]
   clear_text [character_count=<n>]
   set_text [id=<id>] [label=<label>] [contains_text=<text>] value=<text>
+      [parent_id=<id>] [record_value=<fixture>]
       [scope=<app|system>] [bundle_id=<id>]
   fill_field [id=<id>] [label=<label>] [contains_text=<text>] [field_description=<text>]
-      value=<text>
+      value=<text> [parent_id=<id>] [record_value=<fixture>]
   press_back
   press_home
   tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
-      [bundle_id=<id>]
+      [bundle_id=<id>] [parent_id=<id>]
   find_elements [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [labeled_only=<true|false>] [scope=<app|system>] [bundle_id=<id>]
-  get_view_hierarchy [scope=<app|system>] [bundle_id=<id>] [format=<full|summary>]
+      [parent_id=<id>] [limit=<n>] [offset=<n>]
+  get_view_hierarchy [scope=<app|system>] [bundle_id=<id>] [format=<full|summary>] [max_nodes=<n>]
   get_screen_context
   is_keyboard_visible
   current_app
   set_target_app [bundle_id=<id>]
-  take_screenshot [output=<path>] [format=<png|jpeg>] [scale=<0..1>]
+  take_screenshot [output=<path>] [format=<png|jpeg>] [scale=<0..1>] [return_image=<true|false>]
   describe_screen
   suggest_test_actions
   analyze_ai_testability
@@ -74,13 +77,14 @@ Common tools:
   find_element_by_description description=<text>
   webview_eval expression=<js> [bundle_id=<id>] [all_frames=<true|false>] [timeout_ms=<n>]
   webview_dom [bundle_id=<id>] [mode=<html|a11y>] [max_bytes=<n>]
-  assert_visible [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>] [timeout_ms=<n>]
+  assert_visible [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [timeout_ms=<n>] [parent_id=<id>]
   assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>]
+      [timeout_ms=<n>] [parent_id=<id>]
   assert_absent [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>]
+      [timeout_ms=<n>] [parent_id=<id>]
   assert_value [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>] [expected=<text>] [contains=<text>]
+      [timeout_ms=<n>] [expected=<text>] [contains=<text>] [parent_id=<id>] [record_value=<fixture>]
   assert_screen_changed from_token=<token> [timeout_ms=<n>]
   device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...] [timeout_ms=<n>]
       (tool-argument form: environment=<K=V,...> launch_args=<a,b,c>)

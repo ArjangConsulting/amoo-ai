@@ -41,6 +41,9 @@ final class SessionStoreTests: XCTestCase {
 
         let all = await store.loadAllReports()
         XCTAssertEqual(all.map(\.sessionID), ["s-round"])
+        let summaries = await store.loadAllSummaries()
+        XCTAssertEqual(summaries.first?.actionCount, 1)
+        XCTAssertEqual(summaries.first?.actions, [])
     }
 
     func testLoadReportReturnsNilWhenAbsent() async {
@@ -178,6 +181,31 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(all.map(\.sessionID), ["s-restart"])
     }
 
+    func testShutdownFlushesPendingActionsAndContext() async throws {
+        let root = makeTempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileSessionStore(root: root)
+        let manager = SessionManager(bootstrapper: StubBootstrapper(), store: store)
+        let session = try await manager.startSession(appID: "app", platform: .ios)
+        let intent = SessionCodegenIntent(testDescription: "Example", contextJSON: "{}")
+        await manager.rememberCodegenIntent(intent, for: session.id)
+        await session.record(SessionAction(
+            timestamp: Date(),
+            toolName: "tap",
+            arguments: [:],
+            result: "ok",
+            isError: false
+        ))
+        await manager.persist(session.id)
+        await manager.closeAll()
+        let second = SessionManager(bootstrapper: StubBootstrapper(), store: store)
+        let report = await second.report(for: session.id)
+        let restoredIntent = await second.codegenIntent(for: session.id)
+        XCTAssertEqual(report?.actionCount, 1)
+        XCTAssertEqual(report?.isActive, false)
+        XCTAssertEqual(restoredIntent, intent)
+    }
+
     func testNoStoreMeansNoPersistenceAndNoDirectory() async throws {
         let manager = SessionManager(bootstrapper: StubBootstrapper(), idGenerator: { "s-nostore" })
         _ = try await manager.startSession(appID: "com.example", platform: .ios)
@@ -207,3 +235,60 @@ private final class StubBootstrapper: SessionBootstrapper, @unchecked Sendable {
 }
 
 private struct StubDriver: PlatformDriver, Sendable {}
+
+extension SessionStoreTests {
+    func testFailedSaveIsVisibleWithoutThrowingIntoDeviceWork() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data("blocks directory creation".utf8).write(to: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileSessionStore(root: root)
+        let report = SessionReport(
+            sessionID: "failed-write",
+            appID: "app",
+            deviceID: "device",
+            platform: "ios",
+            startedAt: Date(),
+            endedAt: nil,
+            durationSeconds: 0,
+            actionCount: 0,
+            errorCount: 0,
+            isActive: true,
+            actions: []
+        )
+        await store.save(report)
+        let health = await store.recordingHealth(sessionID: report.sessionID)
+        XCTAssertEqual(health, "failed")
+        let absent = await store.loadReport(sessionID: report.sessionID)
+        XCTAssertNil(absent)
+    }
+
+    func testStoreRejectsTraversalSessionIDs() async {
+        let store = FileSessionStore(root: FileManager.default.temporaryDirectory)
+        let report = await store.loadReport(sessionID: "../../report")
+        XCTAssertNil(report)
+        XCTAssertEqual(store.directory(for: "../outside").lastPathComponent, "invalid-session-id")
+    }
+}
+
+extension SessionStoreTests {
+    func testOldClosedSessionsReleaseMemoryButRemainReadable() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = SessionManager(bootstrapper: StubBootstrapper(), store: FileSessionStore(root: root))
+        var firstID: String?
+        for _ in 0 ..< 34 {
+            let session = try await manager.startSession(appID: "app", platform: .ios)
+            if firstID == nil {
+                firstID = session.id
+            }
+            try await manager.endSession(session.id)
+        }
+        let sessions = await manager.allSessions()
+        XCTAssertEqual(sessions.count, 32)
+        let report = try await manager.report(for: XCTUnwrap(firstID))
+        XCTAssertNotNil(report)
+        XCTAssertFalse(try XCTUnwrap(report).isActive)
+        let summaries = await manager.allReports(includeActions: false)
+        XCTAssertEqual(summaries.count, 34)
+    }
+}

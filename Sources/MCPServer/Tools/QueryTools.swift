@@ -13,6 +13,8 @@ public enum QueryTools {
                 "label": .init(type: "string", description: "Accessibility label to match"),
                 "contains_text": .init(type: "string", description: "Partial text match"),
                 "description": .init(type: "string", description: "Natural language description for AI matching"),
+                "limit": .init(type: "integer", description: "Maximum matches to return, 1–2000; default 50"),
+                "offset": .init(type: "integer", description: "Skip this many matches; default 0"),
                 "labeled_only": .init(
                     type: "string",
                     description: "Set true to list only elements that have an identifier or label."
@@ -75,6 +77,10 @@ public enum QueryTools {
                     type: "string",
                     description: "Optional file path to also save the screenshot to (~ is expanded)."
                 ),
+                "return_image": .init(
+                    type: "boolean",
+                    description: "Return inline image; default true. False requires output."
+                ),
                 "scale": .init(
                     type: "number",
                     description: "Optional downscale factor in (0, 1]. 0.5 halves each dimension and"
@@ -86,6 +92,13 @@ public enum QueryTools {
             outputSchema: ToolOutputSchema(
                 properties: [
                     "byte_count": .init(type: "integer", description: "Size of the captured image in bytes"),
+                    "original_byte_count": .init(type: "integer", description: "Size before downscaling"),
+                    "width_pixels": .init(type: "number", description: "Returned image width"),
+                    "height_pixels": .init(type: "number", description: "Returned image height"),
+                    "width_points": .init(type: "number", description: "Screen width in gesture points"),
+                    "height_points": .init(type: "number", description: "Screen height in gesture points"),
+                    "scale": .init(type: "number", description: "Returned image pixels per gesture point"),
+
                     "format": .init(type: "string", description: "Image format actually captured: png or jpeg"),
                     "saved_path": .init(
                         type: "string",

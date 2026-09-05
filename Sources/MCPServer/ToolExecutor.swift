@@ -13,6 +13,8 @@ public protocol ToolExecutor: Sendable {
 public actor DriverToolExecutor: ToolExecutor {
     /// The default driver used when a tool call does not specify a `session_id`.
     /// Kept for backward compatibility with the original `amoo mcp serve` flow.
+    private let operationQueue = DeviceOperationQueue()
+    private var defaultDeviceKey: String?
     let defaultDriver: any PlatformDriver
     let sessionManager: SessionManager?
     /// Probes for a concurrent `xcodebuild`/`xctest` that amoo did not start, so `start_session`
@@ -38,36 +40,76 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        if Self.controlPlaneTools.contains(toolName), toolName != "end_session" {
+            return await executeOrdered(toolName: toolName, arguments: arguments)
+        }
+        let key: String
+        if let id = arguments["session_id"], let session = await sessionManager?.session(id) {
+            key = "\(session.platform.rawValue):\(session.deviceID)"
+        } else if arguments["session_id"] != nil {
+            return await executeOrdered(toolName: toolName, arguments: arguments)
+        } else {
+            if defaultDeviceKey == nil, let info = try? await defaultDriver.deviceInfo() {
+                defaultDeviceKey = "\(info.platform.rawValue):\(info.id)"
+            }
+            key = defaultDeviceKey ?? "default"
+        }
+        return await operationQueue.run(key: key) {
+            await self.executeOrdered(toolName: toolName, arguments: arguments)
+        }
+    }
+
+    func executeOrdered(toolName: String, arguments: [String: String]) async -> ToolResult {
         let clock = ContinuousClock()
         let start = clock.now
         let result: ToolResult
+        var executionArguments = arguments
         do {
-            result = try await dispatch(toolName: toolName, arguments: arguments)
+            try Task.checkCancellation()
+            _ = try ToolRequest(name: toolName, arguments: arguments)
+            if let id = arguments["session_id"], let session = await sessionManager?.session(id),
+               arguments["record_value"] != "fixture" {
+                for key in Self.sensitiveArgumentKeys(toolName) {
+                    if let value = arguments[key] {
+                        await session.registerSecret(value)
+                    }
+                }
+            }
+            executionArguments = try await normalizedCoordinates(tool: toolName, arguments: arguments)
+            result = try await dispatch(toolName: toolName, arguments: executionArguments)
+        } catch let error as ToolExecutionError {
+            result = error.result
+        } catch is CancellationError {
+            result = ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
         } catch {
             result = .error("\(toolName) failed: \(error)")
         }
-        await recordIfNeeded(toolName: toolName, arguments: arguments, result: result)
+        await recordIfNeeded(toolName: toolName, arguments: executionArguments, result: result)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
         PerformanceTelemetry.record(
             category,
             operation: toolName,
             duration: start.duration(to: clock.now),
-            metadata: ["success": String(!result.isError)]
+            metadata: [
+                "success": String(!result.isError),
+                "response_text_bytes": String(result.content.utf8.count),
+                "image_bytes": String(result.image?.data.count ?? 0),
+                "observed_elements": String(result.observedElements.count)
+            ]
         )
         return result
     }
 
-    /// Resolve the driver to use for a tool call. Routes to a session driver
-    /// when `session_id` is present and active; otherwise falls back to the
-    /// default driver.
-    func resolveDriver(arguments: [String: String]) async -> any PlatformDriver {
-        if let sessionID = arguments["session_id"],
-           let manager = sessionManager,
-           let session = await manager.session(sessionID),
-           await session.isActive {
-            return session.driver
+    /// A supplied session ID must resolve to an active session; omission alone uses the default.
+    func resolveDriver(arguments: [String: String]) async throws -> any PlatformDriver {
+        guard let sessionID = arguments["session_id"] else { return defaultDriver }
+        guard let manager = sessionManager, let session = await manager.session(sessionID) else {
+            throw ToolExecutionError(code: "session_not_found", message: "Session not found. Start a new session.")
         }
-        return defaultDriver
+        guard await session.isActive else {
+            throw ToolExecutionError(code: "session_closed", message: "Session is closed. Start a new session.")
+        }
+        return session.driver
     }
 
     /// amoo's own session / codegen lifecycle tools. A call to one is not an application test step,
@@ -85,7 +127,7 @@ public actor DriverToolExecutor: ToolExecutor {
         arguments: [String: String],
         result: ToolResult
     ) async {
-        guard Self.controlPlaneTools.contains(toolName) == false else { return }
+        guard toolName != "run_steps", Self.controlPlaneTools.contains(toolName) == false else { return }
         guard let sessionID = arguments["session_id"],
               let manager = sessionManager,
               let session = await manager.session(sessionID),
@@ -96,7 +138,7 @@ public actor DriverToolExecutor: ToolExecutor {
             timestamp: Date(),
             toolName: toolName,
             arguments: redactArguments(toolName: toolName, arguments: arguments),
-            result: result.content,
+            result: toolName == "open_url" ? "Opened URL (query values redacted)" : result.content,
             isError: result.isError,
             intent: sessionIntent(toolName: toolName, isError: result.isError),
             observedElements: result.observedElements
@@ -123,10 +165,20 @@ public actor DriverToolExecutor: ToolExecutor {
         return .testStep
     }
 
+    static func sensitiveArgumentKeys(_ tool: String) -> [String] {
+        switch tool {
+        case "type_text": ["text"]
+        case "set_text", "fill_field": ["value"]
+        case "assert_value": ["expected", "contains"]
+        default: []
+        }
+    }
+
     /// Strip out sensitive fields before persisting an action to session history.
     /// Mirrors the existing tool-level redaction in `type_text`.
     private func redactArguments(toolName: String, arguments: [String: String]) -> [String: String] {
         var copy = arguments
+        guard copy["record_value"] != "fixture" else { return copy }
         switch toolName {
         case "type_text":
             if let value = copy["text"] {
@@ -139,6 +191,8 @@ public actor DriverToolExecutor: ToolExecutor {
         case "assert_value":
             copy["expected"] = copy["expected"].map { "<redacted, \($0.count) chars>" }
             copy["contains"] = copy["contains"].map { "<redacted, \($0.count) chars>" }
+        case "open_url":
+            copy["url"] = copy["url"].map(ArtifactRedactor.redactedURL)
         default:
             break
         }

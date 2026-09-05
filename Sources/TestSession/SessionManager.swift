@@ -12,6 +12,8 @@ public actor SessionManager {
     private var closedReports: [String: SessionReport] = [:]
     /// Recorded-but-not-yet-written action counts and last flush times, per session.
     private var unflushedActions: [String: Int] = [:]
+    private var flushTimers: [String: Task<Void, Never>] = [:]
+    private var shuttingDown = false
     private var lastFlush: [String: Date] = [:]
     /// Serializes store writes so they land in the order they were produced.
     private var writeChain: Task<Void, Never>?
@@ -47,6 +49,7 @@ public actor SessionManager {
         environment: [String: String] = [:],
         testName: String? = nil
     ) async throws -> TestSession {
+        guard !shuttingDown else { throw SessionError.closed("server") }
         let bootstrap = try await bootstrapper.bootstrap(
             SessionBootstrapRequest(
                 appID: appID,
@@ -57,6 +60,10 @@ public actor SessionManager {
                 environment: environment
             )
         )
+        guard !shuttingDown else {
+            await bootstrap.cleanup()
+            throw SessionError.closed("server")
+        }
         let id = idGenerator()
         let session = TestSession(
             id: id,
@@ -70,6 +77,7 @@ public actor SessionManager {
             cleanup: bootstrap.cleanup
         )
         sessions[id] = session
+        await flush(id)
         return session
     }
 
@@ -80,13 +88,29 @@ public actor SessionManager {
     public func endSession(_ id: String) async throws {
         // Keep the session in the registry so list_sessions / get_session_report
         // can still see its accumulated history after it ends. The session is
-        // marked inactive via close(); resolveDriver in the executor falls back
-        // to the default driver for inactive sessions.
+        // marked inactive via close(); subsequent device operations reject the session.
         guard let session = sessions[id] else {
             throw SessionError.notFound(id)
         }
         await session.close()
         await flush(id)
+        await drainPendingWrites()
+        await evictClosedSessions()
+    }
+
+    private func evictClosedSessions() async {
+        guard let store else { return }
+        var closed: [TestSession] = []
+        for session in sessions.values where await !session.isActive {
+            closed.append(session)
+        }
+        for session in closed.sorted(by: { $0.startedAt > $1.startedAt }).dropFirst(32) {
+            guard await store.recordingHealth(sessionID: session.id) == "saved" else { continue }
+            sessions.removeValue(forKey: session.id)
+            sessionCodegenIntent.removeValue(forKey: session.id)
+            unflushedActions.removeValue(forKey: session.id)
+            lastFlush.removeValue(forKey: session.id)
+        }
     }
 
     public func allSessions() -> [TestSession] {
@@ -98,20 +122,29 @@ public actor SessionManager {
     ///
     /// Each flush re-encodes the session's *whole* history and atomically rewrites `report.json`,
     /// so flushing on every single action is quadratic in the length of a recording. Batching
-    /// bounds that; the window is the most actions a hard crash can lose, and `endSession` always
+    /// reduces the constant write cost but remains quadratic; the window bounds crash loss. `endSession` always
     /// flushes, so an orderly close never loses any.
     public func persist(_ id: String) async {
         guard store != nil, sessions[id] != nil else { return }
         let pending = (unflushedActions[id] ?? 0) + 1
         unflushedActions[id] = pending
         let elapsed = Date().timeIntervalSince(lastFlush[id] ?? .distantPast)
-        guard pending >= Self.flushActionThreshold || elapsed >= Self.flushInterval else { return }
+        guard pending >= Self.flushActionThreshold || elapsed >= Self.flushInterval else {
+            if flushTimers[id] == nil {
+                flushTimers[id] = Task { [weak self] in
+                    do { try await Task.sleep(for: .seconds(Self.flushInterval)) } catch { return }
+                    await self?.flush(id)
+                }
+            }
+            return
+        }
         await flush(id)
     }
 
     /// Write a live session's current history to the store now, regardless of the batching window.
     public func flush(_ id: String) async {
         guard let store, let session = sessions[id] else { return }
+        flushTimers.removeValue(forKey: id)?.cancel()
         unflushedActions[id] = 0
         lastFlush[id] = Date()
         let report = await SessionReport.make(from: session)
@@ -131,6 +164,15 @@ public actor SessionManager {
         await writeChain?.value
     }
 
+    /// Reports pending batches separately from the last completed store write.
+    public func recordingHealth(for id: String) async -> String {
+        guard let store else { return "disabled" }
+        if (unflushedActions[id] ?? 0) > 0 {
+            return "pending"
+        }
+        return await store.recordingHealth(sessionID: id)
+    }
+
     /// The on-disk directory backing a session, or `nil` when no store is
     /// configured. The MCP layer writes `plan.json` / `flow.json` here.
     public func sessionDirectory(for id: String) -> URL? {
@@ -147,7 +189,6 @@ public actor SessionManager {
             return cached
         }
         if let store, let loaded = await store.loadReport(sessionID: id) {
-            closedReports[id] = loaded
             return loaded
         }
         return nil
@@ -155,18 +196,24 @@ public actor SessionManager {
 
     /// Every known session as a report — live sessions merged over disk reports,
     /// live winning on id collision. Sorted by start time.
-    public func allReports() async -> [SessionReport] {
+    public func allReports(includeActions: Bool = true) async -> [SessionReport] {
         var byID: [String: SessionReport] = [:]
         if let store {
-            for report in await store.loadAllReports() {
+            let stored = if includeActions {
+                await store.loadAllReports()
+            } else {
+                await store.loadAllSummaries()
+            }
+            for report in stored {
                 byID[report.sessionID] = report
             }
         }
         for (id, report) in closedReports {
-            byID[id] = report
+            byID[id] = includeActions ? report : report.summary
         }
         for (id, session) in sessions {
-            byID[id] = await SessionReport.make(from: session)
+            let report = await SessionReport.make(from: session)
+            byID[id] = includeActions ? report : report.summary
         }
         return byID.values.sorted { $0.startedAt < $1.startedAt }
     }
@@ -199,18 +246,23 @@ public actor SessionManager {
 
     /// Closes every active session. Used during MCP server shutdown.
     public func closeAll() async {
+        shuttingDown = true
         let active = Array(sessions.values)
-        sessions.removeAll()
         for session in active {
             await session.close()
+            await flush(session.id)
         }
+        await drainPendingWrites()
+        sessions.removeAll()
+        flushTimers.values.forEach { $0.cancel() }
+        flushTimers.removeAll()
     }
 }
 
 /// Control-plane codegen intent for a session: a descriptive name/description and a path to the
 /// checked-in `StudioTestContext` JSON the generated test must fit. Persisted by `SessionManager`
 /// so `end_session` compiles the same plan an explicit `compile_session_to_plan` would.
-public struct SessionCodegenIntent: Sendable, Equatable {
+public struct SessionCodegenIntent: Sendable, Equatable, Codable {
     public var testName: String?
     public var testDescription: String?
     /// Absolute path to an app-owned test-context JSON file, resolved at compile time.
@@ -248,23 +300,37 @@ public struct SessionCodegenIntent: Sendable, Equatable {
 
 public extension SessionManager {
     /// Merge control-plane codegen intent into a session (see `SessionCodegenIntent`).
-    func rememberCodegenIntent(_ intent: SessionCodegenIntent, for id: String) {
+    func rememberCodegenIntent(_ intent: SessionCodegenIntent, for id: String) async {
         guard !intent.isEmpty else { return }
-        let base = sessionCodegenIntent[id] ?? SessionCodegenIntent()
-        sessionCodegenIntent[id] = base.merging(intent)
+        let base = await codegenIntent(for: id) ?? SessionCodegenIntent()
+        let merged = base.merging(intent)
+        sessionCodegenIntent[id] = merged
+        if let session = sessions[id] {
+            await session.setCodegenIntent(merged)
+            await flush(id)
+        } else if var report = await report(for: id) {
+            report.codegenIntent = merged
+            closedReports[id] = report
+            await store?.save(report)
+        }
     }
 
     /// The codegen intent accumulated for a session, if any.
-    func codegenIntent(for id: String) -> SessionCodegenIntent? {
-        sessionCodegenIntent[id]
+    func codegenIntent(for id: String) async -> SessionCodegenIntent? {
+        if let intent = sessionCodegenIntent[id] {
+            return intent
+        }
+        return await report(for: id)?.codegenIntent
     }
 }
 
 public enum SessionError: Error, Equatable, CustomStringConvertible {
     case notFound(String)
+    case closed(String)
 
     public var description: String {
         switch self {
+        case let .closed(id): "Session is closed: \(id)"
         case let .notFound(id): "Session not found: \(id)"
         }
     }

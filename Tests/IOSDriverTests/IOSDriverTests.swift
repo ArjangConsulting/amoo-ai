@@ -7,7 +7,10 @@ import XCTest
 
 final class IOSDriverTests: XCTestCase {
     func testTapDelegatesToCompanion() async throws {
-        let driver = IOSDriver(companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087)))
+        let driver = IOSDriver(companion: GRPCCompanionClient.makeFixture(connection: .init(
+            host: "127.0.0.1",
+            port: 22087
+        )))
         try await driver.tap(at: Point(x: 10, y: 20))
         let elements = try await driver.findElements(.init(id: "login"))
         XCTAssertEqual(elements.first?.id, "login")
@@ -16,7 +19,7 @@ final class IOSDriverTests: XCTestCase {
     func testBootAndShutdownExecute() async throws {
         let simctl = MockSimctlRunner()
         let driver = IOSDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087)),
             simctl: simctl
         )
         try await driver.boot()
@@ -46,7 +49,7 @@ final class IOSDriverTests: XCTestCase {
     func testAppLifecycleDelegatesToSimctl() async throws {
         let simctl = MockSimctlRunner()
         let driver = IOSDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087)),
             simctl: simctl
         )
 
@@ -67,7 +70,7 @@ final class IOSDriverTests: XCTestCase {
     func testLaunchAppPassesEnvironmentThroughSimctl() async throws {
         let simctl = MockSimctlRunner()
         let driver = IOSDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087)),
             simctl: simctl
         )
 
@@ -88,7 +91,7 @@ final class IOSDriverTests: XCTestCase {
     func testConfigurationDelegatesToSimctl() async throws {
         let simctl = MockSimctlRunner()
         let driver = IOSDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087)),
             simctl: simctl
         )
 

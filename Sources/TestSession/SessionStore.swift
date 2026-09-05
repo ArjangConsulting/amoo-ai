@@ -18,7 +18,33 @@ public protocol SessionStore: Sendable {
     func loadReport(sessionID: String) async -> SessionReport?
 
     /// Load every persisted session report under the store root.
+    func loadAllSummaries() async -> [SessionReport]
+
     func loadAllReports() async -> [SessionReport]
+
+    /// Durability of the latest attempted write in this process.
+    func recordingHealth(sessionID: String) async -> String
+}
+
+public extension SessionStore {
+    func loadAllSummaries() async -> [SessionReport] {
+        await loadAllReports().map(\.summary)
+    }
+
+    func recordingHealth(sessionID _: String) async -> String {
+        "unknown"
+    }
+}
+
+private actor PersistenceHealth {
+    private var states: [String: String] = [:]
+    func set(_ id: String, state: String) {
+        states[id] = state
+    }
+
+    func get(_ id: String) -> String {
+        states[id] ?? "unknown"
+    }
 }
 
 /// File-backed `SessionStore`. Layout: `<root>/<session_id>/report.json`.
@@ -29,6 +55,7 @@ public protocol SessionStore: Sendable {
 /// `AMOO_SESSIONS_DIR` environment variable.
 public struct FileSessionStore: SessionStore {
     public let root: URL
+    private let health = PersistenceHealth()
 
     public init(root: URL) {
         self.root = root
@@ -48,22 +75,34 @@ public struct FileSessionStore: SessionStore {
     }
 
     public func directory(for sessionID: String) -> URL {
-        root.appending(path: sessionID, directoryHint: .isDirectory)
+        let component = Self.validSessionID(sessionID) ? sessionID : "invalid-session-id"
+        return root.appending(path: component, directoryHint: .isDirectory)
     }
 
     public func save(_ report: SessionReport) async {
+        guard Self.validSessionID(report.sessionID) else { return }
         let directory = directory(for: report.sessionID)
         do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]
+            )
             let data = try SessionReport.makeJSONEncoder().encode(report)
-            try data.write(to: directory.appending(path: "report.json"), options: .atomic)
+            let url = directory.appending(path: "report.json")
+            try data.write(to: url, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            let summaryURL = directory.appending(path: "summary.json")
+            try SessionReport.makeJSONEncoder().encode(report.summary).write(to: summaryURL, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: summaryURL.path)
+            await health.set(report.sessionID, state: "saved")
         } catch {
-            // Best-effort: a live session must not fail because its history could
-            // not be flushed to disk.
+            await health.set(report.sessionID, state: "failed")
+            // Do not echo file contents, paths, or raw OS errors into shared logs.
+            FileHandle.standardError.write(Data("[amoo] session persistence failed; recording is not durable\n".utf8))
         }
     }
 
     public func loadReport(sessionID: String) async -> SessionReport? {
+        guard Self.validSessionID(sessionID) else { return nil }
         let url = directory(for: sessionID).appending(path: "report.json")
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? SessionReport.makeJSONDecoder().decode(SessionReport.self, from: data)
@@ -82,5 +121,39 @@ public struct FileSessionStore: SessionStore {
             }
         }
         return reports
+    }
+
+    public func loadAllSummaries() async -> [SessionReport] {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey]
+        ) else { return [] }
+        var summaries: [SessionReport] = []
+        for entry in entries where Self.validSessionID(entry.lastPathComponent) {
+            let summaryURL = entry.appending(path: "summary.json")
+            let reportURL = entry.appending(path: "report.json")
+            let summaryDate = try? summaryURL.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate
+            let reportDate = try? reportURL.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate
+            if let summaryDate, let reportDate, summaryDate >= reportDate,
+               let data = try? Data(contentsOf: summaryURL),
+               let summary = try? SessionReport.makeJSONDecoder().decode(SessionReport.self, from: data) {
+                summaries.append(summary)
+            } else if let report = await loadReport(sessionID: entry.lastPathComponent) {
+                // Legacy stores and a crash between report and index replacement remain readable.
+                summaries.append(report.summary)
+            }
+        }
+        return summaries
+    }
+
+    public func recordingHealth(sessionID: String) async -> String {
+        await health.get(sessionID)
+    }
+
+    private static func validSessionID(_ id: String) -> Bool {
+        !id.isEmpty && id.count <= 200
+            && id.unicodeScalars
+            .allSatisfy { CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_")).contains($0) }
     }
 }

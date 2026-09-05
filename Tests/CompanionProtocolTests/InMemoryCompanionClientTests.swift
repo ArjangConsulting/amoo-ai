@@ -3,7 +3,7 @@ import AmooCore
 import Foundation
 import XCTest
 
-/// Exercises the in-memory companion client — the stub `GRPCCompanionClient(connection:)`
+/// Exercises the in-memory companion client — the stub `GRPCCompanionClient.makeFixture(connection:)`
 /// builds when no live transport is wanted.
 ///
 /// It is a shipped public path used for offline development and as a stand-in in tests, so
@@ -12,7 +12,7 @@ import XCTest
 /// would mask a wiring mistake in a caller.
 final class InMemoryCompanionClientTests: XCTestCase {
     private func makeClient() -> GRPCCompanionClient {
-        GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22087))
+        GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22087))
     }
 
     // MARK: - Session

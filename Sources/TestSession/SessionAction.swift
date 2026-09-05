@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import Foundation
 
 public struct RecordedElement: Sendable, Codable, Equatable {
@@ -137,3 +138,29 @@ public struct SessionAction: Sendable, Codable, Equatable {
         )
     }
 }
+
+public extension SessionAction {
+    /// Applies the current session's secret set even to observations recorded before text entry.
+    func redacted(using redactor: ArtifactRedactor) -> Self {
+        Self(
+            timestamp: timestamp, toolName: toolName,
+            arguments: arguments.mapValues(redactor.redact), result: redactor.redact(result),
+            isError: isError, intent: intent,
+            observedElements: observedElements.map { element in
+                RecordedElement(
+                    id: element.id.map(redactor.redact), label: element.label.map(redactor.redact),
+                    elementType: element.elementType, frame: element.frame, hitPoint: element.hitPoint
+                )
+            },
+            gestureTarget: gestureTarget.map { target in
+                RecordedGestureTarget(
+                    elementID: target.elementID.map(redactor.redact),
+                    elementLabel: target.elementLabel.map(redactor.redact),
+                    elementType: target.elementType, resolution: target.resolution
+                )
+            }
+        )
+    }
+}
+
+// swiftlint:enable multiline_arguments

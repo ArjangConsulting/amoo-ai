@@ -255,16 +255,16 @@ class UIAutomatorBridge {
         // documented on [NodeRecord], which is acceptable for a single text entry and not for a
         // query issued after every action.
         val candidates = uiObjectTree().filter { uiMatches(it, resourceId, label, containsText) }
-        // A label selector often hits the field's TextView first. Prefer an editable node.
-        val target = candidates.firstOrNull { it.className?.contains("EditText") == true }
-            ?: candidates.firstOrNull()
-            ?: return false
+        // Ambiguous selectors must not mutate an arbitrary node.
+        val target = candidates.singleOrNull() ?: return false
+        val secure = currentElements().filter { matches(it, resourceId, label, containsText) }
+            .singleOrNull()?.isSecureTextEntry == true
         val before = target.text.orEmpty()
         target.click()
         target.text = value
         val after = target.text.orEmpty()
         // Password fields report masks, but their content still has to change.
-        return after == value || (value.isNotEmpty() && after.isNotEmpty() && after != before)
+        return after == value || (secure && value.isNotEmpty() && after.isNotEmpty() && after != before)
     }
 
     // -- Navigation --
@@ -346,6 +346,7 @@ class UIAutomatorBridge {
         return withCurrentElements { elements ->
             val matches = scopedElements(elements, appId)
                 .filter { matches(it, resourceId, text, containsText) }
+            if (matches.size != 1) return@withCurrentElements null
             matches.firstOrNull { it.isClickable }?.let { return@withCurrentElements it.toSnapshot() }
             matches.firstNotNullOfOrNull { it.clickableAncestor }
                 ?.let { return@withCurrentElements it.toSnapshot() }
@@ -360,13 +361,12 @@ class UIAutomatorBridge {
      * XCUIApplication(bundleIdentifier:), UIAutomator2's root query already returns every
      * visible window system-wide in one flat list — an app's own UI and system UI (permission
      * dialogs, the notification shade) mixed together. So scoping to [appId] is a filter, not a
-     * separate lookup, and "fall back to system UI when nothing matches" falls out for free:
-     * an empty filtered result just returns the unfiltered list, which already contains it.
+     * separate lookup. An empty app result stays empty; callers explicitly request system scope.
      */
     private fun scopedElements(all: List<NodeRecord>, appId: String?): List<NodeRecord> {
         if (appId.isNullOrBlank()) return all
         val scoped = all.filter { it.packageName == appId }
-        return scoped.ifEmpty { all }
+        return scoped
     }
 
     fun getInteractableElements(): List<ElementSnapshot> {
@@ -425,7 +425,8 @@ class UIAutomatorBridge {
         type = type,
         frame = FrameRect(bounds.left, bounds.top, bounds.width(), bounds.height()),
         isEnabled = isEnabled,
-        isVisible = isVisible
+        isVisible = isVisible,
+        isSecureTextEntry = isSecureTextEntry
     )
 
     private fun matches(
@@ -510,6 +511,7 @@ class UIAutomatorBridge {
         val isVisible: Boolean,
         val isClickable: Boolean,
         val isLongClickable: Boolean,
+        val isSecureTextEntry: Boolean,
         /**
          * Nearest clickable ancestor, resolved while walking rather than by climbing `parent`
          * afterwards — a parent walk is another IPC per step, and the walk already knows the
@@ -609,6 +611,7 @@ class UIAutomatorBridge {
             isVisible = isVisibleToUser,
             isClickable = isClickable,
             isLongClickable = isLongClickable,
+            isSecureTextEntry = isPassword,
             clickableAncestor = nearestClickable
         )
     }

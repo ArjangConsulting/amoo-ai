@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import AuditEngine
 import Foundation
@@ -15,23 +16,22 @@ extension DriverToolExecutor {
         }
 
         let selectedRules: [any AuditRule] = if let packNames = arguments["rule_packs"] {
-            parseRulePacks(packNames)
+            try parseRulePacks(packNames)
         } else {
             rulePacks
         }
 
-        // Gather live screen data from the driver
-        let context = try await driver.getScreenContext()
-        let hierarchy = try await driver.getViewHierarchy()
-        let allElements = try await driver.findElements(ElementSelector())
-        let interactable = try await driver.getInteractableElements()
-
+        if let threshold = arguments["fail_on"], !["critical", "high", "medium", "low", "info"].contains(threshold) {
+            throw ToolExecutionError(code: "invalid_argument", message: "Unknown audit severity.")
+        }
+        let current = try await driver.currentApp()
+        guard current.bundleID == appID else {
+            throw ToolExecutionError(code: "wrong_app", message: "Audit target is not the frontmost app.")
+        }
+        let observation = try await driver.observeScreen(appID: appID)
         let input = AuditInput(
-            appID: appID,
-            screenContext: context,
-            hierarchy: hierarchy,
-            elements: allElements,
-            interactableElements: interactable
+            appID: appID, screenContext: observation.context, hierarchy: observation.hierarchy,
+            elements: observation.elements, interactableElements: observation.interactableElements
         )
 
         let engine = AuditEngine(rules: selectedRules)
@@ -40,7 +40,7 @@ extension DriverToolExecutor {
         return formatAuditReport(report, failOn: arguments["fail_on"])
     }
 
-    func parseRulePacks(_ names: String) -> [any AuditRule] {
+    func parseRulePacks(_ names: String) throws -> [any AuditRule] {
         let packs = names.lowercased().split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         var rules: [any AuditRule] = []
         for pack in packs {
@@ -50,7 +50,7 @@ extension DriverToolExecutor {
             case "ux": rules += RulePacks.ux
             case "testability": rules += RulePacks.testability
             case "all": return RulePacks.all
-            default: break
+            default: throw ToolExecutionError(code: "invalid_argument", message: "Unknown audit rule pack: \(pack)")
             }
         }
         return rules.isEmpty ? RulePacks.all : rules
@@ -58,7 +58,10 @@ extension DriverToolExecutor {
 
     func formatAuditReport(_ report: AuditReport, failOn: String?) -> ToolResult {
         if report.findings.isEmpty {
-            return .success("Audit passed: no findings for \(report.appID)")
+            return .success(
+                "No findings in the inspected screen for \(report.appID). See evidence coverage.",
+                structuredContent: (try? Value(report)) ?? .object([:])
+            )
         }
 
         var lines = ["Audit report for \(report.appID): \(report.findings.count) finding(s)\n"]
@@ -80,7 +83,9 @@ extension DriverToolExecutor {
             isFailure = false
         }
 
-        return ToolResult(content: lines.joined(separator: "\n"), isError: isFailure)
+        return ToolResult(
+            content: lines.joined(separator: "\n"), isError: isFailure, structuredContent: try? Value(report)
+        )
     }
 
     func severityOrder(_ severity: Severity) -> Int {
@@ -103,3 +108,5 @@ extension DriverToolExecutor {
         }
     }
 }
+
+// swiftlint:enable multiline_arguments

@@ -150,7 +150,7 @@ extension CLITests {
         // alerts and the Sign in with Apple sheet, which are absent from the app's own tree.
         XCTAssertEqual(
             catalog.argumentCandidates(for: "tap_element"),
-            ["bundle_id=", "contains_text=", "id=", "label=", "scope=", "session_id="]
+            ["bundle_id=", "contains_text=", "id=", "label=", "parent_id=", "scope=", "session_id="]
         )
     }
 

@@ -7,7 +7,10 @@ import XCTest
 
 final class AndroidDriverTests: XCTestCase {
     func testTapDelegatesToCompanion() async throws {
-        let driver = AndroidDriver(companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22088)))
+        let driver = AndroidDriver(companion: GRPCCompanionClient.makeFixture(connection: .init(
+            host: "127.0.0.1",
+            port: 22088
+        )))
         try await driver.tap(at: Point(x: 8, y: 16))
         let elements = try await driver.findElements(.init(label: "Continue"))
         XCTAssertEqual(elements.first?.label, "Continue")
@@ -16,7 +19,7 @@ final class AndroidDriverTests: XCTestCase {
     func testBootAndShutdownExecute() async throws {
         let adb = MockADBRunner()
         let driver = AndroidDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22088)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22088)),
             adb: adb
         )
         try await driver.boot()
@@ -52,7 +55,7 @@ final class AndroidDriverTests: XCTestCase {
     func testContextAndCaptureAndPermission() async throws {
         let adb = MockADBRunner()
         let driver = AndroidDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22088)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22088)),
             adb: adb
         )
 
@@ -68,7 +71,7 @@ final class AndroidDriverTests: XCTestCase {
     func testAppLifecycleDelegatesToADB() async throws {
         let adb = MockADBRunner()
         let driver = AndroidDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22088)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22088)),
             adb: adb
         )
 
@@ -89,7 +92,7 @@ final class AndroidDriverTests: XCTestCase {
     func testPermissionDelegatesToADB() async throws {
         let adb = MockADBRunner()
         let driver = AndroidDriver(
-            companion: GRPCCompanionClient(connection: .init(host: "127.0.0.1", port: 22088)),
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "127.0.0.1", port: 22088)),
             adb: adb
         )
 

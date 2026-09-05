@@ -23,7 +23,9 @@ enum SessionArtifactWriter {
     }()
 
     static func write(_ result: CompileSessionToPlanResult, to directory: URL) throws -> Paths {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]
+        )
 
         let planURL = directory.appending(path: "plan.json")
         try encoder.encode(result.studioTest).write(to: planURL, options: .atomic)
@@ -31,6 +33,9 @@ enum SessionArtifactWriter {
         let flowURL = directory.appending(path: "flow.json")
         try encoder.encode(result.testFlow).write(to: flowURL, options: .atomic)
 
+        for url in [planURL, flowURL] {
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        }
         return Paths(plan: planURL.path, flow: flowURL.path)
     }
 }

@@ -64,7 +64,8 @@ public enum SessionTools {
                     "session_id": .init(type: "string", description: "Identifier for the new session"),
                     "app_id": .init(type: "string", description: "Bundle/package id"),
                     "device_id": .init(type: "string", description: "Resolved device UDID or serial"),
-                    "platform": .init(type: "string", description: "ios or android")
+                    "platform": .init(type: "string", description: "ios or android"),
+                    "warnings": .init(type: "array", description: "Startup warnings", items: .scalar(type: "string"))
                 ],
                 required: ["session_id", "app_id", "device_id", "platform"]
             )
@@ -83,6 +84,7 @@ public enum SessionTools {
             outputSchema: ToolOutputSchema(
                 properties: [
                     "session_id": .init(type: "string", description: "The closed session id"),
+                    "artifact_error": .init(type: "string", description: "Artifact generation failure"),
                     "ended_at": .init(type: "string", description: "ISO-8601 close timestamp"),
                     "action_count": .init(type: "integer", description: "Number of recorded actions"),
                     "plan_path": .init(

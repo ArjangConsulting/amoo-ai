@@ -453,7 +453,8 @@ final class XCUITestBridge: @unchecked Sendable {
         let after = (textInput.value as? String) ?? ""
         // A secure field reports a mask rather than what was typed, so an exact match is not
         // always available — but the content still has to have moved off what was there before.
-        return after == text || (!text.isEmpty && !after.isEmpty && after != before)
+        return after == text ||
+            (textInput.elementType == .secureTextField && !text.isEmpty && !after.isEmpty && after != before)
     }
 
     // MARK: - Navigation
@@ -523,14 +524,16 @@ final class XCUITestBridge: @unchecked Sendable {
         // coordinate, which is process-agnostic — only the lookup needed the scope.
         // Labeled only: a tap needs something the caller named, and an element with no identifier
         // or label is one only `tap` at a coordinate can reach.
-        for candidate in findElements(
+        let matches = findElements(
             id: id,
             label: label,
             containsText: containsText,
             bundleID: bundleID,
             candidateBundleIDs: candidateBundleIDs,
             labeledOnly: true
-        ) {
+        )
+        guard matches.count == 1 else { return false }
+        for candidate in matches {
             let frame = candidate.frame.standardized
             guard !frame.isNull, !frame.isEmpty else { continue }
             lastTappedElementID = candidate.id.isEmpty ? nil : candidate.id
@@ -604,6 +607,8 @@ final class XCUITestBridge: @unchecked Sendable {
         return ViewNodeSnapshot(
             id: stableNodeID(identifier: snapshot.identifier, label: snapshot.label),
             label: snapshot.label,
+            value: snapshot.value as? String ?? "",
+            isSecureTextEntry: snapshot.elementType == .secureTextField,
             type: "\(snapshot.elementType)",
             frame: snapshot.frame,
             hitPoint: interactionPoint(
@@ -639,6 +644,8 @@ final class XCUITestBridge: @unchecked Sendable {
         return ViewNodeSnapshot(
             id: stableNodeID(identifier: element.identifier, label: element.label),
             label: element.label,
+            value: element.value as? String ?? "",
+            isSecureTextEntry: element.elementType == .secureTextField,
             type: "\(element.elementType)",
             frame: element.frame,
             hitPoint: interactionPoint(frame: element.frame, visibleFrame: nil, viewport: viewport),
@@ -950,6 +957,7 @@ final class XCUITestBridge: @unchecked Sendable {
             frame: snapshot.frame,
             hitPoint: interactionPoint(frame: snapshot.frame, visibleFrame: visibleFrame, viewport: viewport),
             isEnabled: snapshot.isEnabled,
+            isSecureTextEntry: snapshot.elementType == .secureTextField,
             isVisible: isSnapshotVisible(
                 snapshot,
                 visibleFrame: visibleFrame,

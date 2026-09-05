@@ -91,8 +91,8 @@ final class AuditEngineTests: XCTestCase {
             ]
         )
         let report = try await engine.run(input)
-        XCTAssertEqual(report.findings.count, 1)
-        XCTAssertEqual(report.findings[0].ruleID, "SEC-003")
+        XCTAssertTrue(report.findings.isEmpty)
+        XCTAssertEqual(report.evaluations.first?.status, .insufficientEvidence)
     }
 
     // MARK: - Quality Rules

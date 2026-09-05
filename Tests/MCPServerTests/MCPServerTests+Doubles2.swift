@@ -183,6 +183,10 @@ actor NavigationMockDriver: PlatformDriver {
         elements
     }
 
+    func getViewHierarchy() async throws -> ViewNode {
+        ViewNode(id: "root", label: currentSummary)
+    }
+
     func getScreenContext() async throws -> ScreenContext {
         ScreenContext(summary: currentSummary)
     }

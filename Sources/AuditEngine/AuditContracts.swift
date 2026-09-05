@@ -1,13 +1,13 @@
 import AmooCore
 
-public enum AuditDomain: String, Sendable {
+public enum AuditDomain: String, Sendable, Codable {
     case security
     case quality
     case ux
     case testability
 }
 
-public enum Severity: String, Sendable {
+public enum Severity: String, Sendable, Codable {
     case critical
     case high
     case medium
@@ -31,7 +31,7 @@ public struct AuditRuleMetadata: Sendable {
     }
 }
 
-public enum EvidenceKind: String, Sendable {
+public enum EvidenceKind: String, Sendable, Codable {
     case hierarchy
     case selector
     case screenshot
@@ -40,7 +40,7 @@ public enum EvidenceKind: String, Sendable {
     case trace
 }
 
-public struct AuditEvidence: Sendable {
+public struct AuditEvidence: Sendable, Codable {
     public var kind: EvidenceKind
     public var summary: String
     public var sourceRef: String
@@ -54,7 +54,7 @@ public struct AuditEvidence: Sendable {
     }
 }
 
-public struct AuditFinding: Sendable {
+public struct AuditFinding: Sendable, Codable {
     public var id: String
     public var ruleID: String
     public var severity: Severity
@@ -110,14 +110,37 @@ public struct AuditInput: Sendable {
 public protocol AuditRule: Sendable {
     var metadata: AuditRuleMetadata { get }
     func evaluate(_ input: AuditInput) async throws -> [AuditFinding]
+    func evidenceCoverage(_ input: AuditInput) -> AuditRuleEvaluation
 }
 
-public struct AuditReport: Sendable {
+public extension AuditRule {
+    func evidenceCoverage(_: AuditInput) -> AuditRuleEvaluation {
+        AuditRuleEvaluation(ruleID: metadata.id, status: .evaluated, reason: "Evaluated current-screen evidence only.")
+    }
+}
+
+public struct AuditReport: Sendable, Codable {
     public var appID: String
     public var findings: [AuditFinding]
+    public var evaluations: [AuditRuleEvaluation]
 
-    public init(appID: String, findings: [AuditFinding]) {
+    public init(appID: String, findings: [AuditFinding], evaluations: [AuditRuleEvaluation] = []) {
         self.appID = appID
         self.findings = findings
+        self.evaluations = evaluations
+    }
+}
+
+/// Explicit evidence coverage: an empty finding list is not proof that untested properties hold.
+public struct AuditRuleEvaluation: Sendable, Codable {
+    public enum Status: String, Sendable, Codable { case evaluated, notEvaluated, insufficientEvidence }
+    public let ruleID: String
+    public let status: Status
+    public let reason: String
+
+    public init(ruleID: String, status: Status, reason: String) {
+        self.ruleID = ruleID
+        self.status = status
+        self.reason = reason
     }
 }

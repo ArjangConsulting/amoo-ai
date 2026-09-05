@@ -19,6 +19,18 @@ public actor TestSession {
     public private(set) var endedAt: Date?
     public private(set) var actions: [SessionAction] = []
     public private(set) var isActive: Bool = true
+    public private(set) var codegenIntent: SessionCodegenIntent?
+
+    public func setCodegenIntent(_ intent: SessionCodegenIntent) {
+        codegenIntent = intent
+    }
+
+    public private(set) var redactor: ArtifactRedactor
+
+    public func registerSecret(_ value: String) {
+        redactor.register(value)
+    }
+
     private var recentElements: [RecordedElement] = []
 
     private let cleanup: @Sendable () async -> Void
@@ -45,6 +57,7 @@ public actor TestSession {
         self.launchEnvironment = launchEnvironment
         self.testName = testName
         self.cleanup = cleanup
+        redactor = ArtifactRedactor(environment: launchEnvironment, arguments: launchArguments)
     }
 
     public func record(_ incoming: SessionAction) {

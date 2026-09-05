@@ -20,6 +20,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
     public let launchArguments: [String]
     public let launchEnvironment: [String: String]
     public let testName: String?
+    public var codegenIntent: SessionCodegenIntent?
 
     public init(
         sessionID: String,
@@ -35,7 +36,8 @@ public struct SessionReport: Sendable, Codable, Equatable {
         actions: [SessionAction],
         launchArguments: [String] = [],
         launchEnvironment: [String: String] = [:],
-        testName: String? = nil
+        testName: String? = nil,
+        codegenIntent: SessionCodegenIntent? = nil
     ) {
         self.sessionID = sessionID
         self.appID = appID
@@ -51,34 +53,34 @@ public struct SessionReport: Sendable, Codable, Equatable {
         self.launchArguments = launchArguments
         self.launchEnvironment = launchEnvironment
         self.testName = testName
+        self.codegenIntent = codegenIntent
     }
 
     public static func make(from session: TestSession) async -> Self {
-        let actions = await session.actions
-        let endedAt = await session.endedAt
-        let isActive = await session.isActive
-        let end = endedAt ?? Date()
-        return Self(
-            sessionID: session.id,
-            appID: session.appID,
-            deviceID: session.deviceID,
-            platform: session.platform.rawValue,
-            startedAt: session.startedAt,
+        await session.reportSnapshot()
+    }
+
+    /// Lightweight listing index; action counts are preserved without copying action payloads.
+    public var summary: Self {
+        Self(
+            sessionID: sessionID,
+            appID: appID,
+            deviceID: deviceID,
+            platform: platform,
+            startedAt: startedAt,
             endedAt: endedAt,
-            durationSeconds: end.timeIntervalSince(session.startedAt),
-            actionCount: actions.count,
-            errorCount: actions.reduce(0) { $0 + ($1.isError ? 1 : 0) },
+            durationSeconds: durationSeconds,
+            actionCount: actionCount,
+            errorCount: errorCount,
             isActive: isActive,
-            actions: actions,
-            launchArguments: session.launchArguments,
-            launchEnvironment: session.launchEnvironment,
-            testName: session.testName
+            actions: [],
+            testName: testName
         )
     }
 
     private enum CodingKeys: String, CodingKey {
         case sessionID, appID, deviceID, platform, startedAt, endedAt, durationSeconds
-        case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName
+        case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName, codegenIntent
     }
 
     /// ISO-8601 *with* fractional seconds. The single source of truth for how a `report.json` is
@@ -139,7 +141,34 @@ public struct SessionReport: Sendable, Codable, Equatable {
             actions: container.decode([SessionAction].self, forKey: .actions),
             launchArguments: container.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
             launchEnvironment: container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:],
-            testName: container.decodeIfPresent(String.self, forKey: .testName)
+            testName: container.decodeIfPresent(String.self, forKey: .testName),
+            codegenIntent: container.decodeIfPresent(SessionCodegenIntent.self, forKey: .codegenIntent)
+        )
+    }
+}
+
+extension TestSession {
+    /// Capture secrets, actions and lifecycle state in one actor turn. Separate awaits could
+    /// combine a new action with an older redaction set during an idle flush.
+    func reportSnapshot() -> SessionReport {
+        let sanitizedActions = actions.map { $0.redacted(using: redactor) }
+        let end = endedAt ?? Date()
+        return SessionReport(
+            sessionID: id,
+            appID: appID,
+            deviceID: deviceID,
+            platform: platform.rawValue,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            durationSeconds: end.timeIntervalSince(startedAt),
+            actionCount: sanitizedActions.count,
+            errorCount: sanitizedActions.reduce(0) { $0 + ($1.isError ? 1 : 0) },
+            isActive: isActive,
+            actions: sanitizedActions,
+            launchArguments: launchArguments.map(redactor.redact),
+            launchEnvironment: redactor.environment(launchEnvironment),
+            testName: testName,
+            codegenIntent: codegenIntent
         )
     }
 }

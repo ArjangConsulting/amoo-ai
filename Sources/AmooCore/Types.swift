@@ -88,7 +88,7 @@ public struct RecordingSession: Sendable, Equatable {
     }
 }
 
-public enum ElementType: String, Sendable, Equatable {
+public enum ElementType: String, Sendable, Equatable, CaseIterable {
     case button
     case textField
     case staticText
@@ -117,6 +117,7 @@ public struct ViewNode: Sendable, Equatable {
     /// Preferred screen-space coordinate for interacting with the visible portion of this node.
     public var hitPoint: Point?
     public var isEnabled: Bool
+    public var isSecureTextEntry: Bool
     public var isVisible: Bool
     public var children: [Self]
 
@@ -129,7 +130,8 @@ public struct ViewNode: Sendable, Equatable {
         hitPoint: Point? = nil,
         isEnabled: Bool = true,
         isVisible: Bool = true,
-        children: [Self] = []
+        children: [Self] = [],
+        isSecureTextEntry: Bool = false
     ) {
         self.id = id
         self.label = label
@@ -139,6 +141,7 @@ public struct ViewNode: Sendable, Equatable {
         self.hitPoint = hitPoint
         self.isEnabled = isEnabled
         self.isVisible = isVisible
+        self.isSecureTextEntry = isSecureTextEntry
         self.children = children
     }
 }
@@ -152,6 +155,7 @@ public struct ElementInfo: Sendable, Equatable {
     /// Preferred screen-space coordinate for interaction; use before falling back to frame center.
     public var hitPoint: Point?
     public var isEnabled: Bool
+    public var isSecureTextEntry: Bool
     public var isVisible: Bool
 
     public init(
@@ -162,7 +166,8 @@ public struct ElementInfo: Sendable, Equatable {
         frame: Rect? = nil,
         hitPoint: Point? = nil,
         isEnabled: Bool = true,
-        isVisible: Bool = true
+        isVisible: Bool = true,
+        isSecureTextEntry: Bool = false
     ) {
         self.id = id
         self.label = label
@@ -172,6 +177,7 @@ public struct ElementInfo: Sendable, Equatable {
         self.hitPoint = hitPoint
         self.isEnabled = isEnabled
         self.isVisible = isVisible
+        self.isSecureTextEntry = isSecureTextEntry
     }
 }
 
