@@ -32,42 +32,100 @@ stdin. It supports both stateless MCP `2026-07-28` requests and the legacy
 
 ## Connecting an MCP client
 
-Add an entry to your MCP client's configuration. For Claude Desktop
-(`~/Library/Application Support/Claude/claude_desktop_config.json`) and Cursor
-(`~/.cursor/mcp.json`), the shape is the same:
+There are two ways to register amoo with an AI client: run the installer script (recommended once
+amoo is installed via Homebrew or built locally), or copy the config snippet for your client by
+hand. Neither runs automatically — installing amoo (via `brew install` or `swift build`) never
+touches another application's configuration on its own; you always trigger this yourself.
 
-```json
-{
-  "mcpServers": {
-    "amoo": {
-      "command": "swift",
-      "args": [
-        "run",
-        "--package-path", "/absolute/path/to/amoo",
-        "amoo", "mcp", "serve",
-        "--platform", "ios"
-      ]
-    }
-  }
-}
-```
-
-For a faster startup, build once and point the client at the binary:
+### Option A: `scripts/install-mcp.sh` (recommended)
 
 ```bash
-swift build -c release
+scripts/install-mcp.sh                          # detects installed clients, asks before each write
+scripts/install-mcp.sh --client claude-code      # target one client
+scripts/install-mcp.sh --client all --platform android
+scripts/install-mcp.sh --dry-run                 # show the diff, write nothing
+scripts/install-mcp.sh --uninstall --client cursor
 ```
+
+It resolves the `amoo` binary the same way Homebrew installs it — `brew --prefix amoo` on both the
+Apple Silicon default prefix (`/opt/homebrew`) and the Intel default (`/usr/local`), falling back to
+`PATH` and then `.build/release/amoo` — so the registered command keeps working across machines
+without a hardcoded path. It only ever edits the one `mcpServers.amoo` (or `mcp_servers.amoo`) entry
+in each client's config, via an atomic write, and shows you a before/after diff before touching
+anything (`--dry-run` shows the diff and stops there). Pass `--bin /path/to/amoo` to point at a
+specific binary (e.g. a debug build).
+
+Supported clients: `claude-code`, `claude-desktop`, `codex`, `cursor`, `windsurf`.
+
+### Option B: manual config
+
+Each client reads its own config file. In all of them, `command` should point at the installed
+`amoo` binary — with Homebrew that's `$(brew --prefix amoo)/bin/amoo` (typically
+`/opt/homebrew/bin/amoo` on Apple Silicon or `/usr/local/bin/amoo` on Intel); resolve it with:
+
+```bash
+AMOO_BIN="$(brew --prefix amoo)/bin/amoo"
+```
+
+Building from source instead, point `command` at `.build/release/amoo` after `swift build -c
+release`, or use `swift run --package-path /absolute/path/to/amoo amoo mcp serve` if you don't want
+a separate build step (slower startup, rebuilds on every launch).
+
+**Claude Code** — no config file to hand-edit; use the CLI:
+
+```bash
+claude mcp add amoo -- "$AMOO_BIN" mcp serve --platform ios
+```
+
+**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "amoo": {
-      "command": "/absolute/path/to/amoo/.build/release/amoo",
+      "command": "/opt/homebrew/bin/amoo",
       "args": ["mcp", "serve", "--platform", "ios"]
     }
   }
 }
 ```
+
+**Codex** — `~/.codex/config.toml` (TOML, not JSON):
+
+```toml
+[mcp_servers.amoo]
+command = "/opt/homebrew/bin/amoo"
+args = ["mcp", "serve", "--platform", "ios"]
+```
+
+**Cursor** — `~/.cursor/mcp.json` (same shape as Claude Desktop):
+
+```json
+{
+  "mcpServers": {
+    "amoo": {
+      "command": "/opt/homebrew/bin/amoo",
+      "args": ["mcp", "serve", "--platform", "ios"]
+    }
+  }
+}
+```
+
+**Windsurf** — `~/.codeium/windsurf/mcp_config.json` (same shape as Claude Desktop):
+
+```json
+{
+  "mcpServers": {
+    "amoo": {
+      "command": "/opt/homebrew/bin/amoo",
+      "args": ["mcp", "serve", "--platform", "ios"]
+    }
+  }
+}
+```
+
+For Android instead of iOS, use `--platform android` in any of the snippets above. Restart the
+client (or reload its MCP connections) after adding or changing the entry.
 
 ## Inspect the server during development
 
