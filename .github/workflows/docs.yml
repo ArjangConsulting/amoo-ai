@@ -27,6 +27,13 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-docs-${{ hashFiles('.github/workflows/docs.yml') }}
+          restore-keys: brew-${{ runner.os }}-docs-
+
       - name: Install tooling
         run: |
           brew install protobuf

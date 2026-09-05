@@ -30,7 +30,19 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-companion-${{ hashFiles('.github/workflows/companions.yml') }}
+          restore-keys: brew-${{ runner.os }}-companion-
       - run: brew install protobuf swift-protobuf protoc-gen-grpc-swift xcodegen
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-companion-ios-
       - run: make companion-ios-build
       - name: Simulator smoke
         run: scripts/run-e2e-ios.sh --skip-build 2>&1 | tee smoke-ios.log
@@ -50,11 +62,41 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: swift-actions/setup-swift@v2
+      - name: Cache Swift toolchain (Swiftly)
+        uses: actions/cache@v4
         with:
-          swift-version: '6.3'
+          path: ~/.local/share/swiftly
+          key: swiftly-${{ runner.os }}-6.3
+      - name: Install Swift 6.3 via Swiftly
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -x "$HOME/.local/share/swiftly/bin/swiftly" ]; then
+            arch="$(uname -m)"
+            curl -fsSL -O "https://download.swift.org/swiftly/linux/swiftly-${arch}.tar.gz"
+            tar -zxf "swiftly-${arch}.tar.gz"
+            ./swiftly init --assume-yes --skip-install --quiet-shell-followup --no-modify-profile
+          fi
+          . "$HOME/.local/share/swiftly/env.sh"
+          swiftly install --use --assume-yes 6.3
+          echo "$HOME/.local/share/swiftly/bin" >> "$GITHUB_PATH"
+          swift --version
       - uses: android-actions/setup-android@v4
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-companion-android-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-companion-android-
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('CompanionApps/Android/**/*.gradle.kts', 'CompanionApps/Android/gradle.properties', 'CompanionApps/Android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
       - run: make companion-android-build
       - name: Enable KVM
         run: |
