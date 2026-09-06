@@ -46,6 +46,10 @@ TARGETS=(
   CommandContract
   TestSession
   OllamaClient
+  WebInspector
+  SessionCompiler
+  StudioProtocol
+  TestCodeGenerator
 )
 
 export PROTOC_PATH="${PROTOC_PATH:-$(command -v protoc)}"

@@ -41,6 +41,10 @@ when you want it included:
 - CommandContract
 - TestSession
 - OllamaClient
+- WebInspector
+- SessionCompiler
+- StudioProtocol
+- TestCodeGenerator
 
 `Protos` (generated protobuf code) and the `amoo` CLI executable are intentionally excluded.
 
@@ -55,3 +59,17 @@ scripts/generate-docs.sh site --static --hosting-base-path /amoo-ai
 This additionally runs `docc process-archive transform-for-static-hosting` and writes a
 root `index.html` redirect, since the DocC web app does not navigate correctly from a bare
 root URL on a static host.
+
+## Architecture guides and visual assets
+
+The combined landing page links to **AmooCore**, whose overview introduces the runtime and
+curates **How Amoo works** and **Recording to generated tests** before the API reference.
+Author these pages in `Sources/AmooCore/AmooCore.docc/`.
+
+The catalog's `Resources/` directory contains self-contained SVG diagrams. These render as
+images in DocC without a Mermaid runtime or external asset host. Each image has a descriptive
+Markdown alternative and the guides explain the same flow in text. The device-evidence image
+is explicitly a placeholder, ready to replace with anonymized fixture screenshots.
+
+To update the visual docs, edit the catalog and run the static build above. Check the AmooCore
+landing page and both guides in the generated archive, including their image references.
