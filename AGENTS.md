@@ -96,7 +96,7 @@ App-owned generated-test context (base class, helpers, id catalog) is in
 
 ## External Dependencies
 
-`swift run amoo preflight --platform ios|android` checks these; device-only tooling reports `WARN`
+`amoo preflight --platform ios|android` checks these; device-only tooling reports `WARN`
 rather than `FAIL`, so simulator-only setups still pass.
 
 | Tool | Install | Needed for |

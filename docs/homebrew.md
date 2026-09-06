@@ -38,7 +38,8 @@ git push origin <version>
 The tap formula points at the **prebuilt binary tarballs** attached to each GitHub Release
 (`amoo-<version>-macos-universal.tar.gz` and `amoo-<version>-linux-static.tar.gz`), not a source
 tarball. Each archive also carries the companion project required at runtime (both companion
-projects on macOS and the Android companion on Linux). The release workflow updates the tap
+projects on macOS and the Android companion on Linux), plus `scripts/install-mcp.sh`. The formula
+installs the opt-in, user-wide MCP installer at `$(brew --prefix amoo)/share/amoo/install-mcp.sh`. The release workflow updates the tap
 automatically:
 
 1. After the macOS + Linux binaries are built and the GitHub Release is created, the

@@ -14,16 +14,18 @@ is `127.0.0.1:22087` for iOS or `127.0.0.1:22088` for Android. Physical devices 
 Both companions bind IPv4 loopback. Remote network exposure is not a supported deployment mode;
 there is no remote authentication/TLS layer. See [prerequisites](prerequisites.md).
 
+Install the CLI with `brew install arjangconsulting/tap/amoo`; no source checkout is required.
+
 ## Start the server manually
 
 ```bash
-swift run amoo mcp serve
+amoo mcp serve
 ```
 
 By default this targets the iOS companion on port `22087`. For Android or custom ports:
 
 ```bash
-swift run amoo mcp serve --platform android --port 22088
+amoo mcp serve --platform android --port 22088
 ```
 
 The server speaks JSON-RPC over `stdio` and exits cleanly when the client closes
@@ -37,21 +39,33 @@ amoo is installed via Homebrew or built locally), or copy the config snippet for
 hand. Neither runs automatically — installing amoo (via `brew install` or `swift build`) never
 touches another application's configuration on its own; you always trigger this yourself.
 
-### Option A: `scripts/install-mcp.sh` (recommended)
+### Option A: installer (recommended)
+
+From a Homebrew installation, run from any directory:
 
 ```bash
-scripts/install-mcp.sh                          # detects installed clients, asks before each write
-scripts/install-mcp.sh --client claude-code      # target one client
-scripts/install-mcp.sh --client all --platform android
-scripts/install-mcp.sh --dry-run                 # show the diff, write nothing
-scripts/install-mcp.sh --uninstall --client cursor
+bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh"
+bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --client claude-code
+bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --client all --platform android
+bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --dry-run
+bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --uninstall --client cursor
 ```
+
+From a source checkout, use `scripts/install-mcp.sh` with the same options. Older Homebrew
+packages without the script can use the manual configuration below.
+
+Registration is user-wide: Claude Code uses `--scope user`, and the other clients use their
+home-directory configuration files. This makes amoo available across projects for your account.
+Uninstall removes the user-wide entry. Existing project-local entries are left intact and may
+override it; remove an old Claude Code local entry from that project with
+`claude mcp remove --scope local amoo` if you previously used the old installer.
+See [Claude Code's scope documentation](https://code.claude.com/docs/en/mcp).
 
 It resolves the `amoo` binary the same way Homebrew installs it — `brew --prefix amoo` on both the
 Apple Silicon default prefix (`/opt/homebrew`) and the Intel default (`/usr/local`), falling back to
 `PATH` and then `.build/release/amoo` — so the registered command keeps working across machines
 without a hardcoded path. It only ever edits the one `mcpServers.amoo` (or `mcp_servers.amoo`) entry
-in each client's config, via an atomic write, and shows you a before/after diff before touching
+in each client's user config and previews the change before touching
 anything (`--dry-run` shows the diff and stops there). Pass `--bin /path/to/amoo` to point at a
 specific binary (e.g. a debug build).
 
@@ -67,14 +81,14 @@ Each client reads its own config file. In all of them, `command` should point at
 AMOO_BIN="$(brew --prefix amoo)/bin/amoo"
 ```
 
-Building from source instead, point `command` at `.build/release/amoo` after `swift build -c
+Building from source instead, point `command` at the absolute path to `.build/release/amoo` after `swift build -c
 release`, or use `swift run --package-path /absolute/path/to/amoo amoo mcp serve` if you don't want
 a separate build step (slower startup, rebuilds on every launch).
 
 **Claude Code** — no config file to hand-edit; use the CLI:
 
 ```bash
-claude mcp add amoo -- "$AMOO_BIN" mcp serve --platform ios
+claude mcp add --scope user amoo -- "$AMOO_BIN" mcp serve --platform ios
 ```
 
 **Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -130,7 +144,7 @@ client (or reload its MCP connections) after adding or changing the entry.
 ## Inspect the server during development
 
 ```bash
-npx @modelcontextprotocol/inspector swift run amoo mcp serve
+npx @modelcontextprotocol/inspector amoo mcp serve
 ```
 
 Useful assistant-facing tools include:

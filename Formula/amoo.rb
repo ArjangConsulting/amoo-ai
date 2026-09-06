@@ -21,11 +21,13 @@ class Amoo < Formula
   def install
     bin.install "amoo"
     prefix.install "CompanionApps"
+    (share/"amoo").install "scripts/install-mcp.sh"
   end
 
   test do
     assert_match "Usage: amoo <command> [options]", shell_output("#{bin}/amoo --help")
     assert_match(/\A\d+\.\d+\.\d+/, shell_output("#{bin}/amoo --version"))
+    assert_path_exists share/"amoo/install-mcp.sh"
     assert_path_exists prefix/"CompanionApps/Android/gradlew"
     assert_path_exists prefix/"CompanionApps/iOS/project.yml" if OS.mac?
   end
