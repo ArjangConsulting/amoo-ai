@@ -44,12 +44,15 @@ case "$PLATFORM" in
   *) echo "error: --platform must be 'ios' or 'android'" >&2; exit 1 ;;
 esac
 
-# Resolve the amoo binary. Prefers the Homebrew keg (works on both the Apple Silicon default
-# prefix /opt/homebrew and the Intel default /usr/local — `brew --prefix` reports whichever is
-# active rather than hardcoding either), then falls back to PATH, then a local release build.
+# Resolve the amoo binary: explicit override, PATH (including Homebrew),
+# Homebrew prefix, then a release build in this checkout.
 resolve_bin() {
   if [ -n "$BIN_PATH" ]; then
     echo "$BIN_PATH"
+    return
+  fi
+  if command -v amoo >/dev/null 2>&1; then
+    command -v amoo
     return
   fi
   if command -v brew >/dev/null 2>&1; then
@@ -58,10 +61,6 @@ resolve_bin() {
       echo "$brew_prefix/bin/amoo"
       return
     fi
-  fi
-  if command -v amoo >/dev/null 2>&1; then
-    command -v amoo
-    return
   fi
   local repo_root
   repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -78,7 +77,14 @@ if [ -z "$AMOO_BIN" ] && [ "$UNINSTALL" -eq 0 ]; then
   echo "Install it first (brew install amoo, or swift build -c release), or pass --bin." >&2
   exit 1
 fi
-[ -n "$AMOO_BIN" ] && echo "Using amoo binary: $AMOO_BIN"
+if [ -n "$AMOO_BIN" ] && [ "$UNINSTALL" -eq 0 ]; then
+  if [ ! -x "$AMOO_BIN" ]; then
+    echo "error: amoo binary is not executable: $AMOO_BIN" >&2
+    exit 1
+  fi
+  AMOO_BIN="$(cd "$(dirname "$AMOO_BIN")" && pwd)/$(basename "$AMOO_BIN")"
+  echo "Using amoo binary: $AMOO_BIN"
+fi
 
 PYTHON="$(command -v python3 || true)"
 if [ -z "$PYTHON" ]; then
