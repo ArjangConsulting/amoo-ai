@@ -61,10 +61,9 @@ override it; remove an old Claude Code local entry from that project with
 `claude mcp remove --scope local amoo` if you previously used the old installer.
 See [Claude Code's scope documentation](https://code.claude.com/docs/en/mcp).
 
-It resolves the `amoo` binary the same way Homebrew installs it — `brew --prefix amoo` on both the
-Apple Silicon default prefix (`/opt/homebrew`) and the Intel default (`/usr/local`), falling back to
-`PATH` and then `.build/release/amoo` — so the registered command keeps working across machines
-without a hardcoded path. It only ever edits the one `mcpServers.amoo` (or `mcp_servers.amoo`) entry
+Binary resolution prefers `--bin`, then `amoo` on `PATH` (including Homebrew), then
+`brew --prefix amoo`, then a release build in this checkout. The registered path is absolute.
+It only ever edits the one `mcpServers.amoo` (or `mcp_servers.amoo`) entry
 in each client's user config and previews the change before touching
 anything (`--dry-run` shows the diff and stops there). Pass `--bin /path/to/amoo` to point at a
 specific binary (e.g. a debug build).
