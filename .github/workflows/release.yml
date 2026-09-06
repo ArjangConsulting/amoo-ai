@@ -161,10 +161,12 @@ jobs:
           tar -czf "amoo-${VERSION}-macos-universal.tar.gz" \
             amoo \
             CompanionApps/iOS \
-            CompanionApps/Android
+            CompanionApps/Android \
+            scripts/install-mcp.sh
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'amoo'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/iOS/project.yml'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-macos-universal.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -232,9 +234,11 @@ jobs:
           cp .build/release/amoo amoo
           tar -czf "amoo-${VERSION}-linux-static.tar.gz" \
             amoo \
-            CompanionApps/Android
+            CompanionApps/Android \
+            scripts/install-mcp.sh
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'amoo'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
+          tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact

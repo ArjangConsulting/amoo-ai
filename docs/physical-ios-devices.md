@@ -23,7 +23,7 @@ Amoo starts and stops the tunnel itself; you only need the binary installed. Che
 setup with:
 
 ```bash
-swift run amoo preflight --platform ios
+amoo preflight --platform ios
 ```
 
 `ios.devicectl` and `ios.iproxy` report `WARN` rather than `FAIL` when missing, since

@@ -21,50 +21,73 @@ brew tap arjangconsulting/tap
 brew install amoo
 ```
 
-Or build from source (see Quick Start below).
+Homebrew installs a prebuilt CLI and the companion projects. No amoo source checkout is needed.
 
-## Quick Start
+## Quick Start (Homebrew)
 
-Use Swift 6.2 or newer (see `Package.swift`), macOS 15+ for iOS tooling, and install `protoc`:
+For iOS, use macOS 15+ with Xcode and an installed simulator runtime:
 
 ```bash
-brew install protobuf xcodegen libimobiledevice
+brew install protobuf xcodegen
+amoo preflight --platform ios
+amoo mcp serve
 ```
 
-Verify your setup:
+For physical iOS devices, also install `libimobiledevice`. For Android, install a supported
+JDK (17–26) and Android SDK, then run:
 
 ```bash
+brew install --cask temurin@21
+amoo preflight --platform android
+amoo mcp serve --platform android
+```
+
+To let an AI drive a managed session, register amoo with your client. The Homebrew package
+includes an installer you can run from any project:
+
+```bash
+bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh"
+```
+
+It detects Claude Code, Claude Desktop, Codex, Cursor, and Windsurf, asks before writing,
+and registers amoo in your user configuration for use across projects. For manual Claude Code
+setup (also works with older packages without the installer):
+
+```bash
+claude mcp add --scope user amoo -- "$(brew --prefix amoo)/bin/amoo" mcp serve --platform ios
+```
+
+Then call `start_session` with `platform` and `app_id`, keeping the returned `session_id` on every
+device call. See the [MCP guide](docs/mcp-server.md) for per-client config snippets, installer
+options, and smaller tool profiles, and [prerequisites](docs/prerequisites.md) for platform tooling.
+
+## Build from Source (Contributors)
+
+From an amoo checkout, use Swift 6.2 or newer (see `Package.swift`) and install `protoc`:
+
+```bash
+brew install protobuf
+swift build -c release
 swift run amoo preflight --platform ios
-```
-
-Build and test:
-
-```bash
 make test
 make lint
 ```
 
-Run the iOS end-to-end flow against a booted simulator:
+The user guides use `amoo` for the installed CLI. When developing from this checkout, substitute
+`swift run amoo` or the absolute path to `.build/release/amoo`.
+
+To register your local release build across projects:
+
+```bash
+scripts/install-mcp.sh --bin "$PWD/.build/release/amoo"
+```
+
+Repository end-to-end checks require a checkout and the platform tooling:
 
 ```bash
 scripts/run-e2e-ios.sh
-```
-
-For Android, install a supported JDK (17–26) and Android SDK, then run:
-
-```bash
-swift run amoo preflight --platform android
 scripts/run-e2e-android.sh
 ```
-
-To let an AI drive a managed session, register amoo as an MCP server with your client — run
-`scripts/install-mcp.sh` to auto-detect and configure Claude Code, Claude Desktop, Codex, Cursor,
-or Windsurf (it asks before writing anything), or configure it by hand to run `amoo mcp serve`.
-Then call `start_session` with `platform` and `app_id`, keeping the returned `session_id` on every
-device call. See the [MCP guide](docs/mcp-server.md) for per-client config snippets, the installer
-script's options, and smaller tool profiles.
-
-See [docs/prerequisites.md](docs/prerequisites.md) for the full dependency table and rationale.
 
 ## Documentation
 
@@ -79,7 +102,7 @@ See [docs/prerequisites.md](docs/prerequisites.md) for the full dependency table
 - [iOS E2E Runbook](docs/e2e-ios.md) — full workflow and troubleshooting
 - [Command Contract Guide](docs/command-contract.md) — contributor checklist for coverage
 - [API Documentation (DocC)](docs/documentation.md) — generating and browsing the DocC site
-- [Homebrew install](docs/homebrew.md) — tap setup and release checklist (maintainer-only)
+- [Homebrew release checklist](docs/homebrew.md) — tap setup and release checklist (maintainer-only)
 - [Product/spec context](Instruction.md)
 - [System design and module boundaries](Architecture.md)
 

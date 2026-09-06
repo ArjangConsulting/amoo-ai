@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Registers amoo as an MCP server with a locally installed AI client (Claude Code, Claude
+# Registers amoo user-wide (across projects) as an MCP server with a locally installed AI client (Claude Code, Claude
 # Desktop, Codex, Cursor, or Windsurf). Opt-in only — this never runs automatically (not from
 # `brew install`, not from `make`); the user invokes it by hand and confirms every write.
 #
@@ -101,7 +101,6 @@ confirm() {
 # Never modifies any other content in the file. Creates parent dirs if needed.
 json_merge_server() {
   local mode="$1" file="$2" key="$3"; shift 3
-  mkdir -p "$(dirname "$file")"
   "$PYTHON" - "$mode" "$file" "$key" "$UNINSTALL" "$@" <<'PYEOF'
 import json, os, sys
 
@@ -129,6 +128,7 @@ if before == after:
 
 print(f"--- {key} (before)\n{before}\n+++ {key} (after)\n{after}")
 if mode == "write":
+    os.makedirs(os.path.dirname(file), exist_ok=True)
     with open(file + ".amoo-tmp", "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
@@ -168,15 +168,15 @@ install_claude_code() {
   echo
   echo "== Claude Code =="
   if [ "$UNINSTALL" -eq 1 ]; then
-    echo "Would run: claude mcp remove amoo"
+    echo "Would run: claude mcp remove --scope user amoo"
     if [ "$DRY_RUN" -eq 0 ] && confirm "Remove the amoo MCP server from Claude Code?"; then
-      claude mcp remove amoo || true
+      claude mcp remove --scope user amoo || true
     fi
     return
   fi
-  echo "Would run: claude mcp add amoo -- $AMOO_BIN mcp serve --platform $PLATFORM"
+  echo "Would run: claude mcp add --scope user amoo -- $AMOO_BIN mcp serve --platform $PLATFORM"
   if [ "$DRY_RUN" -eq 0 ] && confirm "Register amoo with Claude Code now?"; then
-    claude mcp add amoo -- "$AMOO_BIN" mcp serve --platform "$PLATFORM"
+    claude mcp add --scope user amoo -- "$AMOO_BIN" mcp serve --platform "$PLATFORM"
   fi
 }
 

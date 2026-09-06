@@ -1,7 +1,11 @@
 # Prerequisites
 
-Amoo depends on these external tools. Only `protoc` is needed for every build; the rest are
-scoped to a platform or target type.
+Install the prebuilt CLI with `brew install arjangconsulting/tap/amoo`. The examples below use
+that installed `amoo` command and work outside the amoo repository. Platform tooling is still
+needed to build and run companions; Homebrew supplies their projects with the CLI.
+
+For source development, use `swift run amoo` from the checkout instead. `protoc` is needed
+for Swift builds, including the iOS companion; other tools depend on the platform or target.
 
 | Dependency | Install | Required for |
 | --- | --- | --- |
@@ -9,7 +13,7 @@ scoped to a platform or target type.
 | `protoc` | `brew install protobuf` | **All builds** — the gRPC Swift protobuf plugin |
 | `xcodegen` | `brew install xcodegen` | Regenerating the iOS companion project |
 | **`libimobiledevice`** | **`brew install libimobiledevice`** | **Physical iOS devices** — supplies `iproxy`, the USB tunnel to the companion. Not needed for simulators. |
-| JDK 17–21 | `brew install --cask temurin@21` | Android companion. AGP 8.7 does not run on anything newer. The build resolves an installed JDK in this range on its own, so `JAVA_HOME` rarely needs setting. |
+| JDK 17–26 | `brew install --cask temurin@21` | Android companion. The project uses AGP 9.3 / Gradle 9.5. The build resolves an installed JDK in this range on its own, so `JAVA_HOME` rarely needs setting. |
 | Android SDK + platform-tools | Android Studio | Anything Android |
 | Android CLI 1.0+ | [Android CLI](https://developer.android.com/tools/agents/android-cli) | Optional diagnostic inspector for structured-layout comparison. Amoo's companion is the production default. |
 
@@ -22,7 +26,7 @@ brew install protobuf xcodegen libimobiledevice
 Then verify:
 
 ```bash
-swift run amoo preflight --platform ios
+amoo preflight --platform ios
 ```
 
 Device-only tooling (`ios.devicectl`, `ios.iproxy`) reports `WARN` rather than `FAIL`, so a
@@ -53,7 +57,7 @@ instrumentation, then collect the Android CLI sample against the unchanged scree
 to a package or system process always use the companion because Android CLI's current `layout`
 command has no package-scoping option.
 
-## Common Commands
+## Contributor Commands
 
 From the repo root:
 
