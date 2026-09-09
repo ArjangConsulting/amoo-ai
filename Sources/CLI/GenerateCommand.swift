@@ -218,7 +218,8 @@ public func runGenerateTestCommand(
         )
     }
 
-    var generated = try emitter.generate(test)
+    var exportedTest = test
+    var generated = try emitter.generate(exportedTest)
 
     guard let outputDirectory = options.outputDirectory else {
         return CLIResult(output: generated.source, exitCode: 0)
@@ -229,10 +230,12 @@ public func runGenerateTestCommand(
     var fileURL = directoryURL.appendingPathComponent(generated.fileName)
     var collisionSuffix = 2
     while FileManager.default.fileExists(atPath: fileURL.path) {
-        generated = try emitter.generate(test.replacingName("\(test.name) \(collisionSuffix)"))
+        exportedTest = test.replacingName("\(test.name) \(collisionSuffix)")
+        generated = try emitter.generate(exportedTest)
         fileURL = directoryURL.appendingPathComponent(generated.fileName)
         collisionSuffix += 1
     }
     try generated.source.write(to: fileURL, atomically: true, encoding: .utf8)
+    try writeGenerationProvenance(plan: exportedTest, sourcePath: options.planPath, generatedFile: fileURL)
     return CLIResult(output: "Wrote \(fileURL.path)", exitCode: 0)
 }

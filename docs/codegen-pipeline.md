@@ -115,3 +115,16 @@ application step — never for a lifecycle call (those are `.notApplicable`, see
 - `Tests/IntegrationTests/IOSSessionCodegenRegressionTests.swift` — the full record → compile →
   generate acceptance scenario, end to end.
 - `Tests/CLITests/GenerateCommandTests.swift`, `GeneratePlanCommandTests.swift` — the CLI surface.
+
+## Assertion-quality review
+
+Compilation preserves advisory warnings for visible-copy selectors, absence assertions
+without a prior positive assertion on the same target, and a final mutation without
+subsequent verification. Review these alongside incomplete-plan warnings. They are
+heuristics, not proof that a test is incorrect, and do not block legitimate guest-state
+or other initial absence assertions. Retain the source report and plan with finalized
+tests so their action indexes remain traceable.
+
+Exports written with `--out` include a `<generated-file>.provenance.json` sidecar.
+It retains the effective plan after context/helper binding and name collision resolution,
+including warnings, plus the source plan path. Keep it beside the finalized test.

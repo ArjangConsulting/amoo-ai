@@ -32,12 +32,13 @@ extension MCPServerTests {
         let flowPath = try XCTUnwrap(structured["flow_path"]?.stringValue)
         XCTAssertTrue(FileManager.default.fileExists(atPath: planPath))
         XCTAssertTrue(FileManager.default.fileExists(atPath: flowPath))
-        XCTAssertEqual(structured["warning_count"]?.intValue, 0)
+        XCTAssertEqual(structured["warning_count"]?.intValue, 1)
 
         // The written plan decodes as a StudioAuthoredTest (what `amoo generate test --plan` reads).
         let planData = try Data(contentsOf: URL(fileURLWithPath: planPath))
         let plan = try JSONDecoder().decode(StudioAuthoredTest.self, from: planData)
         XCTAssertEqual(plan.compiledPlan?.toolOperations?.first?.tool, "tap_element")
+        XCTAssertEqual(plan.compiledPlan?.warnings?.count, 1)
     }
 
     func testCompileSessionToPlanResolvesSessionFromDiskAfterRestart() async throws {
