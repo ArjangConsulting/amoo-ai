@@ -1,5 +1,11 @@
 import Foundation
 
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
+
 /// Tracks cancellable requests and serializes complete output frames. Blocking input runs on a
 /// dedicated Dispatch worker so it never holds a Swift cooperative executor thread.
 actor MCPRequestRuntime {
@@ -47,7 +53,7 @@ actor MCPRequestRuntime {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
             DispatchQueue(label: "amoo.mcp.input").async {
                 do {
-                    while let data = try handle.read(upToCount: 65536), !data.isEmpty {
+                    while let data = try readAvailable(handle) {
                         switch continuation.yield(data) {
                         case .enqueued: break
                         case .dropped:
@@ -60,6 +66,25 @@ actor MCPRequestRuntime {
                     continuation.finish()
                 } catch { continuation.finish(throwing: error) }
             }
+        }
+    }
+
+    // FileHandle.read(upToCount:) can wait to fill the requested count on a pipe.
+    // A single POSIX read returns available bytes, allowing request/response clients to proceed.
+    nonisolated private static func readAvailable(_ handle: FileHandle) throws -> Data? {
+        var bytes = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let count = read(handle.fileDescriptor, &bytes, bytes.count)
+            if count > 0 {
+                return Data(bytes.prefix(count))
+            }
+            if count == 0 {
+                return nil
+            }
+            if errno == EINTR {
+                continue
+            }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
     }
 

@@ -433,7 +433,7 @@ public enum SessionPlanCompiler {
         let processed = processActions(report.actions, retries: retries, interval: interval)
         let toolOperations = annotatePresetOptionTaps(processed.compactMap(\.operation))
         let steps = processed.compactMap(\.step)
-        var warnings = processed.flatMap(\.warnings)
+        var warnings = processed.flatMap(\.warnings) + SessionPlanQualityReview.warnings(for: report.actions)
         if (report.launchArguments + Array(report.launchEnvironment.values))
             .contains(where: { $0.contains("<redacted") }) {
             warnings.append(SessionPlanWarning(
