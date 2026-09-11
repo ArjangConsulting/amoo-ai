@@ -40,6 +40,18 @@ final class ReviewRegressionTests: XCTestCase {
         XCTAssertEqual(mutations, 0)
     }
 
+    /// The ambiguous-selector error must hand the caller enough to disambiguate itself
+    /// (a real id per candidate, or a hit point) instead of pushing it to a blind coordinate tap.
+    func testAmbiguousSelectorSurfacesCandidateDisambiguationInfo() async {
+        let driver = VerificationDriver(values: [""], duplicates: true)
+        let executor = DriverToolExecutor(driver: driver)
+        let result = await executor.execute(toolName: "tap_element", arguments: ["label": "Delete"])
+        XCTAssertTrue(result.content.contains("id=field"))
+        let candidates = result.structuredContent?.objectValue?["candidates"]?.arrayValue
+        XCTAssertEqual(candidates?.count, 2)
+        XCTAssertEqual(candidates?.first?.objectValue?["id"]?.stringValue, "field")
+    }
+
     func testTruncatedTextIsNotVerified() async {
         let driver = VerificationDriver(values: ["", "123"])
         let executor = DriverToolExecutor(driver: driver)
