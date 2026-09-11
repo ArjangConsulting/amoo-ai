@@ -70,6 +70,8 @@ cleanup() {
         kill "$INSTRUMENT_PID" 2>/dev/null || true
         wait "$INSTRUMENT_PID" 2>/dev/null || true
     fi
+    log "Saving device logcat to $REPO_ROOT/logcat-android.log..."
+    "${ADB_BASE[@]}" logcat -d >"$REPO_ROOT/logcat-android.log" 2>&1 || true
     "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" shell am force-stop com.amoo.companion.test >/dev/null 2>&1 || true
     "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" forward --remove "tcp:$COMPANION_PORT" >/dev/null 2>&1 || true
     log "Done."
@@ -93,6 +95,8 @@ fi
 
 log "Forwarding localhost:$COMPANION_PORT to device port $COMPANION_PORT..."
 "${ADB_BASE[@]}" forward "tcp:$COMPANION_PORT" "tcp:$COMPANION_PORT"
+
+"${ADB_BASE[@]}" logcat -c
 
 log "Starting Android companion instrumentation..."
 "${ADB_BASE[@]}" shell am instrument \
