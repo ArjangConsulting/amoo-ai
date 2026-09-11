@@ -5,6 +5,8 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPANION_DIR="$REPO_ROOT/CompanionApps/Android"
 COMPANION_PORT="${COMPANION_PORT:-22088}"
 DEVICE_SERIAL="${DEVICE_SERIAL:-}"
+FIXTURE_APP_ID="com.amoo.samples.compose"
+FIXTURE_APK="$REPO_ROOT/CompanionApps/Android/composeSampleApp/build/outputs/apk/debug/composeSampleApp-debug.apk"
 SKIP_BUILD=false
 ADB_BASE=(adb)
 INSTRUMENT_PID=""
@@ -93,6 +95,13 @@ else
     log "Skipping build/install (--skip-build)."
 fi
 
+if [[ ! -f "$FIXTURE_APK" ]]; then
+    error "Fixture APK not found at $FIXTURE_APK. Run 'make sample-app-compose-build' first."
+    exit 1
+fi
+log "Installing fixture app ($FIXTURE_APP_ID)..."
+"${ADB_BASE[@]}" install -r "$FIXTURE_APK"
+
 log "Forwarding localhost:$COMPANION_PORT to device port $COMPANION_PORT..."
 "${ADB_BASE[@]}" forward "tcp:$COMPANION_PORT" "tcp:$COMPANION_PORT"
 
@@ -120,4 +129,10 @@ done
 log "Companion is reachable after ${WAITED}s."
 
 log "Running integration tests..."
-(cd "$REPO_ROOT" && COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="android" E2E_DEVICE_ID="$DEVICE_SERIAL" E2E_APP_ID="com.amoo.companion" swift test --filter "${AMOO_E2E_FILTER:-IntegrationTests}")
+# The fixture app must be a package distinct from com.amoo.companion: CompanionRunner
+# self-instruments com.amoo.companion, so the gRPC server it hosts runs inside that same
+# process. `am force-stop`ing com.amoo.companion (as resetFixtureApp does between tests)
+# would kill the server it's talking through. iOS avoids this because its UI test runner
+# is architecturally a separate process from the app under test; UiAutomator here drives
+# the fixture app system-wide without needing to share its process.
+(cd "$REPO_ROOT" && COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="android" E2E_DEVICE_ID="$DEVICE_SERIAL" E2E_APP_ID="$FIXTURE_APP_ID" swift test --filter "${AMOO_E2E_FILTER:-IntegrationTests}")
