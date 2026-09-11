@@ -60,7 +60,9 @@ cannot prove the secret's exact value. Use a subsequent app-level result where a
 
 Screenshot output includes pixels, gesture points, and scale. Use a modest scale for visual
 inspection. For evidence saved without model image input, use output=<path> return_image=false.
-For unlabeled controls or image coordinates, read [coordinate guidance](references/coordinates.md).
+For unlabeled controls, image coordinates, or reusing geometry across taps, read
+[coordinate guidance](references/coordinates.md) — a coordinate read before any tap is stale
+after it; re-query before and after each one rather than chaining blind taps.
 An unlabeled control can still be located by an unfiltered find_elements query.
 
 Use record_value=fixture only for explicitly non-sensitive test data that belongs in generated
