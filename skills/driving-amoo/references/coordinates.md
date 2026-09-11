@@ -60,3 +60,13 @@ Two things worth trying before falling back to a coordinate:
 
 Verify with `describe_screen` after the tap. A coordinate tap that hit nothing
 still reports success.
+
+## Stale geometry after a tap
+
+A coordinate read before a tap is not valid after it — any tap, even a wrong one,
+can reflow the screen (an accordion/disclosure row is the classic case: expanding
+one section shifts every row below it). Never chain a second coordinate tap off
+geometry from before the prior tap. Re-run `find_elements`/`describe_screen`
+immediately before each coordinate tap and again after it; treat post-tap state
+as unknown, not as what you expected. One fresh query per tap is cheaper than
+the screenshot round-trips needed to recover from a run of blind chained taps.
