@@ -53,11 +53,25 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
 
     @discardableResult
     public func run(_ arguments: [String]) async throws -> ProcessResult {
+        try await run(arguments, timeoutSeconds: nil)
+    }
+
+    /// Read-only `devicectl` queries have no legitimate reason to run long, but `devicectl` is
+    /// known to hang indefinitely — well past any interactive wait — when a previously-paired
+    /// device is present but unreachable (e.g. no network path to it). `listDevices()` in
+    /// particular runs unconditionally on every session bootstrap (even pure-simulator sessions),
+    /// so an unbounded wait there wedges every caller with no build ever starting and no way to
+    /// tell a slow query from a truly stuck one.
+    @discardableResult
+    private func run(_ arguments: [String], timeoutSeconds: TimeInterval?) async throws -> ProcessResult {
         guard !arguments.isEmpty else {
             throw ProcessRunnerError.emptyCommand
         }
 
-        let command = Command("xcrun").args(["devicectl"] + arguments)
+        var command = Command("xcrun").args(["devicectl"] + arguments)
+        if let timeoutSeconds {
+            command = command.timeout(timeoutSeconds)
+        }
         do {
             return try await command.run(in: context).processResult
         } catch let error as ShellError {
@@ -70,7 +84,7 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
     // MARK: - Device Discovery
 
     public func listDevices() async throws -> String {
-        let result = try await run(["list", "devices", "--json-output", "-"])
+        let result = try await run(["list", "devices", "--json-output", "-"], timeoutSeconds: 20)
         return result.stdout
     }
 
@@ -130,9 +144,10 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
     }
 
     public func listApps(device: String) async throws -> String {
-        let result = try await run([
-            "device", "info", "apps", "--device", device, "--json-output", "-"
-        ])
+        let result = try await run(
+            ["device", "info", "apps", "--device", device, "--json-output", "-"],
+            timeoutSeconds: 20
+        )
         return result.stdout
     }
 
@@ -220,9 +235,10 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
 
     /// Resolves a bundle identifier to a running process ID, or `nil` when not running.
     private func runningProcessID(device: String, appID: String) async throws -> Int32? {
-        let result = try await run([
-            "device", "info", "processes", "--device", device, "--json-output", "-"
-        ])
+        let result = try await run(
+            ["device", "info", "processes", "--device", device, "--json-output", "-"],
+            timeoutSeconds: 20
+        )
         return Self.parseProcessID(json: result.stdout, appID: appID)
     }
 
