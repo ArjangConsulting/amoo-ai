@@ -23,6 +23,10 @@ public enum SessionTools {
                 "build_path": .init(
                     type: "string",
                     description: "Optional path to an .app bundle or .apk to install before launching."
+                        + " Installs over any existing copy in place, preserving its data (auth session,"
+                        + " onboarding state, etc.) — the same behavior as `simctl install`/`devicectl"
+                        + " install`. For a genuinely clean install, uninstall the app first, then pass"
+                        + " build_path."
                 ),
                 "test_name": .init(
                     type: "string",
