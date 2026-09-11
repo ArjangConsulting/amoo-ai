@@ -152,9 +152,10 @@ private fun TextInputScreen(onBack: () -> Unit) {
         TextField(
             value = value,
             onValueChange = { value = it },
+            placeholder = { Text("Hello from the fixture app") },
             modifier = Modifier
-                .testTag("fixture_text_field")
-                .semantics { contentDescription = "fixture-text-field" }
+                .testTag("fixture_text_input")
+                .semantics { contentDescription = "fixture-text-input" }
         )
         Text(
             text = "Echo: $value",
