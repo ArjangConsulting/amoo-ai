@@ -68,13 +68,24 @@ select_device() {
 
 cleanup() {
     log "Cleaning up..."
+    # CompanionRunner self-instruments com.amoo.companion, so the gRPC server it starts
+    # blocks that app's process forever. `am instrument -w` (and thus the local adb client
+    # in $INSTRUMENT_PID) only returns once that remote process dies, so it must be
+    # force-stopped on-device *before* killing/waiting on the local wrapper below, or the
+    # wait blocks until the CI job timeout kills the whole run.
+    "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" shell am force-stop com.amoo.companion >/dev/null 2>&1 || true
+    "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" shell am force-stop com.amoo.companion.test >/dev/null 2>&1 || true
     if [[ -n "$INSTRUMENT_PID" ]]; then
         kill "$INSTRUMENT_PID" 2>/dev/null || true
+        for _ in $(seq 1 10); do
+            kill -0 "$INSTRUMENT_PID" 2>/dev/null || break
+            sleep 1
+        done
+        kill -9 "$INSTRUMENT_PID" 2>/dev/null || true
         wait "$INSTRUMENT_PID" 2>/dev/null || true
     fi
     log "Saving device logcat to $REPO_ROOT/logcat-android.log..."
     "${ADB_BASE[@]}" logcat -d >"$REPO_ROOT/logcat-android.log" 2>&1 || true
-    "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" shell am force-stop com.amoo.companion.test >/dev/null 2>&1 || true
     "${ADB_BASE[@]}" -s "$DEVICE_SERIAL" forward --remove "tcp:$COMPANION_PORT" >/dev/null 2>&1 || true
     log "Done."
 }
