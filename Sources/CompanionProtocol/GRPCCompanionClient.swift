@@ -459,7 +459,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     private let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>
     private let client: Amoo_CompanionService.Client<HTTP2ClientTransport.Posix>
-    private let connectionTask: Task<Void, Never>
+    private var connectionTask: Task<Void, Never>?
 
     package init(connection: CompanionConnection) throws {
         let transport = try HTTP2ClientTransport.Posix(
@@ -469,98 +469,109 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         let grpcClient = GRPCClient(transport: transport)
         self.grpcClient = grpcClient
         client = Amoo_CompanionService.Client(wrapping: grpcClient)
-        connectionTask = Task {
-            do {
-                try await grpcClient.runConnections()
-            } catch {
-                // Connection errors are surfaced on RPC calls.
-            }
-        }
     }
 
     deinit {
         grpcClient.beginGracefulShutdown()
-        connectionTask.cancel()
+        connectionTask?.cancel()
+    }
+
+    /// Dialing eagerly at construction time crashes grpc-swift-2 when nothing is listening yet
+    /// (Subchannel's connect-failure path aborts via a DiscardingTaskGroup dealloc-ordering bug).
+    /// `mcp serve` constructs this client before any companion process exists, so the connection
+    /// attempt must wait until the first real RPC, by which point a companion has been launched.
+    private var connectedClient: Amoo_CompanionService.Client<HTTP2ClientTransport.Posix> {
+        if connectionTask == nil {
+            let grpcClient = grpcClient
+            connectionTask = Task {
+                do {
+                    try await grpcClient.runConnections()
+                } catch {
+                    // Connection errors are surfaced on RPC calls.
+                }
+            }
+        }
+        return client
     }
 
     package func startSession(_ request: Amoo_StartSessionRequest) async throws
         -> Amoo_StartSessionResponse {
-        try await client.startSession(request, options: Self.gestureCallOptions)
+        try await connectedClient.startSession(request, options: Self.gestureCallOptions)
     }
 
     package func getCapabilities(
         _ request: Amoo_CapabilitiesRequest
     ) async throws -> Amoo_CapabilitiesResponse {
-        try await client.getCapabilities(request, options: Self.gestureCallOptions)
+        try await connectedClient.getCapabilities(request, options: Self.gestureCallOptions)
     }
 
     package func endSession(_ request: Amoo_EndSessionRequest) async throws
         -> Amoo_EndSessionResponse {
-        try await client.endSession(request, options: Self.gestureCallOptions)
+        try await connectedClient.endSession(request, options: Self.gestureCallOptions)
     }
 
     package func tap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
-        try await client.tap(request, options: Self.gestureCallOptions)
+        try await connectedClient.tap(request, options: Self.gestureCallOptions)
     }
 
     package func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse {
-        try await client.doubleTap(request, options: Self.gestureCallOptions)
+        try await connectedClient.doubleTap(request, options: Self.gestureCallOptions)
     }
 
     package func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse {
-        try await client.longPress(request, options: Self.gestureCallOptions)
+        try await connectedClient.longPress(request, options: Self.gestureCallOptions)
     }
 
     package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
-        try await client.tapElement(request, options: Self.gestureCallOptions)
+        try await connectedClient.tapElement(request, options: Self.gestureCallOptions)
     }
 
     package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
-        try await client.swipe(request, options: Self.gestureCallOptions)
+        try await connectedClient.swipe(request, options: Self.gestureCallOptions)
     }
 
     package func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws
         -> Amoo_ActionResponse {
-        try await client.swipeInDirection(request, options: Self.gestureCallOptions)
+        try await connectedClient.swipeInDirection(request, options: Self.gestureCallOptions)
     }
 
     package func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse {
-        try await client.scroll(request, options: Self.gestureCallOptions)
+        try await connectedClient.scroll(request, options: Self.gestureCallOptions)
     }
 
     package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
-        try await client.drag(request, options: Self.gestureCallOptions)
+        try await connectedClient.drag(request, options: Self.gestureCallOptions)
     }
 
     package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
-        try await client.typeText(request, options: Self.gestureCallOptions)
+        try await connectedClient.typeText(request, options: Self.gestureCallOptions)
     }
 
     package func clearText(_ request: Amoo_ClearTextRequest) async throws -> Amoo_ActionResponse {
-        try await client.clearText(request, options: Self.gestureCallOptions)
+        try await connectedClient.clearText(request, options: Self.gestureCallOptions)
     }
 
     package func setText(_ request: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
-        try await client.setText(request, options: Self.gestureCallOptions)
+        try await connectedClient.setText(request, options: Self.gestureCallOptions)
     }
 
     package func pressBack(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
-        try await client.pressBack(request, options: Self.gestureCallOptions)
+        try await connectedClient.pressBack(request, options: Self.gestureCallOptions)
     }
 
     package func pressHome(_ request: Amoo_Empty) async throws -> Amoo_ActionResponse {
-        try await client.pressHome(request, options: Self.gestureCallOptions)
+        try await connectedClient.pressHome(request, options: Self.gestureCallOptions)
     }
 
     package func findElements(_ request: Amoo_FindElementsRequest) async throws
         -> Amoo_FindElementsResponse {
-        try await client.findElements(request, options: Self.gestureCallOptions)
+        try await connectedClient.findElements(request, options: Self.gestureCallOptions)
     }
 
     package func getViewHierarchy(
         _ request: Amoo_ViewHierarchyRequest
     ) async throws -> Amoo_ViewHierarchyResponse {
-        try await client.getViewHierarchy(request, options: Self.gestureCallOptions)
+        try await connectedClient.getViewHierarchy(request, options: Self.gestureCallOptions)
     }
 
     package func waitForElement(
@@ -568,61 +579,61 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     ) async throws -> Amoo_WaitForElementResponse {
         var options = Self.gestureCallOptions
         options.timeout = .milliseconds(Int64(max(0, request.timeout.milliseconds)) + 2000)
-        return try await client.waitForElement(request, options: options)
+        return try await connectedClient.waitForElement(request, options: options)
     }
 
     package func isKeyboardVisible(_ request: Amoo_Empty) async throws
         -> Amoo_KeyboardVisibleResponse {
-        try await client.isKeyboardVisible(request, options: Self.gestureCallOptions)
+        try await connectedClient.isKeyboardVisible(request, options: Self.gestureCallOptions)
     }
 
     package func getCurrentApp(_ request: Amoo_Empty) async throws
         -> Amoo_CurrentAppResponse {
-        try await client.getCurrentApp(request, options: Self.gestureCallOptions)
+        try await connectedClient.getCurrentApp(request, options: Self.gestureCallOptions)
     }
 
     package func getScreenInfo(_ request: Amoo_Empty) async throws
         -> Amoo_ScreenInfoResponse {
-        try await client.getScreenInfo(request, options: Self.gestureCallOptions)
+        try await connectedClient.getScreenInfo(request, options: Self.gestureCallOptions)
     }
 
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
         -> Amoo_ActionResponse {
-        try await client.setTargetApp(request, options: Self.gestureCallOptions)
+        try await connectedClient.setTargetApp(request, options: Self.gestureCallOptions)
     }
 
     package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
         -> Amoo_GetAppStateResponse {
-        try await client.getAppState(request, options: Self.gestureCallOptions)
+        try await connectedClient.getAppState(request, options: Self.gestureCallOptions)
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
         -> Amoo_ScreenshotResponse {
-        try await client.takeScreenshot(request, options: Self.gestureCallOptions)
+        try await connectedClient.takeScreenshot(request, options: Self.gestureCallOptions)
     }
 
     package func getScreenContext(
         _ request: Amoo_ScreenContextRequest
     ) async throws -> Amoo_ScreenContextResponse {
-        try await client.getScreenContext(request, options: Self.gestureCallOptions)
+        try await connectedClient.getScreenContext(request, options: Self.gestureCallOptions)
     }
 
     package func findByDescription(
         _ request: Amoo_FindByDescriptionRequest
     ) async throws -> Amoo_FindElementsResponse {
-        try await client.findByDescription(request, options: Self.gestureCallOptions)
+        try await connectedClient.findByDescription(request, options: Self.gestureCallOptions)
     }
 
     package func getInteractableElements(
         _ request: Amoo_Empty
     ) async throws -> Amoo_InteractableElementsResponse {
-        try await client.getInteractableElements(request, options: Self.gestureCallOptions)
+        try await connectedClient.getInteractableElements(request, options: Self.gestureCallOptions)
     }
 
     package func shutdown() async {
         grpcClient.beginGracefulShutdown()
-        connectionTask.cancel()
-        _ = await connectionTask.result
+        connectionTask?.cancel()
+        _ = await connectionTask?.result
     }
 }
 
