@@ -51,6 +51,9 @@ jobs:
       - name: Lint
         run: ./scripts/ci/lint.sh
 
+      - name: Test orchestration scripts
+        run: python3 -m unittest discover -s scripts/tests -v
+
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
 
@@ -72,7 +75,7 @@ jobs:
       - name: Install protoc
         run: |
           apt-get update -qq
-          apt-get install -y -qq protobuf-compiler
+          apt-get install -y -qq protobuf-compiler python3
           echo "PROTOC_PATH=$(which protoc)" >> "$GITHUB_ENV"
 
       - name: Swift version
@@ -87,6 +90,9 @@ jobs:
 
       - name: Build
         run: swift build --product amoo
+
+      - name: Test orchestration scripts
+        run: python3 -m unittest discover -s scripts/tests -v
 
       - name: Test
         # CLIQualityCoverageTests' Android preflight checks scan the real host for a JDK

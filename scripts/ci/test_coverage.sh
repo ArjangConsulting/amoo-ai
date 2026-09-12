@@ -26,6 +26,10 @@ ROOT_MIN=${ROOT_COVERAGE_MIN:-67}
 CORE_MIN=${CORE_COVERAGE_MIN:-70}
 DRIVER_MIN=${DRIVER_COVERAGE_MIN:-74}
 CLI_MIN=${CLI_COVERAGE_MIN:-45}
+# Keep each mobile driver above its own floor: the combined group can hide a regression
+# in one platform behind coverage gains in unrelated protocol or compiler code.
+IOS_DRIVER_MIN=${IOS_DRIVER_COVERAGE_MIN:-75}
+ANDROID_DRIVER_MIN=${ANDROID_DRIVER_COVERAGE_MIN:-75}
 
 WORKSPACE_HOME="${PWD}/.ci-home"
 WORKSPACE_CLANG_CACHE="${PWD}/.build/clang-module-cache"
@@ -55,7 +59,7 @@ CODECOV_PATH=$(
   HOME="$WORKSPACE_HOME" \
   CLANG_MODULE_CACHE_PATH="$WORKSPACE_CLANG_CACHE" \
   SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
-  swift test --show-codecov-path
+  swift test --disable-sandbox --show-codecov-path
 )
 CODECOV_DIR=$(dirname "$CODECOV_PATH")
 PRODUCTS_DIR=$(dirname "$CODECOV_DIR")
@@ -128,7 +132,7 @@ if [[ ! -f "$CODECOV_PATH" ]]; then
   exit 1
 fi
 
-python - "$CODECOV_PATH" "$ROOT_MIN" "$CORE_MIN" "$DRIVER_MIN" "$CLI_MIN" <<'PY'
+python - "$CODECOV_PATH" "$ROOT_MIN" "$CORE_MIN" "$DRIVER_MIN" "$CLI_MIN" "$IOS_DRIVER_MIN" "$ANDROID_DRIVER_MIN" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -138,6 +142,8 @@ root_min = float(sys.argv[2])
 core_min = float(sys.argv[3])
 driver_min = float(sys.argv[4])
 cli_min = float(sys.argv[5])
+ios_driver_min = float(sys.argv[6])
+android_driver_min = float(sys.argv[7])
 repo_root = str(Path.cwd())
 
 with codecov_path.open() as f:
@@ -205,6 +211,18 @@ else:
     print(f"Driver/protocol coverage: {driver_cov:.2f}% (min {driver_min:.2f}%)")
 
 failures = []
+for label, prefix, minimum in [
+    ("iOS driver", "/Sources/IOSDriver/", ios_driver_min),
+    ("Android driver", "/Sources/AndroidDriver/", android_driver_min),
+]:
+    coverage = aggregate([prefix])
+    if coverage is None:
+        failures.append(f"{label} coverage is missing")
+    else:
+        print(f"{label} coverage: {coverage:.2f}% (min {minimum:.2f}%)")
+        if coverage < minimum:
+            failures.append(f"{label} coverage {coverage:.2f}% is below {minimum:.2f}%")
+
 if root_cov < root_min:
     failures.append(f"Repo coverage {root_cov:.2f}% is below {root_min:.2f}%")
 if core_cov is not None and core_cov < core_min:

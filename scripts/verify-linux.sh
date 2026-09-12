@@ -33,7 +33,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKDIR="/workspace"
 
 install_protoc() {
-  echo "apt-get update -qq && apt-get install -y -qq protobuf-compiler >/dev/null && export PROTOC_PATH=\$(which protoc) &&"
+  echo "apt-get update -qq && apt-get install -y -qq protobuf-compiler python3 >/dev/null && export PROTOC_PATH=\$(which protoc) &&"
 }
 
 run_in_container() {
@@ -50,10 +50,10 @@ case "${SUBCOMMAND}" in
     run_in_container "swift --version && swift build --build-path .build-linux --product amoo"
     ;;
   test)
-    run_in_container "swift --version && swift test --build-path .build-linux --skip IntegrationTests --skip CLIQualityCoverageTests"
+    run_in_container "swift --version && python3 -m unittest discover -s scripts/tests -v && swift test --build-path .build-linux --skip IntegrationTests --skip CLIQualityCoverageTests"
     ;;
   ci)
-    run_in_container "swift --version && swift build --build-path .build-linux --product amoo && swift test --build-path .build-linux --skip IntegrationTests --skip CLIQualityCoverageTests"
+    run_in_container "swift --version && swift build --build-path .build-linux --product amoo && python3 -m unittest discover -s scripts/tests -v && swift test --build-path .build-linux --skip IntegrationTests --skip CLIQualityCoverageTests"
     ;;
   shell)
     docker run --rm -it \

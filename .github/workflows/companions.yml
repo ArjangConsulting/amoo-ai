@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 env:
   AMOO_E2E_STRICT: '1'
-  AMOO_E2E_FILTER: 'IntegrationTests.CommandContractE2ETests/test(StartAndEndSession|FixtureHomeQueries|NavigateToDetailsAndScroll|TextEntryAndClearing)'
+  AMOO_E2E_FILTER: 'IntegrationTests.CommandContractE2ETests'
 jobs:
   ios:
     runs-on: macos-latest
@@ -113,7 +113,9 @@ jobs:
           api-level: 35
           arch: x86_64
           disable-animations: true
-          script: bash -o pipefail -c 'scripts/run-e2e-android.sh 2>&1 | tee smoke-android.log'
+          script: |
+            make sample-app-compose-test
+            bash -o pipefail -c 'scripts/run-e2e-android.sh 2>&1 | tee smoke-android.log'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -122,3 +124,4 @@ jobs:
             smoke-android.log
             logcat-android.log
             CompanionApps/Android/app/build/reports/**
+            CompanionApps/Android/composeSampleApp/build/reports/**

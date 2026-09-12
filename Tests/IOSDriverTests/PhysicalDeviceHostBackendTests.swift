@@ -6,6 +6,32 @@ import ProcessRunner
 import XCTest
 
 final class PhysicalDeviceHostBackendTests: XCTestCase {
+    func testAppLifecycleUsesPhysicalDeviceAndReinstallDoesNotUninstall() async throws {
+        let devicectl = MockDeviceCtlRunner()
+        let driver = IOSDriver.physicalDevice(
+            companion: MockDeviceCompanionClient(),
+            devicectl: devicectl,
+            deviceID: "device-1"
+        )
+
+        try await driver.installApp(path: "/tmp/App.app")
+        try await driver.installApp(path: "/tmp/App.app")
+        try await driver.launchApp(appID: "com.example.app")
+        try await driver.openURL("amoo://deep-link")
+        try await driver.terminateApp(appID: "com.example.app")
+        try await driver.uninstallApp(appID: "com.example.app")
+
+        let calls = await devicectl.calls()
+        XCTAssertEqual(calls, [
+            "install:device-1:/tmp/App.app",
+            "install:device-1:/tmp/App.app",
+            "launch:device-1:com.example.app",
+            "openURL:device-1:amoo://deep-link",
+            "terminate:device-1:com.example.app",
+            "uninstall:device-1:com.example.app"
+        ])
+    }
+
     // MARK: - Capability Gap
 
     func testSetPermissionIsRejectedOnPhysicalDevice() async throws {

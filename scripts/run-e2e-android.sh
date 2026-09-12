@@ -26,7 +26,7 @@ Usage: scripts/run-e2e-android.sh [--skip-build] [--device <serial>] [--help]
 Run the Android emulator companion e2e flow.
 
 Options:
-  --skip-build       Reuse the existing Android companion artifacts
+  --skip-build       Reuse the existing Android companion and fixture artifacts
   --device <serial>  Target a specific emulator/device serial
   --help             Show this help text
 EOF
@@ -100,6 +100,8 @@ log "Running Android preflight..."
 (cd "$REPO_ROOT" && swift run amoo preflight --platform android)
 
 if [[ "$SKIP_BUILD" == false ]]; then
+    log "Building Compose fixture app..."
+    make -C "$REPO_ROOT" sample-app-compose-build
     log "Installing Android companion via CLI..."
     (cd "$REPO_ROOT" && swift run amoo companion install --platform android --device "$DEVICE_SERIAL")
 else
