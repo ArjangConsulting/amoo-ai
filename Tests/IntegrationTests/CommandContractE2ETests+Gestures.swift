@@ -24,18 +24,31 @@ extension CommandContractE2ETests {
 
         let beforeScroll = await server.execute(
             toolName: "find_elements",
-            arguments: ["id": "fixture-details-tail"]
+            arguments: ["id": "fixture-detail-row-29"]
         )
         XCTAssertFalse(beforeScroll.isError)
+        let initiallyVisible = beforeScroll.structuredContent?.objectValue?["elements"]?.arrayValue?
+            .contains { $0.objectValue?["visible"] == .bool(true) } ?? false
+        XCTAssertFalse(initiallyVisible, beforeScroll.content)
 
-        let scroll = await server.execute(toolName: "scroll", arguments: ["direction": "down", "distance": "500"])
-        XCTAssertFalse(scroll.isError)
-
-        let afterScroll = await server.execute(
-            toolName: "find_elements",
-            arguments: ["id": "fixture-details-tail"]
-        )
-        XCTAssertFalse(afterScroll.isError)
+        // Success from `scroll` alone does not prove that the viewport moved or that the
+        // fixture contains the destination. Check the final row on both platforms.
+        var tailVisible = false
+        for _ in 0 ..< 8 {
+            let scroll = await server.execute(toolName: "scroll", arguments: ["direction": "down", "distance": "500"])
+            XCTAssertFalse(scroll.isError, scroll.content)
+            let afterScroll = await server.execute(
+                toolName: "find_elements",
+                arguments: ["id": "fixture-detail-row-29"]
+            )
+            XCTAssertFalse(afterScroll.isError, afterScroll.content)
+            if afterScroll.structuredContent?.objectValue?["elements"]?.arrayValue?
+                .contains(where: { $0.objectValue?["visible"] == .bool(true) }) == true {
+                tailVisible = true
+                break
+            }
+        }
+        XCTAssertTrue(tailVisible, "Scrolling must reveal the fixture's final details row")
     }
 
     func testHierarchyReflectsCurrentlyRenderedDetailsRows() async throws {
@@ -260,11 +273,13 @@ extension CommandContractE2ETests {
         let reset = await resetFixtureApp(on: server)
         XCTAssertFalse(reset.isError, reset.content)
 
-        let deepLink = "amoo://deep-link?source=contract"
+        // Keep Android routing distinct from the installed companion's amoo:// handler.
+        let scheme = Self.platform == .android ? "amoo-compose" : "amoo"
+        let deepLink = "\(scheme)://deep-link?source=contract"
         let openURL = await server.execute(toolName: "open_url", arguments: ["url": deepLink])
         XCTAssertFalse(openURL.isError)
 
-        let deepLinkResult = await waitForElement(on: server, containsText: "amoo://")
+        let deepLinkResult = await waitForElement(on: server, containsText: deepLink)
         XCTAssertFalse(deepLinkResult.isError)
 
         let screenshot = await server.execute(toolName: "take_screenshot", arguments: [:])

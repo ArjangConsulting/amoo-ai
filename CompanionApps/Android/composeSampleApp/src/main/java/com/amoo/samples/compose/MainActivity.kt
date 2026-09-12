@@ -1,10 +1,12 @@
 package com.amoo.samples.compose
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,16 +36,24 @@ import androidx.compose.ui.unit.dp
  * makes it a real test of the driver rather than of an in-process harness.
  */
 class MainActivity : ComponentActivity() {
+    private var deepLink by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { SampleApp() }
+        deepLink = intent?.dataString
+        setContent { SampleApp(deepLink) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        deepLink = intent.dataString
     }
 }
 
 private enum class Screen { HOME, DETAILS, TEXT_INPUT, GESTURE }
 
 @Composable
-private fun SampleApp() {
+private fun SampleApp(deepLink: String?) {
     var screen by remember { mutableStateOf(Screen.HOME) }
 
     MaterialTheme {
@@ -57,7 +67,7 @@ private fun SampleApp() {
                 .semantics { testTagsAsResourceId = true }
         ) {
             when (screen) {
-                Screen.HOME -> HomeScreen(onNavigate = { screen = it })
+                Screen.HOME -> HomeScreen(deepLink = deepLink, onNavigate = { screen = it })
                 Screen.DETAILS -> DetailsScreen(onBack = { screen = Screen.HOME })
                 Screen.TEXT_INPUT -> TextInputScreen(onBack = { screen = Screen.HOME })
                 Screen.GESTURE -> GestureScreen(onBack = { screen = Screen.HOME })
@@ -67,8 +77,9 @@ private fun SampleApp() {
 }
 
 @Composable
-private fun HomeScreen(onNavigate: (Screen) -> Unit) {
+private fun HomeScreen(deepLink: String?, onNavigate: (Screen) -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
+        deepLink?.let { Text(text = it) }
         Text(
             text = "Compose Fixture Home",
             style = MaterialTheme.typography.headlineMedium,
@@ -123,14 +134,21 @@ private fun DetailsScreen(onBack: () -> Unit) {
         )
         // Enough rows to push the last one below the fold, so a scroll is genuinely required to
         // reach it — this is what makes a dropped `scroll` step observable rather than harmless.
-        repeat(20) { index ->
+        repeat(30) { index ->
             Text(
                 text = "Fixture row $index",
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .testTag("fixture_detail_row_$index")
                     .semantics { contentDescription = "fixture-detail-row-$index" }
             )
         }
+        Text(
+            text = "Details tail marker",
+            modifier = Modifier
+                .testTag("fixture_details_tail")
+                .semantics { contentDescription = "fixture-details-tail" }
+        )
         Button(
             onClick = onBack,
             modifier = Modifier
@@ -184,9 +202,10 @@ private fun GestureScreen(onBack: () -> Unit) {
         Button(
             onClick = { taps += 1 },
             modifier = Modifier
-                .testTag("fixture_tap_target")
-                .semantics { contentDescription = "fixture-tap-target" }
-        ) { Text("Tap Target") }
+                .heightIn(min = 200.dp)
+                .testTag("fixture_gesture_pad")
+                .semantics { contentDescription = "fixture-gesture-pad" }
+        ) { Text("Gesture Pad") }
         Text(
             text = "Tap count: $taps",
             modifier = Modifier

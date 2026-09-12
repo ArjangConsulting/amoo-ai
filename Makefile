@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: format lint check test coverage ci build swift-build verify-linux companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build verify-linux companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -72,7 +72,12 @@ sample-app-compose-build:
 		echo "Install with: brew install --cask temurin@21"; \
 		exit 1; \
 	fi; \
-	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :composeSampleApp:assembleDebug
+	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :composeSampleApp:assembleDebug :composeSampleApp:assembleAndroidTest
+
+sample-app-compose-test:
+	@JDK="$$(./scripts/android-jdk.sh)"; \
+	if [ -z "$$JDK" ]; then echo "No supported Android JDK found."; exit 1; fi; \
+	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :composeSampleApp:connectedDebugAndroidTest
 
 sample-apps-build: sample-app-compose-build
 
