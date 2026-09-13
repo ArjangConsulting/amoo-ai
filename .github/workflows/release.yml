@@ -48,7 +48,7 @@ jobs:
 
       - name: Install tooling
         run: |
-          brew install protobuf swiftformat swiftlint xcodegen kotlin
+          brew install protobuf swift-protobuf protoc-gen-grpc-swift swiftformat swiftlint xcodegen kotlin
 
       - name: Cache SPM dependencies
         uses: actions/cache@v4
