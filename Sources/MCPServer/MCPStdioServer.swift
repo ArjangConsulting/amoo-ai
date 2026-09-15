@@ -22,7 +22,11 @@ public struct MCPStdioServer: Sendable {
     start_session ensures the device and companion are ready, installs build_path if supplied,
     and launches the app. Pass its session_id to every subsequent device call. Do not discard an
     invalid/closed session_id to bypass an error. companion_warm and companion_status prepare a
-    cold build ahead of time. Use list_devices and device_hint to select among devices.
+    cold build ahead of time. Use list_devices and device_hint to select among devices. Once a
+    session is live, launch/terminate/reinstall the app-under-test only through amoo tools, never
+    raw simctl/adb -- that desyncs the companion channel. companion_status can briefly still
+    report ready right after such a desync; if a device tool then fails with a connection error,
+    re-run companion_warm.
 
     Use current_app for identity, describe_screen for orientation, scoped find_elements for a
     target, and semantic assertions with timeout_ms for waiting. Follow next_offset when has_more
