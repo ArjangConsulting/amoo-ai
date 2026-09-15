@@ -20,6 +20,25 @@ public enum ProcessRunnerError: Error, Sendable, Equatable {
     case unsupportedPipeline
 }
 
+extension ProcessRunnerError: LocalizedError {
+    /// Without this, `.localizedDescription` bridges to Foundation's generic NSError text
+    /// ("The operation couldn't be completed. (ProcessRunner.ProcessRunnerError error 0.)"),
+    /// discarding the command/exit code/stderr already captured in `nonZeroExit`.
+    public var errorDescription: String? {
+        switch self {
+        case .emptyCommand:
+            "No command was provided to run."
+        case let .nonZeroExit(command, exitCode, stderr):
+            "Command failed (exit \(exitCode)): \(command)"
+                + (stderr.isEmpty ? "" : "\n\(stderr)")
+        case .unsupportedPlatform:
+            "This operation is not supported on the current platform."
+        case .unsupportedPipeline:
+            "This process runner does not support command pipelines."
+        }
+    }
+}
+
 /// Complete execution request, preserving environment, working directory, timeout, and output policy.
 public struct ProcessExecutionRequest: Sendable {
     public let command: Command

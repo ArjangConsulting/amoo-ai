@@ -75,6 +75,12 @@ Read the returned error code and device/session state. Follow the reported compa
 command when applicable; preserve session_id and target identity. Do not blindly repeat a
 mutation after timeout: inspect the postcondition first, because it may already have executed.
 
+Once a session is live, launch/terminate/reinstall the app-under-test only through amoo tools —
+never raw `simctl`/`adb` — touching it outside amoo desyncs the companion's channel. If a device
+tool then fails with a connection error (e.g. connection refused to the companion port),
+re-run `companion_warm` and wait; `companion_status` can briefly still report ready right after
+the desync, so don't treat a `ready` status as proof the channel will still work on the next call.
+
 Use the documented system scope for permission prompts. Do not guess that an app's controls
 are system UI merely because their labels contain words such as time or settings.
 For WebViews, read [the transport prerequisites](../../docs/webview-introspection.md).

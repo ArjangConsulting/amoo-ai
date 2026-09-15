@@ -30,7 +30,9 @@ public enum CompanionTools {
             title: "Companion Status",
             description: "Non-blocking one-line report of companion readiness: ready (listening),"
                 + " built (bundle ready, not launched), building / launching (a warm is in"
-                + " progress), failed, or not_started.",
+                + " progress), failed, or not_started. A momentary snapshot, not a guarantee: if"
+                + " the app-under-test was touched outside amoo (raw simctl/adb) this can still"
+                + " read ready right before the channel actually fails.",
             properties: [
                 "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
                 "device_hint": .init(type: "string", description: "Optional UDID/serial or name.")
