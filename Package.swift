@@ -24,13 +24,13 @@ let package = Package(
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/maniramezan/SwiftyShell.git", exact: "0.5.0"),
-        .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", exact: "0.6.0"),
-        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"),
+        .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.5.0"),
+        .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", from: "0.6.0"),
+        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
-        .package(url: "https://github.com/swiftlang/swift-docc-plugin.git", exact: "1.5.0")
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin.git", from: "1.5.0")
     ],
     targets: [
         .target(
