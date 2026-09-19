@@ -34,6 +34,7 @@ public actor TestSession {
     private var recentElements: [RecordedElement] = []
 
     private let cleanup: @Sendable () async -> Void
+    private var cleanupTask: Task<Void, Never>?
 
     public init(
         id: String,
@@ -129,12 +130,22 @@ public actor TestSession {
     }
 
     /// Terminates the app under test (best-effort) and releases the gRPC
-    /// connection. Safe to call multiple times.
-    public func close() async {
-        guard isActive else { return }
+    /// connection. Pass `terminateApp: false` to recover without waiting for app termination.
+    /// Safe to call multiple times; cleanup runs once.
+    public func close(terminateApp: Bool = true) async {
+        let wasActive = isActive
         isActive = false
-        endedAt = Date()
-        try? await driver.terminateApp(appID: appID)
-        await cleanup()
+        if endedAt == nil {
+            endedAt = Date()
+        }
+        if terminateApp, wasActive {
+            try? await driver.terminateApp(appID: appID)
+        }
+        // A forced close can reach here while an earlier graceful close awaits termination.
+        if cleanupTask == nil {
+            let cleanup = cleanup
+            cleanupTask = Task { await cleanup() }
+        }
+        await cleanupTask?.value
     }
 }

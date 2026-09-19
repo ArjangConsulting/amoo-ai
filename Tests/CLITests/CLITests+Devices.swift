@@ -117,6 +117,33 @@ extension CLITests {
         )
     }
 
+    /// A locked physical phone must never be the silent default when a booted emulator/
+    /// simulator is also available — see the field report that motivated this.
+    func testRankPreferringNonPhysicalPutsPhysicalDevicesLast() {
+        XCTAssertEqual(
+            rankPreferringNonPhysical(["physical-1", "sim-1", "physical-2", "sim-2"]) {
+                $0.hasPrefix("physical")
+            },
+            ["sim-1", "sim-2", "physical-1", "physical-2"]
+        )
+    }
+
+    func testRankPreferringNonPhysicalKeepsOrderWhenAllSameKind() {
+        XCTAssertEqual(
+            rankPreferringNonPhysical(["sim-1", "sim-2"]) { _ in false },
+            ["sim-1", "sim-2"]
+        )
+    }
+
+    func testAutoSelectDeviceChoosesNonPhysicalOverPhysical() {
+        let chosen = autoSelectDevice(
+            from: ["physical", "simulator"],
+            displayName: { $0 },
+            isPhysical: { $0 == "physical" }
+        )
+        XCTAssertEqual(chosen, "simulator")
+    }
+
     func testREPLCompletionCatalogIncludesBuiltinsAndToolNames() {
         let catalog = REPLCompletionCatalog(toolDefinitions: [
             ToolDefinition(name: "tap", description: "Tap"),

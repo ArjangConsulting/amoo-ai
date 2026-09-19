@@ -14,9 +14,9 @@ enum CompanionPhase: String, Codable, Sendable {
     /// Exit code for `amoo companion status`: 0 = usable now, 2 = in progress, 1 = needs action.
     var exitCode: Int32 {
         switch self {
-        case .ready, .built: 0
+        case .ready: 0
         case .building, .launching: 2
-        case .failed, .notStarted: 1
+        case .failed, .notStarted, .built: 1
         }
     }
 }

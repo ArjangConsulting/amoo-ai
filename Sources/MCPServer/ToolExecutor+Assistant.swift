@@ -189,6 +189,16 @@ extension DriverToolExecutor {
             fields["original_byte_count"] = .int(originalData.count)
         }
 
+        // A locked/off screen otherwise looks exactly like the app rendering black — surface it
+        // so an agent doesn't start debugging the app for what is actually a device state.
+        var screenStateNote = ""
+        if let screenState = try? await driver.screenState() {
+            fields["screen_state"] = .string(screenState.rawValue)
+            if screenState != .on {
+                screenStateNote = " — warning: screen is \(screenState.rawValue), image may not reflect app content"
+            }
+        }
+
         // The image is in pixels and gestures take points. Reporting both, and the factor between
         // them, is what stops a position read off this image from being passed straight to `tap`
         // — which lands off-screen and still reports success.
@@ -239,7 +249,7 @@ extension DriverToolExecutor {
 
         return ToolResult(
             content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
-                + "\(savedNote)\(formatNote)\(geometryNote)",
+                + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)",
             structuredContent: .object(fields),
             image: boolArgument(arguments["return_image"]) == false
                 ? nil : ToolImageContent(data: data, mimeType: actualFormat.mimeType)

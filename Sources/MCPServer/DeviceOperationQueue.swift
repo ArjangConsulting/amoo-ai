@@ -6,11 +6,24 @@ actor DeviceOperationQueue {
     private struct Pending {
         let id: UUID
         let task: Task<ToolResult, Never>
+        let owner: String?
     }
 
     private var tails: [String: Pending] = [:]
+    private var operations: [String: [UUID: Pending]] = [:]
 
-    func run(key: String, operation: @escaping @Sendable () async -> ToolResult) async -> ToolResult {
+    /// Cancel active and queued work without waiting behind a stalled device operation.
+    func cancel(key: String, owner: String? = nil) {
+        for operation in operations[key]?.values ?? [:].values where owner == nil || operation.owner == owner {
+            operation.task.cancel()
+        }
+    }
+
+    func run(
+        key: String,
+        owner: String? = nil,
+        operation: @escaping @Sendable () async -> ToolResult
+    ) async -> ToolResult {
         let previous = tails[key]?.task
         let id = UUID()
         let task = Task {
@@ -20,11 +33,16 @@ actor DeviceOperationQueue {
             }
             return await operation()
         }
-        tails[key] = Pending(id: id, task: task)
+        tails[key] = Pending(id: id, task: task, owner: owner)
+        operations[key, default: [:]][id] = Pending(id: id, task: task, owner: owner)
         let result = await withTaskCancellationHandler {
             await task.value
         } onCancel: {
             task.cancel()
+        }
+        operations[key]?[id] = nil
+        if operations[key]?.isEmpty == true {
+            operations[key] = nil
         }
         if tails[key]?.id == id {
             tails.removeValue(forKey: key)

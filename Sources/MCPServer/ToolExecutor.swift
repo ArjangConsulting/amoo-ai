@@ -40,6 +40,15 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        if toolName == "end_session", boolArgument(arguments["force"]) == true {
+            do { _ = try ToolRequest(name: toolName, arguments: arguments) } catch {
+                return await executeOrdered(toolName: toolName, arguments: arguments)
+            }
+            if let id = arguments["session_id"], let session = await sessionManager?.session(id) {
+                await operationQueue.cancel(key: "\(session.platform.rawValue):\(session.deviceID)", owner: id)
+            }
+            return await executeOrdered(toolName: toolName, arguments: arguments)
+        }
         if Self.controlPlaneTools.contains(toolName), toolName != "end_session" {
             return await executeOrdered(toolName: toolName, arguments: arguments)
         }
@@ -54,7 +63,7 @@ public actor DriverToolExecutor: ToolExecutor {
             }
             key = defaultDeviceKey ?? "default"
         }
-        return await operationQueue.run(key: key) {
+        return await operationQueue.run(key: key, owner: arguments["session_id"]) {
             await self.executeOrdered(toolName: toolName, arguments: arguments)
         }
     }

@@ -502,7 +502,9 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     package func getCapabilities(
         _ request: Amoo_CapabilitiesRequest
     ) async throws -> Amoo_CapabilitiesResponse {
-        try await connectedClient.getCapabilities(request, options: Self.gestureCallOptions)
+        var options = Self.gestureCallOptions
+        options.timeout = .seconds(2)
+        return try await connectedClient.getCapabilities(request, options: options)
     }
 
     package func endSession(_ request: Amoo_EndSessionRequest) async throws

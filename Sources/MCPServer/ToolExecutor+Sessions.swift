@@ -81,14 +81,15 @@ extension DriverToolExecutor {
         }
 
         do {
-            try await manager.endSession(sessionID)
+            try await manager.endSession(sessionID, force: boolArgument(arguments["force"]) == true)
         } catch {
             return .error("end_session failed: \(error)")
         }
 
         var summary: [String: Value] = [
             "session_id": .string(sessionID),
-            "ended_at": .string(ISO8601DateFormatter().string(from: Date()))
+            "ended_at": .string(ISO8601DateFormatter().string(from: Date())),
+            "forced": .bool(boolArgument(arguments["force"]) == true)
         ]
 
         summary["recording_health"] = await .string(manager.recordingHealth(for: sessionID))
@@ -129,6 +130,9 @@ extension DriverToolExecutor {
                 + " call compile_session_to_plan to keep this run."
         }
 
+        if boolArgument(arguments["force"]) == true {
+            artifactNote += " Forced close: app termination skipped; in-flight actions may be absent from the report."
+        }
         return .success(
             "Ended session \(sessionID) (\(actionCount) action(s) recorded).\(artifactNote)",
             structuredContent: .object(summary)

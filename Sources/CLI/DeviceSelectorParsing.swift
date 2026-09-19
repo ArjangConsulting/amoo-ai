@@ -146,6 +146,49 @@ func launchDetachedProcess(arguments: [String]) throws {
 
 // MARK: - Interactive selection
 
+/// Whether stdin is an interactive terminal rather than a pipe.
+///
+/// `amoo mcp serve` and other headless invocations have stdin bound to a protocol
+/// stream, not a keyboard — `readLine()` there either blocks forever waiting for
+/// input that will never come, or silently consumes bytes meant for the protocol.
+/// Every multi-candidate selection path must check this before prompting.
+func isInteractiveStdin() -> Bool {
+    isatty(STDIN_FILENO) != 0
+}
+
+/// Ranks candidates for a non-interactive auto-pick, preferring non-physical
+/// targets (simulators/emulators) first, since a physical device is more likely
+/// to be locked, unattended, or otherwise unsuited to being picked blindly.
+/// Ties keep their original (already-sorted) order.
+func rankPreferringNonPhysical<T>(_ items: [T], isPhysical: (T) -> Bool) -> [T] {
+    items.enumerated().sorted { lhs, rhs in
+        let lhsPhysical = isPhysical(lhs.element)
+        let rhsPhysical = isPhysical(rhs.element)
+        if lhsPhysical != rhsPhysical {
+            return rhsPhysical
+        }
+        return lhs.offset < rhs.offset
+    }.map(\.element)
+}
+
+/// Picks a candidate without prompting, ranking non-physical targets first, and prints
+/// which alternatives were passed over so the choice is explainable instead of silent.
+func autoSelectDevice<T>(
+    from candidates: [T],
+    displayName: (T) -> String,
+    isPhysical: (T) -> Bool
+) -> T {
+    let ranked = rankPreferringNonPhysical(candidates, isPhysical: isPhysical)
+    // Callers only reach here with a non-empty list (the 0/1-candidate cases are
+    // handled before falling into the multi-candidate branch).
+    let chosen = ranked[0]
+    let others = ranked.dropFirst()
+    let suffix = others.isEmpty ? "" : " — \(others.count) other candidate(s) available "
+        + "(\(others.map(displayName).joined(separator: ", "))); pass device_hint to choose one"
+    FileHandle.standardError.write(Data("Auto-selected: \(displayName(chosen))\(suffix)\n".utf8))
+    return chosen
+}
+
 func promptiOSDeviceSelection(from devices: [BootedDevice]) throws -> BootedDevice {
     try promptSelection(
         title: "\nMultiple booted simulators found:",
@@ -175,6 +218,11 @@ func promptSelection<T>(
     eofError: DeviceSelectionError = .noDevicesAvailable,
     colorNumbers: Bool = false
 ) throws -> T {
+    guard isInteractiveStdin() else {
+        guard let first = items.first else { throw eofError }
+        FileHandle.standardError.write(Data("Auto-selected: \(displayName(first))\n".utf8))
+        return first
+    }
     print(title)
     for (index, item) in items.enumerated() {
         let number = colorNumbers ? colored("\(index + 1))", .cyan) : "\(index + 1))"

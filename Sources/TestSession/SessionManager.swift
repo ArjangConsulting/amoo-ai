@@ -85,14 +85,14 @@ public actor SessionManager {
         sessions[id]
     }
 
-    public func endSession(_ id: String) async throws {
+    public func endSession(_ id: String, force: Bool = false) async throws {
         // Keep the session in the registry so list_sessions / get_session_report
         // can still see its accumulated history after it ends. The session is
         // marked inactive via close(); subsequent device operations reject the session.
         guard let session = sessions[id] else {
             throw SessionError.notFound(id)
         }
-        await session.close()
+        await session.close(terminateApp: !force)
         await flush(id)
         await drainPendingWrites()
         await evictClosedSessions()

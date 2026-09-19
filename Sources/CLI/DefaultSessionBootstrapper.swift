@@ -188,6 +188,10 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 arguments: request.arguments,
                 environment: request.environment
             )
+            // Bind the target app the caller just asked to launch — otherwise `current_app`
+            // reports an empty `target_bundle_id` until the caller separately calls
+            // `set_target_app`, even though `start_session` already took `app_id`.
+            try await driver.setTargetApp(bundleID: request.appID)
         } catch {
             throw BootstrapError.launchFailed(error.localizedDescription)
         }

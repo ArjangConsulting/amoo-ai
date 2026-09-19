@@ -19,6 +19,10 @@ actor MockADBRunner: ADBRunning {
     private var _failingRawCommandSuffix: [String]?
     private var _listDevicesCallCount = 0
     private var _deviceOutputs = ["List of devices attached\nemulator-5554\tdevice product:sdk_gphone\n"]
+    private var _dumpsysOutputs: [String: String] = [
+        "power": "mWakefulness=Awake",
+        "window": "isStatusBarKeyguard=false"
+    ]
 
     func run(_ arguments: [String]) async throws -> ProcessResult {
         _rawCommands.append(arguments)
@@ -29,6 +33,9 @@ actor MockADBRunner: ADBRunning {
             _pulledFiles.append((arguments[arguments.count - 2], arguments[arguments.count - 1]))
         }
         let isBootProperty = Array(arguments.suffix(3)) == ["shell", "getprop", "sys.boot_completed"]
+        if let subject = arguments.last, arguments.dropLast().last == "dumpsys", let output = _dumpsysOutputs[subject] {
+            return ProcessResult(exitCode: 0, stdout: output, stderr: "")
+        }
         let stdout = isBootProperty ? "1\n" : arguments.joined(separator: " ")
         return ProcessResult(exitCode: 0, stdout: stdout, stderr: "")
     }
@@ -139,6 +146,10 @@ actor MockADBRunner: ADBRunning {
 
     func setDeviceOutputs(_ outputs: [String]) {
         _deviceOutputs = outputs
+    }
+
+    func setDumpsysOutput(_ subject: String, output: String) {
+        _dumpsysOutputs[subject] = output
     }
 
     func listDevicesCallCount() -> Int {

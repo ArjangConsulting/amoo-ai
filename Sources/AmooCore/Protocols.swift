@@ -63,6 +63,16 @@ public protocol ScreenCapture: Sendable {
     func takeScreenshot(format: ImageFormat) async throws -> ScreenshotData
     func startRecording() async throws -> RecordingSession
     func stopRecording(sessionID: String) async throws -> String
+    /// Best-effort screen power/lock state, or `nil` when a driver can't determine it.
+    /// A screenshot of a locked/off screen is otherwise silently indistinguishable from
+    /// the app under test actually rendering black.
+    func screenState() async throws -> ScreenPowerState?
+}
+
+public extension ScreenCapture {
+    func screenState() async throws -> ScreenPowerState? {
+        nil
+    }
 }
 
 // MARK: - Accessibility

@@ -21,9 +21,9 @@ func runIOSCompanionWarm(
     let manager = CompanionManager(processRunner: processRunner)
     do {
         try await manager.install(config: config, force: options.force)
-        let reachable = await isTCPPortReachable(host: config.host, port: port, timeoutSeconds: 1.5)
+        let reachable = await isCompanionReady(host: config.host, port: port)
         let phase: CompanionPhase = reachable ? .ready : .built
-        let detail = reachable ? "listening on port \(port)" : nil
+        let detail = reachable ? "companion API responding on port \(port)" : nil
         store.write(warmRecord(phase, platform: "ios", device: device, port: port, detail: detail))
         print("companion warm: \(phase.rawValue) (ios, port \(port)). "
             + (reachable ? "" : "Run 'amoo companion start' to bring it up."))
@@ -54,9 +54,9 @@ func runAndroidCompanionWarm(
     let manager = AndroidCompanionManager(processRunner: processRunner)
     do {
         try await manager.install(config: config, force: options.force)
-        let reachable = await isTCPPortReachable(host: config.host, port: port, timeoutSeconds: 1.5)
+        let reachable = await isCompanionReady(host: config.host, port: port)
         let phase: CompanionPhase = reachable ? .ready : .built
-        let detail = reachable ? "listening on port \(port)" : nil
+        let detail = reachable ? "companion API responding on port \(port)" : nil
         store.write(warmRecord(phase, platform: "android", device: device, port: port, detail: detail))
         print("companion warm: \(phase.rawValue) (android, port \(port)). "
             + (reachable ? "" : "Run 'amoo companion start' to bring it up."))
@@ -104,16 +104,16 @@ func companionStatusResult(
     port: Int,
     store: CompanionStatusStore
 ) async -> CLIResult {
-    let reachable = await isTCPPortReachable(host: host, port: port, timeoutSeconds: 1.5)
+    let reachable = await isCompanionReady(host: host, port: port)
     let record = store.read()
     let phase: CompanionPhase
     let detail: String?
     if reachable {
         phase = .ready
-        detail = "listening on port \(port)"
+        detail = "companion API responding on port \(port)"
     } else if let record {
         phase = record.phase == .ready ? .built : record.phase
-        detail = record.detail
+        detail = phase == .built ? "bundle built; call start_session to launch and bind the app" : record.detail
     } else {
         phase = .notStarted
         detail = nil

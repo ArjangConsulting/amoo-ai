@@ -432,6 +432,11 @@ extension CLITests {
         XCTAssertTrue(building.output.contains("building"))
         XCTAssertEqual(building.exitCode, 2)
 
+        store.write(warmRecord(.built, platform: "ios", device: "booted", port: 59999, detail: nil))
+        let built = await companionStatusResult(platform: "ios", host: "127.0.0.1", port: 59999, store: store)
+        XCTAssertTrue(built.output.contains("start_session"))
+        XCTAssertEqual(built.exitCode, 1)
+
         store.write(warmRecord(.failed, platform: "ios", device: "booted", port: 59999, detail: "boom"))
         let failed = await companionStatusResult(platform: "ios", host: "127.0.0.1", port: 59999, store: store)
         XCTAssertTrue(failed.output.contains("failed"))

@@ -203,12 +203,19 @@ final class CompanionManager: @unchecked Sendable {
             print("Companion already running on physical device \(config.deviceUDID).")
             return
         }
-        if await isReachable(host: config.host, port: config.port), !force, !sourcesChanged {
+        if !force, !sourcesChanged,
+           activeConfig == nil || activeConfig?.deviceUDID == config.deviceUDID,
+           await isCompanionReady(host: config.host, port: config.port) {
             print("Companion already running on port \(config.port).")
             return
         }
 
-        if await isReachable(host: config.host, port: config.port) {
+        // Retire an owned runner that stopped answering its API before launching a replacement.
+        if companionProcess != nil {
+            await shutdown()
+        }
+
+        if await isTCPPortReachable(host: config.host, port: config.port, timeoutSeconds: 1.5) {
             // `shutdown()` only reaches a runner this process spawned. A companion started by a
             // separate `amoo companion start` still owns the port, and relaunching on top of it
             // would leave the caller talking to the stale build.
@@ -262,10 +269,6 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     // MARK: - Private
-
-    private func isReachable(host: String, port: Int) async -> Bool {
-        await isTCPPortReachable(host: host, port: port, timeoutSeconds: 1.5)
-    }
 
     private func findXCTestRun(productsDir: String, config: CompanionConfig) -> String? {
         guard
@@ -473,7 +476,7 @@ final class CompanionManager: @unchecked Sendable {
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {
-            if await isReachable(host: host, port: port) {
+            if await isCompanionReady(host: host, port: port) {
                 return
             }
             try await Task.sleep(for: .milliseconds(500))
