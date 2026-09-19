@@ -81,6 +81,16 @@ extension DriverToolExecutor {
         driver: any PlatformDriver,
         timeoutMS: Int = 5000
     ) async -> ToolResult {
+        if let state = try? await driver.screenState(), state != .on {
+            return ToolResult(
+                content: "device_launch_app failed: device screen is \(state.rawValue). "
+                    + "Wake and unlock the device, then retry.",
+                isError: true,
+                structuredContent: .object([
+                    "app_id": .string(appID), "verified": .bool(false), "screen_state": .string(state.rawValue)
+                ])
+            )
+        }
         let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
         let unverified = ToolResult.success(
             "App launched: \(appID) (verified=false)",

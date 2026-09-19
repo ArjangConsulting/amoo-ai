@@ -167,26 +167,21 @@ final class AndroidCompanionManager: @unchecked Sendable {
             }
         }
 
-        if await isReachable(host: config.host, port: config.port), !force, !sourcesChanged {
+        if !force, !sourcesChanged,
+           activeConfig == nil || activeConfig?.serial == config.serial,
+           await isCompanionReady(host: config.host, port: config.port) {
             print("Android companion already running on port \(config.port) for"
                 + " \(config.serial ?? "default device").")
             return
         }
 
-        if await isReachable(host: config.host, port: config.port), sourcesChanged {
-            // The stale companion may be one we spawned. Going through `shutdown()` in that case
-            // also clears `activeConfig` and drops the runner handle — otherwise the next call
-            // reuses a config describing a process that is no longer serving.
-            if activeConfig == nil {
-                await clearStaleCompanion(config: config)
-            } else {
-                await shutdown()
-            }
-        }
-        if let active = activeConfig, active.serial != config.serial || active.port != config.port {
-            print("Switching Android companion from"
-                + " \(active.serial ?? "default") → \(config.serial ?? "default")...")
+        // Do not leave a wedged instrumentation runner behind when starting its replacement.
+        if activeConfig != nil {
             await shutdown()
+        }
+
+        if await isReachable(host: config.host, port: config.port), sourcesChanged {
+            await clearStaleCompanion(config: config)
         }
 
         let (appApk, testApk) = apkPaths(companionDir: config.companionDir)
@@ -457,7 +452,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {
-            if await isReachable(host: host, port: port) {
+            if await isCompanionReady(host: host, port: port) {
                 return
             }
             try await Task.sleep(for: .milliseconds(500))

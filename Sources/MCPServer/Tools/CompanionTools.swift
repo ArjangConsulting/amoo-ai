@@ -11,7 +11,8 @@ public enum CompanionTools {
             description: "Start building + installing the companion test bundle in the background and"
                 + " return immediately. The build is the slow (minutes-long) part of the first"
                 + " start_session; running this as step 0 moves that wait off the critical path."
-                + " Poll companion_status for progress. Requires `amoo mcp serve`.",
+                +
+                " Poll companion_status until built, then call start_session to launch it. Requires `amoo mcp serve`.",
             properties: [
                 "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
                 "device_hint": .init(
@@ -28,9 +29,10 @@ public enum CompanionTools {
         ToolDefinition(
             name: "companion_status",
             title: "Companion Status",
-            description: "Non-blocking one-line report of companion readiness: ready (listening),"
+            description: "Non-blocking one-line report of companion readiness: ready (API responding),"
                 + " built (bundle ready, not launched), building / launching (a warm is in"
-                + " progress), failed, or not_started. A momentary snapshot, not a guarantee: if"
+                + " progress), failed, or not_started. Built means call start_session;"
+                + " polling alone will not launch it. If"
                 + " the app-under-test was touched outside amoo (raw simctl/adb) this can still"
                 + " read ready right before the channel actually fails.",
             properties: [

@@ -37,21 +37,44 @@ extension DefaultSessionBootstrapper {
     func bootDevice(hint: String, platform: Platform) async throws -> DeviceInfo {
         switch platform {
         case .ios:
-            return try await bootIOSDevice(hint: hint)
+            try await bootIOSDevice(hint: hint)
         case .android:
-            let online = await AndroidDeviceSelector(processRunner: processRunner).listOnlineDevices()
-            let lowered = hint.lowercased()
-            let match = ["device", "simulator", "emulator"].contains(lowered)
-                ? online.first
-                : online.first { $0.serial == hint || $0.name.lowercased() == lowered }
-            guard let match else {
-                throw BootstrapError.launchFailed(
-                    "No online Android device matches '\(hint)'. Start the emulator first — "
-                        + "amoo does not boot AVDs."
-                )
-            }
-            return DeviceInfo(id: match.serial, name: match.name, platform: .android, osVersion: "", state: .booted)
+            try await bootAndroidDevice(hint: hint)
         }
+    }
+
+    private func bootAndroidDevice(hint: String) async throws -> DeviceInfo {
+        let selector = AndroidDeviceSelector(processRunner: processRunner)
+        let lowered = hint.lowercased()
+        let wantsClass = ["device", "simulator", "emulator"].contains(lowered)
+
+        let online = await selector.listOnlineDevices()
+        let runningMatch = wantsClass
+            ? online.first { $0.serial.hasPrefix("emulator-") == (lowered != "device") }
+            : online.first { $0.serial == hint || $0.name.lowercased() == lowered }
+        if let runningMatch {
+            return DeviceInfo(
+                id: runningMatch.serial, name: runningMatch.name, platform: .android, osVersion: "", state: .booted
+            )
+        }
+        if lowered == "device" {
+            throw BootstrapError.launchFailed("No connected physical Android device found to boot into.")
+        }
+
+        // Nothing already running matches — boot an AVD, mirroring bootIOSDevice's
+        // shut-down-simulator path instead of refusing outright.
+        let avds = await selector.listAvailableVirtualDevices()
+        let avdName = wantsClass
+            ? avds.first?.name
+            : avds.first { $0.name.lowercased() == lowered }?.name
+        guard let avdName else {
+            throw BootstrapError.launchFailed("No Android emulator/device or AVD matches '\(hint)'.")
+        }
+        return try await launchAndroidEmulator(avdName: avdName)
+    }
+
+    private func launchAndroidEmulator(avdName: String) async throws -> DeviceInfo {
+        try await AndroidDeviceSelector(processRunner: processRunner).bootVirtualDevice(name: avdName)
     }
 
     func warmCompanion(platform: Platform, deviceHint: String?, appID: String?) async throws -> String {
@@ -73,7 +96,8 @@ extension DefaultSessionBootstrapper {
                     store.write(warmRecord(.failed, platform: "ios", device: udid, port: port, detail: why))
                 }
             }
-            return "companion warm started (ios, port \(port)); poll companion_status."
+            return "companion warm started (ios, port \(port)); "
+                + "poll companion_status until built, then call start_session to launch."
         case .android:
             let config = AndroidCompanionConfig(serial: deviceHint)
             let store = CompanionStatusStore(companionDir: config.companionDir)
@@ -90,7 +114,8 @@ extension DefaultSessionBootstrapper {
                     store.write(warmRecord(.failed, platform: "android", device: dev, port: port, detail: why))
                 }
             }
-            return "companion warm started (android, port \(port)); poll companion_status."
+            return "companion warm started (android, port \(port)); "
+                + "poll companion_status until built, then call start_session to launch."
         }
     }
 

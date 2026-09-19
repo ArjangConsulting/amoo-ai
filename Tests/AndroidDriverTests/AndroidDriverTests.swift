@@ -301,6 +301,35 @@ final class AndroidDriverTests: XCTestCase {
         XCTAssertEqual(state, .notInstalled)
     }
 
+    /// A locked/off screen otherwise reads as an all-black screenshot with no explanation —
+    /// see the field report this fixed.
+    func testScreenStateReportsOffWhenNotAwake() async throws {
+        let adb = MockADBRunner()
+        await adb.setDumpsysOutput("power", output: "mWakefulness=Asleep")
+        let driver = AndroidDriver(companion: MockCompanionClient(), adb: adb, serial: "emulator-5554")
+
+        let state = try await driver.screenState()
+        XCTAssertEqual(state, .off)
+    }
+
+    func testScreenStateReportsLockedWhenKeyguardShowing() async throws {
+        let adb = MockADBRunner()
+        await adb.setDumpsysOutput("power", output: "mWakefulness=Awake")
+        await adb.setDumpsysOutput("window", output: "isStatusBarKeyguard=true")
+        let driver = AndroidDriver(companion: MockCompanionClient(), adb: adb, serial: "emulator-5554")
+
+        let state = try await driver.screenState()
+        XCTAssertEqual(state, .locked)
+    }
+
+    func testScreenStateReportsOnWhenAwakeAndUnlocked() async throws {
+        let adb = MockADBRunner()
+        let driver = AndroidDriver(companion: MockCompanionClient(), adb: adb, serial: "emulator-5554")
+
+        let state = try await driver.screenState()
+        XCTAssertEqual(state, .on)
+    }
+
     func testSwipeDirectionDelegatesToCompanion() async throws {
         let companion = MockCompanionClient()
         let driver = AndroidDriver(companion: companion)

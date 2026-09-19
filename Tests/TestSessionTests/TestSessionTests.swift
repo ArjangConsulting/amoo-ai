@@ -93,6 +93,23 @@ final class TestSessionTests: XCTestCase {
         XCTAssertNotNil(endedAt)
     }
 
+    func testForcedCloseSkipsTerminationButReleasesResources() async {
+        let driver = RecordingDriver()
+        let cleanupCount = ActorCounter()
+        let session = TestSession(
+            id: "forced", appID: "app", deviceID: "device", platform: .android,
+            driver: driver, cleanup: { await cleanupCount.increment() }
+        )
+        await session.close(terminateApp: false)
+        await session.close(terminateApp: false)
+        let terminations = await driver.terminations
+        let cleanup = await cleanupCount.value
+        let active = await session.isActive
+        XCTAssertTrue(terminations.isEmpty)
+        XCTAssertEqual(cleanup, 1)
+        XCTAssertFalse(active)
+    }
+
     func testRecordIgnoresActionsAfterClose() async {
         let session = TestSession(
             id: "s1",

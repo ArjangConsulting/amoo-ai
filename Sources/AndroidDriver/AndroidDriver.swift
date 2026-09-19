@@ -305,6 +305,10 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.isKeyboardVisible()
     }
 
+    public func screenState() async throws -> ScreenPowerState? {
+        try await androidScreenState()
+    }
+
     public func currentApp() async throws -> CurrentApp {
         let info = try await companion.currentApp()
         return CurrentApp(bundleID: info.bundleID, targetBundleID: info.targetBundleID)

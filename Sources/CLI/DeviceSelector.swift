@@ -58,6 +58,15 @@ enum AvailableDevice {
             "[Android] \(name) (\(serial))"
         }
     }
+
+    /// Whether this is real hardware rather than a simulator/emulator. Android emulator
+    /// serials are always `emulator-<port>`; anything else is a physical device's serial.
+    var isPhysicalDevice: Bool {
+        switch self {
+        case let .ios(device): device.isPhysicalDevice
+        case let .android(serial, _): !serial.hasPrefix("emulator-")
+        }
+    }
 }
 
 enum DeviceSelectionError: Error, CustomStringConvertible {
@@ -184,6 +193,9 @@ struct DeviceSelector {
             print(colored("Auto-selected:", .cyan) + " \(device.displayName)")
             return device
         default:
+            guard isInteractiveStdin() else {
+                return autoSelectDevice(from: booted, displayName: \.displayName) { $0.isPhysicalDevice }
+            }
             return try promptiOSDeviceSelection(from: booted)
         }
     }
@@ -224,7 +236,7 @@ struct DeviceSelector {
 // MARK: - Android device listing
 
 struct AndroidDeviceSelector {
-    private let processRunner: any ProcessRunner
+    let processRunner: any ProcessRunner
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
         self.processRunner = processRunner
@@ -238,7 +250,9 @@ struct AndroidDeviceSelector {
     }
 
     func listAvailableVirtualDevices() async -> [AndroidVirtualDevice] {
-        guard let result = try? await processRunner.run(["emulator", "-list-avds"]) else { return [] }
+        let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+        guard let result = try? await Command("emulator").args(["-list-avds"]).timeout(10).run(in: context)
+        else { return [] }
         return parseAndroidVirtualDevices(output: result.stdout)
     }
 }
@@ -248,13 +262,16 @@ struct AndroidDeviceSelector {
 struct PlatformDeviceSelector {
     private let processRunner: any ProcessRunner
     private let prompter: any DeviceSelectionPrompting
+    private let interactive: Bool
 
     init(
         processRunner: any ProcessRunner = SystemProcessRunner(),
-        prompter: any DeviceSelectionPrompting = ConsoleDeviceSelectionPrompter()
+        prompter: any DeviceSelectionPrompting = ConsoleDeviceSelectionPrompter(),
+        interactive: Bool = isInteractiveStdin()
     ) {
         self.processRunner = processRunner
         self.prompter = prompter
+        self.interactive = interactive
     }
 
     /// Lists all available iOS simulators and Android devices/emulators concurrently,
@@ -263,8 +280,8 @@ struct PlatformDeviceSelector {
         let iosSelector = DeviceSelector(processRunner: processRunner)
         let androidSelector = AndroidDeviceSelector(processRunner: processRunner)
 
-        async let iosDevices = iosSelector.listBootedDevices()
-        async let androidDevices = androidSelector.listOnlineDevices()
+        async let iosDevices = platform == .android ? [] : iosSelector.listBootedDevices()
+        async let androidDevices = platform == .ios ? [] : androidSelector.listOnlineDevices()
 
         var all: [AvailableDevice] = []
         let ios = await iosDevices
@@ -301,6 +318,9 @@ struct PlatformDeviceSelector {
             print(colored("Auto-selected:", .cyan) + " \(device.displayName)")
             return device
         default:
+            guard interactive else {
+                return autoSelectDevice(from: all, displayName: \.displayName) { $0.isPhysicalDevice }
+            }
             return try promptDeviceSelection(from: all)
         }
     }
@@ -381,20 +401,8 @@ struct PlatformDeviceSelector {
         _ virtualDevice: AndroidVirtualDevice,
         selector: AndroidDeviceSelector
     ) async throws -> AvailableDevice {
-        try launchDetachedProcess(arguments: ["emulator", "-avd", virtualDevice.name])
-
-        let deadline = Date().addingTimeInterval(120)
-        while Date() < deadline {
-            let onlineDevices = await selector.listOnlineDevices()
-            if let device = onlineDevices.first {
-                return .android(serial: device.serial, name: device.name)
-            }
-            try await Task.sleep(for: .seconds(2))
-        }
-
-        throw DeviceSelectionError.startupTimedOut(
-            "Timed out waiting for Android emulator \(virtualDevice.name) to start."
-        )
+        let device = try await selector.bootVirtualDevice(name: virtualDevice.name)
+        return .android(serial: device.id, name: device.name)
     }
 
     private func matchesHint(_ device: AvailableDevice, hint: String) -> Bool {

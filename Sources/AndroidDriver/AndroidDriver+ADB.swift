@@ -34,6 +34,30 @@ extension AndroidDriver {
         return stride(from: 5554, through: 5680, by: 2).first(where: { !used.contains($0) }) ?? 5554
     }
 
+    /// Best-effort screen power/lock state via `dumpsys`. Neither `power` nor `window`'s field
+    /// names are a stable public API across Android versions, so this checks several known
+    /// spellings rather than one exact match. Unknown power output stays unknown instead of
+    /// falsely reporting that the screen is off. Each probe has a short deadline.
+    func androidScreenState() async throws -> ScreenPowerState? {
+        guard let powerDump = try? await adb.run(adbArgs() + ["shell", "dumpsys", "power"], timeoutSeconds: 2) else {
+            return nil
+        }
+        if powerDump.stdout.contains("mWakefulness=Asleep") || powerDump.stdout.contains("mWakefulness=Dozing") {
+            return .off
+        }
+        guard powerDump.stdout.contains("mWakefulness=Awake") else { return nil }
+        guard let windowDump = try? await adb.run(adbArgs() + ["shell", "dumpsys", "window"], timeoutSeconds: 2) else {
+            return .on
+        }
+        let lockedMarkers = [
+            "mDreamingLockscreen=true",
+            "isStatusBarKeyguard=true",
+            "mKeyguardShowing=true",
+            "isKeyguardShowingAndNotOccluded=true"
+        ]
+        return lockedMarkers.contains { windowDump.stdout.contains($0) } ? .locked : .on
+    }
+
     func waitForBoot(serial: String, timeoutSeconds: Int) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {

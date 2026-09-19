@@ -22,11 +22,13 @@ public struct MCPStdioServer: Sendable {
     start_session ensures the device and companion are ready, installs build_path if supplied,
     and launches the app. Pass its session_id to every subsequent device call. Do not discard an
     invalid/closed session_id to bypass an error. companion_warm and companion_status prepare a
-    cold build ahead of time. Use list_devices and device_hint to select among devices. Once a
+    cold build ahead of time. When status is built, call start_session; polling does not launch it.
+    Use list_devices and device_hint to select among devices. Once a
     session is live, launch/terminate/reinstall the app-under-test only through amoo tools, never
     raw simctl/adb -- that desyncs the companion channel. companion_status can briefly still
     report ready right after such a desync; if a device tool then fails with a connection error,
-    re-run companion_warm.
+    use end_session with force=true to cancel device work and close without app termination, then
+    inspect companion_status and start a new session. Forced closure may omit in-flight actions.
 
     Use current_app for identity, describe_screen for orientation, scoped find_elements for a
     target, and semantic assertions with timeout_ms for waiting. Follow next_offset when has_more
@@ -37,7 +39,8 @@ public struct MCPStdioServer: Sendable {
     After a timeout, inspect state before retrying the mutation. Secure masked_change does not
     establish exact text equality. Use record_value=fixture only for non-sensitive test data.
 
-    Screenshots are pixels; gestures are points. Read the returned geometry and scale. Use
+    Screenshots are pixels; gestures are points. Read the returned geometry and scale. A locked/off
+    screen_state means wake and unlock the device before interpreting the image as app content. Use
     take_screenshot with output and return_image=false when only saving evidence. Use webview_dom
     or webview_eval for inspectable WebView state that accessibility cannot expose.
 

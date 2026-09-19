@@ -84,7 +84,7 @@ struct ToolRequest: Sendable {
                 throw ToolExecutionError(code: "invalid_argument", message: "Invalid numeric argument: \(key)")
             }
         }
-        for key in ["return_image", "labeled_only", "include_offline", "all_frames"] {
+        for key in ["return_image", "labeled_only", "include_offline", "all_frames", "force"] {
             if let raw = arguments[key], boolArgument(raw) == nil {
                 throw ToolExecutionError(code: "invalid_argument", message: "Invalid boolean argument: \(key)")
             }

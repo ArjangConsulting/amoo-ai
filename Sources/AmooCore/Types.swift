@@ -68,6 +68,15 @@ public enum ImageFormat: String, Sendable, Equatable {
     }
 }
 
+/// Whether the physical/simulated screen is on, off, or locked at the point a screenshot was
+/// captured or an app was launched — without this, an all-black PNG or a launch that never comes
+/// to front looks indistinguishable from an app bug.
+public enum ScreenPowerState: String, Sendable, Equatable {
+    case on
+    case locked
+    case off
+}
+
 public struct ScreenshotData: Sendable, Equatable {
     public var bytes: [UInt8]
     public var format: ImageFormat

@@ -2,6 +2,11 @@ import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 import IOSDriver
 import MCPServer
 import ProcessRunner
@@ -125,6 +130,13 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
     guard let profile = ToolProfile(rawValue: rawProfile) else {
         return CLIResult(output: "AMOO_TOOL_PROFILE must be all, drive, record, or audit.", exitCode: 1)
     }
+    guard let protocolOutput = isolateMCPOutput() else {
+        return CLIResult(output: "Cannot isolate MCP stdout", exitCode: 1)
+    }
+    defer {
+        fflush(nil)
+        _ = dup2(protocolOutput.fileDescriptor, STDOUT_FILENO)
+    }
     do {
         let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
         let companion = try GRPCCompanionClient.makeLive(connection: connection)
@@ -157,7 +169,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
         let server = MCPServer(executor: executor, sessionManager: sessionManager, profile: profile)
 
         do {
-            try await MCPStdioServer(server: server).run()
+            try await MCPStdioServer(server: server).run(output: protocolOutput)
         } catch {
             await sessionManager.closeAll()
             await iOSCM.shutdown()
@@ -197,4 +209,15 @@ private func normalizedMCPDeviceID(_ deviceID: String?, for platform: Platform) 
         guard let deviceID, !deviceID.isEmpty, deviceID != "booted" else { return nil }
         return deviceID
     }
+}
+
+/// Reserve stdout for JSON-RPC; CLI diagnostics and child processes use stderr.
+private func isolateMCPOutput() -> FileHandle? {
+    let descriptor = dup(STDOUT_FILENO)
+    guard descriptor >= 0 else { return nil }
+    let output = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    guard fcntl(descriptor, F_SETFD, FD_CLOEXEC) >= 0 else { return nil }
+    fflush(nil)
+    guard dup2(STDERR_FILENO, STDOUT_FILENO) >= 0 else { return nil }
+    return output
 }

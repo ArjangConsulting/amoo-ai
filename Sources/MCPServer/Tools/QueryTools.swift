@@ -93,6 +93,10 @@ public enum QueryTools {
                 properties: [
                     "byte_count": .init(type: "integer", description: "Size of the captured image in bytes"),
                     "original_byte_count": .init(type: "integer", description: "Size before downscaling"),
+                    "screen_state": .init(
+                        type: "string",
+                        description: "on, locked, or off when detectable; omitted if unknown"
+                    ),
                     "width_pixels": .init(type: "number", description: "Returned image width"),
                     "height_pixels": .init(type: "number", description: "Returned image height"),
                     "width_points": .init(type: "number", description: "Screen width in gesture points"),
