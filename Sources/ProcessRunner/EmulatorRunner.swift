@@ -1,3 +1,5 @@
+import AmooCore
+import Foundation
 import SwiftyShell
 
 public protocol EmulatorRunning: Sendable {
@@ -5,34 +7,35 @@ public protocol EmulatorRunning: Sendable {
 }
 
 public struct EmulatorRunner: EmulatorRunning {
-    private let context: ShellContext
+    /// Unused now that launch spawns a fully detached process, but kept so existing call
+    /// sites (`EmulatorRunner(context:)`) don't need to change.
+    public init(context: ShellContext = .init()) {}
 
-    public init(context: ShellContext = .init()) {
-        self.context = context
-    }
-
+    /// Launches the emulator as a fully detached `Process`, not through SwiftyShell's
+    /// managed spawn+teardown lifecycle.
+    ///
+    /// A `SpawnedProcess` handle sends its configured `TeardownStrategy` signal the moment
+    /// the handle is deinitialized — by design, so no spawned process ever leaks past its
+    /// caller's lifetime. The emulator is the opposite: it must outlive this call, the
+    /// session, and potentially this whole `amoo` process. Live repro against a real AVD
+    /// showed the previous `.spawn(teardown: .interruptThenTerminate)` + registry-held-handle
+    /// approach still killed the launcher process within ~8s of spawn — well before boot
+    /// could ever complete — with AOSP's own orphan-reaper watchdog finishing off the
+    /// orphaned qemu child ~20s later. A plain detached `Process` (mirroring
+    /// `launchDetachedProcess` in the CLI's interactive device selector) has no such hook.
     public func launch(avdName: String, port: Int) async throws {
-        let process = try await Command("emulator")
-            .args(["-avd", avdName, "-port", String(port), "-no-snapshot-save"])
-            .stdout(.discard)
-            .stderr(.discard)
-            .spawn(in: context, teardown: .interruptThenTerminate)
-        await EmulatorProcessRegistry.shared.register(process, serial: "emulator-\(port)")
-    }
-}
-
-/// Holds a strong reference to every emulator this process launched.
-///
-/// Write-only on purpose — nothing reads it back. The emulator outlives the `launch(avdName:port:)`
-/// call that started it, and dropping the last reference to its `SpawnedProcess` would let the
-/// handle deinit while the emulator is still booting. Deleting this as dead code would take the
-/// emulator with it.
-private actor EmulatorProcessRegistry {
-    static let shared = EmulatorProcessRegistry()
-
-    private var processes: [String: any SpawnedProcess] = [:]
-
-    func register(_ process: any SpawnedProcess, serial: String) {
-        processes[serial] = process
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["emulator", "-avd", avdName, "-port", String(port), "-no-snapshot-save"]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        do {
+            try process.run()
+        } catch {
+            throw AmooError.commandFailed(
+                command: "emulator -avd \(avdName) -port \(port)",
+                output: error.localizedDescription
+            )
+        }
     }
 }
