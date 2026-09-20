@@ -27,8 +27,13 @@ public struct EmulatorRunner: EmulatorRunning {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["emulator", "-avd", avdName, "-port", String(port), "-no-snapshot-save"]
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
+        // `Pipe()` here would be unread and unretained past this function returning — ARC
+        // deallocates it, closing both ends, and the emulator's next write after that gets
+        // SIGPIPE (default disposition: terminate). Confirmed live: the launcher died within
+        // seconds of a real output burst (e.g. around "Boot completed"), well before boot
+        // finished. `nullDevice` has no read end to close.
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
         do {
             try process.run()
         } catch {
