@@ -8,7 +8,6 @@ import XCTest
 /// The gRPC server actor dispatches calls here; `@MainActor` ensures thread safety.
 @MainActor
 final class XCUITestBridge: @unchecked Sendable {
-    private let app: XCUIApplication
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
     /// Bundle ID of the companion's own host app, which must never be picked as a gesture target.
@@ -139,7 +138,6 @@ final class XCUITestBridge: @unchecked Sendable {
 
     init(app: XCUIApplication, targetBundleID: String? = nil, hostBundleID: String? = nil) {
         _ = Self.fastInteractionEnabled
-        self.app = app
         self.targetBundleID = targetBundleID.flatMap { $0.isEmpty ? nil : $0 }
         self.hostBundleID = hostBundleID ?? Self.bundleID(of: app)
     }
@@ -736,7 +734,7 @@ final class XCUITestBridge: @unchecked Sendable {
     ///
     /// The companion's own host app is excluded throughout: XCUITest activates an app before
     /// delivering an interaction, so resolving to it foregrounds the fixture and swallows the
-    /// gesture. It stays as the last-resort return purely so this can never return nothing.
+    /// gesture. It is never launched either: the server runs in the UI-test runner process.
     private func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
         if let named = runningApp(bundleID) {
             return named
@@ -758,11 +756,8 @@ final class XCUITestBridge: @unchecked Sendable {
             return frontmost
         }
 
-        if springboard.state == .runningForeground {
-            return springboard
-        }
-
-        return app
+        // SpringBoard is always running, so it is the one last resort that can be queried safely.
+        return springboard
     }
 
     /// The app for `bundleID`, or `nil` when it is not running.
@@ -1092,8 +1087,9 @@ final class XCUITestBridge: @unchecked Sendable {
             return
         }
 
-        let target = app
-        let coordinate = target.coordinate(withNormalizedOffset: .zero)
+        // Through the gesture target, like every other coordinate: this went through the host app,
+        // which XCUITest activates first — foregrounding the fixture instead of focusing the field.
+        let coordinate = gestureTarget().coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: frame.maxX - 8, dy: frame.midY))
         coordinate.tap()
     }

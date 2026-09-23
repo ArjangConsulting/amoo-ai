@@ -29,13 +29,13 @@ final class CompanionRunner: XCTestCase {
 
     @MainActor
     func testRunCompanion() async throws {
-        // The host app exists purely to give this test bundle a process to live in. It is never
-        // the gesture target: `XCUITestBridge` resolves that per command and deliberately excludes
-        // this app, because XCUITest activates whatever app it delivers an interaction to —
-        // routing through this one foregrounds the fixture and swallows every tap.
+        // The host app is not launched. The server runs in this UI-test runner process, which
+        // exists without it, and launching it cost ~5s of every companion start (terminate the
+        // previous instance, set up its automation session, wait for idle). It is still named, so
+        // `XCUITestBridge` can exclude it: XCUITest activates whatever app it delivers an
+        // interaction to, and routing through this one would foreground the fixture.
         continueAfterFailure = true
         let app = XCUIApplication()
-        app.launch()
 
         let targetBundleID = Self.targetAppFromEnvironment()
         if let targetBundleID {
