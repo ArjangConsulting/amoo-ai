@@ -321,7 +321,8 @@ func runIOSCompanionStart(
                 print("Companion ready on port \(config.port)\(target).")
                 print("Holding it open — Ctrl-C to stop, or run this in the background.")
             },
-            shutdown: { await manager.shutdown() }
+            shutdown: { await manager.shutdown() },
+            runnerExit: { await manager.waitForRunnerExit() }
         )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
@@ -357,7 +358,8 @@ func runAndroidCompanionStart(
                 print("Companion ready on port \(config.port).")
                 print("Holding it open — Ctrl-C to stop, or run this in the background.")
             },
-            shutdown: { await manager.shutdown() }
+            shutdown: { await manager.shutdown() },
+            runnerExit: { await manager.waitForRunnerExit() }
         )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {

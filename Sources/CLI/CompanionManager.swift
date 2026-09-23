@@ -269,6 +269,22 @@ final class CompanionManager: @unchecked Sendable {
         print(colored("Companion ready.", .bold, .green))
     }
 
+    /// Returns once the runner this manager spawned exits, reporting its exit code and log.
+    /// Never returns when this process spawned none — it is only attached to another holder's
+    /// companion, whose lifetime is not its to manage.
+    func waitForRunnerExit() async {
+        guard let process = companionProcess else {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3600))
+            }
+            return
+        }
+        let output = await process.waitForExit()
+        guard !Task.isCancelled else { return }
+        let log = activeConfig.map { " Log: \(Self.launchLogPath(port: $0.port))" } ?? ""
+        print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red) + log)
+    }
+
     func shutdown() async {
         guard let process = companionProcess else { return }
         _ = await process.teardownAndWait()
