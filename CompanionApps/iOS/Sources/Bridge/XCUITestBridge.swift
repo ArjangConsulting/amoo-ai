@@ -567,7 +567,17 @@ final class XCUITestBridge: @unchecked Sendable {
 
     func takeScreenshot() -> Data {
         let screenshot = XCUIScreen.main.screenshot()
-        return screenshot.pngRepresentation
+        let image = screenshot.image
+        // In landscape the pixels stay in the portrait framebuffer and the rotation rides along
+        // only as `imageOrientation`, which `pngRepresentation` drops. The PNG then came out
+        // sideways while `screenInfo` — which reads the orientation-aware `image.size` — described
+        // it as landscape, so every coordinate read off it mapped to the wrong point.
+        guard image.imageOrientation != .up else { return screenshot.pngRepresentation }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: format).pngData { _ in
+            image.draw(at: .zero)
+        }
     }
 
     /// Both coordinate spaces in play, and the factor between them.
