@@ -43,7 +43,6 @@ jobs:
         with:
           path: .build
           key: spm-docs-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-docs-${{ runner.os }}-
 
       - name: Export protoc path
         run: |
