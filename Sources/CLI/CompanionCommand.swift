@@ -314,14 +314,15 @@ func runIOSCompanionStart(
     let manager = CompanionManager(processRunner: processRunner)
 
     do {
-        try await manager.ensureRunning(config: config, force: options.force)
-        let target = options.appID.map { " driving \($0)" } ?? ""
-        print("Companion ready on port \(config.port)\(target).")
-        print("Holding it open — Ctrl-C to stop, or run this in the background.")
-        // The runner is spawned as a child of this process and is torn down with it, so returning
-        // here would take the companion down a moment after announcing it was ready.
-        await waitForTerminationSignal()
-        await manager.shutdown()
+        try await holdCompanion(
+            start: { try await manager.ensureRunning(config: config, force: options.force) },
+            announce: {
+                let target = options.appID.map { " driving \($0)" } ?? ""
+                print("Companion ready on port \(config.port)\(target).")
+                print("Holding it open — Ctrl-C to stop, or run this in the background.")
+            },
+            shutdown: { await manager.shutdown() }
+        )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
         return CLIResult(output: "", exitCode: 0)
@@ -350,11 +351,14 @@ func runAndroidCompanionStart(
     let manager = AndroidCompanionManager(processRunner: processRunner)
 
     do {
-        try await manager.ensureRunning(config: config, force: options.force)
-        print("Companion ready on port \(config.port).")
-        print("Holding it open — Ctrl-C to stop, or run this in the background.")
-        await waitForTerminationSignal()
-        await manager.shutdown()
+        try await holdCompanion(
+            start: { try await manager.ensureRunning(config: config, force: options.force) },
+            announce: {
+                print("Companion ready on port \(config.port).")
+                print("Holding it open — Ctrl-C to stop, or run this in the background.")
+            },
+            shutdown: { await manager.shutdown() }
+        )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
         return CLIResult(output: "", exitCode: 0)
@@ -414,67 +418,4 @@ func runAndroidCompanionInstall(
     } catch {
         return CLIResult(output: "Android companion install failed: \(error)", exitCode: 1)
     }
-}
-
-// MARK: - Foreground lifecycle
-
-private final class CompanionSignalWaiter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var continuation: CheckedContinuation<Void, Never>?
-    private var sources: [DispatchSourceSignal] = []
-    private var finished = false
-
-    func wait() async {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            self.continuation = continuation
-            lock.unlock()
-
-            #if os(macOS) || os(Linux)
-            signal(SIGINT, SIG_IGN)
-            signal(SIGTERM, SIG_IGN)
-            let created = [SIGINT, SIGTERM].map { signalNumber in
-                let source = DispatchSource.makeSignalSource(signal: signalNumber, queue: .global())
-                source.setEventHandler { [weak self] in self?.finish() }
-                source.resume()
-                return source
-            }
-            // A signal can arrive between `resume()` and this assignment, so `finish()` may
-            // already have run and cleared the (then empty) source list. Cancel here instead of
-            // storing sources that nothing will ever tear down.
-            lock.lock()
-            let alreadyFinished = finished
-            if !alreadyFinished {
-                sources = created
-            }
-            lock.unlock()
-            if alreadyFinished {
-                created.forEach { $0.cancel() }
-            }
-            #else
-            finish()
-            #endif
-        }
-    }
-
-    private func finish() {
-        lock.lock()
-        guard !finished else {
-            lock.unlock()
-            return
-        }
-        finished = true
-        let pending = continuation
-        continuation = nil
-        let activeSources = sources
-        sources = []
-        lock.unlock()
-
-        activeSources.forEach { $0.cancel() }
-        pending?.resume()
-    }
-}
-
-private func waitForTerminationSignal() async {
-    await CompanionSignalWaiter().wait()
 }
