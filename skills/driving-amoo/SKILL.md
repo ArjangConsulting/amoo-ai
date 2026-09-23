@@ -28,6 +28,10 @@ amoo companion start --platform ios --device <udid> --app <bundle-id>
 amoo device --platform ios --device <udid> current_app
 ```
 
+One companion serves one device. With several simulators booted, give each its own port and pass
+the same `--port` to `amoo device`; a companion attached to a different simulator is refused rather
+than silently driving the wrong device.
+
 Use `--platform android` and the device serial for Android. Pair/trust and sign the companion
 for physical iOS hardware; see [physical iOS setup](../../docs/physical-ios-devices.md).
 `amoo device` with no arguments lists the current schema. Read it when an unfamiliar tool is
@@ -44,6 +48,7 @@ needed rather than guessing its arguments.
 | Compare screen state | get_screen_context then assert_screen_changed with from_token |
 | Inspect layout or an image | take_screenshot |
 | Inspect WebView-only state | webview_dom or webview_eval |
+| Test landscape or rotation | set_orientation, then re-query — every coordinate moves |
 
 Prefer stable IDs, then exact labels, then scoped text queries. `tap_element` resolves its own
 target; a separate query is useful for ambiguity or recording semantic observations, not
@@ -75,11 +80,23 @@ Read the returned error code and device/session state. Follow the reported compa
 command when applicable; preserve session_id and target identity. Do not blindly repeat a
 mutation after timeout: inspect the postcondition first, because it may already have executed.
 
-Once a session is live, launch/terminate/reinstall the app-under-test only through amoo tools —
-never raw `simctl`/`adb` — touching it outside amoo desyncs the companion's channel. If a device
-tool then fails with a connection error (e.g. connection refused to the companion port),
-re-run `companion_warm` and wait; `companion_status` can briefly still report ready right after
-the desync, so don't treat a `ready` status as proof the channel will still work on the next call.
+Once a session is live, launch/terminate/reinstall the app-under-test only through amoo tools
+(`device_install_app`, `device_launch_app`) — never raw `simctl`/`adb`. The companion survives a
+reinstall; the app is left not running, so launch it before querying it again. If a device tool
+fails with a connection error, read `$TMPDIR/companion-launch-<port>.log`, then restart the
+companion; `companion_status` can briefly still report ready, so it is not proof the channel works.
+
+## Iterate without rebuilding
+
+Every device call should answer in about a second; a slower one is an amoo bug worth reporting,
+not something to wait out. Most of a slow loop is rebuilding what has not changed:
+
+- Keep one companion running per device across app rebuilds. `companion start` rebuilds it only
+  when companion sources change.
+- Rebuild the app only after its source changes. A hang, crash, or flaky result is re-run on the
+  existing build: relaunch with `device_launch_app`, or reinstall the same bundle.
+- For XCTest suites, `xcodebuild build-for-testing` once, then run each attempt with
+  `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
 
 Use the documented system scope for permission prompts. Do not guess that an app's controls
 are system UI merely because their labels contain words such as time or settings.

@@ -42,7 +42,6 @@ jobs:
         with:
           path: .build
           key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
 
       - name: Export protoc path
         run: |
@@ -86,7 +85,6 @@ jobs:
         with:
           path: .build
           key: spm-linux-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-linux-
 
       - name: Build
         run: swift build --product amoo

@@ -49,6 +49,9 @@ service CompanionService {
   rpc GetCurrentApp (Empty) returns (CurrentAppResponse);
   rpc GetScreenInfo (Empty) returns (ScreenInfoResponse);
   rpc SetTargetApp (SetTargetAppRequest) returns (ActionResponse);
+
+  // Device orientation
+  rpc SetOrientation (SetOrientationRequest) returns (OrientationResponse);
   rpc GetAppState (GetAppStateRequest) returns (GetAppStateResponse);
 
   // AI context
@@ -217,4 +220,23 @@ message GetAppStateResponse {
   // hang severe enough to take the whole gRPC connection down. state is a cheap enum read
   // with none of that risk.
   string state = 1;
+}
+
+// Named for the device, as UIDeviceOrientation is: LANDSCAPE_LEFT is the device turned
+// counter-clockwise (top edge on the left), which is Android's Surface.ROTATION_90.
+enum Orientation {
+  ORIENTATION_UNSPECIFIED = 0;
+  ORIENTATION_PORTRAIT = 1;
+  ORIENTATION_PORTRAIT_UPSIDE_DOWN = 2;
+  ORIENTATION_LANDSCAPE_LEFT = 3;
+  ORIENTATION_LANDSCAPE_RIGHT = 4;
+}
+
+message SetOrientationRequest {
+  Orientation orientation = 1;
+}
+
+message OrientationResponse {
+  // The orientation the device reports after the change, read back rather than echoed.
+  Orientation orientation = 1;
 }

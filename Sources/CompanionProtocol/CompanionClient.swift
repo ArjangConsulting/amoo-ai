@@ -46,6 +46,9 @@ public protocol CompanionClient: Sendable {
     /// under test for the rest of the session (empty/nil falls back to whatever is frontmost).
     func currentApp() async throws -> CurrentAppInfo
     func setTargetApp(bundleID: String?) async throws
+
+    /// Rotates the device through XCUITest; returns the orientation reported afterwards.
+    func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation
     /// `appID`'s own run state, resolved directly via the companion's public
     /// `XCUIApplication(bundleIdentifier:).state` — not by asking who is frontmost. See
     /// `GetAppStateResponse` in actions.proto for why that distinction is load-bearing: the
@@ -156,6 +159,10 @@ public extension CompanionClient {
 
     func setTargetApp(bundleID _: String?) async throws {
         throw AmooError.notImplemented("setTargetApp")
+    }
+
+    func setOrientation(_: DeviceOrientation) async throws -> DeviceOrientation {
+        throw AmooError.notImplemented("setOrientation")
     }
 
     func appState(appID _: String) async throws -> String {

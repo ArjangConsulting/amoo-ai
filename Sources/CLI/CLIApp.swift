@@ -32,21 +32,26 @@ public struct CLIApp {
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
+    private let launchREPL: @Sendable ([String]) async -> Void
 
+    /// - Parameter launchREPL: the interactive mode `amoo` with no arguments enters. It selects a
+    ///   booted device and builds and starts a real companion on it, so tests replace it.
     public init(
         mcpServer: MCPServer = .init(),
         preflightChecker: any PreflightChecking = DefaultPreflightChecker(),
-        auditRunner: any AuditRunning = DefaultAuditRunner()
+        auditRunner: any AuditRunning = DefaultAuditRunner(),
+        launchREPL: (@Sendable ([String]) async -> Void)? = nil
     ) {
         self.mcpServer = mcpServer
         self.preflightChecker = preflightChecker
         self.auditRunner = auditRunner
+        self.launchREPL = launchREPL ?? { await startREPLMode(args: $0) }
     }
 
     public func run(args: [String]) async -> CLIResult {
         if args.isEmpty {
             // Default interactive mode when no arguments are provided.
-            await startREPLMode(args: args)
+            await launchREPL(args)
             return CLIResult(output: "", exitCode: 0)
         }
 

@@ -227,13 +227,16 @@ final class CompanionProtocolTests: XCTestCase {
     }
 }
 
-private actor MockRPCClient: CompanionRPCClient {
+actor MockRPCClient: CompanionRPCClient {
     private let screenshotPNG = Data(
         base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2foAAAAASUVORK5CYII="
     )!
 
     var currentAppBundleID = "com.example.underTest"
     var targetAppBundleID = ""
+    /// What `setOrientation` reports back; `nil` echoes the request, as a real device does.
+    var reportedOrientation: Amoo_Orientation?
+    var orientationError: (any Error)?
     var startRequest: Amoo_StartSessionRequest?
     var tapRequest: Amoo_TapRequest?
     var findElementsRequest: Amoo_FindElementsRequest?

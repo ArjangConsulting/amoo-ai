@@ -13,9 +13,12 @@ struct AndroidCompanionConfig {
     var serial: String?
     var readyTimeoutSeconds: Int
 
+    /// The port an Android companion listens on unless told otherwise.
+    static let defaultPort = 22088
+
     init(
         host: String = "127.0.0.1",
-        port: Int = 22088,
+        port: Int = Self.defaultPort,
         companionDir: String? = nil,
         serial: String?,
         readyTimeoutSeconds: Int = Self.defaultReadyTimeoutSeconds

@@ -239,6 +239,15 @@ public enum Appearance: String, Sendable, Equatable {
     case dark
 }
 
+/// Physical device orientation, named for the device the way `UIDeviceOrientation` is:
+/// `landscapeLeft` is the device turned counter-clockwise, top edge on the left.
+public enum DeviceOrientation: String, Sendable, Equatable, CaseIterable {
+    case portrait
+    case portraitUpsideDown = "portrait_upside_down"
+    case landscapeLeft = "landscape_left"
+    case landscapeRight = "landscape_right"
+}
+
 public struct DeviceInfo: Sendable, Equatable {
     public var id: String
     public var name: String

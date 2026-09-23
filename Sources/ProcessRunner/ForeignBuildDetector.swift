@@ -33,6 +33,9 @@ public struct ForeignBuildDetector: Sendable {
         "another xcodebuild/xctest process is running that amoo did not start; "
             + "the install or launch may race with it or be killed if that build tears down"
 
+    /// Appears in every companion run's arguments: its `.xctestrun` and runner are named for it.
+    static let companionMarker = "AmooCompanion"
+
     /// A detector that never reports anything, for callers (and tests) that want the check to be
     /// a no-op without threading an optional through every construction site.
     public static let disabled = Self(
@@ -62,6 +65,10 @@ public struct ForeignBuildDetector: Sendable {
                     return false
                 }
                 guard !ownProcessIDs.contains(pid) else { return false }
+                // A companion is amoo's own long-running `xcodebuild test-without-building`, held
+                // by a separate `amoo companion start` process and so outside this ancestry. It is
+                // running for the whole session, so counting it warned on every install.
+                guard !line.contains(Self.companionMarker) else { return false }
                 // Guard against a pgrep build that treated the pattern as a fixed string.
                 return line.contains("xcodebuild") || line.contains("xctest")
             }

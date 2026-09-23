@@ -89,12 +89,17 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(resolved, companion.path)
     }
 
+    /// No subcommand enters the REPL and returns nothing to print. The real REPL is replaced: it
+    /// picks whatever simulator is booted and builds and starts a companion there — minutes of
+    /// work, and a rebuild of the companion under any other session using it.
     func testDefaultOutput() async {
-        // REPL mode (no subcommand): prints nothing to CLIResult, exits 0 after device selection fails silently
-        let app = CLIApp()
+        let launches = REPLLaunchRecorder()
+        let app = CLIApp(launchREPL: { await launches.record($0) })
         let result = await app.run(args: [])
         XCTAssertEqual(result.output, "")
         XCTAssertEqual(result.exitCode, 0)
+        let recorded = await launches.launches
+        XCTAssertEqual(recorded, [[]], "the REPL is entered exactly once, with no arguments")
     }
 
     func testToolsOutput() async {
@@ -323,5 +328,13 @@ struct MockAuditRunner: AuditRunning {
 
     func runAudit(options _: AuditCommandOptions) async throws -> AuditReport {
         report
+    }
+}
+
+private actor REPLLaunchRecorder {
+    private(set) var launches: [[String]] = []
+
+    func record(_ args: [String]) {
+        launches.append(args)
     }
 }

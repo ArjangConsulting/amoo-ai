@@ -315,7 +315,7 @@ private func promptToInstallCompanion(
         print("Troubleshooting:")
         print("  1. Ensure a simulator is booted: xcrun simctl list devices booted")
         print("  2. Try rebuilding: amoo companion install --platform \(options.platform.rawValue) --force")
-        print("  3. Check logs: cat $TMPDIR/companion-launch.log")
+        print("  3. Check logs: cat $TMPDIR/companion-launch-<port>.log")
         print("  4. Use --no-companion to skip and debug manually")
         return CLIResult(output: "", exitCode: 1)
     }

@@ -345,6 +345,19 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "SetOrientation" metadata.
+        public enum SetOrientation: Sendable {
+            /// Request type for "SetOrientation".
+            public typealias Input = Amoo_SetOrientationRequest
+            /// Response type for "SetOrientation".
+            public typealias Output = Amoo_OrientationResponse
+            /// Descriptor for "SetOrientation".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "SetOrientation",
+                type: .unary
+            )
+        }
         /// Namespace for "GetAppState" metadata.
         public enum GetAppState: Sendable {
             /// Request type for "GetAppState".
@@ -437,6 +450,7 @@ public enum Amoo_CompanionService: Sendable {
             GetCurrentApp.descriptor,
             GetScreenInfo.descriptor,
             SetTargetApp.descriptor,
+            SetOrientation.descriptor,
             GetAppState.descriptor,
             GetScreenContext.descriptor,
             FindByDescription.descriptor,
@@ -844,6 +858,24 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_SetTargetAppRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
+
+        /// Handle the "SetOrientation" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Device orientation
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_SetOrientationRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_OrientationResponse` messages.
+        func setOrientation(
+            request: GRPCCore.StreamingServerRequest<Amoo_SetOrientationRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_OrientationResponse>
 
         /// Handle the "GetAppState" method.
         ///
@@ -1310,6 +1342,24 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
+        /// Handle the "SetOrientation" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Device orientation
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SetOrientationRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_OrientationResponse` message.
+        func setOrientation(
+            request: GRPCCore.ServerRequest<Amoo_SetOrientationRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_OrientationResponse>
+
         /// Handle the "GetAppState" method.
         ///
         /// - Parameters:
@@ -1773,6 +1823,24 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_ActionResponse
 
+        /// Handle the "SetOrientation" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Device orientation
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_SetOrientationRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_OrientationResponse` to respond with.
+        func setOrientation(
+            request: Amoo_SetOrientationRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_OrientationResponse
+
         /// Handle the "GetAppState" method.
         ///
         /// - Parameters:
@@ -2133,6 +2201,17 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.SetOrientation.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SetOrientationRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_OrientationResponse>(),
+            handler: { request, context in
+                try await self.setOrientation(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.GetAppState.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_GetAppStateRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_GetAppStateResponse>(),
@@ -2462,6 +2541,17 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
         let response = try await self.setTargetApp(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func setOrientation(
+        request: GRPCCore.StreamingServerRequest<Amoo_SetOrientationRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_OrientationResponse> {
+        let response = try await self.setOrientation(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2845,6 +2935,19 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
         return GRPCCore.ServerResponse<Amoo_ActionResponse>(
             message: try await self.setTargetApp(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func setOrientation(
+        request: GRPCCore.ServerRequest<Amoo_SetOrientationRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_OrientationResponse> {
+        return GRPCCore.ServerResponse<Amoo_OrientationResponse>(
+            message: try await self.setOrientation(
                 request: request.message,
                 context: context
             ),
@@ -3428,6 +3531,29 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "SetOrientation" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Device orientation
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SetOrientationRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetOrientationRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_OrientationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func setOrientation<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetOrientationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetOrientationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_OrientationResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_OrientationResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "GetAppState" method.
@@ -4328,6 +4454,40 @@ extension Amoo_CompanionService {
             )
         }
 
+        /// Call the "SetOrientation" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Device orientation
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_SetOrientationRequest` message.
+        ///   - serializer: A serializer for `Amoo_SetOrientationRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_OrientationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func setOrientation<Result>(
+            request: GRPCCore.ClientRequest<Amoo_SetOrientationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_SetOrientationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_OrientationResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_OrientationResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.SetOrientation.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "GetAppState" method.
         ///
         /// - Parameters:
@@ -5139,6 +5299,35 @@ extension Amoo_CompanionService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetTargetAppRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetOrientation" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Device orientation
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_SetOrientationRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setOrientation<Result>(
+        request: GRPCCore.ClientRequest<Amoo_SetOrientationRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_OrientationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.setOrientation(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetOrientationRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_OrientationResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -6028,6 +6217,39 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.setTargetApp(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetOrientation" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Device orientation
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setOrientation<Result>(
+        _ message: Amoo_SetOrientationRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_OrientationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_SetOrientationRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.setOrientation(
             request: request,
             options: options,
             onResponse: handleResponse

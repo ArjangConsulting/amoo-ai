@@ -332,6 +332,18 @@ actor MockDriver: PlatformDriver {
         calls.append("appearance:\(appearance.rawValue)")
     }
 
+    /// What the device reports after a rotation; `nil` means it honoured the request.
+    var reportedOrientation: DeviceOrientation?
+
+    func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation {
+        calls.append("orientation:\(orientation.rawValue)")
+        return reportedOrientation ?? orientation
+    }
+
+    func stubReportedOrientation(_ orientation: DeviceOrientation?) {
+        reportedOrientation = orientation
+    }
+
     func getScreenContext() async throws -> ScreenContext {
         ScreenContext(summary: "Mock screen")
     }

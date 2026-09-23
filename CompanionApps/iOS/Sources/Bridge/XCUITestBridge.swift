@@ -8,7 +8,6 @@ import XCTest
 /// The gRPC server actor dispatches calls here; `@MainActor` ensures thread safety.
 @MainActor
 final class XCUITestBridge: @unchecked Sendable {
-    private let app: XCUIApplication
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
     /// Bundle ID of the companion's own host app, which must never be picked as a gesture target.
@@ -139,7 +138,6 @@ final class XCUITestBridge: @unchecked Sendable {
 
     init(app: XCUIApplication, targetBundleID: String? = nil, hostBundleID: String? = nil) {
         _ = Self.fastInteractionEnabled
-        self.app = app
         self.targetBundleID = targetBundleID.flatMap { $0.isEmpty ? nil : $0 }
         self.hostBundleID = hostBundleID ?? Self.bundleID(of: app)
     }
@@ -257,15 +255,18 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Uses XCTest's runner-daemon event API when present. Unlike `XCUICoordinate.tap()`, this
     /// returns when synthesis completes without adding an implicit post-event confirmation wait.
     private func tapWithoutCacheInvalidation(x: Double, y: Double) async {
-        let target = gestureTarget()
         guard FastTapSynthesizer.isAvailable else {
             gestureCoordinate(x: x, y: y).tap()
             return
         }
         do {
+            // In the fixed portrait screen space XCTest synthesizes in, as `XCUICoordinate.tap()`
+            // does. Handing it interface coordinates plus the interface orientation instead landed
+            // every landscape tap a cell off — (509,315) selected the day at (581,387) — and missed
+            // edge controls entirely, while reporting success.
             try await FastTapSynthesizer.tap(
-                at: CGPoint(x: x, y: y),
-                orientation: interfaceOrientation(of: target)
+                at: gestureCoordinate(x: x, y: y).screenPoint,
+                orientation: .portrait
             )
         } catch {
             // Runtime lookup keeps future XCTest changes from breaking all taps. A synthesis error
@@ -273,15 +274,6 @@ final class XCUITestBridge: @unchecked Sendable {
             print("Fast tap unavailable; falling back to XCUICoordinate.tap(): \(error)")
             gestureCoordinate(x: x, y: y).tap()
         }
-    }
-
-    private func interfaceOrientation(of application: XCUIApplication) -> UIInterfaceOrientation {
-        let selector = NSSelectorFromString("interfaceOrientation")
-        guard application.responds(to: selector) else { return .portrait }
-        let implementation = application.method(for: selector)
-        typealias Method = @convention(c) (AnyObject, Selector) -> Int
-        let rawValue = unsafeBitCast(implementation, to: Method.self)(application, selector)
-        return UIInterfaceOrientation(rawValue: rawValue) ?? .portrait
     }
 
     /// The app a gesture is delivered through.
@@ -293,15 +285,16 @@ final class XCUITestBridge: @unchecked Sendable {
     /// the command reports success and nothing happens. Falling through to the query order only
     /// once the target is no longer foreground is what keeps system sheets reachable.
     private func gestureTarget() -> XCUIApplication {
-        // The bound target wins outright, without consulting `state`. Two reasons: an app launched
-        // outside this test process is not reliably reported as `.runningForeground`, and
-        // SpringBoard *is* — so a state check hands gestures to SpringBoard, whose window swallows
-        // coordinate taps and reports success while nothing happens. Routing through the app is
-        // also correct when system UI is on top: the tap synthesizes a touch at that screen point,
-        // which whatever is frontmost receives. Callers that need to address a different process
-        // explicitly can pass a bundle ID or unbind with `set_target_app`.
-        if let targetBundleID {
-            return XCUIApplication(bundleIdentifier: targetBundleID)
+        // The bound target wins whenever it is running at all, without asking for foreground. Two
+        // reasons: an app launched outside this test process is not reliably reported as
+        // `.runningForeground`, and SpringBoard *is* — so a foreground check hands gestures to
+        // SpringBoard, whose window swallows coordinate taps and reports success while nothing
+        // happens. Routing through the app is also correct when system UI is on top: the tap
+        // synthesizes a touch at that screen point, which whatever is frontmost receives. Callers
+        // that need to address a different process explicitly can pass a bundle ID or unbind with
+        // `set_target_app`.
+        if let bound = runningApp(targetBundleID) {
+            return bound
         }
         return resolvedTargetApp(bundleID: nil, candidateBundleIDs: [])
     }
@@ -502,8 +495,8 @@ final class XCUITestBridge: @unchecked Sendable {
     /// own matches preferred, and costs one extra snapshot exactly when the answer was going to be
     /// "not found" anyway.
     private func searchOrder(bundleID: String?, candidateBundleIDs: [String]) -> [XCUIApplication] {
-        if let bundleID, !bundleID.isEmpty {
-            return [XCUIApplication(bundleIdentifier: bundleID)]
+        if let named = runningApp(bundleID) {
+            return [named]
         }
 
         let resolved = resolvedTargetApp(bundleID: nil, candidateBundleIDs: candidateBundleIDs)
@@ -566,7 +559,17 @@ final class XCUITestBridge: @unchecked Sendable {
 
     func takeScreenshot() -> Data {
         let screenshot = XCUIScreen.main.screenshot()
-        return screenshot.pngRepresentation
+        let image = screenshot.image
+        // In landscape the pixels stay in the portrait framebuffer and the rotation rides along
+        // only as `imageOrientation`, which `pngRepresentation` drops. The PNG then came out
+        // sideways while `screenInfo` — which reads the orientation-aware `image.size` — described
+        // it as landscape, so every coordinate read off it mapped to the wrong point.
+        guard image.imageOrientation != .up else { return screenshot.pngRepresentation }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: format).pngData { _ in
+            image.draw(at: .zero)
+        }
     }
 
     /// Both coordinate spaces in play, and the factor between them.
@@ -609,7 +612,7 @@ final class XCUITestBridge: @unchecked Sendable {
             label: snapshot.label,
             value: snapshot.value as? String ?? "",
             isSecureTextEntry: snapshot.elementType == .secureTextField,
-            type: "\(snapshot.elementType)",
+            type: snapshot.elementType.amooTypeName,
             frame: snapshot.frame,
             hitPoint: interactionPoint(
                 frame: snapshot.frame,
@@ -646,7 +649,7 @@ final class XCUITestBridge: @unchecked Sendable {
             label: element.label,
             value: element.value as? String ?? "",
             isSecureTextEntry: element.elementType == .secureTextField,
-            type: "\(element.elementType)",
+            type: element.elementType.amooTypeName,
             frame: element.frame,
             hitPoint: interactionPoint(frame: element.frame, visibleFrame: nil, viewport: viewport),
             isEnabled: element.isEnabled,
@@ -725,18 +728,18 @@ final class XCUITestBridge: @unchecked Sendable {
     ///
     /// The companion's own host app is excluded throughout: XCUITest activates an app before
     /// delivering an interaction, so resolving to it foregrounds the fixture and swallows the
-    /// gesture. It stays as the last-resort return purely so this can never return nothing.
+    /// gesture. It is never launched either: the server runs in the UI-test runner process.
     private func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
-        if let bundleID, !bundleID.isEmpty {
-            return XCUIApplication(bundleIdentifier: bundleID)
+        if let named = runningApp(bundleID) {
+            return named
         }
 
         if let frontmost = frontmostActiveApplication() {
             return frontmost
         }
 
-        if let targetBundleID {
-            return XCUIApplication(bundleIdentifier: targetBundleID)
+        if let bound = runningApp(targetBundleID) {
+            return bound
         }
 
         if let frontmost = candidateBundleIDs
@@ -747,11 +750,25 @@ final class XCUITestBridge: @unchecked Sendable {
             return frontmost
         }
 
-        if springboard.state == .runningForeground {
-            return springboard
-        }
+        // SpringBoard is always running, so it is the one last resort that can be queried safely.
+        return springboard
+    }
 
-        return app
+    /// The app for `bundleID`, or `nil` when it is not running.
+    ///
+    /// Snapshotting a process that is not running makes XCTest record a failure, and a failure
+    /// ends the runner's one long-lived test — taking the server down with it. That happens
+    /// routinely: reinstalling the app under test terminates it while the companion stays bound
+    /// to it. Callers fall through to whatever is actually on screen instead.
+    private func runningApp(_ bundleID: String?) -> XCUIApplication? {
+        guard let bundleID, !bundleID.isEmpty else { return nil }
+        let candidate = XCUIApplication(bundleIdentifier: bundleID)
+        switch candidate.state {
+        case .notRunning, .unknown:
+            return nil
+        default:
+            return candidate
+        }
     }
 
     /// Prefer XCTest's active app list when available so we don't need a host-side
@@ -953,7 +970,7 @@ final class XCUITestBridge: @unchecked Sendable {
             id: snapshot.identifier,
             label: snapshot.label,
             value: (snapshot.value as? String) ?? "",
-            type: "\(snapshot.elementType)",
+            type: snapshot.elementType.amooTypeName,
             frame: snapshot.frame,
             hitPoint: interactionPoint(frame: snapshot.frame, visibleFrame: visibleFrame, viewport: viewport),
             isEnabled: snapshot.isEnabled,
@@ -1064,8 +1081,9 @@ final class XCUITestBridge: @unchecked Sendable {
             return
         }
 
-        let target = app
-        let coordinate = target.coordinate(withNormalizedOffset: .zero)
+        // Through the gesture target, like every other coordinate: this went through the host app,
+        // which XCUITest activates first — foregrounding the fixture instead of focusing the field.
+        let coordinate = gestureTarget().coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: frame.maxX - 8, dy: frame.midY))
         coordinate.tap()
     }
@@ -1080,5 +1098,56 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return "root"
+    }
+}
+
+// MARK: - Element type names
+
+extension XCUIElement.ElementType {
+    /// A stable name the host maps onto its `ElementType`.
+    ///
+    /// Interpolating the enum directly yields `XCUIElementType(rawValue: 9)`: imported Objective-C
+    /// enums carry no Swift case names. That left every element classified as `other`, so the host
+    /// found no interactable elements on any screen.
+    var amooTypeName: String {
+        switch self {
+        case .button, .radioButton, .checkBox, .popUpButton, .menuButton, .toolbarButton, .key, .link,
+             .menuItem, .tab:
+            "button"
+        case .textField, .searchField, .textView:
+            "textField"
+        case .secureTextField:
+            "secureTextField"
+        case .staticText:
+            "staticText"
+        case .image, .icon:
+            "image"
+        case .cell:
+            "cell"
+        case .scrollView:
+            "scrollView"
+        case .table:
+            "table"
+        case .collectionView:
+            "collectionView"
+        case .navigationBar:
+            "navigationBar"
+        case .tabBar:
+            "tabBar"
+        case .switch, .toggle:
+            "switch"
+        case .slider:
+            "slider"
+        case .segmentedControl, .picker, .pickerWheel, .datePicker:
+            "picker"
+        case .alert:
+            "alert"
+        case .sheet:
+            "sheet"
+        case .webView:
+            "webView"
+        default:
+            "other"
+        }
     }
 }
