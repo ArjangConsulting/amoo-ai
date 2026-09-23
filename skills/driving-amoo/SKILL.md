@@ -28,6 +28,10 @@ amoo companion start --platform ios --device <udid> --app <bundle-id>
 amoo device --platform ios --device <udid> current_app
 ```
 
+One companion serves one device. With several simulators booted, give each its own port and pass
+the same `--port` to `amoo device`; a companion attached to a different simulator is refused rather
+than silently driving the wrong device.
+
 Use `--platform android` and the device serial for Android. Pair/trust and sign the companion
 for physical iOS hardware; see [physical iOS setup](../../docs/physical-ios-devices.md).
 `amoo device` with no arguments lists the current schema. Read it when an unfamiliar tool is

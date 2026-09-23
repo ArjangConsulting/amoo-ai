@@ -26,9 +26,12 @@ struct CompanionConfig: Equatable {
     /// than to whatever happens to be frontmost when a command arrives.
     var targetAppID: String?
 
+    /// The port an iOS companion listens on unless told otherwise.
+    static let defaultPort = 22087
+
     init(
         host: String = "127.0.0.1",
-        port: Int = 22087,
+        port: Int = Self.defaultPort,
         companionDir: String? = nil,
         deviceUDID: String,
         isPhysicalDevice: Bool = false,
@@ -132,8 +135,10 @@ final class CompanionManager: @unchecked Sendable {
     private var companionProcess: (any SpawnedProcess)?
     private var activeConfig: CompanionConfig?
     private let shellContext: ShellContext
+    private let processRunner: any ProcessRunner
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
+        self.processRunner = processRunner
         shellContext = ShellContext(
             executor: ProcessRunnerCommandExecutor(processRunner: processRunner)
         )
@@ -206,6 +211,9 @@ final class CompanionManager: @unchecked Sendable {
         if !force, !sourcesChanged,
            activeConfig == nil || activeConfig?.deviceUDID == config.deviceUDID,
            await isCompanionReady(host: config.host, port: config.port) {
+            if activeConfig == nil {
+                try await refuseOtherSimulatorsCompanion(config: config, processRunner: processRunner)
+            }
             print("Companion already running on port \(config.port).")
             return
         }
@@ -334,70 +342,6 @@ final class CompanionManager: @unchecked Sendable {
         _ = config
         throw CompanionError.unsupportedPlatform
         #endif
-    }
-
-    func currentSourceFingerprint(config: CompanionConfig) -> String {
-        let root = URL(fileURLWithPath: config.companionDir)
-        let locations = [
-            root.appendingPathComponent("project.yml"),
-            root.appendingPathComponent("Sources", isDirectory: true),
-            root.appendingPathComponent("../../Protos", isDirectory: true).standardizedFileURL
-        ]
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
-            for byte in url.path.utf8 {
-                hash = fingerprint(hash, byte: byte)
-            }
-            if let data = try? Data(contentsOf: url) {
-                for byte in data {
-                    hash = fingerprint(hash, byte: byte)
-                }
-            }
-        }
-        return String(hash, radix: 16)
-    }
-
-    private func sourceFiles(at locations: [URL]) -> [URL] {
-        locations.flatMap { location -> [URL] in
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory) else { return [] }
-            if !isDirectory.boolValue {
-                return [location]
-            }
-            guard let enumerator = FileManager.default.enumerator(
-                at: location,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-            ) else { return [] }
-            return enumerator.compactMap { item in
-                guard let url = item as? URL,
-                      (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-                else { return nil }
-                return url
-            }
-        }
-    }
-
-    private func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
-        (hash ^ UInt64(byte)) &* 1_099_511_628_211
-    }
-
-    private func sourceFingerprintMatches(config: CompanionConfig) -> Bool {
-        let path = fingerprintPath(config: config)
-        return (try? String(contentsOfFile: path, encoding: .utf8)) == currentSourceFingerprint(config: config)
-    }
-
-    private func writeSourceFingerprint(config: CompanionConfig) throws {
-        let path = fingerprintPath(config: config)
-        try FileManager.default.createDirectory(
-            at: URL(fileURLWithPath: path).deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try currentSourceFingerprint(config: config).write(toFile: path, atomically: true, encoding: .utf8)
-    }
-
-    private func fingerprintPath(config: CompanionConfig) -> String {
-        config.companionDir + "/build/.amoo-source-fingerprint"
     }
 
     private func xcodeDestination(for config: CompanionConfig, deviceUDID: String) -> String {

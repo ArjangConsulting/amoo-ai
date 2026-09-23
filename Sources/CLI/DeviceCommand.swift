@@ -292,7 +292,32 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
 
 // MARK: - Execution
 
-func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
+func runDeviceCommand(
+    options: DeviceCommandOptions,
+    resolveCompanionDevice: @Sendable (Int) async -> String? = { port in
+        await companionSimulatorUDID(port: port, processRunner: SystemProcessRunner())
+    }
+) async -> CLIResult {
+    var options = options
+    if options.platform == .ios {
+        let requested = options.deviceID ?? "booted"
+        let owner = await resolveCompanionDevice(options.port)
+        switch CompanionOwnership(requested: requested, owner: owner) {
+        case let .otherDevice(owner):
+            return CLIResult(
+                output: companionMismatchMessage(port: options.port, requested: requested, owner: owner),
+                exitCode: 1
+            )
+        case .matches, .unknown:
+            // `booted` is whichever simulator simctl picks, which need not be the one this
+            // companion drives when several are booted. Follow the companion, so an install or
+            // launch lands on the same device the queries and gestures reach.
+            if requested == "booted", let owner {
+                options.deviceID = owner
+            }
+        }
+    }
+
     let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
 
     let companion: GRPCCompanionClient
