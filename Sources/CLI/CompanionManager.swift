@@ -377,7 +377,7 @@ final class CompanionManager: @unchecked Sendable {
 
     private func launchCompanion(xctestrunPath: String, config: CompanionConfig) async throws {
         #if os(macOS)
-        let logPath = NSTemporaryDirectory() + "companion-launch.log"
+        let logPath = Self.launchLogPath(port: config.port)
         FileManager.default.createFile(atPath: logPath, contents: nil)
 
         let deviceUDID = try await resolvedDeviceUDID(for: config)
@@ -425,7 +425,7 @@ final class CompanionManager: @unchecked Sendable {
             }
             try await Task.sleep(for: .milliseconds(500))
         }
-        let logPath = NSTemporaryDirectory() + "companion-launch.log"
+        let logPath = Self.launchLogPath(port: port)
         if let log = try? String(contentsOfFile: logPath, encoding: .utf8), !log.isEmpty {
             print("--- companion launch log (last 3000 chars) ---")
             print(log.suffix(3000))
@@ -436,3 +436,11 @@ final class CompanionManager: @unchecked Sendable {
 }
 
 extension CompanionManager: IOSCompanionManaging {}
+
+extension CompanionManager {
+    /// One log per port: companions for different devices run side by side, and a shared file let
+    /// each launch truncate the other's output — leaving nothing to read when a runner died.
+    static func launchLogPath(port: Int) -> String {
+        NSTemporaryDirectory() + "companion-launch-\(port).log"
+    }
+}

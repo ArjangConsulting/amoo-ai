@@ -293,15 +293,16 @@ final class XCUITestBridge: @unchecked Sendable {
     /// the command reports success and nothing happens. Falling through to the query order only
     /// once the target is no longer foreground is what keeps system sheets reachable.
     private func gestureTarget() -> XCUIApplication {
-        // The bound target wins outright, without consulting `state`. Two reasons: an app launched
-        // outside this test process is not reliably reported as `.runningForeground`, and
-        // SpringBoard *is* — so a state check hands gestures to SpringBoard, whose window swallows
-        // coordinate taps and reports success while nothing happens. Routing through the app is
-        // also correct when system UI is on top: the tap synthesizes a touch at that screen point,
-        // which whatever is frontmost receives. Callers that need to address a different process
-        // explicitly can pass a bundle ID or unbind with `set_target_app`.
-        if let targetBundleID {
-            return XCUIApplication(bundleIdentifier: targetBundleID)
+        // The bound target wins whenever it is running at all, without asking for foreground. Two
+        // reasons: an app launched outside this test process is not reliably reported as
+        // `.runningForeground`, and SpringBoard *is* — so a foreground check hands gestures to
+        // SpringBoard, whose window swallows coordinate taps and reports success while nothing
+        // happens. Routing through the app is also correct when system UI is on top: the tap
+        // synthesizes a touch at that screen point, which whatever is frontmost receives. Callers
+        // that need to address a different process explicitly can pass a bundle ID or unbind with
+        // `set_target_app`.
+        if let bound = runningApp(targetBundleID) {
+            return bound
         }
         return resolvedTargetApp(bundleID: nil, candidateBundleIDs: [])
     }
@@ -502,8 +503,8 @@ final class XCUITestBridge: @unchecked Sendable {
     /// own matches preferred, and costs one extra snapshot exactly when the answer was going to be
     /// "not found" anyway.
     private func searchOrder(bundleID: String?, candidateBundleIDs: [String]) -> [XCUIApplication] {
-        if let bundleID, !bundleID.isEmpty {
-            return [XCUIApplication(bundleIdentifier: bundleID)]
+        if let named = runningApp(bundleID) {
+            return [named]
         }
 
         let resolved = resolvedTargetApp(bundleID: nil, candidateBundleIDs: candidateBundleIDs)
@@ -727,16 +728,16 @@ final class XCUITestBridge: @unchecked Sendable {
     /// delivering an interaction, so resolving to it foregrounds the fixture and swallows the
     /// gesture. It stays as the last-resort return purely so this can never return nothing.
     private func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
-        if let bundleID, !bundleID.isEmpty {
-            return XCUIApplication(bundleIdentifier: bundleID)
+        if let named = runningApp(bundleID) {
+            return named
         }
 
         if let frontmost = frontmostActiveApplication() {
             return frontmost
         }
 
-        if let targetBundleID {
-            return XCUIApplication(bundleIdentifier: targetBundleID)
+        if let bound = runningApp(targetBundleID) {
+            return bound
         }
 
         if let frontmost = candidateBundleIDs
@@ -752,6 +753,23 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return app
+    }
+
+    /// The app for `bundleID`, or `nil` when it is not running.
+    ///
+    /// Snapshotting a process that is not running makes XCTest record a failure, and a failure
+    /// ends the runner's one long-lived test — taking the server down with it. That happens
+    /// routinely: reinstalling the app under test terminates it while the companion stays bound
+    /// to it. Callers fall through to whatever is actually on screen instead.
+    private func runningApp(_ bundleID: String?) -> XCUIApplication? {
+        guard let bundleID, !bundleID.isEmpty else { return nil }
+        let candidate = XCUIApplication(bundleIdentifier: bundleID)
+        switch candidate.state {
+        case .notRunning, .unknown:
+            return nil
+        default:
+            return candidate
+        }
     }
 
     /// Prefer XCTest's active app list when available so we don't need a host-side

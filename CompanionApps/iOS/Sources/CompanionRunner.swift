@@ -20,12 +20,20 @@ final class CompanionRunner: XCTestCase {
         set { _ = newValue }
     }
 
+    /// The companion is a server hosted in a test, not a test: an issue XCTest records while
+    /// serving one command — a query against an app that just went away — must not end the run
+    /// and take the server down for every later command. Log it and keep serving.
+    override func record(_ issue: XCTIssue) {
+        print("[CompanionRunner] Ignoring XCTest issue: \(issue.compactDescription)")
+    }
+
     @MainActor
     func testRunCompanion() async throws {
         // The host app exists purely to give this test bundle a process to live in. It is never
         // the gesture target: `XCUITestBridge` resolves that per command and deliberately excludes
         // this app, because XCUITest activates whatever app it delivers an interaction to —
         // routing through this one foregrounds the fixture and swallows every tap.
+        continueAfterFailure = true
         let app = XCUIApplication()
         app.launch()
 
