@@ -255,15 +255,18 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Uses XCTest's runner-daemon event API when present. Unlike `XCUICoordinate.tap()`, this
     /// returns when synthesis completes without adding an implicit post-event confirmation wait.
     private func tapWithoutCacheInvalidation(x: Double, y: Double) async {
-        let target = gestureTarget()
         guard FastTapSynthesizer.isAvailable else {
             gestureCoordinate(x: x, y: y).tap()
             return
         }
         do {
+            // In the fixed portrait screen space XCTest synthesizes in, as `XCUICoordinate.tap()`
+            // does. Handing it interface coordinates plus the interface orientation instead landed
+            // every landscape tap a cell off — (509,315) selected the day at (581,387) — and missed
+            // edge controls entirely, while reporting success.
             try await FastTapSynthesizer.tap(
-                at: CGPoint(x: x, y: y),
-                orientation: interfaceOrientation(of: target)
+                at: gestureCoordinate(x: x, y: y).screenPoint,
+                orientation: .portrait
             )
         } catch {
             // Runtime lookup keeps future XCTest changes from breaking all taps. A synthesis error
@@ -271,15 +274,6 @@ final class XCUITestBridge: @unchecked Sendable {
             print("Fast tap unavailable; falling back to XCUICoordinate.tap(): \(error)")
             gestureCoordinate(x: x, y: y).tap()
         }
-    }
-
-    private func interfaceOrientation(of application: XCUIApplication) -> UIInterfaceOrientation {
-        let selector = NSSelectorFromString("interfaceOrientation")
-        guard application.responds(to: selector) else { return .portrait }
-        let implementation = application.method(for: selector)
-        typealias Method = @convention(c) (AnyObject, Selector) -> Int
-        let rawValue = unsafeBitCast(implementation, to: Method.self)(application, selector)
-        return UIInterfaceOrientation(rawValue: rawValue) ?? .portrait
     }
 
     /// The app a gesture is delivered through.
