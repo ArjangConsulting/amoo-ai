@@ -49,6 +49,19 @@ final class ForeignBuildDetectorTests: XCTestCase {
         XCTAssertNil(warning)
     }
 
+    /// The companion's own xcodebuild runs for the whole session under a different amoo process.
+    func testIgnoresAmooCompanionRuns() async {
+        let runner = StubRunner(stdout: """
+        26765 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -xctestrun \
+        /x/CompanionApps/iOS/build/Build/Products/AmooCompanion_AmooCompanion_iphonesimulator27.0-arm64.xctestrun \
+        test-without-building
+        """)
+        let detector = ForeignBuildDetector(processRunner: runner, ownProcessIDs: [])
+
+        let foreign = await detector.foreignBuildProcesses()
+        XCTAssertTrue(foreign.isEmpty)
+    }
+
     func testNoWarningWhenPgrepFindsNothing() async {
         let runner = StubRunner(stdout: "", exitCode: 1)
         let detector = ForeignBuildDetector(processRunner: runner, ownProcessIDs: [])

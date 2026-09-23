@@ -24,13 +24,15 @@ actor DeviceOperationQueue {
         owner: String? = nil,
         operation: @escaping @Sendable () async -> ToolResult
     ) async -> ToolResult {
+        // The inner task is unstructured, so the caller's cancellation only reaches it through
+        // `onCancel` below — which can land after the task has already passed its own check.
+        // Refuse an already-cancelled caller here so its operation can never start.
+        guard !Task.isCancelled else { return Self.cancelledResult }
         let previous = tails[key]?.task
         let id = UUID()
         let task = Task {
             _ = await previous?.value
-            guard !Task.isCancelled else {
-                return ToolExecutionError(code: "cancelled", message: "Operation cancelled before execution.").result
-            }
+            guard !Task.isCancelled else { return Self.cancelledResult }
             return await operation()
         }
         tails[key] = Pending(id: id, task: task, owner: owner)
@@ -48,5 +50,9 @@ actor DeviceOperationQueue {
             tails.removeValue(forKey: key)
         }
         return result
+    }
+
+    private static var cancelledResult: ToolResult {
+        ToolExecutionError(code: "cancelled", message: "Operation cancelled before execution.").result
     }
 }

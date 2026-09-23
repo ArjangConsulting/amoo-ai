@@ -25,6 +25,54 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// Named for the device, as UIDeviceOrientation is: LANDSCAPE_LEFT is the device turned
+/// counter-clockwise (top edge on the left), which is Android's Surface.ROTATION_90.
+public nonisolated enum Amoo_Orientation: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case portrait // = 1
+  case portraitUpsideDown // = 2
+  case landscapeLeft // = 3
+  case landscapeRight // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .portrait
+    case 2: self = .portraitUpsideDown
+    case 3: self = .landscapeLeft
+    case 4: self = .landscapeRight
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .portrait: return 1
+    case .portraitUpsideDown: return 2
+    case .landscapeLeft: return 3
+    case .landscapeRight: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Amoo_Orientation] = [
+    .unspecified,
+    .portrait,
+    .portraitUpsideDown,
+    .landscapeLeft,
+    .landscapeRight,
+  ]
+
+}
+
 public nonisolated struct Amoo_StartSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -544,9 +592,38 @@ public nonisolated struct Amoo_GetAppStateResponse: Sendable {
   public init() {}
 }
 
+public nonisolated struct Amoo_SetOrientationRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var orientation: Amoo_Orientation = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Amoo_OrientationResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The orientation the device reports after the change, read back rather than echoed.
+  public var orientation: Amoo_Orientation = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "amoo.v1"
+
+nonisolated extension Amoo_Orientation: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ORIENTATION_UNSPECIFIED\0\u{1}ORIENTATION_PORTRAIT\0\u{1}ORIENTATION_PORTRAIT_UPSIDE_DOWN\0\u{1}ORIENTATION_LANDSCAPE_LEFT\0\u{1}ORIENTATION_LANDSCAPE_RIGHT\0")
+}
 
 nonisolated extension Amoo_StartSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartSessionRequest"
@@ -1482,6 +1559,66 @@ nonisolated extension Amoo_GetAppStateResponse: SwiftProtobuf.Message, SwiftProt
 
   public static func ==(lhs: Amoo_GetAppStateResponse, rhs: Amoo_GetAppStateResponse) -> Bool {
     if lhs.state != rhs.state {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_SetOrientationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetOrientationRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}orientation\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.orientation) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.orientation != .unspecified {
+      try visitor.visitSingularEnumField(value: self.orientation, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_SetOrientationRequest, rhs: Amoo_SetOrientationRequest) -> Bool {
+    if lhs.orientation != rhs.orientation {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_OrientationResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OrientationResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}orientation\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.orientation) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.orientation != .unspecified {
+      try visitor.visitSingularEnumField(value: self.orientation, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_OrientationResponse, rhs: Amoo_OrientationResponse) -> Bool {
+    if lhs.orientation != rhs.orientation {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

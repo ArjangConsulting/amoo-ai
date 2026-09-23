@@ -341,6 +341,12 @@ public actor IOSDriver: PlatformDriver {
         try await companion.setTargetApp(bundleID: bundleID)
     }
 
+    /// Companion-side: `simctl` has no rotation command, and XCUITest's `XCUIDevice` rotates
+    /// simulators and physical devices alike.
+    public func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation {
+        try await companion.setOrientation(orientation)
+    }
+
     public func screenGeometry() async throws -> ScreenSize {
         let info = try await companion.screenInfo()
         return ScreenSize(

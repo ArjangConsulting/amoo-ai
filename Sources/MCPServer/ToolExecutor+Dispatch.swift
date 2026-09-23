@@ -349,6 +349,20 @@ extension DriverToolExecutor {
             try await driver.setAppearance(appearance)
             return .success("Appearance set to \(mode)")
 
+        case "set_orientation":
+            let accepted = DeviceOrientation.allCases.map(\.rawValue).joined(separator: ", ")
+            guard let value = arguments["orientation"] else {
+                return .error("Missing required argument: orientation (\(accepted))")
+            }
+            guard let orientation = DeviceOrientation(rawValue: value) else {
+                throw ToolExecutionError(code: "invalid_argument", message: "orientation must be one of: \(accepted)")
+            }
+            let reported = try await driver.setOrientation(orientation)
+            guard reported == orientation else {
+                return .error("Requested \(value) but the device reports \(reported.rawValue)")
+            }
+            return .success("Orientation set to \(reported.rawValue)")
+
         // Audit tools
         case "audit_app":
             return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.all)

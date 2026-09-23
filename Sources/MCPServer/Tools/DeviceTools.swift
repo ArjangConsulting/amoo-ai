@@ -115,6 +115,20 @@ public enum DeviceTools {
             required: ["appearance"]
         ),
         ToolDefinition(
+            name: "set_orientation",
+            title: "Set Orientation",
+            description: "Rotate the device. Named for the device: landscape_left is the device"
+                + " turned counter-clockwise. Reports the orientation read back afterwards; an app"
+                + " that locks its orientation keeps its layout even though the device turns.",
+            properties: [
+                "orientation": .init(
+                    type: "string",
+                    description: "portrait, landscape_left, landscape_right, or portrait_upside_down"
+                )
+            ],
+            required: ["orientation"]
+        ),
+        ToolDefinition(
             name: "list_devices",
             title: "List Devices",
             description: "Enumerate booted simulators and online Android emulators/devices."

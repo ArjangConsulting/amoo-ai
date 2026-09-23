@@ -26,6 +26,9 @@ struct CompanionCommandOptions {
     var appID: String?
     /// Seconds to wait for the companion to start listening. `nil` uses the platform default.
     var readyTimeoutSeconds: Int?
+    /// Port the companion listens on. `nil` uses the platform default. A second simulator needs its
+    /// own port: one companion per port, and each serves exactly one device.
+    var port: Int?
 }
 
 enum CompanionAction {
@@ -43,6 +46,7 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
     case unknownAction(String)
     case unknownPlatform(String)
     case invalidReadyTimeout(String)
+    case invalidPort(String)
 
     var description: String {
         switch self {
@@ -54,6 +58,8 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
             "Unknown platform '\(p)'. Expected 'ios' or 'android'."
         case let .invalidReadyTimeout(value):
             "--ready-timeout expects a positive number of seconds, got '\(value)'."
+        case let .invalidPort(value):
+            "--port expects a port number between 1 and 65535, got '\(value)'."
         }
     }
 }
@@ -67,6 +73,9 @@ func renderCompanionHelp() -> String {
                  Options:
                    --platform ios|android  Target platform (default: ios)
                    --device <id>           Simulator UDID or ADB serial (default: booted)
+                   --port <port>           Port the companion listens on (default: ios 22087,
+                                           android 22088). One companion serves one device, so a
+                                           second simulator needs its own port.
                    --companion-dir <path>  Override companion app directory
                    --force                 Force rebuild even if already built
 
@@ -76,6 +85,7 @@ func renderCompanionHelp() -> String {
                    --platform ios|android  Target platform (default: ios)
                    --device <id>           Simulator UDID or ADB serial (default: booted)
                    --app <bundle-id>       App under test, bound as the gesture target
+                   --port <port>           Port to listen on; pass the same to 'amoo device --port'
                    --companion-dir <path>  Override companion app directory
                    --force                 Rebuild before starting
                    --ready-timeout <secs>  How long to wait for the companion to listen
@@ -87,12 +97,12 @@ func renderCompanionHelp() -> String {
       warm       Build + install the companion bundle now — the slow, minutes-long part —
                  without holding a process open. Run it as step 0 (background it with '&'),
                  poll 'companion status', then 'companion start'. Same --platform / --device
-                 / --companion-dir / --force options as install.
+                 / --port / --companion-dir / --force options as install.
 
       status     Print one line: 'ready' (a companion is listening), 'built' (bundle ready,
                  not launched), 'building' / 'launching' (a warm is in progress), 'failed',
                  or 'not_started'. Non-blocking. Exit code 0 = usable, 2 = in progress,
-                 1 = needs action. Same --platform / --device / --companion-dir options.
+                 1 = needs action. Same --platform / --device / --port / --companion-dir options.
     """
 }
 
@@ -103,6 +113,7 @@ private struct CompanionCommandFlags {
     var force = false
     var appID: String?
     var readyTimeoutSeconds: Int?
+    var port: Int?
 }
 
 /// Consumes and returns the next token in `remaining`, if any, without failing when absent
@@ -133,6 +144,11 @@ private func applyValidatedCompanionFlag(
             return .invalidReadyTimeout(value)
         }
         flags.readyTimeoutSeconds = seconds
+    case "--port":
+        guard let port = Int(value), (1 ... 65535).contains(port) else {
+            return .invalidPort(value)
+        }
+        flags.port = port
     default:
         break
     }
@@ -147,7 +163,7 @@ private func applyCompanionFlag(
     flags: inout CompanionCommandFlags
 ) -> CompanionCommandParseError? {
     switch flag {
-    case "--platform", "--ready-timeout":
+    case "--platform", "--ready-timeout", "--port":
         guard let value = consumeOptionalValue(remaining: &remaining) else { return nil }
         return applyValidatedCompanionFlag(flag, value: value, flags: &flags)
     case "--device":
@@ -218,7 +234,8 @@ func parseCompanionCommandOptions(
             companionDir: flags.companionDir,
             force: flags.force,
             appID: flags.appID,
-            readyTimeoutSeconds: flags.readyTimeoutSeconds
+            readyTimeoutSeconds: flags.readyTimeoutSeconds,
+            port: flags.port
         )
     )
 }
@@ -288,6 +305,7 @@ func runIOSCompanionStart(
     processRunner: any ProcessRunner = SystemProcessRunner()
 ) async -> CLIResult {
     let config = CompanionConfig(
+        port: options.port ?? CompanionConfig.defaultPort,
         companionDir: options.companionDir,
         deviceUDID: options.deviceID,
         readyTimeoutSeconds: options.readyTimeoutSeconds ?? CompanionConfig.readyTimeoutFromEnvironment(),
@@ -296,14 +314,15 @@ func runIOSCompanionStart(
     let manager = CompanionManager(processRunner: processRunner)
 
     do {
-        try await manager.ensureRunning(config: config, force: options.force)
-        let target = options.appID.map { " driving \($0)" } ?? ""
-        print("Companion ready on port \(config.port)\(target).")
-        print("Holding it open — Ctrl-C to stop, or run this in the background.")
-        // The runner is spawned as a child of this process and is torn down with it, so returning
-        // here would take the companion down a moment after announcing it was ready.
-        await waitForTerminationSignal()
-        await manager.shutdown()
+        try await holdCompanion(
+            start: { try await manager.ensureRunning(config: config, force: options.force) },
+            announce: {
+                let target = options.appID.map { " driving \($0)" } ?? ""
+                print("Companion ready on port \(config.port)\(target).")
+                print("Holding it open — Ctrl-C to stop, or run this in the background.")
+            },
+            shutdown: { await manager.shutdown() }
+        )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
         return CLIResult(output: "", exitCode: 0)
@@ -323,6 +342,7 @@ func runAndroidCompanionStart(
         options.companionDir
             ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
     let config = AndroidCompanionConfig(
+        port: options.port ?? AndroidCompanionConfig.defaultPort,
         companionDir: companionDir,
         serial: options.deviceID,
         readyTimeoutSeconds: options.readyTimeoutSeconds
@@ -331,11 +351,14 @@ func runAndroidCompanionStart(
     let manager = AndroidCompanionManager(processRunner: processRunner)
 
     do {
-        try await manager.ensureRunning(config: config, force: options.force)
-        print("Companion ready on port \(config.port).")
-        print("Holding it open — Ctrl-C to stop, or run this in the background.")
-        await waitForTerminationSignal()
-        await manager.shutdown()
+        try await holdCompanion(
+            start: { try await manager.ensureRunning(config: config, force: options.force) },
+            announce: {
+                print("Companion ready on port \(config.port).")
+                print("Holding it open — Ctrl-C to stop, or run this in the background.")
+            },
+            shutdown: { await manager.shutdown() }
+        )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {
         return CLIResult(output: "", exitCode: 0)
@@ -353,6 +376,7 @@ func runIOSCompanionInstall(
     processRunner: any ProcessRunner = SystemProcessRunner()
 ) async -> CLIResult {
     let config = CompanionConfig(
+        port: options.port ?? CompanionConfig.defaultPort,
         companionDir: options.companionDir,
         deviceUDID: options.deviceID
     )
@@ -380,6 +404,7 @@ func runAndroidCompanionInstall(
             ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
 
     let config = AndroidCompanionConfig(
+        port: options.port ?? AndroidCompanionConfig.defaultPort,
         companionDir: companionDir,
         serial: options.deviceID
     )
@@ -393,67 +418,4 @@ func runAndroidCompanionInstall(
     } catch {
         return CLIResult(output: "Android companion install failed: \(error)", exitCode: 1)
     }
-}
-
-// MARK: - Foreground lifecycle
-
-private final class CompanionSignalWaiter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var continuation: CheckedContinuation<Void, Never>?
-    private var sources: [DispatchSourceSignal] = []
-    private var finished = false
-
-    func wait() async {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            self.continuation = continuation
-            lock.unlock()
-
-            #if os(macOS) || os(Linux)
-            signal(SIGINT, SIG_IGN)
-            signal(SIGTERM, SIG_IGN)
-            let created = [SIGINT, SIGTERM].map { signalNumber in
-                let source = DispatchSource.makeSignalSource(signal: signalNumber, queue: .global())
-                source.setEventHandler { [weak self] in self?.finish() }
-                source.resume()
-                return source
-            }
-            // A signal can arrive between `resume()` and this assignment, so `finish()` may
-            // already have run and cleared the (then empty) source list. Cancel here instead of
-            // storing sources that nothing will ever tear down.
-            lock.lock()
-            let alreadyFinished = finished
-            if !alreadyFinished {
-                sources = created
-            }
-            lock.unlock()
-            if alreadyFinished {
-                created.forEach { $0.cancel() }
-            }
-            #else
-            finish()
-            #endif
-        }
-    }
-
-    private func finish() {
-        lock.lock()
-        guard !finished else {
-            lock.unlock()
-            return
-        }
-        finished = true
-        let pending = continuation
-        continuation = nil
-        let activeSources = sources
-        sources = []
-        lock.unlock()
-
-        activeSources.forEach { $0.cancel() }
-        pending?.resume()
-    }
-}
-
-private func waitForTerminationSignal() async {
-    await CompanionSignalWaiter().wait()
 }

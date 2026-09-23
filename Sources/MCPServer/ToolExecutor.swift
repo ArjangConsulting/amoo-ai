@@ -282,18 +282,12 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 }
 
+/// Counts through `ScreenObservation`, so this agrees with `describe_screen`. It used to count any
+/// visible, enabled node with an id — and iOS gives every node one — so every node read as
+/// interactable (110 of 110 on a calendar screen with a dozen controls).
 func hierarchySummary(_ root: ViewNode) -> (nodes: Int, interactable: Int) {
-    var nodes = 0
-    var interactable = 0
-    var stack = [root]
-    while let node = stack.popLast() {
-        nodes += 1
-        if node.isVisible, node.isEnabled, !node.id.isEmpty || !node.label.isEmpty {
-            interactable += 1
-        }
-        stack.append(contentsOf: node.children)
-    }
-    return (nodes, interactable)
+    let observation = ScreenObservation(hierarchy: root)
+    return (observation.elements.count, observation.context.interactableCount)
 }
 
 func boolArgument(_ raw: String?) -> Bool? {

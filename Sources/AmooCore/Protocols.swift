@@ -142,6 +142,9 @@ public protocol DeviceConfigurator: Sendable {
     func setLocation(latitude: Double, longitude: Double) async throws
     func clearLocation() async throws
     func setAppearance(_ appearance: Appearance) async throws
+    /// Rotates the device, returning the orientation it reports afterwards — read back, not
+    /// echoed, so a request the device ignored is visible to the caller.
+    func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation
 }
 
 // MARK: - AI Context
@@ -371,6 +374,10 @@ public extension DeviceConfigurator {
 
     func setAppearance(_: Appearance) async throws {
         throw AmooError.notImplemented("setAppearance")
+    }
+
+    func setOrientation(_: DeviceOrientation) async throws -> DeviceOrientation {
+        throw AmooError.notImplemented("setOrientation")
     }
 }
 

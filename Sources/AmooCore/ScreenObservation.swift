@@ -73,6 +73,8 @@ public extension ElementType {
         let normalized = nativeName.lowercased()
         if let exact = Self.allCases.first(where: { $0.rawValue.lowercased() == normalized }) {
             self = exact
+        } else if let fromRawValue = Self(xcuiElementTypeDescription: normalized) {
+            self = fromRawValue
         } else if normalized.contains("securetextfield") || normalized.contains("edittext") {
             self = .textField
         } else if normalized.contains("button") {
@@ -84,6 +86,51 @@ public extension ElementType {
         } else {
             return nil
         }
+    }
+
+    /// XCTest `XCUIElementType` raw values, grouped onto the host's element types.
+    private static let xcuiRawValueTypes: [Int: Self] = {
+        let groups: [(Self, [Int])] = [
+            // button, radioButton, checkBox, popUpButton, menuButton, toolbarButton, key, link, menuItem, tab
+            (.button, [9, 10, 12, 14, 16, 17, 20, 42, 54, 80]),
+            // searchField, textField, secureTextField, textView
+            (.textField, [45, 49, 50, 52]),
+            (.staticText, [48]),
+            // image, icon
+            (.image, [43, 44]),
+            (.cell, [75]),
+            (.scrollView, [46]),
+            (.table, [26]),
+            (.collectionView, [32]),
+            (.navigationBar, [21]),
+            (.tabBar, [22]),
+            // switch, toggle
+            (.switchControl, [40, 41]),
+            (.slider, [33]),
+            // segmentedControl, picker, pickerWheel, datePicker
+            (.picker, [37, 38, 39, 51]),
+            (.alert, [7]),
+            (.sheet, [5]),
+            (.webView, [58]),
+            (.other, [1])
+        ]
+        return Dictionary(uniqueKeysWithValues: groups.flatMap { type, raws in raws.map { ($0, type) } })
+    }()
+
+    /// Maps the `XCUIElementType(rawValue: N)` text an iOS companion produces when it
+    /// string-interpolates `XCUIElement.ElementType`. Imported Objective-C enums carry no Swift case
+    /// names, so that interpolation never yields `button`, and every element classified as `other`:
+    /// `describe_screen` reported no interactable elements on any screen. Companions now send
+    /// explicit names; this keeps ones built before that change classifying correctly.
+    ///
+    /// Raw values are XCTest's `XCUIElementType` ABI, stable across SDK releases.
+    private init?(xcuiElementTypeDescription description: String) {
+        let prefix = "xcuielementtype(rawvalue:"
+        guard description.hasPrefix(prefix), description.hasSuffix(")"),
+              let raw = Int(description.dropFirst(prefix.count).dropLast().trimmingCharacters(in: .whitespaces))
+        else { return nil }
+        guard let type = Self.xcuiRawValueTypes[raw] else { return nil }
+        self = type
     }
 }
 

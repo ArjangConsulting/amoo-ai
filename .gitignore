@@ -5,7 +5,6 @@
 .build/
 .build-linux/
 .swiftpm/
-Package.resolved
 
 # Xcode
 DerivedData/
@@ -35,6 +34,7 @@ tmp/
 
 # Android
 .gradle/
+.kotlin/
 **/build/
 local.properties
 *.apk

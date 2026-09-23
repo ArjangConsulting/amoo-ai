@@ -9,6 +9,7 @@ func runIOSCompanionWarm(
     processRunner: any ProcessRunner = SystemProcessRunner()
 ) async -> CLIResult {
     let config = CompanionConfig(
+        port: options.port ?? CompanionConfig.defaultPort,
         companionDir: options.companionDir,
         deviceUDID: options.deviceID,
         readyTimeoutSeconds: options.readyTimeoutSeconds ?? CompanionConfig.readyTimeoutFromEnvironment(),
@@ -43,6 +44,7 @@ func runAndroidCompanionWarm(
     let companionDir = options.companionDir
         ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
     let config = AndroidCompanionConfig(
+        port: options.port ?? AndroidCompanionConfig.defaultPort,
         companionDir: companionDir,
         serial: options.deviceID,
         readyTimeoutSeconds: options.readyTimeoutSeconds ?? AndroidCompanionConfig.readyTimeoutFromEnvironment()
@@ -70,6 +72,7 @@ func runAndroidCompanionWarm(
 
 func runIOSCompanionStatus(options: CompanionCommandOptions) async -> CLIResult {
     let config = CompanionConfig(
+        port: options.port ?? CompanionConfig.defaultPort,
         companionDir: options.companionDir,
         deviceUDID: options.deviceID,
         targetAppID: options.appID
@@ -88,7 +91,11 @@ func runAndroidCompanionStatus(
 ) async -> CLIResult {
     let companionDir = options.companionDir
         ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
-    let config = AndroidCompanionConfig(companionDir: companionDir, serial: options.deviceID)
+    let config = AndroidCompanionConfig(
+        port: options.port ?? AndroidCompanionConfig.defaultPort,
+        companionDir: companionDir,
+        serial: options.deviceID
+    )
     return await companionStatusResult(
         platform: "android",
         host: config.host,

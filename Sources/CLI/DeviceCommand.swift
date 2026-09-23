@@ -95,6 +95,7 @@ Common tools:
   set_location latitude=<n> longitude=<n>
   clear_location
   set_appearance appearance=<light|dark>
+  set_orientation orientation=<portrait|landscape_left|landscape_right|portrait_upside_down>
   list_devices [platform=<ios|android>] [include_offline=<true|false>]
   open_url url=<url>
 
@@ -292,7 +293,36 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
 
 // MARK: - Execution
 
-func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
+func runDeviceCommand(
+    options: DeviceCommandOptions,
+    resolveCompanionDevice: @Sendable (Int) async -> String? = { port in
+        await companionSimulatorUDID(port: port, processRunner: SystemProcessRunner())
+    }
+) async -> CLIResult {
+    if let message = unknownArgumentMessage(tool: options.tool, arguments: options.arguments) {
+        return CLIResult(output: message, exitCode: 1)
+    }
+
+    var options = options
+    if options.platform == .ios {
+        let requested = options.deviceID ?? "booted"
+        let owner = await resolveCompanionDevice(options.port)
+        switch CompanionOwnership(requested: requested, owner: owner) {
+        case let .otherDevice(owner):
+            return CLIResult(
+                output: companionMismatchMessage(port: options.port, requested: requested, owner: owner),
+                exitCode: 1
+            )
+        case .matches, .unknown:
+            // `booted` is whichever simulator simctl picks, which need not be the one this
+            // companion drives when several are booted. Follow the companion, so an install or
+            // launch lands on the same device the queries and gestures reach.
+            if requested == "booted", let owner {
+                options.deviceID = owner
+            }
+        }
+    }
+
     let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
 
     let companion: GRPCCompanionClient
@@ -336,6 +366,24 @@ func runDeviceCommand(options: DeviceCommandOptions) async -> CLIResult {
             : result.content,
         exitCode: result.isError ? 1 : 0
     )
+}
+
+/// Rejects argument keys the tool does not declare, naming the ones it does.
+///
+/// Tools read the keys they know and ignore the rest, so a misspelt or guessed key — `query=`
+/// for `find_elements` — ran the call unfiltered and returned every element on screen, which
+/// reads like a real answer. `nil` when the call is fine or amoo has no schema for the tool (the
+/// executor reports unknown tools itself).
+func unknownArgumentMessage(tool: String, arguments: [String: String]) -> String? {
+    guard let definition = MCPServer().toolDefinitions().first(where: { $0.name == tool }) else {
+        return nil
+    }
+    let unknown = Set(arguments.keys).subtracting(definition.properties.keys).sorted()
+    guard !unknown.isEmpty else { return nil }
+    let accepted = definition.properties.keys.filter { $0 != "session_id" }.sorted()
+    let noun = unknown.count == 1 ? "argument" : "arguments"
+    return "Unknown \(noun) for \(tool): \(unknown.joined(separator: ", ")). "
+        + (accepted.isEmpty ? "It takes no arguments." : "Accepted: \(accepted.joined(separator: ", ")).")
 }
 
 /// Turns a bare transport failure into something actionable.

@@ -64,6 +64,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("query.currentApp", .required),
             ("query.screenInfo", .required),
             ("action.setTargetApp", .required),
+            ("action.setOrientation", .optional),
             ("capture.screenshot", .required),
             ("ai.screenContext", .optional)
         ]
@@ -291,6 +292,55 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> Amoo_ActionResponse {
         await MainActor.run { XCUIDevice.shared.press(.home) }
         return successResponse()
+    }
+
+    // MARK: - Orientation
+
+    func setOrientation(
+        request: Amoo_SetOrientationRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_OrientationResponse {
+        let requested: UIDeviceOrientation
+        switch request.orientation {
+        case .portrait: requested = .portrait
+        case .portraitUpsideDown: requested = .portraitUpsideDown
+        case .landscapeLeft: requested = .landscapeLeft
+        case .landscapeRight: requested = .landscapeRight
+        case .unspecified, .UNRECOGNIZED:
+            throw RPCError(code: .invalidArgument, message: "orientation is unspecified")
+        }
+        let reported = await MainActor.run {
+            XCUIDevice.shared.orientation = requested
+            return XCUIDevice.shared.orientation
+        }
+        await Self.waitForStableScreen()
+        var response = Amoo_OrientationResponse()
+        response.orientation = switch reported {
+        case .portrait: .portrait
+        case .portraitUpsideDown: .portraitUpsideDown
+        case .landscapeLeft: .landscapeLeft
+        case .landscapeRight: .landscapeRight
+        default: .unspecified
+        }
+        return response
+    }
+
+    /// Returns once two consecutive frames match, or after `timeout`.
+    ///
+    /// XCUIDevice's own idle wait can finish while a rotation is still animating — a 180° turn
+    /// between the landscapes was captured mid-spin — so the next screenshot or coordinate read
+    /// saw a tilted screen. Comparing frames waits out any animation without guessing a duration.
+    private static func waitForStableScreen(timeout: Duration = .seconds(2)) async {
+        let deadline = ContinuousClock.now + timeout
+        var previous = await MainActor.run { XCUIScreen.main.screenshot().pngRepresentation }
+        while ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+            let current = await MainActor.run { XCUIScreen.main.screenshot().pngRepresentation }
+            if current == previous {
+                return
+            }
+            previous = current
+        }
     }
 
     // MARK: - Accessibility
