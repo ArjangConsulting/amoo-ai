@@ -95,6 +95,9 @@ Common tools:
   set_location latitude=<n> longitude=<n>
   clear_location
   set_appearance appearance=<light|dark>
+  press_key key=<left_arrow|right_arrow|up_arrow|down_arrow|return|escape|tab|space|delete|
+      home|end|page_up|page_down|<char>>
+      [modifiers=<command,shift,option,control>]
   set_orientation orientation=<portrait|landscape_left|landscape_right|portrait_upside_down>
   list_devices [platform=<ios|android>] [include_offline=<true|false>]
   open_url url=<url>

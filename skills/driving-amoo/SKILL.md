@@ -49,6 +49,7 @@ needed rather than guessing its arguments.
 | Inspect layout or an image | take_screenshot |
 | Inspect WebView-only state | webview_dom or webview_eval |
 | Test landscape or rotation | set_orientation, then re-query — every coordinate moves |
+| Keyboard navigation or shortcuts | press_key with key= and optional modifiers= |
 
 Prefer stable IDs, then exact labels, then scoped text queries. `tap_element` resolves its own
 target; a separate query is useful for ambiguity or recording semantic observations, not

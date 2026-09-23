@@ -10,6 +10,10 @@ final class TextHandler: @unchecked Sendable {
         await bridge.typeText(text)
     }
 
+    func pressKey(_ key: String, modifiers: [String]) async -> Bool {
+        await bridge.pressKey(key, modifiers: modifiers)
+    }
+
     func clearText(characterCount: Int?) async {
         await bridge.clearText(characterCount: characterCount)
     }
