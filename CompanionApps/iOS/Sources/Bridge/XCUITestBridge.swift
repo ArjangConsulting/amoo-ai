@@ -609,7 +609,7 @@ final class XCUITestBridge: @unchecked Sendable {
             label: snapshot.label,
             value: snapshot.value as? String ?? "",
             isSecureTextEntry: snapshot.elementType == .secureTextField,
-            type: "\(snapshot.elementType)",
+            type: snapshot.elementType.amooTypeName,
             frame: snapshot.frame,
             hitPoint: interactionPoint(
                 frame: snapshot.frame,
@@ -646,7 +646,7 @@ final class XCUITestBridge: @unchecked Sendable {
             label: element.label,
             value: element.value as? String ?? "",
             isSecureTextEntry: element.elementType == .secureTextField,
-            type: "\(element.elementType)",
+            type: element.elementType.amooTypeName,
             frame: element.frame,
             hitPoint: interactionPoint(frame: element.frame, visibleFrame: nil, viewport: viewport),
             isEnabled: element.isEnabled,
@@ -953,7 +953,7 @@ final class XCUITestBridge: @unchecked Sendable {
             id: snapshot.identifier,
             label: snapshot.label,
             value: (snapshot.value as? String) ?? "",
-            type: "\(snapshot.elementType)",
+            type: snapshot.elementType.amooTypeName,
             frame: snapshot.frame,
             hitPoint: interactionPoint(frame: snapshot.frame, visibleFrame: visibleFrame, viewport: viewport),
             isEnabled: snapshot.isEnabled,
@@ -1080,5 +1080,56 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         return "root"
+    }
+}
+
+// MARK: - Element type names
+
+extension XCUIElement.ElementType {
+    /// A stable name the host maps onto its `ElementType`.
+    ///
+    /// Interpolating the enum directly yields `XCUIElementType(rawValue: 9)`: imported Objective-C
+    /// enums carry no Swift case names. That left every element classified as `other`, so the host
+    /// found no interactable elements on any screen.
+    var amooTypeName: String {
+        switch self {
+        case .button, .radioButton, .checkBox, .popUpButton, .menuButton, .toolbarButton, .key, .link,
+             .menuItem, .tab:
+            "button"
+        case .textField, .searchField, .textView:
+            "textField"
+        case .secureTextField:
+            "secureTextField"
+        case .staticText:
+            "staticText"
+        case .image, .icon:
+            "image"
+        case .cell:
+            "cell"
+        case .scrollView:
+            "scrollView"
+        case .table:
+            "table"
+        case .collectionView:
+            "collectionView"
+        case .navigationBar:
+            "navigationBar"
+        case .tabBar:
+            "tabBar"
+        case .switch, .toggle:
+            "switch"
+        case .slider:
+            "slider"
+        case .segmentedControl, .picker, .pickerWheel, .datePicker:
+            "picker"
+        case .alert:
+            "alert"
+        case .sheet:
+            "sheet"
+        case .webView:
+            "webView"
+        default:
+            "other"
+        }
     }
 }
