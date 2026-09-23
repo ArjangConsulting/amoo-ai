@@ -49,6 +49,11 @@ func parseConnectedIOSDevices(json: String) -> [BootedDevice] {
         guard connection["tunnelState"] as? String == "connected" else { continue }
         // Only iOS — devicectl also reports paired Watches, Apple TVs, and Macs.
         guard (hardware["platform"] as? String ?? "iOS") == "iOS" else { continue }
+        // Xcode 27's devicectl lists simulators too, as `reality: simulated`, and a booted one is
+        // `connected` — so every booted simulator read as physical and launches went through
+        // devicectl, which cannot find the process it started there. Older devicectl listed only
+        // hardware and omits the field, hence the default.
+        guard (hardware["reality"] as? String ?? "physical") != "simulated" else { continue }
 
         let identifier = device["identifier"] as? String ?? ""
         let udid = hardware["udid"] as? String ?? identifier

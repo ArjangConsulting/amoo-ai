@@ -71,6 +71,32 @@ extension CLITests {
         XCTAssertTrue(devices.first?.isPhysicalDevice ?? false)
     }
 
+    /// Xcode 27's devicectl lists booted simulators as `connected` too; they are not hardware.
+    func testParseConnectedIOSDevicesSkipsSimulators() {
+        let devices = test_parseConnectedIOSDevices(json: """
+        {
+          "result": {
+            "devices": [
+              {
+                "identifier": "SIM-1",
+                "deviceProperties": { "name": "iPhone 17", "osVersionNumber": "27.0" },
+                "hardwareProperties": { "udid": "SIM-1", "platform": "iOS", "reality": "simulated" },
+                "connectionProperties": { "tunnelState": "connected" }
+              },
+              {
+                "identifier": "ID-1",
+                "deviceProperties": { "name": "Test iPhone", "osVersionNumber": "27.0" },
+                "hardwareProperties": { "udid": "UDID-1", "platform": "iOS", "reality": "physical" },
+                "connectionProperties": { "tunnelState": "connected" }
+              }
+            ]
+          }
+        }
+        """)
+
+        XCTAssertEqual(devices.map(\.udid), ["UDID-1"])
+    }
+
     func testParseConnectedIOSDevicesSurvivesMalformedJSON() {
         XCTAssertTrue(test_parseConnectedIOSDevices(json: "not json").isEmpty)
         XCTAssertTrue(test_parseConnectedIOSDevices(json: #"{"result":{}}"#).isEmpty)
