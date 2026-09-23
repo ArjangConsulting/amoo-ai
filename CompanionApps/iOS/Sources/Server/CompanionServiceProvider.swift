@@ -64,6 +64,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("query.currentApp", .required),
             ("query.screenInfo", .required),
             ("action.setTargetApp", .required),
+            ("action.setOrientation", .optional),
             ("capture.screenshot", .required),
             ("ai.screenContext", .optional)
         ]
@@ -291,6 +292,36 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> Amoo_ActionResponse {
         await MainActor.run { XCUIDevice.shared.press(.home) }
         return successResponse()
+    }
+
+    // MARK: - Orientation
+
+    func setOrientation(
+        request: Amoo_SetOrientationRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_OrientationResponse {
+        let requested: UIDeviceOrientation
+        switch request.orientation {
+        case .portrait: requested = .portrait
+        case .portraitUpsideDown: requested = .portraitUpsideDown
+        case .landscapeLeft: requested = .landscapeLeft
+        case .landscapeRight: requested = .landscapeRight
+        case .unspecified, .UNRECOGNIZED:
+            throw RPCError(code: .invalidArgument, message: "orientation is unspecified")
+        }
+        let reported = await MainActor.run {
+            XCUIDevice.shared.orientation = requested
+            return XCUIDevice.shared.orientation
+        }
+        var response = Amoo_OrientationResponse()
+        response.orientation = switch reported {
+        case .portrait: .portrait
+        case .portraitUpsideDown: .portraitUpsideDown
+        case .landscapeLeft: .landscapeLeft
+        case .landscapeRight: .landscapeRight
+        default: .unspecified
+        }
+        return response
     }
 
     // MARK: - Accessibility

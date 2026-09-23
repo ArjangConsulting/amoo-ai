@@ -141,6 +141,18 @@ package extension CompanionServiceHandler {
         return response
     }
 
+    func setOrientation(
+        request: Amoo_SetOrientationRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_OrientationResponse {
+        guard let requested = DeviceOrientation(request.orientation) else {
+            throw RPCError(code: .invalidArgument, message: "orientation is unspecified")
+        }
+        var response = Amoo_OrientationResponse()
+        response.orientation = try await Amoo_Orientation(companion.setOrientation(requested))
+        return response
+    }
+
     func getAppState(
         request: Amoo_GetAppStateRequest,
         context _: ServerContext

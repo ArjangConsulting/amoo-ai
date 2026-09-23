@@ -19,6 +19,8 @@ actor MockADBRunner: ADBRunning {
     private var _failingRawCommandSuffix: [String]?
     private var _listDevicesCallCount = 0
     private var _deviceOutputs = ["List of devices attached\nemulator-5554\tdevice product:sdk_gphone\n"]
+    /// Backs `settings put/get system <key>` like the real store, so a read-back sees the write.
+    private var _systemSettings: [String: String] = [:]
     private var _dumpsysOutputs: [String: String] = [
         "power": "mWakefulness=Awake",
         "window": "isStatusBarKeyguard=false"
@@ -26,6 +28,9 @@ actor MockADBRunner: ADBRunning {
 
     func run(_ arguments: [String]) async throws -> ProcessResult {
         _rawCommands.append(arguments)
+        if let result = settingsCommand(arguments) {
+            return result
+        }
         if let failing = _failingRawCommandSuffix, Array(arguments.suffix(failing.count)) == failing {
             throw AmooError.commandFailed(command: arguments.joined(separator: " "), output: "exit 1")
         }
@@ -38,6 +43,24 @@ actor MockADBRunner: ADBRunning {
         }
         let stdout = isBootProperty ? "1\n" : arguments.joined(separator: " ")
         return ProcessResult(exitCode: 0, stdout: stdout, stderr: "")
+    }
+
+    private func settingsCommand(_ arguments: [String]) -> ProcessResult? {
+        guard let shell = arguments.firstIndex(of: "shell") else { return nil }
+        let command = Array(arguments[(shell + 1)...])
+        switch command.count {
+        case 5 where command[0 ... 2] == ["settings", "put", "system"]:
+            _systemSettings[command[3]] = command[4]
+            return ProcessResult(exitCode: 0, stdout: "", stderr: "")
+        case 4 where command[0 ... 2] == ["settings", "get", "system"]:
+            return ProcessResult(exitCode: 0, stdout: (_systemSettings[command[3]] ?? "null") + "\n", stderr: "")
+        default:
+            return nil
+        }
+    }
+
+    func systemSetting(_ key: String) -> String? {
+        _systemSettings[key]
     }
 
     func startServer() async throws {

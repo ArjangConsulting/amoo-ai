@@ -18,6 +18,15 @@ public extension CommandCoverageMatrix {
     /// file under the length limit.
     static let mcpCompanionCommands: [CommandCoverage] = [
         .init(
+            name: "set_orientation",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .home,
+            expectedAssertion: "device reports the requested orientation and the screen's width and height swap"
+        ),
+        .init(
             name: "companion_warm",
             channel: .mcp,
             kind: .deterministic,
