@@ -52,3 +52,52 @@ final class DeviceRecoveryTests: XCTestCase {
         XCTAssertEqual(device.id, "phone")
     }
 }
+
+/// Regression: an AVD-name `device_hint` resolved to a connected phone, or was passed to
+/// `adb -s` as a serial.
+final class AndroidHintResolutionTests: XCTestCase {
+    private let online: [(serial: String, name: String)] = [
+        (serial: "adb-PIXEL._adb-tls-connect._tcp", name: "Pixel 8"),
+        (serial: "emulator-5554", name: "sdk gphone64 arm64")
+    ]
+
+    func testAVDNameMatchesItsRunningEmulator() {
+        XCTAssertEqual(
+            resolveAndroidHint(
+                "medium_phone_api_35",
+                online: online,
+                runningAVDNames: ["emulator-5554": "Medium_Phone_API_35"],
+                availableAVDs: ["Medium_Phone_API_35"]
+            ),
+            .running(serial: "emulator-5554", name: "Medium_Phone_API_35")
+        )
+    }
+
+    func testStoppedAVDIsBootedNotTreatedAsASerial() {
+        XCTAssertEqual(
+            resolveAndroidHint(
+                "Medium_Phone_API_35",
+                online: online,
+                runningAVDNames: [:],
+                availableAVDs: ["Medium_Phone_API_35"]
+            ),
+            .bootAVD("Medium_Phone_API_35")
+        )
+    }
+
+    func testPhoneMatchesOnlyByExactSerial() {
+        XCTAssertEqual(
+            resolveAndroidHint("Pixel 8", online: online, runningAVDNames: [:], availableAVDs: []),
+            .unmatched
+        )
+        XCTAssertEqual(
+            resolveAndroidHint(
+                "adb-PIXEL._adb-tls-connect._tcp",
+                online: online,
+                runningAVDNames: [:],
+                availableAVDs: []
+            ),
+            .running(serial: "adb-PIXEL._adb-tls-connect._tcp", name: "Pixel 8")
+        )
+    }
+}

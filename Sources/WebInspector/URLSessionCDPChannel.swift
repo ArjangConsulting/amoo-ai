@@ -41,8 +41,14 @@ private final class URLSessionCDPChannel: CDPChannel, @unchecked Sendable {
         self.task = task
     }
 
+    /// CDP accepts only text frames. Chrome's devtools server drops the connection on a binary
+    /// frame, which `URLSession` then reports as the opaque `NSPOSIXErrorDomain` 57 "Socket is
+    /// not connected" — this was the Android `webview_eval` failure against WebView Chrome 124.
     func send(_ data: Data) async throws {
-        try await task.send(.data(data))
+        guard let text = String(bytes: data, encoding: .utf8) else {
+            throw WebInspectorError.protocolError("CDP request is not valid UTF-8")
+        }
+        try await task.send(.string(text))
     }
 
     func receive() async throws -> Data {

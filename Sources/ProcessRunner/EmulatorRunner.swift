@@ -11,36 +11,21 @@ public struct EmulatorRunner: EmulatorRunning {
     /// sites (`EmulatorRunner(context:)`) don't need to change.
     public init(context: ShellContext = .init()) {}
 
-    /// Launches the emulator as a fully detached `Process`, not through SwiftyShell's
-    /// managed spawn+teardown lifecycle.
+    /// Launches the emulator fully detached — its own session, not a managed `SpawnedProcess`.
     ///
-    /// A `SpawnedProcess` handle sends its configured `TeardownStrategy` signal the moment
-    /// the handle is deinitialized — by design, so no spawned process ever leaks past its
-    /// caller's lifetime. The emulator is the opposite: it must outlive this call, the
-    /// session, and potentially this whole `amoo` process. Live repro against a real AVD
-    /// showed the previous `.spawn(teardown: .interruptThenTerminate)` + registry-held-handle
-    /// approach still killed the launcher process within ~8s of spawn — well before boot
-    /// could ever complete — with AOSP's own orphan-reaper watchdog finishing off the
-    /// orphaned qemu child ~20s later. A plain detached `Process` (mirroring
-    /// `launchDetachedProcess` in the CLI's interactive device selector) has no such hook.
+    /// A `SpawnedProcess` handle signals its child when deinitialized, so the launcher died
+    /// within ~8s (129ddef). A plain `Process` fixed that but still left the emulator in amoo's
+    /// process group, so a harness tearing down that group killed it after boot.
+    /// `DetachedProcess` starts it in a new session instead. Output goes to
+    /// `$TMPDIR/amoo-emulator-<port>.log` for post-mortems.
     public func launch(avdName: String, port: Int) async throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["emulator", "-avd", avdName, "-port", String(port), "-no-snapshot-save"]
-        // `Pipe()` here would be unread and unretained past this function returning — ARC
-        // deallocates it, closing both ends, and the emulator's next write after that gets
-        // SIGPIPE (default disposition: terminate). Confirmed live: the launcher died within
-        // seconds of a real output burst (e.g. around "Boot completed"), well before boot
-        // finished. `nullDevice` has no read end to close.
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            throw AmooError.commandFailed(
-                command: "emulator -avd \(avdName) -port \(port)",
-                output: error.localizedDescription
-            )
-        }
+        try DetachedProcess.spawn(
+            Self.launchArguments(avdName: avdName, port: port),
+            logPath: NSTemporaryDirectory() + "amoo-emulator-\(port).log"
+        )
+    }
+
+    public static func launchArguments(avdName: String, port: Int) -> [String] {
+        ["emulator", "-avd", avdName, "-port", String(port), "-no-snapshot-save"]
     }
 }

@@ -294,16 +294,8 @@ struct PlatformDeviceSelector {
             all += android.map { .android(serial: $0.serial, name: $0.name) }
         }
 
-        // Resolve a hint against all collected devices
         if let hint {
-            if let match = all.first(where: { matchesHint($0, hint: hint) }) {
-                return match
-            }
-            // Hint provided but device not in lists — allow caller to continue if companion is up
-            if platform == .android {
-                return .android(serial: hint, name: hint)
-            }
-            return .ios(BootedDevice(udid: hint, name: hint, osVersion: "unknown"))
+            return try await resolveHint(hint, platform: platform, among: all, androidSelector: androidSelector)
         }
 
         switch all.count {
@@ -323,6 +315,35 @@ struct PlatformDeviceSelector {
             }
             return try promptDeviceSelection(from: all)
         }
+    }
+
+    private func resolveHint(
+        _ hint: String,
+        platform: Platform?,
+        among all: [AvailableDevice],
+        androidSelector: AndroidDeviceSelector
+    ) async throws -> AvailableDevice {
+        if let match = all.first(where: { matchesHint($0, hint: hint) }) {
+            return match
+        }
+        if platform != .ios {
+            switch await androidSelector.resolve(hint: hint) {
+            case let .running(serial, name):
+                return .android(serial: serial, name: name)
+            case let .bootAVD(avd):
+                return try await startAndroidEmulator(AndroidVirtualDevice(name: avd), selector: androidSelector)
+            case .unmatched where platform == .android:
+                // Never pass an unknown hint through as an `adb -s` serial.
+                throw DeviceSelectionError.launchFailed(
+                    "No running Android emulator/device or AVD matches '\(hint)'."
+                        + " Pass an adb serial (emulator-5554) or an AVD name from `emulator -list-avds`."
+                )
+            case .unmatched:
+                break
+            }
+        }
+        // Hint provided but not listed — allow the caller to continue if a companion is up.
+        return .ios(BootedDevice(udid: hint, name: hint, osVersion: "unknown"))
     }
 
     private func launchInteractiveDevice(
@@ -410,7 +431,8 @@ struct PlatformDeviceSelector {
         case let .ios(iosDevice):
             iosDevice.udid == hint || iosDevice.name.lowercased() == hint.lowercased()
         case let .android(serial, name):
-            serial == hint || name.lowercased() == hint.lowercased()
+            // Model names only identify emulators; a phone matches by exact serial alone.
+            serial == hint || (serial.hasPrefix("emulator-") && name.lowercased() == hint.lowercased())
         }
     }
 }

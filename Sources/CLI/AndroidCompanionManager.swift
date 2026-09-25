@@ -441,18 +441,13 @@ final class AndroidCompanionManager: @unchecked Sendable {
     }
 
     private func launchInstrumentation(config: AndroidCompanionConfig) async throws {
-        let logPath = NSTemporaryDirectory() + "companion-android-launch.log"
+        let logPath = Self.launchLogPath(port: config.port)
         FileManager.default.createFile(atPath: logPath, contents: nil)
 
         do {
             instrumentProcess = try await Adb(context: shellContext)
                 .serial(config.serial)
-                .rawArguments([
-                    "shell", "am", "instrument",
-                    "-w",
-                    "-e", "class", "com.amoo.companion.CompanionRunner",
-                    "com.amoo.companion.test/androidx.test.runner.AndroidJUnitRunner"
-                ])
+                .rawArguments(Self.instrumentArguments(port: config.port))
                 // The file is freshly created above; use append for both streams so SwiftyShell
                 // can safely share one destination without competing overwrite handles.
                 .stdout(.file(path: logPath, append: true))
@@ -476,7 +471,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             try await Task.sleep(for: .milliseconds(500))
         }
 
-        let logPath = NSTemporaryDirectory() + "companion-android-launch.log"
+        let logPath = Self.launchLogPath(port: port)
         if let log = try? String(contentsOfFile: logPath, encoding: .utf8), !log.isEmpty {
             print("--- android companion launch log (last 3000 chars) ---")
             print(log.suffix(3000))

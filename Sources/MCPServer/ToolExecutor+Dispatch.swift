@@ -19,7 +19,8 @@ extension DriverToolExecutor {
         case "device_boot":
             let info: DeviceInfo
             if let hint = arguments["device_hint"], !hint.isEmpty, let manager = sessionManager {
-                let platform = Platform(rawValue: (arguments["platform"] ?? "ios").lowercased()) ?? .ios
+                let platform = arguments["platform"].flatMap { Platform(rawValue: $0.lowercased()) }
+                    ?? defaultPlatform ?? .ios
                 info = try await manager.bootDevice(hint: hint, platform: platform)
             } else {
                 try await driver.boot()

@@ -15,7 +15,7 @@ extension DriverToolExecutor {
         guard let appID = arguments["app_id"] else {
             return .error("Missing required argument: app_id")
         }
-        let platformRaw = arguments["platform"] ?? "ios"
+        let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
             return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
         }
@@ -335,7 +335,7 @@ extension DriverToolExecutor {
         guard let manager = sessionManager else {
             return .error("Companion management requires `amoo mcp serve`.")
         }
-        let platformRaw = arguments["platform"] ?? "ios"
+        let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
             return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
         }
@@ -355,7 +355,7 @@ extension DriverToolExecutor {
         guard let manager = sessionManager else {
             return .error("Companion management requires `amoo mcp serve`.")
         }
-        let platformRaw = arguments["platform"] ?? "ios"
+        let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
             return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
         }

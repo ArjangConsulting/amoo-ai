@@ -131,27 +131,6 @@ func parseAndroidVirtualDevices(output: String) -> [AndroidVirtualDevice] {
         .map(AndroidVirtualDevice.init(name:))
 }
 
-func launchDetachedProcess(arguments: [String]) throws {
-    guard let executable = arguments.first else {
-        throw DeviceSelectionError.launchFailed("Missing executable.")
-    }
-
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = [executable] + Array(arguments.dropFirst())
-    // An unread, unretained `Pipe()` gets deallocated (closing both ends) the moment this
-    // function returns; the detached child's next write after that raises SIGPIPE, which
-    // defaults to terminating it. `nullDevice` has no read end to close.
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-
-    do {
-        try process.run()
-    } catch {
-        throw DeviceSelectionError.launchFailed(error.localizedDescription)
-    }
-}
-
 // MARK: - Interactive selection
 
 /// Whether stdin is an interactive terminal rather than a pipe.

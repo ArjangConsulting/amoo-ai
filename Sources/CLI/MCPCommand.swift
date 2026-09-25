@@ -164,7 +164,8 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             driver: driver,
             sessionManager: sessionManager,
             foreignBuildDetector: ForeignBuildDetector(),
-            webInspector: makeWebInspecting(processRunner: SystemProcessRunner())
+            webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
+            defaultPlatform: options.platform
         )
         let server = MCPServer(executor: executor, sessionManager: sessionManager, profile: profile)
 

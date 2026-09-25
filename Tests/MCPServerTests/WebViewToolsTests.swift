@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 @testable import MCPServer
 import WebInspector
@@ -7,7 +8,11 @@ private struct StubInspector: WebInspecting {
     var evalResult: WebViewEvalResult?
     var documents: [WebViewDocument] = []
 
-    func client(platform _: WebInspectorPlatform, bundleID: String?) async throws -> any WebInspectorClient {
+    func client(
+        platform _: WebInspectorPlatform,
+        bundleID: String?,
+        deviceID _: String?
+    ) async throws -> any WebInspectorClient {
         StubClient(evalResult: evalResult, documents: documents, bundleID: bundleID)
     }
 }
@@ -87,5 +92,25 @@ final class WebViewToolsTests: XCTestCase {
             return XCTFail("expected documents array")
         }
         XCTAssertEqual(first["content"]?.stringValue, "<html></html>")
+    }
+}
+
+final class MCPStalenessTests: XCTestCase {
+    func testStaleServerPrefixesToolResultsWithARestartWarning() throws {
+        let binary = FileManager.default.temporaryDirectory.appendingPathComponent("amoo-\(UUID().uuidString)")
+        try Data("v1".utf8).write(to: binary)
+        defer { try? FileManager.default.removeItem(at: binary) }
+        let info = AmooBuildInfo.capture(executableURL: binary)
+
+        let fresh = MCPStdioServer.annotatingStaleness(.success("ok"), buildInfo: info)
+        XCTAssertEqual(fresh.content, "ok")
+
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date().addingTimeInterval(120)],
+            ofItemAtPath: binary.path
+        )
+        let stale = MCPStdioServer.annotatingStaleness(.success("ok"), buildInfo: info)
+        XCTAssertTrue(stale.content.hasPrefix("⚠️ Stale amoo"), stale.content)
+        XCTAssertTrue(stale.content.hasSuffix("ok"))
     }
 }

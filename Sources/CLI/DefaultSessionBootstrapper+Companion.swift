@@ -48,11 +48,19 @@ extension DefaultSessionBootstrapper {
         let lowered = hint.lowercased()
         let wantsClass = ["device", "simulator", "emulator"].contains(lowered)
 
+        guard wantsClass else {
+            switch await selector.resolve(hint: hint) {
+            case let .running(serial, name):
+                return DeviceInfo(id: serial, name: name, platform: .android, osVersion: "", state: .booted)
+            case let .bootAVD(avd):
+                return try await launchAndroidEmulator(avdName: avd)
+            case .unmatched:
+                throw BootstrapError.launchFailed("No Android emulator/device or AVD matches '\(hint)'.")
+            }
+        }
+
         let online = await selector.listOnlineDevices()
-        let runningMatch = wantsClass
-            ? online.first { $0.serial.hasPrefix("emulator-") == (lowered != "device") }
-            : online.first { $0.serial == hint || $0.name.lowercased() == lowered }
-        if let runningMatch {
+        if let runningMatch = online.first(where: { $0.serial.hasPrefix("emulator-") == (lowered != "device") }) {
             return DeviceInfo(
                 id: runningMatch.serial, name: runningMatch.name, platform: .android, osVersion: "", state: .booted
             )
@@ -63,11 +71,7 @@ extension DefaultSessionBootstrapper {
 
         // Nothing already running matches — boot an AVD, mirroring bootIOSDevice's
         // shut-down-simulator path instead of refusing outright.
-        let avds = await selector.listAvailableVirtualDevices()
-        let avdName = wantsClass
-            ? avds.first?.name
-            : avds.first { $0.name.lowercased() == lowered }?.name
-        guard let avdName else {
+        guard let avdName = await selector.listAvailableVirtualDevices().first?.name else {
             throw BootstrapError.launchFailed("No Android emulator/device or AVD matches '\(hint)'.")
         }
         return try await launchAndroidEmulator(avdName: avdName)

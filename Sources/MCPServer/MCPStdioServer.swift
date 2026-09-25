@@ -57,9 +57,11 @@ public struct MCPStdioServer: Sendable {
     private static let cacheTTLMilliseconds = 3_600_000
 
     private let server: MCPServer
+    let buildInfo: AmooBuildInfo
 
-    public init(server: MCPServer) {
+    public init(server: MCPServer, buildInfo: AmooBuildInfo = .current) {
         self.server = server
+        self.buildInfo = buildInfo
     }
 
     public func run(input: FileHandle = .standardInput, output: FileHandle = .standardOutput) async throws {
@@ -183,7 +185,8 @@ public struct MCPStdioServer: Sendable {
             "protocolVersion": .string(negotiated),
             "capabilities": serverCapabilities,
             "serverInfo": serverInfo,
-            "instructions": .string(Self.instructions)
+            "instructions": .string(Self.instructions),
+            "_meta": .object(["dev.amoo/build": buildMeta])
         ])))
     }
 
@@ -223,7 +226,10 @@ public struct MCPStdioServer: Sendable {
             }
 
             let arguments = params["arguments"]?.objectValue?.mapValues(stringifyArgumentValue) ?? [:]
-            let result = await server.execute(toolName: name, arguments: arguments)
+            let result = await Self.annotatingStaleness(
+                server.execute(toolName: name, arguments: arguments),
+                buildInfo: buildInfo
+            )
             return .success(id: id, result: modernToolResult(result))
 
         default:
@@ -252,7 +258,10 @@ public struct MCPStdioServer: Sendable {
             }
 
             let arguments = params["arguments"]?.objectValue?.mapValues(stringifyArgumentValue) ?? [:]
-            let result = await server.execute(toolName: name, arguments: arguments)
+            let result = await Self.annotatingStaleness(
+                server.execute(toolName: name, arguments: arguments),
+                buildInfo: buildInfo
+            )
             return .success(id: id, result: legacyToolResult(result))
 
         default:
@@ -271,7 +280,7 @@ public struct MCPStdioServer: Sendable {
         .object(["tools": .object(["listChanged": .bool(false)])])
     }
 
-    private var serverInfo: Value {
+    var serverInfo: Value {
         .object([
             "name": .string("amoo"),
             "version": .string(AmooVersion.current),
@@ -282,42 +291,8 @@ public struct MCPStdioServer: Sendable {
     private func withModernResultFields(_ fields: [String: Value]) -> Value {
         var result = fields
         result["resultType"] = .string("complete")
-        result["_meta"] = .object(["io.modelcontextprotocol/serverInfo": serverInfo])
+        result["_meta"] = .object(["io.modelcontextprotocol/serverInfo": serverInfo, "dev.amoo/build": buildMeta])
         return .object(result)
-    }
-
-    private func modernToolResult(_ result: ToolResult) -> Value {
-        var fields = toolResultFields(result)
-        fields["resultType"] = .string("complete")
-        fields["_meta"] = .object(["io.modelcontextprotocol/serverInfo": serverInfo])
-        return .object(fields)
-    }
-
-    private func legacyToolResult(_ result: ToolResult) -> Value {
-        .object(toolResultFields(result))
-    }
-
-    private func toolResultFields(_ result: ToolResult) -> [String: Value] {
-        var content: [Value] = [
-            .object([
-                "type": .string("text"),
-                "text": .string(result.content)
-            ])
-        ]
-        if let image = result.image {
-            content.append(.object([
-                "type": .string("image"),
-                "data": .string(image.data.base64EncodedString()),
-                "mimeType": .string(image.mimeType)
-            ]))
-        }
-
-        var fields: [String: Value] = [
-            "content": .array(content),
-            "isError": .bool(result.isError)
-        ]
-        fields["structuredContent"] = result.structuredContent
-        return fields
     }
 
     private func unsupportedVersion(id: Value, requested: String) -> WireResponse {
