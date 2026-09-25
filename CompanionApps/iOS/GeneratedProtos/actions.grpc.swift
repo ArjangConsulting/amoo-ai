@@ -358,6 +358,19 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "PressKey" metadata.
+        public enum PressKey: Sendable {
+            /// Request type for "PressKey".
+            public typealias Input = Amoo_PressKeyRequest
+            /// Response type for "PressKey".
+            public typealias Output = Amoo_ActionResponse
+            /// Descriptor for "PressKey".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "PressKey",
+                type: .unary
+            )
+        }
         /// Namespace for "GetAppState" metadata.
         public enum GetAppState: Sendable {
             /// Request type for "GetAppState".
@@ -451,6 +464,7 @@ public enum Amoo_CompanionService: Sendable {
             GetScreenInfo.descriptor,
             SetTargetApp.descriptor,
             SetOrientation.descriptor,
+            PressKey.descriptor,
             GetAppState.descriptor,
             GetScreenContext.descriptor,
             FindByDescription.descriptor,
@@ -876,6 +890,24 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_SetOrientationRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_OrientationResponse>
+
+        /// Handle the "PressKey" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Hardware keyboard
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_PressKeyRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_ActionResponse` messages.
+        func pressKey(
+            request: GRPCCore.StreamingServerRequest<Amoo_PressKeyRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
 
         /// Handle the "GetAppState" method.
         ///
@@ -1360,6 +1392,24 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_OrientationResponse>
 
+        /// Handle the "PressKey" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Hardware keyboard
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_PressKeyRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_ActionResponse` message.
+        func pressKey(
+            request: GRPCCore.ServerRequest<Amoo_PressKeyRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
+
         /// Handle the "GetAppState" method.
         ///
         /// - Parameters:
@@ -1841,6 +1891,24 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_OrientationResponse
 
+        /// Handle the "PressKey" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Hardware keyboard
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_PressKeyRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_ActionResponse` to respond with.
+        func pressKey(
+            request: Amoo_PressKeyRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_ActionResponse
+
         /// Handle the "GetAppState" method.
         ///
         /// - Parameters:
@@ -2212,6 +2280,17 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.PressKey.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_PressKeyRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
+            handler: { request, context in
+                try await self.pressKey(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.GetAppState.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_GetAppStateRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_GetAppStateResponse>(),
@@ -2552,6 +2631,17 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_OrientationResponse> {
         let response = try await self.setOrientation(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func pressKey(
+        request: GRPCCore.StreamingServerRequest<Amoo_PressKeyRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
+        let response = try await self.pressKey(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2948,6 +3038,19 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_OrientationResponse> {
         return GRPCCore.ServerResponse<Amoo_OrientationResponse>(
             message: try await self.setOrientation(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func pressKey(
+        request: GRPCCore.ServerRequest<Amoo_PressKeyRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
+        return GRPCCore.ServerResponse<Amoo_ActionResponse>(
+            message: try await self.pressKey(
                 request: request.message,
                 context: context
             ),
@@ -3554,6 +3657,29 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_OrientationResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_OrientationResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "PressKey" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Hardware keyboard
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_PressKeyRequest` message.
+        ///   - serializer: A serializer for `Amoo_PressKeyRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func pressKey<Result>(
+            request: GRPCCore.ClientRequest<Amoo_PressKeyRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_PressKeyRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "GetAppState" method.
@@ -4488,6 +4614,40 @@ extension Amoo_CompanionService {
             )
         }
 
+        /// Call the "PressKey" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Hardware keyboard
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_PressKeyRequest` message.
+        ///   - serializer: A serializer for `Amoo_PressKeyRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func pressKey<Result>(
+            request: GRPCCore.ClientRequest<Amoo_PressKeyRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_PressKeyRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.PressKey.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "GetAppState" method.
         ///
         /// - Parameters:
@@ -5328,6 +5488,35 @@ extension Amoo_CompanionService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_SetOrientationRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_OrientationResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "PressKey" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Hardware keyboard
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_PressKeyRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func pressKey<Result>(
+        request: GRPCCore.ClientRequest<Amoo_PressKeyRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.pressKey(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_PressKeyRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_ActionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -6250,6 +6439,39 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.setOrientation(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "PressKey" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Hardware keyboard
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func pressKey<Result>(
+        _ message: Amoo_PressKeyRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_PressKeyRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.pressKey(
             request: request,
             options: options,
             onResponse: handleResponse

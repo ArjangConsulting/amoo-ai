@@ -340,6 +340,10 @@ actor MockDriver: PlatformDriver {
         return reportedOrientation ?? orientation
     }
 
+    func pressKey(_ key: KeyboardKey, modifiers: Set<KeyModifier>) async throws {
+        calls.append("key:" + (modifiers.sorted().map(\.rawValue) + [key.name]).joined(separator: "+"))
+    }
+
     func stubReportedOrientation(_ orientation: DeviceOrientation?) {
         reportedOrientation = orientation
     }

@@ -349,6 +349,9 @@ extension DriverToolExecutor {
             try await driver.setAppearance(appearance)
             return .success("Appearance set to \(mode)")
 
+        case "press_key":
+            return try await executePressKey(arguments: arguments, driver: driver)
+
         case "set_orientation":
             let accepted = DeviceOrientation.allCases.map(\.rawValue).joined(separator: ", ")
             guard let value = arguments["orientation"] else {

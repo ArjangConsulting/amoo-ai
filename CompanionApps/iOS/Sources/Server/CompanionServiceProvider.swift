@@ -65,6 +65,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("query.screenInfo", .required),
             ("action.setTargetApp", .required),
             ("action.setOrientation", .optional),
+            ("action.pressKey", .optional),
             ("capture.screenshot", .required),
             ("ai.screenContext", .optional)
         ]
@@ -249,6 +250,14 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> Amoo_ActionResponse {
         await text.typeText(request.text)
         return successResponse()
+    }
+
+    func pressKey(
+        request: Amoo_PressKeyRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_ActionResponse {
+        let pressed = await text.pressKey(request.key, modifiers: request.modifiers)
+        return pressed ? successResponse() : failResponse("Unknown key or modifier: \(request.key)")
     }
 
     func clearText(

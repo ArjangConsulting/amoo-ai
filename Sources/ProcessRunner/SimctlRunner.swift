@@ -101,8 +101,12 @@ public struct SimctlRunner: SimctlRunning {
         let childEnv = Dictionary(uniqueKeysWithValues: environment.map {
             ("SIMCTL_CHILD_\($0.key)", $0.value)
         })
+        // `--terminate-running-process`: launching must start a fresh process, as it does on a
+        // physical device (devicectl's `--terminate-existing`). Without it simctl re-activated a
+        // running app, so a "relaunch" silently kept the old process and its state — and a test
+        // relying on a clean launch measured the previous session instead.
         _ = try await run(
-            .launch(device, bundleIdentifier: appID),
+            .custom("launch", arguments: ["--terminate-running-process", device, appID]),
             trailingArguments: arguments,
             environment: childEnv
         )

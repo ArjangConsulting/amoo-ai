@@ -18,6 +18,15 @@ public extension CommandCoverageMatrix {
     /// file under the length limit.
     static let mcpCompanionCommands: [CommandCoverage] = [
         .init(
+            name: "press_key",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .textInput,
+            expectedAssertion: "a hardware key press, with modifiers, reaches the frontmost app"
+        ),
+        .init(
             name: "set_orientation",
             channel: .mcp,
             kind: .deterministic,

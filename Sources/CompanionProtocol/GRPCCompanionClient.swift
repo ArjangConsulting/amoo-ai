@@ -49,6 +49,7 @@ package protocol CompanionRPCClient: Sendable {
     func getScreenInfo(_ request: Amoo_Empty) async throws -> Amoo_ScreenInfoResponse
     func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws -> Amoo_ActionResponse
     func setOrientation(_ request: Amoo_SetOrientationRequest) async throws -> Amoo_OrientationResponse
+    func pressKey(_ request: Amoo_PressKeyRequest) async throws -> Amoo_ActionResponse
     func getAppState(_ request: Amoo_GetAppStateRequest) async throws -> Amoo_GetAppStateResponse
 
     /// Capture
@@ -194,6 +195,10 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
     package func setOrientation(_ request: Amoo_SetOrientationRequest) async throws
         -> Amoo_OrientationResponse {
         try await client.setOrientation(request)
+    }
+
+    package func pressKey(_ request: Amoo_PressKeyRequest) async throws -> Amoo_ActionResponse {
+        try await client.pressKey(request)
     }
 
     package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
@@ -397,6 +402,13 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
         -> Amoo_OrientationResponse {
         var response = Amoo_OrientationResponse()
         response.orientation = request.orientation
+        return response
+    }
+
+    package func pressKey(_ request: Amoo_PressKeyRequest) async throws -> Amoo_ActionResponse {
+        _ = request
+        var response = Amoo_ActionResponse()
+        response.success = true
         return response
     }
 
@@ -622,6 +634,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         try await connectedClient.setOrientation(request, options: Self.gestureCallOptions)
     }
 
+    package func pressKey(_ request: Amoo_PressKeyRequest) async throws -> Amoo_ActionResponse {
+        try await connectedClient.pressKey(request, options: Self.gestureCallOptions)
+    }
+
     package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
         -> Amoo_GetAppStateResponse {
         try await connectedClient.getAppState(request, options: Self.gestureCallOptions)
@@ -660,7 +676,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 // MARK: - GRPCCompanionClient
 
 public actor GRPCCompanionClient: CompanionClient {
-    private let rpcClient: any CompanionRPCClient
+    let rpcClient: any CompanionRPCClient
     private let connection: CompanionConnection
     private var sessionID: String?
 
@@ -967,25 +983,6 @@ public actor GRPCCompanionClient: CompanionClient {
         var request = Amoo_SetTargetAppRequest()
         request.bundleID = bundleID ?? ""
         _ = try await rpcClient.setTargetApp(request)
-    }
-
-    public func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation {
-        var request = Amoo_SetOrientationRequest()
-        request.orientation = Amoo_Orientation(orientation)
-        let reported: Amoo_Orientation
-        do {
-            reported = try await rpcClient.setOrientation(request).orientation
-        } catch let error as RPCError where error.code == .unimplemented {
-            // A companion started before this RPC existed keeps running until it is restarted.
-            throw AmooError.unsupportedCapability(
-                key: "action.setOrientation",
-                reason: "the running companion predates it; restart it with `amoo companion start`"
-            )
-        }
-        guard let result = DeviceOrientation(reported) else {
-            throw AmooError.commandFailed(command: "setOrientation", output: "companion reported no orientation")
-        }
-        return result
     }
 
     public func appState(appID: String) async throws -> String {

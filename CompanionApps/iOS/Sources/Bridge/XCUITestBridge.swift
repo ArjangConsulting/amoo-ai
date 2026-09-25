@@ -410,6 +410,38 @@ final class XCUITestBridge: @unchecked Sendable {
         gestureTarget().typeText(text)
     }
 
+    /// Presses one hardware key in the gesture target, which is where a person's keyboard would
+    /// send it. Returns `false` for a key name this bridge does not know.
+    func pressKey(_ name: String, modifiers: [String]) -> Bool {
+        defer { invalidateSnapshotCache() }
+        let named: [String: XCUIKeyboardKey] = [
+            "left_arrow": .leftArrow, "right_arrow": .rightArrow, "up_arrow": .upArrow,
+            "down_arrow": .downArrow, "return": .return, "escape": .escape, "tab": .tab,
+            "space": .space, "delete": .delete, "home": .home, "end": .end,
+            "page_up": .pageUp, "page_down": .pageDown
+        ]
+        let key: String
+        if let special = named[name] {
+            key = special.rawValue
+        } else if name.count == 1 {
+            key = name
+        } else {
+            return false
+        }
+        var flags: XCUIElement.KeyModifierFlags = []
+        for modifier in modifiers {
+            switch modifier {
+            case "command": flags.insert(.command)
+            case "shift": flags.insert(.shift)
+            case "option": flags.insert(.option)
+            case "control": flags.insert(.control)
+            default: return false
+            }
+        }
+        gestureTarget().typeKey(key, modifierFlags: flags)
+        return true
+    }
+
     func clearText(characterCount: Int?) {
         defer { invalidateSnapshotCache() }
         guard let textInput = resolvedTextInput() else { return }

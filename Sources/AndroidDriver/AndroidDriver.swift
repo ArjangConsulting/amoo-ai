@@ -357,20 +357,6 @@ public actor AndroidDriver: PlatformDriver {
         ])
     }
 
-    public func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation {
-        // Auto-rotate would hand control straight back to the (motionless) sensor.
-        _ = try await adb.run(adbArgs() + ["shell", "settings", "put", "system", "accelerometer_rotation", "0"])
-        _ = try await adb.run(adbArgs() + [
-            "shell", "settings", "put", "system", "user_rotation", String(orientation.surfaceRotation)
-        ])
-        let readBack = try await adb.run(adbArgs() + ["shell", "settings", "get", "system", "user_rotation"])
-        let value = readBack.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let rotation = Int(value), let reported = DeviceOrientation(surfaceRotation: rotation) else {
-            throw AmooError.commandFailed(command: "settings get system user_rotation", output: value)
-        }
-        return reported
-    }
-
     // MARK: - AI Context (delegate to companion)
 
     public func getScreenContext() async throws -> ScreenContext {
@@ -383,23 +369,5 @@ public actor AndroidDriver: PlatformDriver {
 
     public func findByDescription(_ description: String) async throws -> [ElementInfo] {
         try await companion.findByDescription(description)
-    }
-}
-
-extension DeviceOrientation {
-    /// `Surface.ROTATION_*`: quarter turns counter-clockwise from the natural (portrait) position,
-    /// so a device turned counter-clockwise — `landscapeLeft` — is `ROTATION_90`.
-    var surfaceRotation: Int {
-        switch self {
-        case .portrait: 0
-        case .landscapeLeft: 1
-        case .portraitUpsideDown: 2
-        case .landscapeRight: 3
-        }
-    }
-
-    init?(surfaceRotation: Int) {
-        guard let match = Self.allCases.first(where: { $0.surfaceRotation == surfaceRotation }) else { return nil }
-        self = match
     }
 }

@@ -51,7 +51,10 @@ final class ProcessRunnerTests: XCTestCase {
 
         let commands = await mock.recordedCommands()
         XCTAssertEqual(commands[0], ["xcrun", "simctl", "install", "UDID-123", "/tmp/App.app"])
-        XCTAssertEqual(commands[1], ["xcrun", "simctl", "launch", "UDID-123", "com.example.app"])
+        XCTAssertEqual(
+            commands[1],
+            ["xcrun", "simctl", "launch", "--terminate-running-process", "UDID-123", "com.example.app"]
+        )
         XCTAssertEqual(commands[2], ["xcrun", "simctl", "terminate", "UDID-123", "com.example.app"])
         XCTAssertEqual(commands[3], ["xcrun", "simctl", "uninstall", "UDID-123", "com.example.app"])
     }

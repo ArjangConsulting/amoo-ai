@@ -237,6 +237,9 @@ actor MockRPCClient: CompanionRPCClient {
     /// What `setOrientation` reports back; `nil` echoes the request, as a real device does.
     var reportedOrientation: Amoo_Orientation?
     var orientationError: (any Error)?
+    var pressKeyRequest: Amoo_PressKeyRequest?
+    var pressKeySucceeds = true
+    var pressKeyError: (any Error)?
     var startRequest: Amoo_StartSessionRequest?
     var tapRequest: Amoo_TapRequest?
     var findElementsRequest: Amoo_FindElementsRequest?

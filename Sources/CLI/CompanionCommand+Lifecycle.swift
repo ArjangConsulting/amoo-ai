@@ -16,9 +16,11 @@ import Foundation
 func holdCompanion(
     start: @escaping @Sendable () async throws -> Void,
     announce: () -> Void,
-    shutdown: @Sendable () async -> Void
+    shutdown: @Sendable () async -> Void,
+    runnerExit: @escaping @Sendable () async -> Void = { await CompanionSignalWaiter.never() },
+    maxRestarts: Int = 3,
+    signals: CompanionSignalWaiter = CompanionSignalWaiter()
 ) async throws {
-    let signals = CompanionSignalWaiter()
     let starting = Task { try await start() }
     let interrupter = Task {
         await signals.wait()
@@ -33,22 +35,79 @@ func holdCompanion(
         throw error
     }
     announce()
-    await signals.wait()
+
+    // Hold until a signal, restarting a runner that dies underneath. Without this the holder kept
+    // announcing "holding it open" over a dead port — a runner killed mid-session (or one XCTest
+    // relaunched into running zero tests) looked alive until the next command failed.
+    let (events, eventSink) = AsyncStream.makeStream(of: HoldEvent.self)
+    Task {
+        await signals.wait()
+        eventSink.yield(.signal)
+    }
+    var iterator = events.makeAsyncIterator()
+    var restarts = 0
+    while true {
+        let watcher = Task {
+            await runnerExit()
+            if !Task.isCancelled {
+                eventSink.yield(.runnerExited)
+            }
+        }
+        let event = await iterator.next() ?? .signal
+        watcher.cancel()
+        guard event == .runnerExited else { break }
+        restarts += 1
+        guard restarts <= maxRestarts else {
+            await shutdown()
+            throw CompanionHoldError.runnerKeepsExiting(restarts: maxRestarts)
+        }
+        print("Restarting the companion runner (\(restarts)/\(maxRestarts))...")
+        do {
+            try await start()
+        } catch {
+            await shutdown()
+            throw error
+        }
+        announce()
+    }
     await shutdown()
+}
+
+private enum HoldEvent: Sendable {
+    case signal, runnerExited
+}
+
+enum CompanionHoldError: Error, CustomStringConvertible {
+    case runnerKeepsExiting(restarts: Int)
+
+    var description: String {
+        switch self {
+        case let .runnerKeepsExiting(restarts):
+            "The companion runner exited again after \(restarts) restarts; see the launch log above."
+        }
+    }
 }
 
 /// Resolves every `wait()` — past or future — once SIGINT or SIGTERM arrives. Armed on creation.
 final class CompanionSignalWaiter: @unchecked Sendable {
+    /// Suspends until cancelled — the runner watch for a holder that owns no runner.
+    static func never() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(3600))
+        }
+    }
+
     private let lock = NSLock()
     private var continuations: [CheckedContinuation<Void, Never>] = []
     private var sources: [DispatchSourceSignal] = []
     private var finished = false
 
-    init() {
+    /// - Parameter signals: what ends the wait. Tests pass none and call ``finish()`` instead, so
+    ///   the test process keeps its own SIGINT and SIGTERM handling.
+    init(signals: [Int32] = [SIGINT, SIGTERM]) {
         #if os(macOS) || os(Linux)
-        signal(SIGINT, SIG_IGN)
-        signal(SIGTERM, SIG_IGN)
-        let created = [SIGINT, SIGTERM].map { signalNumber in
+        signals.forEach { signal($0, SIG_IGN) }
+        let created = signals.map { signalNumber in
             let source = DispatchSource.makeSignalSource(signal: signalNumber, queue: .global())
             source.setEventHandler { [weak self] in self?.finish() }
             source.resume()
@@ -83,7 +142,7 @@ final class CompanionSignalWaiter: @unchecked Sendable {
         }
     }
 
-    private func finish() {
+    func finish() {
         lock.lock()
         guard !finished else {
             lock.unlock()
