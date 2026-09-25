@@ -26,13 +26,18 @@ public actor DriverToolExecutor: ToolExecutor {
     /// `UnconfiguredWebInspector` so those tools report "not configured" rather than guess a
     /// transport; `amoo mcp serve` / `amoo device` pass a live resolver.
     let webInspector: any WebInspecting
+    /// The platform this executor was started for (`amoo mcp serve --platform`). Tools that take
+    /// an optional `platform` argument fall back to it rather than to iOS.
+    let defaultPlatform: Platform?
 
     public init(
         driver: any PlatformDriver,
         sessionManager: SessionManager? = nil,
         foreignBuildDetector: ForeignBuildDetector = .disabled,
-        webInspector: any WebInspecting = UnconfiguredWebInspector()
+        webInspector: any WebInspecting = UnconfiguredWebInspector(),
+        defaultPlatform: Platform? = nil
     ) {
+        self.defaultPlatform = defaultPlatform
         defaultDriver = driver
         self.sessionManager = sessionManager
         self.foreignBuildDetector = foreignBuildDetector

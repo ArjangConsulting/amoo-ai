@@ -26,6 +26,16 @@ extension AndroidDriver {
         }
     }
 
+    /// The AVD a running emulator was started from, via `ro.boot.qemu.avd_name`.
+    func runningAVDName(serial: String) async -> String? {
+        guard let result = try? await adb.run(
+            ["-s", serial, "shell", "getprop", "ro.boot.qemu.avd_name"],
+            timeoutSeconds: 5
+        ), result.exitCode == 0 else { return nil }
+        let name = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : name
+    }
+
     func nextEmulatorPort(devices: [(serial: String, state: String)]) -> Int {
         let used: Set<Int> = Set(devices.compactMap { device -> Int? in
             guard device.serial.hasPrefix("emulator-") else { return nil }

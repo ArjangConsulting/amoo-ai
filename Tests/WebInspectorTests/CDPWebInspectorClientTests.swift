@@ -99,7 +99,7 @@ final class CDPWebInspectorClientTests: XCTestCase {
 
     func testUnconfiguredResolverThrowsNotConfigured() async {
         await XCTAssertThrowsErrorAsync(
-            try await UnconfiguredWebInspector().client(platform: .ios, bundleID: nil)
+            try await UnconfiguredWebInspector().client(platform: .ios, bundleID: nil, deviceID: nil)
         ) { error in
             XCTAssertEqual(error as? WebInspectorError, .notConfigured)
         }
@@ -111,7 +111,11 @@ final class CDPWebInspectorClientTests: XCTestCase {
             factory: FakeFactory(targets: "[]") { FakeChannel(replies: []) },
             environment: [:]
         )
-        await XCTAssertThrowsErrorAsync(try await resolver.client(platform: .ios, bundleID: nil)) { error in
+        await XCTAssertThrowsErrorAsync(try await resolver.client(
+            platform: .ios,
+            bundleID: nil,
+            deviceID: nil
+        )) { error in
             XCTAssertEqual(error as? WebInspectorError, .iosTransportNotImplemented)
         }
     }

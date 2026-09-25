@@ -56,4 +56,18 @@ final class ChromeDevToolsProtocolTests: XCTestCase {
         )
         XCTAssertNil(PlatformWebInspecting.firstDevtoolsSocket(in: "nothing here"))
     }
+
+    /// Regression: Android WebView lists a pre-warmed, never-attached `"empty":true` page first;
+    /// evaluating against `targets.first` ran probes in a blank document.
+    func testRankedPagesPreferTheAttachedVisibleWebView() throws {
+        let json = #"""
+        [{"id":"blank","type":"page","url":"https://a/p.html","webSocketDebuggerUrl":"ws://x/blank",
+          "description":"{\"attached\":false,\"empty\":true,\"never_attached\":true,\"visible\":true}"},
+         {"id":"live","type":"page","url":"https://a/p.html?v=1","webSocketDebuggerUrl":"ws://x/live",
+          "description":"{\"attached\":true,\"empty\":false,\"visible\":true}"},
+         {"id":"worker","type":"service_worker","webSocketDebuggerUrl":"ws://x/w"}]
+        """#
+        let ranked = try CDP.rankedPages(CDP.decodeTargets(Data(json.utf8)))
+        XCTAssertEqual(ranked.map(\.id), ["live", "blank"])
+    }
 }

@@ -10,18 +10,18 @@ extension DriverToolExecutor {
         guard let expression = arguments["expression"], !expression.isEmpty else {
             return .error("Missing required argument: expression")
         }
-        let platform = webInspectorPlatform(arguments)
         let bundleID = arguments["bundle_id"]
         do {
-            let client = try await webInspector.client(platform: platform, bundleID: bundleID)
-            let result = try await client.evaluate(
-                WebViewEvalRequest(
-                    expression: expression,
-                    bundleID: bundleID,
-                    allFrames: boolArgument(arguments["all_frames"]) ?? false,
-                    timeoutMilliseconds: arguments["timeout_ms"].flatMap(Int.init) ?? 5000
-                )
+            let client = try await webInspectorClient(arguments: arguments, bundleID: bundleID)
+            let request = WebViewEvalRequest(
+                expression: expression,
+                bundleID: bundleID,
+                allFrames: boolArgument(arguments["all_frames"]) ?? false,
+                timeoutMilliseconds: arguments["timeout_ms"].flatMap(Int.init) ?? 5000
             )
+            let evaluated = await Result { try await client.evaluate(request) }
+            await client.close()
+            let result = try evaluated.get()
             var fields: [String: Value] = [
                 "value": .string(result.jsonValue),
                 "webview_index": .int(result.webViewIndex),
@@ -41,18 +41,18 @@ extension DriverToolExecutor {
     }
 
     func executeWebViewDom(arguments: [String: String]) async -> ToolResult {
-        let platform = webInspectorPlatform(arguments)
         let bundleID = arguments["bundle_id"]
         let mode: WebViewDomRequest.Mode = arguments["mode"]?.lowercased() == "a11y" ? .a11y : .html
         do {
-            let client = try await webInspector.client(platform: platform, bundleID: bundleID)
-            let documents = try await client.dom(
-                WebViewDomRequest(
-                    bundleID: bundleID,
-                    mode: mode,
-                    maxBytes: arguments["max_bytes"].flatMap(Int.init)
-                )
+            let client = try await webInspectorClient(arguments: arguments, bundleID: bundleID)
+            let request = WebViewDomRequest(
+                bundleID: bundleID,
+                mode: mode,
+                maxBytes: arguments["max_bytes"].flatMap(Int.init)
             )
+            let fetched = await Result { try await client.dom(request) }
+            await client.close()
+            let documents = try fetched.get()
             let rows = documents.map { document -> Value in
                 var fields: [String: Value] = [
                     "webview_index": .int(document.webViewIndex),
@@ -75,8 +75,21 @@ extension DriverToolExecutor {
         }
     }
 
-    private func webInspectorPlatform(_ arguments: [String: String]) -> WebInspectorPlatform {
-        WebInspectorPlatform(rawValue: (arguments["platform"] ?? "ios").lowercased()) ?? .ios
+    /// Resolves the client for the device this call targets: the session's device when a
+    /// `session_id` is given, otherwise the executor's default driver (`--device`). The explicit
+    /// `platform` argument wins; without one, the device's own platform is used, so an Android
+    /// MCP server no longer defaults WebView calls to iOS.
+    private func webInspectorClient(
+        arguments: [String: String],
+        bundleID: String?
+    ) async throws -> any WebInspectorClient {
+        let driver = try await resolveDriver(arguments: arguments)
+        let device = try? await driver.deviceInfo()
+        let platform = arguments["platform"].flatMap { WebInspectorPlatform(rawValue: $0.lowercased()) }
+            ?? device.flatMap { WebInspectorPlatform(rawValue: $0.platform.rawValue) }
+            ?? defaultPlatform.flatMap { WebInspectorPlatform(rawValue: $0.rawValue) }
+            ?? .ios
+        return try await webInspector.client(platform: platform, bundleID: bundleID, deviceID: device?.id)
     }
 
     private func webInspectorMessage(_ error: any Error) -> String {

@@ -19,6 +19,25 @@ extension CLITests {
         XCTAssertNil(options.deviceID)
     }
 
+    /// Regression: an unrecognized `--flag` used to `break` out of the `switch` only, spinning the
+    /// flag loop at 100% CPU forever. It showed up as a "hung" `describe_screen` /
+    /// `device_install_app` when a zsh caller passed `"$FLAGS"` as a single argument.
+    func testDeviceCommandRejectsUnknownFlagsInsteadOfSpinning() {
+        let joined = parseDeviceCommandOptions(args: [
+            "--platform android --port 22088 --device emulator-5554",
+            "describe_screen"
+        ])
+        guard case let .failure(error) = joined else {
+            return XCTFail("Expected parser failure")
+        }
+        XCTAssertTrue(error.description.contains("as one argument"), error.description)
+
+        guard case .failure(.unknownFlag("--bogus")) = parseDeviceCommandOptions(args: ["--bogus", "describe_screen"])
+        else {
+            return XCTFail("Expected unknownFlag(--bogus)")
+        }
+    }
+
     func testDeviceCommandParsesExplicitSettingsAndArguments() {
         let parsed = parseDeviceCommandOptions(args: [
             "--platform", "ios",
@@ -372,6 +391,22 @@ extension CLITests {
         XCTAssertEqual(
             AndroidCompanionConfig.readyTimeoutFromEnvironment([:]),
             AndroidCompanionConfig.defaultReadyTimeoutSeconds
+        )
+    }
+
+    /// Regression: the runner hardcoded 22088 while the host forwarded `--port` → `--port`, so
+    /// any other port timed out with a misleading "half-open stale companion" hint.
+    func testAndroidInstrumentationPassesRequestedPortToRunner() {
+        let arguments = AndroidCompanionManager.instrumentArguments(port: 22096)
+        guard let portFlag = arguments.firstIndex(of: "port") else {
+            return XCTFail("Expected an `-e port` instrumentation argument in \(arguments)")
+        }
+        XCTAssertEqual(arguments[portFlag - 1], "-e")
+        XCTAssertEqual(arguments[portFlag + 1], "22096")
+        XCTAssertEqual(arguments.last, "com.amoo.companion.test/androidx.test.runner.AndroidJUnitRunner")
+        XCTAssertNotEqual(
+            AndroidCompanionManager.launchLogPath(port: 22096),
+            AndroidCompanionManager.launchLogPath(port: 22088)
         )
     }
 

@@ -22,6 +22,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
     case malformedArgument(String)
     case invalidPort(String)
     case unknownPlatform(String)
+    case unknownFlag(String)
 
     var description: String {
         switch self {
@@ -33,6 +34,11 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
             "Invalid port '\(value)'. Expected a number."
         case let .unknownPlatform(value):
             "Unknown platform '\(value)'. Expected 'ios' or 'android'."
+        case let .unknownFlag(flag) where flag.contains(where: \.isWhitespace):
+            "Unknown flag '\(flag)'. Several flags arrived as one argument — pass each flag and "
+                + "value separately (zsh does not word-split an unquoted $VAR; use ${=VAR} or an array)."
+        case let .unknownFlag(flag):
+            "Unknown flag '\(flag)'. Expected --platform, --port or --device before the tool name."
         }
     }
 }
@@ -196,13 +202,15 @@ private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommand
         case "--device":
             remaining.removeFirst()
             guard let udid = remaining.first else {
-                break
+                return .failure(.malformedArgument("--device (missing value)"))
             }
             flags.deviceID = udid
             remaining.removeFirst()
 
         default:
-            break
+            // Must fail, not `break`: `break` only leaves the `switch`, so the `while` would spin
+            // on the same token forever at 100% CPU.
+            return .failure(.unknownFlag(first))
         }
     }
 
@@ -348,7 +356,8 @@ func runDeviceCommand(
     let executor = DriverToolExecutor(
         driver: driver,
         foreignBuildDetector: ForeignBuildDetector(),
-        webInspector: makeWebInspecting(processRunner: SystemProcessRunner())
+        webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
+        defaultPlatform: options.platform
     )
 
     // The WebView tools need to know which platform's debug bridge to use; `--platform` is a

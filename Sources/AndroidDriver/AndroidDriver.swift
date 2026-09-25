@@ -14,7 +14,7 @@ public actor AndroidDriver: PlatformDriver {
     let androidCLI: any AndroidCLIRunning
     let inspectionMode: AndroidInspectionMode
     let requestedDeviceID: String?
-    private let emulator: any EmulatorRunning
+    let emulator: any EmulatorRunning
     var resolvedSerial: String?
     private var activeRecordings: [String: ActiveRecording] = [:]
     var inspectionComparison: AndroidInspectionComparison?
@@ -36,32 +36,6 @@ public actor AndroidDriver: PlatformDriver {
     }
 
     // MARK: - DeviceDriver
-
-    public func boot() async throws {
-        try await adb.startServer()
-        let devices = try await connectedDevices()
-        if let requestedDeviceID,
-           let connected = devices.first(where: { $0.serial == requestedDeviceID && $0.state == "device" }) {
-            resolvedSerial = connected.serial
-            return
-        }
-        if requestedDeviceID == nil, let connected = devices.first(where: { $0.state == "device" }) {
-            resolvedSerial = connected.serial
-            return
-        }
-
-        guard let avdName = requestedDeviceID, !avdName.hasPrefix("emulator-") else {
-            throw AmooError.commandFailed(
-                command: "device_boot",
-                output: "Requested Android device is not connected: \(requestedDeviceID ?? "default")"
-            )
-        }
-        let port = nextEmulatorPort(devices: devices)
-        try await emulator.launch(avdName: avdName, port: port)
-        let launchedSerial = "emulator-\(port)"
-        try await waitForBoot(serial: launchedSerial, timeoutSeconds: 120)
-        resolvedSerial = launchedSerial
-    }
 
     public func shutdown() async throws {
         try await adb.killEmulator(serial: activeSerial)

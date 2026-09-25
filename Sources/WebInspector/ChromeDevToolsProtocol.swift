@@ -34,10 +34,41 @@ enum CDP {
         let title: String?
         let url: String?
         let webSocketDebuggerUrl: String?
+        /// Android WebView packs its state here as JSON:
+        /// `{"attached":true,"empty":false,"visible":true,…}`.
+        var description: String?
 
         var isInspectablePage: Bool {
             (type ?? "page") == "page" && webSocketDebuggerUrl != nil
         }
+
+        /// How likely this is the WebView the user sees: attached, non-empty and visible rank
+        /// first. Android lists a pre-warmed, never-attached WebView (`"empty":true`) alongside
+        /// the real one — often first — so picking `targets.first` evaluated against a blank page.
+        var liveness: Int {
+            guard let data = description?.data(using: .utf8),
+                  let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { return 1 } // No state (iOS bridges, desktop): neither preferred nor demoted.
+            var score = 0
+            if state["attached"] as? Bool == true {
+                score += 1
+            }
+            if state["visible"] as? Bool == true {
+                score += 1
+            }
+            if state["empty"] as? Bool == true {
+                score -= 2
+            }
+            return score
+        }
+    }
+
+    /// Inspectable pages, most-likely-live first; ties keep `/json` order.
+    static func rankedPages(_ targets: [Target]) -> [Target] {
+        targets.filter(\.isInspectablePage)
+            .enumerated()
+            .sorted { ($0.element.liveness, -$0.offset) > ($1.element.liveness, -$1.offset) }
+            .map(\.element)
     }
 
     static func encode(_ request: Request) throws -> Data {

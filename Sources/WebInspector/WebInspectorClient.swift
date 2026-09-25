@@ -14,12 +14,27 @@ public protocol WebInspectorClient: Sendable {
 
     /// Dump each matching document's DOM (full `outerHTML` or a trimmed a11y-ish tree).
     func dom(_ request: WebViewDomRequest) async throws -> [WebViewDocument]
+
+    /// Releases transport resources held for this client (e.g. an `adb forward`). Call once the
+    /// tool call is done; the client is not usable afterwards.
+    func close() async
+}
+
+public extension WebInspectorClient {
+    func close() async {}
 }
 
 /// Resolves a `WebInspectorClient` for a given platform + app. Absent by default: the webview
 /// tools then report "not configured" rather than guessing at a transport.
 public protocol WebInspecting: Sendable {
-    func client(platform: WebInspectorPlatform, bundleID: String?) async throws -> any WebInspectorClient
+    /// `deviceID` is the simulator UDID / adb serial the call targets. Pass it whenever it is
+    /// known: with several devices connected, an unscoped `adb` call fails ("more than one
+    /// device/emulator") or — worse — reaches a device other than the one being tested.
+    func client(
+        platform: WebInspectorPlatform,
+        bundleID: String?,
+        deviceID: String?
+    ) async throws -> any WebInspectorClient
 }
 
 public enum WebInspectorPlatform: String, Sendable {
@@ -136,7 +151,8 @@ public struct UnconfiguredWebInspector: WebInspecting {
 
     public func client(
         platform _: WebInspectorPlatform,
-        bundleID _: String?
+        bundleID _: String?,
+        deviceID _: String?
     ) async throws -> any WebInspectorClient {
         throw WebInspectorError.notConfigured
     }

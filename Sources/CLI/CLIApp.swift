@@ -49,6 +49,8 @@ public struct CLIApp {
     }
 
     public func run(args: [String]) async -> CLIResult {
+        // Pin the launched binary's identity before anything can rebuild it underneath us.
+        _ = AmooBuildInfo.current
         if args.isEmpty {
             // Default interactive mode when no arguments are provided.
             await launchREPL(args)

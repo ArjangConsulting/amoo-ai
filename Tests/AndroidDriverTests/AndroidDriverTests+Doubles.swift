@@ -21,6 +21,8 @@ actor MockADBRunner: ADBRunning {
     private var _deviceOutputs = ["List of devices attached\nemulator-5554\tdevice product:sdk_gphone\n"]
     /// Backs `settings put/get system <key>` like the real store, so a read-back sees the write.
     private var _systemSettings: [String: String] = [:]
+    /// `ro.boot.qemu.avd_name` per emulator serial.
+    private var _avdNames: [String: String] = [:]
     private var _dumpsysOutputs: [String: String] = [
         "power": "mWakefulness=Awake",
         "window": "isStatusBarKeyguard=false"
@@ -36,6 +38,10 @@ actor MockADBRunner: ADBRunning {
         }
         if arguments.count >= 3, arguments[arguments.count - 3] == "pull" {
             _pulledFiles.append((arguments[arguments.count - 2], arguments[arguments.count - 1]))
+        }
+        if Array(arguments.suffix(3)) == ["shell", "getprop", "ro.boot.qemu.avd_name"] {
+            let serial = arguments.firstIndex(of: "-s").map { arguments[$0 + 1] } ?? ""
+            return ProcessResult(exitCode: 0, stdout: (_avdNames[serial] ?? "") + "\n", stderr: "")
         }
         let isBootProperty = Array(arguments.suffix(3)) == ["shell", "getprop", "sys.boot_completed"]
         if let subject = arguments.last, arguments.dropLast().last == "dumpsys", let output = _dumpsysOutputs[subject] {
@@ -165,6 +171,10 @@ actor MockADBRunner: ADBRunning {
 
     func setFailingRawCommandSuffix(_ suffix: [String]?) {
         _failingRawCommandSuffix = suffix
+    }
+
+    func setAVDName(_ name: String, serial: String) {
+        _avdNames[serial] = name
     }
 
     func setDeviceOutputs(_ outputs: [String]) {

@@ -91,7 +91,7 @@ public actor CDPWebInspectorClient: WebInspectorClient {
 
     private func inspectablePages() async throws -> [CDP.Target] {
         let data = try await factory.targetsJSON(baseURL: baseURL)
-        let pages = try CDP.decodeTargets(data).filter(\.isInspectablePage)
+        let pages = try CDP.rankedPages(CDP.decodeTargets(data))
         guard !pages.isEmpty else { throw WebInspectorError.noInspectableWebViews(bundleID: bundleID) }
         return pages
     }
