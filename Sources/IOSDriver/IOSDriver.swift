@@ -341,6 +341,10 @@ public actor IOSDriver: PlatformDriver {
         try await companion.setTargetApp(bundleID: bundleID)
     }
 
+    public func pressKey(_ key: KeyboardKey, modifiers: Set<KeyModifier>) async throws {
+        try await companion.pressKey(key, modifiers: modifiers)
+    }
+
     /// Companion-side: `simctl` has no rotation command, and XCUITest's `XCUIDevice` rotates
     /// simulators and physical devices alike.
     public func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation {

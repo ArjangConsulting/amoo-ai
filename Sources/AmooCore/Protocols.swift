@@ -23,6 +23,8 @@ public protocol TextActions: Sendable {
     func typeText(_ text: String) async throws
     func clearText(characterCount: Int?) async throws
     func setText(_ selector: ElementSelector, text: String) async throws
+    /// Presses one hardware-keyboard key, holding `modifiers`, in the frontmost app.
+    func pressKey(_ key: KeyboardKey, modifiers: Set<KeyModifier>) async throws
 }
 
 public protocol NavigationActions: Sendable {
@@ -237,6 +239,10 @@ public extension TextActions {
 
     func setText(_: ElementSelector, text _: String) async throws {
         throw AmooError.notImplemented("setText")
+    }
+
+    func pressKey(_: KeyboardKey, modifiers _: Set<KeyModifier>) async throws {
+        throw AmooError.notImplemented("pressKey")
     }
 }
 

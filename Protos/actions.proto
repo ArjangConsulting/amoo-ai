@@ -52,6 +52,9 @@ service CompanionService {
 
   // Device orientation
   rpc SetOrientation (SetOrientationRequest) returns (OrientationResponse);
+
+  // Hardware keyboard
+  rpc PressKey (PressKeyRequest) returns (ActionResponse);
   rpc GetAppState (GetAppStateRequest) returns (GetAppStateResponse);
 
   // AI context
@@ -239,4 +242,12 @@ message SetOrientationRequest {
 message OrientationResponse {
   // The orientation the device reports after the change, read back rather than echoed.
   Orientation orientation = 1;
+}
+
+message PressKeyRequest {
+  // A named key (left_arrow, right_arrow, up_arrow, down_arrow, return, escape, tab, space, delete,
+  // home, end, page_up, page_down) or a single character.
+  string key = 1;
+  // Any of command, shift, option, control.
+  repeated string modifiers = 2;
 }

@@ -49,6 +49,7 @@ needed rather than guessing its arguments.
 | Inspect layout or an image | take_screenshot |
 | Inspect WebView-only state | webview_dom or webview_eval |
 | Test landscape or rotation | set_orientation, then re-query — every coordinate moves |
+| Keyboard navigation or shortcuts | press_key with key= and optional modifiers= |
 
 Prefer stable IDs, then exact labels, then scoped text queries. `tap_element` resolves its own
 target; a separate query is useful for ambiguity or recording semantic observations, not
@@ -86,6 +87,10 @@ reinstall; the app is left not running, so launch it before querying it again. I
 fails with a connection error, read `$TMPDIR/companion-launch-<port>.log`, then restart the
 companion; `companion_status` can briefly still report ready, so it is not proof the channel works.
 
+Use the documented system scope for permission prompts. Do not guess that an app's controls
+are system UI merely because their labels contain words such as time or settings.
+For WebViews, read [the transport prerequisites](../../docs/webview-introspection.md).
+
 ## Iterate without rebuilding
 
 Every device call should answer in about a second; a slower one is an amoo bug worth reporting,
@@ -94,13 +99,10 @@ not something to wait out. Most of a slow loop is rebuilding what has not change
 - Keep one companion running per device across app rebuilds. `companion start` rebuilds it only
   when companion sources change.
 - Rebuild the app only after its source changes. A hang, crash, or flaky result is re-run on the
-  existing build: relaunch with `device_launch_app`, or reinstall the same bundle.
+  existing build: `device_launch_app` always starts a fresh process. A reinstall keeps the app's
+  data and restored state; uninstall first when a run must start clean.
 - For XCTest suites, `xcodebuild build-for-testing` once, then run each attempt with
   `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
-
-Use the documented system scope for permission prompts. Do not guess that an app's controls
-are system UI merely because their labels contain words such as time or settings.
-For WebViews, read [the transport prerequisites](../../docs/webview-introspection.md).
 
 ## Finish the requested task
 

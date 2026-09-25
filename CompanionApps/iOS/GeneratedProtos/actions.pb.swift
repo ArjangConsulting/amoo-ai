@@ -617,6 +617,23 @@ public nonisolated struct Amoo_OrientationResponse: Sendable {
   public init() {}
 }
 
+public nonisolated struct Amoo_PressKeyRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A named key (left_arrow, right_arrow, up_arrow, down_arrow, return, escape, tab, space, delete,
+  /// home, end, page_up, page_down) or a single character.
+  public var key: String = String()
+
+  /// Any of command, shift, option, control.
+  public var modifiers: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "amoo.v1"
@@ -1619,6 +1636,41 @@ nonisolated extension Amoo_OrientationResponse: SwiftProtobuf.Message, SwiftProt
 
   public static func ==(lhs: Amoo_OrientationResponse, rhs: Amoo_OrientationResponse) -> Bool {
     if lhs.orientation != rhs.orientation {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_PressKeyRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PressKeyRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}key\0\u{1}modifiers\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.key) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.modifiers) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.key.isEmpty {
+      try visitor.visitSingularStringField(value: self.key, fieldNumber: 1)
+    }
+    if !self.modifiers.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.modifiers, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_PressKeyRequest, rhs: Amoo_PressKeyRequest) -> Bool {
+    if lhs.key != rhs.key {return false}
+    if lhs.modifiers != rhs.modifiers {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

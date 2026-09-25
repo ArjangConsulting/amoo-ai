@@ -141,6 +141,25 @@ package extension CompanionServiceHandler {
         return response
     }
 
+    func pressKey(
+        request: Amoo_PressKeyRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_ActionResponse {
+        guard let key = KeyboardKey(name: request.key) else {
+            throw RPCError(code: .invalidArgument, message: "unknown key '\(request.key)'")
+        }
+        let modifiers = try Set(request.modifiers.map { name in
+            guard let modifier = KeyModifier(rawValue: name) else {
+                throw RPCError(code: .invalidArgument, message: "unknown modifier '\(name)'")
+            }
+            return modifier
+        })
+        try await companion.pressKey(key, modifiers: modifiers)
+        var response = Amoo_ActionResponse()
+        response.success = true
+        return response
+    }
+
     func setOrientation(
         request: Amoo_SetOrientationRequest,
         context _: ServerContext

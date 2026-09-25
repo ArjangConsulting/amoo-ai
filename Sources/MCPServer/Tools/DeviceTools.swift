@@ -115,6 +115,26 @@ public enum DeviceTools {
             required: ["appearance"]
         ),
         ToolDefinition(
+            name: "press_key",
+            title: "Press Key",
+            description: "Press one hardware-keyboard key, optionally holding modifiers — for testing"
+                + " keyboard navigation and shortcuts that no touch gesture reaches. Goes to the"
+                + " frontmost app; use type_text for text entry.",
+            properties: [
+                "key": .init(
+                    type: "string",
+                    description: "left_arrow, right_arrow, up_arrow, down_arrow, return, escape, tab,"
+                        + " space, delete, home, end, page_up, page_down, or a single character"
+                ),
+                "modifiers": .init(
+                    type: "string",
+                    description: "Comma-separated modifiers held during the press: command, shift,"
+                        + " option, control"
+                )
+            ],
+            required: ["key"]
+        ),
+        ToolDefinition(
             name: "set_orientation",
             title: "Set Orientation",
             description: "Rotate the device. Named for the device: landscape_left is the device"

@@ -49,6 +49,8 @@ public protocol CompanionClient: Sendable {
 
     /// Rotates the device through XCUITest; returns the orientation reported afterwards.
     func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation
+    /// Presses a hardware-keyboard key through XCUITest.
+    func pressKey(_ key: KeyboardKey, modifiers: Set<KeyModifier>) async throws
     /// `appID`'s own run state, resolved directly via the companion's public
     /// `XCUIApplication(bundleIdentifier:).state` — not by asking who is frontmost. See
     /// `GetAppStateResponse` in actions.proto for why that distinction is load-bearing: the
@@ -163,6 +165,10 @@ public extension CompanionClient {
 
     func setOrientation(_: DeviceOrientation) async throws -> DeviceOrientation {
         throw AmooError.notImplemented("setOrientation")
+    }
+
+    func pressKey(_: KeyboardKey, modifiers _: Set<KeyModifier>) async throws {
+        throw AmooError.notImplemented("pressKey")
     }
 
     func appState(appID _: String) async throws -> String {
