@@ -22,12 +22,16 @@ class Amoo < Formula
     bin.install "amoo"
     prefix.install "CompanionApps"
     (share/"amoo").install "scripts/install-mcp.sh"
+    # `amoo agent install` copies these into a repo's .claude/.
+    (share/"amoo/agents").install "agents/device-verifier.md"
+    (share/"amoo/skills/device-verifier").install "skills/device-verifier/SKILL.md"
   end
 
   test do
     assert_match "Usage: amoo <command> [options]", shell_output("#{bin}/amoo --help")
     assert_match(/\A\d+\.\d+\.\d+/, shell_output("#{bin}/amoo --version"))
     assert_path_exists share/"amoo/install-mcp.sh"
+    assert_path_exists share/"amoo/agents/device-verifier.md"
     assert_path_exists prefix/"CompanionApps/Android/gradlew"
     assert_path_exists prefix/"CompanionApps/iOS/project.yml" if OS.mac?
   end

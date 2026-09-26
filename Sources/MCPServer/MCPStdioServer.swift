@@ -23,6 +23,8 @@ public struct MCPStdioServer: Sendable {
     and launches the app. Pass its session_id to every subsequent device call. Do not discard an
     invalid/closed session_id to bypass an error. companion_warm and companion_status prepare a
     cold build ahead of time. When status is built, call start_session; polling does not launch it.
+    Reuse a booted simulator/emulator that already has the app: relaunch, do not rebuild.
+    Physical devices are never auto-selected; devices leased by another session are refused.
     Use list_devices and device_hint to select among devices. Once a
     session is live, launch/terminate/reinstall the app-under-test only through amoo tools, never
     raw simctl/adb -- that desyncs the companion channel. companion_status can briefly still

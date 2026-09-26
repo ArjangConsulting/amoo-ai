@@ -434,7 +434,8 @@ private func annotatedDeviceError(_ message: String, options: DeviceCommandOptio
     let looksLikeNoCompanion = message.contains("Connection refused")
         || message.contains("unavailable")
         || message.contains("transient failure")
-    guard looksLikeNoCompanion else { return message }
+    // The webview tools talk to adb / webinspectord, never the companion.
+    guard looksLikeNoCompanion, !options.tool.hasPrefix("webview_") else { return message }
 
     let platform = options.platform == .android ? "android" : "ios"
     return message + """

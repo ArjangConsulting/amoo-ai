@@ -35,3 +35,26 @@ final class DetachedProcessTests: XCTestCase {
         )
     }
 }
+
+final class AndroidLaunchArgumentsTests: XCTestCase {
+    /// Regression: Android dropped `environment` entirely, and repeated `--es arg` extras kept only
+    /// the last launch argument.
+    func testEnvironmentBecomesExtrasAndArgumentsSurvive() {
+        let command = ADBRunner.amStartArguments(
+            component: "com.app/.Main",
+            arguments: ["-a", "two words"],
+            environment: ["UI_TEST_SKIP_ONBOARDING": "1", "API": "http://10.0.2.2:8080"]
+        )
+        XCTAssertEqual(command, [
+            "shell", "am", "start", "--activity-clear-top", "-n", "com.app/.Main",
+            "--es", "API", "http://10.0.2.2:8080",
+            "--es", "UI_TEST_SKIP_ONBOARDING", "1",
+            "--esa", "args", "'-a,two words'"
+        ])
+    }
+
+    func testSingleArgumentKeepsTheHistoricalExtra() {
+        let command = ADBRunner.amStartArguments(component: "c/.M", arguments: ["it's"], environment: [:])
+        XCTAssertEqual(Array(command.suffix(3)), ["--es", "arg", "'it'\\''s'"])
+    }
+}

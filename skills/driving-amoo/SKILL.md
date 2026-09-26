@@ -96,6 +96,9 @@ For WebViews, read [the transport prerequisites](../../docs/webview-introspectio
 Every device call should answer in about a second; a slower one is an amoo bug worth reporting,
 not something to wait out. Most of a slow loop is rebuilding what has not changed:
 
+- **Reuse pre-booted devices.** Start from a simulator/emulator that is already booted with the
+  app installed; relaunch with `device_launch_app` rather than rebooting, reinstalling or
+  rebuilding. `amoo env up` (below) reuses a running AVD/simulator and its installed app.
 - Keep one companion running per device across app rebuilds. `companion start` rebuilds it only
   when companion sources change.
 - Rebuild the app only after its source changes. A hang, crash, or flaky result is re-run on the
@@ -103,6 +106,15 @@ not something to wait out. Most of a slow loop is rebuilding what has not change
   data and restored state; uninstall first when a run must start clean.
 - For XCTest suites, `xcodebuild build-for-testing` once, then run each attempt with
   `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
+
+## Shared machines and agents
+
+Other sessions may be driving devices on the same Mac. `amoo env up --platform <p> [--avd|--runtime
+--model] --app <build> --app-id <id> --json` leases a simulator/emulator (never a physical one),
+starts its companion on a free port in the background, and returns `lease`, `device`, `port`;
+pass `--lease` (or `AMOO_LEASE`) to `amoo device`/`flow`/`probe run`, and `amoo env down --lease`
+when done. `amoo doctor --json` flags stale MCP servers and physical devices. To delegate a whole
+verification run, see the `device-verifier` skill.
 
 ## Finish the requested task
 

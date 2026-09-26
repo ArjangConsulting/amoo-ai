@@ -38,6 +38,11 @@ final class CommandContractE2ETests: XCTestCase {
     }
 
     override func setUp() async throws {
+        // Opt-in only: a bare `swift test` used to run this suite whenever *anything* listened on
+        // 22087 — including another session's companion — and then drove the `booted` simulator.
+        guard ProcessInfo.processInfo.environment["E2E_PLATFORM"] != nil else {
+            throw XCTSkip("Live E2E suite: run it through scripts/run-e2e*.sh (sets E2E_PLATFORM).")
+        }
         guard Self.isPortOpen(Self.companionPort) else {
             throw Self
                 .environmentFailure("Companion not running on port \(Self.companionPort). Use the platform e2e script.")

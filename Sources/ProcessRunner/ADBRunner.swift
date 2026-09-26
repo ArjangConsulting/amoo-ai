@@ -17,6 +17,9 @@ public protocol ADBRunning: Sendable {
     // App management
     func install(serial: String?, apkPath: String) async throws
     func launch(serial: String?, appID: String, arguments: [String]) async throws
+    /// Launches with `environment` as `--es KEY VALUE` Intent extras (Android has no process
+    /// environment for apps) after force-stopping the app, so a fresh `onCreate` sees them.
+    func launch(serial: String?, appID: String, arguments: [String], environment: [String: String]) async throws
     func launchResetting(serial: String?, appID: String) async throws
     func terminate(serial: String?, appID: String) async throws
     func uninstall(serial: String?, appID: String) async throws
@@ -41,6 +44,10 @@ public protocol ADBRunning: Sendable {
 public extension ADBRunning {
     func run(_ arguments: [String], timeoutSeconds: TimeInterval) async throws -> ProcessResult {
         try await run(arguments)
+    }
+
+    func launch(serial: String?, appID: String, arguments: [String], environment _: [String: String]) async throws {
+        try await launch(serial: serial, appID: appID, arguments: arguments)
     }
 }
 
@@ -97,6 +104,50 @@ public struct ADBRunner: ADBRunning {
         _ = try await run(
             adb(serial: serial).amStartActivity(component: component, arguments: arguments)
         )
+    }
+
+    public func launch(
+        serial: String?,
+        appID: String,
+        arguments: [String],
+        environment: [String: String]
+    ) async throws {
+        let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
+        if !environment.isEmpty {
+            _ = try await run(adb(serial: serial).amForceStop(package: appID))
+        }
+        _ = try await run(adb(serial: serial).rawArguments(
+            Self.amStartArguments(component: component, arguments: arguments, environment: environment)
+        ))
+    }
+
+    /// `shell am start` for `component` with `environment` as `--es KEY VALUE` extras. One launch
+    /// argument keeps the historical `--es arg <value>`; several go as one `--esa args a,b,c`
+    /// array, because repeated `--es arg` extras overwrite each other and only the last survived.
+    /// Values are single-quoted: `adb shell` re-tokenizes the command on the device.
+    public static func amStartArguments(
+        component: String,
+        arguments: [String],
+        environment: [String: String]
+    ) -> [String] {
+        var command = ["shell", "am", "start", "--activity-clear-top", "-n", component]
+        for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
+            command += ["--es", shellQuoted(key), shellQuoted(value)]
+        }
+        switch arguments.count {
+        case 0: break
+        case 1: command += ["--es", "arg", shellQuoted(arguments[0])]
+        default: command += ["--esa", "args", shellQuoted(arguments.joined(separator: ","))]
+        }
+        return command
+    }
+
+    static func shellQuoted(_ value: String) -> String {
+        let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-.:/=@%+,"))
+        guard !value.isEmpty, value.unicodeScalars.contains(where: { !safe.contains($0) }) else {
+            return value.isEmpty ? "''" : value
+        }
+        return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     public func launchResetting(serial: String? = nil, appID: String) async throws {

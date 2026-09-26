@@ -162,8 +162,11 @@ jobs:
             amoo \
             CompanionApps/iOS \
             CompanionApps/Android \
-            scripts/install-mcp.sh
+            scripts/install-mcp.sh \
+            agents/device-verifier.md \
+            skills/device-verifier/SKILL.md
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'amoo'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'agents/device-verifier.md'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/iOS/project.yml'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'scripts/install-mcp.sh'
@@ -235,8 +238,11 @@ jobs:
           tar -czf "amoo-${VERSION}-linux-static.tar.gz" \
             amoo \
             CompanionApps/Android \
-            scripts/install-mcp.sh
+            scripts/install-mcp.sh \
+            agents/device-verifier.md \
+            skills/device-verifier/SKILL.md
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'amoo'
+          tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'agents/device-verifier.md'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
