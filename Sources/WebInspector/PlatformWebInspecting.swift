@@ -62,21 +62,26 @@ public struct PlatformWebInspecting: WebInspecting {
     /// swept first, so they no longer accumulate.
     private func androidClient(bundleID: String?, serial: String?) async throws -> any WebInspectorClient {
         let adb = Self.adbPrefix(serial: serial)
-        let sockets = try await Self.devtoolsSockets(in: run(adb + ["shell", "cat", "/proc/net/unix"]))
-        guard !sockets.isEmpty else {
-            throw WebInspectorError.noInspectableWebViews(bundleID: bundleID)
-        }
-
-        let name: String
+        // Check the app first: a crashed app has no socket either, and "enable web debugging"
+        // would send the caller after the wrong problem.
+        var pids: String?
         if let bundleID {
-            // `pidof` exits 1 when the app is not running; that is "no WebView", not a transport error.
-            let pids = try await shell.run(adb + ["shell", "pidof", bundleID]).stdout
+            let result = try await shell.run(adb + ["shell", "pidof", bundleID])
+            guard result.exitCode == 0, !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw WebInspectorError.appNotRunning(bundleID: bundleID)
+            }
+            pids = result.stdout
+        }
+        let sockets = try await Self.devtoolsSockets(in: run(adb + ["shell", "cat", "/proc/net/unix"]))
+        let name: String
+        if let pids {
             guard let match = Self.socket(forPIDs: pids, in: sockets) else {
                 throw WebInspectorError.noInspectableWebViews(bundleID: bundleID)
             }
             name = match
         } else {
-            name = sockets[0]
+            guard let first = sockets.first else { throw WebInspectorError.noInspectableWebViews(bundleID: nil) }
+            name = first
         }
 
         if let serial, let forwards = try? await shell.run(adb + ["forward", "--list"]).stdout {

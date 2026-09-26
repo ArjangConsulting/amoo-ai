@@ -59,6 +59,14 @@ enum AvailableDevice {
         }
     }
 
+    /// Simulator UDID or adb serial.
+    var deviceID: String {
+        switch self {
+        case let .ios(device): device.udid
+        case let .android(serial, _): serial
+        }
+    }
+
     /// Whether this is real hardware rather than a simulator/emulator. Android emulator
     /// serials are always `emulator-<port>`; anything else is a physical device's serial.
     var isPhysicalDevice: Bool {
@@ -263,15 +271,18 @@ struct PlatformDeviceSelector {
     private let processRunner: any ProcessRunner
     private let prompter: any DeviceSelectionPrompting
     private let interactive: Bool
+    private let leaseStore: DeviceLeaseStore
 
     init(
         processRunner: any ProcessRunner = SystemProcessRunner(),
         prompter: any DeviceSelectionPrompting = ConsoleDeviceSelectionPrompter(),
-        interactive: Bool = isInteractiveStdin()
+        interactive: Bool = isInteractiveStdin(),
+        leaseStore: DeviceLeaseStore = DeviceLeaseStore()
     ) {
         self.processRunner = processRunner
         self.prompter = prompter
         self.interactive = interactive
+        self.leaseStore = leaseStore
     }
 
     /// Lists all available iOS simulators and Android devices/emulators concurrently,
@@ -298,6 +309,8 @@ struct PlatformDeviceSelector {
             return try await resolveHint(hint, platform: platform, among: all, androidSelector: androidSelector)
         }
 
+        all = try autoSelectable(all)
+
         switch all.count {
         case 0:
             return try await launchInteractiveDevice(
@@ -315,6 +328,35 @@ struct PlatformDeviceSelector {
             }
             return try promptDeviceSelection(from: all)
         }
+    }
+
+    /// Candidates a hint-less pick may land on: never a device another session leased, and —
+    /// with nobody at the keyboard to confirm — never a physical device.
+    private func autoSelectable(_ candidates: [AvailableDevice]) throws -> [AvailableDevice] {
+        var all = candidates
+        // Without a hint, never auto-pick a device another session holds a lease on.
+        let presented = presentedLease(flag: nil)
+        let unleased = all.filter {
+            if case .leasedByOther = leaseStore.access(deviceID: $0.deviceID, lease: presented) {
+                return false
+            }
+            return true
+        }
+        if !unleased.isEmpty {
+            all = unleased
+        }
+        // Nor, without someone at the keyboard to confirm, a physical device.
+        if !interactive, !all.isEmpty {
+            let virtual = all.filter { !$0.isPhysicalDevice }
+            guard !virtual.isEmpty else {
+                throw DeviceSelectionError.launchFailed(
+                    "Only physical devices are available (" + all.map(\.displayName).joined(separator: ", ")
+                        + "). amoo never auto-selects a physical device; pass device_hint=<udid|serial> to use one."
+                )
+            }
+            all = virtual
+        }
+        return all
     }
 
     private func resolveHint(

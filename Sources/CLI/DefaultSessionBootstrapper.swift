@@ -19,14 +19,18 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     /// How many seconds to wait for `getScreenContext` to succeed after launch
     /// before giving up on screen stabilization.
     let screenStabilizationTimeoutSeconds: Double
+    /// Cross-process device leases (`amoo env up`); injectable so tests never read `~/.amoo`.
+    let leaseStore: DeviceLeaseStore
 
     init(
         iOSCompanionManager: any IOSCompanionManaging,
         androidCompanionManager: any AndroidCompanionManaging,
         processRunner: any ProcessRunner = SystemProcessRunner(),
         usbTunnel: any USBTunneling = IProxyTunnel(),
-        screenStabilizationTimeoutSeconds: Double = 10
+        screenStabilizationTimeoutSeconds: Double = 10,
+        leaseStore: DeviceLeaseStore = DeviceLeaseStore()
     ) {
+        self.leaseStore = leaseStore
         self.iOSCompanionManager = iOSCompanionManager
         self.androidCompanionManager = androidCompanionManager
         self.processRunner = processRunner
@@ -37,13 +41,16 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
         let clock = ContinuousClock()
         let bootstrapStart = clock.now
-        let selector = PlatformDeviceSelector(processRunner: processRunner)
+        let selector = PlatformDeviceSelector(processRunner: processRunner, leaseStore: leaseStore)
         let available = try await selector.selectDevice(hint: request.deviceHint, platform: request.platform)
 
         let deviceKey = switch available {
         case let .ios(device): "ios:\(device.udid)"
         case let .android(serial, _): "android:\(serial)"
         }
+        // Cross-process: a device another session leased via `amoo env up` is off limits unless
+        // this server was started with that lease in AMOO_LEASE.
+        try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
         let owner = try await Self.leases.acquire(deviceKey)
         do {
             return try await bootstrap(

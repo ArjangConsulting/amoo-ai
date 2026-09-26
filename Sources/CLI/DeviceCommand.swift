@@ -13,6 +13,10 @@ struct DeviceCommandOptions {
     var deviceID: String?
     var tool: String
     var arguments: [String: String]
+    /// `--lease <id>`: proves this caller owns the device's lease (`amoo env up`).
+    var lease: String?
+    /// `--json`: print one JSON object instead of the human-readable result.
+    var json = false
 }
 
 // MARK: - Parsing
@@ -38,14 +42,18 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
             "Unknown flag '\(flag)'. Several flags arrived as one argument — pass each flag and "
                 + "value separately (zsh does not word-split an unquoted $VAR; use ${=VAR} or an array)."
         case let .unknownFlag(flag):
-            "Unknown flag '\(flag)'. Expected --platform, --port or --device before the tool name."
+            "Unknown flag '\(flag)'. Expected --platform, --port, --device, --lease or --json before the tool name."
         }
     }
 }
 
 private let deviceHelpUsageAndTools = """
-Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] <tool> [key=value ...]
-                   [--env KEY=VALUE ...] [--arg VALUE ...]
+Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] [--lease <id>] [--json]
+                   <tool> [key=value ...] [--env KEY=VALUE ...] [--arg VALUE ...]
+
+  --lease <id>   Lease from `amoo env up` (or AMOO_LEASE). Devices leased by another
+                 session are refused.
+  --json         Print {"tool","ok","content","structured"} as one JSON object.
 
 Common tools:
   run_steps session_id=<id> steps=<JSON-array>
@@ -168,8 +176,11 @@ private struct DeviceCommandFlags {
     var platform: Platform = .ios
     var port: Int?
     var deviceID: String?
+    var lease: String?
+    var json = false
 }
 
+// swiftlint:disable cyclomatic_complexity - one flat case per flag.
 /// Consumes leading `--flag [value]` pairs from `remaining`, stopping at the first non-flag
 /// token (the tool name).
 private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommandFlags, DeviceCommandParseError> {
@@ -207,6 +218,18 @@ private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommand
             flags.deviceID = udid
             remaining.removeFirst()
 
+        case "--lease":
+            remaining.removeFirst()
+            guard let lease = remaining.first else {
+                return .failure(.malformedArgument("--lease (missing value)"))
+            }
+            flags.lease = lease
+            remaining.removeFirst()
+
+        case "--json":
+            remaining.removeFirst()
+            flags.json = true
+
         default:
             // Must fail, not `break`: `break` only leaves the `switch`, so the `while` would spin
             // on the same token forever at 100% CPU.
@@ -216,6 +239,8 @@ private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommand
 
     return .success(flags)
 }
+
+// swiftlint:enable cyclomatic_complexity
 
 /// Parses `key=value` tool arguments plus repeatable `--env KEY=VALUE` / `--arg VALUE` flags
 /// from the tokens following the tool name.
@@ -298,7 +323,9 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
         port: flags.port ?? defaultPort(for: flags.platform),
         deviceID: normalizedDeviceID(flags.deviceID, for: flags.platform),
         tool: tool,
-        arguments: arguments
+        arguments: arguments,
+        lease: flags.lease,
+        json: flags.json
     ))
 }
 
@@ -310,8 +337,8 @@ func runDeviceCommand(
         await companionSimulatorUDID(port: port, processRunner: SystemProcessRunner())
     }
 ) async -> CLIResult {
-    if let message = unknownArgumentMessage(tool: options.tool, arguments: options.arguments) {
-        return CLIResult(output: message, exitCode: 1)
+    if let early = await devicePreflight(options) {
+        return early
     }
 
     var options = options
@@ -372,11 +399,11 @@ func runDeviceCommand(
     }
     await companion.shutdown()
 
-    return CLIResult(
-        output: result.isError
-            ? annotatedDeviceError(result.content, options: options)
-            : result.content,
-        exitCode: result.isError ? 1 : 0
+    return deviceCommandResult(
+        options: options,
+        content: result.isError ? annotatedDeviceError(result.content, options: options) : result.content,
+        isError: result.isError,
+        structured: result.structuredContent
     )
 }
 

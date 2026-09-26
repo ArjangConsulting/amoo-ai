@@ -10,8 +10,12 @@ final class DeviceRecoveryTests: XCTestCase {
             stdout: "List of devices attached\nphone\tdevice model:Phone\nemulator-5554\tdevice model:Emulator\n",
             stderr: ""
         ))])
-        let selected = try await PlatformDeviceSelector(processRunner: runner, interactive: false)
-            .selectDevice(platform: .android)
+        let selected = try await PlatformDeviceSelector(
+            processRunner: runner,
+            interactive: false,
+            leaseStore: .temporary()
+        )
+        .selectDevice(platform: .android)
         guard case let .android(serial, _) = selected else { return XCTFail("Expected Android") }
         XCTAssertEqual(serial, "emulator-5554")
         let commands = await runner.recordedCommands()

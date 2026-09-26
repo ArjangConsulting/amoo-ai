@@ -68,3 +68,27 @@ func resolveAndroidHint(
     }
     return .unmatched
 }
+
+/// `amoo companion … --platform android --device <AVD name>` targets that AVD's emulator —
+/// booting it for install/start/warm — instead of passing the name to `adb -s` as a serial.
+func resolvingAndroidCompanionDevice(
+    _ options: CompanionCommandOptions,
+    selector: AndroidDeviceSelector = AndroidDeviceSelector()
+) async throws -> CompanionCommandOptions {
+    guard options.platform == .android, options.deviceID != "booted" else { return options }
+    var resolved = options
+    switch await selector.resolve(hint: options.deviceID) {
+    case let .running(serial, _):
+        resolved.deviceID = serial
+    case .bootAVD where options.action == .status:
+        return options // `status` never boots; it reports not_started.
+    case let .bootAVD(avd):
+        resolved.deviceID = try await selector.bootVirtualDevice(name: avd).id
+    case .unmatched:
+        throw DeviceSelectionError.launchFailed(
+            "No running Android emulator/device or AVD matches '\(options.deviceID)'."
+                + " Pass an adb serial (emulator-5554) or an AVD name from `emulator -list-avds`."
+        )
+    }
+    return resolved
+}
