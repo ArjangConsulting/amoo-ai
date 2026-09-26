@@ -15,9 +15,15 @@ import Glibc
 /// `POSIX_SPAWN_SETSID` puts the child in a new session and process group, which neither reaches.
 public enum DetachedProcess {
     /// Spawns `arguments` (resolved through `PATH`) in its own session with stdin from
-    /// `/dev/null` and stdout/stderr appended to `logPath` (or discarded). Returns the pid.
+    /// `/dev/null` and stdout/stderr appended to `logPath` (or discarded). `environment` entries
+    /// are layered over this process's environment. Returns the pid, which is also the child's
+    /// process-group id, so `kill(-pid, …)` reaches everything it starts.
     @discardableResult
-    public static func spawn(_ arguments: [String], logPath: String? = nil) throws -> Int32 {
+    public static func spawn(
+        _ arguments: [String],
+        logPath: String? = nil,
+        environment: [String: String] = [:]
+    ) throws -> Int32 {
         guard let executable = arguments.first else {
             throw AmooError.commandFailed(command: "spawn", output: "Missing executable.")
         }
@@ -42,8 +48,12 @@ public enum DetachedProcess {
         let cArguments = arguments.map { strdup($0) } + [nil]
         defer { cArguments.forEach { free($0) } }
 
+        let merged = ProcessInfo.processInfo.environment.merging(environment) { _, override in override }
+        let cEnvironment = merged.map { strdup("\($0.key)=\($0.value)") } + [nil]
+        defer { cEnvironment.forEach { free($0) } }
+
         var pid: pid_t = 0
-        let status = posix_spawnp(&pid, executable, &fileActions, &attributes, cArguments, environ)
+        let status = posix_spawnp(&pid, executable, &fileActions, &attributes, cArguments, cEnvironment)
         guard status == 0 else {
             throw AmooError.commandFailed(
                 command: arguments.joined(separator: " "),

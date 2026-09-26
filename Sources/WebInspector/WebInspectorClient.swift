@@ -117,6 +117,7 @@ public struct WebViewDocument: Sendable, Equatable {
 public enum WebInspectorError: Error, CustomStringConvertible, Equatable {
     case notConfigured
     case noInspectableWebViews(bundleID: String?)
+    case appNotRunning(bundleID: String)
     case transportUnavailable(String)
     case iosTransportNotImplemented
     case protocolError(String)
@@ -130,7 +131,12 @@ public enum WebInspectorError: Error, CustomStringConvertible, Equatable {
             "No inspectable WebView found"
                 + (bundleID.map { " for \($0)" } ?? "")
                 + ". The app must enable web debugging (WKWebView.isInspectable / "
-                + "WebView.setWebContentsDebuggingEnabled) in its debug build."
+                + "WebView.setWebContentsDebuggingEnabled) in its debug build, and the current screen must "
+                + "host a live WebView. If it should, check logcat for a WebView renderer crash (an AVD "
+                + "without GLES support logs 'Chrome runs only on top of OpenGL ES')."
+        case let .appNotRunning(bundleID):
+            "\(bundleID) is not running (not launched yet, or it crashed — check logcat/crash logs). "
+                + "Launch it and open the screen hosting the WebView first."
         case let .transportUnavailable(reason):
             "WebView debugging transport unavailable: \(reason)"
         case .iosTransportNotImplemented:

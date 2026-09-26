@@ -72,6 +72,17 @@ final class AndroidWebInspectingTests: XCTestCase {
         }
     }
 
+    /// A dead app has no socket either; say so instead of blaming web-debugging settings.
+    func testStoppedAppIsReportedAsNotRunning() async {
+        let inspector = resolver(ScriptedADB(procNetUnix: sockets, pidof: ""))
+        do {
+            _ = try await inspector.client(platform: .android, bundleID: "com.app", deviceID: "emulator-5554")
+            XCTFail("expected appNotRunning")
+        } catch {
+            XCTAssertEqual(error as? WebInspectorError, .appNotRunning(bundleID: "com.app"))
+        }
+    }
+
     /// Regression: each call leaked an `adb forward tcp:<n> localabstract:…` that was never removed.
     func testCloseRemovesTheForwardAndStaleForwardsAreSwept() async throws {
         let forwards = """

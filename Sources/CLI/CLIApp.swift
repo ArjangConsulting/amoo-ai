@@ -78,6 +78,7 @@ public struct CLIApp {
         return CLIResult(output: "", exitCode: 0)
     }
 
+    // swiftlint:disable:next cyclomatic_complexity - one flat case per subcommand.
     private func dispatchSubcommand(args: [String]) async -> CLIResult? {
         let remaining = Array(args.dropFirst())
         switch args.first {
@@ -90,6 +91,9 @@ public struct CLIApp {
         case "mcp": return await handleMCPCommand(remaining: remaining)
         case "studio": return await handleStudioCommand(remaining: remaining)
         case "generate": return handleGenerateCommand(remaining: remaining)
+        case "env": return await handleEnvCommand(remaining: remaining)
+        case "probe": return await handleProbeCommand(remaining: remaining)
+        case "doctor": return await handleDoctorCommand(remaining: remaining)
         default: return nil
         }
     }
@@ -182,7 +186,19 @@ public struct CLIApp {
         switch parseCompanionCommandOptions(args: remaining) {
         case let .failure(error):
             return CLIResult(output: error.description, exitCode: 64)
-        case let .success(options):
+        case var .success(options):
+            do {
+                options = try await resolvingAndroidCompanionDevice(options)
+            } catch {
+                return CLIResult(output: "\(error)", exitCode: 1)
+            }
+            if options.action != .status {
+                do {
+                    try enforceLease(deviceID: options.deviceID, lease: presentedLease(flag: nil))
+                } catch {
+                    return CLIResult(output: "\(error)", exitCode: 3)
+                }
+            }
             return await runCompanionCommand(options: options)
         }
     }
@@ -267,8 +283,11 @@ func renderCLIHelp() -> String {
     Commands:
       help                         Show this help
       preflight [--platform ...]   Check local tooling and environment
+      doctor [--json]              Health check: build, stale MCP servers, devices, companions, leases
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
+      env up|down|list ...         Lease a simulator/emulator with a running companion (agents)
+      probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
       flow <path.amoo.json>        Run a reusable checked-in device flow
       generate plan ...            Recompile a recorded session report into plan.json
       generate test ...            Emit a standalone XCUITest/Espresso test from a plan
