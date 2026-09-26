@@ -5,6 +5,10 @@ selection, inspection, mutation, assertions and completion. Load its coordinate 
 references only for those tasks. Detailed code-generation guidance is unnecessary for a simple
 inspection. `AMOO_TOOL_PROFILE=drive|record|audit` can also reduce MCP discovery context.
 
+To delegate a whole verification run (lease a device, install, navigate, run checked-in probes,
+return a pass/fail/blocked report), use [`device-verifier`](device-verifier/SKILL.md) together
+with the `agents/device-verifier.md` subagent; `amoo agent install --target <repo>` copies both.
+
 The remaining skills are contributor references, not a bundle every device-driving agent needs:
 
 | Skill | Load when |

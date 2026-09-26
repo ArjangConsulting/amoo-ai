@@ -94,6 +94,7 @@ public struct CLIApp {
         case "env": return await handleEnvCommand(remaining: remaining)
         case "probe": return await handleProbeCommand(remaining: remaining)
         case "doctor": return await handleDoctorCommand(remaining: remaining)
+        case "agent": return handleAgentCommand(remaining: remaining)
         default: return nil
         }
     }
@@ -207,10 +208,20 @@ public struct CLIApp {
         if isHelpRequest(remaining) || remaining.isEmpty {
             return CLIResult(output: renderFlowHelp(), exitCode: remaining.isEmpty ? 64 : 0)
         }
-        guard remaining.count == 1 else {
-            return CLIResult(output: renderFlowHelp(), exitCode: 64)
+        var flags = EnvFlagReader(remaining)
+        do {
+            let overrides = try FlowOverrides(
+                deviceID: flags.value("--device"),
+                port: flags.int("--port"),
+                lease: flags.value("--lease")
+            )
+            let paths = flags.remainingPositionals()
+            try flags.finish()
+            guard paths.count == 1 else { return CLIResult(output: renderFlowHelp(), exitCode: 64) }
+            return await runFlowCommand(path: paths[0], overrides: overrides)
+        } catch {
+            return CLIResult(output: "\(error)", exitCode: 64)
         }
-        return await runFlowCommand(path: remaining[0])
     }
 
     private func handleAuditCommand(remaining: [String]) async -> CLIResult {
@@ -288,6 +299,7 @@ func renderCLIHelp() -> String {
       companion ...                Build or install a companion app
       env up|down|list ...         Lease a simulator/emulator with a running companion (agents)
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
+      agent install [--target]     Install the device-verifier subagent + skill into a repo
       flow <path.amoo.json>        Run a reusable checked-in device flow
       generate plan ...            Recompile a recorded session report into plan.json
       generate test ...            Emit a standalone XCUITest/Espresso test from a plan

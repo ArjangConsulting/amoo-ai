@@ -105,18 +105,19 @@ final class CDPWebInspectorClientTests: XCTestCase {
         }
     }
 
-    func testIOSResolverWithoutEnvThrowsNotImplemented() async {
+    /// Without `AMOO_IOS_WEBINSPECTOR_URL`, iOS asks the simulator for its Web Inspector socket;
+    /// a simulator that has none is a transport error, not a silent success.
+    func testIOSResolverWithoutASimulatorSocketReportsTransportUnavailable() async {
         let resolver = PlatformWebInspecting(
             shell: NoopShell(),
             factory: FakeFactory(targets: "[]") { FakeChannel(replies: []) },
             environment: [:]
         )
-        await XCTAssertThrowsErrorAsync(try await resolver.client(
-            platform: .ios,
-            bundleID: nil,
-            deviceID: nil
-        )) { error in
-            XCTAssertEqual(error as? WebInspectorError, .iosTransportNotImplemented)
+        do {
+            _ = try await resolver.client(platform: .ios, bundleID: nil, deviceID: "SIM-1")
+            XCTFail("expected transportUnavailable")
+        } catch {
+            guard case .transportUnavailable = error as? WebInspectorError else { return XCTFail("\(error)") }
         }
     }
 }

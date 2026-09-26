@@ -22,28 +22,40 @@ The XCUITest / UiAutomator companion runs **out-of-process** from the app under 
 call `WKWebView.evaluateJavaScript` / `WebView.evaluateJavascript` on the app's webview. The only
 way in is a **debugging wire protocol**, driven from the host:
 
-- **Android — working today.** `WebView.setWebContentsDebuggingEnabled(true)` (apps typically gate
-  this on `BuildConfig.DEBUG`) exposes the **Chrome DevTools Protocol** on the abstract socket
-  `localabstract:webview_devtools_remote_<pid>`. `PlatformWebInspecting` finds it in
-  `/proc/net/unix` via `adb shell`, `adb forward tcp:0 localabstract:<name>`, then the
-  `CDPWebInspectorClient` fetches `GET /json`, connects the target's `webSocketDebuggerUrl`, and
-  runs `Runtime.evaluate` / `DOM.*`.
+- **Android.** `WebView.setWebContentsDebuggingEnabled(true)` (apps typically gate this on
+  `BuildConfig.DEBUG`) exposes the **Chrome DevTools Protocol** on the abstract socket
+  `localabstract:webview_devtools_remote_<pid>`. `PlatformWebInspecting` — with every `adb` call
+  scoped to the target serial — checks the app is running (`pidof`), picks the socket owned by
+  that pid, forwards a fresh local port to it (removed again on close; forwards left by dead
+  WebViews are swept), fetches `GET /json`, ranks the attached/visible page above Android's
+  pre-warmed empty one, and runs `Runtime.evaluate` (`awaitPromise: true`) over a WebSocket. CDP
+  accepts **text frames only** — a binary frame makes WebView's Chrome drop the socket, which
+  `URLSession` reports as POSIX 57 "Socket is not connected".
 
-- **iOS — not wired up yet.** The equivalent is the **WebKit Remote Inspector**. It needs no in-app
-  SDK on the Simulator or on a debug build where `WKWebView.isInspectable == true` (iOS 16.4+), but
-  the transport is the `webinspectord` bplist protocol, not CDP. Until that lands,
-  `PlatformWebInspecting` throws `WebInspectorError.iosTransportNotImplemented`. **Early opt-in:**
-  set `AMOO_IOS_WEBINSPECTOR_URL` to a CDP-compatible endpoint — e.g. a running
-  [`ios-webkit-debug-proxy`](https://github.com/google/ios-webkit-debug-proxy)
-  (`brew install ios-webkit-debug-proxy`; `ios_webkit_debug_proxy -F -c <udid>:9222`) — and the
-  same `CDPWebInspectorClient` handles it.
+- **iOS Simulator.** Each booted simulator runs its own `webinspectord`, whose socket its launchd
+  publishes as `RWI_LISTEN_SOCKET` (`xcrun simctl getenv <udid> RWI_LISTEN_SOCKET`).
+  `WebKitWebInspectorClient` speaks the Remote Inspector protocol natively — length-prefixed
+  binary plists: `_rpc_reportIdentifier:`, `_rpc_getConnectedApplications:`,
+  `_rpc_forwardGetListing:` for the app and the `WebContent` proxies it hosts,
+  `_rpc_forwardSocketSetup:`, then Web Inspector JSON through `_rpc_forwardSocketData:`, wrapped
+  in `Target.sendMessageToTarget` once `Target.targetCreated` names the page. WebKit's
+  `Runtime.evaluate` has no `awaitPromise`, so a Promise result is resolved with
+  `Runtime.awaitPromise`, and any other object is read with `Runtime.callFunctionOn` (never by
+  re-evaluating the expression). The app's debug build must set `WKWebView.isInspectable = true`.
+
+- **iOS physical devices** need a usbmux/lockdown transport that is not implemented. Set
+  `AMOO_IOS_WEBINSPECTOR_URL` to a CDP-compatible endpoint (e.g.
+  [`ios-webkit-debug-proxy`](https://github.com/google/ios-webkit-debug-proxy),
+  `ios_webkit_debug_proxy -F -c <udid>:9222`) and `CDPWebInspectorClient` handles it; the
+  variable also overrides the simulator transport.
+
+`amoo probe run` builds on the same clients: it evaluates checked-in probe files in order and
+judges each by its `{probe, pass, details}` result (see `amoo probe run --help`).
 
 ## Follow-up work
 
-1. **Native `webinspectord` transport for iOS Simulator + device.** Speak the Remote Inspector
-   protocol (`_rpc_reportIdentifier`, `_rpc_getConnectedApplications`,
-   `_rpc_forwardSocketSetup`, then `Runtime.evaluate` in the auto-created inspector session), so no
-   external proxy is required. Slot it behind `WebInspecting` — callers do not change.
+1. **Native transport for physical iOS devices** (usbmux → `com.apple.webinspector` lockdown
+   service), reusing `WebKitWebInspectorClient` over a different `WebKitRPCChannel`.
 2. **Cross-origin frames.** YouTube's player is a cross-origin `<iframe>`; `Runtime.evaluate` runs
    per execution context. `all_frames=true` currently returns one document per DevTools *target*;
    full frame coverage needs `Page.getFrameTree` + per-frame execution-context ids.
@@ -60,6 +72,8 @@ way in is a **debugging wire protocol**, driven from the host:
 | `Sources/WebInspector/ChromeDevToolsProtocol.swift` | CDP request/message/target envelope + a minimal `JSONValue`. |
 | `Sources/WebInspector/CDPWebInspectorClient.swift` | `WebInspectorClient` over CDP, with an injectable `CDPChannelFactory`. |
 | `Sources/WebInspector/URLSessionCDPChannel.swift` | Real transport: `URLSession` for `/json`, `URLSessionWebSocketTask` for the debugger socket. |
-| `Sources/WebInspector/PlatformWebInspecting.swift` | Platform → endpoint wiring (Android `adb`; iOS env opt-in / not-implemented). |
+| `Sources/WebInspector/PlatformWebInspecting.swift` | Platform → endpoint wiring (Android `adb`; iOS simulator socket or env opt-in). |
+| `Sources/WebInspector/WebKitInspectorConnection.swift` | Remote Inspector framing (binary plist), unix-socket channel, timeout-safe message queue. |
+| `Sources/WebInspector/WebKitWebInspectorClient.swift` | `WebInspectorClient` over the WebKit Remote Inspector (iOS Simulator). |
 | `Sources/MCPServer/Tools/WebViewTools.swift` | The two MCP tool definitions. |
 | `Sources/MCPServer/ToolExecutor+WebView.swift` | Handlers mapping tool args → `WebInspectorClient` → `ToolResult`. |

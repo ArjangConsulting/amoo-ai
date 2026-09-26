@@ -64,11 +64,13 @@ public actor AndroidDriver: PlatformDriver {
         try await adb.install(serial: activeSerial, apkPath: path)
     }
 
-    public func launchApp(appID: String, arguments: [String] = [], environment _: [String: String] = [:]) async throws {
-        if arguments.isEmpty {
+    /// `environment` becomes `--es KEY VALUE` Intent extras, so one `device_launch_app … --env K=V`
+    /// call means the same thing on both platforms (iOS: process environment).
+    public func launchApp(appID: String, arguments: [String] = [], environment: [String: String] = [:]) async throws {
+        if arguments.isEmpty, environment.isEmpty {
             try await adb.launchResetting(serial: activeSerial, appID: appID)
         } else {
-            try await adb.launch(serial: activeSerial, appID: appID, arguments: arguments)
+            try await adb.launch(serial: activeSerial, appID: appID, arguments: arguments, environment: environment)
         }
     }
 

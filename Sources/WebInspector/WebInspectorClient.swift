@@ -140,8 +140,8 @@ public enum WebInspectorError: Error, CustomStringConvertible, Equatable {
         case let .transportUnavailable(reason):
             "WebView debugging transport unavailable: \(reason)"
         case .iosTransportNotImplemented:
-            "iOS WebView introspection needs the WebKit Remote Inspector transport, which is not "
-                + "wired up yet. Track it in docs/webview-introspection.md; Android works today."
+            "iOS WebView introspection needs macOS and a booted simulator. For a physical device, set "
+                + "AMOO_IOS_WEBINSPECTOR_URL to an ios-webkit-debug-proxy endpoint (docs/webview-introspection.md)."
         case let .protocolError(message):
             "WebView debugging protocol error: \(message)"
         case let .timedOut(milliseconds):

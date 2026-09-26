@@ -33,19 +33,32 @@ struct TestFlow: Codable, Equatable {
 
 func renderFlowHelp() -> String {
     """
-    Usage: amoo flow <path.amoo.json>
+    Usage: amoo flow <path.amoo.json> [--device <id>] [--port <n>] [--lease <id>]
 
     Runs a checked-in sequence against one persistent driver connection. Argument values of
     the form ${ENV_NAME} are read from the environment, so credentials stay out of the file.
     Execution stops on the first failed action or assertion.
+
+    --device / --port override the file's device_id / port, so one checked-in flow runs against
+    whatever `amoo env up` leased; --lease (or AMOO_LEASE) proves the lease is yours.
     """
 }
 
-func runFlowCommand(path: String) async -> CLIResult {
+/// Command-line overrides for a flow file's target.
+struct FlowOverrides: Equatable {
+    var deviceID: String?
+    var port: Int?
+    var lease: String?
+}
+
+func runFlowCommand(path: String, overrides: FlowOverrides = FlowOverrides()) async -> CLIResult {
     var openCompanion: GRPCCompanionClient?
     do {
         let fileURL = URL(fileURLWithPath: path).standardizedFileURL
-        let flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: fileURL))
+        var flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: fileURL))
+        flow.deviceID = overrides.deviceID ?? flow.deviceID
+        flow.port = overrides.port ?? flow.port
+        try enforceLease(deviceID: flow.deviceID, lease: presentedLease(flag: overrides.lease))
         guard let platform = Platform(rawValue: flow.platform.lowercased()) else {
             return CLIResult(output: "Unknown flow platform '\(flow.platform)'.", exitCode: 64)
         }

@@ -20,9 +20,9 @@ public protocol WebInspectorShell: Sendable {
 /// Wires each platform to a CDP endpoint:
 ///  - **Android**: `adb` finds the `webview_devtools_remote_<pid>` abstract socket, forwards a
 ///    local TCP port to it, and the CDP client talks to `http://127.0.0.1:<port>`.
-///  - **iOS**: needs the WebKit Remote Inspector bridge. Not wired up yet — this throws with a
-///    pointer to `docs/webview-introspection.md`. Set `AMOO_IOS_WEBINSPECTOR_URL` to a
-///    CDP-compatible endpoint (e.g. a running `ios-webkit-debug-proxy`) to opt in early.
+///  - **iOS Simulator**: the simulator's `webinspectord` socket (`RWI_LISTEN_SOCKET`), spoken to
+///    natively by `WebKitWebInspectorClient`. `AMOO_IOS_WEBINSPECTOR_URL` still overrides it with a
+///    CDP-compatible endpoint (e.g. `ios-webkit-debug-proxy`), the only route to physical devices.
 public struct PlatformWebInspecting: WebInspecting {
     private let shell: any WebInspectorShell
     private let factory: any CDPChannelFactory
@@ -47,11 +47,32 @@ public struct PlatformWebInspecting: WebInspecting {
         case .android:
             return try await androidClient(bundleID: bundleID, serial: deviceID)
         case .ios:
-            guard let raw = environment["AMOO_IOS_WEBINSPECTOR_URL"], let url = URL(string: raw) else {
-                throw WebInspectorError.iosTransportNotImplemented
+            if let raw = environment["AMOO_IOS_WEBINSPECTOR_URL"], let url = URL(string: raw) {
+                return CDPWebInspectorClient(baseURL: url, factory: factory, bundleID: bundleID)
             }
-            return CDPWebInspectorClient(baseURL: url, factory: factory, bundleID: bundleID)
+            return try await iosSimulatorClient(bundleID: bundleID, udid: deviceID)
         }
+    }
+
+    // MARK: - iOS Simulator
+
+    /// Talks to the simulator's own `webinspectord` over the socket its launchd publishes as
+    /// `RWI_LISTEN_SOCKET`. Physical devices need a usbmux/lockdown transport (not implemented).
+    private func iosSimulatorClient(bundleID: String?, udid: String?) async throws -> any WebInspectorClient {
+        #if canImport(Darwin)
+        let device = (udid?.isEmpty == false) ? udid ?? "booted" : "booted"
+        let result = try await shell.run(["xcrun", "simctl", "getenv", device, "RWI_LISTEN_SOCKET"])
+        let path = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard result.exitCode == 0, !path.isEmpty else {
+            throw WebInspectorError.transportUnavailable(
+                "No Web Inspector socket for simulator \(device) (is it booted? physical devices are not "
+                    + "supported yet): \(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
+            )
+        }
+        return try WebKitWebInspectorClient(channel: UnixSocketWebKitChannel(socketPath: path), bundleID: bundleID)
+        #else
+        throw WebInspectorError.iosTransportNotImplemented
+        #endif
     }
 
     // MARK: - Android

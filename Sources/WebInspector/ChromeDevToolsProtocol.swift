@@ -18,6 +18,7 @@ enum CDP {
     struct Message: Decodable {
         let id: Int?
         let method: String?
+        let params: JSONValue?
         let result: JSONValue?
         let error: CommandError?
     }
@@ -137,10 +138,14 @@ enum JSONValue: Codable, Equatable, Sendable {
                 ? String(Int64(value))
                 : String(value)
         case let .string(value):
-            let data = (try? JSONEncoder().encode(value)) ?? Data("\"\"".utf8)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            let data = (try? encoder.encode(value)) ?? Data("\"\"".utf8)
             return String(bytes: data, encoding: .utf8) ?? "\"\""
         case .array, .object:
-            let data = (try? JSONEncoder().encode(self)) ?? Data("null".utf8)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            let data = (try? encoder.encode(self)) ?? Data("null".utf8)
             return String(bytes: data, encoding: .utf8) ?? "null"
         }
     }
