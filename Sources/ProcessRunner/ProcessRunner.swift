@@ -117,6 +117,15 @@ public struct ProcessRunnerCommandExecutor: CommandExecutor {
         return ShellOutput(stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode)
     }
 
+    /// Delegates independent launches to the system executor, or records them through a test runner.
+    public func spawnDetached(_ command: Command, in context: ShellContext) async throws -> Int32 {
+        if processRunner is SystemProcessRunner {
+            return try await SubprocessExecutor().spawnDetached(command, in: context)
+        }
+        _ = try await processRunner.run(ProcessExecutionRequest(command: command, context: context))
+        return 1
+    }
+
     public func spawn(
         _ command: Command,
         in context: ShellContext,

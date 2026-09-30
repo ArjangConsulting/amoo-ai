@@ -10,7 +10,7 @@ final class ProcessRequestTests: XCTestCase {
         let command = Command("tool", arguments: "argument with spaces")
             .env("FIXTURE", "sample")
             .workingDirectory("/tmp")
-            .timeout(7)
+            .timeout(.seconds(7))
             .outputLimit(1234)
         _ = try await executor.execute(command, in: ShellContext())
         let captured = await runner.captured()
@@ -18,7 +18,7 @@ final class ProcessRequestTests: XCTestCase {
         XCTAssertEqual(request.command.arguments, ["argument with spaces"])
         XCTAssertEqual(request.command.environmentOverrides["FIXTURE"], "sample")
         XCTAssertEqual(request.command.workingDirectoryOverride, "/tmp")
-        XCTAssertEqual(request.command.timeoutOverride, 7)
+        XCTAssertEqual(request.command.timeoutOverride, .seconds(7))
         XCTAssertEqual(request.command.outputLimitOverride, 1234)
     }
 
