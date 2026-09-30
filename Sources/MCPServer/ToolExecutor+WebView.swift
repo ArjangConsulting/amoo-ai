@@ -19,9 +19,14 @@ extension DriverToolExecutor {
                 allFrames: boolArgument(arguments["all_frames"]) ?? false,
                 timeoutMilliseconds: arguments["timeout_ms"].flatMap(Int.init) ?? 5000
             )
-            let evaluated = await Result { try await client.evaluate(request) }
+            let result: WebViewEvalResult
+            do {
+                result = try await client.evaluate(request)
+            } catch {
+                await client.close()
+                throw error
+            }
             await client.close()
-            let result = try evaluated.get()
             var fields: [String: Value] = [
                 "value": .string(result.jsonValue),
                 "webview_index": .int(result.webViewIndex),
@@ -50,9 +55,14 @@ extension DriverToolExecutor {
                 mode: mode,
                 maxBytes: arguments["max_bytes"].flatMap(Int.init)
             )
-            let fetched = await Result { try await client.dom(request) }
+            let documents: [WebViewDocument]
+            do {
+                documents = try await client.dom(request)
+            } catch {
+                await client.close()
+                throw error
+            }
             await client.close()
-            let documents = try fetched.get()
             let rows = documents.map { document -> Value in
                 var fields: [String: Value] = [
                     "webview_index": .int(document.webViewIndex),
