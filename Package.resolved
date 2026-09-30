@@ -1,5 +1,5 @@
 {
-  "originHash" : "2748d719f3fa2d007c500ebf8f7d7fcd29be43771cecd50efbb63cf3780831d0",
+  "originHash" : "ef2ec69d9af916fc9890a1dcaa6a77236fddd1c6d0931cbb9757dbcb7d9deb09",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -276,8 +276,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maniramezan/SwiftyShell.git",
       "state" : {
-        "revision" : "603c2bc26f87cae52d1854081031c040ddf7c093",
-        "version" : "0.6.0"
+        "revision" : "0d3a46717bdd0fdd71da20e44ea8b8dfc703cb68",
+        "version" : "0.7.0"
       }
     },
     {
