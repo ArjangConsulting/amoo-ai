@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "amoo": { "type": "stdio", "command": "amoo", "args": ["mcp", "serve"] }
+  }
+}

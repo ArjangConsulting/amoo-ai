@@ -19,6 +19,46 @@ struct StudioChatServiceTests {
         #expect(await transport.body?.contains("Test") == true)
     }
 
+    @Test("an inline Studio API key is preferred over the environment variable")
+    func inlineKeyPreferred() async throws {
+        let chatTransport = ChatTransport(response: #"{"choices":[{"message":{"content":"Hello"}}]}"#)
+        let environment: @Sendable (String) -> String? = { $0 == "TEST_KEY" ? "env-secret" : nil }
+        _ = try await LiveStudioChatService(transport: chatTransport, environment: environment)
+            .send(request(kind: .openAI, variable: "TEST_KEY", apiKey: "inline-secret"))
+        #expect(await chatTransport.authorization == "Bearer inline-secret")
+
+        let checkTransport = ChatTransport(response: #"{"data":[]}"#)
+        _ = try await LiveStudioChatService(transport: checkTransport, environment: environment)
+            .check(request(kind: .anthropic, variable: "", apiKey: "inline-secret").provider)
+        #expect(await checkTransport.apiKey == "inline-secret")
+    }
+
+    @Test("an empty inline API key falls back to the environment variable")
+    func emptyInlineKeyFallsBack() async throws {
+        let transport = ChatTransport(response: #"{"choices":[{"message":{"content":"Hello"}}]}"#)
+        let service = LiveStudioChatService(
+            transport: transport,
+            environment: { $0 == "TEST_KEY" ? "env-secret" : nil }
+        )
+
+        _ = try await service.send(request(kind: .openAI, variable: "TEST_KEY", apiKey: ""))
+
+        #expect(await transport.authorization == "Bearer env-secret")
+    }
+
+    @Test("provider profiles decode without an API key and never describe one")
+    func profileDecodingAndRedaction() throws {
+        let legacy = Data(
+            #"{"id":"a","name":"A","kind":"OpenAI","baseUrl":"https://x","model":"m","apiKeyEnvironmentVariable":"K"}"#
+                .utf8
+        )
+        #expect(try JSONDecoder().decode(StudioProviderProfile.self, from: legacy).apiKey == nil)
+
+        let profile = request(kind: .openAI, variable: "", apiKey: "inline-secret").provider
+        #expect(!String(describing: profile).contains("inline-secret"))
+        #expect(!"\(profile)".contains("inline-secret"))
+    }
+
     @Test("provider keys are required without performing a request")
     func missingKey() async {
         let transport = ChatTransport(response: "{}")
@@ -251,7 +291,7 @@ struct StudioChatServiceTests {
         #expect(await transport.anthropicVersion == "2023-06-01")
     }
 
-    private func request(kind: StudioProviderKind, variable: String) -> StudioChatRequest {
+    private func request(kind: StudioProviderKind, variable: String, apiKey: String? = nil) -> StudioChatRequest {
         StudioChatRequest(
             provider: .init(
                 id: "provider",
@@ -259,7 +299,8 @@ struct StudioChatServiceTests {
                 kind: kind,
                 baseUrl: "https://example.com/v1",
                 model: "model",
-                apiKeyEnvironmentVariable: variable
+                apiKeyEnvironmentVariable: variable,
+                apiKey: apiKey
             ),
             messages: [.init(id: "user-1", role: .user, content: "Hello")],
             activeTest: .init(formatVersion: 1, name: "Test", description: "", platform: .android, steps: [])

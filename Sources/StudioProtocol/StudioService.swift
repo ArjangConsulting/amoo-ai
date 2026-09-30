@@ -67,6 +67,7 @@ public struct StudioService: Sendable {
         "apps.resetData",
         "chat.send",
         "providers.check",
+        "providers.apiKey",
         "repl.execute",
         "tests.run",
         "tests.start",

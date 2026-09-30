@@ -7,7 +7,7 @@ description: Contract and amoo commands for verifying a built app on iOS simulat
 
 A caller (the main session) builds the app, then hands a YAML contract to the `device-verifier`
 agent, which returns only a YAML report. The caller's context holds the verdict, not the run.
-Install both into a repo with `amoo agent install --target <repo>`.
+Install both with the amoo plugin, or `amoo agent install --agent device-verifier` (see `amoo agent`).
 
 ## Caller: input contract
 

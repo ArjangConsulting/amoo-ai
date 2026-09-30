@@ -22,16 +22,26 @@ class Amoo < Formula
     bin.install "amoo"
     prefix.install "CompanionApps"
     (share/"amoo").install "scripts/install-mcp.sh"
-    # `amoo agent install` copies these into a repo's .claude/.
-    (share/"amoo/agents").install "agents/device-verifier.md"
-    (share/"amoo/skills/device-verifier").install "skills/device-verifier/SKILL.md"
+    # The amoo plugin: subagents + skills that `amoo agent install` renders for each AI client,
+    # and that `gemini extensions link` / local marketplaces can point at directly.
+    (share/"amoo/plugins").install "plugins/amoo"
+  end
+
+  def caveats
+    <<~EOS
+      Add the amoo subagent to your AI coding clients (Claude Code, Cursor, Codex, Copilot,
+      Gemini CLI, OpenCode):
+        amoo agent install --user
+      Or install the amoo plugin from your client's marketplace:
+        https://github.com/ArjangConsulting/amoo-ai#use-amoo-from-any-ai-agent
+    EOS
   end
 
   test do
     assert_match "Usage: amoo <command> [options]", shell_output("#{bin}/amoo --help")
     assert_match(/\A\d+\.\d+\.\d+/, shell_output("#{bin}/amoo --version"))
     assert_path_exists share/"amoo/install-mcp.sh"
-    assert_path_exists share/"amoo/agents/device-verifier.md"
+    assert_path_exists share/"amoo/plugins/amoo/agents/amoo.md"
     assert_path_exists prefix/"CompanionApps/Android/gradlew"
     assert_path_exists prefix/"CompanionApps/iOS/project.yml" if OS.mac?
   end

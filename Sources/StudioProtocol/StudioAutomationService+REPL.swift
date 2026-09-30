@@ -110,7 +110,7 @@ extension LiveStudioAutomationService {
         }
 
         if lowered.hasPrefix("providers inspect "), let providerID = request.selectedProviderId {
-            return .init(output: "Selected provider profile: \(providerID). Secrets remain environment-only.")
+            return .init(output: "Selected provider profile: \(providerID). API keys are never echoed.")
         }
 
         return nil

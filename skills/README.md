@@ -1,15 +1,20 @@
 # Loading Amoo skills
 
-Start with [`driving-amoo`](driving-amoo/SKILL.md) when operating a device. Its entrypoint covers
+The skills an agent needs to *use* amoo ship in the amoo plugin, [`plugins/amoo`](../plugins/amoo),
+alongside its subagents; this directory holds contributor references for working *on* amoo.
+
+Start with [`driving-amoo`](../plugins/amoo/skills/driving-amoo/SKILL.md) when operating a device. Its entrypoint covers
 selection, inspection, mutation, assertions and completion. Load its coordinate or recording
 references only for those tasks. Detailed code-generation guidance is unnecessary for a simple
 inspection. `AMOO_TOOL_PROFILE=drive|record|audit` can also reduce MCP discovery context.
 
-To delegate a whole verification run (lease a device, install, navigate, run checked-in probes,
-return a pass/fail/blocked report), use [`device-verifier`](device-verifier/SKILL.md) together
-with the `agents/device-verifier.md` subagent; `amoo agent install --target <repo>` copies both.
+To hand a whole device task to a subagent that returns only a short YAML report, delegate to the
+[`amoo`](../plugins/amoo/agents/amoo.md) agent (inspect, verify, debug, record, audit). For a
+contract-driven verification run (lease a device, install, navigate, run checked-in probes), use
+[`device-verifier`](../plugins/amoo/skills/device-verifier/SKILL.md) and its agent. Install either
+through the plugin or with `amoo agent install` (see the README).
 
-The remaining skills are contributor references, not a bundle every device-driving agent needs:
+The skills in this directory are contributor references, not a bundle every device-driving agent needs:
 
 | Skill | Load when |
 | --- | --- |

@@ -16,7 +16,8 @@ struct StudioProtocolTests {
         #expect(result["capabilities"] as? [String] == [
             "health", "devices.list", "devices.start", "devices.create",
             "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "providers.check",
-            "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel", "tests.export",
+            "providers.apiKey", "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel",
+            "tests.export",
             "reports.list", "mcp.status"
         ])
     }

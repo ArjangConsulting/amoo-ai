@@ -42,7 +42,7 @@ Entry points that drive this offline (no `amoo mcp serve`):
 | Compile a report into a plan | `MCPServer` — `SessionPlanCompiler` (`+Semantics`, `+Inspection`, `+Translation`) | Deterministic, no LLM. |
 | Plan / context / warning types | `StudioProtocol` — `StudioChatService.swift` (`StudioAuthoredTest`, `StudioTestContext`, `StudioToolOperation`, `StudioCompiledPlan`, `StudioPlanWarning`), `StudioTool.swift`, `StudioCodeExport.swift` | The wire format for `plan.json`. |
 | Emit source | `TestCodeGenerator` — `XCUITestEmitter`, `EspressoEmitter`, `ComposeEspressoEmitter`, `TestCodeEmitter.swift` (shared naming), `HelperBinder` | `MCPServer` does **not** depend on this module. |
-| MCP agent guidance | `MCPServer` — `MCPStdioServer.instructions`; `skills/driving-amoo/SKILL.md` | Kept in lock-step by `MCPInstructionsAlignmentTests` + `IOSSessionCodegenRegressionTests`. |
+| MCP agent guidance | `MCPServer` — `MCPStdioServer.instructions`; `plugins/amoo/skills/driving-amoo/SKILL.md` | Kept in lock-step by `MCPInstructionsAlignmentTests` + `IOSSessionCodegenRegressionTests`. |
 
 ## Two tool vocabularies — do not conflate
 

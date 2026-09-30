@@ -1,21 +1,21 @@
 import Foundation
 
-/// `amoo agent install`: copies the reusable device-verifier agent + skill into a repo's `.claude/`.
+/// `amoo agent install` writes the bundled subagents (and the skills they rely on) in each AI
+/// client's native format; `amoo agent render` regenerates the files committed in the plugin.
 struct AgentInstallOptions: Equatable {
     var target: String = FileManager.default.currentDirectoryPath
+    var scope: AgentScope = .project
+    var homeDirectory: String = FileManager.default.homeDirectoryForCurrentUser.path
+    var clients: [AgentClient] = AgentClient.allCases
+    var agents: [String] = AgentDefinition.all.map(\.name)
     var force = false
+    var dryRun = false
     var json = false
-}
 
-/// One bundled file and where it lands under the target repo.
-struct AgentAsset: Equatable {
-    var source: String
-    var destination: String
-
-    static let all = [
-        Self(source: "agents/device-verifier.md", destination: ".claude/agents/device-verifier.md"),
-        Self(source: "skills/device-verifier/SKILL.md", destination: ".claude/skills/device-verifier/SKILL.md")
-    ]
+    /// The directory agent paths are relative to.
+    var root: URL {
+        URL(fileURLWithPath: scope == .user ? homeDirectory : target)
+    }
 }
 
 struct AgentInstallReport: Encodable {
@@ -29,20 +29,43 @@ struct AgentInstallReport: Encodable {
     var error: String?
 }
 
+/// One file the installer would write: the destination and its bytes.
+struct AgentInstallFile: Equatable {
+    var destination: URL
+    var contents: Data
+}
+
 func renderAgentHelp() -> String {
     """
-    Usage: amoo agent install [--target <repo>] [--force] [--json]
+    Usage: amoo agent install [--target <repo> | --user] [--client <name>]... [--agent <name>]...
+                              [--dry-run] [--force] [--json]
+           amoo agent render --out <plugin-dir>
 
-    Installs the device-verifier subagent and its skill into <repo>/.claude/ (default: the
-    current directory):
-      .claude/agents/device-verifier.md
-      .claude/skills/device-verifier/SKILL.md
-    Existing files that differ are left alone unless --force.
+    install  Writes the amoo subagents, in each client's own format, plus the skills they use.
+             --target <repo>  project scope (default: current directory); commit the files
+             --user           user scope: your home directory, for every project
+             --client         claude, cursor, codex, copilot, gemini, opencode, or all (default);
+                              repeat or comma-separate to pick several
+             --agent          amoo, device-verifier, or all (default)
+             --dry-run        report what would change and write nothing
+             --force          replace files that differ (local edits are otherwise kept)
+
+               claude    .claude/agents/<name>.md           skills: .claude/skills/
+               cursor    .cursor/agents/<name>.md           skills: .agents/skills/
+               codex     .codex/agents/<name>.toml          skills: .agents/skills/
+               copilot   .github/agents/<name>.agent.md     (user: ~/.copilot/agents/)
+               gemini    .gemini/agents/<name>.md
+               opencode  .opencode/agents/<name>.md         (user: ~/.config/opencode/agents/)
+
+             Where the client allows it, the amoo agent starts its own `amoo mcp serve`, so the
+             main session never loads amoo's tools. Plugin installs (see README) need none of this.
+
+    render   Regenerates the client-specific agent files committed in the plugin directory.
     """
 }
 
-/// Where the bundled agent files live: a source checkout, or `share/amoo` in an installed
-/// prefix — found by walking up from the executable, like the companion directory.
+/// Where the bundled plugin lives: `plugins/amoo` in a source checkout, or
+/// `share/amoo/plugins/amoo` in an installed prefix — found by walking up from the executable.
 func agentAssetsRoot(
     executableURL: URL? = Bundle.main.executableURL,
     currentDirectoryPath: String = FileManager.default.currentDirectoryPath
@@ -50,44 +73,104 @@ func agentAssetsRoot(
     var roots: [URL] = []
     if var directory = executableURL?.resolvingSymlinksInPath().deletingLastPathComponent() {
         for _ in 0 ..< 6 {
-            roots += [directory, directory.appendingPathComponent("share/amoo")]
+            roots += [
+                directory.appendingPathComponent("plugins/amoo"),
+                directory.appendingPathComponent("share/amoo/plugins/amoo")
+            ]
             directory.deleteLastPathComponent()
         }
     }
-    roots.append(URL(fileURLWithPath: currentDirectoryPath))
+    roots.append(URL(fileURLWithPath: currentDirectoryPath).appendingPathComponent("plugins/amoo"))
     return roots.first { root in
-        AgentAsset.all
-            .allSatisfy { FileManager.default.fileExists(atPath: root.appendingPathComponent($0.source).path) }
+        AgentDefinition.all.allSatisfy {
+            FileManager.default.fileExists(atPath: root.appendingPathComponent($0.sourcePath).path)
+        }
     }
+}
+
+/// Every file `options` would install, de-duplicated by destination.
+func agentInstallPlan(_ options: AgentInstallOptions, assetsRoot: URL) throws -> [AgentInstallFile] {
+    let definitions = AgentDefinition.all.filter { options.agents.contains($0.name) }
+    var files: [AgentInstallFile] = []
+    var seen: Set<String> = []
+    func add(_ file: AgentInstallFile) {
+        if seen.insert(file.destination.path).inserted {
+            files.append(file)
+        }
+    }
+    for definition in definitions {
+        let path = definition.sourcePath
+        let text = try String(contentsOf: assetsRoot.appendingPathComponent(path), encoding: .utf8)
+        let source = try AgentSource(parsing: text, file: path)
+        for client in options.clients {
+            let rendered = try AgentRenderer.render(source, definition: definition, for: client, scope: options.scope)
+            add(.init(
+                destination: options.root.appendingPathComponent(rendered.path),
+                contents: Data(rendered.contents.utf8)
+            ))
+            for skill in definition.skills {
+                let skillRoot = assetsRoot.appendingPathComponent("skills/\(skill)")
+                let destinationRoot = options.root
+                    .appendingPathComponent(AgentRenderer.skillsDirectory(for: client))
+                    .appendingPathComponent(skill)
+                for relative in try skillFiles(in: skillRoot) {
+                    try add(.init(
+                        destination: destinationRoot.appendingPathComponent(relative),
+                        contents: Data(contentsOf: skillRoot.appendingPathComponent(relative))
+                    ))
+                }
+            }
+        }
+    }
+    return files
+}
+
+/// Regular files under a skill directory, as sorted relative paths.
+private func skillFiles(in directory: URL) throws -> [String] {
+    let base = directory.resolvingSymlinksInPath().path
+    guard let enumerator = FileManager.default.enumerator(atPath: base) else {
+        throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: directory.path])
+    }
+    var paths: [String] = []
+    while let relative = enumerator.nextObject() as? String {
+        var isDirectory: ObjCBool = false
+        let full = (base as NSString).appendingPathComponent(relative)
+        if FileManager.default.fileExists(atPath: full, isDirectory: &isDirectory), !isDirectory.boolValue,
+           !relative.hasSuffix(".DS_Store") {
+            paths.append(relative)
+        }
+    }
+    guard !paths.isEmpty else {
+        throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: directory.path])
+    }
+    return paths.sorted()
 }
 
 func runAgentInstall(_ options: AgentInstallOptions, assetsRoot: URL? = agentAssetsRoot()) -> CLIResult {
     var report = AgentInstallReport(ok: false, files: [])
     guard let assetsRoot else {
-        report.error = "Cannot find the bundled agent files (agents/device-verifier.md) next to amoo."
+        report.error = "Cannot find the bundled amoo plugin (plugins/amoo/agents/amoo.md) next to amoo."
         return agentInstallResult(report, json: options.json)
     }
-    let target = URL(fileURLWithPath: options.target)
     do {
-        for asset in AgentAsset.all {
-            let source = assetsRoot.appendingPathComponent(asset.source)
-            let destination = target.appendingPathComponent(asset.destination)
-            let contents = try Data(contentsOf: source)
-            let existing = try? Data(contentsOf: destination)
+        for file in try agentInstallPlan(options, assetsRoot: assetsRoot) {
+            let existing = try? Data(contentsOf: file.destination)
             let action: String
-            if existing == contents {
+            if existing == file.contents {
                 action = "unchanged"
             } else if existing != nil, !options.force {
                 action = "skipped (differs; use --force)"
+            } else if options.dryRun {
+                action = existing == nil ? "would install" : "would update"
             } else {
                 try FileManager.default.createDirectory(
-                    at: destination.deletingLastPathComponent(),
+                    at: file.destination.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
-                try contents.write(to: destination, options: .atomic)
+                try file.contents.write(to: file.destination, options: .atomic)
                 action = existing == nil ? "installed" : "updated"
             }
-            report.files.append(.init(path: destination.path, action: action))
+            report.files.append(.init(path: file.destination.path, action: action))
         }
         report.ok = true
     } catch {
@@ -96,25 +179,126 @@ func runAgentInstall(_ options: AgentInstallOptions, assetsRoot: URL? = agentAss
     return agentInstallResult(report, json: options.json)
 }
 
+/// Writes the client-specific agent files that are committed inside the plugin directory.
+func runAgentRender(outputDirectory: URL, assetsRoot: URL) -> CLIResult {
+    do {
+        let sources = try AgentDefinition.all.map { definition in
+            let text = try String(
+                contentsOf: assetsRoot.appendingPathComponent(definition.sourcePath),
+                encoding: .utf8
+            )
+            return try (AgentSource(parsing: text, file: definition.sourcePath), definition)
+        }
+        var written: [String] = []
+        for file in try AgentRenderer.pluginFiles(sources) {
+            let destination = outputDirectory.appendingPathComponent(file.path)
+            try FileManager.default.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data(file.contents.utf8).write(to: destination, options: .atomic)
+            written.append("rendered: \(destination.path)")
+        }
+        return CLIResult(output: written.joined(separator: "\n"), exitCode: 0)
+    } catch {
+        return CLIResult(output: "agent render failed: \(error)", exitCode: 1)
+    }
+}
+
 private func agentInstallResult(_ report: AgentInstallReport, json: Bool) -> CLIResult {
     let human = report.error.map { "agent install failed: \($0)" }
         ?? report.files.map { "\($0.action): \($0.path)" }.joined(separator: "\n")
     return CLIResult(output: json ? renderJSON(report) : human, exitCode: report.ok ? 0 : 1)
 }
 
+func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
+    var flags = EnvFlagReader(args)
+    var options = AgentInstallOptions()
+    let target = try flags.value("--target")
+    if let target {
+        options.target = target
+    }
+    if flags.take("--user") {
+        guard target == nil else {
+            throw EnvCommandParseError.usage("--target and --user cannot be combined.")
+        }
+        options.scope = .user
+    }
+    var clients: [AgentClient] = []
+    while let raw = try flags.value("--client") {
+        clients += try parseAgentList(raw, all: AgentClient.allCases, flag: "--client") { AgentClient(rawValue: $0) }
+    }
+    if !clients.isEmpty {
+        options.clients = clients
+    }
+    var agents: [String] = []
+    while let raw = try flags.value("--agent") {
+        let names = AgentDefinition.all.map(\.name)
+        agents += try parseAgentList(raw, all: names, flag: "--agent") { names.contains($0) ? $0 : nil }
+    }
+    if !agents.isEmpty {
+        options.agents = agents
+    }
+    options.force = flags.take("--force")
+    options.dryRun = flags.take("--dry-run")
+    options.json = flags.take("--json")
+    try flags.finish()
+    return options
+}
+
+private func parseAgentList<T>(
+    _ raw: String,
+    all: [T],
+    flag: String,
+    parse: (String) -> T?
+) throws -> [T] {
+    try raw.split(separator: ",", omittingEmptySubsequences: false).flatMap { token -> [T] in
+        let name = token.trimmingCharacters(in: .whitespaces).lowercased()
+        if name == "all" {
+            return all
+        }
+        guard let value = parse(name) else {
+            throw EnvCommandParseError.usage("\(flag): unknown value '\(name)'.")
+        }
+        return [value]
+    }
+}
+
 func handleAgentCommand(remaining: [String]) -> CLIResult {
-    guard remaining.first == "install", !isHelpRequest(remaining) else {
+    guard let subcommand = remaining.first, !isHelpRequest(remaining) else {
         return CLIResult(output: renderAgentHelp(), exitCode: isHelpRequest(remaining) ? 0 : 64)
     }
-    var flags = EnvFlagReader(Array(remaining.dropFirst()))
-    var options = AgentInstallOptions()
-    do {
-        options.target = try flags.value("--target") ?? options.target
-        options.force = flags.take("--force")
-        options.json = flags.take("--json")
-        try flags.finish()
-    } catch {
+    let args = Array(remaining.dropFirst())
+    switch subcommand {
+    case "install":
+        do {
+            return try runAgentInstall(parseAgentInstallOptions(args))
+        } catch {
+            return agentUsageError(error)
+        }
+    case "render":
+        var flags = EnvFlagReader(args)
+        do {
+            guard let out = try flags.value("--out") else {
+                return CLIResult(output: renderAgentHelp(), exitCode: 64)
+            }
+            try flags.finish()
+            guard let assetsRoot = agentAssetsRoot() else {
+                return CLIResult(output: "Cannot find the bundled amoo plugin (plugins/amoo).", exitCode: 1)
+            }
+            return runAgentRender(outputDirectory: URL(fileURLWithPath: out), assetsRoot: assetsRoot)
+        } catch {
+            return agentUsageError(error)
+        }
+    default:
+        return CLIResult(output: renderAgentHelp(), exitCode: 64)
+    }
+}
+
+/// The flag reader is shared with `amoo env`, whose error text appends env help; show ours.
+private func agentUsageError(_ error: any Error) -> CLIResult {
+    guard case let .usage(message)? = error as? EnvCommandParseError else {
         return CLIResult(output: "\(error)", exitCode: 64)
     }
-    return runAgentInstall(options)
+    return CLIResult(output: message + "\n\n" + renderAgentHelp(), exitCode: 64)
 }

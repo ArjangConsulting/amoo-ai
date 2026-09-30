@@ -27,7 +27,7 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
     func testDrivingSkillRoutesToExistingReferencesWithinContextBudget() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-        let skill = root.appendingPathComponent("skills/driving-amoo/SKILL.md")
+        let skill = root.appendingPathComponent("plugins/amoo/skills/driving-amoo/SKILL.md")
         let text = try String(contentsOf: skill, encoding: .utf8)
         XCTAssertLessThan(text.split(separator: "\n").count, 150)
         for reference in ["coordinates.md", "recording.md"] {

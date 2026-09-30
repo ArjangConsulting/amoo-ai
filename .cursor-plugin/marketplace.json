@@ -1,0 +1,12 @@
+{
+  "name": "amoo",
+  "owner": { "name": "Arjang Consulting" },
+  "metadata": { "description": "amoo: AI-driven mobile testing for iOS simulators and Android emulators." },
+  "plugins": [
+    {
+      "name": "amoo",
+      "source": "plugins/amoo",
+      "description": "Drive and verify iOS simulators and Android emulators from any AI agent: the amoo subagent, the driving-amoo and device-verifier skills, and the amoo MCP server. Requires the amoo CLI (brew install arjangconsulting/tap/amoo)."
+    }
+  ]
+}

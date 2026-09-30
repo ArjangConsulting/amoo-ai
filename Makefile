@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: format lint check test coverage ci build swift-build verify-linux companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build plugin verify-linux companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -29,6 +29,11 @@ build: swift-build companion-build
 
 swift-build:
 	./scripts/with-protoc.sh swift build
+
+# Regenerate the client-specific agent files committed in plugins/amoo from its canonical
+# agents/*.md. AmooPluginTests fails when they are stale.
+plugin:
+	./scripts/with-protoc.sh swift run amoo agent render --out plugins/amoo
 
 # Reproduce the CI "Build & Test (Linux)" job locally inside the swift:6.3-noble container.
 # Needs Docker. Builds/tests into .build-linux/ so the host .build/ is untouched.
