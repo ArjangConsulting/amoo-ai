@@ -456,7 +456,7 @@ class UIAutomatorBridge {
 
         // No selector means "everything on screen", which is how an icon-only control with neither
         // id nor label is found at all — `find_elements` with no arguments is the documented way in
-        // (see skills/driving-amoo). This used to return false here, so that call answered 0
+        // (see plugins/amoo/skills/driving-amoo). This used to return false here, so that call answered 0
         // elements on Android while iOS listed the whole tree.
         return true
     }

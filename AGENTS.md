@@ -94,6 +94,17 @@ mapped in **[`docs/codegen-pipeline.md`](docs/codegen-pipeline.md)** — read it
 App-owned generated-test context (base class, helpers, id catalog) is in
 [`docs/test-context.md`](docs/test-context.md).
 
+## Distributable plugin (`plugins/amoo`)
+
+The user-facing subagents (`amoo`, `device-verifier`) and skills (`driving-amoo`,
+`device-verifier`) live in `plugins/amoo/`, packaged for every client's marketplace: Claude and
+Cursor (`.claude-plugin/` / `.cursor-plugin/`), Agent Plugins 1.0 (`plugin.json`, used by Copilot
+and Codex), and Gemini (`gemini-extension.json`). The repo-root `.claude-plugin/`,
+`.cursor-plugin/` and `.agents/plugins/` hold the marketplace catalogs. `agents/*.md` is the
+canonical source and keeps only `name` and `description` in its frontmatter. `amoo agent install`
+renders it for each client (`Sources/CLI/AgentRenderer.swift`), and `make plugin` regenerates the
+committed `com.github.copilot/agents/*`. `AmooPluginTests` fails on stale or inconsistent files.
+
 ## External Dependencies
 
 `amoo preflight --platform ios|android` checks these; device-only tooling reports `WARN`

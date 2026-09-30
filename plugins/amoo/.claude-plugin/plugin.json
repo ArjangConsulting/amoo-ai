@@ -1,0 +1,9 @@
+{
+  "name": "amoo",
+  "description": "Drive and verify iOS simulators and Android emulators from any AI agent: the amoo subagent, the driving-amoo and device-verifier skills, and the amoo MCP server. Requires the amoo CLI (brew install arjangconsulting/tap/amoo).",
+  "author": { "name": "Arjang Consulting" },
+  "homepage": "https://github.com/ArjangConsulting/amoo-ai",
+  "repository": "https://github.com/ArjangConsulting/amoo-ai",
+  "license": "MIT",
+  "keywords": ["mobile", "ios", "android", "simulator", "emulator", "testing", "xcuitest", "espresso"]
+}

@@ -98,7 +98,7 @@ expected before you commit it:
 **Skip most of that finalize pass with an app-owned test context.** A checked-in
 `test-context.json` gives generation the host's `baseClass`, `appFactory`,
 `harnessLaunchesApp`, `imports`, reusable `helpers`, and a `selectorExpressions`
-id catalog — see [`docs/test-context.md`](../../../docs/test-context.md). Supply it
+id catalog — see [`docs/test-context.md`](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/test-context.md). Supply it
 at generate time (`--context`), when recompiling a report
 (`amoo generate plan --report report.json --context … --out …`), or through MCP at
 `start_session` / `compile_session_to_plan` (`context_path` / `context_json`,

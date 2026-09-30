@@ -61,6 +61,46 @@ Then call `start_session` with `platform` and `app_id`, keeping the returned `se
 device call. See the [MCP guide](docs/mcp-server.md) for per-client config snippets, installer
 options, and smaller tool profiles, and [prerequisites](docs/prerequisites.md) for platform tooling.
 
+## Use amoo from any AI agent
+
+The **amoo plugin** ([`plugins/amoo`](plugins/amoo)) packages what an AI coding agent needs to
+use amoo:
+- **The `amoo` subagent.** Your agent delegates a device task to it: inspect, verify, debug,
+  record a flow or generated test, or audit. It returns a short YAML report, not the whole
+  device transcript.
+- **The `device-verifier` subagent.** It runs a contract-driven verification with checked-in
+  probes.
+- **The `driving-amoo` and `device-verifier` skills.**
+- **The amoo MCP server.**
+
+Every route below needs the `amoo` CLI itself, installed with Homebrew (see [Install](#install)).
+
+| Client | Install |
+| --- | --- |
+| Claude Code | `claude plugin marketplace add ArjangConsulting/amoo-ai` then `claude plugin install amoo@amoo` |
+| GitHub Copilot CLI | `copilot plugin install ArjangConsulting/amoo-ai:plugins/amoo` |
+| Codex | `codex plugin marketplace add ArjangConsulting/amoo-ai` then `codex plugin add amoo@amoo`; for the subagents, also run `amoo agent install --user --client codex` |
+| Gemini CLI | `gemini extensions link "$(brew --prefix amoo)/share/amoo/plugins/amoo"` (it follows `brew upgrade`) |
+| Cursor, OpenCode, anything else | `amoo agent install --user --client cursor` (or `opencode`, …) |
+| Any Agent Skills host | `npx skills add ArjangConsulting/amoo-ai --skill driving-amoo` (skills only) |
+
+The plugin registers its own amoo MCP server. If you previously registered amoo with
+`install-mcp.sh` or `claude mcp add`, remove that entry so the tools are not listed twice.
+
+To install without a marketplace, use `amoo agent install`. It writes the subagents in each
+client's native format, plus the skills they rely on:
+
+```bash
+amoo agent install --user                      # every client, in your home directory
+amoo agent install --target . --client claude  # commit into a repo for your team
+amoo agent install --dry-run --json            # see what would be written
+```
+
+Where the client allows it, these standalone agents start `amoo mcp serve` for the subagent
+alone. Your main session then never loads amoo's tool catalog, and the subagent uses the same
+tools through `amoo device … --json` when MCP is unavailable. Existing files that differ are
+kept unless you pass `--force`.
+
 ## Build from Source (Contributors)
 
 From an amoo checkout, use Swift 6.2 or newer (see `Package.swift`) and install `protoc`:

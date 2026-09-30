@@ -33,7 +33,7 @@ the same `--port` to `amoo device`; a companion attached to a different simulato
 than silently driving the wrong device.
 
 Use `--platform android` and the device serial for Android. Pair/trust and sign the companion
-for physical iOS hardware; see [physical iOS setup](../../docs/physical-ios-devices.md).
+for physical iOS hardware; see [physical iOS setup](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/physical-ios-devices.md).
 `amoo device` with no arguments lists the current schema. Read it when an unfamiliar tool is
 needed rather than guessing its arguments.
 
@@ -89,7 +89,7 @@ companion; `companion_status` can briefly still report ready, so it is not proof
 
 Use the documented system scope for permission prompts. Do not guess that an app's controls
 are system UI merely because their labels contain words such as time or settings.
-For WebViews, read [the transport prerequisites](../../docs/webview-introspection.md).
+For WebViews, read [the transport prerequisites](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/webview-introspection.md).
 
 ## Iterate without rebuilding
 

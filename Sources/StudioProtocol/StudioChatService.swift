@@ -14,23 +14,33 @@ public enum StudioProviderKind: String, Codable, Sendable {
     case custom = "Custom"
 }
 
-public struct StudioProviderProfile: Codable, Sendable {
+public struct StudioProviderProfile: Codable, Sendable, CustomStringConvertible {
     public let id: String
     public let name: String
     public let kind: StudioProviderKind
     public let baseUrl: String
     public let model: String
     public let apiKeyEnvironmentVariable: String
+    /// An API key Studio read from the OS keychain. Sent only after the `providers.apiKey` capability
+    /// is advertised, preferred over `apiKeyEnvironmentVariable`, and never persisted or logged.
+    public let apiKey: String?
     public init(
         id: String,
         name: String,
         kind: StudioProviderKind,
         baseUrl: String,
         model: String,
-        apiKeyEnvironmentVariable: String
+        apiKeyEnvironmentVariable: String,
+        apiKey: String? = nil
     ) {
         self.id = id; self.name = name; self.kind = kind; self.baseUrl = baseUrl; self.model = model; self
-            .apiKeyEnvironmentVariable = apiKeyEnvironmentVariable
+            .apiKeyEnvironmentVariable = apiKeyEnvironmentVariable; self.apiKey = apiKey
+    }
+
+    /// Redacts `apiKey` so interpolating or printing a profile can never leak it.
+    public var description: String {
+        "StudioProviderProfile(id: \(id), kind: \(kind.rawValue), model: \(model), apiKey: "
+            + "\(apiKey?.isEmpty == false ? "<redacted>" : "nil"))"
     }
 }
 
@@ -430,18 +440,7 @@ public struct LiveStudioChatService: StudioChatServing {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        if provider.kind != .ollama {
-            let variable = provider.apiKeyEnvironmentVariable
-            guard variable.isEmpty == false, let secret = environment(variable), secret.isEmpty == false else {
-                throw StudioChatError.missingSecret(variable.isEmpty ? "provider API key" : variable)
-            }
-            if provider.kind == .anthropic {
-                request.setValue(secret, forHTTPHeaderField: "x-api-key")
-                request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            } else {
-                request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-            }
-        }
+        try authorize(&request, for: provider)
 
         let messages = input.messages.map { ["role": $0.role == .user ? "user" : "assistant", "content": $0.content] }
         let testContext = Self.testContext(input.activeTest)
@@ -476,22 +475,28 @@ public struct LiveStudioChatService: StudioChatServing {
         return StudioChatResult(message: proposal?.message ?? content, proposedPlan: proposal?.plan)
     }
 
+    /// Adds provider credentials, preferring Studio's inline key over the named environment variable.
+    private func authorize(_ request: inout URLRequest, for provider: StudioProviderProfile) throws {
+        guard provider.kind != .ollama else { return }
+        let variable = provider.apiKeyEnvironmentVariable
+        let inlineKey = provider.apiKey.flatMap { $0.isEmpty ? nil : $0 }
+        let environmentKey = variable.isEmpty ? nil : environment(variable).flatMap { $0.isEmpty ? nil : $0 }
+        guard let secret = inlineKey ?? environmentKey else {
+            throw StudioChatError.missingSecret(variable.isEmpty ? "provider API key" : variable)
+        }
+        if provider.kind == .anthropic {
+            request.setValue(secret, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        } else {
+            request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
+        }
+    }
+
     public func check(_ provider: StudioProviderProfile) async throws -> StudioProviderCheckResult {
         guard var endpoint = URL(string: provider.baseUrl) else { throw StudioChatError.invalidEndpoint }
         endpoint.append(path: provider.kind == .ollama ? "api/tags" : "v1/models")
         var request = URLRequest(url: endpoint)
-        if provider.kind != .ollama {
-            let variable = provider.apiKeyEnvironmentVariable
-            guard !variable.isEmpty, let secret = environment(variable), !secret.isEmpty else {
-                throw StudioChatError.missingSecret(variable.isEmpty ? "provider API key" : variable)
-            }
-            if provider.kind == .anthropic {
-                request.setValue(secret, forHTTPHeaderField: "x-api-key")
-                request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            } else {
-                request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-            }
-        }
+        try authorize(&request, for: provider)
         let (data, response) = try await transport.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw StudioChatError.invalidResponse }
         guard (200 ..< 300).contains(http.statusCode) else {

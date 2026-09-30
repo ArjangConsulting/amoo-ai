@@ -199,7 +199,7 @@ amoo generate test --plan out/plan.json
 
 Set `AMOO_TOOL_PROFILE=drive`, `record`, or `audit` in the MCP process environment to advertise a
 smaller task-specific catalog; `all` preserves the full catalog. Tool names and contracts remain
-stable. Load `skills/driving-amoo/SKILL.md` first and its recording/coordinate references only when
+stable. Load `plugins/amoo/skills/driving-amoo/SKILL.md` first and its recording/coordinate references only when
 needed. Contributor skills are not required to operate the device.
 
 `describe_screen` derives context, actionable elements, and `screen_token` from a single hierarchy

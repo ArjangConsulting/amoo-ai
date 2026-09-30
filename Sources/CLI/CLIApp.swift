@@ -299,7 +299,7 @@ func renderCLIHelp() -> String {
       companion ...                Build or install a companion app
       env up|down|list ...         Lease a simulator/emulator with a running companion (agents)
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
-      agent install [--target]     Install the device-verifier subagent + skill into a repo
+      agent install|render         Install the amoo subagents for any AI client (Claude, Codex, …)
       flow <path.amoo.json>        Run a reusable checked-in device flow
       generate plan ...            Recompile a recorded session report into plan.json
       generate test ...            Emit a standalone XCUITest/Espresso test from a plan

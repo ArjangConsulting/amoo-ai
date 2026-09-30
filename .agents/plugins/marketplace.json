@@ -1,0 +1,12 @@
+{
+  "name": "amoo",
+  "interface": { "displayName": "amoo" },
+  "plugins": [
+    {
+      "name": "amoo",
+      "source": { "source": "local", "path": "./plugins/amoo" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}
