@@ -7,21 +7,19 @@ public protocol EmulatorRunning: Sendable {
 }
 
 public struct EmulatorRunner: EmulatorRunning {
-    /// Unused now that launch spawns a fully detached process, but kept so existing call
-    /// sites (`EmulatorRunner(context:)`) don't need to change.
-    public init(context: ShellContext = .init()) {}
+    private let context: ShellContext
 
-    /// Launches the emulator fully detached — its own session, not a managed `SpawnedProcess`.
-    ///
-    /// A `SpawnedProcess` handle signals its child when deinitialized, so the launcher died
-    /// within ~8s (129ddef). A plain `Process` fixed that but still left the emulator in amoo's
-    /// process group, so a harness tearing down that group killed it after boot.
-    /// `DetachedProcess` starts it in a new session instead. Output goes to
-    /// `$TMPDIR/amoo-emulator-<port>.log` for post-mortems.
+    /// Creates an emulator launcher with an injectable execution context.
+    public init(context: ShellContext = .init()) {
+        self.context = context
+    }
+
+    /// Launches an independent session and appends output to `$TMPDIR/amoo-emulator-<port>.log`.
     public func launch(avdName: String, port: Int) async throws {
-        try DetachedProcess.spawn(
+        try await DetachedProcess.spawn(
             Self.launchArguments(avdName: avdName, port: port),
-            logPath: NSTemporaryDirectory() + "amoo-emulator-\(port).log"
+            logPath: NSTemporaryDirectory() + "amoo-emulator-\(port).log",
+            context: context
         )
     }
 

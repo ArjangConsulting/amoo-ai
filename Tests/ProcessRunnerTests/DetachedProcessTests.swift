@@ -1,31 +1,45 @@
 import Foundation
 @testable import ProcessRunner
+import SwiftyShell
 import XCTest
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 final class DetachedProcessTests: XCTestCase {
     /// Regression: an emulator launched as a plain `Process` shared amoo's process group, so a
     /// harness tearing that group down killed it after boot. The child must lead its own group.
-    func testSpawnedChildLeadsItsOwnProcessGroup() throws {
+    func testSpawnedChildLeadsItsOwnProcessGroup() async throws {
         #if os(Windows)
         throw XCTSkip("POSIX only")
         #else
         let log = NSTemporaryDirectory() + "amoo-detached-\(UUID().uuidString).log"
         defer { try? FileManager.default.removeItem(atPath: log) }
 
-        let pid = try DetachedProcess.spawn(["sh", "-c", "ps -o pgid= -p $$; echo to-stderr >&2"], logPath: log)
+        let pid = try await DetachedProcess.spawn(["sh", "-c", "echo to-stderr >&2; exec sleep 30"], logPath: log)
+        defer { _ = kill(-pid, SIGKILL) }
         XCTAssertGreaterThan(pid, 0)
 
         var output = ""
         for _ in 0 ..< 50 where !output.contains("to-stderr") {
-            Thread.sleep(forTimeInterval: 0.1)
+            try await Task.sleep(for: .milliseconds(100))
             output = (try? String(contentsOfFile: log, encoding: .utf8)) ?? ""
         }
-        let childGroup = output.split(whereSeparator: \.isNewline).first
-            .flatMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
-        XCTAssertEqual(childGroup, pid, "child should be its own group leader: \(output)")
-        XCTAssertNotEqual(childGroup, getpgrp())
+        XCTAssertEqual(getpgid(pid), pid, "child should be its own group leader")
+        XCTAssertEqual(getsid(pid), pid, "child should lead an independent session")
+        XCTAssertNotEqual(getpgid(pid), getpgrp())
         XCTAssertTrue(output.contains("to-stderr"), "stderr should share the log")
         #endif
+    }
+
+    func testEmulatorLaunchUsesInjectedExecutor() async throws {
+        let mock = MockExecutor()
+        try await EmulatorRunner(context: ShellContext(executor: mock)).launch(avdName: "Pixel Test", port: 5556)
+        let command = try XCTUnwrap(mock.recordedCommands.first)
+        XCTAssertEqual(command.arguments, ["-avd", "Pixel Test", "-port", "5556", "-no-snapshot-save"])
+        XCTAssertEqual(command.stdoutDestination, command.stderrDestination)
     }
 
     func testEmulatorLaunchArguments() {

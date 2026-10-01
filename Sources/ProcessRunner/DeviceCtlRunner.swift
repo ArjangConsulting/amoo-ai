@@ -70,7 +70,7 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
 
         var command = Command("xcrun").args(["devicectl"] + arguments)
         if let timeoutSeconds {
-            command = command.timeout(timeoutSeconds)
+            command = command.timeout(.seconds(timeoutSeconds))
         }
         do {
             return try await command.run(in: context).processResult

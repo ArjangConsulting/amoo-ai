@@ -6,7 +6,7 @@ import XCTest
 final class ADBTimeoutTests: XCTestCase {
     func testScreenProbesRespectShortDeadline() async throws {
         let context = ShellContext(executor: MockExecutor { command, _ in
-            XCTAssertEqual(command.timeoutOverride, 2)
+            XCTAssertEqual(command.timeoutOverride, .seconds(2))
             return ShellOutput(stdout: "mWakefulness=Awake", stderr: "", exitCode: 0)
         })
         _ = try await ADBRunner(context: context).run(["shell", "dumpsys", "power"], timeoutSeconds: 2)
@@ -15,7 +15,7 @@ final class ADBTimeoutTests: XCTestCase {
     func testRawQueriesAndTerminationAreBounded() async throws {
         let context = ShellContext(executor: MockExecutor { command, _ in
             XCTAssertNotNil(command.timeoutOverride)
-            XCTAssertLessThanOrEqual(command.timeoutOverride ?? .infinity, 30)
+            XCTAssertLessThanOrEqual(try XCTUnwrap(command.timeoutOverride), .seconds(30))
             return ShellOutput(stdout: "", stderr: "", exitCode: 0)
         })
         let runner = ADBRunner(context: context)
@@ -26,7 +26,7 @@ final class ADBTimeoutTests: XCTestCase {
 
     func testAndroidInspectionHasBoundedDeadline() async throws {
         let context = ShellContext(executor: MockExecutor { command, _ in
-            XCTAssertEqual(command.timeoutOverride, 20)
+            XCTAssertEqual(command.timeoutOverride, .seconds(20))
             return ShellOutput(stdout: "[]", stderr: "", exitCode: 0)
         })
         _ = try await AndroidCLIRunner(context: context).layout(device: "phone")
@@ -34,7 +34,7 @@ final class ADBTimeoutTests: XCTestCase {
 
     func testInstallAllowsLongerDeadline() async throws {
         let context = ShellContext(executor: MockExecutor { command, _ in
-            XCTAssertEqual(command.timeoutOverride, 180)
+            XCTAssertEqual(command.timeoutOverride, .seconds(180))
             return ShellOutput(stdout: "", stderr: "", exitCode: 0)
         })
         try await ADBRunner(context: context).install(apkPath: "/tmp/app.apk")

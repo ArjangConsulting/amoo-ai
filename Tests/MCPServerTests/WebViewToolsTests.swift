@@ -7,13 +7,21 @@ import XCTest
 private struct StubInspector: WebInspecting {
     var evalResult: WebViewEvalResult?
     var documents: [WebViewDocument] = []
+    var failDom = false
+    var closeTracker: CloseTracker?
 
     func client(
         platform _: WebInspectorPlatform,
         bundleID: String?,
         deviceID _: String?
     ) async throws -> any WebInspectorClient {
-        StubClient(evalResult: evalResult, documents: documents, bundleID: bundleID)
+        StubClient(
+            evalResult: evalResult,
+            documents: documents,
+            bundleID: bundleID,
+            failDom: failDom,
+            closeTracker: closeTracker
+        )
     }
 }
 
@@ -21,6 +29,8 @@ private struct StubClient: WebInspectorClient {
     var evalResult: WebViewEvalResult?
     var documents: [WebViewDocument]
     var bundleID: String?
+    var failDom: Bool
+    var closeTracker: CloseTracker?
 
     func evaluate(_: WebViewEvalRequest) async throws -> WebViewEvalResult {
         guard let evalResult else { throw WebInspectorError.noInspectableWebViews(bundleID: bundleID) }
@@ -28,11 +38,44 @@ private struct StubClient: WebInspectorClient {
     }
 
     func dom(_: WebViewDomRequest) async throws -> [WebViewDocument] {
-        documents
+        if failDom {
+            throw WebInspectorError.noInspectableWebViews(bundleID: bundleID)
+        }
+        return documents
+    }
+
+    func close() async {
+        await closeTracker?.recordClose()
+    }
+}
+
+private actor CloseTracker {
+    var count = 0
+
+    func recordClose() {
+        count += 1
     }
 }
 
 final class WebViewToolsTests: XCTestCase {
+    func testInspectorClosesOnceOnSuccessAndFailure() async {
+        for tool in ["webview_eval", "webview_dom"] {
+            for fails in [false, true] {
+                let tracker = CloseTracker()
+                let inspector = StubInspector(
+                    evalResult: fails ? nil : WebViewEvalResult(jsonValue: "2", webViewIndex: 0),
+                    failDom: fails,
+                    closeTracker: tracker
+                )
+                let server = MCPServer(executor: DriverToolExecutor(driver: MockDriver(), webInspector: inspector))
+                let result = await server.execute(toolName: tool, arguments: ["expression": "1+1"])
+                XCTAssertEqual(result.isError, fails, tool)
+                let closeCount = await tracker.count
+                XCTAssertEqual(closeCount, 1, tool)
+            }
+        }
+    }
+
     func testWebViewToolsRegistered() {
         let names = MCPServer().toolNames()
         XCTAssertTrue(names.contains("webview_eval"))

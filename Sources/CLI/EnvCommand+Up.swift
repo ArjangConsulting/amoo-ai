@@ -221,8 +221,9 @@ private func bootSimulator(udid: String) async throws {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
     // `boot` fails with "Unable to boot device in current state: Booted" when it raced us; the
     // `bootstatus -b` wait below is the real check.
-    _ = try? await Command("xcrun").args(["simctl", "boot", udid]).timeout(60).run(in: context)
-    let status = try? await Command("xcrun").args(["simctl", "bootstatus", udid, "-b"]).timeout(300).run(in: context)
+    _ = try? await Command("xcrun").args(["simctl", "boot", udid]).timeout(.seconds(60)).run(in: context)
+    let status = try? await Command("xcrun").args(["simctl", "bootstatus", udid, "-b"]).timeout(.seconds(300))
+        .run(in: context)
     guard status?.exitCode == 0 else {
         throw EnvError.noDevice("Simulator \(udid) did not finish booting: \(status?.stderr ?? "timed out")")
     }
@@ -268,7 +269,7 @@ private func startLeasedCompanion(
     }
     let log = store.logURL(leaseID: lease.id).path
     FileManager.default.createFile(atPath: log, contents: nil)
-    let pid = try DetachedProcess.spawn(arguments, logPath: log, environment: ["AMOO_LEASE": lease.id])
+    let pid = try await DetachedProcess.spawn(arguments, logPath: log, environment: ["AMOO_LEASE": lease.id])
 
     lease.port = port
     lease.holderPID = pid

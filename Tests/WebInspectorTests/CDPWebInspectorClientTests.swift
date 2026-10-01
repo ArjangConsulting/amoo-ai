@@ -105,9 +105,9 @@ final class CDPWebInspectorClientTests: XCTestCase {
         }
     }
 
-    /// Without `AMOO_IOS_WEBINSPECTOR_URL`, iOS asks the simulator for its Web Inspector socket;
-    /// a simulator that has none is a transport error, not a silent success.
-    func testIOSResolverWithoutASimulatorSocketReportsTransportUnavailable() async {
+    /// Without an explicit endpoint, macOS needs a simulator socket; other hosts report that
+    /// their native iOS transport is unavailable. Neither path silently succeeds.
+    func testIOSResolverWithoutAnEndpointReportsThePlatformError() async {
         let resolver = PlatformWebInspecting(
             shell: NoopShell(),
             factory: FakeFactory(targets: "[]") { FakeChannel(replies: []) },
@@ -115,9 +115,13 @@ final class CDPWebInspectorClientTests: XCTestCase {
         )
         do {
             _ = try await resolver.client(platform: .ios, bundleID: nil, deviceID: "SIM-1")
-            XCTFail("expected transportUnavailable")
+            XCTFail("expected an iOS transport error")
         } catch {
+            #if canImport(Darwin)
             guard case .transportUnavailable = error as? WebInspectorError else { return XCTFail("\(error)") }
+            #else
+            XCTAssertEqual(error as? WebInspectorError, .iosTransportNotImplemented)
+            #endif
         }
     }
 }
