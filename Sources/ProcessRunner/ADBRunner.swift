@@ -70,7 +70,7 @@ public struct ADBRunner: ADBRunning {
         do {
             return try await Adb(context: context)
                 .rawArguments(arguments)
-                .timeout(timeoutSeconds)
+                .timeout(.seconds(timeoutSeconds))
                 .run()
                 .processResult
         } catch let error as ShellError {
@@ -89,14 +89,14 @@ public struct ADBRunner: ADBRunning {
     }
 
     public func listDevices() async throws -> String {
-        let result = try await run(Adb(context: context).devices(long: true).timeout(Self.readTimeoutSeconds))
+        let result = try await run(Adb(context: context).devices(long: true).timeout(.seconds(Self.readTimeoutSeconds)))
         return result.stdout
     }
 
     // MARK: - App Management
 
     public func install(serial: String? = nil, apkPath: String) async throws {
-        _ = try await run(adb(serial: serial).install(apk: apkPath, replace: true).timeout(180))
+        _ = try await run(adb(serial: serial).install(apk: apkPath, replace: true).timeout(.seconds(180)))
     }
 
     public func launch(serial: String? = nil, appID: String, arguments: [String] = []) async throws {
@@ -174,7 +174,7 @@ public struct ADBRunner: ADBRunning {
     }
 
     public func listPackages(serial: String? = nil) async throws -> String {
-        let result = try await run(adb(serial: serial).pmListPackages().timeout(Self.readTimeoutSeconds))
+        let result = try await run(adb(serial: serial).pmListPackages().timeout(.seconds(Self.readTimeoutSeconds)))
         return result.stdout
     }
 
@@ -183,10 +183,11 @@ public struct ADBRunner: ADBRunning {
     public func screenshot(serial: String? = nil) async throws -> Data {
         let remotePath = "/sdcard/screenshot_tmp.png"
         let localPath = NSTemporaryDirectory() + "screenshot_\(UUID().uuidString).png"
-        _ = try await run(adb(serial: serial).screencap(remotePath: remotePath).timeout(Self.readTimeoutSeconds))
+        _ = try await run(adb(serial: serial).screencap(remotePath: remotePath)
+            .timeout(.seconds(Self.readTimeoutSeconds)))
         _ = try await run(adb(serial: serial).pull(remote: remotePath, local: localPath)
-            .timeout(Self.readTimeoutSeconds))
-        _ = try await run(adb(serial: serial).shell("rm \(remotePath)").timeout(Self.readTimeoutSeconds))
+            .timeout(.seconds(Self.readTimeoutSeconds)))
+        _ = try await run(adb(serial: serial).shell("rm \(remotePath)").timeout(.seconds(Self.readTimeoutSeconds)))
         let data = try Data(contentsOf: URL(fileURLWithPath: localPath))
         try? FileManager.default.removeItem(atPath: localPath)
         return data
@@ -270,7 +271,7 @@ public struct ADBRunner: ADBRunning {
 
     private func run(_ command: Adb) async throws -> ProcessResult {
         do {
-            return try await command.timeout(command.command().timeoutOverride ?? 30).run().processResult
+            return try await command.timeout(command.command().timeoutOverride ?? .seconds(30)).run().processResult
         } catch let error as ShellError {
             throw processRunnerError(error, command: command.command().displayString())
         }

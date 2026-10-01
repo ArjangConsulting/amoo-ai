@@ -95,7 +95,7 @@ public struct AndroidCLIRunner: AndroidCLIRunning {
     }
 
     public func resolveScreen(screenshot: String, instruction: String) async throws -> String {
-        try await run(command.screenResolve(screenshot: screenshot, string: instruction).timeout(60))
+        try await run(command.screenResolve(screenshot: screenshot, string: instruction).timeout(.seconds(60)))
             .stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -105,7 +105,7 @@ public struct AndroidCLIRunner: AndroidCLIRunning {
 
     private func run(_ command: AndroidCLI) async throws -> ProcessResult {
         do {
-            return try await command.timeout(command.command().timeoutOverride ?? 20).run().processResult
+            return try await command.timeout(command.command().timeoutOverride ?? .seconds(20)).run().processResult
         } catch let error as ShellError {
             if case let .exitFailure(_, output) = error {
                 throw ProcessRunnerError.nonZeroExit(
