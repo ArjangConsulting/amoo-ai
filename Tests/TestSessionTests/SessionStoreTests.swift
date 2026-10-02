@@ -1,16 +1,16 @@
 import AmooCore
 import Foundation
+import TestCommons
 @testable import TestSession
 import XCTest
 
 final class SessionStoreTests: XCTestCase {
-    private func makeTempRoot() -> URL {
-        FileManager.default.temporaryDirectory
-            .appending(path: "amoo-session-store-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    private func makeTempRoot() throws -> URL {
+        try TemporaryDirectory().url
     }
 
-    func testFileStoreRoundTripsAReport() async {
-        let root = makeTempRoot()
+    func testFileStoreRoundTripsAReport() async throws {
+        let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = FileSessionStore(root: root)
 
@@ -46,8 +46,10 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(summaries.first?.actions, [])
     }
 
-    func testLoadReportReturnsNilWhenAbsent() async {
-        let store = FileSessionStore(root: makeTempRoot())
+    func testLoadReportReturnsNilWhenAbsent() async throws {
+        let root = try makeTempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileSessionStore(root: root)
         let loaded = await store.loadReport(sessionID: "missing")
         XCTAssertNil(loaded)
         let all = await store.loadAllReports()
@@ -71,7 +73,7 @@ final class SessionStoreTests: XCTestCase {
     // MARK: - SessionManager persistence
 
     func testEndSessionPersistsReportToStore() async throws {
-        let root = makeTempRoot()
+        let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = FileSessionStore(root: root)
         let manager = SessionManager(
@@ -94,7 +96,7 @@ final class SessionStoreTests: XCTestCase {
     /// that rounds timestamps to the second makes the same recording compile differently depending
     /// on whether the session is still in memory. `.iso8601` did exactly that.
     func testActionTimestampsKeepSubSecondPrecisionAcrossDisk() async throws {
-        let root = makeTempRoot()
+        let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = FileSessionStore(root: root)
 
@@ -135,7 +137,7 @@ final class SessionStoreTests: XCTestCase {
 
     /// Reports written before the fractional-seconds fix must still load.
     func testReportWithoutFractionalSecondsStillDecodes() async throws {
-        let root = makeTempRoot()
+        let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let directory = root.appending(path: "s-legacy", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -154,7 +156,7 @@ final class SessionStoreTests: XCTestCase {
     }
 
     func testReportResolvesFromDiskAfterProcessRestart() async throws {
-        let root = makeTempRoot()
+        let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = FileSessionStore(root: root)
 
@@ -182,7 +184,7 @@ final class SessionStoreTests: XCTestCase {
     }
 
     func testShutdownFlushesPendingActionsAndContext() async throws {
-        let root = makeTempRoot()
+        let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = FileSessionStore(root: root)
         let manager = SessionManager(bootstrapper: StubBootstrapper(), store: store)

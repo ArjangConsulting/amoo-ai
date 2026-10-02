@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import ProcessRunner
 import SwiftyShell
+import TestCommons
 import XCTest
 
 final class ProcessRunnerTests: XCTestCase {
@@ -118,7 +119,9 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(
             commands[0], ["xcrun", "simctl", "privacy", "booted", "grant", "camera", "com.example"]
         )
-        XCTAssertEqual(commands[1], ["xcrun", "simctl", "location", "booted", "set", "37.77,-122.42"])
+        XCTAssertEqual(
+            commands[1], ["xcrun", "simctl", "location", "booted", "set", "37.77,-122.42"]
+        )
         XCTAssertEqual(commands[2], ["xcrun", "simctl", "location", "booted", "clear"])
         XCTAssertEqual(commands[3], ["xcrun", "simctl", "ui", "booted", "appearance", "dark"])
         XCTAssertEqual(commands[4], ["xcrun", "simctl", "openurl", "booted", "myapp://test"])
@@ -325,20 +328,22 @@ final class MockShellExecutor: @unchecked Sendable {
 
 actor ShellCommandRecorder {
     private var commands: [[String]] = []
-    private var results: [ShellOutput]
+    private var results: ScriptedValues<ShellOutput>
 
     init(results: [ProcessResult]) {
-        self.results = results.map {
-            ShellOutput(stdout: $0.stdout, stderr: $0.stderr, exitCode: $0.exitCode)
-        }
+        self.results = ScriptedValues(
+            results.map {
+                ShellOutput(stdout: $0.stdout, stderr: $0.stderr, exitCode: $0.exitCode)
+            }, exhaustion: .repeatLast
+        )
     }
 
     func execute(_ command: Command) async throws -> ShellOutput {
         commands.append([command.executableName] + command.arguments)
-        if results.count > 1 {
-            return results.removeFirst()
+        if results.remainingCount == 0 {
+            return (try? results.next()) ?? .init(stdout: "", stderr: "", exitCode: 0)
         }
-        return results.first ?? .init(stdout: "", stderr: "", exitCode: 0)
+        return try results.next()
     }
 
     func recordedCommands() -> [[String]] {

@@ -24,6 +24,7 @@ let package = Package(
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
+        .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.2.0"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
         .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", from: "0.6.0"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
@@ -72,7 +73,9 @@ let package = Package(
         ),
         .target(name: "WebInspector"),
         .target(name: "IOSDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
-        .target(name: "AndroidDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
+        .target(
+            name: "AndroidDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]
+        ),
         .target(name: "AuditEngine", dependencies: ["AmooCore"]),
         .target(name: "CommandContract", dependencies: ["AmooCore"]),
         .target(name: "TestSession", dependencies: ["AmooCore"]),
@@ -135,6 +138,7 @@ let package = Package(
         .testTarget(
             name: "ProcessRunnerTests",
             dependencies: [
+                .product(name: "TestCommons", package: "SwiftTestCommons"),
                 "ProcessRunner",
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
@@ -142,21 +146,33 @@ let package = Package(
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
         .testTarget(
             name: "MCPServerTests",
-            dependencies: ["MCPServer", "SessionCompiler", "ProcessRunner", "WebInspector"]
+            dependencies: [
+                .product(name: "TestCommons", package: "SwiftTestCommons"), "MCPServer", "SessionCompiler",
+                "ProcessRunner", "WebInspector"
+            ]
         ),
         .testTarget(name: "WebInspectorTests", dependencies: ["WebInspector"]),
         .testTarget(name: "AuditEngineTests", dependencies: ["AuditEngine"]),
-        .testTarget(name: "TestSessionTests", dependencies: ["TestSession", "AmooCore"]),
+        .testTarget(
+            name: "TestSessionTests",
+            dependencies: [
+                .product(name: "TestCommons", package: "SwiftTestCommons"), "TestSession", "AmooCore"
+            ]
+        ),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),
         .testTarget(name: "StudioProtocolTests", dependencies: ["StudioProtocol"]),
         .testTarget(
             name: "TestCodeGeneratorTests",
-            dependencies: ["TestCodeGenerator", "StudioProtocol"],
+            dependencies: [
+                .product(name: "TestCommons", package: "SwiftTestCommons"), "TestCodeGenerator",
+                "StudioProtocol"
+            ],
             exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "CLITests",
             dependencies: [
+                .product(name: "TestCommons", package: "SwiftTestCommons"),
                 "CLI",
                 "OllamaClient",
                 "MCPServer",
