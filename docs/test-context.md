@@ -164,3 +164,16 @@ Points the emitter guarantees for this context:
 `XCUITestContextTests.testDocumentedXCUITestContextSchemaGeneratesTheExpectedScaffold` and
 `SessionCodegenContextTests.testStartSessionPersistsTheDocumentedXCUITestContextSchema` lock this
 example to the implementation.
+
+## Shared TestCommons helpers
+
+Projects that link `TestCommonsXCUI` to their UI test target can opt in by adding
+`"TestCommonsXCUI"` to the context's `imports`. Direct emitter callers can instead
+use `XCUITestEmitter(useTestCommons: true)`. Generated Swift 6 tests then use the
+shared existence, value, and absence waits and screenshot/hierarchy diagnostics.
+The generated test class is isolated to `@MainActor`. Existing generation stays
+standalone unless explicitly opted in.
+
+Set `TESTCOMMONS_XCUI_MODULE_PATH` to an iOS Simulator build's module directory
+when running the generator's shared-helper compilation test. That test checks the
+actual generated source with Swift 6 and the simulator SDK.

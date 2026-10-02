@@ -2,50 +2,54 @@ import AmooCore
 import Foundation
 import MCP
 @testable import MCPServer
+import TestCommons
 import TestSession
 import XCTest
 
-final class LockedDataBuffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage = Data()
+final class LockedDataBuffer: Sendable {
+    private let storage = TestValueBox(Data())
 
     func append(_ data: Data) {
-        lock.withLock {
-            storage.append(data)
-        }
+        storage.withValue { $0.append(data) }
     }
 
     func data() -> Data {
-        lock.withLock { storage }
+        storage.get()
     }
 }
 
 func waitForStdout(
     _ buffer: LockedDataBuffer,
     timeoutNanoseconds: UInt64 = 5_000_000_000,
-    condition: (String) -> Bool
+    condition: @escaping @Sendable (String) -> Bool
 ) async throws -> Data {
-    let start = ContinuousClock.now
-    while start.duration(to: .now) < .nanoseconds(Int64(timeoutNanoseconds)) {
-        let data = buffer.data()
-        let text = String(bytes: data, encoding: .utf8) ?? ""
-        if condition(text) {
-            return data
-        }
-        try await Task.sleep(for: .milliseconds(50))
+    do {
+        return try await waitUntil(
+            timeout: .seconds(Double(timeoutNanoseconds) / 1e9),
+            pollInterval: .milliseconds(50),
+            operation: { buffer.data() },
+            matching: { condition(String(data: $0, encoding: .utf8) ?? "<invalid UTF-8>") }
+        )
+    } catch let timeout as ObservationTimeout<Data> {
+        throw StdoutWaitTimeout(capturedOutput: timeout.lastObservation)
     }
+}
 
-    let text = String(bytes: buffer.data(), encoding: .utf8) ?? ""
-    throw XCTSkip("Timed out waiting for MCP stdio response. Captured stdout: \(text)")
+private struct StdoutWaitTimeout: Error, CustomStringConvertible {
+    let capturedOutput: Data
+    var description: String {
+        let output = String(data: capturedOutput, encoding: .utf8) ?? "<invalid UTF-8>"
+        return "Timed out waiting for MCP stdio response. Captured stdout: \(output)"
+    }
 }
 
 func waitForProcessExit(_ process: Process, timeoutNanoseconds: UInt64) async -> Bool {
-    let start = ContinuousClock.now
+    let deadline = ContinuousClock.now.advanced(by: .seconds(Double(timeoutNanoseconds) / 1e9))
     while process.isRunning {
-        if start.duration(to: .now) >= .nanoseconds(Int64(timeoutNanoseconds)) {
+        if Task.isCancelled || ContinuousClock.now >= deadline {
             return false
         }
-        try? await Task.sleep(for: .milliseconds(50))
+        do { try await Task.sleep(for: .milliseconds(50)) } catch { return false }
     }
     return true
 }
@@ -60,10 +64,11 @@ func waitForProcessExit(_ process: Process, timeoutNanoseconds: UInt64) async ->
 /// rather than trusting the first executable-bit match.
 func amooExecutableCandidates() -> [URL] {
     let sourceURL = URL(fileURLWithPath: #filePath)
-    let packageRoot = sourceURL
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
+    let packageRoot =
+        sourceURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
     let candidates = [
         packageRoot.appendingPathComponent(".build/debug/amoo"),
         packageRoot.appendingPathComponent(".build/out/Products/Debug/amoo"),
@@ -88,7 +93,11 @@ actor AuditMockDriver: PlatformDriver {
     }
 
     func installApp(path _: String) async throws {}
-    func launchApp(appID _: String, arguments _: [String], environment _: [String: String]) async throws {}
+    func launchApp(
+        appID _: String,
+        arguments _: [String],
+        environment _: [String: String]
+    ) async throws {}
     func terminateApp(appID _: String) async throws {}
     func uninstallApp(appID _: String) async throws {}
 
@@ -107,8 +116,14 @@ actor AuditMockDriver: PlatformDriver {
     ) async throws {}
     func scroll(direction _: Direction, distance _: Double) async throws {}
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {}
+
     func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
-    func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {}
+    func drag(
+        from _: Point,
+        to _: Point,
+        duration _: Duration,
+        holdDuration _: Duration
+    ) async throws {}
 
     func typeText(_: String) async throws {}
     func clearText(characterCount _: Int?) async throws {}
@@ -123,7 +138,9 @@ actor AuditMockDriver: PlatformDriver {
             // Element with empty label and empty id — triggers missing accessibility label
             ElementInfo(id: "", label: "", type: .button, frame: Rect(x: 0, y: 0, width: 30, height: 30)),
             // Small tap target
-            ElementInfo(id: "tiny", label: "Tiny", type: .button, frame: Rect(x: 10, y: 10, width: 20, height: 20)),
+            ElementInfo(
+                id: "tiny", label: "Tiny", type: .button, frame: Rect(x: 10, y: 10, width: 20, height: 20)
+            ),
             // Sensitive text field — triggers insecure text field rule
             ElementInfo(id: "password_field", label: "Password", type: .textField),
             // Normal button
@@ -253,7 +270,9 @@ actor MockDriver: PlatformDriver {
         calls.append("swipeInDirection:\(direction):\(distance)")
     }
 
-    func swipe(direction: Direction, distance: Double, duration _: Duration, element: ElementSelector?) async throws {
+    func swipe(
+        direction: Direction, distance: Double, duration _: Duration, element: ElementSelector?
+    ) async throws {
         let suffix = element.flatMap(\.id).map { ":\($0)" } ?? ""
         calls.append("swipeInDirection:\(direction):\(distance)\(suffix)")
     }
@@ -263,8 +282,14 @@ actor MockDriver: PlatformDriver {
     }
 
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {}
+
     func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
-    func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {}
+    func drag(
+        from _: Point,
+        to _: Point,
+        duration _: Duration,
+        holdDuration _: Duration
+    ) async throws {}
 
     func typeText(_ text: String) async throws {
         calls.append("typeText:\(text)")

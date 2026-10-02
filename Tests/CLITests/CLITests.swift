@@ -6,6 +6,7 @@ import Foundation
 import MCPServer
 import ProcessRunner
 import SwiftyShell
+import TestCommons
 import XCTest
 
 final class CLITests: XCTestCase {
@@ -16,16 +17,18 @@ final class CLITests: XCTestCase {
     }
 
     func testFlowJSONDecodesReusableSteps() throws {
-        let data = Data("""
-        {
-          "platform": "ios",
-          "device_id": "booted",
-          "steps": [
-            { "name": "Open account", "tool": "tap_element", "arguments": { "id": "account" } },
-            { "tool": "assert_enabled", "arguments": { "id": "sign-in" } }
-          ]
-        }
-        """.utf8)
+        let data = Data(
+            """
+            {
+              "platform": "ios",
+              "device_id": "booted",
+              "steps": [
+                { "name": "Open account", "tool": "tap_element", "arguments": { "id": "account" } },
+                { "tool": "assert_enabled", "arguments": { "id": "sign-in" } }
+              ]
+            }
+            """.utf8
+        )
 
         let flow = try JSONDecoder().decode(TestFlow.self, from: data)
 
@@ -93,12 +96,12 @@ final class CLITests: XCTestCase {
     /// picks whatever simulator is booted and builds and starts a companion there — minutes of
     /// work, and a rebuild of the companion under any other session using it.
     func testDefaultOutput() async {
-        let launches = REPLLaunchRecorder()
+        let launches = CallRecorder<[String]>()
         let app = CLIApp(launchREPL: { await launches.record($0) })
         let result = await app.run(args: [])
         XCTAssertEqual(result.output, "")
         XCTAssertEqual(result.exitCode, 0)
-        let recorded = await launches.launches
+        let recorded = await launches.values()
         XCTAssertEqual(recorded, [[]], "the REPL is entered exactly once, with no arguments")
     }
 
@@ -115,8 +118,10 @@ final class CLITests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("Usage: amoo <command> [options]"))
-        XCTAssertTrue(result.output
-            .contains("Run 'amoo <command>' without enough arguments to see command-specific usage."))
+        XCTAssertTrue(
+            result.output
+                .contains("Run 'amoo <command>' without enough arguments to see command-specific usage.")
+        )
     }
 
     func testHelpFlagReturnsGuidance() async {
@@ -186,7 +191,10 @@ final class CLITests: XCTestCase {
         let result = await app.run(args: ["mcp", "-h"])
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]")
+        XCTAssertEqual(
+            result.output,
+            "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]"
+        )
     }
 
     func testPreflightSubcommandHelpFlagReturnsPreflightHelp() async {
@@ -202,7 +210,10 @@ final class CLITests: XCTestCase {
         let result = await app.run(args: ["mcp", "serve", "--help"])
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]")
+        XCTAssertEqual(
+            result.output,
+            "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]"
+        )
     }
 
     func testMCPServeOptionsDefaultsToIOS() {
@@ -328,13 +339,5 @@ struct MockAuditRunner: AuditRunning {
 
     func runAudit(options _: AuditCommandOptions) async throws -> AuditReport {
         report
-    }
-}
-
-private actor REPLLaunchRecorder {
-    private(set) var launches: [[String]] = []
-
-    func record(_ args: [String]) {
-        launches.append(args)
     }
 }

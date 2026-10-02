@@ -13,8 +13,35 @@ final class XCUITestContextTests: XCTestCase {
             description: "",
             platform: .ios,
             steps: [.init(id: "step-1", instruction: "Sign in", expected: "Home screen appears")],
-            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: operations)
+            compiledPlan: .init(
+                compiler: "ai",
+                compilerVersion: "1",
+                toolOperations: operations
+            )
         )
+    }
+
+    func testSharedHelpersCompileWithSwiftSix() throws {
+        guard let modulePath = ProcessInfo.processInfo.environment["TESTCOMMONS_XCUI_MODULE_PATH"] else {
+            throw XCTSkip("Set TESTCOMMONS_XCUI_MODULE_PATH to the built iOS Simulator module directory")
+        }
+        let test = makeTest(operations: [.init(id: "tap", tool: "tap_element", arguments: ["id": "submit"])])
+        let source = try XCUITestEmitter(useTestCommons: true).generate(test).source
+        try CompileVerification.verifySwiftCompiles(source, additionalImportPaths: [modulePath], swiftVersion: 6)
+    }
+
+    func testSharedHelpersAreOptIn() throws {
+        let test = makeTest(operations: [
+            .init(id: "tap", tool: "tap_element", arguments: ["id": "submit"])
+        ])
+        let standalone = try XCUITestEmitter().generate(test).source
+        XCTAssertFalse(standalone.contains("import TestCommonsXCUI"))
+        let shared = try XCUITestEmitter(useTestCommons: true).generate(test).source
+        XCTAssertTrue(shared.contains("import TestCommonsXCUI"))
+        XCTAssertTrue(shared.contains("TestCommonsXCUI.waitForHittability"))
+        XCTAssertTrue(shared.contains("TestCommonsXCUI.waitForAbsence"))
+        XCTAssertTrue(shared.contains("TestCommonsXCUI.attachDiagnostics"))
+        XCTAssertFalse(shared.contains("XCTAttachment(screenshot:"))
     }
 
     func testXCUITestEmitterUsesExplicitContextHelperAndHarness() throws {
@@ -22,10 +49,12 @@ final class XCUITestContextTests: XCTestCase {
             imports: ["AppTestSupport"],
             baseClass: "AppUITestCase",
             appFactory: "makeApp()",
-            helpers: [.init(
-                name: "signIn",
-                callTemplate: "signIn(email: {{email}}, password: {{password}})"
-            )]
+            helpers: [
+                .init(
+                    name: "signIn",
+                    callTemplate: "signIn(email: {{email}}, password: {{password}})"
+                )
+            ]
         )
         let test = StudioAuthoredTest(
             formatVersion: 1,
@@ -34,12 +63,18 @@ final class XCUITestContextTests: XCTestCase {
             platform: .ios,
             steps: [],
             testContext: context,
-            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
-                id: "step-0",
-                tool: "tap_element",
-                arguments: ["email": "user@example.com", "password": "secret"],
-                helper: "signIn"
-            )])
+            compiledPlan: .init(
+                compiler: "ai",
+                compilerVersion: "1",
+                toolOperations: [
+                    .init(
+                        id: "step-0",
+                        tool: "tap_element",
+                        arguments: ["email": "user@example.com", "password": "secret"],
+                        helper: "signIn"
+                    )
+                ]
+            )
         )
 
         let result = try XCUITestEmitter().generate(test)
@@ -54,7 +89,9 @@ final class XCUITestContextTests: XCTestCase {
     func testXCUITestEmitterEmitsHelperLevelImports() throws {
         let context = StudioTestContext(
             imports: ["AppTestSupport"],
-            helpers: [.init(name: "signIn", callTemplate: "signIn(email: {{email}})", imports: ["SignInKit"])]
+            helpers: [
+                .init(name: "signIn", callTemplate: "signIn(email: {{email}})", imports: ["SignInKit"])
+            ]
         )
         let test = StudioAuthoredTest(
             formatVersion: 1,
@@ -63,12 +100,18 @@ final class XCUITestContextTests: XCTestCase {
             platform: .ios,
             steps: [],
             testContext: context,
-            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
-                id: "step-0",
-                tool: "tap_element",
-                arguments: ["email": "user@example.com"],
-                helper: "signIn"
-            )])
+            compiledPlan: .init(
+                compiler: "ai",
+                compilerVersion: "1",
+                toolOperations: [
+                    .init(
+                        id: "step-0",
+                        tool: "tap_element",
+                        arguments: ["email": "user@example.com"],
+                        helper: "signIn"
+                    )
+                ]
+            )
         )
 
         let result = try XCUITestEmitter().generate(test)
@@ -85,16 +128,24 @@ final class XCUITestContextTests: XCTestCase {
             platform: .ios,
             steps: [],
             testContext: context,
-            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: [.init(
-                id: "step-0",
-                tool: "tap_element",
-                arguments: ["id": "sign-in"]
-            )])
+            compiledPlan: .init(
+                compiler: "ai",
+                compilerVersion: "1",
+                toolOperations: [
+                    .init(
+                        id: "step-0",
+                        tool: "tap_element",
+                        arguments: ["id": "sign-in"]
+                    )
+                ]
+            )
         )
     }
 
     func testXCUITestEmitterAlwaysChainsToSuper() throws {
-        let result = try XCUITestEmitter().generate(makeTest(context: .init(baseClass: "AppUITestCase")))
+        let result = try XCUITestEmitter().generate(
+            makeTest(context: .init(baseClass: "AppUITestCase"))
+        )
 
         XCTAssertTrue(result.source.contains("try super.setUpWithError()"))
         XCTAssertTrue(result.source.contains("try super.tearDownWithError()"))
@@ -135,17 +186,19 @@ final class XCUITestContextTests: XCTestCase {
     /// the support module is imported, the base class is subclassed, `harnessLaunchesApp` suppresses
     /// the emitter's own `app.launch()`, and both overrides still chain to `super`.
     func testDocumentedXCUITestContextSchemaGeneratesTheExpectedScaffold() throws {
-        let json = Data("""
-        {
-          "imports": ["MyUITestSupport"],
-          "baseClass": "MyAppUITestCase",
-          "appFactory": "makeTestApplication()",
-          "harnessLaunchesApp": true,
-          "helpers": [],
-          "selectorExpressions": {},
-          "idLookupTemplate": null
-        }
-        """.utf8)
+        let json = Data(
+            """
+            {
+              "imports": ["MyUITestSupport"],
+              "baseClass": "MyAppUITestCase",
+              "appFactory": "makeTestApplication()",
+              "harnessLaunchesApp": true,
+              "helpers": [],
+              "selectorExpressions": {},
+              "idLookupTemplate": null
+            }
+            """.utf8
+        )
         let context = try JSONDecoder().decode(StudioTestContext.self, from: json)
 
         let result = try XCUITestEmitter().generate(makeTest(context: context))
