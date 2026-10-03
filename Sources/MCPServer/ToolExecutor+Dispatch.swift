@@ -60,6 +60,11 @@ extension DriverToolExecutor {
                 .map { $0.split(separator: ",").map(String.init) } ?? []
             let env = Self.parseEnvironment(arguments["environment"])
             try await driver.launchApp(appID: appID, arguments: launchArgs, environment: env)
+            // Bind the launched app as the companion's target before verifying. With no target
+            // bound, the iOS companion reports `com.apple.springboard` as frontmost even while the
+            // launched app is on screen, so `verifyLaunch` reported healthy launches as failures.
+            // Best effort: a driver without target binding falls back to frontmost detection.
+            try? await driver.setTargetApp(bundleID: appID)
             return await verifyLaunch(
                 appID: appID,
                 driver: driver,

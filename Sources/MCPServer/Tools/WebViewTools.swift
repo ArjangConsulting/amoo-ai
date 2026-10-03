@@ -17,7 +17,10 @@ public enum WebViewTools {
                 + " WebView.setWebContentsDebuggingEnabled). Android works today; iOS needs the"
                 + " WebKit Remote Inspector bridge (docs/webview-introspection.md).",
             properties: [
-                "expression": .init(type: "string", description: "The JavaScript expression to evaluate."),
+                "expression": .init(
+                    type: "string",
+                    description: "The JavaScript expression to evaluate (the argument is `expression`, not `script`)."
+                ),
                 "bundle_id": .init(
                     type: "string",
                     description: "App to scope to. Defaults to the current target app."
@@ -26,7 +29,11 @@ public enum WebViewTools {
                     type: "string",
                     description: "'true' to evaluate in every inspectable frame, not just the main one."
                 ),
-                "timeout_ms": .init(type: "string", description: "Evaluation timeout in ms. Default 5000.")
+                "timeout_ms": .init(
+                    type: "string",
+                    description: "Evaluation timeout in ms, also the budget for reconnecting a dropped"
+                        + " inspector transport. Default 5000."
+                )
             ],
             required: ["expression"],
             outputSchema: ToolOutputSchema(
