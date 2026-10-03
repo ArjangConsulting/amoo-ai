@@ -343,6 +343,8 @@ final class CompanionManager: @unchecked Sendable {
 
     private func buildForTesting(config: CompanionConfig) async throws {
         #if os(macOS)
+        // Hash before building so a source edit made during the build leaves the fingerprint stale.
+        let fingerprint = currentSourceFingerprint(config: config)
         let genResult: ProcessResult
         do {
             genResult = try await XcodeGen(context: shellContext)
@@ -376,7 +378,7 @@ final class CompanionManager: @unchecked Sendable {
             let message = buildResult.stderr.isEmpty ? buildResult.stdout : buildResult.stderr
             throw CompanionError.buildFailed(message)
         }
-        try writeSourceFingerprint(config: config)
+        try writeSourceFingerprint(config: config, fingerprint: fingerprint)
         #else
         _ = config
         throw CompanionError.unsupportedPlatform
