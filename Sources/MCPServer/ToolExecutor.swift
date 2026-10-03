@@ -118,7 +118,13 @@ public actor DriverToolExecutor: ToolExecutor {
     func resolveDriver(arguments: [String: String]) async throws -> any PlatformDriver {
         guard let sessionID = arguments["session_id"] else { return defaultDriver }
         guard let manager = sessionManager, let session = await manager.session(sessionID) else {
-            throw ToolExecutionError(code: "session_not_found", message: "Session not found. Start a new session.")
+            throw ToolExecutionError(
+                code: "session_not_found",
+                message: "Session not found in this MCP server process. Live session IDs cannot attach across"
+                    + " server processes or agent contexts using separate servers. Continue in the owning context,"
+                    + " or call start_session here on an available device; release the owner's session first"
+                    + " if reusing its device. Never drop session_id to bypass this error."
+            )
         }
         guard await session.isActive else {
             throw ToolExecutionError(code: "session_closed", message: "Session is closed. Start a new session.")
