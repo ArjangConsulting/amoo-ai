@@ -43,6 +43,13 @@ class Amoo < Formula
     assert_path_exists share/"amoo/install-mcp.sh"
     assert_path_exists share/"amoo/plugins/amoo/agents/amoo.md"
     assert_path_exists prefix/"CompanionApps/Android/gradlew"
-    assert_path_exists prefix/"CompanionApps/iOS/project.yml" if OS.mac?
+    assert_path_exists prefix/"CompanionApps/Android/prebuilt/app-debug.apk"
+    assert_path_exists prefix/"CompanionApps/Android/prebuilt/app-debug-androidTest.apk"
+    if OS.mac?
+      assert_path_exists prefix/"CompanionApps/iOS/project.yml"
+      assert_path_exists prefix/"CompanionApps/iOS/prebuilt/iphonesimulator/Products"
+      assert_path_exists prefix/"CompanionApps/iOS/prebuilt/iphoneos/Products"
+      assert_path_exists prefix/"CompanionApps/iOS/sign-prebuilt.py"
+    end
   end
 end

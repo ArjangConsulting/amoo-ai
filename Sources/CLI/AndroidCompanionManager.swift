@@ -7,6 +7,8 @@ import SwiftyShell
 // MARK: - Configuration
 
 struct AndroidCompanionConfig {
+    var buildMode: SessionBuildMode = .auto
+    var buildPrepared = false
     var host: String
     var port: Int
     var companionDir: String
@@ -119,6 +121,11 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
 /// reachability, and tear everything down on shutdown.
 protocol AndroidCompanionManaging: Sendable {
     func ensureRunning(config: AndroidCompanionConfig, force: Bool) async throws
+    func prepareBuild(config: AndroidCompanionConfig) async throws
+}
+
+extension AndroidCompanionManaging {
+    func prepareBuild(config _: AndroidCompanionConfig) async throws {}
 }
 
 final class AndroidCompanionManager: @unchecked Sendable {
@@ -137,12 +144,20 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     /// Builds + installs the companion APKs (no launch). Used by `amoo companion install --platform android`.
     func install(config: AndroidCompanionConfig, force: Bool = false) async throws {
-        let (appApk, testApk) = apkPaths(companionDir: config.companionDir)
+        let (appApk, testApk) = apkPaths(
+            companionDir: config.companionDir,
+            useBundled: !force && config.buildMode != .rebuild
+        )
         let needsBuild = force
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
 
+        if needsBuild, config.buildMode == .reuse {
+            throw AndroidCompanionError
+                .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
+        }
         if needsBuild {
+            await StartupProgress.report("Building Android companion")
             print("Building Android companion (this may take a moment)...")
             try await withCLILoadingIndicator("Building Android companion") {
                 try await self.buildAPKs(config: config)
@@ -151,6 +166,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             print(colored("Android companion already built.", .green) + colored(" Use --force to rebuild.", .gray))
         }
 
+        await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
         try await withCLILoadingIndicator("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
@@ -158,10 +174,17 @@ final class AndroidCompanionManager: @unchecked Sendable {
         print(colored("Android companion installed successfully.", .green))
     }
 
+    // swiftlint:disable function_body_length - linear startup lifecycle with rollback.
     /// Ensures the companion is reachable. Builds, installs, forwards TCP, spawns
     /// the instrumentation runner, and waits for the gRPC port — only as needed.
     func ensureRunning(config: AndroidCompanionConfig, force: Bool = false) async throws {
-        let sourcesChanged = !sourceFingerprintMatches(config: config)
+        await StartupProgress.report("Checking Android companion")
+        let bundled = FileManager.default.fileExists(atPath: config.companionDir + "/prebuilt/app-debug.apk")
+        let sourcesChanged = !config
+            .buildPrepared &&
+            (config
+                .buildMode == .rebuild ||
+                (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
         if force {
             if activeConfig == nil {
                 await clearStaleCompanion(config: config)
@@ -187,13 +210,21 @@ final class AndroidCompanionManager: @unchecked Sendable {
             await clearStaleCompanion(config: config)
         }
 
-        let (appApk, testApk) = apkPaths(companionDir: config.companionDir)
+        let (appApk, testApk) = apkPaths(
+            companionDir: config.companionDir,
+            useBundled: !force && config.buildMode != .rebuild
+        )
         let needsBuild = force
             || sourcesChanged
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
 
+        if needsBuild, config.buildMode == .reuse {
+            throw AndroidCompanionError
+                .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
+        }
         if needsBuild {
+            await StartupProgress.report("Building Android companion")
             print("Android companion sources changed or no build exists."
                 + " Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building Android companion") {
@@ -201,6 +232,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             }
         }
 
+        await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
         try await withCLILoadingIndicator("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
@@ -215,6 +247,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         print("Forwarding 127.0.0.1:\(config.port) → device:\(config.port)...")
         try await forwardPort(config: config)
 
+        await StartupProgress.report("Launching Android companion instrumentation")
         print("Starting Android companion instrumentation on port \(config.port)...")
         try await launchInstrumentation(config: config)
         activeConfig = config
@@ -234,6 +267,8 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
         print(colored("Android companion ready.", .bold, .green))
     }
+
+    // swiftlint:enable function_body_length
 
     /// Runs `operation` with an outer wall-clock cap of `seconds` + a fixed slack, so a hung `adb`
     /// invocation surfaces as `.readyTimeout` rather than an unbounded wait. The inner
@@ -285,13 +320,17 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     // MARK: - Private
 
-    private func apkPaths(companionDir: String) -> (app: String, test: String) {
+    func apkPaths(companionDir: String, useBundled: Bool = true) -> (app: String, test: String) {
+        if useBundled, FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug.apk"),
+           FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug-androidTest.apk") {
+            return (companionDir + "/prebuilt/app-debug.apk", companionDir + "/prebuilt/app-debug-androidTest.apk")
+        }
         let app = companionDir + "/app/build/outputs/apk/debug/app-debug.apk"
         let test = companionDir + "/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
         return (app, test)
     }
 
-    private func buildAPKs(config: AndroidCompanionConfig) async throws {
+    func buildAPKs(config: AndroidCompanionConfig) async throws {
         let gradlewPath = config.companionDir + "/gradlew"
         let result: ProcessResult
         do {
@@ -333,71 +372,6 @@ final class AndroidCompanionManager: @unchecked Sendable {
             .removeForwardTCP(localPort: config.port)
             .run()
             .processResult
-    }
-
-    func currentSourceFingerprint(config: AndroidCompanionConfig) -> String {
-        let root = URL(fileURLWithPath: config.companionDir)
-        let locations = [
-            root.appendingPathComponent("app/src", isDirectory: true),
-            root.appendingPathComponent("app/build.gradle.kts"),
-            root.appendingPathComponent("build.gradle.kts"),
-            root.appendingPathComponent("settings.gradle.kts")
-        ]
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
-            for byte in url.path.utf8 {
-                hash = fingerprint(hash, byte: byte)
-            }
-            if let data = try? Data(contentsOf: url) {
-                for byte in data {
-                    hash = fingerprint(hash, byte: byte)
-                }
-            }
-        }
-        return String(hash, radix: 16)
-    }
-
-    private func sourceFiles(at locations: [URL]) -> [URL] {
-        locations.flatMap { location -> [URL] in
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory) else { return [] }
-            if !isDirectory.boolValue {
-                return [location]
-            }
-            guard let enumerator = FileManager.default.enumerator(
-                at: location,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-            ) else { return [] }
-            return enumerator.compactMap { item in
-                guard let url = item as? URL,
-                      (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-                else { return nil }
-                return url
-            }
-        }
-    }
-
-    private func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
-        (hash ^ UInt64(byte)) &* 1_099_511_628_211
-    }
-
-    private func sourceFingerprintMatches(config: AndroidCompanionConfig) -> Bool {
-        (try? String(contentsOfFile: fingerprintPath(config: config), encoding: .utf8))
-            == currentSourceFingerprint(config: config)
-    }
-
-    private func writeSourceFingerprint(config: AndroidCompanionConfig) throws {
-        let path = fingerprintPath(config: config)
-        try FileManager.default.createDirectory(
-            at: URL(fileURLWithPath: path).deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try currentSourceFingerprint(config: config).write(toFile: path, atomically: true, encoding: .utf8)
-    }
-
-    private func fingerprintPath(config: AndroidCompanionConfig) -> String {
-        config.companionDir + "/app/build/.amoo-source-fingerprint"
     }
 
     private func installAPKs(

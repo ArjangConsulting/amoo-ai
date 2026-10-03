@@ -41,8 +41,14 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
         let clock = ContinuousClock()
         let bootstrapStart = clock.now
+        await StartupProgress.report("Selecting device")
         let selector = PlatformDeviceSelector(processRunner: processRunner, leaseStore: leaseStore)
-        let available = try await selector.selectDevice(hint: request.deviceHint, platform: request.platform)
+        async let androidBuild: Void = prepareAndroidBuild(request)
+        let available = try await selector.selectDevice(
+            hint: request.deviceHint,
+            platform: request.platform,
+            deferIOSBoot: true
+        )
 
         let deviceKey = switch available {
         case let .ios(device): "ios:\(device.udid)"
@@ -51,6 +57,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         // Cross-process: a device another session leased via `amoo env up` is off limits unless
         // this server was started with that lease in AMOO_LEASE.
         try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
+        try await androidBuild
         let owner = try await Self.leases.acquire(deviceKey)
         do {
             return try await bootstrap(
@@ -89,7 +96,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let port: Int
         do {
             let companionStart = clock.now
-            (deviceID, port) = try await ensureCompanion(for: available, appID: request.appID)
+            (deviceID, port) = try await ensureCompanion(
+                for: available,
+                appID: request.appID,
+                buildMode: request.buildMode
+            )
             PerformanceTelemetry.record(
                 "companion_startup",
                 operation: request.platform.rawValue,
@@ -143,7 +154,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         }
 
         // Wait for the first screen to be queryable (best-effort).
+        await StartupProgress.report("Waiting for the first app screen")
         await waitForScreenReady(driver: platformDriver)
+        await StartupProgress.report("Session ready")
 
         PerformanceTelemetry.record(
             "session_bootstrap",
@@ -184,12 +197,14 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     ) async throws {
         if let buildPath = request.buildPath, !buildPath.isEmpty {
             do {
+                await StartupProgress.report("Installing app under test")
                 try await driver.installApp(path: buildPath)
             } catch {
                 throw BootstrapError.installFailed(error.localizedDescription)
             }
         }
         do {
+            await StartupProgress.report("Launching app under test")
             try await driver.launchApp(
                 appID: request.appID,
                 arguments: request.arguments,
@@ -240,22 +255,27 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     /// returns the resolved device ID + port the companion is reachable on.
     private func ensureCompanion(
         for device: AvailableDevice,
-        appID: String
+        appID: String,
+        buildMode: SessionBuildMode
     ) async throws -> (deviceID: String, port: Int) {
         switch device {
         case let .ios(booted):
             let port = 22087
-            let config = CompanionConfig(
+            var config = CompanionConfig(
                 port: port,
                 deviceUDID: booted.udid,
                 isPhysicalDevice: booted.isPhysicalDevice,
                 targetAppID: appID
             )
+            config.buildMode = buildMode
+            config.bootSimulator = !booted.isPhysicalDevice
             try await iOSCompanionManager.ensureRunning(config: config, force: false)
             return (booted.udid, port)
         case let .android(serial, _):
             let port = 22088
-            let config = AndroidCompanionConfig(port: port, serial: serial)
+            var config = AndroidCompanionConfig(port: port, serial: serial)
+            config.buildMode = buildMode
+            config.buildPrepared = true
             try await androidCompanionManager.ensureRunning(config: config, force: false)
             return (serial, port)
         }

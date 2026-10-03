@@ -66,6 +66,7 @@ public struct SessionBootstrapRequest: Sendable {
     public let platform: Platform
     public let deviceHint: String?
     public let buildPath: String?
+    public let buildMode: SessionBuildMode
     public let arguments: [String]
     public let environment: [String: String]
 
@@ -74,6 +75,7 @@ public struct SessionBootstrapRequest: Sendable {
         platform: Platform,
         deviceHint: String? = nil,
         buildPath: String? = nil,
+        buildMode: SessionBuildMode = .auto,
         arguments: [String] = [],
         environment: [String: String] = [:]
     ) {
@@ -81,6 +83,7 @@ public struct SessionBootstrapRequest: Sendable {
         self.platform = platform
         self.deviceHint = deviceHint
         self.buildPath = buildPath
+        self.buildMode = buildMode
         self.arguments = arguments
         self.environment = environment
     }

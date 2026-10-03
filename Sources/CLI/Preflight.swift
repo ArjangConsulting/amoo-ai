@@ -63,19 +63,22 @@ public struct DefaultPreflightChecker: PreflightChecking {
         var checks: [PreflightCheck] = []
 
         if platform == .all || platform == .iOS {
-            await checks.append(contentsOf: iOSChecks())
+            // Do not hold an exclusive mutable access to `checks` across the async probe.
+            // Evaluating `iOSChecks()` inside append's argument can trigger Swift's runtime
+            // exclusivity check (and crash preflight on machines without Xcode tools).
+            let iosChecks = await iOSChecks()
+            checks.append(contentsOf: iosChecks)
         }
 
         if platform == .all || platform == .android {
-            await checks.append(
-                check(
-                    id: "android.adb",
-                    commandDescription: "adb version",
-                    remediation: "Install Android platform-tools and add `adb` to PATH."
-                ) {
-                    try await Adb(context: shellContext).rawArguments(["version"]).run().processResult
-                }
-            )
+            let adbCheck = await check(
+                id: "android.adb",
+                commandDescription: "adb version",
+                remediation: "Install Android platform-tools and add `adb` to PATH."
+            ) {
+                try await Adb(context: shellContext).rawArguments(["version"]).run().processResult
+            }
+            checks.append(adbCheck)
             checks.append(androidJDKCheck())
         }
 
@@ -113,57 +116,53 @@ public struct DefaultPreflightChecker: PreflightChecking {
     private func iOSChecks() async -> [PreflightCheck] {
         var checks: [PreflightCheck] = []
 
-        await checks.append(
-            check(
-                id: "ios.xcode-select",
-                commandDescription: "xcode-select -p",
-                remediation: "Install Xcode Command Line Tools and select an active developer directory."
-            ) {
-                // A plain `Command` rather than XcodeBuildKit's `XcodeSelect` (macOS-only type):
-                // on Linux `xcode-select` genuinely isn't installed, so this fails the same way
-                // any other missing-tool check does, through the same process-runner path.
-                try await Command("xcode-select").args(["-p"]).run(in: shellContext).processResult
-            }
-        )
-        await checks.append(
-            check(
-                id: "ios.simctl",
-                commandDescription: "xcrun simctl list devices available --json",
-                remediation: "Install Xcode simulator runtimes and ensure `xcrun simctl` is available."
-            ) {
-                let output = try await SimctlRunner(context: shellContext).listDevices()
-                return ProcessResult(exitCode: 0, stdout: output, stderr: "")
-            }
-        )
-        await checks.append(
-            check(
-                id: "ios.devicectl",
-                commandDescription: "xcrun devicectl list devices --json-output -",
-                remediation: """
-                Needed only for physical iOS devices. Requires Xcode 15 or later; \
-                simulators do not use it.
-                """,
-                failureStatus: .warn
-            ) {
-                let output = try await DeviceCtlRunner(context: shellContext).listDevices()
-                return ProcessResult(exitCode: 0, stdout: output, stderr: "")
-            }
-        )
-        await checks.append(
-            check(
-                id: "ios.iproxy",
-                commandDescription: "which iproxy",
-                remediation: """
-                Needed only for physical iOS devices, to tunnel to the companion over \
-                USB — `devicectl` has no port forwarding of its own.
-                Install with: brew install libimobiledevice
-                (`iproxy` ships in libusbmuxd, which that formula pulls in and links.)
-                """,
-                failureStatus: .warn
-            ) {
-                try await Command("which").args(["iproxy"]).run(in: shellContext).processResult
-            }
-        )
+        let xcodeCheck = await check(
+            id: "ios.xcode-select",
+            commandDescription: "xcode-select -p",
+            remediation: "Install Xcode Command Line Tools and select an active developer directory."
+        ) {
+            // A plain `Command` rather than XcodeBuildKit's `XcodeSelect` (macOS-only type):
+            // on Linux `xcode-select` genuinely isn't installed, so this fails the same way
+            // any other missing-tool check does, through the same process-runner path.
+            try await Command("xcode-select").args(["-p"]).run(in: shellContext).processResult
+        }
+        checks.append(xcodeCheck)
+        let simctlCheck = await check(
+            id: "ios.simctl",
+            commandDescription: "xcrun simctl list devices available --json",
+            remediation: "Install Xcode simulator runtimes and ensure `xcrun simctl` is available."
+        ) {
+            let output = try await SimctlRunner(context: shellContext).listDevices()
+            return ProcessResult(exitCode: 0, stdout: output, stderr: "")
+        }
+        checks.append(simctlCheck)
+        let deviceCheck = await check(
+            id: "ios.devicectl",
+            commandDescription: "xcrun devicectl list devices --json-output -",
+            remediation: """
+            Needed only for physical iOS devices. Requires Xcode 15 or later; \
+            simulators do not use it.
+            """,
+            failureStatus: .warn
+        ) {
+            let output = try await DeviceCtlRunner(context: shellContext).listDevices()
+            return ProcessResult(exitCode: 0, stdout: output, stderr: "")
+        }
+        checks.append(deviceCheck)
+        let proxyCheck = await check(
+            id: "ios.iproxy",
+            commandDescription: "which iproxy",
+            remediation: """
+            Needed only for physical iOS devices, to tunnel to the companion over \
+            USB — `devicectl` has no port forwarding of its own.
+            Install with: brew install libimobiledevice
+            (`iproxy` ships in libusbmuxd, which that formula pulls in and links.)
+            """,
+            failureStatus: .warn
+        ) {
+            try await Command("which").args(["iproxy"]).run(in: shellContext).processResult
+        }
+        checks.append(proxyCheck)
 
         return checks
     }
