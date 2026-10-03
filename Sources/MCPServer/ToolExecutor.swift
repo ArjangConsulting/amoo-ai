@@ -133,7 +133,7 @@ public actor DriverToolExecutor: ToolExecutor {
     static let controlPlaneTools: Set<String> = [
         "start_session", "start_test_session", "end_session", "end_test_session",
         "list_sessions", "get_session_report", "compile_session_to_plan",
-        "companion_warm", "companion_status"
+        "companion_warm", "companion_status", "session_startup_status"
     ]
 
     private func recordIfNeeded(

@@ -77,8 +77,17 @@ jobs:
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
 
-      - name: Build companion projects
-        run: make companion-build
+      - name: Build and package prebuilt companions
+        run: |
+          ./scripts/package-companions.sh
+          tar -czf prebuilt-companions.tar.gz CompanionApps/iOS/prebuilt CompanionApps/Android/prebuilt
+
+      - name: Upload prebuilt companions
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt-companions
+          path: prebuilt-companions.tar.gz
+          retention-days: 7
 
   build-macos:
     name: Build macOS Universal Binary
@@ -160,6 +169,14 @@ jobs:
           test "$(./amoo --version)" = "${RELEASE_VERSION}"
           ./amoo --help >/dev/null
 
+      - name: Download prebuilt companions
+        uses: actions/download-artifact@v4
+        with:
+          name: prebuilt-companions
+
+      - name: Extract prebuilt companions
+        run: tar -xzf prebuilt-companions.tar.gz
+
       - name: Package tarball
         run: |
           VERSION="${RELEASE_VERSION}"
@@ -173,7 +190,10 @@ jobs:
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'plugins/amoo/agents/amoo.md'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'plugins/amoo/.claude-plugin/plugin.json'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/iOS/project.yml'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep 'CompanionApps/iOS/prebuilt/iphonesimulator/Products/.*xctestrun$'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep 'CompanionApps/iOS/prebuilt/iphoneos/Products/.*xctestrun$'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/prebuilt/app-debug.apk'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-macos-universal.tar.gz" >> "$GITHUB_ENV"
 
@@ -241,6 +261,14 @@ jobs:
           test "$(.build/release/amoo --version)" = "${RELEASE_VERSION}"
           .build/release/amoo --help >/dev/null
 
+      - name: Download prebuilt companions
+        uses: actions/download-artifact@v4
+        with:
+          name: prebuilt-companions
+
+      - name: Extract prebuilt companions
+        run: tar -xzf prebuilt-companions.tar.gz
+
       - name: Package tarball
         run: |
           VERSION="${RELEASE_VERSION}"
@@ -253,6 +281,7 @@ jobs:
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'amoo'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'plugins/amoo/agents/amoo.md'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
+          tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/prebuilt/app-debug.apk'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
 

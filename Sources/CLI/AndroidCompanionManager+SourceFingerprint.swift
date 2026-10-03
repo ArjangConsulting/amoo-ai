@@ -1,21 +1,13 @@
-import AmooCore
 import Foundation
-import ProcessRunner
-import SwiftyShell
-import XcodeBuildKit
-import XcodeGenKit
 
-// MARK: - Source Fingerprint
-
-/// Detects companion sources changing since the last build, so a stale runner is rebuilt rather
-/// than reused.
-extension CompanionManager {
-    func currentSourceFingerprint(config: CompanionConfig) -> String {
+extension AndroidCompanionManager {
+    func currentSourceFingerprint(config: AndroidCompanionConfig) -> String {
         let root = URL(fileURLWithPath: config.companionDir)
         let locations = [
-            root.appendingPathComponent("project.yml"),
-            root.appendingPathComponent("Sources", isDirectory: true),
-            root.appendingPathComponent("../../Protos", isDirectory: true).standardizedFileURL
+            root.appendingPathComponent("app/src", isDirectory: true),
+            root.appendingPathComponent("app/build.gradle.kts"),
+            root.appendingPathComponent("build.gradle.kts"),
+            root.appendingPathComponent("settings.gradle.kts")
         ]
         var hash: UInt64 = 14_695_981_039_346_656_037
         for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
@@ -31,7 +23,7 @@ extension CompanionManager {
         return String(hash, radix: 16)
     }
 
-    func sourceFiles(at locations: [URL]) -> [URL] {
+    private func sourceFiles(at locations: [URL]) -> [URL] {
         locations.flatMap { location -> [URL] in
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory) else { return [] }
@@ -52,17 +44,17 @@ extension CompanionManager {
         }
     }
 
-    func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
+    private func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
         (hash ^ UInt64(byte)) &* 1_099_511_628_211
     }
 
-    func sourceFingerprintMatches(config: CompanionConfig) -> Bool {
-        let path = fingerprintPath(config: config)
-        return (try? String(contentsOfFile: path, encoding: .utf8)) == currentSourceFingerprint(config: config)
+    func sourceFingerprintMatches(config: AndroidCompanionConfig) -> Bool {
+        (try? String(contentsOfFile: fingerprintPath(config: config), encoding: .utf8))
+            == currentSourceFingerprint(config: config)
     }
 
     /// Records `fingerprint` (hashed before the build it describes), or the current one when omitted.
-    func writeSourceFingerprint(config: CompanionConfig, fingerprint: String? = nil) throws {
+    func writeSourceFingerprint(config: AndroidCompanionConfig, fingerprint: String? = nil) throws {
         let path = fingerprintPath(config: config)
         try FileManager.default.createDirectory(
             at: URL(fileURLWithPath: path).deletingLastPathComponent(),
@@ -75,7 +67,7 @@ extension CompanionManager {
         )
     }
 
-    func fingerprintPath(config: CompanionConfig) -> String {
-        config.companionDir + "/build/.amoo-source-fingerprint"
+    private func fingerprintPath(config: AndroidCompanionConfig) -> String {
+        config.companionDir + "/app/build/.amoo-source-fingerprint"
     }
 }
