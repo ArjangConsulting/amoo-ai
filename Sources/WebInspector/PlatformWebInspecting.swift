@@ -61,6 +61,22 @@ public struct PlatformWebInspecting: WebInspecting {
     private func iosSimulatorClient(bundleID: String?, udid: String?) async throws -> any WebInspectorClient {
         #if canImport(Darwin)
         let device = (udid?.isEmpty == false) ? udid ?? "booted" : "booted"
+        // webinspectord idles out, so later attempts re-resolve the socket (it can move) and
+        // reconnect instead of surfacing "closed the connection" to the caller.
+        let shell = shell
+        let connect: ReconnectingWebInspectorClient.Connect = {
+            let socket = try await Self.simulatorSocketPath(shell: shell, device: device)
+            return try WebKitWebInspectorClient(channel: UnixSocketWebKitChannel(socketPath: socket), bundleID: bundleID)
+        }
+        return try await ReconnectingWebInspectorClient(initial: connect(), connect: connect)
+        #else
+        throw WebInspectorError.iosTransportNotImplemented
+        #endif
+    }
+
+    #if canImport(Darwin)
+    /// `RWI_LISTEN_SOCKET` of `device`, from its launchd.
+    static func simulatorSocketPath(shell: any WebInspectorShell, device: String) async throws -> String {
         let result = try await shell.run(["xcrun", "simctl", "getenv", device, "RWI_LISTEN_SOCKET"])
         let path = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         guard result.exitCode == 0, !path.isEmpty else {
@@ -69,11 +85,9 @@ public struct PlatformWebInspecting: WebInspecting {
                     + "supported yet): \(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
             )
         }
-        return try WebKitWebInspectorClient(channel: UnixSocketWebKitChannel(socketPath: path), bundleID: bundleID)
-        #else
-        throw WebInspectorError.iosTransportNotImplemented
-        #endif
+        return path
     }
+    #endif
 
     // MARK: - Android
 

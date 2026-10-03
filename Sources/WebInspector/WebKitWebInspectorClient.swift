@@ -63,9 +63,9 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
     }
 
     public func evaluate(_ request: WebViewEvalRequest) async throws -> WebViewEvalResult {
-        try await attachIfNeeded()
-        let page = attached
         let timeout = Duration.milliseconds(request.timeoutMilliseconds)
+        try await attachIfNeeded(budget: min(handshakeTimeout, timeout))
+        let page = attached
         let evaluated = try await command(
             "Runtime.evaluate",
             ["expression": .string(request.expression), "objectGroup": .string("amoo"), "returnByValue": .bool(false)],
@@ -131,12 +131,27 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
 
     // MARK: - Handshake
 
-    private func attachIfNeeded() async throws {
+    private func attachIfNeeded(budget: Duration) async throws {
         guard attached == nil else { return }
         let connection = ["WIRConnectionIdentifierKey": WIRValue.string(connectionID)]
         try await channel.send(selector: "_rpc_reportIdentifier:", argument: connection)
         try await channel.send(selector: "_rpc_getConnectedApplications:", argument: connection)
-        try await pump(until: { $0.applications.isEmpty == false }, timeout: handshakeTimeout)
+        do {
+            try await pump(until: { $0.applications.isEmpty == false }, timeout: budget)
+        } catch WebInspectorError.timedOut(let milliseconds) {
+            // Nothing answered at all: webinspectord is restarting or gone, so callers may retry.
+            throw WebInspectorError.transportUnavailable(
+                "webinspectord did not answer the handshake within \(milliseconds)ms"
+            )
+        }
+        // A freshly restarted webinspectord reports its application list before the app has
+        // re-registered. Give the app a moment to appear before declaring it "not running".
+        if let bundleID, Self.inspectableApplications(Array(applications.values), bundleID: bundleID).isEmpty {
+            try? await pump(
+                until: { Self.inspectableApplications(Array($0.applications.values), bundleID: bundleID).isEmpty == false },
+                timeout: min(budget, .seconds(2))
+            )
+        }
 
         let candidates = Self.inspectableApplications(Array(applications.values), bundleID: bundleID)
         guard !candidates.isEmpty else {
@@ -150,7 +165,7 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
             )
         }
         // Listings arrive one message per application; give them the handshake budget.
-        try? await pump(until: { $0.pages.contains(where: \.isWebPage) }, timeout: handshakeTimeout)
+        try? await pump(until: { $0.pages.contains(where: \.isWebPage) }, timeout: budget)
         try? await pump(until: { _ in false }, timeout: .milliseconds(300))
 
         guard let page = Self.pickPage(pages) else {
@@ -216,12 +231,7 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
         argument["WIRSocketDataKey"] = .data(outgoing)
         try await channel.send(selector: "_rpc_forwardSocketData:", argument: argument)
 
-        do {
-            try await pump(until: { $0.replies[id] != nil }, timeout: timeout)
-        } catch WebInspectorError.timedOut {
-            throw WebInspectorError.timedOut(milliseconds: Int(timeout.components.seconds * 1000
-                    + timeout.components.attoseconds / 1_000_000_000_000_000))
-        }
+        try await pump(until: { $0.replies[id] != nil }, timeout: timeout)
         guard let reply = replies.removeValue(forKey: id) else {
             throw WebInspectorError.protocolError("no reply to \(method)")
         }
@@ -236,8 +246,13 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
         let deadline = ContinuousClock.now + timeout
         while !condition(self) {
             let remaining = deadline - ContinuousClock.now
-            guard remaining > .zero else { throw WebInspectorError.timedOut(milliseconds: 0) }
-            let message = try await channel.receive(timeout: remaining)
+            guard remaining > .zero else { throw WebInspectorError.timedOut(milliseconds: timeout.milliseconds) }
+            let message: WIRMessage?
+            do {
+                message = try await channel.receive(timeout: remaining)
+            } catch WebInspectorError.timedOut {
+                throw WebInspectorError.timedOut(milliseconds: timeout.milliseconds)
+            }
             guard let message else {
                 throw WebInspectorError.transportUnavailable("webinspectord closed the connection")
             }
@@ -313,5 +328,12 @@ extension JSONValue {
             return value
         }
         return nil
+    }
+}
+
+extension Duration {
+    /// Whole milliseconds, for error messages and `timeout_ms` round-trips.
+    var milliseconds: Int {
+        Int(components.seconds * 1000 + components.attoseconds / 1_000_000_000_000_000)
     }
 }

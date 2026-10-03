@@ -221,6 +221,10 @@ public final class UnixSocketWebKitChannel: WebKitRPCChannel, @unchecked Sendabl
             throw WebInspectorError.transportUnavailable("connect(\(socketPath)): \(reason)")
         }
         descriptor = socketDescriptor
+        // webinspectord exits when idle; a write to the dead peer must fail with EPIPE, not kill
+        // amoo with SIGPIPE (exit 141).
+        var noSigPipe: Int32 = 1
+        setsockopt(socketDescriptor, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
 
         let queue = queue
         let reader = Thread {
