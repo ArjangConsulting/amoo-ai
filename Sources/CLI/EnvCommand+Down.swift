@@ -27,16 +27,7 @@ struct EnvDownReport: Encodable {
 func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLeaseStore()) async -> CLIResult {
     var report = EnvDownReport(ok: false, holderStopped: false, shutdown: false)
     let finish: (Int32) -> CLIResult = { code in
-        let human: String
-        if report.ok, report.lease == nil {
-            let holders = report.orphansStopped?.map { String($0) }.joined(separator: ", ") ?? "none"
-            human = "No lease on \(report.device ?? "?"); stopped orphaned companion holder(s): \(holders)."
-        } else if report.ok {
-            let ending = report.shutdown ? "; device shut down." : "."
-            human = "Released \(report.lease ?? "?") on \(report.device ?? "?")" + ending
-        } else {
-            human = "env down failed: \(report.error ?? "unknown error")"
-        }
+        let human = envDownSummary(report)
         return CLIResult(output: options.json ? renderJSON(report) : human, exitCode: code)
     }
 
@@ -158,4 +149,14 @@ func handleEnvCommand(remaining: [String]) async -> CLIResult {
     case let .success(.list(json)):
         return runEnvList(json: json)
     }
+}
+
+private func envDownSummary(_ report: EnvDownReport) -> String {
+    guard report.ok else { return "env down failed: \(report.error ?? "unknown error")" }
+    if report.lease == nil {
+        let holders = report.orphansStopped?.map { String($0) }.joined(separator: ", ") ?? "none"
+        return "No lease on \(report.device ?? "?"); stopped orphaned companion holder(s): \(holders)."
+    }
+    return "Released \(report.lease ?? "?") on \(report.device ?? "?")"
+        + (report.shutdown ? "; device shut down." : ".")
 }

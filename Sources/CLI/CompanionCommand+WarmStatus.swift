@@ -87,12 +87,23 @@ func runIOSCompanionStatus(options: CompanionCommandOptions) async -> CLIResult 
 
 func runAndroidCompanionStatus(
     options: CompanionCommandOptions,
+    processRunner: any ProcessRunner = SystemProcessRunner(),
     currentDirectory: String = FileManager.default.currentDirectoryPath
 ) async -> CLIResult {
     let companionDir = options.companionDir
         ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
+    let port: Int
+    do {
+        port = try await resolveAndroidCompanionPort(
+            deviceID: options.deviceID,
+            explicitPort: options.port,
+            processRunner: processRunner
+        )
+    } catch {
+        return CLIResult(output: "Companion status failed: \(error)", exitCode: 1)
+    }
     let config = AndroidCompanionConfig(
-        port: options.port ?? AndroidCompanionConfig.defaultPort,
+        port: port,
         companionDir: companionDir,
         serial: options.deviceID
     )

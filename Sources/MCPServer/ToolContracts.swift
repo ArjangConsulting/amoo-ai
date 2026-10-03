@@ -117,10 +117,19 @@ public enum ToolProfile: String, Sendable, CaseIterable {
             "list_devices",
             "run_steps"
         ])
+        if name == "session_startup_status" {
+            return true
+        }
         switch self {
         case .all: return true
         case .drive:
-            let management = ["start_session", "end_session", "companion_warm", "companion_status"]
+            let management = [
+                "start_session",
+                "end_session",
+                "companion_warm",
+                "companion_status",
+                "session_startup_status"
+            ]
             return driving.contains(name) || management.contains(name)
         case .record: return driving.contains(name) || lifecycle.contains(name)
         case .audit: return Set(AuditTools.names + AssistantTools.names).contains(name) || lifecycle.contains(name)
