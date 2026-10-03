@@ -101,7 +101,8 @@ func handleDoctorCommand(remaining: [String]) async -> CLIResult {
         let killed = killStaleMCPServers(report.mcpServers)
         report.notes.append(killed.isEmpty
             ? "--kill-stale: no stale MCP servers to stop."
-            : "--kill-stale: sent SIGTERM to stale MCP server pid(s) \(killed.map(String.init).joined(separator: ", ")).")
+            :
+            "--kill-stale: sent SIGTERM to stale MCP server pid(s) \(killed.map(String.init).joined(separator: ", ")).")
     }
     let output = remaining.contains("--json") ? renderJSON(report) : humanDoctorSummary(report)
     return CLIResult(output: output, exitCode: report.ok ? 0 : 1)

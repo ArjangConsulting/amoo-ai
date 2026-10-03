@@ -96,8 +96,17 @@ public extension ForeignBuildDetector {
                   result.exitCode == 0 else { return [] }
             return Self.parseIOSHijackers(result.stdout, udid: deviceID, ownProcessIDs: ownProcessIDs)
         case .android:
-            guard let result = try? await processRunner.run(["adb", "-s", deviceID, "shell", "ps", "-A", "-o", "PID,ARGS"]),
-                  result.exitCode == 0 else { return [] }
+            guard let result = try? await processRunner.run([
+                "adb",
+                "-s",
+                deviceID,
+                "shell",
+                "ps",
+                "-A",
+                "-o",
+                "PID,ARGS"
+            ]),
+                result.exitCode == 0 else { return [] }
             return Self.parseAndroidHijackers(result.stdout)
         }
     }

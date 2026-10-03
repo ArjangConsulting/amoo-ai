@@ -68,7 +68,13 @@ final class DeviceLeaseTests: XCTestCase {
         let reaped = ReapRecorder()
         let store = DeviceLeaseStore.temporary(ttl: 60) { reaped.record($0.id) }
         let past = Date().addingTimeInterval(-3600)
-        let lease = try store.acquire(platform: .android, deviceID: "emulator-5554", deviceName: nil, owner: nil, now: past)
+        let lease = try store.acquire(
+            platform: .android,
+            deviceID: "emulator-5554",
+            deviceName: nil,
+            owner: nil,
+            now: past
+        )
 
         XCTAssertTrue(store.all().isEmpty)
         XCTAssertEqual(reaped.ids, [lease.id])
@@ -77,7 +83,7 @@ final class DeviceLeaseTests: XCTestCase {
     }
 
     func testHolderCommandMatchingGuardsAgainstPIDReuse() {
-        let holder = "/x/amoo companion start --platform android --device emulator-5554 --port 22093 --ready-timeout 180"
+        let holder = "/x/amoo companion start --platform android --device emulator-5554 --port 22093"
         XCTAssertTrue(isCompanionHolderCommand(holder, deviceID: "emulator-5554"))
         XCTAssertFalse(isCompanionHolderCommand(holder, deviceID: "emulator-5556"))
         XCTAssertFalse(isCompanionHolderCommand("/usr/bin/vim notes.txt", deviceID: "emulator-5554"))

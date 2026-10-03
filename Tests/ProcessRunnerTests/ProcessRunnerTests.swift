@@ -167,31 +167,29 @@ final class ProcessRunnerTests: XCTestCase {
         )
     }
 
-    func testADBRunnerLaunchFallsBackWhenResolveActivityFails() async throws {
+    /// A failed resolve used to guess `<appID>/.MainActivity`, which is wrong whenever the launcher
+    /// class lives outside the applicationId package (flavors, applicationIdSuffix). Report it instead.
+    func testADBRunnerLaunchFailsClearlyWhenNoLauncherActivityResolves() async throws {
         let mock = MockShellExecutor(results: [
-            .init(exitCode: 1, stdout: "", stderr: "missing"),
-            .init(exitCode: 0, stdout: "", stderr: "")
+            .init(exitCode: 0, stdout: "No activity found\n", stderr: "")
         ])
         let runner = ADBRunner(context: mock.context)
 
-        try await runner.launch(
-            serial: "emulator-5554", appID: "com.example.app", arguments: ["foo", "bar"]
-        )
+        do {
+            try await runner.launch(serial: "emulator-5554", appID: "com.example.app", arguments: ["foo", "bar"])
+            XCTFail("expected a launcher-resolution failure")
+        } catch {
+            XCTAssertTrue("\(error)".contains("No launchable (MAIN/LAUNCHER) activity"), "\(error)")
+        }
 
         let commands = await mock.recordedCommands()
+        XCTAssertEqual(commands.count, 1, "no `am start` against a guessed component")
         XCTAssertEqual(
             commands[0],
             [
                 "adb", "-s", "emulator-5554", "shell", "cmd", "package", "resolve-activity", "--brief",
+                "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
                 "com.example.app"
-            ]
-        )
-        XCTAssertEqual(
-            commands[1],
-            [
-                "adb", "-s", "emulator-5554", "shell", "am", "start", "-n", "com.example.app/.MainActivity",
-                "--es", "arg", "foo",
-                "--es", "arg", "bar"
             ]
         )
     }
@@ -217,7 +215,11 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(commands[0], ["adb", "-s", "emulator-5554", "install", "-r", "/tmp/app.apk"])
         XCTAssertEqual(
             commands[1],
-            ["adb", "shell", "cmd", "package", "resolve-activity", "--brief", "com.example.app"]
+            [
+                "adb", "shell", "cmd", "package", "resolve-activity", "--brief",
+                "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
+                "com.example.app"
+            ]
         )
         XCTAssertEqual(
             commands[2], ["adb", "shell", "am", "start", "-n", "com.example.app/.RealLauncherActivity"]

@@ -223,7 +223,9 @@ func simulatorBootFailure(exitCode: Int32?, stderr: String?) -> String? {
     guard let exitCode, exitCode != 0 else { return nil }
     let text = (stderr ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     // Racing another booter: "Unable to boot device in current state: Booted" is not a failure.
-    if text.contains("current state: Booted") || text.contains("current state: Booting") { return nil }
+    if text.contains("current state: Booted") || text.contains("current state: Booting") {
+        return nil
+    }
     return text.isEmpty ? "simctl boot exited \(exitCode)" : text
 }
 
@@ -393,7 +395,9 @@ func reapExpiredLease(_ lease: DeviceLease) {
         for _ in 0 ..< 20 where kill(pid, 0) == 0 {
             Thread.sleep(forTimeInterval: 0.25)
         }
-        if kill(pid, 0) == 0 { kill(-pid, SIGKILL) }
+        if kill(pid, 0) == 0 {
+            kill(-pid, SIGKILL)
+        }
     }
     if lease.platform == .android, lease.deviceID.hasPrefix("emulator-") {
         reapAndroidRemainder(lease)
@@ -407,7 +411,9 @@ private func reapAndroidRemainder(_ lease: DeviceLease) {
         process.arguments = ["adb", "-s", lease.deviceID, "shell", "am", "force-stop", package]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
-        if (try? process.run()) != nil { process.waitUntilExit() }
+        if (try? process.run()) != nil {
+            process.waitUntilExit()
+        }
     }
 }
 

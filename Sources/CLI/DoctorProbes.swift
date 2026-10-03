@@ -181,7 +181,9 @@ func parseUnavailableSimulatorProblems(runtimesJSON: String, devicesJSON: String
     let decoder = JSONDecoder()
     if let runtimes = try? decoder.decode(Runtimes.self, from: Data(runtimesJSON.utf8)) {
         for runtime in runtimes.runtimes {
-            if let id = runtime.identifier, let name = runtime.name { runtimeNames[id] = name }
+            if let id = runtime.identifier, let name = runtime.name {
+                runtimeNames[id] = name
+            }
             if runtime.isAvailable == false {
                 problems.append("Simulator runtime \(runtime.name ?? runtime.identifier ?? "?") is unavailable"
                     + (runtime.availabilityError.map { ": \($0)" } ?? "") + ".")
