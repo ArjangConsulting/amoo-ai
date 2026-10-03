@@ -135,7 +135,7 @@ public enum SessionPlanCompiler {
     /// Legacy recordings may still contain these calls; ignore them instead of emitting failing test steps.
     static let controlPlaneTools: Set<String> = [
         "start_session", "start_test_session", "end_session", "end_test_session",
-        "list_sessions", "get_session_report", "compile_session_to_plan", "run_steps"
+        "list_sessions", "get_session_report", "compile_session_to_plan", "session_startup_status", "run_steps"
     ]
 
     /// Tools that inspect the app without changing it. They have no place in generated test code,

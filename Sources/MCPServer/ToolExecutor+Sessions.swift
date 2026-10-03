@@ -9,23 +9,46 @@ extension DriverToolExecutor {
     // MARK: - Session tools
 
     func executeStartSession(arguments: [String: String]) async throws -> ToolResult {
-        guard let manager = sessionManager else {
+        guard sessionManager != nil else {
             return .error("Session management not configured. Run `amoo mcp serve` to enable.")
         }
-        guard let appID = arguments["app_id"] else {
+        guard arguments["app_id"] != nil else {
             return .error("Missing required argument: app_id")
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
-        guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
+        guard Platform(rawValue: platformRaw.lowercased()) != nil else {
             return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
         }
+        guard let buildMode = SessionBuildMode(rawValue: arguments["build_mode"] ?? "auto") else {
+            return .error("build_mode must be auto, reuse, or rebuild.")
+        }
+        let operation = StartupOperation()
+        await StartupProgressStore.shared.add(operation)
+        return await StartupProgress.$startup.withValue(operation) {
+            let result = await startSession(arguments: arguments, buildMode: buildMode)
+            await operation.finish(success: !result.isError)
+            return result
+        }
+    }
+
+    private func startSession(
+        arguments: [String: String],
+        buildMode: SessionBuildMode
+    ) async -> ToolResult {
+        guard let manager = sessionManager,
+              let appID = arguments["app_id"],
+              let platform = Platform(rawValue: (arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios")
+                  .lowercased())
+        else { return .error("Session configuration is missing.") }
         let deviceHint = arguments["device_hint"]
         let buildPath = arguments["build_path"]
         let launchArgs: [String] = arguments["launch_args"]
             .map { $0.split(separator: ",").map(String.init) } ?? []
         let environment = Self.parseEnvironment(arguments["environment"])
         let testName = arguments["test_name"]
-        let contextJSON = try Self.contextSnapshot(arguments)
+        let contextJSON: String?
+        do { contextJSON = try Self.contextSnapshot(arguments) } catch { return .error("Invalid context: \(error)") }
+        await StartupProgress.report("Preparing session startup")
         let contentionWarning = await foreignBuildDetector.contentionWarning()
 
         do {
@@ -34,6 +57,7 @@ extension DriverToolExecutor {
                 platform: platform,
                 deviceHint: deviceHint,
                 buildPath: buildPath,
+                buildMode: buildMode,
                 arguments: launchArgs,
                 environment: environment,
                 testName: testName
@@ -56,6 +80,7 @@ extension DriverToolExecutor {
                 "device_id": .string(session.deviceID),
                 "platform": .string(session.platform.rawValue)
             ]
+            summary["recording_health"] = await .string(manager.recordingHealth(for: session.id))
             var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
                 + " device \(session.deviceID)."
             if let contentionWarning {
@@ -64,6 +89,7 @@ extension DriverToolExecutor {
             }
             return .success(text, structuredContent: .object(summary))
         } catch {
+            await StartupProgress.report("Session startup failed: \(error)")
             return .error("start_session failed: \(error)")
         }
     }

@@ -8,6 +8,8 @@ import XcodeGenKit
 // MARK: - Configuration
 
 struct CompanionConfig: Equatable {
+    var buildMode: SessionBuildMode = .auto
+    var bootSimulator = false
     var host: String
     var port: Int
     var companionDir: String
@@ -135,7 +137,7 @@ final class CompanionManager: @unchecked Sendable {
     private var companionProcess: (any SpawnedProcess)?
     private var activeConfig: CompanionConfig?
     private let shellContext: ShellContext
-    private let processRunner: any ProcessRunner
+    let processRunner: any ProcessRunner
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
         self.processRunner = processRunner
@@ -146,10 +148,10 @@ final class CompanionManager: @unchecked Sendable {
 
     /// Builds (installs) the companion test bundle without launching it.
     func install(config: CompanionConfig, force: Bool = false) async throws {
-        let productsDir = config.companionDir + "/build/Build/Products"
+        let productsDir = companionProductsDirectory(config: config)
         if !force,
            findXCTestRun(productsDir: productsDir, config: config) != nil,
-           sourceFingerprintMatches(config: config) {
+           hasBundledProducts(config: config) || sourceFingerprintMatches(config: config) {
             // Says "built", never "installed" or "running" — a previous build product on disk is
             // all this proves. Reporting it as plain success is what made a dead companion look
             // like a healthy one: nothing was on the device and nothing was listening on the port.
@@ -188,6 +190,7 @@ final class CompanionManager: @unchecked Sendable {
 
         print("Installing and starting companion on port \(config.port)...")
         try await launchCompanion(xctestrunPath: testrun, config: config)
+        await StartupProgress.report("Waiting for iOS companion API")
         try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
                 host: config.host,
@@ -198,12 +201,18 @@ final class CompanionManager: @unchecked Sendable {
         print(colored("Companion ready.", .bold, .green))
     }
 
+    // swiftlint:disable function_body_length - linear startup lifecycle with rollback.
     /// Ensures the companion is running. Builds and launches it if necessary.
     func ensureRunning(config: CompanionConfig, force: Bool = false) async throws {
         if force {
             await shutdown()
         }
-        let sourcesChanged = !sourceFingerprintMatches(config: config)
+        await StartupProgress.report("Checking iOS companion")
+        let sourcesChanged = config
+            .buildMode == .rebuild ||
+            (config
+                .buildMode != .reuse && !hasBundledProducts(config: config) &&
+                !sourceFingerprintMatches(config: config))
         if config.isPhysicalDevice, companionProcess != nil, activeConfig == config, !force, !sourcesChanged {
             print("Companion already running on physical device \(config.deviceUDID).")
             return
@@ -235,23 +244,35 @@ final class CompanionManager: @unchecked Sendable {
             )
         }
 
-        let productsDir = config.companionDir + "/build/Build/Products"
+        async let simulatorReady: Void = prepareSimulator(config: config)
+        let productsDir = companionProductsDirectory(config: config)
         var xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
 
+        if config.buildMode == .reuse, xctestrunPath == nil {
+            throw CompanionError
+                .buildFailed(
+                    "No cached iOS companion. Install an amoo distribution with prebuilt companions, "
+                        + "or use build_mode=auto once."
+                )
+        }
         if force || sourcesChanged || xctestrunPath == nil {
+            await StartupProgress.report("Building iOS companion (in parallel with simulator boot)")
             print("Companion sources changed or no build exists. Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building companion app") {
                 try await buildForTesting(config: config)
             }
-            xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
+            xctestrunPath = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config)
         }
 
         guard let testrun = xctestrunPath else {
             throw CompanionError.buildFailed("No .xctestrun found after build.")
         }
 
+        try await simulatorReady
+        let launchTestRun = try await signedTestRunIfNeeded(testrun, config: config)
+        await StartupProgress.report("Launching iOS companion; Xcode may take several minutes")
         print("Starting companion on port \(config.port)...")
-        try await launchCompanion(xctestrunPath: testrun, config: config)
+        try await launchCompanion(xctestrunPath: launchTestRun, config: config)
 
         // A physical device does not share the host's loopback interface. Session bootstrap
         // opens iproxy after xcodebuild has launched the runner, then performs a gRPC probe.
@@ -268,6 +289,8 @@ final class CompanionManager: @unchecked Sendable {
         }
         print(colored("Companion ready.", .bold, .green))
     }
+
+    // swiftlint:enable function_body_length
 
     /// Returns once the runner this manager spawned exits, reporting its exit code and log.
     /// Never returns when this process spawned none — it is only attached to another holder's
@@ -294,7 +317,7 @@ final class CompanionManager: @unchecked Sendable {
 
     // MARK: - Private
 
-    private func findXCTestRun(productsDir: String, config: CompanionConfig) -> String? {
+    func findXCTestRun(productsDir: String, config: CompanionConfig) -> String? {
         guard
             let enumerator = FileManager.default.enumerator(
                 at: URL(fileURLWithPath: productsDir),
