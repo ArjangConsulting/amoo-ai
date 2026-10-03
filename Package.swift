@@ -24,7 +24,7 @@ let package = Package(
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.1.0"),
+        .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
         .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", from: "0.6.0"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),

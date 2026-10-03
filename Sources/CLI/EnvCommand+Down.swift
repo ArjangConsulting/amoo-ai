@@ -27,13 +27,16 @@ struct EnvDownReport: Encodable {
 func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLeaseStore()) async -> CLIResult {
     var report = EnvDownReport(ok: false, holderStopped: false, shutdown: false)
     let finish: (Int32) -> CLIResult = { code in
-        let human = report.ok && report.lease == nil
-            ? "No lease on \(report.device ?? "?"); stopped orphaned companion holder(s): "
-            + (report.orphansStopped?.map(String.init).joined(separator: ", ") ?? "none") + "."
-            : report.ok
-            ? "Released \(report.lease ?? "?") on \(report.device ?? "?")"
-            + (report.shutdown ? "; device shut down." : ".")
-            : "env down failed: \(report.error ?? "unknown error")"
+        let human: String
+        if report.ok, report.lease == nil {
+            let holders = report.orphansStopped?.map { String($0) }.joined(separator: ", ") ?? "none"
+            human = "No lease on \(report.device ?? "?"); stopped orphaned companion holder(s): \(holders)."
+        } else if report.ok {
+            let ending = report.shutdown ? "; device shut down." : "."
+            human = "Released \(report.lease ?? "?") on \(report.device ?? "?")" + ending
+        } else {
+            human = "env down failed: \(report.error ?? "unknown error")"
+        }
         return CLIResult(output: options.json ? renderJSON(report) : human, exitCode: code)
     }
 
