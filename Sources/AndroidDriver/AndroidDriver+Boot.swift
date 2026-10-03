@@ -48,9 +48,9 @@ public extension AndroidDriver {
             )
         }
         let port = nextEmulatorPort(devices: devices)
-        try await emulator.launch(avdName: avdName, port: port)
+        let launch = try await emulator.launchProcess(avdName: avdName, port: port)
         let launchedSerial = "emulator-\(port)"
-        try await waitForBoot(serial: launchedSerial, timeoutSeconds: 120)
+        try await waitForBoot(serial: launchedSerial, timeoutSeconds: 120, launch: launch)
         resolvedSerial = launchedSerial
     }
 }

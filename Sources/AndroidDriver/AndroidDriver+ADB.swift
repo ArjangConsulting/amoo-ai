@@ -68,9 +68,27 @@ extension AndroidDriver {
         return lockedMarkers.contains { windowDump.stdout.contains($0) } ? .locked : .on
     }
 
-    func waitForBoot(serial: String, timeoutSeconds: Int) async throws {
+    /// Waits for `serial` to finish booting. When `launch` is given, an emulator process that dies
+    /// first fails the wait at once — with its exit code and log — instead of timing out.
+    func waitForBoot(serial: String, timeoutSeconds: Int, launch: EmulatorLaunch? = nil) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
+        var launcherExitedAt: Date?
         while Date() < deadline {
+            if let launch, case let .exited(exitCode) = launch.liveness() {
+                // A launcher that exited 0 may have handed off to a sibling process still
+                // registering with adb, so give that a grace period; a crash fails immediately.
+                let exitedAt = launcherExitedAt ?? Date()
+                launcherExitedAt = exitedAt
+                let registered = try await connectedDevices().contains { $0.serial == serial }
+                if !registered, exitCode != 0 || Date().timeIntervalSince(exitedAt) > 10 {
+                    throw AmooError.commandFailed(
+                        command: "emulator -avd \(requestedDeviceID ?? serial) -port \(serial.dropFirst("emulator-".count))",
+                        output: "The emulator exited before it booted"
+                            + (exitCode.map { " (exit code \($0))" } ?? "")
+                            + ". Log: \(launch.logPath ?? "none")\n\(launch.logTail())"
+                    )
+                }
+            }
             let devices = try await connectedDevices()
             if devices.contains(where: { $0.serial == serial && $0.state == "device" }) {
                 let result = try await adb.run(["-s", serial, "shell", "getprop", "sys.boot_completed"])
@@ -79,6 +97,17 @@ extension AndroidDriver {
                 }
             }
             try await Task.sleep(for: .seconds(1))
+        }
+        if let launch {
+            // Still alive but never reached `device`: say where to look instead of only timing out.
+            let tail = launch.logTail(lines: 10)
+            if !tail.isEmpty {
+                throw AmooError.commandFailed(
+                    command: "boot Android emulator \(requestedDeviceID ?? serial)",
+                    output: "Timed out after \(timeoutSeconds)s; the emulator process is still running"
+                        + " (pid \(launch.pid)). Log: \(launch.logPath ?? "none")\n\(tail)"
+                )
+            }
         }
         throw AmooError.timeout(
             operation: "boot Android emulator \(requestedDeviceID ?? serial)",

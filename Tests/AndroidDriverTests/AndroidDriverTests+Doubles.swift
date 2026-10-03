@@ -192,6 +192,17 @@ actor MockADBRunner: ADBRunning {
 
 actor MockEmulatorRunner: EmulatorRunning {
     private(set) var launches: [String] = []
+    /// When set, `launchProcess` hands this back so boot waits can watch the "process".
+    var handle: EmulatorLaunch?
+
+    func setHandle(_ handle: EmulatorLaunch?) {
+        self.handle = handle
+    }
+
+    func launchProcess(avdName: String, port: Int) async throws -> EmulatorLaunch? {
+        launches.append("\(avdName):\(port)")
+        return handle
+    }
 
     func launch(avdName: String, port: Int) async throws {
         launches.append("\(avdName):\(port)")
