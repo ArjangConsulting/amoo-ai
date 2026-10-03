@@ -272,7 +272,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             try await iOSCompanionManager.ensureRunning(config: config, force: false)
             return (booted.udid, port)
         case let .android(serial, _):
-            let port = 22088
+            // One port per device: concurrent sessions on different emulators must not share one.
+            let port = await androidCompanionManager.companionPort(forSerial: serial)
             var config = AndroidCompanionConfig(port: port, serial: serial)
             config.buildMode = buildMode
             config.buildPrepared = true

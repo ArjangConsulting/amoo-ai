@@ -18,6 +18,21 @@ struct AndroidCompanionConfig {
     /// The port an Android companion listens on unless told otherwise.
     static let defaultPort = 22088
 
+    /// Emulator console ports are even numbers 5554…5584; each maps to one port from `defaultPort`.
+    private static let emulatorConsolePorts = 5554 ... 5584
+    /// First port used for devices that are not emulators; sits above the 16 emulator slots.
+    static let fallbackPortBase = defaultPort + 16
+    static let maxPort = 65535
+
+    /// The fixed companion port for an `emulator-<console port>` serial, or nil for other devices.
+    static func emulatorPort(forSerial serial: String) -> Int? {
+        guard serial.hasPrefix("emulator-"),
+              let console = Int(serial.dropFirst("emulator-".count)),
+              emulatorConsolePorts.contains(console), console.isMultiple(of: 2)
+        else { return nil }
+        return defaultPort + (console - emulatorConsolePorts.lowerBound) / 2
+    }
+
     init(
         host: String = "127.0.0.1",
         port: Int = Self.defaultPort,
@@ -122,15 +137,31 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
 protocol AndroidCompanionManaging: Sendable {
     func ensureRunning(config: AndroidCompanionConfig, force: Bool) async throws
     func prepareBuild(config: AndroidCompanionConfig) async throws
+    /// The host port the companion for `serial` is reachable on. Distinct per device so that
+    /// concurrent sessions on different emulators do not share a port.
+    func companionPort(forSerial serial: String) async -> Int
 }
 
 extension AndroidCompanionManaging {
     func prepareBuild(config _: AndroidCompanionConfig) async throws {}
+
+    func companionPort(forSerial _: String) async -> Int {
+        AndroidCompanionConfig.defaultPort
+    }
 }
 
 final class AndroidCompanionManager: @unchecked Sendable {
-    private var instrumentProcess: (any SpawnedProcess)?
-    private var activeConfig: AndroidCompanionConfig?
+    /// A companion this manager launched for one device.
+    struct RunningCompanion {
+        var process: (any SpawnedProcess)?
+        var config: AndroidCompanionConfig
+    }
+
+    /// Per-device state, keyed by serial (`""` for the default device). Guarded by `stateLock`,
+    /// which is never held across an `await`: sessions on different emulators run concurrently.
+    var running: [String: RunningCompanion] = [:]
+    var fallbackPorts: [String: Int] = [:]
+    let stateLock = NSLock()
     private let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
@@ -185,15 +216,15 @@ final class AndroidCompanionManager: @unchecked Sendable {
             (config.buildMode == .rebuild ||
                 (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
         if force {
-            if activeConfig == nil {
+            if tracked(serial: config.serial) == nil {
                 await clearStaleCompanion(config: config)
             } else {
-                await shutdown()
+                await shutdown(serial: config.serial)
             }
         }
 
         if !force, !sourcesChanged,
-           activeConfig == nil || activeConfig?.serial == config.serial,
+           !isPortHeldByOtherDevice(config: config),
            await isCompanionReady(host: config.host, port: config.port) {
             print("Android companion already running on port \(config.port) for"
                 + " \(config.serial ?? "default device").")
@@ -201,8 +232,8 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
 
         // Do not leave a wedged instrumentation runner behind when starting its replacement.
-        if activeConfig != nil {
-            await shutdown()
+        if tracked(serial: config.serial) != nil {
+            await shutdown(serial: config.serial)
         }
 
         if await isReachable(host: config.host, port: config.port), sourcesChanged {
@@ -248,8 +279,8 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
         await StartupProgress.report("Launching Android companion instrumentation")
         print("Starting Android companion instrumentation on port \(config.port)...")
-        try await launchInstrumentation(config: config)
-        activeConfig = config
+        let process = try await launchInstrumentation(config: config)
+        setTracked(RunningCompanion(process: process, config: config))
 
         // `--ready-timeout` (default 180s / `AMOO_COMPANION_READY_TIMEOUT`) bounds the wait for the
         // gRPC port. `waitUntilReachable` enforces it on the poll loop; the surrounding task-group
@@ -294,7 +325,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// Never returns when this process spawned none — it is only attached to another holder's
     /// companion, whose lifetime is not its to manage.
     func waitForRunnerExit() async {
-        guard let process = instrumentProcess else {
+        guard let process = firstTrackedProcess() else {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3600))
             }
@@ -303,18 +334,6 @@ final class AndroidCompanionManager: @unchecked Sendable {
         let output = await process.waitForExit()
         guard !Task.isCancelled else { return }
         print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red))
-    }
-
-    func shutdown() async {
-        if let process = instrumentProcess {
-            _ = await process.teardownAndWait()
-            instrumentProcess = nil
-        }
-
-        guard let config = activeConfig else { return }
-        activeConfig = nil
-
-        await clearStaleCompanion(config: config)
     }
 
     // MARK: - Private
@@ -373,7 +392,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// state (`FIN_WAIT2` / `CLOSE_WAIT`) that a bare TCP probe accepts while every gRPC call is
     /// refused. Left in place it makes `waitUntilReachable` burn the full `--ready-timeout` with
     /// no diagnostic. Safe to call when nothing is running; costs ~1s.
-    private func clearStaleCompanion(config: AndroidCompanionConfig) async {
+    func clearStaleCompanion(config: AndroidCompanionConfig) async {
         for package in ["com.amoo.companion.test", "com.amoo.companion"] {
             _ = try? await Adb(context: shellContext)
                 .serial(config.serial)
@@ -428,12 +447,12 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
     }
 
-    private func launchInstrumentation(config: AndroidCompanionConfig) async throws {
+    private func launchInstrumentation(config: AndroidCompanionConfig) async throws -> any SpawnedProcess {
         let logPath = Self.launchLogPath(port: config.port)
         FileManager.default.createFile(atPath: logPath, contents: nil)
 
         do {
-            instrumentProcess = try await Adb(context: shellContext)
+            return try await Adb(context: shellContext)
                 .serial(config.serial)
                 .rawArguments(Self.instrumentArguments(port: config.port))
                 // The file is freshly created above; use append for both streams so SwiftyShell
