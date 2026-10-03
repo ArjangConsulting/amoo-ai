@@ -28,6 +28,35 @@ final class AgentInstallTests: XCTestCase {
         XCTAssertEqual(root?.standardizedFileURL, pluginRoot.standardizedFileURL)
     }
 
+    /// Regression: `.build/release/amoo agent install` from a source build could not find the plugin.
+    /// SwiftPM's `.build/release` is a symlink into `.build/<triple>/release` (or `out/Products/...`),
+    /// so the checkout root is several levels above the resolved binary.
+    func testBundledPluginIsFoundFromASwiftBuildBinaryThroughTheReleaseSymlink() throws {
+        let checkout = temporaryDirectory()
+        try FileManager.default.createDirectory(
+            at: checkout.appendingPathComponent("plugins"),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createSymbolicLink(
+            at: checkout.appendingPathComponent("plugins/amoo"),
+            withDestinationURL: pluginRoot
+        )
+        let products = checkout.appendingPathComponent(".build/out/Products/Release")
+        try FileManager.default.createDirectory(at: products, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: checkout.appendingPathComponent(".build/release"),
+            withDestinationURL: products
+        )
+        let executable = checkout.appendingPathComponent(".build/release/amoo")
+
+        let root = agentAssetsRoot(executableURL: executable, currentDirectoryPath: "/")
+
+        XCTAssertNotNil(root, "plugins/amoo must be found relative to a SwiftPM build directory")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: root?.appendingPathComponent("agents/device-verifier.md").path ?? "")
+        )
+    }
+
     func testBundledPluginIsFoundInAnInstalledPrefix() throws {
         let prefix = temporaryDirectory()
         let share = prefix.appendingPathComponent("share/amoo/plugins")
