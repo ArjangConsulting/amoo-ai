@@ -240,9 +240,9 @@ private struct StubDriver: PlatformDriver, Sendable {}
 
 extension SessionStoreTests {
     func testFailedSaveIsVisibleWithoutThrowingIntoDeviceWork() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try Data("blocks directory creation".utf8).write(to: root)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = try scratch.write(Data("blocks directory creation".utf8), named: "store")
         let store = FileSessionStore(root: root)
         let report = SessionReport(
             sessionID: "failed-write",
@@ -274,8 +274,9 @@ extension SessionStoreTests {
 
 extension SessionStoreTests {
     func testOldClosedSessionsReleaseMemoryButRemainReadable() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appendingPathComponent("store")
         let manager = SessionManager(bootstrapper: StubBootstrapper(), store: FileSessionStore(root: root))
         var firstID: String?
         for _ in 0 ..< 34 {

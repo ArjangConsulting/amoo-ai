@@ -1,5 +1,6 @@
 @testable import CLI
 import Foundation
+import TestCommons
 import XCTest
 
 final class AgentInstallTests: XCTestCase {
@@ -12,10 +13,9 @@ final class AgentInstallTests: XCTestCase {
         repoRoot.appendingPathComponent("plugins/amoo")
     }
 
-    private func temporaryDirectory() -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("agent-\(UUID().uuidString)")
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
-        return url
+    /// A not-yet-created path inside a scratch directory removed after the test.
+    private func temporaryDirectory() throws -> URL {
+        try makeScratchDirectory().url.appendingPathComponent("agent")
     }
 
     private func relativePaths(_ files: [AgentInstallFile], under root: URL) -> Set<String> {
@@ -32,7 +32,7 @@ final class AgentInstallTests: XCTestCase {
     /// SwiftPM's `.build/release` is a symlink into `.build/<triple>/release` (or `out/Products/...`),
     /// so the checkout root is several levels above the resolved binary.
     func testBundledPluginIsFoundFromASwiftBuildBinaryThroughTheReleaseSymlink() throws {
-        let checkout = temporaryDirectory()
+        let checkout = try temporaryDirectory()
         try FileManager.default.createDirectory(
             at: checkout.appendingPathComponent("plugins"),
             withIntermediateDirectories: true
@@ -58,7 +58,7 @@ final class AgentInstallTests: XCTestCase {
     }
 
     func testBundledPluginIsFoundInAnInstalledPrefix() throws {
-        let prefix = temporaryDirectory()
+        let prefix = try temporaryDirectory()
         let share = prefix.appendingPathComponent("share/amoo/plugins")
         try FileManager.default.createDirectory(at: share, withIntermediateDirectories: true)
         try FileManager.default.copyItem(at: pluginRoot, to: share.appendingPathComponent("amoo"))
@@ -73,7 +73,7 @@ final class AgentInstallTests: XCTestCase {
     }
 
     func testProjectInstallCoversEveryClientAndBothSkillDirectories() throws {
-        let target = temporaryDirectory()
+        let target = try temporaryDirectory()
         let files = try agentInstallPlan(AgentInstallOptions(target: target.path), assetsRoot: pluginRoot)
         let paths = relativePaths(files, under: target)
 
@@ -94,7 +94,7 @@ final class AgentInstallTests: XCTestCase {
     }
 
     func testUserInstallWritesUnderTheHomeDirectory() throws {
-        let home = temporaryDirectory()
+        let home = try temporaryDirectory()
         var options = AgentInstallOptions(target: "/nonexistent")
         options.scope = .user
         options.homeDirectory = home.path
@@ -110,8 +110,8 @@ final class AgentInstallTests: XCTestCase {
         XCTAssertFalse(paths.contains { $0.hasPrefix(".claude") })
     }
 
-    func testDryRunWritesNothing() {
-        let target = temporaryDirectory()
+    func testDryRunWritesNothing() throws {
+        let target = try temporaryDirectory()
         var options = AgentInstallOptions(target: target.path)
         options.dryRun = true
 
@@ -123,7 +123,7 @@ final class AgentInstallTests: XCTestCase {
     }
 
     func testInstallsOnceAndNeverClobbersLocalEditsWithoutForce() throws {
-        let target = temporaryDirectory()
+        let target = try temporaryDirectory()
         var options = AgentInstallOptions(target: target.path)
         options.clients = [.claude]
 

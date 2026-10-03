@@ -1,6 +1,7 @@
 import AmooCore
 import Foundation
 @testable import MCPServer
+import TestCommons
 import WebInspector
 import XCTest
 
@@ -140,9 +141,9 @@ final class WebViewToolsTests: XCTestCase {
 
 final class MCPStalenessTests: XCTestCase {
     func testStaleServerPrefixesToolResultsWithARestartWarning() throws {
-        let binary = FileManager.default.temporaryDirectory.appendingPathComponent("amoo-\(UUID().uuidString)")
-        try Data("v1".utf8).write(to: binary)
-        defer { try? FileManager.default.removeItem(at: binary) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let binary = try scratch.write(Data("v1".utf8), named: "amoo")
         let info = AmooBuildInfo.capture(executableURL: binary)
 
         let fresh = MCPStdioServer.annotatingStaleness(.success("ok"), buildInfo: info)

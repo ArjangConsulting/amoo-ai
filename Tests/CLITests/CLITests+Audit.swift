@@ -5,12 +5,12 @@ import Foundation
 import MCPServer
 import ProcessRunner
 import SwiftyShell
+import TestCommons
 import XCTest
 
 extension CLITests {
-    func testRunIOSCompanionInstallReturnsFailureDescription() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+    func testRunIOSCompanionInstallReturnsFailureDescription() async throws {
+        let companionDir = try makeTemporaryDirectory()
 
         let runner = MockCLIProcessRunner(results: [
             .failure(ShellError.commandNotFound("xcodegen"))
@@ -36,9 +36,8 @@ extension CLITests {
         #endif
     }
 
-    func testRunAndroidCompanionInstallBuildFailureUsesProcessOutput() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+    func testRunAndroidCompanionInstallBuildFailureUsesProcessOutput() async throws {
+        let companionDir = try makeTemporaryDirectory()
 
         let runner = MockCLIProcessRunner(results: [
             .success(.init(exitCode: 1, stdout: "gradle failed", stderr: ""))
@@ -60,9 +59,8 @@ extension CLITests {
         XCTAssertTrue(result.output.contains("gradle failed"))
     }
 
-    func testRunAndroidCompanionInstallFailsWhenAPKInstallFails() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+    func testRunAndroidCompanionInstallFailsWhenAPKInstallFails() async throws {
+        let companionDir = try makeTemporaryDirectory()
         try? createAndroidAPKFixtures(at: companionDir)
 
         let runner = MockCLIProcessRunner(results: [
@@ -88,8 +86,7 @@ extension CLITests {
     }
 
     func testRunAndroidCompanionInstallSucceedsWithExistingArtifacts() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        let companionDir = try makeTemporaryDirectory()
         try createAndroidAPKFixtures(at: companionDir)
 
         let runner = MockCLIProcessRunner(results: [
@@ -144,11 +141,9 @@ extension CLITests {
     }
 
     func testAuditCommandWritesArtifactsAndReturnsSuccess() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(
-            UUID().uuidString,
-            isDirectory: true
-        )
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let tempDir = scratch.url
         let jsonPath = tempDir.appendingPathComponent("audit.json").path
         let markdownPath = tempDir.appendingPathComponent("audit.md").path
 

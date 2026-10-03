@@ -1,20 +1,22 @@
 @testable import CLI
 import Foundation
+import TestCommons
 import XCTest
 
 /// Covers the paths `amoo flow` can take before it ever opens a companion connection —
 /// everything a bad flow file should be rejected on without needing a device.
 final class FlowCommandTests: XCTestCase {
     private var root: URL!
+    private var scratch: TemporaryDirectory?
 
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("flow-tests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let scratch = try TemporaryDirectory()
+        self.scratch = scratch
+        root = scratch.url
     }
 
     override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: root)
+        try? scratch?.remove()
     }
 
     func testRejectsAnUnknownPlatformAsAUsageError() async throws {

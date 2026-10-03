@@ -24,7 +24,7 @@ let package = Package(
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.1.0"),
+        .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
         .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", from: "0.6.0"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
@@ -131,10 +131,16 @@ let package = Package(
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
-        .testTarget(name: "AmooCoreTests", dependencies: ["AmooCore"]),
+        .testTarget(
+            name: "AmooCoreTests",
+            dependencies: ["AmooCore", .product(name: "TestCommons", package: "SwiftTestCommons")]
+        ),
         .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"]),
         .testTarget(name: "IOSDriverTests", dependencies: ["IOSDriver"]),
-        .testTarget(name: "AndroidDriverTests", dependencies: ["AndroidDriver"]),
+        .testTarget(
+            name: "AndroidDriverTests",
+            dependencies: ["AndroidDriver", .product(name: "TestCommons", package: "SwiftTestCommons")]
+        ),
         .testTarget(
             name: "ProcessRunnerTests",
             dependencies: [
@@ -160,7 +166,10 @@ let package = Package(
             ]
         ),
         .testTarget(name: "OllamaClientTests", dependencies: ["OllamaClient"]),
-        .testTarget(name: "StudioProtocolTests", dependencies: ["StudioProtocol"]),
+        .testTarget(
+            name: "StudioProtocolTests",
+            dependencies: ["StudioProtocol", .product(name: "TestCommons", package: "SwiftTestCommons")]
+        ),
         .testTarget(
             name: "TestCodeGeneratorTests",
             dependencies: [

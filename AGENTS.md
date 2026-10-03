@@ -67,6 +67,13 @@ platform-conditional code (`ProcessRunner`, anything with `#if os`/`canImport`) 
   qualified `BundleName.ClassName/testMethodName`, e.g.
   `swift test --filter 'MCPServerTests.MCPServerTests/testSessionTimeContextSurvivesEndSessionRecompile'`.
   The bare class name matches nothing.
+- Scratch files and directories come from `TemporaryDirectory` in
+  [SwiftTestCommons](https://github.com/maniramezan/SwiftTestCommons). In `CLITests`, use
+  `makeScratchDirectory()` / `makeTemporaryDirectory()` (removed on teardown); elsewhere,
+  `let scratch = try TemporaryDirectory(); defer { try? scratch.remove() }`. When the code under test
+  must create a path itself, pass a child such as `scratch.url.appending(path: "store")`.
+- Poll with `waitUntil(timeout:pollInterval:operation:matching:)` instead of
+  `for … where … { Task.sleep }` loops; it uses a monotonic deadline and reports the last value.
 - Proto codegen runs through the `GRPCProtobufGenerator` SwiftPM plugin; `.proto` files in
   `Protos/` are the shared companion-service contract.
 
