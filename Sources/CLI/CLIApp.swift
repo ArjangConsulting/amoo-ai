@@ -294,7 +294,7 @@ func renderCLIHelp() -> String {
     Commands:
       help                         Show this help
       preflight [--platform ...]   Check local tooling and environment
-      doctor [--json]              Health check: build, stale MCP servers, devices, companions, leases
+      doctor [--json] [--kill-stale]  Health check: build, stale MCP servers, devices, runtimes, companions, leases
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       env up|down|list ...         Lease a simulator/emulator with a running companion (agents)

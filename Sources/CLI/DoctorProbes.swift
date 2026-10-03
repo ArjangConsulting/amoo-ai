@@ -1,6 +1,11 @@
 import AmooCore
 import Foundation
 import ProcessRunner
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 // MARK: - MCP servers
 
@@ -143,4 +148,78 @@ func companionListeners(processRunner: any ProcessRunner) async -> [DoctorReport
         }
     }
     return listeners
+}
+
+// MARK: - Simulator runtimes
+
+/// Problems `simctl` itself reports with runtimes and the simulators on them: a runtime that is
+/// still listed but whose disk image is gone ("runtime path not found") can never boot, and
+/// `simctl list devices available` may still offer its devices.
+func parseUnavailableSimulatorProblems(runtimesJSON: String, devicesJSON: String) -> [String] {
+    struct Runtimes: Decodable {
+        struct Runtime: Decodable {
+            var name: String?
+            var identifier: String?
+            var isAvailable: Bool?
+            var availabilityError: String?
+        }
+
+        var runtimes: [Runtime]
+    }
+    struct Devices: Decodable {
+        struct Device: Decodable {
+            var name: String
+            var udid: String
+            var isAvailable: Bool?
+            var availabilityError: String?
+        }
+
+        var devices: [String: [Device]]
+    }
+    var problems: [String] = []
+    var runtimeNames: [String: String] = [:]
+    let decoder = JSONDecoder()
+    if let runtimes = try? decoder.decode(Runtimes.self, from: Data(runtimesJSON.utf8)) {
+        for runtime in runtimes.runtimes {
+            if let id = runtime.identifier, let name = runtime.name { runtimeNames[id] = name }
+            if runtime.isAvailable == false {
+                problems.append("Simulator runtime \(runtime.name ?? runtime.identifier ?? "?") is unavailable"
+                    + (runtime.availabilityError.map { ": \($0)" } ?? "") + ".")
+            }
+        }
+    }
+    if let devices = try? decoder.decode(Devices.self, from: Data(devicesJSON.utf8)) {
+        for (runtime, list) in devices.devices.sorted(by: { $0.key < $1.key }) {
+            let broken = list.filter { $0.isAvailable == false }
+            guard let first = broken.first else { continue }
+            let name = runtimeNames[runtime] ?? runtime
+            problems.append("\(broken.count) simulator(s) on \(name) cannot boot"
+                + (first.availabilityError.map { " (\($0))" } ?? "")
+                + ", e.g. \(first.name) \(first.udid). Reinstall the runtime in Xcode > Settings > Components,"
+                + " or `xcrun simctl delete unavailable`.")
+        }
+    }
+    return problems
+}
+
+func simulatorRuntimeProblems(processRunner: any ProcessRunner) async -> [String] {
+    #if os(macOS)
+    async let runtimes = try? processRunner.run(["xcrun", "simctl", "list", "runtimes", "-j"])
+    async let devices = try? processRunner.run(["xcrun", "simctl", "list", "devices", "-j"])
+    return await parseUnavailableSimulatorProblems(
+        runtimesJSON: runtimes?.stdout ?? "",
+        devicesJSON: devices?.stdout ?? ""
+    )
+    #else
+    return []
+    #endif
+}
+
+// MARK: - Stale MCP servers
+
+/// SIGTERMs MCP servers older than their binary. Opt-in (`amoo doctor --kill-stale`): the client
+/// that owns one sees its server vanish and must reconnect.
+func killStaleMCPServers(_ servers: [DoctorMCPServer]) -> [Int32] {
+    let own = getpid()
+    return servers.filter { $0.stale && $0.pid != own && kill($0.pid, SIGTERM) == 0 }.map(\.pid)
 }
