@@ -206,7 +206,7 @@ private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceLeaseStor
 
     let needsBoot = !booted.contains(simulator.udid)
     if needsBoot {
-        try await bootSimulator(udid: simulator.udid)
+        try await bootSimulator(udid: simulator.udid, readyTimeoutSeconds: options.readyTimeoutSeconds)
     }
     return EnvDeviceReport(
         id: simulator.udid,
@@ -217,15 +217,32 @@ private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceLeaseStor
     )
 }
 
-private func bootSimulator(udid: String) async throws {
+/// What `simctl boot` said, reduced to what `env up` must act on: nil means carry on to the
+/// `bootstatus` wait, a message means fail now with simctl's own words.
+func simulatorBootFailure(exitCode: Int32?, stderr: String?) -> String? {
+    guard let exitCode, exitCode != 0 else { return nil }
+    let text = (stderr ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    // Racing another booter: "Unable to boot device in current state: Booted" is not a failure.
+    if text.contains("current state: Booted") || text.contains("current state: Booting") { return nil }
+    return text.isEmpty ? "simctl boot exited \(exitCode)" : text
+}
+
+private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
-    // `boot` fails with "Unable to boot device in current state: Booted" when it raced us; the
-    // `bootstatus -b` wait below is the real check.
-    _ = try? await Command("xcrun").args(["simctl", "boot", udid]).timeout(.seconds(60)).run(in: context)
-    let status = try? await Command("xcrun").args(["simctl", "bootstatus", udid, "-b"]).timeout(.seconds(300))
-        .run(in: context)
+    let boot = try? await Command("xcrun").args(["simctl", "boot", udid]).timeout(.seconds(60)).run(in: context)
+    // A missing runtime image ("The iOS 27.0 simulator runtime is not available") can never boot;
+    // say so now rather than waiting on `bootstatus` and reporting a bogus timeout.
+    if let failure = simulatorBootFailure(exitCode: boot?.exitCode, stderr: boot?.stderr) {
+        throw EnvError.noDevice("Simulator \(udid) could not boot: \(failure)")
+    }
+    let waitSeconds = readyTimeoutSeconds ?? 300
+    let status = try? await Command("xcrun").args(["simctl", "bootstatus", udid, "-b"])
+        .timeout(.seconds(waitSeconds)).run(in: context)
     guard status?.exitCode == 0 else {
-        throw EnvError.noDevice("Simulator \(udid) did not finish booting: \(status?.stderr ?? "timed out")")
+        let detail = status.map {
+            $0.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.flatMap { $0.isEmpty ? nil : $0 } ?? "no `simctl bootstatus` result within \(waitSeconds)s"
+        throw EnvError.noDevice("Simulator \(udid) did not finish booting: \(detail)")
     }
 }
 

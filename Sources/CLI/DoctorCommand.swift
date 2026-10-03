@@ -78,11 +78,13 @@ struct DoctorReport: Encodable {
 
 func renderDoctorHelp() -> String {
     """
-    Usage: amoo doctor [--json]
+    Usage: amoo doctor [--json] [--kill-stale]
 
     One-shot health check for agents and humans: this CLI's build, running `amoo mcp serve`
     processes (flagging ones older than their binary), the adb server, devices (physical ones
     flagged — amoo never auto-selects them), companion listeners, and device leases.
+    Also flags simulator runtimes (and the simulators on them) that simctl reports as unavailable.
+    --kill-stale   SIGTERM every stale MCP server (one older than its binary) after reporting it.
     Exit code 0 when no issues were found, 1 otherwise.
     """
 }
@@ -91,10 +93,16 @@ func handleDoctorCommand(remaining: [String]) async -> CLIResult {
     if isHelpRequest(remaining) {
         return CLIResult(output: renderDoctorHelp(), exitCode: 0)
     }
-    guard remaining.allSatisfy({ $0 == "--json" }) else {
+    guard remaining.allSatisfy({ $0 == "--json" || $0 == "--kill-stale" }) else {
         return CLIResult(output: renderDoctorHelp(), exitCode: 64)
     }
-    let report = await runDoctor()
+    var report = await runDoctor()
+    if remaining.contains("--kill-stale") {
+        let killed = killStaleMCPServers(report.mcpServers)
+        report.notes.append(killed.isEmpty
+            ? "--kill-stale: no stale MCP servers to stop."
+            : "--kill-stale: sent SIGTERM to stale MCP server pid(s) \(killed.map(String.init).joined(separator: ", ")).")
+    }
     let output = remaining.contains("--json") ? renderJSON(report) : humanDoctorSummary(report)
     return CLIResult(output: output, exitCode: report.ok ? 0 : 1)
 }
@@ -112,6 +120,7 @@ func runDoctor(
     async let android = androidDoctorDevices(leaseByDevice: leaseByDevice)
     async let ios = iosDoctorDevices(leaseByDevice: leaseByDevice)
     async let companions = companionListeners(processRunner: processRunner)
+    async let runtimeProblems = simulatorRuntimeProblems(processRunner: processRunner)
 
     var report = await DoctorReport(
         ok: true,
@@ -129,7 +138,7 @@ func runDoctor(
         issues: [],
         notes: []
     )
-    report.issues = doctorIssues(report)
+    report.issues = await doctorIssues(report) + runtimeProblems
     report.notes = report.devices.filter(\.physical).map { device in
         "Physical \(device.platform) device \(device.id) is connected. amoo never auto-selects it; "
             + "always pass an explicit simulator/emulator id."
