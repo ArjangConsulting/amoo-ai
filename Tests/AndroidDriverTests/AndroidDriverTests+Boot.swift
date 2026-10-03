@@ -3,14 +3,16 @@ import AndroidDriver
 import CompanionProtocol
 import Foundation
 import ProcessRunner
+import TestCommons
 import XCTest
 
 extension AndroidDriverTests {
     /// Regression: an emulator that died at launch was waited on for the full 120 s and reported as a
     /// bare timeout with no exit code, stderr or log path.
     func testBootFailsFastWithExitCodeAndLogWhenTheEmulatorDies() async throws {
-        let log = NSTemporaryDirectory() + "amoo-dead-emulator-\(UUID().uuidString).log"
-        defer { try? FileManager.default.removeItem(atPath: log) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let log = scratch.url.appendingPathComponent("dead-emulator.log").path
         let pid = try await DetachedProcess.spawn(["sh", "-c", "echo 'PANIC: no AVD' >&2; exit 3"], logPath: log)
 
         let adb = MockADBRunner()
@@ -40,11 +42,12 @@ extension AndroidDriverTests {
     func testEmulatorLaunchLivenessNoticesAnExitedProcess() async throws {
         let pid = try await DetachedProcess.spawn(["sh", "-c", "exit 7"])
         let launch = EmulatorLaunch(pid: pid, logPath: nil)
-        var state = launch.liveness()
-        for _ in 0 ..< 50 where state == .running {
-            try await Task.sleep(for: .milliseconds(100))
-            state = launch.liveness()
-        }
+        let state = try await waitUntil(
+            timeout: .seconds(5),
+            pollInterval: .milliseconds(100),
+            operation: { launch.liveness() },
+            matching: { $0 != .running }
+        )
         // SwiftyShell reaps its detached child, so the status is gone; the exit itself is visible.
         guard case .exited = state else { return XCTFail("expected exited, got \(state)") }
     }

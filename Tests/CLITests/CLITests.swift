@@ -38,9 +38,9 @@ final class CLITests: XCTestCase {
     }
 
     func testDefaultCompanionDirectoryResolvesFromInstalledExecutable() throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url
         let executable = root.appendingPathComponent(".build/debug/amoo")
         let companion = root.appendingPathComponent("CompanionApps/iOS", isDirectory: true)
         try FileManager.default.createDirectory(
@@ -67,9 +67,9 @@ final class CLITests: XCTestCase {
         // The Android twin of the iOS case above. It regressed independently: the iOS side was
         // fixed while Android kept resolving against the CWD, so `amoo companion start
         // --platform android` from any other project looked for gradlew under that project.
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url
         let executable = root.appendingPathComponent(".build/debug/amoo")
         let companion = root.appendingPathComponent("CompanionApps/Android", isDirectory: true)
         try FileManager.default.createDirectory(
@@ -304,12 +304,18 @@ final class CLITests: XCTestCase {
     }
 }
 
-func makeTemporaryDirectory() -> String {
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
-        UUID().uuidString, isDirectory: true
-    )
-    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    return directory.path
+extension XCTestCase {
+    /// A scratch directory that is removed when the current test finishes.
+    func makeScratchDirectory() throws -> TemporaryDirectory {
+        let scratch = try TemporaryDirectory()
+        addTeardownBlock { try? scratch.remove() }
+        return scratch
+    }
+
+    /// The path of a scratch directory that is removed when the current test finishes.
+    func makeTemporaryDirectory() throws -> String {
+        try makeScratchDirectory().url.path
+    }
 }
 
 func createAndroidAPKFixtures(at companionDir: String) throws {

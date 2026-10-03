@@ -3,6 +3,7 @@ import AmooCore
 import Foundation
 import StudioProtocol
 import TestCodeGenerator
+import TestCommons
 import XCTest
 
 // Compact authored-test fixtures keep the complete input visible beside each expectation.
@@ -15,18 +16,14 @@ final class GenerateCommandTests: XCTestCase {
     }
 
     private func writePlan(_ test: StudioAuthoredTest) throws -> String {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("plan-\(UUID().uuidString).json")
+        let url = try makeScratchDirectory().url.appendingPathComponent("plan.json")
         try JSONEncoder().encode(test).write(to: url)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return url.path
     }
 
     private func writeContext(_ context: StudioTestContext) throws -> String {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("test-context-\(UUID().uuidString).json")
+        let url = try makeScratchDirectory().url.appendingPathComponent("test-context.json")
         try JSONEncoder().encode(context).write(to: url)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return url.path
     }
 
@@ -118,8 +115,7 @@ final class GenerateCommandTests: XCTestCase {
     }
 
     func testOutputNameCollisionUsesStableNumericSuffixWithoutOverwriting() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
+        let directory = try makeScratchDirectory().url.appendingPathComponent("output")
         let options = try GenerateTestOptions(
             planPath: writePlan(makeTest(warnings: [])),
             outputDirectory: directory.path
@@ -273,10 +269,9 @@ final class GenerateCommandTests: XCTestCase {
              "compiledPlan":{"compiler":"ai","compilerVersion":"1",
              "toolOperations":[{"id":"op-1","tool":"press_back","arguments":{}}]}}
             """
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("legacy-\(UUID().uuidString).json")
-            try Data(json.utf8).write(to: url)
-            defer { try? FileManager.default.removeItem(at: url) }
+            let scratch = try TemporaryDirectory()
+            defer { try? scratch.remove() }
+            let url = try scratch.write(Data(json.utf8), named: "legacy.json")
 
             let result = try runGenerateTestCommand(
                 options: GenerateTestOptions(planPath: url.path, outputDirectory: nil),
@@ -292,10 +287,8 @@ final class GenerateCommandTests: XCTestCase {
          "compiledPlan":{"compiler":"ai","compilerVersion":"1",
          "toolOperations":[{"id":"op-1","tool":"press_back","arguments":{}}]}}
         """
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("weird-\(UUID().uuidString).json")
+        let url = try makeScratchDirectory().url.appendingPathComponent("weird.json")
         try Data(json.utf8).write(to: url)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
 
         // Guessing a platform here would generate a test for the wrong OS.
         XCTAssertThrowsError(try runGenerateTestCommand(

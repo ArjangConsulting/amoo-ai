@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import MCP
 @testable import MCPServer
+import TestCommons
 import TestSession
 import XCTest
 
@@ -381,13 +382,14 @@ extension MCPServerTests {
         XCTAssertEqual(result.structuredContent?.objectValue?["format"]?.stringValue, "jpeg")
     }
 
-    func testTakeScreenshotWritesToOutputPath() async {
+    func testTakeScreenshotWritesToOutputPath() async throws {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let path = NSTemporaryDirectory() + "amoo-shot-\(UUID().uuidString).png"
-        defer { try? FileManager.default.removeItem(atPath: path) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let path = scratch.url.appendingPathComponent("shot.png").path
 
         let result = await server.execute(toolName: "take_screenshot", arguments: ["output": path])
         XCTAssertFalse(result.isError, result.content)

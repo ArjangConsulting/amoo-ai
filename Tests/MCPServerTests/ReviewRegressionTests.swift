@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import MCP
 @testable import MCPServer
+import TestCommons
 import TestSession
 import XCTest
 
@@ -85,9 +86,10 @@ final class ReviewRegressionTests: XCTestCase {
         XCTAssertEqual(filtered, values)
     }
 
-    func testScreenshotCanBeSavedWithoutInlineImage() async {
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: output) }
+    func testScreenshotCanBeSavedWithoutInlineImage() async throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let output = scratch.url.appendingPathComponent("screenshot.png")
         let result = await DriverToolExecutor(driver: MockDriver()).execute(
             toolName: "take_screenshot", arguments: ["output": output.path, "return_image": "false"]
         )
