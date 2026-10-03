@@ -8,7 +8,10 @@ extension DriverToolExecutor {
 
     func executeWebViewEval(arguments: [String: String]) async -> ToolResult {
         guard let expression = arguments["expression"], !expression.isEmpty else {
-            return .error("Missing required argument: expression")
+            let hint = arguments["script"] != nil || arguments["js"] != nil || arguments["code"] != nil
+                ? " (the JavaScript goes in `expression=`, not `script=`)"
+                : ""
+            return .error("Missing required argument: expression\(hint)")
         }
         let bundleID = arguments["bundle_id"]
         do {
