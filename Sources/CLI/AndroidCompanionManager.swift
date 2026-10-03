@@ -334,7 +334,17 @@ final class AndroidCompanionManager: @unchecked Sendable {
         return (app, test)
     }
 
+    /// Builds the APKs, joining a build already running for the same companion directory.
     func buildAPKs(config: AndroidCompanionConfig) async throws {
+        try await Self.buildCoordinator.build(key: config.companionDir) {
+            try await self.runGradleBuild(config: config)
+        }
+    }
+
+    private func runGradleBuild(config: AndroidCompanionConfig) async throws {
+        // Hash before building: a source edit made while Gradle runs must leave the fingerprint
+        // stale so the next session rebuilds, rather than being recorded as already built.
+        let fingerprint = currentSourceFingerprint(config: config)
         let gradlewPath = config.companionDir + "/gradlew"
         let result: ProcessResult
         do {
@@ -352,7 +362,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             let message = result.stderr.isEmpty ? result.stdout : result.stderr
             throw AndroidCompanionError.buildFailed(message)
         }
-        try writeSourceFingerprint(config: config)
+        try writeSourceFingerprint(config: config, fingerprint: fingerprint)
     }
 
     /// Force-stops both companion packages and drops the TCP forward, so a companion left behind

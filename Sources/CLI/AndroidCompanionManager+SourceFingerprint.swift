@@ -53,13 +53,18 @@ extension AndroidCompanionManager {
             == currentSourceFingerprint(config: config)
     }
 
-    func writeSourceFingerprint(config: AndroidCompanionConfig) throws {
+    /// Records `fingerprint` (hashed before the build it describes), or the current one when omitted.
+    func writeSourceFingerprint(config: AndroidCompanionConfig, fingerprint: String? = nil) throws {
         let path = fingerprintPath(config: config)
         try FileManager.default.createDirectory(
             at: URL(fileURLWithPath: path).deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try currentSourceFingerprint(config: config).write(toFile: path, atomically: true, encoding: .utf8)
+        try (fingerprint ?? currentSourceFingerprint(config: config)).write(
+            toFile: path,
+            atomically: true,
+            encoding: .utf8
+        )
     }
 
     private func fingerprintPath(config: AndroidCompanionConfig) -> String {
