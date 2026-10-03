@@ -85,7 +85,10 @@ final class AndroidLaunchArgumentsTests: XCTestCase {
 
     func testNoLauncherMatchIsNotGuessed() {
         XCTAssertNil(ADBRunner.parseLauncherComponent("No activity found\n", appID: "com.app"))
-        XCTAssertNil(ADBRunner.parseLauncherComponent("android/com.android.internal.app.ResolverActivity", appID: "com.app"))
+        XCTAssertNil(ADBRunner.parseLauncherComponent(
+            "android/com.android.internal.app.ResolverActivity",
+            appID: "com.app"
+        ))
     }
 
     func testResolveArgumentsFilterOnMainLauncher() {

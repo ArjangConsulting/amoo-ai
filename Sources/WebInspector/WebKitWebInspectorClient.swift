@@ -138,7 +138,7 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
         try await channel.send(selector: "_rpc_getConnectedApplications:", argument: connection)
         do {
             try await pump(until: { $0.applications.isEmpty == false }, timeout: budget)
-        } catch WebInspectorError.timedOut(let milliseconds) {
+        } catch let WebInspectorError.timedOut(milliseconds) {
             // Nothing answered at all: webinspectord is restarting or gone, so callers may retry.
             throw WebInspectorError.transportUnavailable(
                 "webinspectord did not answer the handshake within \(milliseconds)ms"
@@ -148,7 +148,9 @@ public actor WebKitWebInspectorClient: WebInspectorClient {
         // re-registered. Give the app a moment to appear before declaring it "not running".
         if let bundleID, Self.inspectableApplications(Array(applications.values), bundleID: bundleID).isEmpty {
             try? await pump(
-                until: { Self.inspectableApplications(Array($0.applications.values), bundleID: bundleID).isEmpty == false },
+                until: {
+                    Self.inspectableApplications(Array($0.applications.values), bundleID: bundleID).isEmpty == false
+                },
                 timeout: min(budget, .seconds(2))
             )
         }

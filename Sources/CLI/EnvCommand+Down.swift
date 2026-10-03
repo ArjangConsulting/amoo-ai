@@ -50,7 +50,9 @@ func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLease
             let onDevice = deviceID.hasPrefix("emulator-")
             if !orphans.isEmpty || onDevice {
                 orphans.forEach { stopHolder(pid: $0) }
-                if onDevice { await forceStopAndroidCompanion(serial: deviceID) }
+                if onDevice {
+                    await forceStopAndroidCompanion(serial: deviceID)
+                }
                 report.device = deviceID
                 report.orphansStopped = orphans
                 report.holderStopped = orphans.allSatisfy { kill($0, 0) != 0 }

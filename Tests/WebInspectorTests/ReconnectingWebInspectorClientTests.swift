@@ -63,7 +63,11 @@ private actor ConnectCounter {
 final class ReconnectingWebInspectorClientTests: XCTestCase {
     /// Regression: a silent handshake surfaced as "timed out after 0ms" and ignored `timeout_ms`.
     func testSilentHandshakeIsATransportFailureNotAZeroMillisecondTimeout() async {
-        let client = WebKitWebInspectorClient(channel: SilentChannel(), bundleID: "com.app", handshakeTimeout: .seconds(5))
+        let client = WebKitWebInspectorClient(
+            channel: SilentChannel(),
+            bundleID: "com.app",
+            handshakeTimeout: .seconds(5)
+        )
         do {
             _ = try await client.evaluate(WebViewEvalRequest(expression: "1", timeoutMilliseconds: 150))
             XCTFail("expected a failure")

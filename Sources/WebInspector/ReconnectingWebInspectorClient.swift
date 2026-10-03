@@ -70,7 +70,7 @@ public actor ReconnectingWebInspectorClient: WebInspectorClient {
                     current = client
                 }
                 return try await operation(client)
-            } catch WebInspectorError.transportUnavailable(let reason) {
+            } catch let WebInspectorError.transportUnavailable(reason) {
                 lastReason = reason
                 await close()
             }

@@ -66,7 +66,10 @@ public struct PlatformWebInspecting: WebInspecting {
         let shell = shell
         let connect: ReconnectingWebInspectorClient.Connect = {
             let socket = try await Self.simulatorSocketPath(shell: shell, device: device)
-            return try WebKitWebInspectorClient(channel: UnixSocketWebKitChannel(socketPath: socket), bundleID: bundleID)
+            return try WebKitWebInspectorClient(
+                channel: UnixSocketWebKitChannel(socketPath: socket),
+                bundleID: bundleID
+            )
         }
         return try await ReconnectingWebInspectorClient(initial: connect(), connect: connect)
         #else

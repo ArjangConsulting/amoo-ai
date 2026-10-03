@@ -81,8 +81,9 @@ extension AndroidDriver {
                 launcherExitedAt = exitedAt
                 let registered = try await connectedDevices().contains { $0.serial == serial }
                 if !registered, exitCode != 0 || Date().timeIntervalSince(exitedAt) > 10 {
+                    let port = serial.dropFirst("emulator-".count)
                     throw AmooError.commandFailed(
-                        command: "emulator -avd \(requestedDeviceID ?? serial) -port \(serial.dropFirst("emulator-".count))",
+                        command: "emulator -avd \(requestedDeviceID ?? serial) -port \(port)",
                         output: "The emulator exited before it booted"
                             + (exitCode.map { " (exit code \($0))" } ?? "")
                             + ". Log: \(launch.logPath ?? "none")\n\(launch.logTail())"
