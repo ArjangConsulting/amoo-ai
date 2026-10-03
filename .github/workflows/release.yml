@@ -118,7 +118,7 @@ jobs:
           sed -i.bak 's/public static let current = "[^"]*"/public static let current = "'"${RELEASE_VERSION}"'"/' Sources/AmooCore/Version.swift
           rm -f Sources/AmooCore/Version.swift.bak
           grep -q "public static let current = \"${RELEASE_VERSION}\"" Sources/AmooCore/Version.swift
-          for manifest in plugins/amoo/plugin.json plugins/amoo/.cursor-plugin/plugin.json plugins/amoo/gemini-extension.json; do
+          for manifest in plugins/amoo/plugin.json plugins/amoo/.claude-plugin/plugin.json plugins/amoo/.cursor-plugin/plugin.json plugins/amoo/gemini-extension.json; do
             sed -i.bak 's/"version": "[^"]*"/"version": "'"${RELEASE_VERSION}"'"/' "$manifest"
             rm -f "$manifest.bak"
             grep -q "\"version\": \"${RELEASE_VERSION}\"" "$manifest"
@@ -212,7 +212,7 @@ jobs:
           sed -i.bak 's/public static let current = "[^"]*"/public static let current = "'"${RELEASE_VERSION}"'"/' Sources/AmooCore/Version.swift
           rm -f Sources/AmooCore/Version.swift.bak
           grep -q "public static let current = \"${RELEASE_VERSION}\"" Sources/AmooCore/Version.swift
-          for manifest in plugins/amoo/plugin.json plugins/amoo/.cursor-plugin/plugin.json plugins/amoo/gemini-extension.json; do
+          for manifest in plugins/amoo/plugin.json plugins/amoo/.claude-plugin/plugin.json plugins/amoo/.cursor-plugin/plugin.json plugins/amoo/gemini-extension.json; do
             sed -i.bak 's/"version": "[^"]*"/"version": "'"${RELEASE_VERSION}"'"/' "$manifest"
             rm -f "$manifest.bak"
             grep -q "\"version\": \"${RELEASE_VERSION}\"" "$manifest"

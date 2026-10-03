@@ -21,15 +21,18 @@ final class AmooPluginTests: XCTestCase {
     }
 
     func testPluginManifestsAgreeOnNameAndVersion() throws {
-        let versioned = ["plugin.json", ".cursor-plugin/plugin.json", "gemini-extension.json"]
-        for path in versioned + [".claude-plugin/plugin.json"] {
+        let versioned = [
+            "plugin.json",
+            ".claude-plugin/plugin.json",
+            ".cursor-plugin/plugin.json",
+            "gemini-extension.json"
+        ]
+        for path in versioned {
             XCTAssertEqual(try json(path, in: pluginRoot)["name"] as? String, "amoo", path)
         }
         for path in versioned {
             XCTAssertEqual(try json(path, in: pluginRoot)["version"] as? String, AmooVersion.current, path)
         }
-        // Claude Code only offers an update when `version` changes; without one it follows commits.
-        XCTAssertNil(try json(".claude-plugin/plugin.json", in: pluginRoot)["version"])
         XCTAssertEqual(
             try json("plugin.json", in: pluginRoot)["$schema"] as? String,
             "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"

@@ -92,9 +92,33 @@ actor LaunchTrackingDriver: PlatformDriver {
     }
 
     private(set) var launchCalls: [LaunchCall] = []
+    private(set) var targetBindings: [String?] = []
 
     func launchApp(appID: String, arguments: [String], environment: [String: String]) async throws {
         launchCalls.append(LaunchCall(appID: appID, arguments: arguments, environment: environment))
+    }
+
+    func setTargetApp(bundleID: String?) async throws {
+        targetBindings.append(bundleID)
+    }
+}
+
+/// Reports springboard as frontmost until a target app is bound, the way the iOS companion does.
+actor UnboundTargetLaunchDriver: PlatformDriver {
+    private var boundTarget: String?
+
+    func launchApp(appID _: String, arguments _: [String], environment _: [String: String]) async throws {}
+
+    func setTargetApp(bundleID: String?) async throws {
+        boundTarget = bundleID
+    }
+
+    func currentApp() async throws -> CurrentApp {
+        CurrentApp(bundleID: boundTarget ?? "com.apple.springboard", targetBundleID: boundTarget ?? "")
+    }
+
+    func appState(appID _: String) async throws -> AppState {
+        .running
     }
 }
 

@@ -87,6 +87,10 @@ reinstall; the app is left not running, so launch it before querying it again. I
 fails with a connection error, read `$TMPDIR/companion-launch-<port>.log`, then restart the
 companion; `companion_status` can briefly still report ready, so it is not proof the channel works.
 
+`device_launch_app` binds the launched app as the target. To drive an app that is already running,
+call `set_target_app` first: with no target bound, the iOS companion reports `com.apple.springboard`
+as frontmost even while another app is on screen.
+
 Use the documented system scope for permission prompts. Do not guess that an app's controls
 are system UI merely because their labels contain words such as time or settings.
 For WebViews, read [the transport prerequisites](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/webview-introspection.md).

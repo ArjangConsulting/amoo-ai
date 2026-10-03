@@ -164,6 +164,28 @@ extension MCPServerTests {
         XCTAssertEqual(calls.first?.environment, ["STAGE": "test", "VERBOSE": "1"])
     }
 
+    func testDeviceLaunchAppBindsTheLaunchedAppAsTarget() async {
+        let driver = LaunchTrackingDriver()
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+
+        _ = await server.execute(toolName: "device_launch_app", arguments: ["app_id": "com.example"])
+
+        let bindings = await driver.targetBindings
+        XCTAssertEqual(bindings, ["com.example"])
+    }
+
+    func testDeviceLaunchAppVerifiesWhenCompanionNeedsABoundTarget() async {
+        let server = MCPServer(executor: DriverToolExecutor(driver: UnboundTargetLaunchDriver()))
+
+        let result = await server.execute(
+            toolName: "device_launch_app",
+            arguments: ["app_id": "com.apple.mobilesafari", "timeout_ms": "500"]
+        )
+
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("verified=true"), result.content)
+    }
+
     // MARK: - Intent tools
 
     func testFillFieldCallsSetText() async {
