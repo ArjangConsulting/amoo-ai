@@ -14,9 +14,12 @@ struct EnvDownReport: Encodable {
     var holderStopped: Bool
     var shutdown: Bool
     var error: String?
+    /// Holders found running with no lease (`env down --device`), all stopped when `ok`.
+    var orphansStopped: [Int32]?
 
     enum CodingKeys: String, CodingKey {
         case ok, lease, device, shutdown, error
+        case orphansStopped = "orphans_stopped"
         case holderStopped = "holder_stopped"
     }
 }
@@ -24,7 +27,10 @@ struct EnvDownReport: Encodable {
 func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLeaseStore()) async -> CLIResult {
     var report = EnvDownReport(ok: false, holderStopped: false, shutdown: false)
     let finish: (Int32) -> CLIResult = { code in
-        let human = report.ok
+        let human = report.ok && report.lease == nil
+            ? "No lease on \(report.device ?? "?"); stopped orphaned companion holder(s): "
+            + (report.orphansStopped?.map(String.init).joined(separator: ", ") ?? "none") + "."
+            : report.ok
             ? "Released \(report.lease ?? "?") on \(report.device ?? "?")"
             + (report.shutdown ? "; device shut down." : ".")
             : "env down failed: \(report.error ?? "unknown error")"
@@ -37,6 +43,22 @@ func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLease
         options.deviceID.flatMap { store.lease(forDevice: $0) }
     }
     guard let lease else {
+        // No claim, but a holder may have outlived it (the lease expired, or the file was lost).
+        // `env down --device` is the way to stop such an orphan.
+        if options.lease == nil, let deviceID = options.deviceID {
+            let orphans = await orphanedCompanionHolders(deviceID: deviceID)
+            let onDevice = deviceID.hasPrefix("emulator-")
+            if !orphans.isEmpty || onDevice {
+                orphans.forEach { stopHolder(pid: $0) }
+                if onDevice { await forceStopAndroidCompanion(serial: deviceID) }
+                report.device = deviceID
+                report.orphansStopped = orphans
+                report.holderStopped = orphans.allSatisfy { kill($0, 0) != 0 }
+                report.ok = report.holderStopped
+                report.error = report.ok ? nil : "Could not stop orphaned holder(s) \(orphans)."
+                return finish(report.ok ? 0 : 1)
+            }
+        }
         report.error = options.lease.map { DeviceLeaseError.unknownLease($0).description }
             ?? "No active lease on \(options.deviceID ?? "?")."
         return finish(1)

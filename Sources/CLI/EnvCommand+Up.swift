@@ -331,6 +331,86 @@ func stopHolder(pid: Int32?, graceSeconds: Double = 20) {
     }
 }
 
+// MARK: - Orphaned holders
+
+/// Command line of `pid` (`ps -o command=`), nil when it is gone.
+func processCommandLine(pid: Int32) -> String? {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/ps")
+    process.arguments = ["-p", String(pid), "-o", "command="]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = FileHandle.nullDevice
+    guard (try? process.run()) != nil else { return nil }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    let text = String(bytes: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    return text?.isEmpty == false ? text : nil
+}
+
+/// Whether `command` is an `amoo companion start` holder for `deviceID`. Guards against PID reuse:
+/// a lease can outlive its holder by an hour, and the pid may by then belong to anything.
+func isCompanionHolderCommand(_ command: String, deviceID: String) -> Bool {
+    let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
+    guard let start = words.firstIndex(of: "companion"), words.dropFirst(start + 1).first == "start",
+          let device = words.firstIndex(of: "--device"), words.indices.contains(device + 1)
+    else { return false }
+    return words[device + 1] == deviceID
+}
+
+/// `amoo companion start … --device <id>` processes in `ps -axo pid=,args=` output.
+func parseCompanionHolderPIDs(_ psOutput: String, deviceID: String) -> [Int32] {
+    psOutput.split(whereSeparator: \.isNewline).compactMap { line in
+        let trimmed = line.drop(while: { $0 == " " })
+        guard let space = trimmed.firstIndex(of: " "), let pid = Int32(trimmed[..<space]) else { return nil }
+        return isCompanionHolderCommand(String(trimmed[space...]), deviceID: deviceID) ? pid : nil
+    }
+}
+
+func orphanedCompanionHolders(deviceID: String) async -> [Int32] {
+    guard let ps = try? await SystemProcessRunner().run(["/bin/ps", "-axo", "pid=,args="]) else { return [] }
+    return parseCompanionHolderPIDs(ps.stdout, deviceID: deviceID).filter { $0 != getpid() }
+}
+
+/// Packages the Android companion runs as; `am instrument` alone only force-stops the `.test` one.
+let androidCompanionPackages = ["com.amoo.companion.test", "com.amoo.companion"]
+
+func forceStopAndroidCompanion(serial: String) async {
+    let runner = SystemProcessRunner()
+    for package in androidCompanionPackages {
+        _ = try? await runner.run(["adb", "-s", serial, "shell", "am", "force-stop", package])
+    }
+}
+
+/// Default `DeviceLeaseStore.reaper`: stop the holder of an expired lease, and for Android
+/// force-stop the on-device runner too (killing the host side does not reliably end it).
+@Sendable
+func reapExpiredLease(_ lease: DeviceLease) {
+    if let pid = lease.holderPID, pid > 0, kill(pid, 0) == 0,
+       let command = processCommandLine(pid: pid), isCompanionHolderCommand(command, deviceID: lease.deviceID) {
+        kill(-pid, SIGTERM)
+        // Give the holder's own shutdown a moment, then make sure.
+        for _ in 0 ..< 20 where kill(pid, 0) == 0 {
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        if kill(pid, 0) == 0 { kill(-pid, SIGKILL) }
+    }
+    if lease.platform == .android, lease.deviceID.hasPrefix("emulator-") {
+        reapAndroidRemainder(lease)
+    }
+}
+
+private func reapAndroidRemainder(_ lease: DeviceLease) {
+    for package in androidCompanionPackages {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["adb", "-s", lease.deviceID, "shell", "am", "force-stop", package]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        if (try? process.run()) != nil { process.waitUntilExit() }
+    }
+}
+
 func logTail(_ path: String, characters: Int = 2000) -> String {
     guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return "(no log at \(path))" }
     return String(text.suffix(characters))

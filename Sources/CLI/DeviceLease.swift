@@ -66,10 +66,18 @@ struct DeviceLeaseStore {
 
     let directory: URL
     let ttl: TimeInterval
+    /// Runs when an expired lease is found, before its file is removed: the caller that held it is
+    /// gone, so whatever it left running on the device must not outlive the claim.
+    let reaper: @Sendable (DeviceLease) -> Void
 
-    init(directory: URL = Self.defaultDirectory(), ttl: TimeInterval = Self.defaultTTL) {
+    init(
+        directory: URL = Self.defaultDirectory(),
+        ttl: TimeInterval = Self.defaultTTL,
+        reaper: @escaping @Sendable (DeviceLease) -> Void = reapExpiredLease
+    ) {
         self.directory = directory
         self.ttl = ttl
+        self.reaper = reaper
     }
 
     /// `$AMOO_LEASE_DIR`, else `~/.amoo/leases`.
@@ -87,6 +95,7 @@ struct DeviceLeaseStore {
         return files.filter { $0.pathExtension == "json" }.compactMap { url in
             guard let lease = read(url) else { return nil }
             if lease.isExpired(at: now) {
+                reaper(lease)
                 try? FileManager.default.removeItem(at: url)
                 return nil
             }
@@ -98,6 +107,7 @@ struct DeviceLeaseStore {
         let url = fileURL(deviceID: deviceID)
         guard let lease = read(url) else { return nil }
         if lease.isExpired(at: now) {
+            reaper(lease)
             try? FileManager.default.removeItem(at: url)
             return nil
         }
