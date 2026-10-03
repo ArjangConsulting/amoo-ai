@@ -73,8 +73,18 @@ public struct CLIApp {
             return result
         }
 
+        // Only flags (`--platform ios --device …`) configure the interactive mode. A bare word is a
+        // mistyped or not-yet-supported subcommand: say so instead of silently selecting a device
+        // and starting a companion (which is also what crashed older builds on `amoo doctor`).
+        if let first = args.first, !first.hasPrefix("-") {
+            return CLIResult(
+                output: "amoo: unknown command '\(first)'\n\n" + renderCLIHelp(),
+                exitCode: 2
+            )
+        }
+
         // Default: interactive REPL mode
-        await startREPLMode(args: args)
+        await launchREPL(args)
         return CLIResult(output: "", exitCode: 0)
     }
 

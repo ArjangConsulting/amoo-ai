@@ -105,6 +105,28 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(recorded, [[]], "the REPL is entered exactly once, with no arguments")
     }
 
+    /// Regression: Homebrew 0.2.1 aborted ("freed pointer was not the last allocation") on any
+    /// subcommand it did not know, because unknown words fell through into the device-picking REPL.
+    func testUnknownCommandPrintsUsageAndExitsTwoWithoutEnteringTheREPL() async {
+        let launches = CallRecorder<[String]>()
+        let app = CLIApp(launchREPL: { await launches.record($0) })
+        let result = await app.run(args: ["nonsense"])
+        XCTAssertEqual(result.exitCode, 2)
+        XCTAssertTrue(result.output.contains("unknown command 'nonsense'"))
+        XCTAssertTrue(result.output.contains("Usage: amoo <command> [options]"))
+        let recorded = await launches.values()
+        XCTAssertTrue(recorded.isEmpty, "an unknown word must not start the REPL")
+    }
+
+    func testFlagsStillConfigureTheREPL() async {
+        let launches = CallRecorder<[String]>()
+        let app = CLIApp(launchREPL: { await launches.record($0) })
+        let result = await app.run(args: ["--platform", "ios"])
+        XCTAssertEqual(result.exitCode, 0)
+        let recorded = await launches.values()
+        XCTAssertEqual(recorded, [["--platform", "ios"]])
+    }
+
     func testToolsOutput() async {
         let app = CLIApp()
         let result = await app.run(args: ["--tools"])
