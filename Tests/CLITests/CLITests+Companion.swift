@@ -114,8 +114,7 @@ extension CLITests {
     }
 
     func testCompanionInstallSkipsBuildWhenXCTestRunExists() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        let companionDir = try makeTemporaryDirectory()
         let productsDir = URL(fileURLWithPath: companionDir).appendingPathComponent(
             "build/Build/Products", isDirectory: true
         )
@@ -143,8 +142,7 @@ extension CLITests {
     }
 
     func testCompanionInstallBuildsWithExpectedCommands() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        let companionDir = try makeTemporaryDirectory()
 
         let runner = MockCLIProcessRunner(results: [
             .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
@@ -189,8 +187,7 @@ extension CLITests {
     }
 
     func testCompanionInstallBuildsForPhysicalDeviceDestination() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        let companionDir = try makeTemporaryDirectory()
 
         let runner = MockCLIProcessRunner(results: [
             .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
@@ -220,9 +217,8 @@ extension CLITests {
         #endif
     }
 
-    func testCompanionInstallThrowsWhenXcodegenIsMissing() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+    func testCompanionInstallThrowsWhenXcodegenIsMissing() async throws {
+        let companionDir = try makeTemporaryDirectory()
 
         let runner = MockCLIProcessRunner(results: [
             .failure(ShellError.commandNotFound("xcodegen"))
@@ -250,9 +246,8 @@ extension CLITests {
         }
     }
 
-    func testCompanionInstallThrowsBuildFailureOutput() async {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+    func testCompanionInstallThrowsBuildFailureOutput() async throws {
+        let companionDir = try makeTemporaryDirectory()
 
         let runner = MockCLIProcessRunner(results: [
             .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
@@ -304,8 +299,7 @@ extension CLITests {
     /// it rejected `id=booted` outright, so every `amoo companion start` on the default device
     /// failed. The alias must be resolved to a real UDID before it reaches xcodebuild.
     func testCompanionResolvesBootedAliasToConcreteUDIDForXcodebuild() async throws {
-        let companionDir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: companionDir) }
+        let companionDir = try makeTemporaryDirectory()
 
         let simctlJSON = """
         {"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[
@@ -439,9 +433,8 @@ extension CLITests {
         }
     }
 
-    func testCompanionStatusStoreRoundTrips() {
-        let dir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: dir) }
+    func testCompanionStatusStoreRoundTrips() throws {
+        let dir = try makeTemporaryDirectory()
         let store = CompanionStatusStore(companionDir: dir)
         XCTAssertNil(store.read())
 
@@ -452,9 +445,8 @@ extension CLITests {
         XCTAssertEqual(read?.detail, "building")
     }
 
-    func testCompanionStatusResultReportsNotStartedThenRecordPhases() async {
-        let dir = makeTemporaryDirectory()
-        defer { try? FileManager.default.removeItem(atPath: dir) }
+    func testCompanionStatusResultReportsNotStartedThenRecordPhases() async throws {
+        let dir = try makeTemporaryDirectory()
         let store = CompanionStatusStore(companionDir: dir)
 
         // Nothing written, nothing listening on this unused port.

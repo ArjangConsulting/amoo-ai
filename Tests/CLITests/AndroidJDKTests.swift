@@ -1,18 +1,20 @@
 @testable import CLI
 import Foundation
+import TestCommons
 import XCTest
 
 final class AndroidJDKTests: XCTestCase {
     private var root: URL!
+    private var scratch: TemporaryDirectory?
 
     override func setUpWithError() throws {
-        root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("android-jdk-tests-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let scratch = try TemporaryDirectory()
+        self.scratch = scratch
+        root = scratch.url
     }
 
     override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: root)
+        try? scratch?.remove()
     }
 
     func testReadsTheMajorVersionOutOfAReleaseFile() throws {

@@ -2,6 +2,7 @@
 import Foundation
 import StudioProtocol
 import TestCodeGenerator
+import TestCommons
 import TestSession
 import XCTest
 
@@ -33,10 +34,8 @@ final class GeneratePlanCommandTests: XCTestCase {
             errorCount: actions.filter(\.isError).count, isActive: false, actions: actions,
             launchEnvironment: ["APP_SKIP_ONBOARDING": "1"]
         )
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("report-\(UUID().uuidString).json")
+        let url = try makeScratchDirectory().url.appendingPathComponent("report.json")
         try SessionReport.makeJSONEncoder().encode(report).write(to: url)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return url.path
     }
 
@@ -90,11 +89,9 @@ final class GeneratePlanCommandTests: XCTestCase {
 
     func testFoldsAContextFileIntoTheRecompiledPlan() throws {
         let reportPath = try writeReport(laundryActions())
-        let contextURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ctx-\(UUID().uuidString).json")
+        let contextURL = try makeScratchDirectory().url.appendingPathComponent("ctx.json")
         try Data(#"{"baseClass":"AppUITestCase","appFactory":"makeApp()","harnessLaunchesApp":true}"#.utf8)
             .write(to: contextURL)
-        addTeardownBlock { try? FileManager.default.removeItem(at: contextURL) }
 
         let result = try runGeneratePlanCommand(
             options: GeneratePlanOptions(
@@ -143,10 +140,8 @@ final class GeneratePlanCommandTests: XCTestCase {
         ))
         XCTAssertEqual(planResult.exitCode, 0)
 
-        let planURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("laundry-cli-plan-\(UUID().uuidString).json")
+        let planURL = try makeScratchDirectory().url.appendingPathComponent("laundry-cli-plan.json")
         try Data(planResult.output.utf8).write(to: planURL)
-        addTeardownBlock { try? FileManager.default.removeItem(at: planURL) }
 
         let emitters = StudioCodeEmitters(ios: XCUITestEmitter(), android: EspressoEmitter())
         let generated = try runGenerateTestCommand(

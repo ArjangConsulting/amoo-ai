@@ -1,6 +1,7 @@
 import AmooCore
 import Foundation
 import StudioProtocol
+import TestCommons
 import Testing
 
 /// Asynchronous run lifecycle, report persistence and REPL tokenization. Split from
@@ -23,11 +24,11 @@ struct StudioAutomationRunTests {
             .init(test: authoredTest(plan: plan), deviceId: "emulator-5554", providerId: nil)
         )
 
-        var status = try await service.status(runId: started.runId)
-        for _ in 0 ..< 100 where status.state == .running {
-            try await Task.sleep(for: .milliseconds(10))
-            status = try await service.status(runId: started.runId)
-        }
+        let status = try await waitUntil(
+            timeout: .seconds(1),
+            operation: { try await service.status(runId: started.runId) },
+            matching: { $0.state != .running }
+        )
         let report = await service.reports().reports.first
 
         #expect(status.state == .passed)
@@ -49,11 +50,11 @@ struct StudioAutomationRunTests {
         )
         let started = await service.start(.init(test: authoredTest(plan: plan), deviceId: "device", providerId: nil))
 
-        var status = try await service.status(runId: started.runId)
-        for _ in 0 ..< 100 where status.state == .running {
-            try await Task.sleep(for: .milliseconds(10))
-            status = try await service.status(runId: started.runId)
-        }
+        let status = try await waitUntil(
+            timeout: .seconds(1),
+            operation: { try await service.status(runId: started.runId) },
+            matching: { $0.state != .running }
+        )
 
         #expect(status.state == .failed)
         #expect(status.message.contains("operation-1"))
@@ -61,9 +62,9 @@ struct StudioAutomationRunTests {
 
     @Test("reports persist and reload from disk")
     func reportPersistence() async throws {
-        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        let reportURL = directory.appending(path: "reports.json")
-        defer { try? FileManager.default.removeItem(at: directory) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let reportURL = scratch.url.appending(path: "reports/reports.json")
         let writer = LiveStudioAutomationService(workspace: AutomationWorkspace(), reportsURL: reportURL)
         let plan = StudioCompiledPlan(compiler: "test", compilerVersion: "1", operations: ["devices list"])
 

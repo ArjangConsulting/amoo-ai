@@ -26,10 +26,8 @@ final class GenerateCommandLifecycleTests: XCTestCase {
                 warnings: warnings
             )
         )
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("plan-\(UUID().uuidString).json")
+        let url = try makeScratchDirectory().url.appendingPathComponent("plan.json")
         try JSONEncoder().encode(test).write(to: url)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return url.path
     }
 

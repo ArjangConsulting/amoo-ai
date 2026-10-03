@@ -3,14 +3,15 @@ import Foundation
 import MCP
 @testable import MCPServer
 import StudioProtocol
+import TestCommons
 import TestSession
 import XCTest
 
 extension MCPServerTests {
     func testEndSessionAutoWritesPlanArtifactsWhenStoreConfigured() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "amoo-mcp-end-session-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appending(path: "store", directoryHint: .isDirectory)
 
         let stack = makeSessionStack(store: FileSessionStore(root: root))
         let manager = stack.manager
@@ -42,9 +43,9 @@ extension MCPServerTests {
     }
 
     func testCompileSessionToPlanResolvesSessionFromDiskAfterRestart() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "amoo-mcp-restart-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appending(path: "store", directoryHint: .isDirectory)
         let store = FileSessionStore(root: root)
 
         // First server: run + end a session, then drop it.

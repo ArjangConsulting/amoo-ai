@@ -3,6 +3,7 @@ import Foundation
 import MCP
 @testable import MCPServer
 import StudioProtocol
+import TestCommons
 import TestSession
 import XCTest
 
@@ -24,9 +25,9 @@ extension MCPServerTests {
     }
 
     func testCompileSessionToPlanFoldsInlineTestContextIntoThePlan() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "amoo-ctx-compile-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appending(path: "store", directoryHint: .isDirectory)
 
         let stack = makeSessionStack(store: FileSessionStore(root: root))
         let server = MCPServer(
@@ -76,9 +77,9 @@ extension MCPServerTests {
           "idLookupTemplate": null
         }
         """
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "amoo-ctx-doc-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appending(path: "store", directoryHint: .isDirectory)
 
         let stack = makeSessionStack(store: FileSessionStore(root: root))
         let server = MCPServer(
@@ -113,9 +114,9 @@ extension MCPServerTests {
     /// session is open must not change the plan `end_session` writes, and no lifecycle call may
     /// appear as a compiled operation or leave an `excluded` warning.
     func testExplicitCompilePreviewDoesNotContaminateTheEndSessionPlan() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "amoo-lifecycle-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appending(path: "store", directoryHint: .isDirectory)
 
         let stack = makeSessionStack(store: FileSessionStore(root: root))
         let server = MCPServer(
@@ -155,9 +156,9 @@ extension MCPServerTests {
     }
 
     func testSessionTimeContextSurvivesEndSessionRecompile() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "amoo-ctx-end-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appending(path: "store", directoryHint: .isDirectory)
 
         let contextFile = root.appendingPathComponent("test-context.json")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

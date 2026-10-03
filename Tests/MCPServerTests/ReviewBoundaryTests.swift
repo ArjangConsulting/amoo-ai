@@ -3,6 +3,7 @@ import AmooCore
 import Foundation
 import MCP
 @testable import MCPServer
+import TestCommons
 import TestSession
 import XCTest
 
@@ -51,9 +52,9 @@ final class ReviewBoundaryTests: XCTestCase {
     }
 
     func testRequestCancellationLeavesRuntimeUsable() async throws {
-        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        FileManager.default.createFile(atPath: outputURL.path, contents: nil)
-        defer { try? FileManager.default.removeItem(at: outputURL) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let outputURL = try scratch.write(Data(), named: "output")
         let output = try FileHandle(forWritingTo: outputURL)
         defer { try? output.close() }
         let runtime = MCPRequestRuntime(output: output)
