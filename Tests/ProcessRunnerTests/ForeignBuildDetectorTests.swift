@@ -78,3 +78,29 @@ final class ForeignBuildDetectorTests: XCTestCase {
         XCTAssertTrue(ProcessAncestry.current().contains(getpid()))
     }
 }
+
+final class DeviceHijackParsingTests: XCTestCase {
+    func testIOSRunnerTargetingTheDeviceIsAHijackerButTheCompanionIsNot() {
+        let ps = """
+        9001 /usr/bin/xcodebuild test -destination id=UDID-1 -scheme Other
+        9002 /usr/bin/xcodebuild test-without-building -xctestrun AmooCompanion.xctestrun -destination id=UDID-1
+        9003 /usr/bin/xcodebuild test -destination id=UDID-2
+        777 /usr/bin/xctest id=UDID-1
+        """
+        let found = ForeignBuildDetector.parseIOSHijackers(ps, udid: "UDID-1", ownProcessIDs: [777])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].hasPrefix("9001 "))
+    }
+
+    func testAndroidInstrumentationThatIsNotTheCompanionIsAHijacker() {
+        let ps = """
+          PID ARGS
+          812 cmd activity instrument -w -r com.example.app.test/androidx.test.runner.AndroidJUnitRunner
+          900 cmd activity instrument -w com.amoo.companion.test/com.amoo.companion.CompanionRunner
+         1000 /system/bin/logcat
+        """
+        let found = ForeignBuildDetector.parseAndroidHijackers(ps)
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].contains("com.example.app.test"))
+    }
+}

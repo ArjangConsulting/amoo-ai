@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 @testable import MCPServer
 import ProcessRunner
@@ -54,5 +55,37 @@ final class ForeignBuildWarningTests: XCTestCase {
         let server = MCPServer(executor: executor)
         let result = await server.execute(toolName: "device_install_app", arguments: ["path": "/tmp/App.app"])
         XCTAssertEqual(result.content, "App installed from /tmp/App.app")
+    }
+
+    /// Regression: another test runner hijacking the leased device surfaced only as an opaque
+    /// "RPC timed out before completing".
+    func testTimeoutOnAHijackedDeviceNamesTheOtherRunner() async {
+        let runner = StubRunner(
+            stdout: "9001 /usr/bin/xcodebuild test -destination id=mock -scheme Other\n",
+            exitCode: 0
+        )
+        let executor = DriverToolExecutor(
+            driver: MockDriver(),
+            foreignBuildDetector: ForeignBuildDetector(processRunner: runner, ownProcessIDs: [])
+        )
+        let message = await executor.failureMessage(
+            toolName: "tap",
+            error: AmooError.commandFailed(command: "tap", output: "deadlineExceeded: RPC timed out before completing"),
+            arguments: [:]
+        )
+        XCTAssertTrue(message.contains("device hijacked"), message)
+        XCTAssertTrue(message.contains("xcodebuild test -destination id=mock"), message)
+        XCTAssertTrue(message.contains("Leases only coordinate amoo users"), message)
+    }
+
+    func testTimeoutWithoutAHijackerKeepsTheOriginalError() async {
+        let executor = DriverToolExecutor(driver: MockDriver(), foreignBuildDetector: detector(reporting: false))
+        let message = await executor.failureMessage(
+            toolName: "tap",
+            error: AmooError.commandFailed(command: "tap", output: "RPC timed out before completing"),
+            arguments: [:]
+        )
+        XCTAssertTrue(message.hasPrefix("tap failed:"), message)
+        XCTAssertFalse(message.contains("hijacked"), message)
     }
 }
