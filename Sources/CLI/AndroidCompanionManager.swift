@@ -144,11 +144,12 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     /// Builds + installs the companion APKs (no launch). Used by `amoo companion install --platform android`.
     func install(config: AndroidCompanionConfig, force: Bool = false) async throws {
+        // `--force` reinstalls bundled APKs; it only recompiles when there are none to install.
         let (appApk, testApk) = apkPaths(
             companionDir: config.companionDir,
-            useBundled: !force && config.buildMode != .rebuild
+            useBundled: config.buildMode != .rebuild
         )
-        let needsBuild = force
+        let needsBuild = (force && !appApk.contains("/prebuilt/"))
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
 
@@ -179,11 +180,9 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// the instrumentation runner, and waits for the gRPC port — only as needed.
     func ensureRunning(config: AndroidCompanionConfig, force: Bool = false) async throws {
         await StartupProgress.report("Checking Android companion")
-        let bundled = FileManager.default.fileExists(atPath: config.companionDir + "/prebuilt/app-debug.apk")
-        let sourcesChanged = !config
-            .buildPrepared &&
-            (config
-                .buildMode == .rebuild ||
+        let bundled = hasBundledAPKs(companionDir: config.companionDir)
+        let sourcesChanged = !config.buildPrepared &&
+            (config.buildMode == .rebuild ||
                 (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
         if force {
             if activeConfig == nil {
@@ -212,9 +211,9 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
         let (appApk, testApk) = apkPaths(
             companionDir: config.companionDir,
-            useBundled: !force && config.buildMode != .rebuild
+            useBundled: config.buildMode != .rebuild
         )
-        let needsBuild = force
+        let needsBuild = (force && !bundled)
             || sourcesChanged
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
@@ -320,9 +319,14 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     // MARK: - Private
 
+    /// True only when both prebuilt APKs exist; a partial `prebuilt/` is not a usable bundle.
+    func hasBundledAPKs(companionDir: String) -> Bool {
+        FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug.apk")
+            && FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug-androidTest.apk")
+    }
+
     func apkPaths(companionDir: String, useBundled: Bool = true) -> (app: String, test: String) {
-        if useBundled, FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug.apk"),
-           FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug-androidTest.apk") {
+        if useBundled, hasBundledAPKs(companionDir: companionDir) {
             return (companionDir + "/prebuilt/app-debug.apk", companionDir + "/prebuilt/app-debug-androidTest.apk")
         }
         let app = companionDir + "/app/build/outputs/apk/debug/app-debug.apk"

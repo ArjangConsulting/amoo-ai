@@ -12,6 +12,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+
+# Signed copies carry embedded provisioning profiles; stale ones are pruned on the next run.
+MAX_COPY_AGE_SECONDS = 7 * 24 * 3600
 
 
 def run(*argv):
@@ -55,6 +59,16 @@ def sign_app(app, identity, profile_path, device_id):
     run('/usr/bin/codesign', '--verify', '--deep', '--strict', str(app))
 
 
+def prune_stale_copies(cache):
+    cutoff = time.time() - MAX_COPY_AGE_SECONDS
+    for old in cache.glob('device-*'):
+        try:
+            if old.is_dir() and old.stat().st_mtime < cutoff:
+                shutil.rmtree(old, ignore_errors=True)
+        except OSError:
+            pass
+
+
 def main():
     identity = os.environ.get('AMOO_IOS_SIGNING_IDENTITY')
     host_profile = os.environ.get('AMOO_IOS_HOST_PROFILE')
@@ -67,6 +81,7 @@ def main():
     # Each invocation owns its copy, avoiding shared signing races and Cellar mutations.
     cache = pathlib.Path.home() / '.amoo' / 'signed-companions'
     cache.mkdir(parents=True, exist_ok=True)
+    prune_stale_copies(cache)
     target = pathlib.Path(tempfile.mkdtemp(prefix='device-', dir=cache)) / 'Products'
     try:
         shutil.copytree(source_run.parent, target)

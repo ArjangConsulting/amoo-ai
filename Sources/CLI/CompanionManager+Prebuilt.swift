@@ -1,6 +1,7 @@
 import AmooCore
 import Foundation
 import ProcessRunner
+import SwiftyShell
 
 extension CompanionManager {
     func bundledProductsDirectory(config: CompanionConfig) -> String {
@@ -8,13 +9,28 @@ extension CompanionManager {
         return config.companionDir + "/prebuilt/\(platform)/Products"
     }
 
+    /// Env vars `sign-prebuilt.py` needs to re-sign the unsigned release device products.
+    static let deviceSigningEnvironmentKeys = [
+        "AMOO_IOS_SIGNING_IDENTITY", "AMOO_IOS_HOST_PROFILE", "AMOO_IOS_RUNNER_PROFILE"
+    ]
+
+    /// Bundled products are only usable on a physical device when they can be re-signed. Without
+    /// the signing environment the local Xcode-signed build is the only path that can work, so
+    /// bundled products must not shadow it.
+    func canSignBundledProducts(config: CompanionConfig) -> Bool {
+        guard config.isPhysicalDevice else { return true }
+        let environment = ProcessInfo.processInfo.environment
+        return Self.deviceSigningEnvironmentKeys.allSatisfy { environment[$0]?.isEmpty == false }
+    }
+
     func hasBundledProducts(config: CompanionConfig) -> Bool {
         config.buildMode != .rebuild
+            && canSignBundledProducts(config: config)
             && findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config) != nil
     }
 
-    func companionProductsDirectory(config: CompanionConfig) -> String {
-        hasBundledProducts(config: config)
+    func companionProductsDirectory(config: CompanionConfig, bundled: Bool? = nil) -> String {
+        (bundled ?? hasBundledProducts(config: config))
             ? bundledProductsDirectory(config: config)
             : config.companionDir + "/build/Build/Products"
     }
@@ -24,15 +40,24 @@ extension CompanionManager {
         guard config.bootSimulator, !config.isPhysicalDevice else { return }
         await StartupProgress.report("Booting iOS simulator")
         let runner = processRunner
-        let result = try await runner.run(["xcrun", "simctl", "boot", config.deviceUDID])
-        guard result.exitCode == 0 || result.stderr.contains("current state: Booted") else {
-            throw CompanionError.launchFailed("Simulator boot failed: \(result.stderr)")
+        // Bounded: an unresponsive simulator must surface as an error, not wedge the startup
+        // (and the build error behind it, since `ensureRunning` joins this task on every exit).
+        let boot = try await runner.run(Self.simctlRequest(["boot", config.deviceUDID], seconds: 60))
+        guard boot.exitCode == 0 || boot.stderr.contains("current state: Booted") else {
+            throw CompanionError.launchFailed("Simulator boot failed: \(boot.stderr)")
         }
-        let ready = try await runner.run(["xcrun", "simctl", "bootstatus", config.deviceUDID, "-b"])
+        let ready = try await runner.run(Self.simctlRequest(["bootstatus", config.deviceUDID, "-b"], seconds: 300))
         guard ready.exitCode == 0 else {
             throw CompanionError.launchFailed("Simulator boot readiness failed: \(ready.stderr)")
         }
         await StartupProgress.report("iOS simulator boot complete; waiting for companion preparation")
+    }
+
+    private static func simctlRequest(_ arguments: [String], seconds: Int) -> ProcessExecutionRequest {
+        ProcessExecutionRequest(
+            command: Command("xcrun").args(["simctl"] + arguments).timeout(.seconds(seconds)),
+            context: ShellContext()
+        )
     }
 
     /// Release device builds are unsigned. Sign a writable copy with the user's profiles.

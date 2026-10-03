@@ -208,11 +208,9 @@ final class CompanionManager: @unchecked Sendable {
             await shutdown()
         }
         await StartupProgress.report("Checking iOS companion")
-        let sourcesChanged = config
-            .buildMode == .rebuild ||
-            (config
-                .buildMode != .reuse && !hasBundledProducts(config: config) &&
-                !sourceFingerprintMatches(config: config))
+        let bundled = hasBundledProducts(config: config)
+        let sourcesChanged = config.buildMode == .rebuild ||
+            (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config))
         if config.isPhysicalDevice, companionProcess != nil, activeConfig == config, !force, !sourcesChanged {
             print("Companion already running on physical device \(config.deviceUDID).")
             return
@@ -245,7 +243,7 @@ final class CompanionManager: @unchecked Sendable {
         }
 
         async let simulatorReady: Void = prepareSimulator(config: config)
-        let productsDir = companionProductsDirectory(config: config)
+        let productsDir = companionProductsDirectory(config: config, bundled: bundled)
         var xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
 
         if config.buildMode == .reuse, xctestrunPath == nil {
@@ -255,7 +253,9 @@ final class CompanionManager: @unchecked Sendable {
                         + "or use build_mode=auto once."
                 )
         }
-        if force || sourcesChanged || xctestrunPath == nil {
+        // `force` restarts and reinstalls; it only recompiles when there are no bundled products
+        // to reinstall (a release install cannot compile in its read-only prefix).
+        if (force && !bundled) || sourcesChanged || xctestrunPath == nil {
             await StartupProgress.report("Building iOS companion (in parallel with simulator boot)")
             print("Companion sources changed or no build exists. Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building companion app") {

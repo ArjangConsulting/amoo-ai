@@ -12,11 +12,11 @@ extension DriverToolExecutor {
         guard sessionManager != nil else {
             return .error("Session management not configured. Run `amoo mcp serve` to enable.")
         }
-        guard arguments["app_id"] != nil else {
+        guard let appID = arguments["app_id"] else {
             return .error("Missing required argument: app_id")
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
-        guard Platform(rawValue: platformRaw.lowercased()) != nil else {
+        guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
             return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
         }
         guard let buildMode = SessionBuildMode(rawValue: arguments["build_mode"] ?? "auto") else {
@@ -25,7 +25,12 @@ extension DriverToolExecutor {
         let operation = StartupOperation()
         await StartupProgressStore.shared.add(operation)
         return await StartupProgress.$startup.withValue(operation) {
-            let result = await startSession(arguments: arguments, buildMode: buildMode)
+            let result = await startSession(
+                arguments: arguments,
+                appID: appID,
+                platform: platform,
+                buildMode: buildMode
+            )
             await operation.finish(success: !result.isError)
             return result
         }
@@ -33,13 +38,11 @@ extension DriverToolExecutor {
 
     private func startSession(
         arguments: [String: String],
+        appID: String,
+        platform: Platform,
         buildMode: SessionBuildMode
     ) async -> ToolResult {
-        guard let manager = sessionManager,
-              let appID = arguments["app_id"],
-              let platform = Platform(rawValue: (arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios")
-                  .lowercased())
-        else { return .error("Session configuration is missing.") }
+        guard let manager = sessionManager else { return .error("Session configuration is missing.") }
         let deviceHint = arguments["device_hint"]
         let buildPath = arguments["build_path"]
         let launchArgs: [String] = arguments["launch_args"]

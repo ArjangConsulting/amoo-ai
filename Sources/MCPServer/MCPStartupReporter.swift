@@ -50,6 +50,8 @@ func withMCPStartupProgress(
     token: Value?,
     operation: @escaping @Sendable () async -> Data?
 ) async -> Data? {
+    // Without a progress token nothing can be sent, so skip the reporter and heartbeat entirely.
+    guard token != nil else { return await operation() }
     let progress = MCPStartupReporter(runtime: runtime, token: token)
     let reporter: @Sendable (String) async -> Void = { message in await progress.report(message) }
     return await StartupProgress.$reporter.withValue(reporter) {
