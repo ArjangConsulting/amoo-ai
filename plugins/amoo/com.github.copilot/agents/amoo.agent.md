@@ -93,6 +93,8 @@ app, use the CLI path.
 - Install, launch, terminate and reinstall the app only through amoo (`device_install_app`,
   `device_launch_app`, `device_terminate_app`) — raw `simctl`/`adb` app lifecycle desyncs the
   companion. Read-only diagnostics (logcat, crash logs, `simctl list`) are fine.
+- `device_launch_app` binds the launched app as the target. For an app that is already running, call
+  `set_target_app` before `current_app` or gestures: an unbound iOS companion reports springboard.
 - Reuse what is running: a booted device with the app installed is relaunched, not rebuilt.
 - After a timeout, inspect state before repeating a mutation — it may already have happened.
 - A connection error: read `$TMPDIR/companion-launch-<port>.log`, retry once; with MCP use
