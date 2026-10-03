@@ -43,7 +43,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let bootstrapStart = clock.now
         await StartupProgress.report("Selecting device")
         let selector = PlatformDeviceSelector(processRunner: processRunner, leaseStore: leaseStore)
-        async let androidBuild: Void = prepareAndroidBuild(request)
+        async let androidBuild: Bool = prepareAndroidBuild(request)
         let available = try await selector.selectDevice(
             hint: request.deviceHint,
             platform: request.platform,
@@ -57,15 +57,15 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         // Cross-process: a device another session leased via `amoo env up` is off limits unless
         // this server was started with that lease in AMOO_LEASE.
         try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
-        try await androidBuild
+        let installAndroidBuild = try await androidBuild
         let owner = try await Self.leases.acquire(deviceKey)
         do {
             return try await bootstrap(
                 request,
                 available: available,
                 start: bootstrapStart,
-                deviceKey: deviceKey,
-                owner: owner
+                lease: (deviceKey, owner),
+                installAndroidBuild: installAndroidBuild
             )
         } catch {
             await Self.leases.release(deviceKey, owner: owner)
@@ -79,8 +79,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         _ request: SessionBootstrapRequest,
         available: AvailableDevice,
         start bootstrapStart: ContinuousClock.Instant,
-        deviceKey: String,
-        owner: UUID
+        lease: (deviceKey: String, owner: UUID),
+        installAndroidBuild: Bool
     ) async throws -> BootstrapResult {
         let clock = ContinuousClock()
         // Ensure platform hint is consistent with the selected device.
@@ -99,7 +99,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             (deviceID, port) = try await ensureCompanion(
                 for: available,
                 appID: request.appID,
-                buildMode: request.buildMode
+                buildMode: request.buildMode,
+                installAndroidBuild: installAndroidBuild
             )
             PerformanceTelemetry.record(
                 "companion_startup",
@@ -139,7 +140,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             if let tunnelHandle {
                 try? await tunnel.close(tunnelHandle)
             }
-            await Self.leases.release(deviceKey, owner: owner)
+            await Self.leases.release(lease.deviceKey, owner: lease.owner)
         }
 
         let platformDriver: any PlatformDriver
@@ -256,7 +257,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     private func ensureCompanion(
         for device: AvailableDevice,
         appID: String,
-        buildMode: SessionBuildMode
+        buildMode: SessionBuildMode,
+        installAndroidBuild: Bool
     ) async throws -> (deviceID: String, port: Int) {
         switch device {
         case let .ios(booted):
@@ -277,6 +279,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             var config = AndroidCompanionConfig(port: port, serial: serial)
             config.buildMode = buildMode
             config.buildPrepared = true
+            config.installPreparedBuild = installAndroidBuild
             try await androidCompanionManager.ensureRunning(config: config, force: false)
             return (serial, port)
         }

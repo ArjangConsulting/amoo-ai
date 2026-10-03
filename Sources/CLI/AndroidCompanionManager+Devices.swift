@@ -56,6 +56,13 @@ extension AndroidCompanionManager {
         if let existing = stateLock.withLock({ fallbackPorts[serial] }) {
             return existing
         }
+        if let forwarded = try? await forwardedAndroidCompanionPort(
+            forSerial: serial,
+            context: shellContext
+        ) {
+            stateLock.withLock { fallbackPorts[serial] = forwarded }
+            return forwarded
+        }
         for candidate in AndroidCompanionConfig.fallbackPortBase ... AndroidCompanionConfig.maxPort {
             guard !stateLock.withLock({ fallbackPorts.values.contains(candidate) }),
                   await !isTCPPortReachable(host: "127.0.0.1", port: candidate, timeoutSeconds: 0.5)

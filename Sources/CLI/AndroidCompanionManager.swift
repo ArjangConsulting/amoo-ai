@@ -9,6 +9,7 @@ import SwiftyShell
 struct AndroidCompanionConfig {
     var buildMode: SessionBuildMode = .auto
     var buildPrepared = false
+    var installPreparedBuild = false
     var host: String
     var port: Int
     var companionDir: String
@@ -136,14 +137,16 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
 /// reachability, and tear everything down on shutdown.
 protocol AndroidCompanionManaging: Sendable {
     func ensureRunning(config: AndroidCompanionConfig, force: Bool) async throws
-    func prepareBuild(config: AndroidCompanionConfig) async throws
+    func prepareBuild(config: AndroidCompanionConfig) async throws -> Bool
     /// The host port the companion for `serial` is reachable on. Distinct per device so that
     /// concurrent sessions on different emulators do not share a port.
     func companionPort(forSerial serial: String) async -> Int
 }
 
 extension AndroidCompanionManaging {
-    func prepareBuild(config _: AndroidCompanionConfig) async throws {}
+    func prepareBuild(config _: AndroidCompanionConfig) async throws -> Bool {
+        false
+    }
 
     func companionPort(forSerial _: String) async -> Int {
         AndroidCompanionConfig.defaultPort
@@ -162,7 +165,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     var running: [String: RunningCompanion] = [:]
     var fallbackPorts: [String: Int] = [:]
     let stateLock = NSLock()
-    private let shellContext: ShellContext
+    let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
         // Gradle inherits JAVA_HOME from here. AGP 8.7 cannot run on a JDK newer than 21, and
@@ -215,6 +218,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         let sourcesChanged = !config.buildPrepared &&
             (config.buildMode == .rebuild ||
                 (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
+        let requiresReplacement = config.installPreparedBuild || sourcesChanged
         if force {
             if tracked(serial: config.serial) == nil {
                 await clearStaleCompanion(config: config)
@@ -223,7 +227,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             }
         }
 
-        if !force, !sourcesChanged,
+        if !force, !requiresReplacement,
            !isPortHeldByOtherDevice(config: config),
            await isCompanionReady(host: config.host, port: config.port) {
             print("Android companion already running on port \(config.port) for"
@@ -236,7 +240,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             await shutdown(serial: config.serial)
         }
 
-        if await isReachable(host: config.host, port: config.port), sourcesChanged {
+        if await isReachable(host: config.host, port: config.port), requiresReplacement {
             await clearStaleCompanion(config: config)
         }
 
