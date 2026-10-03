@@ -1,6 +1,7 @@
 import Foundation
 @testable import ProcessRunner
 import SwiftyShell
+import TestCommons
 import XCTest
 #if canImport(Darwin)
 import Darwin
@@ -15,18 +16,20 @@ final class DetachedProcessTests: XCTestCase {
         #if os(Windows)
         throw XCTSkip("POSIX only")
         #else
-        let log = NSTemporaryDirectory() + "amoo-detached-\(UUID().uuidString).log"
-        defer { try? FileManager.default.removeItem(atPath: log) }
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let log = scratch.url.appendingPathComponent("detached.log").path
 
         let pid = try await DetachedProcess.spawn(["sh", "-c", "echo to-stderr >&2; exec sleep 30"], logPath: log)
         defer { _ = kill(-pid, SIGKILL) }
         XCTAssertGreaterThan(pid, 0)
 
-        var output = ""
-        for _ in 0 ..< 50 where !output.contains("to-stderr") {
-            try await Task.sleep(for: .milliseconds(100))
-            output = (try? String(contentsOfFile: log, encoding: .utf8)) ?? ""
-        }
+        let output = try await waitUntil(
+            timeout: .seconds(5),
+            pollInterval: .milliseconds(100),
+            operation: { (try? String(contentsOfFile: log, encoding: .utf8)) ?? "" },
+            matching: { $0.contains("to-stderr") }
+        )
         XCTAssertEqual(getpgid(pid), pid, "child should be its own group leader")
         XCTAssertEqual(getsid(pid), pid, "child should lead an independent session")
         XCTAssertNotEqual(getpgid(pid), getpgrp())

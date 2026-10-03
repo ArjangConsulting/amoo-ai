@@ -1,5 +1,6 @@
 import AmooCore
 import StudioProtocol
+import TestCommons
 import Testing
 
 struct StudioAutomationEdgeTests {
@@ -31,11 +32,11 @@ struct StudioAutomationEdgeTests {
         )
         let started = await service.start(.init(test: authoredTest(plan: plan), deviceId: "device", providerId: nil))
 
-        var status = try await service.status(runId: started.runId)
-        for _ in 0 ..< 100 where status.state == .running {
-            try await Task.sleep(for: .milliseconds(10))
-            status = try await service.status(runId: started.runId)
-        }
+        let status = try await waitUntil(
+            timeout: .seconds(1),
+            operation: { try await service.status(runId: started.runId) },
+            matching: { $0.state != .running }
+        )
 
         #expect(status.state == .cancelled)
         #expect(status.message == "Test run cancelled.")
