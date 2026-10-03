@@ -252,21 +252,37 @@ public struct ADBRunner: ADBRunning {
         Adb(context: context).serial(serial)
     }
 
+    /// `cmd package resolve-activity` arguments that select the LAUNCHER activity. Without the
+    /// MAIN/LAUNCHER filter the query matches nothing useful (or the system resolver activity).
+    static func resolveLauncherArguments(appID: String) -> [String] {
+        [
+            "shell", "cmd", "package", "resolve-activity", "--brief",
+            "-a", "android.intent.action.MAIN",
+            "-c", "android.intent.category.LAUNCHER",
+            appID
+        ]
+    }
+
+    /// The `<pkg>/<class>` component in `resolve-activity --brief` output, or nil when nothing
+    /// launchable matched. The class may live outside the applicationId package (product flavors,
+    /// `applicationIdSuffix`), so only the package half of the component is checked.
+    static func parseLauncherComponent(_ output: String, appID: String) -> String? {
+        output
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .last { $0.hasPrefix(appID + "/") && !$0.contains(" ") }
+    }
+
     private func resolveLaunchableActivity(serial: String?, appID: String) async throws -> String {
-        do {
-            let result = try await run(adb(serial: serial).resolveLaunchableActivity(package: appID))
-            let lines = result.stdout
-                .split(separator: "\n")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-            if let component = lines.last(where: { $0.contains("/") }) {
-                return component
-            }
-        } catch {
-            // Fall through to the generic launcher below.
+        let result = try await run(adb(serial: serial).rawArguments(Self.resolveLauncherArguments(appID: appID)))
+        guard let component = Self.parseLauncherComponent(result.stdout, appID: appID) else {
+            throw ProcessRunnerError.nonZeroExit(
+                command: "resolve-activity \(appID)",
+                exitCode: 1,
+                stderr: "No launchable (MAIN/LAUNCHER) activity found for \(appID); is it installed?"
+            )
         }
-
-        return "\(appID)/.MainActivity"
+        return component
     }
 
     private func run(_ command: Adb) async throws -> ProcessResult {
