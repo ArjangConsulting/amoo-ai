@@ -495,6 +495,18 @@ PlatformDriver (IOSDriver or AndroidDriver)
 
 ---
 
+## Device Leases
+
+`amoo env up` takes a lease on one simulator/emulator (`~/.amoo/leases/`); later calls prove
+ownership with `--lease` / `AMOO_LEASE`. **Leases only coordinate amoo users.** A raw
+`xcodebuild test -destination id=<udid>`, Gradle `connectedAndroidTest` or `am instrument` on the
+same device is not blocked by one, and can take the foreground or reinstall the app under test.
+When a call times out, amoo looks for such a runner targeting the device and reports
+`device hijacked: <device> is being driven by a test runner amoo did not start — [<cmdline>]`
+instead of the bare RPC timeout. An expired lease stops its companion holder (and force-stops the
+Android companion packages); `amoo env down --device <id>` does the same for an orphan with no
+lease.
+
 ## Modularity Boundaries
 
 Each arrow below represents a protocol boundary. Anything behind the protocol can be replaced.

@@ -3,6 +3,7 @@ import Darwin
 #elseif canImport(Glibc)
 import Glibc
 #endif
+import AmooCore
 import Foundation
 
 /// Detects `xcodebuild` / `xctest` processes that this `amoo` process did not start, so a caller
@@ -12,8 +13,8 @@ import Foundation
 /// Deliberately cheap: one `pgrep` invocation, no polling, and a probe failure is swallowed —
 /// an advisory must never block the operation it annotates.
 public struct ForeignBuildDetector: Sendable {
-    private let processRunner: any ProcessRunner
-    private let ownProcessIDs: Set<Int32>
+    let processRunner: any ProcessRunner
+    let ownProcessIDs: Set<Int32>
 
     /// - Parameters:
     ///   - processRunner: how to run `pgrep`. Defaults to the real system runner.
@@ -77,6 +78,61 @@ public struct ForeignBuildDetector: Sendable {
     /// `contentionWarning` when a foreign build is running, otherwise `nil`.
     public func contentionWarning() async -> String? {
         await foreignBuildProcesses().isEmpty ? nil : Self.contentionWarning
+    }
+}
+
+// MARK: - Device hijack detection
+
+public extension ForeignBuildDetector {
+    /// Runner processes that amoo did not start and that target `deviceID` — raw `xcodebuild test
+    /// -destination id=<udid>` on iOS, a `am instrument` session (Gradle `connectedAndroidTest`)
+    /// on Android. Leases only coordinate amoo users, so such a runner can take the foreground or
+    /// reinstall the app under test while amoo's RPCs wait on a screen that no longer exists.
+    func hijackingProcesses(platform: Platform, deviceID: String) async -> [String] {
+        guard !deviceID.isEmpty, deviceID != "booted" else { return [] }
+        switch platform {
+        case .ios:
+            guard let result = try? await processRunner.run(["/bin/ps", "-axo", "pid=,args="]),
+                  result.exitCode == 0 else { return [] }
+            return Self.parseIOSHijackers(result.stdout, udid: deviceID, ownProcessIDs: ownProcessIDs)
+        case .android:
+            guard let result = try? await processRunner.run(["adb", "-s", deviceID, "shell", "ps", "-A", "-o", "PID,ARGS"]),
+                  result.exitCode == 0 else { return [] }
+            return Self.parseAndroidHijackers(result.stdout)
+        }
+    }
+
+    /// The user-facing error for `hijackingProcesses`, nil when there are none.
+    func hijackMessage(platform: Platform, deviceID: String) async -> String? {
+        let processes = await hijackingProcesses(platform: platform, deviceID: deviceID)
+        guard !processes.isEmpty else { return nil }
+        return "device hijacked: \(deviceID) is being driven by a test runner amoo did not start — "
+            + processes.prefix(3).map { "[\($0)]" }.joined(separator: " ")
+            + ". It can take the foreground or reinstall the app under test, so amoo's calls time out. "
+            + "Leases only coordinate amoo users: stop that process or use another device."
+    }
+
+    static func parseIOSHijackers(_ psOutput: String, udid: String, ownProcessIDs: Set<Int32>) -> [String] {
+        psOutput.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { line in
+                guard let token = line.split(separator: " ", maxSplits: 1).first, let pid = Int32(token),
+                      !ownProcessIDs.contains(pid) else { return false }
+                return (line.contains("xcodebuild") || line.contains("xctest"))
+                    && line.contains(udid) && !line.contains(companionMarker)
+            }
+    }
+
+    /// `ps -A -o PID,ARGS` from the device: `am`/`cmd activity instrument` sessions that are not
+    /// amoo's own companion runner.
+    static func parseAndroidHijackers(_ psOutput: String) -> [String] {
+        psOutput.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { line in
+                let instruments = line.contains("activity instrument") || line.contains("commands.am.Am instrument")
+                    || line.contains("am instrument")
+                return instruments && !line.contains("com.amoo.companion")
+            }
     }
 }
 

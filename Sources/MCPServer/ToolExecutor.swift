@@ -96,7 +96,7 @@ public actor DriverToolExecutor: ToolExecutor {
         } catch is CancellationError {
             result = ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
         } catch {
-            result = .error("\(toolName) failed: \(error)")
+            result = await .error(failureMessage(toolName: toolName, error: error, arguments: arguments))
         }
         await recordIfNeeded(toolName: toolName, arguments: executionArguments, result: result)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
@@ -330,4 +330,20 @@ func renderViewNode(_ node: ViewNode, indent: Int) -> String {
     }
 
     return parts.joined(separator: "\n")
+}
+
+extension DriverToolExecutor {
+    /// `"<tool> failed: <error>"`, except that a timeout on a device someone else is driving is
+    /// reported as that — a non-amoo test runner on the same device is the usual cause of an
+    /// otherwise opaque "RPC timed out before completing".
+    func failureMessage(toolName: String, error: any Error, arguments: [String: String]) async -> String {
+        let plain = "\(toolName) failed: \(error)"
+        let text = "\(error)".lowercased()
+        guard text.contains("timed out") || text.contains("deadlineexceeded") || text.contains("deadline exceeded"),
+              let driver = try? await resolveDriver(arguments: arguments),
+              let info = try? await driver.deviceInfo(),
+              let hijack = await foreignBuildDetector.hijackMessage(platform: info.platform, deviceID: info.id)
+        else { return plain }
+        return "\(toolName) failed: \(hijack) (original error: \(error))"
+    }
 }
