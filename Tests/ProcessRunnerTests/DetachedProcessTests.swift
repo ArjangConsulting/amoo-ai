@@ -71,4 +71,26 @@ final class AndroidLaunchArgumentsTests: XCTestCase {
         let command = ADBRunner.amStartArguments(component: "c/.M", arguments: ["it's"], environment: [:])
         XCTAssertEqual(Array(command.suffix(3)), ["--es", "arg", "'it'\\''s'"])
     }
+
+    /// Regression (a6e9f6c): the launcher class can live outside the applicationId package, and the
+    /// resolver must filter on MAIN/LAUNCHER or it returns nothing and the `.MainActivity` guess ran.
+    func testLauncherComponentOutsideApplicationIdPackage() {
+        let output = "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\n"
+            + "com.novalingo.android.qa/com.novalingo.MainActivity\n"
+        XCTAssertEqual(
+            ADBRunner.parseLauncherComponent(output, appID: "com.novalingo.android.qa"),
+            "com.novalingo.android.qa/com.novalingo.MainActivity"
+        )
+    }
+
+    func testNoLauncherMatchIsNotGuessed() {
+        XCTAssertNil(ADBRunner.parseLauncherComponent("No activity found\n", appID: "com.app"))
+        XCTAssertNil(ADBRunner.parseLauncherComponent("android/com.android.internal.app.ResolverActivity", appID: "com.app"))
+    }
+
+    func testResolveArgumentsFilterOnMainLauncher() {
+        let args = ADBRunner.resolveLauncherArguments(appID: "com.app")
+        XCTAssertTrue(args.contains("android.intent.category.LAUNCHER"))
+        XCTAssertEqual(args.last, "com.app")
+    }
 }
