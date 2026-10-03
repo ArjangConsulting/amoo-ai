@@ -61,7 +61,7 @@ final class MCPServerTests: XCTestCase {
         // on a platform/device rather than an open session. Everything else
         // should advertise it.
         let exempt: Set = [
-            "start_session", "list_sessions", "companion_warm", "companion_status",
+            "start_session", "list_sessions", "companion_warm", "companion_status", "session_startup_status",
             "webview_eval", "webview_dom"
         ]
         for def in defs where !exempt.contains(def.name) {

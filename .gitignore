@@ -48,3 +48,8 @@ local.properties
 
 # Heap dumps from Gradle daemon OOMs
 *.hprof
+
+# Packaged release companion products
+.build-companion-release/
+CompanionApps/iOS/prebuilt/
+CompanionApps/Android/prebuilt/

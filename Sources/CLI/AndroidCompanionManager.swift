@@ -7,6 +7,9 @@ import SwiftyShell
 // MARK: - Configuration
 
 struct AndroidCompanionConfig {
+    var buildMode: SessionBuildMode = .auto
+    var buildPrepared = false
+    var installPreparedBuild = false
     var host: String
     var port: Int
     var companionDir: String
@@ -15,6 +18,21 @@ struct AndroidCompanionConfig {
 
     /// The port an Android companion listens on unless told otherwise.
     static let defaultPort = 22088
+
+    /// Emulator console ports are even numbers 5554…5584; each maps to one port from `defaultPort`.
+    private static let emulatorConsolePorts = 5554 ... 5584
+    /// First port used for devices that are not emulators; sits above the 16 emulator slots.
+    static let fallbackPortBase = defaultPort + 16
+    static let maxPort = 65535
+
+    /// The fixed companion port for an `emulator-<console port>` serial, or nil for other devices.
+    static func emulatorPort(forSerial serial: String) -> Int? {
+        guard serial.hasPrefix("emulator-"),
+              let console = Int(serial.dropFirst("emulator-".count)),
+              emulatorConsolePorts.contains(console), console.isMultiple(of: 2)
+        else { return nil }
+        return defaultPort + (console - emulatorConsolePorts.lowerBound) / 2
+    }
 
     init(
         host: String = "127.0.0.1",
@@ -119,12 +137,35 @@ enum AndroidCompanionError: Error, CustomStringConvertible {
 /// reachability, and tear everything down on shutdown.
 protocol AndroidCompanionManaging: Sendable {
     func ensureRunning(config: AndroidCompanionConfig, force: Bool) async throws
+    func prepareBuild(config: AndroidCompanionConfig) async throws -> Bool
+    /// The host port the companion for `serial` is reachable on. Distinct per device so that
+    /// concurrent sessions on different emulators do not share a port.
+    func companionPort(forSerial serial: String) async -> Int
+}
+
+extension AndroidCompanionManaging {
+    func prepareBuild(config _: AndroidCompanionConfig) async throws -> Bool {
+        false
+    }
+
+    func companionPort(forSerial _: String) async -> Int {
+        AndroidCompanionConfig.defaultPort
+    }
 }
 
 final class AndroidCompanionManager: @unchecked Sendable {
-    private var instrumentProcess: (any SpawnedProcess)?
-    private var activeConfig: AndroidCompanionConfig?
-    private let shellContext: ShellContext
+    /// A companion this manager launched for one device.
+    struct RunningCompanion {
+        var process: (any SpawnedProcess)?
+        var config: AndroidCompanionConfig
+    }
+
+    /// Per-device state, keyed by serial (`""` for the default device). Guarded by `stateLock`,
+    /// which is never held across an `await`: sessions on different emulators run concurrently.
+    var running: [String: RunningCompanion] = [:]
+    var fallbackPorts: [String: Int] = [:]
+    let stateLock = NSLock()
+    let shellContext: ShellContext
 
     init(processRunner: any ProcessRunner = SystemProcessRunner()) {
         // Gradle inherits JAVA_HOME from here. AGP 8.7 cannot run on a JDK newer than 21, and
@@ -137,12 +178,21 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     /// Builds + installs the companion APKs (no launch). Used by `amoo companion install --platform android`.
     func install(config: AndroidCompanionConfig, force: Bool = false) async throws {
-        let (appApk, testApk) = apkPaths(companionDir: config.companionDir)
-        let needsBuild = force
+        // `--force` reinstalls bundled APKs; it only recompiles when there are none to install.
+        let (appApk, testApk) = apkPaths(
+            companionDir: config.companionDir,
+            useBundled: config.buildMode != .rebuild
+        )
+        let needsBuild = (force && !appApk.contains("/prebuilt/"))
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
 
+        if needsBuild, config.buildMode == .reuse {
+            throw AndroidCompanionError
+                .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
+        }
         if needsBuild {
+            await StartupProgress.report("Building Android companion")
             print("Building Android companion (this may take a moment)...")
             try await withCLILoadingIndicator("Building Android companion") {
                 try await self.buildAPKs(config: config)
@@ -151,6 +201,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             print(colored("Android companion already built.", .green) + colored(" Use --force to rebuild.", .gray))
         }
 
+        await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
         try await withCLILoadingIndicator("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
@@ -158,20 +209,26 @@ final class AndroidCompanionManager: @unchecked Sendable {
         print(colored("Android companion installed successfully.", .green))
     }
 
+    // swiftlint:disable function_body_length - linear startup lifecycle with rollback.
     /// Ensures the companion is reachable. Builds, installs, forwards TCP, spawns
     /// the instrumentation runner, and waits for the gRPC port — only as needed.
     func ensureRunning(config: AndroidCompanionConfig, force: Bool = false) async throws {
-        let sourcesChanged = !sourceFingerprintMatches(config: config)
+        await StartupProgress.report("Checking Android companion")
+        let bundled = hasBundledAPKs(companionDir: config.companionDir)
+        let sourcesChanged = !config.buildPrepared &&
+            (config.buildMode == .rebuild ||
+                (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
+        let requiresReplacement = config.installPreparedBuild || sourcesChanged
         if force {
-            if activeConfig == nil {
+            if tracked(serial: config.serial) == nil {
                 await clearStaleCompanion(config: config)
             } else {
-                await shutdown()
+                await shutdown(serial: config.serial)
             }
         }
 
-        if !force, !sourcesChanged,
-           activeConfig == nil || activeConfig?.serial == config.serial,
+        if !force, !requiresReplacement,
+           !isPortHeldByOtherDevice(config: config),
            await isCompanionReady(host: config.host, port: config.port) {
             print("Android companion already running on port \(config.port) for"
                 + " \(config.serial ?? "default device").")
@@ -179,21 +236,29 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
 
         // Do not leave a wedged instrumentation runner behind when starting its replacement.
-        if activeConfig != nil {
-            await shutdown()
+        if tracked(serial: config.serial) != nil {
+            await shutdown(serial: config.serial)
         }
 
-        if await isReachable(host: config.host, port: config.port), sourcesChanged {
+        if await isReachable(host: config.host, port: config.port), requiresReplacement {
             await clearStaleCompanion(config: config)
         }
 
-        let (appApk, testApk) = apkPaths(companionDir: config.companionDir)
-        let needsBuild = force
+        let (appApk, testApk) = apkPaths(
+            companionDir: config.companionDir,
+            useBundled: config.buildMode != .rebuild
+        )
+        let needsBuild = (force && !bundled)
             || sourcesChanged
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
 
+        if needsBuild, config.buildMode == .reuse {
+            throw AndroidCompanionError
+                .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
+        }
         if needsBuild {
+            await StartupProgress.report("Building Android companion")
             print("Android companion sources changed or no build exists."
                 + " Building (this may take a moment)...")
             try await withCLILoadingIndicator("Building Android companion") {
@@ -201,6 +266,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             }
         }
 
+        await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
         try await withCLILoadingIndicator("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
@@ -215,9 +281,10 @@ final class AndroidCompanionManager: @unchecked Sendable {
         print("Forwarding 127.0.0.1:\(config.port) → device:\(config.port)...")
         try await forwardPort(config: config)
 
+        await StartupProgress.report("Launching Android companion instrumentation")
         print("Starting Android companion instrumentation on port \(config.port)...")
-        try await launchInstrumentation(config: config)
-        activeConfig = config
+        let process = try await launchInstrumentation(config: config)
+        setTracked(RunningCompanion(process: process, config: config))
 
         // `--ready-timeout` (default 180s / `AMOO_COMPANION_READY_TIMEOUT`) bounds the wait for the
         // gRPC port. `waitUntilReachable` enforces it on the poll loop; the surrounding task-group
@@ -234,6 +301,8 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
         print(colored("Android companion ready.", .bold, .green))
     }
+
+    // swiftlint:enable function_body_length
 
     /// Runs `operation` with an outer wall-clock cap of `seconds` + a fixed slack, so a hung `adb`
     /// invocation surfaces as `.readyTimeout` rather than an unbounded wait. The inner
@@ -260,7 +329,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// Never returns when this process spawned none — it is only attached to another holder's
     /// companion, whose lifetime is not its to manage.
     func waitForRunnerExit() async {
-        guard let process = instrumentProcess else {
+        guard let process = firstTrackedProcess() else {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3600))
             }
@@ -271,27 +340,34 @@ final class AndroidCompanionManager: @unchecked Sendable {
         print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red))
     }
 
-    func shutdown() async {
-        if let process = instrumentProcess {
-            _ = await process.teardownAndWait()
-            instrumentProcess = nil
-        }
-
-        guard let config = activeConfig else { return }
-        activeConfig = nil
-
-        await clearStaleCompanion(config: config)
-    }
-
     // MARK: - Private
 
-    private func apkPaths(companionDir: String) -> (app: String, test: String) {
+    /// True only when both prebuilt APKs exist; a partial `prebuilt/` is not a usable bundle.
+    func hasBundledAPKs(companionDir: String) -> Bool {
+        FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug.apk")
+            && FileManager.default.fileExists(atPath: companionDir + "/prebuilt/app-debug-androidTest.apk")
+    }
+
+    func apkPaths(companionDir: String, useBundled: Bool = true) -> (app: String, test: String) {
+        if useBundled, hasBundledAPKs(companionDir: companionDir) {
+            return (companionDir + "/prebuilt/app-debug.apk", companionDir + "/prebuilt/app-debug-androidTest.apk")
+        }
         let app = companionDir + "/app/build/outputs/apk/debug/app-debug.apk"
         let test = companionDir + "/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
         return (app, test)
     }
 
-    private func buildAPKs(config: AndroidCompanionConfig) async throws {
+    /// Builds the APKs, joining a build already running for the same companion directory.
+    func buildAPKs(config: AndroidCompanionConfig) async throws {
+        try await Self.buildCoordinator.build(key: config.companionDir) {
+            try await self.runGradleBuild(config: config)
+        }
+    }
+
+    private func runGradleBuild(config: AndroidCompanionConfig) async throws {
+        // Hash before building: a source edit made while Gradle runs must leave the fingerprint
+        // stale so the next session rebuilds, rather than being recorded as already built.
+        let fingerprint = currentSourceFingerprint(config: config)
         let gradlewPath = config.companionDir + "/gradlew"
         let result: ProcessResult
         do {
@@ -309,7 +385,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             let message = result.stderr.isEmpty ? result.stdout : result.stderr
             throw AndroidCompanionError.buildFailed(message)
         }
-        try writeSourceFingerprint(config: config)
+        try writeSourceFingerprint(config: config, fingerprint: fingerprint)
     }
 
     /// Force-stops both companion packages and drops the TCP forward, so a companion left behind
@@ -320,7 +396,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// state (`FIN_WAIT2` / `CLOSE_WAIT`) that a bare TCP probe accepts while every gRPC call is
     /// refused. Left in place it makes `waitUntilReachable` burn the full `--ready-timeout` with
     /// no diagnostic. Safe to call when nothing is running; costs ~1s.
-    private func clearStaleCompanion(config: AndroidCompanionConfig) async {
+    func clearStaleCompanion(config: AndroidCompanionConfig) async {
         for package in ["com.amoo.companion.test", "com.amoo.companion"] {
             _ = try? await Adb(context: shellContext)
                 .serial(config.serial)
@@ -333,71 +409,6 @@ final class AndroidCompanionManager: @unchecked Sendable {
             .removeForwardTCP(localPort: config.port)
             .run()
             .processResult
-    }
-
-    func currentSourceFingerprint(config: AndroidCompanionConfig) -> String {
-        let root = URL(fileURLWithPath: config.companionDir)
-        let locations = [
-            root.appendingPathComponent("app/src", isDirectory: true),
-            root.appendingPathComponent("app/build.gradle.kts"),
-            root.appendingPathComponent("build.gradle.kts"),
-            root.appendingPathComponent("settings.gradle.kts")
-        ]
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
-            for byte in url.path.utf8 {
-                hash = fingerprint(hash, byte: byte)
-            }
-            if let data = try? Data(contentsOf: url) {
-                for byte in data {
-                    hash = fingerprint(hash, byte: byte)
-                }
-            }
-        }
-        return String(hash, radix: 16)
-    }
-
-    private func sourceFiles(at locations: [URL]) -> [URL] {
-        locations.flatMap { location -> [URL] in
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory) else { return [] }
-            if !isDirectory.boolValue {
-                return [location]
-            }
-            guard let enumerator = FileManager.default.enumerator(
-                at: location,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-            ) else { return [] }
-            return enumerator.compactMap { item in
-                guard let url = item as? URL,
-                      (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-                else { return nil }
-                return url
-            }
-        }
-    }
-
-    private func fingerprint(_ hash: UInt64, byte: UInt8) -> UInt64 {
-        (hash ^ UInt64(byte)) &* 1_099_511_628_211
-    }
-
-    private func sourceFingerprintMatches(config: AndroidCompanionConfig) -> Bool {
-        (try? String(contentsOfFile: fingerprintPath(config: config), encoding: .utf8))
-            == currentSourceFingerprint(config: config)
-    }
-
-    private func writeSourceFingerprint(config: AndroidCompanionConfig) throws {
-        let path = fingerprintPath(config: config)
-        try FileManager.default.createDirectory(
-            at: URL(fileURLWithPath: path).deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try currentSourceFingerprint(config: config).write(toFile: path, atomically: true, encoding: .utf8)
-    }
-
-    private func fingerprintPath(config: AndroidCompanionConfig) -> String {
-        config.companionDir + "/app/build/.amoo-source-fingerprint"
     }
 
     private func installAPKs(
@@ -440,12 +451,12 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
     }
 
-    private func launchInstrumentation(config: AndroidCompanionConfig) async throws {
+    private func launchInstrumentation(config: AndroidCompanionConfig) async throws -> any SpawnedProcess {
         let logPath = Self.launchLogPath(port: config.port)
         FileManager.default.createFile(atPath: logPath, contents: nil)
 
         do {
-            instrumentProcess = try await Adb(context: shellContext)
+            return try await Adb(context: shellContext)
                 .serial(config.serial)
                 .rawArguments(Self.instrumentArguments(port: config.port))
                 // The file is freshly created above; use append for both streams so SwiftyShell

@@ -8,6 +8,13 @@ import TestSession
 /// lifecycle, kept out of `DefaultSessionBootstrapper.swift` so that file stays under the
 /// type-body length limit.
 extension DefaultSessionBootstrapper {
+    func prepareAndroidBuild(_ request: SessionBootstrapRequest) async throws -> Bool {
+        guard request.platform == .android else { return false }
+        var config = AndroidCompanionConfig(serial: nil)
+        config.buildMode = request.buildMode
+        return try await androidCompanionManager.prepareBuild(config: config)
+    }
+
     func listDevices(platform: Platform?, includeOffline: Bool) async throws -> [DeviceInfo] {
         var result = try await listDevices(platform: platform)
         guard includeOffline else { return result }
@@ -132,7 +139,8 @@ extension DefaultSessionBootstrapper {
             let config = CompanionConfig(deviceUDID: deviceHint ?? "booted")
             (host, port, dir) = (config.host, config.port, config.companionDir)
         case .android:
-            let config = AndroidCompanionConfig(serial: deviceHint)
+            let resolvedPort = try await resolveAndroidCompanionPort(deviceID: deviceHint, processRunner: processRunner)
+            let config = AndroidCompanionConfig(port: resolvedPort, serial: deviceHint)
             (host, port, dir) = (config.host, config.port, config.companionDir)
         }
         let store = CompanionStatusStore(companionDir: dir)

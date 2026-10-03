@@ -45,6 +45,15 @@ public extension CommandCoverageMatrix {
             expectedAssertion: "companion build/install starts in the background and the call returns at once"
         ),
         .init(
+            name: "session_startup_status",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "pending and completed startup stages can be polled without blocking"
+        ),
+        .init(
             name: "companion_status",
             channel: .mcp,
             kind: .deterministic,

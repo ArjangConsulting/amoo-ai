@@ -24,9 +24,17 @@ For CLI interaction:
 
 ```sh
 amoo preflight --platform ios
+amoo device list_devices platform=ios
 amoo companion start --platform ios --device <udid> --app <bundle-id>
+amoo device --platform ios --device <udid> device_launch_app app_id=<bundle-id>
 amoo device --platform ios --device <udid> current_app
 ```
+
+This is the minimal smoke flow for a local agent: preflight tooling, discover a booted device,
+start its companion, launch the installed app, then confirm the foreground app. For Android, use
+`--platform android` and the device serial. If the app is not installed, install its build first
+with `amoo device --platform <platform> --device <id> device_install_app path=<apk-or-app-path>`
+(or pass `--app <build>` to `amoo env up`).
 
 One companion serves one device. With several simulators booted, give each its own port and pass
 the same `--port` to `amoo device`; a companion attached to a different simulator is refused rather
@@ -135,3 +143,12 @@ including app-owned context, scoped row swipes, incomplete plans, and generated 
 Pass provided launch_args/environment at session start so generated setUp reproduces them.
 After deletes use assert_absent; after additions use assert_visible. Report excluded or
 approximate steps and any runtime dependencies. Do not call an incomplete export complete.
+
+### Startup progress and build reuse
+
+Cold `start_session` can take minutes. Relay MCP progress messages to the user. If the client does
+not surface progress, poll `session_startup_status` concurrently; never start a duplicate session.
+`build_mode=auto` uses release-bundled companions without compilation. In source checkouts it builds
+missing or changed companion products. `build_mode=reuse` never compiles and fails clearly if no
+products exist; `build_mode=rebuild` forces compilation. The app under test must already be installed
+or supplied as a prebuilt `build_path`.

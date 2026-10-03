@@ -7,6 +7,7 @@ import SwiftyShell
 extension AndroidDeviceSelector {
     /// Reuse the driver's explicit-port launch and boot-completion check for CLI and MCP.
     func bootVirtualDevice(name: String) async throws -> DeviceInfo {
+        await StartupProgress.report("Booting Android emulator")
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
         let driver = AndroidDriver(
             companion: GRPCCompanionClient.makeFixture(connection: CompanionConnection(host: "127.0.0.1", port: 22088)),
@@ -15,6 +16,8 @@ extension AndroidDeviceSelector {
             serial: name
         )
         try await driver.boot()
-        return try await driver.deviceInfo()
+        let info = try await driver.deviceInfo()
+        await StartupProgress.report("Android emulator boot complete")
+        return info
     }
 }

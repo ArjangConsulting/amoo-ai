@@ -288,7 +288,11 @@ func runCompanionCommand(
         case .ios:
             await runIOSCompanionStatus(options: options)
         case .android:
-            await runAndroidCompanionStatus(options: options, currentDirectory: currentDirectory)
+            await runAndroidCompanionStatus(
+                options: options,
+                processRunner: processRunner,
+                currentDirectory: currentDirectory
+            )
         }
     }
 }

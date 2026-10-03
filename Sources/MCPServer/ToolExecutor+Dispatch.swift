@@ -432,6 +432,9 @@ extension DriverToolExecutor {
         case "companion_warm":
             return try await executeCompanionWarm(arguments: arguments)
 
+        case "session_startup_status":
+            return await .success(StartupProgressStore.shared.summaries())
+
         case "companion_status":
             return try await executeCompanionStatus(arguments: arguments)
 

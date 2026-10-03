@@ -45,6 +45,7 @@ public actor SessionManager {
         platform: Platform,
         deviceHint: String? = nil,
         buildPath: String? = nil,
+        buildMode: SessionBuildMode = .auto,
         arguments: [String] = [],
         environment: [String: String] = [:],
         testName: String? = nil
@@ -56,6 +57,7 @@ public actor SessionManager {
                 platform: platform,
                 deviceHint: deviceHint,
                 buildPath: buildPath,
+                buildMode: buildMode,
                 arguments: arguments,
                 environment: environment
             )

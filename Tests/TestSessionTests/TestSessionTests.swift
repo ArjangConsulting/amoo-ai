@@ -152,6 +152,14 @@ final class TestSessionTests: XCTestCase {
         XCTAssertEqual(all.count, 1)
     }
 
+    func testSessionManagerForwardsReuseModeToBootstrapper() async throws {
+        let bootstrapper = MockBootstrapper()
+        let manager = SessionManager(bootstrapper: bootstrapper)
+        let session = try await manager.startSession(appID: "com.example", platform: .ios, buildMode: .reuse)
+        XCTAssertEqual(bootstrapper.buildMode, .reuse)
+        try await manager.endSession(session.id)
+    }
+
     func testSessionManagerEndClosesButPreservesSessionForReports() async throws {
         let bootstrapper = MockBootstrapper()
         let cleanupCount = ActorCounter()
@@ -299,11 +307,13 @@ private final class IDVendor: @unchecked Sendable {
 
 private final class MockBootstrapper: SessionBootstrapper, @unchecked Sendable {
     var devices: [DeviceInfo] = []
+    var buildMode: SessionBuildMode = .auto
     var cleanupHook: @Sendable () async -> Void = {}
     var launchArguments: [String] = []
     var launchEnvironment: [String: String] = [:]
 
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
+        buildMode = request.buildMode
         launchArguments = request.arguments
         launchEnvironment = request.environment
         let hook = cleanupHook

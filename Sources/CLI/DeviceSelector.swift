@@ -287,7 +287,11 @@ struct PlatformDeviceSelector {
 
     /// Lists all available iOS simulators and Android devices/emulators concurrently,
     /// then prompts the user when more than one is found.
-    func selectDevice(hint: String? = nil, platform: Platform? = nil) async throws -> AvailableDevice {
+    func selectDevice(
+        hint: String? = nil,
+        platform: Platform? = nil,
+        deferIOSBoot: Bool = false
+    ) async throws -> AvailableDevice {
         let iosSelector = DeviceSelector(processRunner: processRunner)
         let androidSelector = AndroidDeviceSelector(processRunner: processRunner)
 
@@ -316,7 +320,8 @@ struct PlatformDeviceSelector {
             return try await launchInteractiveDevice(
                 platform: platform,
                 iosSelector: iosSelector,
-                androidSelector: androidSelector
+                androidSelector: androidSelector,
+                deferIOSBoot: deferIOSBoot
             )
         case 1:
             let device = all[0]
@@ -384,6 +389,12 @@ struct PlatformDeviceSelector {
                 break
             }
         }
+        if platform != .android {
+            let sims = await DeviceSelector(processRunner: processRunner).listAvailableSimulators()
+            if let sim = sims.first(where: { $0.udid == hint || $0.name.lowercased() == hint.lowercased() }) {
+                return .ios(BootedDevice(udid: sim.udid, name: sim.name, osVersion: sim.osVersion))
+            }
+        }
         // Hint provided but not listed — allow the caller to continue if a companion is up.
         return .ios(BootedDevice(udid: hint, name: hint, osVersion: "unknown"))
     }
@@ -391,7 +402,8 @@ struct PlatformDeviceSelector {
     private func launchInteractiveDevice(
         platform: Platform?,
         iosSelector: DeviceSelector,
-        androidSelector: AndroidDeviceSelector
+        androidSelector: AndroidDeviceSelector,
+        deferIOSBoot: Bool
     ) async throws -> AvailableDevice {
         async let iosSimulatorsTask = platform == nil || platform == .ios
             ? iosSelector.listAvailableSimulators() : []
@@ -423,6 +435,9 @@ struct PlatformDeviceSelector {
             let simulator = iosSimulators.count == 1
                 ? iosSimulators[0]
                 : try prompter.selectIOSSimulator(from: iosSimulators)
+            if deferIOSBoot {
+                return .ios(BootedDevice(udid: simulator.udid, name: simulator.name, osVersion: simulator.osVersion))
+            }
             return try await .ios(bootIOSSimulator(simulator, selector: iosSelector))
         case .android:
             guard !androidVirtualDevices.isEmpty else {
@@ -466,16 +481,6 @@ struct PlatformDeviceSelector {
     ) async throws -> AvailableDevice {
         let device = try await selector.bootVirtualDevice(name: virtualDevice.name)
         return .android(serial: device.id, name: device.name)
-    }
-
-    private func matchesHint(_ device: AvailableDevice, hint: String) -> Bool {
-        switch device {
-        case let .ios(iosDevice):
-            iosDevice.udid == hint || iosDevice.name.lowercased() == hint.lowercased()
-        case let .android(serial, name):
-            // Model names only identify emulators; a phone matches by exact serial alone.
-            serial == hint || (serial.hasPrefix("emulator-") && name.lowercased() == hint.lowercased())
-        }
     }
 }
 

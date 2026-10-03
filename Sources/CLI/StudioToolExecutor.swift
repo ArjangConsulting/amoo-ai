@@ -70,7 +70,7 @@ actor CLIStudioToolExecutor: StudioToolExecuting {
             companion = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: port))
             driver = await makeIOSDriver(companion: companion, deviceID: deviceId)
         case "android":
-            let port = 22088
+            let port = await androidCompanionManager.companionPort(forSerial: deviceId)
             try await androidCompanionManager.ensureRunning(config: .init(port: port, serial: deviceId))
             companion = try GRPCCompanionClient.makeLive(connection: .init(host: "127.0.0.1", port: port))
             driver = AndroidDriver(

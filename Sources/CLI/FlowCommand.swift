@@ -66,7 +66,11 @@ func runFlowCommand(path: String, overrides: FlowOverrides = FlowOverrides()) as
             return CLIResult(output: "Flow has no steps: \(fileURL.path)", exitCode: 64)
         }
 
-        let port = flow.port ?? (platform == .ios ? 22087 : 22088)
+        let port: Int = if platform == .android {
+            try await resolveAndroidCompanionPort(deviceID: flow.deviceID, explicitPort: flow.port)
+        } else {
+            flow.port ?? CompanionConfig.defaultPort
+        }
         let companion = try GRPCCompanionClient.makeLive(
             connection: CompanionConnection(host: "127.0.0.1", port: port)
         )

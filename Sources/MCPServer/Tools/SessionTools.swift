@@ -20,6 +20,13 @@ public enum SessionTools {
                     type: "string",
                     description: "Optional UDID/serial or name. Auto-selects when omitted."
                 ),
+                "build_mode": .init(
+                    type: "string",
+                    description: "auto (default): use bundled/cached products, "
+                        + "build missing/changed checkout products. "
+                        + "reuse: never compile; fail if products are missing. "
+                        + "rebuild: force companion compilation."
+                ),
                 "build_path": .init(
                     type: "string",
                     description: "Optional path to an .app bundle or .apk to install before launching."
@@ -73,6 +80,12 @@ public enum SessionTools {
                 ],
                 required: ["session_id", "app_id", "device_id", "platform"]
             )
+        ),
+        ToolDefinition(
+            name: "session_startup_status",
+            title: "Session Startup Status",
+            description: "Poll concurrent or recent start_session operations for stages, elapsed time, and outcome."
+                + " Safe to call while start_session is pending; do not start a duplicate session."
         ),
         endSessionDefinition,
         ToolDefinition(
