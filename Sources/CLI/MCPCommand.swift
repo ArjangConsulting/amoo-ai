@@ -214,6 +214,9 @@ private func normalizedMCPDeviceID(_ deviceID: String?, for platform: Platform) 
 
 /// Reserve stdout for JSON-RPC; CLI diagnostics and child processes use stderr.
 private func isolateMCPOutput() -> FileHandle? {
+    // A client closing its response pipe must surface EPIPE, not kill the server before
+    // session flushing and companion cleanup can run.
+    signal(SIGPIPE, SIG_IGN)
     let descriptor = dup(STDOUT_FILENO)
     guard descriptor >= 0 else { return nil }
     let output = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)

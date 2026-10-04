@@ -32,6 +32,35 @@ final class ReviewRegressionTests: XCTestCase {
         XCTAssertTrue(calls.isEmpty)
     }
 
+    func testLiveSessionCannotBeUsedBySeparateServer() async throws {
+        let bootstrapper = MockSessionBootstrapper()
+        let owner = SessionManager(bootstrapper: bootstrapper)
+        let session = try await owner.startSession(appID: "app", platform: .ios)
+        let ownerDriver = await bootstrapper.lastDriver
+        let callsBefore = await ownerDriver?.calls
+        let receiver = SessionManager(bootstrapper: MockSessionBootstrapper())
+        let defaultDriver = MockDriver()
+        let executor = DriverToolExecutor(driver: defaultDriver, sessionManager: receiver)
+
+        let result = await executor.execute(
+            toolName: "tap",
+            arguments: ["x": "1", "y": "2", "session_id": session.id]
+        )
+
+        XCTAssertTrue(result.isError)
+        XCTAssertEqual(result.structuredContent?.objectValue?["code"]?.stringValue, "session_not_found")
+        XCTAssertTrue(result.content.contains("this MCP server process"))
+        XCTAssertTrue(result.content.contains("owning context"))
+        XCTAssertTrue(result.content.contains("start_session"))
+        let defaultCalls = await defaultDriver.calls
+        let ownerCalls = await ownerDriver?.calls
+        XCTAssertTrue(defaultCalls.isEmpty)
+        XCTAssertEqual(ownerCalls, callsBefore)
+        let active = await session.isActive
+        XCTAssertTrue(active)
+        try await owner.endSession(session.id)
+    }
+
     func testDuplicateMutationIsRejected() async {
         let driver = VerificationDriver(values: [""], duplicates: true)
         let executor = DriverToolExecutor(driver: driver)
