@@ -23,6 +23,9 @@ public struct MCPStdioServer: Sendable {
     At start/end, check recording_health: saved=durable, pending=writing, failed=artifact loss risk.
     start_session boots the device, prepares the companion, installs build_path if supplied,
     and launches the app. Use its session_id on later calls; never bypass errors with a closed ID.
+    Live IDs belong to this MCP server process; separate agent servers cannot attach to them.
+    Delegate app_id/build/device requirements, not a live ID. Each agent starts its own session
+    on an available device; the owner ends its session before another agent reuses that device.
     companion_warm builds ahead; poll companion_status until built, then start_session to launch.
     Cold startup takes minutes: relay progress to the user or poll session_startup_status while
     pending. Never start a duplicate session. build_mode=reuse never compiles; auto uses bundled
@@ -40,6 +43,8 @@ public struct MCPStdioServer: Sendable {
     assert_enabled, or assert_value: dispatch is not a postcondition. After timeout, inspect state
     before retrying. Secure masked_change cannot prove exact equality. record_value=fixture is
     only for non-sensitive test data.
+    Use run_steps for known action/assertion sequences; inspect when the next step needs a decision.
+    Prefer scoped queries and artifact-only screenshots; keep semantic postconditions.
 
     Screenshots are pixels; gestures are points. Read geometry and scale. A locked/off screen_state
     requires waking and unlocking before interpreting content. Save screenshots with output and
@@ -65,6 +70,8 @@ public struct MCPStdioServer: Sendable {
 
     public func run(input: FileHandle = .standardInput, output: FileHandle = .standardOutput) async throws {
         let runtime = MCPRequestRuntime(output: output)
+        let diagnostics = MCPTransportDiagnostics()
+        diagnostics.emit("started")
         var buffer = Data()
         var legacyInitialized = false
         do {
@@ -85,12 +92,15 @@ public struct MCPStdioServer: Sendable {
             if !buffer.isEmpty {
                 _ = await submit(buffer, initialized: legacyInitialized, runtime: runtime)
             }
+            diagnostics.emit("stdin_eof")
         } catch {
+            diagnostics.inputFailure(error)
             await runtime.cancelAll()
             try await runtime.drain()
             throw error
         }
         try await runtime.drain()
+        diagnostics.emit("requests_drained")
     }
 
     private func submit(_ data: Data, initialized: Bool, runtime: MCPRequestRuntime) async -> Bool {

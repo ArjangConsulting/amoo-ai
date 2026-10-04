@@ -6,6 +6,73 @@ import TestSession
 import XCTest
 
 extension MCPServerTests {
+    func testClosedResponsePipeReportsErrorInsteadOfSIGPIPE() async throws {
+        let harness = try startStdioServerHarness(diagnostics: true)
+        defer {
+            (harness.process.standardError as? Pipe)?.fileHandleForReading.readabilityHandler = nil
+            if harness.process.isRunning {
+                harness.process.terminate()
+                harness.process.waitUntilExit()
+            }
+        }
+        let stdout = try XCTUnwrap(harness.process.standardOutput as? Pipe)
+        stdout.fileHandleForReading.readabilityHandler = nil
+        try stdout.fileHandleForReading.close()
+        let initialize = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","#
+            + #""capabilities":{},"clientInfo":{"name":"transport-tests","version":"1"}}}"#
+        try harness.stdin.fileHandleForWriting.write(contentsOf: Data("\(initialize)\n".utf8))
+        // Wait for the failed write before closing input, so EOF cannot hide a SIGPIPE exit.
+        _ = try await waitForStdout(harness.errorOutput) { $0.contains("event=output_error") }
+        try harness.stdin.fileHandleForWriting.close()
+        let exited = await waitForProcessExit(harness.process, timeoutNanoseconds: 5_000_000_000)
+        XCTAssertTrue(exited)
+        guard exited else { return }
+        XCTAssertEqual(harness.process.terminationReason, .exit)
+        XCTAssertEqual(harness.process.terminationStatus, 1)
+        _ = try await waitForStdout(harness.errorOutput) { $0.contains("MCP server failed:") }
+    }
+
+    func testMissingSessionLeavesSeparateStdioServersUsable() async throws {
+        let harnesses = try [startStdioServerHarness(diagnostics: true), startStdioServerHarness(diagnostics: true)]
+        defer {
+            for harness in harnesses {
+                (harness.process.standardOutput as? Pipe)?.fileHandleForReading.readabilityHandler = nil
+                (harness.process.standardError as? Pipe)?.fileHandleForReading.readabilityHandler = nil
+                if harness.process.isRunning {
+                    harness.process.terminate()
+                    harness.process.waitUntilExit()
+                }
+            }
+        }
+        for harness in harnesses {
+            let initialize = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","#
+                + #""capabilities":{},"clientInfo":{"name":"transport-tests","version":"1"}}}"#
+            let missing = #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"tap","#
+                + #""arguments":{"x":"1","y":"2","session_id":"foreign-agent-session"}}}"#
+            try harness.stdin.fileHandleForWriting.write(contentsOf: Data("\(initialize)\n\(missing)\n".utf8))
+            let response = try await waitForStdout(harness.output) { $0.contains("session_not_found") }
+            XCTAssertTrue(String(bytes: response, encoding: .utf8)?.contains(#""isError":true"#) == true)
+
+            // Send this only after receiving the error: an earlier queued ping cannot prove recovery.
+            let ping = #"{"jsonrpc":"2.0","id":3,"method":"ping","params":{}}"#
+            try harness.stdin.fileHandleForWriting.write(contentsOf: Data("\(ping)\n".utf8))
+            _ = try await waitForStdout(harness.output) { $0.contains(#""id":3"#) }
+            XCTAssertTrue(harness.process.isRunning)
+
+            try harness.stdin.fileHandleForWriting.close()
+            let exited = await waitForProcessExit(harness.process, timeoutNanoseconds: 5_000_000_000)
+            XCTAssertTrue(exited)
+            guard exited else { continue }
+            XCTAssertEqual(harness.process.terminationStatus, 0)
+            let data = try await waitForStdout(harness.errorOutput) { $0.contains("event=requests_drained") }
+            let log = String(bytes: data, encoding: .utf8) ?? ""
+            XCTAssertTrue(log.contains("pid=\(harness.process.processIdentifier)"))
+            XCTAssertTrue(log.contains("event=started"))
+            XCTAssertTrue(log.contains("event=stdin_eof"))
+            XCTAssertFalse(log.contains("foreign-agent-session"))
+        }
+    }
+
     func testMCPStdioServeRespondsWithJSONRPCMessages() async throws {
         let harness = try startStdioServerHarness()
         defer {
@@ -79,7 +146,7 @@ extension MCPServerTests {
         let errorOutput: LockedDataBuffer
     }
 
-    private func startStdioServerHarness() throws -> StdioServerHarness {
+    private func startStdioServerHarness(diagnostics: Bool = false) throws -> StdioServerHarness {
         let candidates = amooExecutableCandidates()
         guard !candidates.isEmpty else {
             throw XCTSkip("Cannot locate a built amoo executable at any expected path.")
@@ -90,6 +157,9 @@ extension MCPServerTests {
             let process = Process()
             process.executableURL = candidate
             process.arguments = ["mcp", "serve"]
+            var environment = ProcessInfo.processInfo.environment
+            environment["AMOO_MCP_DIAGNOSTICS"] = diagnostics ? "1" : nil
+            process.environment = environment
 
             let stdin = Pipe()
             let stdout = Pipe()

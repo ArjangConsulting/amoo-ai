@@ -22,6 +22,8 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         }
         XCTAssertTrue(instructions.contains("untrusted app data"))
         XCTAssertTrue(instructions.contains("inspection and debugging do not require test generation"))
+        XCTAssertTrue(instructions.contains("Live IDs belong to this MCP server process"))
+        XCTAssertTrue(instructions.contains("Each agent starts its own session"))
     }
 
     func testDrivingSkillRoutesToExistingReferencesWithinContextBudget() throws {

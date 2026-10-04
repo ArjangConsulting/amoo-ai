@@ -197,6 +197,28 @@ amoo generate test --plan out/plan.json
 
 ## Efficient and reliable clients
 
+### Diagnosing a closed transport
+
+Set `AMOO_MCP_DIAGNOSTICS=1` in the MCP client's server environment and capture server stderr.
+Keep stdout exclusively for JSON-RPC. Diagnostics contain a timestamp, server PID, and lifecycle
+event; they omit request arguments and app content. Default operation emits no lifecycle logs.
+
+- `started`: the stdio loop began.
+- `stdin_eof`: all client input writers closed; outstanding requests are draining.
+- `requests_drained`: the stdio loop returned normally; CLI session/companion cleanup follows.
+- `input_oversized_frame`, `input_backpressure`, or `input_error`: the input loop failed.
+- `output_error`: writing a response failed, for example because the client closed its read pipe.
+  The CLI ignores SIGPIPE so this takes the error/cleanup path once input ends.
+
+Collect `amoo doctor --json` before and after a reproduction, the exact failing tool and timestamp,
+and the client's MCP logs/exit status. A missing session should return `session_not_found` while a
+subsequent `ping` still succeeds. Separate MCP server processes cannot attach to each other's live
+session IDs; disk reports preserve history, not a live driver. Delegate app/build/device requirements
+and expected assertions, and start a session in the receiving context on an available device.
+End the owning session before reusing its device; keep exact current-screen work with the owner.
+
+### Reducing calls without weakening verification
+
 Set `AMOO_TOOL_PROFILE=drive`, `record`, or `audit` in the MCP process environment to advertise a
 smaller task-specific catalog; `all` preserves the full catalog. Tool names and contracts remain
 stable. Load `plugins/amoo/skills/driving-amoo/SKILL.md` first and its recording/coordinate references only when

@@ -44,6 +44,12 @@ prefixed, e.g. `mcp__amoo__start_session`, `amoo/start_session`):
 to every call → `end_session`. Required for `record-flow` and `generate-test`: the session
 report is what `amoo generate test` compiles.
 
+Live sessions belong to the MCP server process that started them. A caller's session_id cannot
+attach through a separate agent server. Start your own session with the supplied app/build/device
+requirements on an available device; ask the caller to end its session before reusing its device.
+If the caller needs the exact current screen preserved, return blocked and have the owning
+context perform the remaining interactions. Never drop session_id to bypass an attachment error.
+
 **CLI** — otherwise (and always fine for inspect/verify/debug):
 
 ```sh

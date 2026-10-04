@@ -37,7 +37,12 @@ actor MCPRequestRuntime {
     }
 
     func write(_ data: Data) {
-        do { try output.write(contentsOf: data) } catch { writeError = error }
+        do { try output.write(contentsOf: data) } catch {
+            if writeError == nil {
+                MCPTransportDiagnostics().emit("output_error")
+            }
+            writeError = error
+        }
     }
 
     func drain() async throws {

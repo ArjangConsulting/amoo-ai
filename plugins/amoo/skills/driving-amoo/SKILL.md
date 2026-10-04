@@ -68,6 +68,11 @@ Queries return bounded pages. Follow next_offset with the same selector when has
 Do not interpret a truncated result as proof an element is absent. Use assert_absent instead.
 Use timeout_ms on assertions instead of client-side polling loops.
 
+Quality and latency come first; keep semantic postconditions when reducing model calls. Use
+run_steps for a known action/assertion sequence (up to 20 steps, stops on failure); inspect between
+steps that need a new decision. Prefer scoped queries over full trees. Configure AMOO_TOOL_PROFILE
+as drive, record, or audit before MCP startup to load a smaller task-specific tool catalog.
+
 A dispatched gesture does not prove a business outcome. Verify mutations with the relevant
 semantic assertion. `set_text` reports exact, masked_change, or unverified; a masked change
 cannot prove the secret's exact value. Use a subsequent app-level result where appropriate.
@@ -83,6 +88,9 @@ Use record_value=fixture only for explicitly non-sensitive test data that belong
 code. The default records typed values as redacted. Never mark credentials as fixtures.
 
 ## Recover
+
+For client-level `Transport closed`, capture MCP stderr with AMOO_MCP_DIAGNOSTICS=1 and compare
+amoo doctor --json before/after. A missing session is a tool error, not proof the transport closed.
 
 A connection error may mean a stopped companion, disconnected device, or wedged test runtime.
 Read the returned error code and device/session state. Follow the reported companion-start
@@ -120,6 +128,11 @@ not something to wait out. Most of a slow loop is rebuilding what has not change
   `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
 
 ## Shared machines and agents
+
+Live session IDs are local to one MCP server process; a separate agent server cannot attach.
+Delegate app/build/device requirements, then start_session in the receiving context on an available
+device. The owner must end_session before its device is reused. To preserve the exact current
+screen, keep driving in the owning context. Never drop session_id after an attachment error.
 
 Other sessions may be driving devices on the same Mac. `amoo env up --platform <p> [--avd|--runtime
 --model] --app <build> --app-id <id> --json` leases a simulator/emulator (never a physical one),
