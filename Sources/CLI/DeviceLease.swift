@@ -245,7 +245,7 @@ func enforceLease(
     case .free:
         return
     case let .owned(lease):
-        try? store.update(lease)
+        _ = try? store.update(lease)
     case let .leasedByOther(lease):
         throw DeviceLeaseError.leasedByOther(lease)
     }
