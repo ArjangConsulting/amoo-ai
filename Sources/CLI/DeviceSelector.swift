@@ -259,7 +259,7 @@ struct AndroidDeviceSelector {
 
     func listAvailableVirtualDevices() async -> [AndroidVirtualDevice] {
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
-        guard let result = try? await Command("emulator").args(["-list-avds"]).timeout(10).run(in: context)
+        guard let result = try? await Command("emulator").args(["-list-avds"]).timeout(.seconds(10)).run(in: context)
         else { return [] }
         return parseAndroidVirtualDevices(output: result.stdout)
     }

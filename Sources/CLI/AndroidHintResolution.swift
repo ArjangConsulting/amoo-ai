@@ -11,7 +11,7 @@ extension AndroidDeviceSelector {
         guard serial.hasPrefix("emulator-"),
               let result = try? await Command("adb")
               .args(["-s", serial, "shell", "getprop", "ro.boot.qemu.avd_name"])
-              .timeout(5)
+              .timeout(.seconds(5))
               .run(in: context)
         else { return nil }
         let name = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
