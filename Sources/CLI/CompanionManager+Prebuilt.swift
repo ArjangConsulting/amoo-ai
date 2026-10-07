@@ -24,9 +24,21 @@ extension CompanionManager {
     }
 
     func hasBundledProducts(config: CompanionConfig) -> Bool {
-        config.buildMode != .rebuild
-            && canSignBundledProducts(config: config)
-            && findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config) != nil
+        guard config.buildMode != .rebuild, canSignBundledProducts(config: config),
+              let bundled = findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config)
+        else { return false }
+        // A developer's freshly built companion must not be shadowed by an older distribution.
+        // Explicit reuse keeps its release semantics; auto prefers newer local products.
+        if config.buildMode == .auto,
+           let local = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config),
+           let localDate = try? URL(fileURLWithPath: local).resourceValues(forKeys: [.contentModificationDateKey])
+           .contentModificationDate,
+           let bundledDate = try? URL(fileURLWithPath: bundled).resourceValues(forKeys: [.contentModificationDateKey])
+           .contentModificationDate,
+           localDate > bundledDate {
+            return false
+        }
+        return true
     }
 
     func companionProductsDirectory(config: CompanionConfig, bundled: Bool? = nil) -> String {

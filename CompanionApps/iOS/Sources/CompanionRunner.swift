@@ -38,11 +38,9 @@ final class CompanionRunner: XCTestCase {
         let app = XCUIApplication()
 
         let targetBundleID = Self.targetAppFromEnvironment()
-        if let targetBundleID {
-            // `activate()`, not `launch()`: the session already installed and started the app
-            // under test, and relaunching would throw away the state being tested.
-            XCUIApplication(bundleIdentifier: targetBundleID).activate()
-        }
+        // Start serving before touching the target. Session bootstrap installs and launches the
+        // app through this server, so a cold device may not have the target installed yet.
+        // The bridge retains its identity; subsequent app operations handle activation.
 
         let bridge = XCUITestBridge(app: app, targetBundleID: targetBundleID)
         let port = Self.portFromEnvironment() ?? Self.defaultPort
