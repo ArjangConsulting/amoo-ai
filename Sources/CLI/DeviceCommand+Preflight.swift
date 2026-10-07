@@ -4,9 +4,15 @@ import MCP
 
 /// Checks that answer without a companion: argument names, `device_boot device_hint=…`, and leases.
 /// `nil` means proceed.
-func devicePreflight(_ options: DeviceCommandOptions) async -> CLIResult? {
+func devicePreflight(
+    _ options: DeviceCommandOptions,
+    discoverDevices: (Platform?, Bool) async throws -> [DeviceInfo] = discoverCommandDevices
+) async -> CLIResult? {
     if let message = unknownArgumentMessage(tool: options.tool, arguments: options.arguments) {
         return CLIResult(output: message, exitCode: 1)
+    }
+    if options.tool == "list_devices" {
+        return await runDeviceDiscovery(options: options, discover: discoverDevices)
     }
     // `device_hint` resolution (AVD names, simulator names) lives in the CLI's bootstrapper, which
     // `amoo device` has no session manager for; without this the hint was silently ignored and
