@@ -6,6 +6,26 @@ import TestCommons
 import XCTest
 
 final class CompanionBuildReuseTests: XCTestCase {
+    func testAutoPrefersFreshLocalCompanionOverBundledProducts() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        var config = CompanionConfig(companionDir: scratch.url.path, deviceUDID: "sim")
+        let manager = CompanionManager()
+        for (directory, timestamp) in [("prebuilt/iphonesimulator/Products", 1.0), ("build/Build/Products", 2.0)] {
+            let products = scratch.url.appending(path: directory)
+            try FileManager.default.createDirectory(at: products, withIntermediateDirectories: true)
+            let run = products.appending(path: "Amoo_iphonesimulator.xctestrun")
+            try Data().write(to: run)
+            try FileManager.default.setAttributes(
+                [.modificationDate: Date(timeIntervalSince1970: timestamp)],
+                ofItemAtPath: run.path
+            )
+        }
+        XCTAssertFalse(manager.hasBundledProducts(config: config))
+        config.buildMode = .reuse
+        XCTAssertTrue(manager.hasBundledProducts(config: config))
+    }
+
     func testReleaseIOSProductsOverrideSourceCheckoutProducts() throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }
