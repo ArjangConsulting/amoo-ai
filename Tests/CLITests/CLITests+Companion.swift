@@ -146,7 +146,8 @@ extension CLITests {
 
         let runner = MockCLIProcessRunner(results: [
             .success(.init(exitCode: 0, stdout: "generated", stderr: "")),
-            .success(.init(exitCode: 0, stdout: "built", stderr: ""))
+            .success(.init(exitCode: 0, stdout: "built", stderr: "")),
+            .success(.init(exitCode: 0, stdout: "signed", stderr: ""))
         ])
         let manager = CompanionManager(processRunner: runner)
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
@@ -167,7 +168,8 @@ extension CLITests {
                     "-derivedDataPath", companionDir + "/build",
                     "-project", companionDir + "/AmooCompanion.xcodeproj",
                     "build-for-testing"
-                ]
+                ],
+                ["python3", companionDir + "/sign-simulator-products.py", companionDir + "/build/Build/Products"]
             ]
         )
         #else

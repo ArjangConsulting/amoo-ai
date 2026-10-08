@@ -9,7 +9,7 @@ public actor IOSDriver: PlatformDriver {
         let outputPath: String
     }
 
-    private let companion: any CompanionClient
+    let companion: any CompanionClient
     private let backend: any IOSHostBackend
     private let deviceID: String
     private var activeRecordings: [String: ActiveRecording] = [:] // sessionID → recording

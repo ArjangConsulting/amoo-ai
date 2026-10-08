@@ -73,6 +73,8 @@ message ElementInfo {
   // constrained to the portion of the element visible inside the current viewport.
   Point hit_point = 8;
   bool is_secure_text_entry = 9;
+  // Presence distinguishes unsupported/older companions from a known false state.
+  optional bool is_selected = 10;
 }
 
 message ViewNode {

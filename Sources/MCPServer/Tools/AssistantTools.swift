@@ -20,7 +20,7 @@ public enum AssistantTools {
             title: "Suggest Test Actions",
             description: "Suggest high-value test actions for the current screen with confidence"
                 + " and developer feedback.",
-            outputSchema: ToolOutputSchema(
+            outputSchema: diagnosticSchema(
                 properties: [
                     "screenIntent": .init(type: "string", description: "Inferred purpose of the current screen"),
                     "suggestedActions": .init(
@@ -55,7 +55,7 @@ public enum AssistantTools {
             title: "Analyze AI Testability",
             description: "Analyze whether the current screen exposes enough accessibility context"
                 + " for reliable AI-driven testing.",
-            outputSchema: ToolOutputSchema(
+            outputSchema: diagnosticSchema(
                 properties: [
                     "screenSummary": .init(type: "string", description: "Current screen summary"),
                     "interactableCount": .init(
@@ -108,11 +108,11 @@ public enum AssistantTools {
         ToolDefinition(
             name: "highlight_a11y_issues",
             title: "Highlight Accessibility Issues",
-            description: "Take an annotated screenshot with colored stroke overlays on every element"
-                + " that has an accessibility issue."
+            description: "Annotate observed naming concerns for contextual review."
+                + " This does not establish an accessibility verdict."
                 + " Red = missing label, orange = generic label, yellow = duplicate label."
-                + " Returns the text report plus the annotated PNG as an image content block.",
-            outputSchema: ToolOutputSchema(
+                + " Annotations are withheld if the screen changes during capture.",
+            outputSchema: diagnosticSchema(
                 properties: [
                     "issueCount": .init(type: "integer", description: "Number of elements with accessibility issues"),
                     "issues": .init(
@@ -161,4 +161,19 @@ public enum AssistantTools {
             )
         )
     ]
+    private static func diagnosticSchema(
+        properties: [String: ToolInputProperty], required: [String]
+    ) -> ToolOutputSchema {
+        let diagnostic: [String: ToolInputProperty] = [
+            "executionStatus": .init(type: "string", description: "Execution success independently of accessibility"),
+            "verdict": .init(type: "string", description: "notAssessed; these are naming/testability heuristics"),
+            "cleanupStatus": .init(type: "string", description: "Cleanup status independently of findings"),
+            "coverage": .init(type: "object", description: "Requested, evaluated and omitted properties"),
+            "limitations": .init(type: "array", description: "Evidence limits", items: .scalar(type: "string"))
+        ]
+        return ToolOutputSchema(
+            properties: properties.merging(diagnostic, uniquingKeysWith: { _, new in new }),
+            required: required + diagnostic.keys.sorted()
+        )
+    }
 }

@@ -24,6 +24,7 @@ let package = Package(
         .executable(name: "amoo", targets: ["CLI"])
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.2"),
         .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
         .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", from: "0.6.0"),
@@ -39,7 +40,12 @@ let package = Package(
             path: "Sources/CLIReadline",
             linkerSettings: [.linkedLibrary("edit", .when(platforms: [.macOS]))]
         ),
-        .target(name: "AmooCore"),
+        .target(
+            name: "AmooCore",
+            dependencies: [.product(name: "Crypto", package: "swift-crypto")],
+            plugins: [.plugin(name: "BuildProvenancePlugin")]
+        ),
+        .plugin(name: "BuildProvenancePlugin", capability: .buildTool(), path: "BuildPlugins/BuildProvenancePlugin"),
         .target(
             name: "Protos",
             dependencies: [
@@ -192,6 +198,7 @@ let package = Package(
         .testTarget(
             name: "IntegrationTests",
             dependencies: [
+                .product(name: "TestCommons", package: "SwiftTestCommons"),
                 "IOSDriver",
                 "AndroidDriver",
                 "CompanionProtocol",

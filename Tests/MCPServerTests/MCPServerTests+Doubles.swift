@@ -214,6 +214,7 @@ actor AuditMockDriver: PlatformDriver {
 }
 
 actor MockDriver: PlatformDriver {
+    var inspectionResponse: AccessibilityInspection?
     var calls: [String] = []
     var launchedAppID: String?
 

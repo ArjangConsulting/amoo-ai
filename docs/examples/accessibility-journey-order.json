@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture-order",
+  "steps": [
+    {
+      "id": "first-anchor",
+      "kind": "seek",
+      "direction": "forward",
+      "maxMoves": 15,
+      "speech": [{"elementID": "a11y-first", "contains": "First journey item"}]
+    },
+    {
+      "id": "forward-order",
+      "kind": "order",
+      "direction": "forward",
+      "speech": [{"elementID": "a11y-second", "contains": "Second journey item"}]
+    },
+    {
+      "id": "backward-order",
+      "kind": "order",
+      "direction": "backward",
+      "speech": [{"elementID": "a11y-first", "contains": "First journey item"}]
+    }
+  ]
+}

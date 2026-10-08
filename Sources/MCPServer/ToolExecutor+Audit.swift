@@ -29,9 +29,13 @@ extension DriverToolExecutor {
             throw ToolExecutionError(code: "wrong_app", message: "Audit target is not the frontmost app.")
         }
         let observation = try await driver.observeScreen(appID: appID)
+        let after = try? await driver.currentApp()
+        let platform = try? await driver.deviceInfo().platform
         let input = AuditInput(
             appID: appID, screenContext: observation.context, hierarchy: observation.hierarchy,
-            elements: observation.elements, interactableElements: observation.interactableElements
+            elements: observation.elements, interactableElements: observation.interactableElements,
+            evidenceProblems: after?.bundleID == appID ? [] : ["Foreground app changed during capture."],
+            geometryUnit: platform == .ios ? "points" : platform == .android ? "pixels" : "unknown"
         )
 
         let engine = AuditEngine(rules: selectedRules)
@@ -48,6 +52,7 @@ extension DriverToolExecutor {
             case "security": rules += RulePacks.security
             case "quality": rules += RulePacks.quality
             case "ux": rules += RulePacks.ux
+            case "accessibility": rules += RulePacks.accessibility
             case "testability": rules += RulePacks.testability
             case "all": return RulePacks.all
             default: throw ToolExecutionError(code: "invalid_argument", message: "Unknown audit rule pack: \(pack)")
@@ -58,9 +63,10 @@ extension DriverToolExecutor {
 
     func formatAuditReport(_ report: AuditReport, failOn: String?) -> ToolResult {
         if report.findings.isEmpty {
-            return .success(
-                "No findings in the inspected screen for \(report.appID). See evidence coverage.",
-                structuredContent: (try? Value(report)) ?? .object([:])
+            return ToolResult(
+                content: "No findings in the inspected screen for \(report.appID). See evidence coverage.",
+                isError: report.executionFailed,
+                structuredContent: auditStructuredContent(report, failOn: failOn, failed: false)
             )
         }
 
@@ -84,8 +90,30 @@ extension DriverToolExecutor {
         }
 
         return ToolResult(
-            content: lines.joined(separator: "\n"), isError: isFailure, structuredContent: try? Value(report)
+            content: lines.joined(separator: "\n"), isError: isFailure || report.executionFailed,
+            structuredContent: auditStructuredContent(
+                report,
+                failOn: failOn,
+                failed: isFailure
+            )
         )
+    }
+
+    private func auditStructuredContent(_ report: AuditReport, failOn: String?, failed: Bool) -> Value {
+        var fields = (try? Value(report))?.objectValue ?? [:]
+        let complete = !report.evaluations.isEmpty && report.evaluations.allSatisfy { $0.status == .evaluated }
+        fields["executionStatus"] = .string(report.executionFailed ? "failed" : "succeeded")
+        fields["verdict"] = .string(failed ? "fail" : failOn != nil && complete ? "pass" : "notAssessed")
+        fields["cleanupStatus"] = .string("notRequired")
+        fields["coverage"] = .object([
+            "requested": .array(report.evaluations.map { .string($0.ruleID) }),
+            "evaluated": .array(report.evaluations.filter { $0.status == .evaluated }.map { .string($0.ruleID) }),
+            "notEvaluated": .object(Dictionary(report.evaluations.filter { $0.status != .evaluated }.map {
+                ($0.ruleID, Value.string($0.reason))
+            }, uniquingKeysWith: { first, _ in first })),
+            "truncated": .bool(false)
+        ])
+        return .object(fields)
     }
 
     func severityOrder(_ severity: Severity) -> Int {
@@ -104,6 +132,7 @@ extension DriverToolExecutor {
         case "high": .high
         case "medium": .medium
         case "low": .low
+        case "info": .info
         default: .high
         }
     }

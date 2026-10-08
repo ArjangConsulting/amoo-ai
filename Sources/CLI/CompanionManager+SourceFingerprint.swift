@@ -14,7 +14,11 @@ extension CompanionManager {
         let root = URL(fileURLWithPath: config.companionDir)
         let locations = [
             root.appendingPathComponent("project.yml"),
+            root.appendingPathComponent("Recovery.entitlements"),
+            root.appendingPathComponent("sign-simulator-products.py"),
+            root.appendingPathComponent("HostApp", isDirectory: true),
             root.appendingPathComponent("Sources", isDirectory: true),
+            root.appendingPathComponent("../../Sources/AmooCore", isDirectory: true).standardizedFileURL,
             root.appendingPathComponent("../../Protos", isDirectory: true).standardizedFileURL
         ]
         var hash: UInt64 = 14_695_981_039_346_656_037

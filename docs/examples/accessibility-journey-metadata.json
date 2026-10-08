@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture-semantics",
+  "steps": [
+    {
+      "id": "selected-option",
+      "kind": "element",
+      "element": {
+        "id": "a11y-option",
+        "name": "Selected option",
+        "role": "button",
+        "enabled": true,
+        "selected": true
+      }
+    }
+  ]
+}

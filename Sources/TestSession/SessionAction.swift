@@ -86,6 +86,8 @@ public struct SessionAction: Sendable, Codable, Equatable {
     public let intent: Intent
     public let observedElements: [RecordedElement]
     public let gestureTarget: RecordedGestureTarget?
+    /// Versioned structured diagnostics linked to this action and its timestamp.
+    public let diagnosticEvidence: DiagnosticEvidence?
 
     public init(
         timestamp: Date,
@@ -95,7 +97,8 @@ public struct SessionAction: Sendable, Codable, Equatable {
         isError: Bool,
         intent: Intent = .testStep,
         observedElements: [RecordedElement] = [],
-        gestureTarget: RecordedGestureTarget? = nil
+        gestureTarget: RecordedGestureTarget? = nil,
+        diagnosticEvidence: DiagnosticEvidence? = nil
     ) {
         self.timestamp = timestamp
         self.toolName = toolName
@@ -105,10 +108,12 @@ public struct SessionAction: Sendable, Codable, Equatable {
         self.intent = intent
         self.observedElements = observedElements
         self.gestureTarget = gestureTarget
+        self.diagnosticEvidence = diagnosticEvidence
     }
 
     private enum CodingKeys: String, CodingKey {
-        case timestamp, toolName, arguments, result, isError, intent, observedElements, gestureTarget
+        case timestamp, toolName, arguments, result, isError, intent, observedElements, gestureTarget,
+             diagnosticEvidence
     }
 
     /// Existing recordings predate intent classification. They preserve their former replayable
@@ -123,6 +128,7 @@ public struct SessionAction: Sendable, Codable, Equatable {
         intent = try container.decodeIfPresent(Intent.self, forKey: .intent) ?? .testStep
         observedElements = try container.decodeIfPresent([RecordedElement].self, forKey: .observedElements) ?? []
         gestureTarget = try container.decodeIfPresent(RecordedGestureTarget.self, forKey: .gestureTarget)
+        diagnosticEvidence = try container.decodeIfPresent(DiagnosticEvidence.self, forKey: .diagnosticEvidence)
     }
 
     public func recordingGestureTarget(_ target: RecordedGestureTarget) -> Self {
@@ -134,7 +140,8 @@ public struct SessionAction: Sendable, Codable, Equatable {
             isError: isError,
             intent: intent,
             observedElements: observedElements,
-            gestureTarget: target
+            gestureTarget: target,
+            diagnosticEvidence: diagnosticEvidence
         )
     }
 }
@@ -158,7 +165,8 @@ public extension SessionAction {
                     elementLabel: target.elementLabel.map(redactor.redact),
                     elementType: target.elementType, resolution: target.resolution
                 )
-            }
+            },
+            diagnosticEvidence: diagnosticEvidence?.redacted(using: redactor)
         )
     }
 }

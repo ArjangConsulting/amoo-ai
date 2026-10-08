@@ -161,7 +161,8 @@ public actor DriverToolExecutor: ToolExecutor {
             result: toolName == "open_url" ? "Opened URL (query values redacted)" : result.content,
             isError: result.isError,
             intent: sessionIntent(toolName: toolName, isError: result.isError),
-            observedElements: result.observedElements
+            observedElements: result.observedElements,
+            diagnosticEvidence: diagnosticEvidence(toolName: toolName, arguments: arguments, result: result)
         )
         await session.record(action)
         // Persist so a mid-session crash or a server restart still leaves a compilable history
@@ -170,10 +171,17 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     private func sessionIntent(toolName: String, isError: Bool) -> SessionAction.Intent {
+        if Self.diagnosticTools.contains(toolName) {
+            return .diagnostic
+        }
+        if toolName == "assert_accessibility_journey" {
+            return .assertion
+        }
         if isError {
             return .failedProbe
         }
-        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled"].contains(toolName) {
+        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled", "assert_accessibility_journey"]
+            .contains(toolName) {
             return .assertion
         }
         if [

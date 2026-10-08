@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture-dialog",
+  "steps": [
+    {
+      "id": "open-anchor",
+      "kind": "seek",
+      "direction": "forward",
+      "maxMoves": 15,
+      "speech": [{"elementID": "a11y-open-dialog", "contains": "Open dialog"}]
+    },
+    {
+      "id": "open-dialog",
+      "kind": "transition",
+      "element": {"id": "a11y-open-dialog", "name": "Open dialog", "role": "button", "enabled": true},
+      "action": "doubleTap",
+      "before": {"contains": "Open dialog"},
+      "destination": {"id": "a11y-dialog-title", "name": "Journey dialog", "role": "staticText"},
+      "after": {"elementID": "a11y-dialog-title", "contains": "Journey dialog"}
+    },
+    {
+      "id": "dismiss-anchor",
+      "kind": "seek",
+      "direction": "forward",
+      "maxMoves": 15,
+      "speech": [{"elementID": "a11y-dismiss-dialog", "contains": "Dismiss dialog"}]
+    },
+    {
+      "id": "dismiss-dialog",
+      "kind": "transition",
+      "element": {"id": "a11y-dismiss-dialog", "name": "Dismiss dialog", "role": "button", "enabled": true},
+      "action": "doubleTap",
+      "before": {"contains": "Dismiss dialog"},
+      "destination": {"id": "a11y-dialog-state", "name": "Dialog closed"},
+      "after": {"elementID": "a11y-open-dialog", "contains": "Open dialog"}
+    }
+  ]
+}

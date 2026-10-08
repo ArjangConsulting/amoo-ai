@@ -83,4 +83,27 @@ final class CompanionHoldTests: XCTestCase {
         XCTAssertEqual(starts, 1)
         XCTAssertEqual(shutdowns, 1)
     }
+
+    /// Xcode may remain alive after its simulator runner has stopped serving every RPC.
+    func testRestartsAnUnavailableAPIWhileRunnerProcessRemainsAlive() async throws {
+        let counter = Counter()
+        let signals = CompanionSignalWaiter(signals: [])
+        try await holdCompanion(
+            start: { await counter.start() },
+            announce: {},
+            shutdown: { await counter.shutdown() },
+            runnerUnavailable: {
+                if await counter.exit() == 1 {
+                    return
+                }
+                signals.finish()
+                await CompanionSignalWaiter.never()
+            },
+            signals: signals
+        )
+        let starts = await counter.starts
+        let shutdowns = await counter.shutdowns
+        XCTAssertEqual(starts, 2)
+        XCTAssertEqual(shutdowns, 1)
+    }
 }

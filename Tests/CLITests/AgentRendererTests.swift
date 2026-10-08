@@ -10,7 +10,13 @@ final class AgentRendererTests: XCTestCase {
     )
 
     private func render(_ client: AgentClient, mode: AgentRenderMode = .standalone) throws -> String {
-        try AgentRenderer.render(source, definition: .amoo, for: client, mode: mode).contents
+        try AgentRenderer.render(
+            source,
+            definition: .amoo,
+            for: client,
+            mode: mode,
+            executablePath: "/tmp/local amoo/amoo"
+        ).contents
     }
 
     func testParsesNeutralFrontmatterAndBody() throws {
@@ -35,7 +41,8 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertTrue(text.hasPrefix("---\nname: amoo\ndescription: \"Drives \\\"devices\\\": iOS and Android.\"\n"))
         XCTAssertTrue(text.contains("model: sonnet"))
         XCTAssertTrue(text.contains("disallowedTools: Edit, NotebookEdit"))
-        XCTAssertTrue(text.contains("mcpServers:\n  - amoo:\n      type: stdio\n      command: amoo"))
+        XCTAssertTrue(text
+            .contains("mcpServers:\n  - amoo:\n      type: stdio\n      command: \"/tmp/local amoo/amoo\""))
         XCTAssertTrue(text.hasSuffix("---\n\nDo the thing.\n"))
     }
 
@@ -49,7 +56,8 @@ final class AgentRendererTests: XCTestCase {
         let text = try render(.codex)
         XCTAssertTrue(text.contains("name = \"amoo\"\n"))
         XCTAssertTrue(text.contains("developer_instructions = '''\nDo the thing.\n'''\n"))
-        XCTAssertTrue(text.contains("[mcp_servers.amoo]\ncommand = \"amoo\"\nargs = [\"mcp\", \"serve\"]"))
+        XCTAssertTrue(text
+            .contains("[mcp_servers.amoo]\ncommand = \"/tmp/local amoo/amoo\"\nargs = [\"mcp\", \"serve\"]"))
         let tableStart = try XCTUnwrap(text.range(of: "[mcp_servers.amoo]")).lowerBound
         XCTAssertLessThan(try XCTUnwrap(text.range(of: "developer_instructions")).lowerBound, tableStart)
     }
@@ -66,7 +74,7 @@ final class AgentRendererTests: XCTestCase {
 
         let gemini = try render(.gemini)
         XCTAssertTrue(gemini.contains("timeout_mins: 30"))
-        XCTAssertTrue(gemini.contains("mcpServers:\n  amoo:\n    command: amoo"))
+        XCTAssertTrue(gemini.contains("mcpServers:\n  amoo:\n    command: \"/tmp/local amoo/amoo\""))
 
         XCTAssertTrue(try render(.cursor).contains("model: inherit"))
 
@@ -82,6 +90,12 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertEqual(AgentRenderer.agentDirectory(for: .opencode, scope: .user), ".config/opencode/agents")
         XCTAssertEqual(AgentRenderer.skillsDirectory(for: .claude), ".claude/skills")
         XCTAssertEqual(AgentRenderer.skillsDirectory(for: .gemini), ".agents/skills")
+    }
+
+    func testRejectsRelativeMCPBinary() {
+        XCTAssertThrowsError(try AgentRenderer.render(
+            source, definition: .amoo, for: .codex, executablePath: "amoo"
+        ))
     }
 
     func testQuotedEscapesControlCharacters() {

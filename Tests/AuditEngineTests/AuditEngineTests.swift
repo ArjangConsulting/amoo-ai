@@ -28,14 +28,15 @@ private struct LowConfidenceRule: AuditRule {
 }
 
 final class AuditEngineTests: XCTestCase {
-    func testLowConfidenceDowngradesToInfo() async throws {
+    func testLowConfidencePreservesImpactSeverity() async throws {
         let engine = AuditEngine(rules: [LowConfidenceRule()], lowConfidenceThreshold: 0.5)
         let report = try await engine.run(
             AuditInput(appID: "com.example.app", screenContext: .init(summary: "ok"), hierarchy: .init(id: "root"))
         )
 
         XCTAssertEqual(report.findings.count, 1)
-        XCTAssertEqual(report.findings[0].severity, .info)
+        XCTAssertEqual(report.findings[0].severity, .high)
+        XCTAssertEqual(report.findings[0].confidence, 0.2)
     }
 
     // MARK: - Security Rules
@@ -170,13 +171,62 @@ final class AuditEngineTests: XCTestCase {
             hierarchy: .init(id: "root"),
             interactableElements: [
                 ElementInfo(id: "", label: "", type: .button),
+                ElementInfo(id: "stable-id", label: "\n ", type: .button),
                 ElementInfo(id: "good-btn", label: "Submit", type: .button)
             ]
         )
         let report = try await engine.run(input)
         XCTAssertEqual(report.findings.count, 1)
         XCTAssertEqual(report.findings[0].ruleID, "UX-001")
-        XCTAssert(report.findings[0].summary.contains("1 interactable"))
+        XCTAssert(report.findings[0].summary.contains("2 interactable"))
+        XCTAssertEqual(report.findings[0].evidence.count, 2)
+    }
+
+    func testSmallTapTargetIgnoresCoordinateRoundingAtMinimum() async throws {
+        let rule = SmallTapTargetRule()
+        let input = AuditInput(
+            appID: "com.test.app",
+            screenContext: .init(summary: ""),
+            hierarchy: .init(id: "root"),
+            interactableElements: [
+                ElementInfo(
+                    id: "rounded-width",
+                    label: "Previous",
+                    type: .button,
+                    frame: Rect(x: 0, y: 0, width: 43.99999999999997, height: 44)
+                ),
+                ElementInfo(
+                    id: "rounded-height",
+                    label: "Next",
+                    type: .button,
+                    frame: Rect(x: 0, y: 0, width: 44, height: 43.99999999999997)
+                )
+            ],
+            geometryUnit: "points"
+        )
+        let findings = try await rule.evaluate(input)
+        XCTAssertTrue(findings.isEmpty)
+    }
+
+    func testSmallTapTargetStillDetectsFractionallyUndersizedElement() async throws {
+        let rule = SmallTapTargetRule()
+        let input = AuditInput(
+            appID: "com.test.app",
+            screenContext: .init(summary: ""),
+            hierarchy: .init(id: "root"),
+            interactableElements: [
+                ElementInfo(
+                    id: "undersized",
+                    label: "Previous",
+                    type: .button,
+                    frame: Rect(x: 0, y: 0, width: 43.999, height: 44)
+                )
+            ],
+            geometryUnit: "points"
+        )
+        let findings = try await rule.evaluate(input)
+        XCTAssertEqual(findings.count, 1)
+        XCTAssertEqual(findings.first?.evidence.first?.sourceRef, "undersized")
     }
 
     func testSmallTapTargetDetectsSmallElements() async throws {
@@ -188,7 +238,8 @@ final class AuditEngineTests: XCTestCase {
             interactableElements: [
                 ElementInfo(id: "small", label: "X", type: .button, frame: Rect(x: 0, y: 0, width: 20, height: 20)),
                 ElementInfo(id: "good", label: "OK", type: .button, frame: Rect(x: 0, y: 0, width: 44, height: 44))
-            ]
+            ],
+            geometryUnit: "points"
         )
         let report = try await engine.run(input)
         XCTAssertEqual(report.findings.count, 1)

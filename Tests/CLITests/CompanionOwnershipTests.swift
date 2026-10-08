@@ -3,8 +3,9 @@ import ProcessRunner
 import XCTest
 
 final class CompanionOwnershipTests: XCTestCase {
-    private let iPhone = "B3337CA4-4759-4309-A2A8-1674A1CB6370"
-    private let iPad = "E5989F82-C2CF-407D-938D-06059724A1B6"
+    // Synthetic IDs keep mocked ownership tests independent of live simulator leases.
+    private let iPhone = "11111111-1111-4111-8111-111111111111"
+    private let iPad = "22222222-2222-4222-8222-222222222222"
 
     // MARK: - Resolving the companion's simulator
 

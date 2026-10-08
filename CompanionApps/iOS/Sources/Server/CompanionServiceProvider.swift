@@ -10,6 +10,12 @@ import XCTest
 /// Uses grpc-swift v2 async APIs. All handler calls are async because
 /// XCUITestBridge is @MainActor and requires main thread dispatch.
 actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
+    func inspectAccessibility(
+        request: Amoo_AccessibilityInspectionRequest, context: ServerContext
+    ) async throws -> Amoo_AccessibilityInspectionResponse {
+        await NativeAccessibilityInspector.inspect(request, isCancelled: { context.cancellation.isCancelled })
+    }
+
     private let touch: TouchHandler
     private let gesture: GestureHandler
     private let text: TextHandler
@@ -78,6 +84,33 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             cap.supported = true
             return cap
         }
+        var audit = Amoo_CapabilityDescriptor()
+        audit.key = "accessibility.nativeAudit"
+        audit.tier = .optional
+        audit.supported = true
+        response.capabilities.append(audit)
+        var speech = Amoo_CapabilityDescriptor()
+        speech.key = "accessibility.voiceOverTraversal"
+        speech.tier = .optional
+        if #available(iOS 27.0, *) {
+            speech.supported = true
+        } else {
+            speech.reasonIfUnsupported = "Requires iOS 27 public VoiceOver service"
+        }
+        response.capabilities.append(speech)
+        var phases = speech
+        phases.key = "accessibility.voiceOverPhases"
+        response.capabilities.append(phases)
+        var recovery = speech
+        recovery.key = "accessibility.voiceOverRecovery"
+        if recovery.supported, (try? NativeAccessibilityInspector.recoveryJournal) == nil {
+            recovery.supported = false
+            recovery.reasonIfUnsupported = "Shared app-group recovery storage is unavailable; check signing entitlements."
+        }
+        response.capabilities.append(recovery)
+        var journey = recovery
+        journey.key = "accessibility.authoredJourney.v1"
+        response.capabilities.append(journey)
         return response
     }
 
@@ -663,6 +696,9 @@ extension ElementSnapshot {
         element.isSecureTextEntry = isSecureTextEntry
         element.isEnabled = isEnabled
         element.isVisible = isVisible
+        if let isSelected {
+            element.isSelected = isSelected
+        }
 
         var rect = Amoo_Rect()
         rect.x = frame.origin.x

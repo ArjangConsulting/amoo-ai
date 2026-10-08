@@ -13,6 +13,7 @@ public actor TestSession {
     nonisolated public let startedAt: Date
     nonisolated public let launchArguments: [String]
     nonisolated public let launchEnvironment: [String: String]
+    nonisolated public let appArtifactSHA256: String?
     nonisolated public let testName: String?
     nonisolated public let driver: any PlatformDriver
 
@@ -46,6 +47,7 @@ public actor TestSession {
         launchArguments: [String] = [],
         launchEnvironment: [String: String] = [:],
         testName: String? = nil,
+        appArtifactSHA256: String? = nil,
         cleanup: @escaping @Sendable () async -> Void
     ) {
         self.id = id
@@ -57,6 +59,7 @@ public actor TestSession {
         self.launchArguments = launchArguments
         self.launchEnvironment = launchEnvironment
         self.testName = testName
+        self.appArtifactSHA256 = appArtifactSHA256
         self.cleanup = cleanup
         redactor = ArtifactRedactor(environment: launchEnvironment, arguments: launchArguments)
     }

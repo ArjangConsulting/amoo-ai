@@ -308,6 +308,12 @@ final class CompanionManager: @unchecked Sendable {
         print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red) + log)
     }
 
+    /// Detect a dead simulator API even when Xcode keeps its child process alive after a crash.
+    /// Attached companions and physical-device tunnels are owned by a different lifecycle.
+    func waitForRunnerUnavailable() async {
+        await Self.watchOwnedRunner(ownsRunner: companionProcess != nil, config: activeConfig)
+    }
+
     func shutdown() async {
         guard let process = companionProcess else { return }
         _ = await process.teardownAndWait()
@@ -343,6 +349,13 @@ final class CompanionManager: @unchecked Sendable {
 
     private func buildForTesting(config: CompanionConfig) async throws {
         #if os(macOS)
+        let buildLock = try await CompanionBuildLock.acquire(directory: config.companionDir + "/build")
+        defer { buildLock.release() }
+        // Another process may have finished this exact build while we waited for the lock.
+        if config.buildMode != .rebuild, sourceFingerprintMatches(config: config),
+           findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config) != nil {
+            return
+        }
         // Hash before building so a source edit made during the build leaves the fingerprint stale.
         let fingerprint = currentSourceFingerprint(config: config)
         let genResult: ProcessResult
@@ -378,6 +391,7 @@ final class CompanionManager: @unchecked Sendable {
             let message = buildResult.stderr.isEmpty ? buildResult.stdout : buildResult.stderr
             throw CompanionError.buildFailed(message)
         }
+        try await signSimulatorProducts(config: config)
         try writeSourceFingerprint(config: config, fingerprint: fingerprint)
         #else
         _ = config
@@ -475,8 +489,6 @@ final class CompanionManager: @unchecked Sendable {
         throw CompanionError.readyTimeout(timeoutSeconds)
     }
 }
-
-extension CompanionManager: IOSCompanionManaging {}
 
 extension CompanionManager {
     /// One log per port: companions for different devices run side by side, and a shared file let

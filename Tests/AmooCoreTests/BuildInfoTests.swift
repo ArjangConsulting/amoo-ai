@@ -29,6 +29,18 @@ final class BuildInfoTests: XCTestCase {
         XCTAssertTrue(info.stalenessWarning()?.contains("restart") == true)
     }
 
+    func testAtomicReplacementWithPreservedModificationTimeIsStale() throws {
+        let binary = try makeBinary()
+        let info = AmooBuildInfo.capture(executableURL: binary)
+        try Data("v2".utf8).write(to: binary, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.modificationDate: XCTUnwrap(info.binaryModifiedAt)],
+            ofItemAtPath: binary.path
+        )
+        XCTAssertNotNil(info.replacedBinaryDate())
+        XCTAssertEqual(info.binarySHA256, sha256Hex(Data("v1".utf8)))
+    }
+
     func testResolvesSymbolicAndPackedHead() throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }

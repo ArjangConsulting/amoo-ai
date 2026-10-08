@@ -35,6 +35,14 @@ Two further requirements for real hardware:
 - The XCUITest companion runner must be signed with a provisioning profile valid for that
   device. Simulators skip code signing entirely.
 
+VoiceOver traversal on iOS 27 also requires shared recovery storage. Both the host and runner
+profiles must authorize the same registered app group. Source builds use the
+`AMOO_RECOVERY_APP_GROUP` Xcode setting (default `group.com.amoo.companion`); prebuilt signing
+accepts `AMOO_IOS_RECOVERY_APP_GROUP`. If the profiles do not share the selected group, the
+general companion still works but does not advertise VoiceOver recovery, and traversal is
+refused before changing VoiceOver. Keep the companion host installed until pending cleanup
+is resolved; uninstalling all group members deletes their recovery storage.
+
 One capability is simulator-only: `setPermission`. `simctl privacy` can grant and revoke
 TCC permissions, and `devicectl` has no counterpart, so on a device Amoo fails that call
 explicitly rather than pretending it worked. Grant permissions manually in Settings.

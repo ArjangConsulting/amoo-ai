@@ -88,6 +88,10 @@ Common tools:
   suggest_test_actions
   analyze_ai_testability
   highlight_a11y_issues
+  assert_accessibility_journey app_id=<bundle-id> journey=<JSON> [record_speech=true]
+  audit_accessibility_native app_id=<bundle-id> [categories=<comma-separated>]
+  test_voiceover app_id=<bundle-id> [steps=<1...30>] [direction=<forward|backward>]
+    [phases=<json>] [record_speech=<bool>]  (phases replaces steps/direction; max 6 phases, 30 moves)
   find_element_by_description description=<text>
   webview_eval expression=<js> [bundle_id=<id>] [all_frames=<true|false>] [timeout_ms=<n>]
   webview_dom [bundle_id=<id>] [mode=<html|a11y>] [max_bytes=<n>]

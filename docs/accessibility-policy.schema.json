@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Amoo accessibility skill policy v1",
+  "description": "Interpreted by accessibility skills; audit-engine enforcement is proposed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profile"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profile": { "enum": ["mobile-core", "mobile-extended"] },
+    "referenceTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["standard", "level", "nativeInterpretation"],
+      "properties": {
+        "standard": { "const": "WCAG-2.2" },
+        "level": { "enum": ["A", "AA", "AAA"] },
+        "nativeInterpretation": { "const": "WCAG2ICT" }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^A11Y-(TEXT-SCALING|NAME|HINT|ROLE-STATE|ORDER-FOCUS|GROUPING|CONTRAST|TARGET-SIZE|ANNOUNCEMENT)$": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "severity": { "$ref": "#/$defs/severity" },
+            "reason": { "$ref": "#/$defs/nonEmpty" }
+          },
+          "allOf": [
+            { "if": { "properties": { "enabled": { "const": false } }, "required": ["enabled"] }, "then": { "required": ["reason"] } },
+            { "if": { "required": ["severity"] }, "then": { "required": ["reason"] } }
+          ]
+        }
+      }
+    },
+    "providers": {
+      "type": "object",
+      "propertyNames": { "enum": ["hierarchy", "ios-native", "android-atf", "app-adapter", "llm-review"] },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enabled"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "categories": { "$ref": "#/$defs/strings" },
+          "reason": { "$ref": "#/$defs/nonEmpty" }
+        },
+        "if": { "properties": { "enabled": { "const": false } } },
+        "then": { "required": ["reason"] }
+      }
+    },
+    "failOn": { "$ref": "#/$defs/severity" },
+    "llmFindingGate": { "const": "reviewed-only" },
+    "requireEvaluatedRules": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/ruleID" } },
+    "samples": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "iosTextSizes": { "$ref": "#/$defs/strings" },
+        "androidFontScales": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "number", "exclusiveMinimum": 0 } },
+        "locales": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "suppressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleID", "stateID", "elementID", "reviewer", "reason", "expires"],
+        "properties": {
+          "ruleID": { "$ref": "#/$defs/ruleID" },
+          "stateID": { "$ref": "#/$defs/nonEmpty" },
+          "elementID": { "$ref": "#/$defs/nonEmpty" },
+          "reviewer": { "$ref": "#/$defs/nonEmpty" },
+          "reason": { "$ref": "#/$defs/nonEmpty" },
+          "expires": { "type": "string", "format": "date" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmpty": { "type": "string", "pattern": "\\S" },
+    "strings": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/nonEmpty" } },
+    "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+    "ruleID": { "enum": ["A11Y-TEXT-SCALING", "A11Y-NAME", "A11Y-HINT", "A11Y-ROLE-STATE", "A11Y-ORDER-FOCUS", "A11Y-GROUPING", "A11Y-CONTRAST", "A11Y-TARGET-SIZE", "A11Y-ANNOUNCEMENT"] }
+  }
+}

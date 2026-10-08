@@ -4,6 +4,8 @@ Set AMOO_IOS_SIGNING_IDENTITY to a development certificate in the keychain,
 AMOO_IOS_HOST_PROFILE to the com.amoo.companion provisioning profile, and
 AMOO_IOS_RUNNER_PROFILE to the com.amoo.companion.uitests.xctrunner profile.
 Both profiles must authorize the connected device and the signing identity.
+VoiceOver recovery additionally requires a common app group in both profiles.
+AMOO_IOS_RECOVERY_APP_GROUP may select a registered group instead of the build default.
 """
 import os
 import pathlib
@@ -69,6 +71,22 @@ def prune_stale_copies(cache):
             pass
 
 
+def configure_recovery_group(runner, host_entitlements, runner_entitlements, requested_group=None):
+    """Enable recovery only when both installed apps anchor the same authorized container."""
+    info_path = next(runner.glob('PlugIns/*.xctest/Info.plist'))
+    with info_path.open('rb') as stream:
+        info = plistlib.load(stream)
+    group = requested_group or info.get('AmooRecoveryAppGroup', 'group.com.amoo.companion')
+    shared = set(host_entitlements.get('com.apple.security.application-groups', [])) & set(
+        runner_entitlements.get('com.apple.security.application-groups', []))
+    if requested_group and group not in shared:
+        raise ValueError('AMOO_IOS_RECOVERY_APP_GROUP must be authorized by both host and runner profiles')
+    # General commands remain usable without provisioning; VoiceOver capability is refused.
+    info['AmooRecoveryAppGroup'] = group if group in shared else ''
+    with info_path.open('wb') as stream:
+        plistlib.dump(info, stream)
+
+
 def main():
     identity = os.environ.get('AMOO_IOS_SIGNING_IDENTITY')
     host_profile = os.environ.get('AMOO_IOS_HOST_PROFILE')
@@ -88,6 +106,9 @@ def main():
         apps = list(target.rglob('*.app'))
         host = next(p for p in apps if p.name == 'AmooCompanion.app')
         runner = next(p for p in apps if p.name == 'AmooCompanionUITests-Runner.app')
+        configure_recovery_group(
+            runner, profile(host_profile)['Entitlements'], profile(runner_profile)['Entitlements'],
+            os.environ.get('AMOO_IOS_RECOVERY_APP_GROUP'))
         sign_app(host, identity, host_profile, sys.argv[2])
         sign_app(runner, identity, runner_profile, sys.argv[2])
         print(target / source_run.name)

@@ -1,3 +1,5 @@
+// SwiftFormat compact wrapping conflicts with SwiftLint argument layout.
+// swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
 
@@ -17,6 +19,29 @@ public extension CommandCoverageMatrix {
     /// Companion-lifecycle MCP tools (`amoo mcp serve` only). Split from `+MCP.swift` to keep that
     /// file under the length limit.
     static let mcpCompanionCommands: [CommandCoverage] = [
+        .init(
+            name: "assert_accessibility_journey", channel: .mcp, kind: .deterministic,
+            releaseTier: .informational, platforms: [.ios], fixtureScreen: .audit,
+            expectedAssertion: "authored failures retain target/transition evidence and evaluated coverage"
+        ),
+        .init(
+            name: "audit_accessibility_native",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: [.ios],
+            fixtureScreen: .audit,
+            expectedAssertion: "native issues are captured without failing the companion test"
+        ),
+        .init(
+            name: "test_voiceover",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: [.ios],
+            fixtureScreen: .audit,
+            expectedAssertion: "bounded speech traversal restores the original VoiceOver state"
+        ),
         .init(
             name: "press_key",
             channel: .mcp,
@@ -64,3 +89,5 @@ public extension CommandCoverageMatrix {
         )
     ]
 }
+
+// swiftlint:enable multiline_arguments

@@ -58,7 +58,7 @@ extension DriverToolExecutor {
             appID: queryScopeAppID(arguments: arguments, driver: driver)
         )
         let selected = Array(elements.dropFirst(page.offset).prefix(page.limit))
-        let rows = selected.map(elementFields)
+        let rows = selected.map { elementFields($0, includePickerValue: true) }
         let descriptions = selected.map { element in
             let point = element.hitPoint ?? element.frame?.centre
             let position = point.map { " hitPoint: (\(Int($0.x)),\(Int($0.y))) pts" } ?? ""
@@ -91,12 +91,18 @@ extension DriverToolExecutor {
         )
     }
 
-    func elementFields(_ element: ElementInfo) -> Value {
+    func elementFields(_ element: ElementInfo, includePickerValue: Bool = false) -> Value {
         var fields: [String: Value] = [
             "id": .string(element.id), "label": .string(String(element.label.prefix(240))),
             "type": .string(element.type?.rawValue ?? "other"),
             "visible": .bool(element.isVisible), "enabled": .bool(element.isEnabled)
         ]
+        if let selected = element.isSelected {
+            fields["selected"] = .bool(selected)
+        }
+        if includePickerValue, element.type == .picker, !element.isSecureTextEntry, let value = element.value {
+            fields["value"] = .string(String(value.prefix(240)))
+        }
         if let point = element.hitPoint ?? element.frame?.centre {
             fields["x"] = .double(point.x)
             fields["y"] = .double(point.y)

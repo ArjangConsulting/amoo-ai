@@ -73,6 +73,7 @@ public enum SessionTools {
             outputSchema: ToolOutputSchema(
                 properties: [
                     "session_id": .init(type: "string", description: "Identifier for the new session"),
+                    "owner": .init(type: "object", description: "Owning MCP process; live IDs cannot cross processes"),
                     "app_id": .init(type: "string", description: "Bundle/package id"),
                     "device_id": .init(type: "string", description: "Resolved device UDID or serial"),
                     "platform": .init(type: "string", description: "ios or android"),

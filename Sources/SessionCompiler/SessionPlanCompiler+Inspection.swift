@@ -6,6 +6,17 @@ import TestSession
 /// turning a trailing inspection into an assertion, writing an actionable message for a coordinate
 /// tap, tagging system-UI steps as transient, and collapsing a retry-tap loop into one step.
 extension SessionPlanCompiler {
+    /// Tools that inspect the app without changing it. They have no place in generated test code,
+    /// so their absence from `toolOperations` is intended rather than a gap in the vocabulary —
+    /// recorded as `.notApplicable` so it reads as a deliberate decision, not a silent drop.
+    static let queryOnlyTools: Set<String> = [
+        "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
+        "is_keyboard_visible", "current_app", "list_devices", "list_apps", "list_sessions",
+        "get_session_report", "take_screenshot_metadata", "find_element_by_description",
+        "suggest_test_actions", "analyze_ai_testability", "highlight_a11y_issues",
+        "audit_app", "audit_accessibility", "audit_security"
+    ]
+
     /// Tools that change what is on screen, as opposed to querying or asserting. A recorded
     /// inspection immediately before one of these usually stood in for "I checked X was here first",
     /// so that trailing inspection is compiled into an assertion rather than dropped.

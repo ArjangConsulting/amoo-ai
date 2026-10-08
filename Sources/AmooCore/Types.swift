@@ -156,6 +156,7 @@ public struct ViewNode: Sendable, Equatable {
 }
 
 public struct ElementInfo: Sendable, Equatable {
+    public var isSelected: Bool?
     public var id: String
     public var label: String
     public var value: String?
@@ -176,7 +177,8 @@ public struct ElementInfo: Sendable, Equatable {
         hitPoint: Point? = nil,
         isEnabled: Bool = true,
         isVisible: Bool = true,
-        isSecureTextEntry: Bool = false
+        isSecureTextEntry: Bool = false,
+        isSelected: Bool? = nil
     ) {
         self.id = id
         self.label = label
@@ -187,6 +189,7 @@ public struct ElementInfo: Sendable, Equatable {
         self.isEnabled = isEnabled
         self.isVisible = isVisible
         self.isSecureTextEntry = isSecureTextEntry
+        self.isSelected = isSelected
     }
 }
 

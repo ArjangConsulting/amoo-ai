@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "profile": "mobile-core",
+  "referenceTarget": { "standard": "WCAG-2.2", "level": "AA", "nativeInterpretation": "WCAG2ICT" },
+  "rules": {
+    "A11Y-TEXT-SCALING": {
+      "enabled": false,
+      "reason": "Text scaling is outside this review's agreed scope."
+    },
+    "A11Y-HINT": {
+      "severity": "low",
+      "reason": "Prioritize task access; review hint usefulness as local usability friction."
+    }
+  },
+  "providers": {
+    "hierarchy": { "enabled": true },
+    "llm-review": { "enabled": true }
+  },
+  "failOn": "high",
+  "llmFindingGate": "reviewed-only",
+  "requireEvaluatedRules": ["A11Y-NAME"],
+  "samples": { "locales": ["en-US"] },
+  "suppressions": []
+}

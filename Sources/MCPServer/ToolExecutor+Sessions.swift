@@ -81,7 +81,12 @@ extension DriverToolExecutor {
                 "session_id": .string(session.id),
                 "app_id": .string(session.appID),
                 "device_id": .string(session.deviceID),
-                "platform": .string(session.platform.rawValue)
+                "platform": .string(session.platform.rawValue),
+                "owner": .object([
+                    "scope": .string("process"),
+                    "process_id": .int(Int(AmooBuildInfo.current.pid)),
+                    "started_at": .string(ISO8601DateFormatter().string(from: AmooBuildInfo.current.startedAt))
+                ])
             ]
             summary["recording_health"] = await .string(manager.recordingHealth(for: session.id))
             var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"

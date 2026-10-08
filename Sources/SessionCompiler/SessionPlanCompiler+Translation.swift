@@ -5,6 +5,18 @@ import TestSession
 /// `SessionPlanCompiler` to keep that type's body reviewable — these are mechanical
 /// translations, one function per tool, with no shared state.
 extension SessionPlanCompiler {
+    /// MCP tool names that map 1:1 onto a Studio tool with no argument remapping needed.
+    ///
+    /// `scroll` is listed separately from `swipe_in_direction` on purpose, even though its
+    /// `direction`/`distance` arguments look like a subset of the latter's. The two have *inverted*
+    /// direction semantics: `scroll` names the direction the content moves (the companions
+    /// implement `scroll(.down)` as a swipe-*up* gesture — see `XCUITestBridge.scroll` and
+    /// `UIAutomatorBridge.scroll`), while `swipe_in_direction` names the raw finger direction.
+    /// Collapsing them into one tool would silently reverse every recorded scroll.
+    static let directTranslations: Set<StudioTool> = [
+        .tapElement, .setText, .typeText, .swipeInDirection, .scroll, .takeScreenshot, .pressBack
+    ]
+
     static func translateFillField(_ arguments: [String: String]) -> TranslatedAction {
         var mapped = arguments
         mapped["contains_text"] = mapped["contains_text"] ?? mapped["field_description"]

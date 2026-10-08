@@ -44,6 +44,7 @@ service CompanionService {
   rpc FindElements (FindElementsRequest) returns (FindElementsResponse);
   rpc WaitForElement (WaitForElementRequest) returns (WaitForElementResponse);
   rpc IsKeyboardVisible (Empty) returns (KeyboardVisibleResponse);
+  rpc InspectAccessibility (AccessibilityInspectionRequest) returns (AccessibilityInspectionResponse);
 
   // Target app
   rpc GetCurrentApp (Empty) returns (CurrentAppResponse);

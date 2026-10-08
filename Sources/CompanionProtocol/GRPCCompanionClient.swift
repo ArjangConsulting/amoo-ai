@@ -9,6 +9,8 @@ import Protos
 // swiftformat:disable wrapMultilineStatementBraces
 
 package protocol CompanionRPCClient: Sendable {
+    func inspectAccessibility(_ request: Amoo_AccessibilityInspectionRequest) async throws
+        -> Amoo_AccessibilityInspectionResponse
     // Session
     func startSession(_ request: Amoo_StartSessionRequest) async throws -> Amoo_StartSessionResponse
     func getCapabilities(_ request: Amoo_CapabilitiesRequest) async throws
@@ -70,6 +72,11 @@ package protocol CompanionRPCClient: Sendable {
 }
 
 package extension CompanionRPCClient {
+    func inspectAccessibility(_: Amoo_AccessibilityInspectionRequest) async throws
+        -> Amoo_AccessibilityInspectionResponse {
+        throw AmooError.notImplemented("inspectAccessibility RPC")
+    }
+
     func shutdown() async {}
 
     func setText(_: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
@@ -80,6 +87,11 @@ package extension CompanionRPCClient {
 // MARK: - GeneratedCompanionRPCClient
 
 package struct GeneratedCompanionRPCClient: CompanionRPCClient {
+    package func inspectAccessibility(_ request: Amoo_AccessibilityInspectionRequest) async throws
+        -> Amoo_AccessibilityInspectionResponse {
+        try await client.inspectAccessibility(request)
+    }
+
     private let client: any Amoo_CompanionService.ClientProtocol
 
     package init(client: any Amoo_CompanionService.ClientProtocol) {
@@ -474,6 +486,13 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
 // MARK: - LiveCompanionRPCClient
 
 package actor LiveCompanionRPCClient: CompanionRPCClient {
+    package func inspectAccessibility(_ request: Amoo_AccessibilityInspectionRequest) async throws
+        -> Amoo_AccessibilityInspectionResponse {
+        var options = Self.gestureCallOptions
+        options.timeout = inspectionTimeout
+        return try await connectedClient.inspectAccessibility(request, options: options)
+    }
+
     private static var gestureCallOptions: GRPCCore.CallOptions {
         var options = GRPCCore.CallOptions.defaults
         // XCUITest can wedge on beta runtimes. A deadline keeps the client usable and makes
@@ -484,15 +503,18 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     private let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>
     private let client: Amoo_CompanionService.Client<HTTP2ClientTransport.Posix>
+    private let inspectionTimeout: Swift.Duration
     private var connectionTask: Task<Void, Never>?
 
-    package init(connection: CompanionConnection) throws {
+    /// The package-only deadline override lets live recovery tests exercise the real transport.
+    package init(connection: CompanionConnection, inspectionTimeout: Swift.Duration = .seconds(120)) throws {
         let transport = try HTTP2ClientTransport.Posix(
             target: .dns(host: connection.host, port: connection.port),
             transportSecurity: .plaintext
         )
         let grpcClient = GRPCClient(transport: transport)
         self.grpcClient = grpcClient
+        self.inspectionTimeout = inspectionTimeout
         client = Amoo_CompanionService.Client(wrapping: grpcClient)
     }
 
@@ -1089,7 +1111,8 @@ private extension Amoo_ElementInfo {
             hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
             isEnabled: isEnabled,
             isVisible: isVisible,
-            isSecureTextEntry: isSecureTextEntry
+            isSecureTextEntry: isSecureTextEntry,
+            isSelected: hasIsSelected ? isSelected : nil
         )
     }
 }
