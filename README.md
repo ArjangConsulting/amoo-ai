@@ -66,7 +66,7 @@ options, and smaller tool profiles, and [prerequisites](docs/prerequisites.md) f
 The **amoo plugin** ([`plugins/amoo`](plugins/amoo)) packages what an AI coding agent needs to
 use amoo:
 - **The `amoo` subagent.** Your agent delegates a device task to it: inspect, verify, debug,
-  record a flow or generated test, or audit. It returns a short YAML report, not the whole
+  record a flow or generated test, or audit. It returns a compact versioned JSON report, not the whole
   device transcript.
 - **The `device-verifier` subagent.** It runs a contract-driven verification with checked-in
   probes.
@@ -94,7 +94,13 @@ client's native format, plus the skills they rely on:
 amoo agent install --user                      # every client, in your home directory
 amoo agent install --target . --client claude  # commit into a repo for your team
 amoo agent install --dry-run --json            # see what would be written
+amoo agent install --binary /absolute/path/to/amoo --client codex  # pin a local MCP build
 ```
+
+Standalone MCP configs pin the resolved absolute executable path; shell aliases do not affect spawned
+servers. Validate delegated results with `amoo agent validate-report --report <report.json>
+--run-id <UUID> --checks <caller-check-ids>`. A pass requires all requested assertions evaluated and
+passed, complete coverage and resolved cleanup. Detailed evidence stays in local referenced files.
 
 Where the client allows it, these standalone agents start `amoo mcp serve` for the subagent
 alone. Your main session then never loads amoo's tool catalog, and the subagent uses the same
@@ -133,6 +139,7 @@ scripts/run-e2e-android.sh
 
 - [Support and qualification](docs/support-matrix.md) — platform boundaries, CI and hardware qualification
 - [Current architecture](docs/current-architecture.md) — runtime ownership and data flow
+- [Accessibility and VoiceOver plan](docs/accessibility-and-voiceover.md) — current evidence limits, public platform APIs, and phased implementation
 
 - [Prerequisites](docs/prerequisites.md) — external tooling, install steps, `make` targets
 - [Physical iOS Devices](docs/physical-ios-devices.md) — `iproxy`, pairing, provisioning, current constraints

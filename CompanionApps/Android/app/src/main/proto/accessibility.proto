@@ -39,3 +39,55 @@ message WaitForElementRequest {
 message WaitForElementResponse {
   bool found = 1;
 }
+
+// Bounded public-API inspection. VoiceOver restores its original enabled state before returning.
+message AccessibilityInspectionRequest {
+  string app_id = 1;
+  string operation = 2;
+  repeated string categories = 3;
+  uint32 steps = 4;
+  string direction = 5;
+  repeated VoiceOverPhase phases = 6;
+  // Versioned, bounded AccessibilityJourney JSON. Requires accessibility.authoredJourney.v1.
+  string journey_json = 7;
+}
+
+message AccessibilityInspectionIssue {
+  string category = 1;
+  string description = 2;
+  string details = 3;
+  ElementInfo element = 4;
+}
+
+message AccessibilityInspectionResponse {
+  string status = 1;
+  string provider = 2;
+  repeated AccessibilityInspectionIssue issues = 3;
+  repeated string utterances = 4;
+  optional bool original_voiceover_enabled = 5;
+  optional bool restored_voiceover_enabled = 6;
+  string error = 7;
+  repeated string limitations = 8;
+  repeated string requested_checks = 9;
+  repeated string evaluated_checks = 10;
+  map<string, string> not_evaluated_reasons = 11;
+  bool truncated = 12;
+  string cleanup_error = 13;
+  repeated VoiceOverPhaseObservation phases = 14;
+  map<string, string> provenance = 15;
+  // Versioned AccessibilityJourneyReport JSON; no pass without complete matching check IDs.
+  string journey_report_json = 16;
+}
+
+// All phases share one enabled service and one final restoration.
+message VoiceOverPhase {
+  uint32 steps = 1;
+  string direction = 2;
+}
+
+message VoiceOverPhaseObservation {
+  uint32 phase_index = 1;
+  string direction = 2;
+  uint32 requested_steps = 3;
+  repeated string utterances = 4;
+}

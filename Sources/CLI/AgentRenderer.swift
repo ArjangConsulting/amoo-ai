@@ -38,7 +38,7 @@ struct AgentDefinition: Equatable, Sendable {
 
     static let amoo = Self(
         name: "amoo",
-        skills: ["driving-amoo"],
+        skills: ["driving-amoo", "ios-accessibility", "android-accessibility"],
         scopedMCP: true,
         claudeModel: "sonnet",
         claudeTools: nil,
@@ -150,21 +150,37 @@ enum AgentRenderer {
         definition: AgentDefinition,
         for client: AgentClient,
         scope: AgentScope = .project,
-        mode: AgentRenderMode = .standalone
+        mode: AgentRenderMode = .standalone,
+        executablePath: String = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? ""
     ) throws -> RenderedAgentFile {
         let directory = agentDirectory(for: client, scope: scope)
         let mcp = definition.scopedMCP && mode == .standalone
+        guard !mcp || executablePath.hasPrefix("/") else {
+            throw AgentRenderError.unsupportedBody("MCP configuration requires an absolute amoo executable path.")
+        }
         switch client {
         case .claude:
-            return .init(path: "\(directory)/\(source.name).md", contents: claude(source, definition, mcp: mcp))
+            return .init(
+                path: "\(directory)/\(source.name).md",
+                contents: claude(source, definition, mcp: mcp, executable: executablePath)
+            )
         case .cursor:
             return .init(path: "\(directory)/\(source.name).md", contents: cursor(source))
         case .codex:
-            return try .init(path: "\(directory)/\(source.name).toml", contents: codex(source, mcp: mcp))
+            return try .init(
+                path: "\(directory)/\(source.name).toml",
+                contents: codex(source, mcp: mcp, executable: executablePath)
+            )
         case .copilot:
-            return .init(path: "\(directory)/\(source.name).agent.md", contents: copilot(source, mcp: mcp))
+            return .init(
+                path: "\(directory)/\(source.name).agent.md",
+                contents: copilot(source, mcp: mcp, executable: executablePath)
+            )
         case .gemini:
-            return .init(path: "\(directory)/\(source.name).md", contents: gemini(source, mcp: mcp))
+            return .init(
+                path: "\(directory)/\(source.name).md",
+                contents: gemini(source, mcp: mcp, executable: executablePath)
+            )
         case .opencode:
             return .init(path: "\(directory)/\(source.name).md", contents: opencode(source))
         }
@@ -180,7 +196,12 @@ enum AgentRenderer {
 
     // MARK: - Per-client formats
 
-    private static func claude(_ source: AgentSource, _ definition: AgentDefinition, mcp: Bool) -> String {
+    private static func claude(
+        _ source: AgentSource,
+        _ definition: AgentDefinition,
+        mcp: Bool,
+        executable: String
+    ) -> String {
         var lines = ["name: \(source.name)", "description: \(quoted(source.description))"]
         let optional = [
             definition.claudeModel.map { "model: \($0)" },
@@ -193,7 +214,7 @@ enum AgentRenderer {
                 "mcpServers:",
                 "  - amoo:",
                 "      type: stdio",
-                "      command: amoo",
+                "      command: \(quoted(executable))",
                 "      args: [\"mcp\", \"serve\"]"
             ]
         }
@@ -207,7 +228,7 @@ enum AgentRenderer {
         )
     }
 
-    private static func codex(_ source: AgentSource, mcp: Bool) throws -> String {
+    private static func codex(_ source: AgentSource, mcp: Bool, executable: String) throws -> String {
         guard !source.body.contains("'''") else {
             throw AgentRenderError.unsupportedBody(
                 "agents/\(source.name).md: the body contains ''' and cannot be a TOML literal string."
@@ -224,7 +245,7 @@ enum AgentRenderer {
             lines += [
                 "",
                 "[mcp_servers.amoo]",
-                "command = \"amoo\"",
+                "command = \(quoted(executable))",
                 "args = [\"mcp\", \"serve\"]",
                 "tool_timeout_sec = 900"
             ]
@@ -232,14 +253,14 @@ enum AgentRenderer {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    private static func copilot(_ source: AgentSource, mcp: Bool) -> String {
+    private static func copilot(_ source: AgentSource, mcp: Bool, executable: String) -> String {
         var lines = ["name: \(source.name)", "description: \(quoted(source.description))"]
         if mcp {
             lines += [
                 "mcp-servers:",
                 "  amoo:",
                 "    type: local",
-                "    command: amoo",
+                "    command: \(quoted(executable))",
                 "    args: [\"mcp\", \"serve\"]",
                 "    tools: [\"*\"]"
             ]
@@ -247,7 +268,7 @@ enum AgentRenderer {
         return markdown(frontmatter: lines, body: source.body)
     }
 
-    private static func gemini(_ source: AgentSource, mcp: Bool) -> String {
+    private static func gemini(_ source: AgentSource, mcp: Bool, executable: String) -> String {
         // The defaults (10 minutes, 30 turns) are too short for a cold companion build.
         var lines = [
             "name: \(source.name)",
@@ -256,7 +277,7 @@ enum AgentRenderer {
             "max_turns: 80"
         ]
         if mcp {
-            lines += ["mcpServers:", "  amoo:", "    command: amoo", "    args: [\"mcp\", \"serve\"]"]
+            lines += ["mcpServers:", "  amoo:", "    command: \(quoted(executable))", "    args: [\"mcp\", \"serve\"]"]
         }
         return markdown(frontmatter: lines, body: source.body)
     }

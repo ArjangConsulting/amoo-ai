@@ -228,6 +228,7 @@ final class CompanionProtocolTests: XCTestCase {
 }
 
 actor MockRPCClient: CompanionRPCClient {
+    var inspection = InspectionStub()
     private let screenshotPNG = Data(
         base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2foAAAAASUVORK5CYII="
     )!
@@ -258,20 +259,6 @@ actor MockRPCClient: CompanionRPCClient {
 
         var response = Amoo_StartSessionResponse()
         response.sessionID = "session-123"
-        return response
-    }
-
-    func getCapabilities(_ request: Amoo_CapabilitiesRequest) async throws
-        -> Amoo_CapabilitiesResponse {
-        _ = request
-
-        var capability = Amoo_CapabilityDescriptor()
-        capability.key = "query.findElements"
-        capability.tier = .required
-        capability.supported = true
-
-        var response = Amoo_CapabilitiesResponse()
-        response.capabilities = [capability]
         return response
     }
 
@@ -366,6 +353,9 @@ actor MockRPCClient: CompanionRPCClient {
         var element = Amoo_ElementInfo()
         element.id = "element-1"
         element.label = "Login"
+        if let selectedState = inspection.selectedState {
+            element.isSelected = selectedState
+        }
         element.isEnabled = false
         element.isVisible = false
         element.hitPoint = Amoo_Point.with { point in

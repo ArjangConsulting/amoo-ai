@@ -41,6 +41,23 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
 
     // MARK: - Part 3: control-plane calls
 
+    func testAuditObservationsNeverCreateGeneratedAssertionsOrExcludedSteps() throws {
+        for intent: SessionAction.Intent in [.testStep, .diagnostic, .failedProbe] {
+            let actions = DiagnosticEvidence.toolNames.sorted().map {
+                action($0, ["id": "named-control"], intent: intent, isError: intent == .failedProbe)
+            } + [action("tap_element", ["id": "named-control"])]
+            let result = try SessionPlanCompiler.compile(
+                report: report(actions),
+                testName: "Audited",
+                testDescription: nil
+            )
+            XCTAssertTrue(result.studioTest.compiledPlan?.excludedWarnings.isEmpty ?? false)
+            XCTAssertEqual(operations(result).map(\.tool), ["tap_element"])
+            XCTAssertTrue(result.warnings.filter { DiagnosticEvidence.toolNames.contains($0.toolName) }
+                .allSatisfy { $0.kind == .notApplicable })
+        }
+    }
+
     func testRecordedCompileSessionToPlanIsNotApplicableNotExcluded() throws {
         let result = try SessionPlanCompiler.compile(
             report: report([

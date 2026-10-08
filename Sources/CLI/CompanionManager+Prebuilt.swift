@@ -3,7 +3,21 @@ import Foundation
 import ProcessRunner
 import SwiftyShell
 
+extension CompanionManager: IOSCompanionManaging {}
+
 extension CompanionManager {
+    /// Xcode omits the UI-test group's entitlement from the generated simulator executable.
+    func signSimulatorProducts(config: CompanionConfig) async throws {
+        guard !config.isPhysicalDevice else { return }
+        let result = try await processRunner.run([
+            "python3", config.companionDir + "/sign-simulator-products.py",
+            config.companionDir + "/build/Build/Products"
+        ])
+        guard result.exitCode == 0 else {
+            throw CompanionError.buildFailed("Simulator companion signing failed: \(result.stderr)")
+        }
+    }
+
     func bundledProductsDirectory(config: CompanionConfig) -> String {
         let platform = config.isPhysicalDevice ? "iphoneos" : "iphonesimulator"
         return config.companionDir + "/prebuilt/\(platform)/Products"
@@ -51,18 +65,26 @@ extension CompanionManager {
     func prepareSimulator(config: CompanionConfig) async throws {
         guard config.bootSimulator, !config.isPhysicalDevice else { return }
         await StartupProgress.report("Booting iOS simulator")
-        let runner = processRunner
         // Bounded: an unresponsive simulator must surface as an error, not wedge the startup
         // (and the build error behind it, since `ensureRunning` joins this task on every exit).
-        let boot = try await runner.run(Self.simctlRequest(["boot", config.deviceUDID], seconds: 60))
+        let boot = try await simctlResult(["boot", config.deviceUDID], seconds: 60)
         guard boot.exitCode == 0 || boot.stderr.contains("current state: Booted") else {
             throw CompanionError.launchFailed("Simulator boot failed: \(boot.stderr)")
         }
-        let ready = try await runner.run(Self.simctlRequest(["bootstatus", config.deviceUDID, "-b"], seconds: 300))
+        let ready = try await simctlResult(["bootstatus", config.deviceUDID, "-b"], seconds: 300)
         guard ready.exitCode == 0 else {
             throw CompanionError.launchFailed("Simulator boot readiness failed: \(ready.stderr)")
         }
         await StartupProgress.report("iOS simulator boot complete; waiting for companion preparation")
+    }
+
+    private func simctlResult(_ arguments: [String], seconds: Int) async throws -> ProcessResult {
+        do {
+            return try await processRunner.run(Self.simctlRequest(arguments, seconds: seconds))
+        } catch let ShellError.exitFailure(_, output) {
+            // Typed requests throw on exit failure; preserve stderr for the boot-state decision.
+            return ProcessResult(exitCode: output.exitCode, stdout: output.stdout, stderr: output.stderr)
+        }
     }
 
     private static func simctlRequest(_ arguments: [String], seconds: Int) -> ProcessExecutionRequest {

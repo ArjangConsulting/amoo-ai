@@ -2,10 +2,49 @@ import AmooCore
 @testable import CLI
 import Foundation
 import ProcessRunner
+import SwiftyShell
 import TestCommons
 import XCTest
 
 final class CompanionBuildReuseTests: XCTestCase {
+    func testImportedRecoverySourcesAndSigningInputsInvalidateCompanionCache() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let directory = scratch.url.appending(path: "CompanionApps/iOS")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let config = CompanionConfig(companionDir: directory.path, deviceUDID: "sim")
+        let manager = CompanionManager()
+        var previous = manager.currentSourceFingerprint(config: config)
+        for path in [
+            "Recovery.entitlements", "sign-simulator-products.py", "HostApp/Info.plist",
+            "../../Sources/AmooCore/VoiceOverTraversal.swift"
+        ] {
+            let file = directory.appending(path: path).standardizedFileURL
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data("changed".utf8).write(to: file)
+            let changed = manager.currentSourceFingerprint(config: config)
+            XCTAssertNotEqual(changed, previous, path)
+            previous = changed
+        }
+    }
+
+    func testSimulatorBuildSigningIsExplicitAndPhysicalProductsAreExcluded() async throws {
+        let runner = MockCLIProcessRunner(results: [.success(.init(exitCode: 0, stdout: "", stderr: ""))])
+        let manager = CompanionManager(processRunner: runner)
+        var config = CompanionConfig(companionDir: "/companion", deviceUDID: "sim")
+        try await manager.signSimulatorProducts(config: config)
+        config.isPhysicalDevice = true
+        try await manager.signSimulatorProducts(config: config)
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(
+            commands,
+            [["python3", "/companion/sign-simulator-products.py", "/companion/build/Build/Products"]]
+        )
+    }
+
     func testAutoPrefersFreshLocalCompanionOverBundledProducts() throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }
@@ -128,6 +167,42 @@ final class CompanionBuildReuseTests: XCTestCase {
             ["xcrun", "simctl", "boot", "sim-123"],
             ["xcrun", "simctl", "bootstatus", "sim-123", "-b"]
         ])
+    }
+
+    func testAlreadyBootedSimulatorHandlesTypedProcessExitFailure() async throws {
+        let runner = MockCLIProcessRunner(results: [
+            .failure(ShellError.exitFailure(
+                command: "xcrun simctl boot sim-123",
+                output: ShellOutput(stdout: "", stderr: "Unable to boot device in current state: Booted", exitCode: 405)
+            )),
+            .success(ProcessResult(exitCode: 0, stdout: "", stderr: ""))
+        ])
+        let manager = CompanionManager(processRunner: runner)
+        var config = CompanionConfig(deviceUDID: "sim-123")
+        config.bootSimulator = true
+        try await manager.prepareSimulator(config: config)
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(commands.last, ["xcrun", "simctl", "bootstatus", "sim-123", "-b"])
+    }
+
+    func testSimulatorBootFailureDoesNotProceedToReadiness() async {
+        let runner = MockCLIProcessRunner(results: [
+            .failure(ShellError.exitFailure(
+                command: "xcrun simctl boot sim-123",
+                output: ShellOutput(stdout: "", stderr: "Runtime unavailable", exitCode: 1)
+            ))
+        ])
+        let manager = CompanionManager(processRunner: runner)
+        var config = CompanionConfig(deviceUDID: "sim-123")
+        config.bootSimulator = true
+        do {
+            try await manager.prepareSimulator(config: config)
+            XCTFail("An actual boot failure must remain a failure")
+        } catch {
+            XCTAssertTrue(String(describing: error).contains("Runtime unavailable"))
+        }
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(commands.count, 1)
     }
 }
 

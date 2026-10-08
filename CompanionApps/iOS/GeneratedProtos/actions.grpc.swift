@@ -306,6 +306,19 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "InspectAccessibility" metadata.
+        public enum InspectAccessibility: Sendable {
+            /// Request type for "InspectAccessibility".
+            public typealias Input = Amoo_AccessibilityInspectionRequest
+            /// Response type for "InspectAccessibility".
+            public typealias Output = Amoo_AccessibilityInspectionResponse
+            /// Descriptor for "InspectAccessibility".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "InspectAccessibility",
+                type: .unary
+            )
+        }
         /// Namespace for "GetCurrentApp" metadata.
         public enum GetCurrentApp: Sendable {
             /// Request type for "GetCurrentApp".
@@ -460,6 +473,7 @@ public enum Amoo_CompanionService: Sendable {
             FindElements.descriptor,
             WaitForElement.descriptor,
             IsKeyboardVisible.descriptor,
+            InspectAccessibility.descriptor,
             GetCurrentApp.descriptor,
             GetScreenInfo.descriptor,
             SetTargetApp.descriptor,
@@ -826,6 +840,20 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_Empty>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_KeyboardVisibleResponse>
+
+        /// Handle the "InspectAccessibility" method.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_AccessibilityInspectionRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_AccessibilityInspectionResponse` messages.
+        func inspectAccessibility(
+            request: GRPCCore.StreamingServerRequest<Amoo_AccessibilityInspectionRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_AccessibilityInspectionResponse>
 
         /// Handle the "GetCurrentApp" method.
         ///
@@ -1328,6 +1356,20 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse>
 
+        /// Handle the "InspectAccessibility" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_AccessibilityInspectionRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_AccessibilityInspectionResponse` message.
+        func inspectAccessibility(
+            request: GRPCCore.ServerRequest<Amoo_AccessibilityInspectionRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_AccessibilityInspectionResponse>
+
         /// Handle the "GetCurrentApp" method.
         ///
         /// > Source IDL Documentation:
@@ -1827,6 +1869,20 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_KeyboardVisibleResponse
 
+        /// Handle the "InspectAccessibility" method.
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_AccessibilityInspectionRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_AccessibilityInspectionResponse` to respond with.
+        func inspectAccessibility(
+            request: Amoo_AccessibilityInspectionRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_AccessibilityInspectionResponse
+
         /// Handle the "GetCurrentApp" method.
         ///
         /// > Source IDL Documentation:
@@ -2236,6 +2292,17 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.InspectAccessibility.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_AccessibilityInspectionRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_AccessibilityInspectionResponse>(),
+            handler: { request, context in
+                try await self.inspectAccessibility(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.GetCurrentApp.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_Empty>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_CurrentAppResponse>(),
@@ -2587,6 +2654,17 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_KeyboardVisibleResponse> {
         let response = try await self.isKeyboardVisible(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func inspectAccessibility(
+        request: GRPCCore.StreamingServerRequest<Amoo_AccessibilityInspectionRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_AccessibilityInspectionResponse> {
+        let response = try await self.inspectAccessibility(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2986,6 +3064,19 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse> {
         return GRPCCore.ServerResponse<Amoo_KeyboardVisibleResponse>(
             message: try await self.isKeyboardVisible(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func inspectAccessibility(
+        request: GRPCCore.ServerRequest<Amoo_AccessibilityInspectionRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_AccessibilityInspectionResponse> {
+        return GRPCCore.ServerResponse<Amoo_AccessibilityInspectionResponse>(
+            message: try await self.inspectAccessibility(
                 request: request.message,
                 context: context
             ),
@@ -3573,6 +3664,25 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_KeyboardVisibleResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_KeyboardVisibleResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "InspectAccessibility" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_AccessibilityInspectionRequest` message.
+        ///   - serializer: A serializer for `Amoo_AccessibilityInspectionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_AccessibilityInspectionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func inspectAccessibility<Result>(
+            request: GRPCCore.ClientRequest<Amoo_AccessibilityInspectionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_AccessibilityInspectionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_AccessibilityInspectionResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_AccessibilityInspectionResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "GetCurrentApp" method.
@@ -4486,6 +4596,36 @@ extension Amoo_CompanionService {
             )
         }
 
+        /// Call the "InspectAccessibility" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_AccessibilityInspectionRequest` message.
+        ///   - serializer: A serializer for `Amoo_AccessibilityInspectionRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_AccessibilityInspectionResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func inspectAccessibility<Result>(
+            request: GRPCCore.ClientRequest<Amoo_AccessibilityInspectionRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_AccessibilityInspectionRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_AccessibilityInspectionResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_AccessibilityInspectionResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.InspectAccessibility.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "GetCurrentApp" method.
         ///
         /// > Source IDL Documentation:
@@ -5380,6 +5520,31 @@ extension Amoo_CompanionService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_Empty>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_KeyboardVisibleResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "InspectAccessibility" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_AccessibilityInspectionRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func inspectAccessibility<Result>(
+        request: GRPCCore.ClientRequest<Amoo_AccessibilityInspectionRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_AccessibilityInspectionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.inspectAccessibility(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_AccessibilityInspectionRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_AccessibilityInspectionResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -6315,6 +6480,35 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.isKeyboardVisible(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "InspectAccessibility" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func inspectAccessibility<Result>(
+        _ message: Amoo_AccessibilityInspectionRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_AccessibilityInspectionResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_AccessibilityInspectionRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.inspectAccessibility(
             request: request,
             options: options,
             onResponse: handleResponse

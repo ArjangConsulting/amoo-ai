@@ -80,6 +80,16 @@ public extension ScreenCapture {
 // MARK: - Accessibility
 
 public protocol AccessibilityProvider: Sendable {
+    /// Runs authored checkpoints and transitions within one bounded service lifetime.
+    func inspectAccessibilityJourney(
+        appID: String,
+        journey: AccessibilityJourney
+    ) async throws -> AccessibilityInspection
+    /// Executes bounded phases within one service lifetime; never simulates phases with separate calls.
+    func inspectVoiceOver(appID: String, phases: [VoiceOverPhase]) async throws -> AccessibilityInspection
+    func inspectAccessibility(
+        appID: String, operation: String, categories: [String], steps: Int, direction: String
+    ) async throws -> AccessibilityInspection
     func findElements(_ selector: ElementSelector) async throws -> [ElementInfo]
     func getViewHierarchy() async throws -> ViewNode
     func elementExists(_ selector: ElementSelector) async throws -> Bool

@@ -144,11 +144,12 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         }
 
         let platformDriver: any PlatformDriver
+        let appArtifactSHA256: String?
         do {
             // Unlike a TCP dial, this proves the companion application is serving its API.
             try await waitForCompanionReady(companion)
             platformDriver = await makePlatformDriver(for: available, companion: companion, deviceID: deviceID)
-            try await installAndLaunch(request, driver: platformDriver)
+            appArtifactSHA256 = try await installAndLaunch(request, driver: platformDriver)
         } catch {
             await cleanup()
             throw error
@@ -168,6 +169,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             driver: platformDriver,
             deviceID: deviceID,
             platform: request.platform,
+            appArtifactSHA256: appArtifactSHA256,
             cleanup: cleanup
         )
     }
@@ -195,7 +197,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     private func installAndLaunch(
         _ request: SessionBootstrapRequest,
         driver: any PlatformDriver
-    ) async throws {
+    ) async throws -> String? {
+        let before = request.buildPath.flatMap { sha256Hex(ofPath: $0) }
         if let buildPath = request.buildPath, !buildPath.isEmpty {
             do {
                 await StartupProgress.report("Installing app under test")
@@ -218,6 +221,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         } catch {
             throw BootstrapError.launchFailed(error.localizedDescription)
         }
+        let after = request.buildPath.flatMap { sha256Hex(ofPath: $0) }
+        return before == after ? before : nil
     }
 
     func listDevices(platform: Platform?) async throws -> [DeviceInfo] {

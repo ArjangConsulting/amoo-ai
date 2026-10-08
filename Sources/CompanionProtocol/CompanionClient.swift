@@ -1,6 +1,14 @@
 import AmooCore
 
 public protocol CompanionClient: Sendable {
+    /// Executes bounded phases within one service lifetime; never simulates phases with separate calls.
+    /// Runs authored checkpoints and transitions within one bounded service lifetime.
+    func inspectAccessibilityJourney(appID: String, journey: AccessibilityJourney) async throws
+        -> AccessibilityInspection
+    func inspectVoiceOver(appID: String, phases: [VoiceOverPhase]) async throws -> AccessibilityInspection
+    func inspectAccessibility(
+        appID: String, operation: String, categories: [String], steps: Int, direction: String
+    ) async throws -> AccessibilityInspection
     // Session
     func startSession() async throws
     func getCapabilities() async throws -> [CapabilityDescriptor]

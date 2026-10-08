@@ -8,6 +8,16 @@ import TestSession
 /// fallback test name. Split out of `SessionPlanCompiler.swift` to keep that file within the
 /// `file_length` budget.
 extension SessionPlanCompiler {
+    static func unsupportedJourneyAssertion(index: Int, action: SessionAction) -> SessionPlanWarning {
+        SessionPlanWarning(
+            kind: .excluded,
+            actionIndex: index,
+            toolName: action.toolName,
+            reason: "Authored accessibility journey assertion requires the native journey runner;"
+                + " generated-test export cannot reproduce its continuous VoiceOver lifetime."
+        )
+    }
+
     /// Selector-based element actions the recorder stores id-only. A matching `find_elements`
     /// observation still carries the element's label and type, which is what the code generator
     /// needs to name a readable local variable — the id stays the selector.
@@ -48,7 +58,8 @@ extension SessionPlanCompiler {
             isError: action.isError,
             intent: action.intent,
             observedElements: action.observedElements,
-            gestureTarget: action.gestureTarget
+            gestureTarget: action.gestureTarget,
+            diagnosticEvidence: action.diagnosticEvidence
         )
     }
 
@@ -78,7 +89,8 @@ extension SessionPlanCompiler {
             isError: action.isError,
             intent: action.intent,
             observedElements: action.observedElements,
-            gestureTarget: action.gestureTarget
+            gestureTarget: action.gestureTarget,
+            diagnosticEvidence: action.diagnosticEvidence
         )
     }
 
@@ -173,7 +185,8 @@ extension SessionPlanCompiler {
             isError: action.isError,
             intent: action.intent,
             observedElements: action.observedElements,
-            gestureTarget: target
+            gestureTarget: target,
+            diagnosticEvidence: action.diagnosticEvidence
         )
     }
 

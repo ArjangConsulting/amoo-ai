@@ -38,7 +38,7 @@ extension MCPServerTests {
         XCTAssertFalse(result.isError)
     }
 
-    func testAuditAccessibilityRunsUXRules() async {
+    func testAuditAccessibilityRunsScopedAccessibilityHeuristics() async {
         let driver = AuditMockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)

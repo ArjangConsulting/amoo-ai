@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture-paging",
+  "steps": [
+    {
+      "id": "next-anchor",
+      "kind": "seek",
+      "direction": "forward",
+      "maxMoves": 15,
+      "speech": [{"elementID": "a11y-next", "contains": "Next page"}]
+    },
+    {
+      "id": "next-page",
+      "kind": "transition",
+      "element": {"id": "a11y-next", "name": "Next page", "role": "button", "enabled": true},
+      "action": "doubleTap",
+      "before": {"contains": "Next page"},
+      "destination": {"id": "a11y-page", "name": "Page 2"},
+      "after": {"elementID": "a11y-page", "contains": "Page 2"}
+    }
+  ]
+}

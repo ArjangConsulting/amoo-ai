@@ -141,6 +141,161 @@ public nonisolated struct Amoo_WaitForElementResponse: Sendable {
   public init() {}
 }
 
+/// Bounded public-API inspection. VoiceOver restores its original enabled state before returning.
+public nonisolated struct Amoo_AccessibilityInspectionRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var appID: String = String()
+
+  public var operation: String = String()
+
+  public var categories: [String] = []
+
+  public var steps: UInt32 = 0
+
+  public var direction: String = String()
+
+  public var phases: [Amoo_VoiceOverPhase] = []
+
+  /// Versioned, bounded AccessibilityJourney JSON. Requires accessibility.authoredJourney.v1.
+  public var journeyJson: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Amoo_AccessibilityInspectionIssue: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var category: String {
+    get {_storage._category}
+    set {_uniqueStorage()._category = newValue}
+  }
+
+  public var description_p: String {
+    get {_storage._description_p}
+    set {_uniqueStorage()._description_p = newValue}
+  }
+
+  public var details: String {
+    get {_storage._details}
+    set {_uniqueStorage()._details = newValue}
+  }
+
+  public var element: Amoo_ElementInfo {
+    get {_storage._element ?? Amoo_ElementInfo()}
+    set {_uniqueStorage()._element = newValue}
+  }
+  /// Returns true if `element` has been explicitly set.
+  public var hasElement: Bool {_storage._element != nil}
+  /// Clears the value of `element`. Subsequent reads from it will return its default value.
+  public mutating func clearElement() {_uniqueStorage()._element = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public nonisolated struct Amoo_AccessibilityInspectionResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var status: String = String()
+
+  public var provider: String = String()
+
+  public var issues: [Amoo_AccessibilityInspectionIssue] = []
+
+  public var utterances: [String] = []
+
+  public var originalVoiceoverEnabled: Bool {
+    get {_originalVoiceoverEnabled ?? false}
+    set {_originalVoiceoverEnabled = newValue}
+  }
+  /// Returns true if `originalVoiceoverEnabled` has been explicitly set.
+  public var hasOriginalVoiceoverEnabled: Bool {self._originalVoiceoverEnabled != nil}
+  /// Clears the value of `originalVoiceoverEnabled`. Subsequent reads from it will return its default value.
+  public mutating func clearOriginalVoiceoverEnabled() {self._originalVoiceoverEnabled = nil}
+
+  public var restoredVoiceoverEnabled: Bool {
+    get {_restoredVoiceoverEnabled ?? false}
+    set {_restoredVoiceoverEnabled = newValue}
+  }
+  /// Returns true if `restoredVoiceoverEnabled` has been explicitly set.
+  public var hasRestoredVoiceoverEnabled: Bool {self._restoredVoiceoverEnabled != nil}
+  /// Clears the value of `restoredVoiceoverEnabled`. Subsequent reads from it will return its default value.
+  public mutating func clearRestoredVoiceoverEnabled() {self._restoredVoiceoverEnabled = nil}
+
+  public var error: String = String()
+
+  public var limitations: [String] = []
+
+  public var requestedChecks: [String] = []
+
+  public var evaluatedChecks: [String] = []
+
+  public var notEvaluatedReasons: Dictionary<String,String> = [:]
+
+  public var truncated: Bool = false
+
+  public var cleanupError: String = String()
+
+  public var phases: [Amoo_VoiceOverPhaseObservation] = []
+
+  public var provenance: Dictionary<String,String> = [:]
+
+  /// Versioned AccessibilityJourneyReport JSON; no pass without complete matching check IDs.
+  public var journeyReportJson: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _originalVoiceoverEnabled: Bool? = nil
+  fileprivate var _restoredVoiceoverEnabled: Bool? = nil
+}
+
+/// All phases share one enabled service and one final restoration.
+public nonisolated struct Amoo_VoiceOverPhase: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var steps: UInt32 = 0
+
+  public var direction: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Amoo_VoiceOverPhaseObservation: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var phaseIndex: UInt32 = 0
+
+  public var direction: String = String()
+
+  public var requestedSteps: UInt32 = 0
+
+  public var utterances: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "amoo.v1"
@@ -362,6 +517,346 @@ nonisolated extension Amoo_WaitForElementResponse: SwiftProtobuf.Message, SwiftP
 
   public static func ==(lhs: Amoo_WaitForElementResponse, rhs: Amoo_WaitForElementResponse) -> Bool {
     if lhs.found != rhs.found {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_AccessibilityInspectionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AccessibilityInspectionRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}app_id\0\u{1}operation\0\u{1}categories\0\u{1}steps\0\u{1}direction\0\u{1}phases\0\u{3}journey_json\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.appID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.operation) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.categories) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.steps) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.direction) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.phases) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.journeyJson) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.appID.isEmpty {
+      try visitor.visitSingularStringField(value: self.appID, fieldNumber: 1)
+    }
+    if !self.operation.isEmpty {
+      try visitor.visitSingularStringField(value: self.operation, fieldNumber: 2)
+    }
+    if !self.categories.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.categories, fieldNumber: 3)
+    }
+    if self.steps != 0 {
+      try visitor.visitSingularUInt32Field(value: self.steps, fieldNumber: 4)
+    }
+    if !self.direction.isEmpty {
+      try visitor.visitSingularStringField(value: self.direction, fieldNumber: 5)
+    }
+    if !self.phases.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.phases, fieldNumber: 6)
+    }
+    if !self.journeyJson.isEmpty {
+      try visitor.visitSingularStringField(value: self.journeyJson, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_AccessibilityInspectionRequest, rhs: Amoo_AccessibilityInspectionRequest) -> Bool {
+    if lhs.appID != rhs.appID {return false}
+    if lhs.operation != rhs.operation {return false}
+    if lhs.categories != rhs.categories {return false}
+    if lhs.steps != rhs.steps {return false}
+    if lhs.direction != rhs.direction {return false}
+    if lhs.phases != rhs.phases {return false}
+    if lhs.journeyJson != rhs.journeyJson {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_AccessibilityInspectionIssue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AccessibilityInspectionIssue"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}category\0\u{1}description\0\u{1}details\0\u{1}element\0")
+
+  fileprivate class _StorageClass {
+    var _category: String = String()
+    var _description_p: String = String()
+    var _details: String = String()
+    var _element: Amoo_ElementInfo? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _category = source._category
+      _description_p = source._description_p
+      _details = source._details
+      _element = source._element
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._category) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._description_p) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._details) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._element) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._category.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._category, fieldNumber: 1)
+      }
+      if !_storage._description_p.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._description_p, fieldNumber: 2)
+      }
+      if !_storage._details.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._details, fieldNumber: 3)
+      }
+      try { if let v = _storage._element {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_AccessibilityInspectionIssue, rhs: Amoo_AccessibilityInspectionIssue) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._category != rhs_storage._category {return false}
+        if _storage._description_p != rhs_storage._description_p {return false}
+        if _storage._details != rhs_storage._details {return false}
+        if _storage._element != rhs_storage._element {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_AccessibilityInspectionResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AccessibilityInspectionResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{1}provider\0\u{1}issues\0\u{1}utterances\0\u{3}original_voiceover_enabled\0\u{3}restored_voiceover_enabled\0\u{1}error\0\u{1}limitations\0\u{3}requested_checks\0\u{3}evaluated_checks\0\u{3}not_evaluated_reasons\0\u{1}truncated\0\u{3}cleanup_error\0\u{1}phases\0\u{1}provenance\0\u{3}journey_report_json\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.status) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.provider) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.issues) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.utterances) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self._originalVoiceoverEnabled) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self._restoredVoiceoverEnabled) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.error) }()
+      case 8: try { try decoder.decodeRepeatedStringField(value: &self.limitations) }()
+      case 9: try { try decoder.decodeRepeatedStringField(value: &self.requestedChecks) }()
+      case 10: try { try decoder.decodeRepeatedStringField(value: &self.evaluatedChecks) }()
+      case 11: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.notEvaluatedReasons) }()
+      case 12: try { try decoder.decodeSingularBoolField(value: &self.truncated) }()
+      case 13: try { try decoder.decodeSingularStringField(value: &self.cleanupError) }()
+      case 14: try { try decoder.decodeRepeatedMessageField(value: &self.phases) }()
+      case 15: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.provenance) }()
+      case 16: try { try decoder.decodeSingularStringField(value: &self.journeyReportJson) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.status.isEmpty {
+      try visitor.visitSingularStringField(value: self.status, fieldNumber: 1)
+    }
+    if !self.provider.isEmpty {
+      try visitor.visitSingularStringField(value: self.provider, fieldNumber: 2)
+    }
+    if !self.issues.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.issues, fieldNumber: 3)
+    }
+    if !self.utterances.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.utterances, fieldNumber: 4)
+    }
+    try { if let v = self._originalVoiceoverEnabled {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._restoredVoiceoverEnabled {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 6)
+    } }()
+    if !self.error.isEmpty {
+      try visitor.visitSingularStringField(value: self.error, fieldNumber: 7)
+    }
+    if !self.limitations.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.limitations, fieldNumber: 8)
+    }
+    if !self.requestedChecks.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.requestedChecks, fieldNumber: 9)
+    }
+    if !self.evaluatedChecks.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.evaluatedChecks, fieldNumber: 10)
+    }
+    if !self.notEvaluatedReasons.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.notEvaluatedReasons, fieldNumber: 11)
+    }
+    if self.truncated != false {
+      try visitor.visitSingularBoolField(value: self.truncated, fieldNumber: 12)
+    }
+    if !self.cleanupError.isEmpty {
+      try visitor.visitSingularStringField(value: self.cleanupError, fieldNumber: 13)
+    }
+    if !self.phases.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.phases, fieldNumber: 14)
+    }
+    if !self.provenance.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.provenance, fieldNumber: 15)
+    }
+    if !self.journeyReportJson.isEmpty {
+      try visitor.visitSingularStringField(value: self.journeyReportJson, fieldNumber: 16)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_AccessibilityInspectionResponse, rhs: Amoo_AccessibilityInspectionResponse) -> Bool {
+    if lhs.status != rhs.status {return false}
+    if lhs.provider != rhs.provider {return false}
+    if lhs.issues != rhs.issues {return false}
+    if lhs.utterances != rhs.utterances {return false}
+    if lhs._originalVoiceoverEnabled != rhs._originalVoiceoverEnabled {return false}
+    if lhs._restoredVoiceoverEnabled != rhs._restoredVoiceoverEnabled {return false}
+    if lhs.error != rhs.error {return false}
+    if lhs.limitations != rhs.limitations {return false}
+    if lhs.requestedChecks != rhs.requestedChecks {return false}
+    if lhs.evaluatedChecks != rhs.evaluatedChecks {return false}
+    if lhs.notEvaluatedReasons != rhs.notEvaluatedReasons {return false}
+    if lhs.truncated != rhs.truncated {return false}
+    if lhs.cleanupError != rhs.cleanupError {return false}
+    if lhs.phases != rhs.phases {return false}
+    if lhs.provenance != rhs.provenance {return false}
+    if lhs.journeyReportJson != rhs.journeyReportJson {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_VoiceOverPhase: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VoiceOverPhase"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}steps\0\u{1}direction\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.steps) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.direction) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.steps != 0 {
+      try visitor.visitSingularUInt32Field(value: self.steps, fieldNumber: 1)
+    }
+    if !self.direction.isEmpty {
+      try visitor.visitSingularStringField(value: self.direction, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_VoiceOverPhase, rhs: Amoo_VoiceOverPhase) -> Bool {
+    if lhs.steps != rhs.steps {return false}
+    if lhs.direction != rhs.direction {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_VoiceOverPhaseObservation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VoiceOverPhaseObservation"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}phase_index\0\u{1}direction\0\u{3}requested_steps\0\u{1}utterances\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.phaseIndex) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.direction) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.requestedSteps) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.utterances) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.phaseIndex != 0 {
+      try visitor.visitSingularUInt32Field(value: self.phaseIndex, fieldNumber: 1)
+    }
+    if !self.direction.isEmpty {
+      try visitor.visitSingularStringField(value: self.direction, fieldNumber: 2)
+    }
+    if self.requestedSteps != 0 {
+      try visitor.visitSingularUInt32Field(value: self.requestedSteps, fieldNumber: 3)
+    }
+    if !self.utterances.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.utterances, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_VoiceOverPhaseObservation, rhs: Amoo_VoiceOverPhaseObservation) -> Bool {
+    if lhs.phaseIndex != rhs.phaseIndex {return false}
+    if lhs.direction != rhs.direction {return false}
+    if lhs.requestedSteps != rhs.requestedSteps {return false}
+    if lhs.utterances != rhs.utterances {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

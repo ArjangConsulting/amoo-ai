@@ -6,12 +6,13 @@ description: Contract and amoo commands for verifying a built app on iOS simulat
 # Device verification with amoo
 
 A caller (the main session) builds the app, then hands a YAML contract to the `device-verifier`
-agent, which returns only a YAML report. The caller's context holds the verdict, not the run.
+agent, which returns only a compact versioned JSON report. The caller's context holds the verdict, not the run.
 Install both with the amoo plugin, or `amoo agent install --agent device-verifier` (see `amoo agent`).
 
 ## Caller: input contract
 
 ```yaml
+run_id: <caller-generated UUID>
 task: "Verify web-player seek fixes"
 platforms: [android, ios]                     # run in parallel
 builds:
@@ -63,3 +64,20 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
   `blocked` with command, error and repro. The caller fixes; the verifier verifies.
 - iOS WebViews are reached through the simulator's own Web Inspector (no proxy); Android
   through the WebView devtools socket. Both need the app's debug build to allow inspection.
+
+
+## Report validation
+
+Use the shared `AgentRunReport` version 1 JSON contract in the device-verifier agent instructions.
+Save detailed per-platform evidence locally; the parent receives check outcomes, coverage, provenance
+and cleanup with absolute evidence paths. Prefix check IDs by platform and preserve the complete
+caller-requested check set, including not-evaluated reasons. Validate before returning:
+`amoo agent validate-report --report <path> --run-id <UUID> --checks <all-caller-check-ids>`.
+The parent supplies its original run ID and requirements when validating. Successful tool execution
+is not a passed assertion; unresolved cleanup, missing checks or truncated evidence prevent pass.
+Delegate app/build/device requirements rather than process-owned MCP session IDs.
+
+Compact reports use schema version 2. Seal each regular evidence file with
+`amoo agent evidence --path <absolute-file> --run-id <UUID> --checks <associated-check-ids>`.
+Include the returned path/hash/run/check manifest entries in `artifacts`. Unknown provenance cannot
+support a pass. Caller run ID and checks are required by `validate-report`, including blocked reports.

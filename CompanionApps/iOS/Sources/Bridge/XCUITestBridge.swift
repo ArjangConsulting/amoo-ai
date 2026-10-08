@@ -935,6 +935,15 @@ final class XCUITestBridge: @unchecked Sendable {
         var named: [ElementSnapshot] = []
         var unlabeled: [ElementSnapshot] = []
         collectMatchable(root, depth: 0, viewport: viewport, into: &named, unlabeled: &unlabeled)
+        // Some native wheel controls are omitted from the application's root snapshot.
+        // Resolve only this control family through a bounded public query, not per-row queries.
+        for wheel in target.pickerWheels.allElementsBoundByIndex.prefix(5) {
+            guard let wheelSnapshot = try? wheel.snapshot() else { continue }
+            let candidate = element(from: wheelSnapshot, viewport: viewport)
+            if !named.contains(where: { $0.type == candidate.type && $0.frame == candidate.frame }) {
+                named.append(candidate)
+            }
+        }
         guard !labeledOnly else { return named }
         // Named elements first, so the common case reads the same as it always did and the
         // frame-only entries are a tail the caller can ignore. Smallest first within the tail:
@@ -999,6 +1008,7 @@ final class XCUITestBridge: @unchecked Sendable {
     private func element(from snapshot: XCUIElementSnapshot, viewport: CGRect) -> ElementSnapshot {
         let visibleFrame = snapshotVisibleFrame(snapshot)
         return ElementSnapshot(
+            isSelected: snapshot.isSelected,
             id: snapshot.identifier,
             label: snapshot.label,
             value: (snapshot.value as? String) ?? "",

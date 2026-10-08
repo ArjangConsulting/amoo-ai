@@ -288,12 +288,23 @@ public nonisolated struct Amoo_ElementInfo: Sendable {
 
   public var isSecureTextEntry: Bool = false
 
+  /// Presence distinguishes unsupported/older companions from a known false state.
+  public var isSelected: Bool {
+    get {_isSelected ?? false}
+    set {_isSelected = newValue}
+  }
+  /// Returns true if `isSelected` has been explicitly set.
+  public var hasIsSelected: Bool {self._isSelected != nil}
+  /// Clears the value of `isSelected`. Subsequent reads from it will return its default value.
+  public mutating func clearIsSelected() {self._isSelected = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _frame: Amoo_Rect? = nil
   fileprivate var _hitPoint: Amoo_Point? = nil
+  fileprivate var _isSelected: Bool? = nil
 }
 
 public nonisolated struct Amoo_ViewNode: Sendable {
@@ -671,7 +682,7 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ElementInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}value\0\u{1}type\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}value\0\u{1}type\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0\u{3}is_selected\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -688,6 +699,7 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 7: try { try decoder.decodeSingularBoolField(value: &self.isVisible) }()
       case 8: try { try decoder.decodeSingularMessageField(value: &self._hitPoint) }()
       case 9: try { try decoder.decodeSingularBoolField(value: &self.isSecureTextEntry) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self._isSelected) }()
       default: break
       }
     }
@@ -725,6 +737,9 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     if self.isSecureTextEntry != false {
       try visitor.visitSingularBoolField(value: self.isSecureTextEntry, fieldNumber: 9)
     }
+    try { if let v = self._isSelected {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -738,6 +753,7 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.isVisible != rhs.isVisible {return false}
     if lhs._hitPoint != rhs._hitPoint {return false}
     if lhs.isSecureTextEntry != rhs.isSecureTextEntry {return false}
+    if lhs._isSelected != rhs._isSelected {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -229,7 +229,11 @@ func deterministicSuggestionReport(for request: TestActionSuggestionRequest) -> 
     )
     let screenIntent = inferScreenIntent(from: request)
     let accessibilityIssues = request.diagnostics
-        .isEmpty ? ["No major accessibility issues detected from the current tree."] : request.diagnostics
+        .isEmpty ?
+        [
+            "No concerns detected by the evaluated naming heuristics; other accessibility properties are unassessed."
+        ] :
+        request.diagnostics
     let feedback = request.developerFeedback
         .isEmpty ?
         ["Add clear, unique accessibility labels to primary actions and form fields to improve AI guidance."] : request

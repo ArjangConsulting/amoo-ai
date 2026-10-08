@@ -1,13 +1,6 @@
-"""Ad hoc sign release simulator executables without an Apple developer account."""
+"""Release packaging uses the same simulator signing step as local companion builds."""
 import pathlib
-import subprocess
-import sys
+import runpy
 
-root = pathlib.Path(sys.argv[1])
-bundles = sorted(
-    (p for p in root.rglob('*') if p.suffix in ('.app', '.framework', '.xctest', '.dylib')),
-    key=lambda p: len(p.parts), reverse=True,
-)
-for bundle in bundles:
-    subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', '--timestamp=none',
-                    str(bundle)], check=True)
+runpy.run_path(str(pathlib.Path(__file__).resolve().parent.parent /
+                   'CompanionApps/iOS/sign-simulator-products.py'), run_name='__main__')

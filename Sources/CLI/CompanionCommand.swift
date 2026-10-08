@@ -326,7 +326,8 @@ func runIOSCompanionStart(
                 print("Holding it open — Ctrl-C to stop, or run this in the background.")
             },
             shutdown: { await manager.shutdown() },
-            runnerExit: { await manager.waitForRunnerExit() }
+            runnerExit: { await manager.waitForRunnerExit() },
+            runnerUnavailable: { await manager.waitForRunnerUnavailable() }
         )
         return CLIResult(output: "", exitCode: 0)
     } catch is CancellationError {

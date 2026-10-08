@@ -93,6 +93,7 @@ public struct BootstrapResult: Sendable {
     public let driver: any PlatformDriver
     public let deviceID: String
     public let platform: Platform
+    public let appArtifactSHA256: String?
     /// Releases per-session resources (e.g. the gRPC client connection).
     /// Does NOT tear down the companion process itself — that stays alive for reuse.
     public let cleanup: @Sendable () async -> Void
@@ -101,11 +102,13 @@ public struct BootstrapResult: Sendable {
         driver: any PlatformDriver,
         deviceID: String,
         platform: Platform,
+        appArtifactSHA256: String? = nil,
         cleanup: @escaping @Sendable () async -> Void
     ) {
         self.driver = driver
         self.deviceID = deviceID
         self.platform = platform
+        self.appArtifactSHA256 = appArtifactSHA256
         self.cleanup = cleanup
     }
 }

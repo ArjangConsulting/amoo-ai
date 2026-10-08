@@ -5,16 +5,19 @@ import Foundation
 /// Long-lived `amoo mcp serve` processes keep executing the code they were started with; a
 /// rebuild replaces the file on disk but not the running image. Local builds all report the
 /// last release-stamped `AmooVersion`, so the version alone cannot tell a stale server from a
-/// fresh one — the executable's modification time and the checkout's HEAD can.
+/// fresh one. The binary hash and compiled source stamp identify the launched build.
 public struct AmooBuildInfo: Sendable, Codable, Equatable {
     public var version: String
     public var executablePath: String?
     /// The binary's mtime when this process started.
     public var binaryModifiedAt: Date?
-    /// HEAD of the source checkout the binary lives in (`.build/…`), when there is one.
+    /// Source commit stamped during compilation, never the checkout's current runtime HEAD.
     public var sourceCommit: String?
     public var startedAt: Date
     public var pid: Int32
+    public var binarySHA256: String?
+    public var sourceFingerprint: String?
+    public var sourceDirty: String?
 
     public init(
         version: String,
@@ -22,7 +25,10 @@ public struct AmooBuildInfo: Sendable, Codable, Equatable {
         binaryModifiedAt: Date?,
         sourceCommit: String?,
         startedAt: Date,
-        pid: Int32
+        pid: Int32,
+        binarySHA256: String? = nil,
+        sourceFingerprint: String? = nil,
+        sourceDirty: String? = nil
     ) {
         self.version = version
         self.executablePath = executablePath
@@ -30,6 +36,9 @@ public struct AmooBuildInfo: Sendable, Codable, Equatable {
         self.sourceCommit = sourceCommit
         self.startedAt = startedAt
         self.pid = pid
+        self.binarySHA256 = binarySHA256
+        self.sourceFingerprint = sourceFingerprint
+        self.sourceDirty = sourceDirty
     }
 
     /// Captured on first access; touch it early (at startup) so it describes the launched image.
@@ -44,9 +53,12 @@ public struct AmooBuildInfo: Sendable, Codable, Equatable {
             version: AmooVersion.current,
             executablePath: resolved?.path,
             binaryModifiedAt: resolved.flatMap { modificationDate(path: $0.path) },
-            sourceCommit: resolved.flatMap(checkoutHead(near:)),
+            sourceCommit: CompiledBuildProvenance.commit == "unknown" ? nil : CompiledBuildProvenance.commit,
             startedAt: now,
-            pid: ProcessInfo.processInfo.processIdentifier
+            pid: ProcessInfo.processInfo.processIdentifier,
+            binarySHA256: resolved.flatMap { BinaryFingerprintCache.shared.hash(path: $0.path) },
+            sourceFingerprint: CompiledBuildProvenance.sourceFingerprint,
+            sourceDirty: CompiledBuildProvenance.dirty
         )
     }
 
@@ -54,7 +66,8 @@ public struct AmooBuildInfo: Sendable, Codable, Equatable {
     public func replacedBinaryDate() -> Date? {
         guard let executablePath, let launched = binaryModifiedAt,
               let onDisk = Self.modificationDate(path: executablePath),
-              onDisk.timeIntervalSince(launched) > 1
+              onDisk != launched || binarySHA256
+              .map({ BinaryFingerprintCache.shared.hash(path: executablePath) != $0 }) == true
         else { return nil }
         return onDisk
     }

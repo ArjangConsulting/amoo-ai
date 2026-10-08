@@ -37,7 +37,7 @@ Entry points that drive this offline (no `amoo mcp serve`):
 
 | Stage | Module / file | Notes |
 | --- | --- | --- |
-| Record a tool call as a `SessionAction` | `MCPServer` — `ToolExecutor.recordIfNeeded` | Skips `controlPlaneTools`. Assigns `SessionAction.Intent` (`testStep` / `assertion` / `diagnostic` / `failedProbe` / `recovery`). Redacts secret args. |
+| Record a tool call as a `SessionAction` | `MCPServer` — `ToolExecutor.recordIfNeeded` | Skips `controlPlaneTools`. Assigns `SessionAction.Intent` (`testStep` / `assertion` / `diagnostic` / `failedProbe` / `recovery`). Redacts secret args. Persists versioned diagnostic evidence for audits and traversal; speech retention is opt-in. |
 | Session state + persistence | `TestSession` — `TestSession`, `SessionManager`, `SessionStore`, `SessionReport` | `report.json` date handling: `SessionReport.makeJSONEncoder()/makeJSONDecoder()` **only**. |
 | Compile a report into a plan | `MCPServer` — `SessionPlanCompiler` (`+Semantics`, `+Inspection`, `+Translation`) | Deterministic, no LLM. |
 | Plan / context / warning types | `StudioProtocol` — `StudioChatService.swift` (`StudioAuthoredTest`, `StudioTestContext`, `StudioToolOperation`, `StudioCompiledPlan`, `StudioPlanWarning`), `StudioTool.swift`, `StudioCodeExport.swift` | The wire format for `plan.json`. |
@@ -69,6 +69,21 @@ amoo's own lifecycle tools (`start_session`, `end_session`, `compile_session_to_
 
 A recorded `compile_session_to_plan` still carries a useful `test_name` / `test_description`;
 `SessionPlanCompiler.compile` recovers those when the report itself lacks them.
+
+## Diagnostic audit and speech evidence
+
+`audit_app`, `audit_security`, `audit_accessibility`, `audit_accessibility_native` and
+`test_voiceover`, `analyze_ai_testability`, `highlight_a11y_issues` and `suggest_test_actions` are observations. Recording marks them diagnostic, including execution failures,
+and preserves versioned structured `diagnosticEvidence` on the action. Speech is omitted by default;
+`record_speech=true` explicitly retains it with session secret redaction. Compilation classifies these
+names as `notApplicable` even in older reports, before inspection-to-assertion heuristics. They do
+not create assertions or excluded steps. Review their coverage/verdict/cleanup in the source report.
+
+`assert_accessibility_journey` is an authored assertion, not an observation. Its structured
+checkpoint evidence is retained with the action; speech remains opt-in. Compilation produces
+an `excluded` warning even for a failed journey, so unsupported export cannot silently remove
+an assertion. The native journey lifetime is not yet reproduced by the generated-test emitters.
+See [authored accessibility journeys](accessibility-journeys.md).
 
 ## Where variable names are decided
 

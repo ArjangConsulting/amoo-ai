@@ -11,6 +11,7 @@ struct AgentInstallOptions: Equatable {
     var force = false
     var dryRun = false
     var json = false
+    var executablePath: String = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? ""
 
     /// The directory agent paths are relative to.
     var root: URL {
@@ -38,8 +39,10 @@ struct AgentInstallFile: Equatable {
 func renderAgentHelp() -> String {
     """
     Usage: amoo agent install [--target <repo> | --user] [--client <name>]... [--agent <name>]...
-                              [--dry-run] [--force] [--json]
+                              [--dry-run] [--force] [--json] [--binary <absolute-path>]
            amoo agent render --out <plugin-dir>
+           amoo agent validate-report --report <report.json> --run-id <uuid> --checks <ids> [--json]
+           amoo agent evidence --path <absolute-file> --run-id <uuid> --checks <ids>
 
     install  Writes the amoo subagents, in each client's own format, plus the skills they use.
              --target <repo>  project scope (default: current directory); commit the files
@@ -47,6 +50,7 @@ func renderAgentHelp() -> String {
              --client         claude, cursor, codex, copilot, gemini, opencode, or all (default);
                               repeat or comma-separate to pick several
              --agent          amoo, device-verifier, or all (default)
+             --binary         absolute MCP binary path (default: this executable); shell aliases do not apply
              --dry-run        report what would change and write nothing
              --force          replace files that differ (local edits are otherwise kept)
 
@@ -103,7 +107,13 @@ func agentInstallPlan(_ options: AgentInstallOptions, assetsRoot: URL) throws ->
         let text = try String(contentsOf: assetsRoot.appendingPathComponent(path), encoding: .utf8)
         let source = try AgentSource(parsing: text, file: path)
         for client in options.clients {
-            let rendered = try AgentRenderer.render(source, definition: definition, for: client, scope: options.scope)
+            let rendered = try AgentRenderer.render(
+                source,
+                definition: definition,
+                for: client,
+                scope: options.scope,
+                executablePath: options.executablePath
+            )
             add(.init(
                 destination: options.root.appendingPathComponent(rendered.path),
                 contents: Data(rendered.contents.utf8)
@@ -239,6 +249,12 @@ func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
     if !agents.isEmpty {
         options.agents = agents
     }
+    if let path = try flags.value("--binary") {
+        guard path.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: path) else {
+            throw EnvCommandParseError.usage("--binary requires an absolute path to an executable.")
+        }
+        options.executablePath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+    }
     options.force = flags.take("--force")
     options.dryRun = flags.take("--dry-run")
     options.json = flags.take("--json")
@@ -270,6 +286,10 @@ func handleAgentCommand(remaining: [String]) -> CLIResult {
     }
     let args = Array(remaining.dropFirst())
     switch subcommand {
+    case "validate-report":
+        return runAgentReportValidation(args)
+    case "evidence":
+        return runAgentEvidenceCapture(args)
     case "install":
         do {
             return try runAgentInstall(parseAgentInstallOptions(args))

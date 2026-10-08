@@ -221,7 +221,7 @@ public struct MissingAccessibilityLabelRule: AuditRule {
     /// it must never produce by accident.
     public func evaluate(_ input: AuditInput) async throws -> [AuditFinding] {
         let unlabeled = input.interactableElements.filter { el in
-            el.label.trimmingCharacters(in: .whitespaces).isEmpty && el.id.isEmpty
+            el.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
         guard !unlabeled.isEmpty else { return [] }
@@ -231,9 +231,9 @@ public struct MissingAccessibilityLabelRule: AuditRule {
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.9,
-            summary: "\(unlabeled.count) interactable element(s) have no accessibility label or identifier.",
-            remediation: "Add accessibilityLabel or accessibilityIdentifier to all interactive controls.",
-            evidence: unlabeled.prefix(5).map { el in
+            summary: "\(unlabeled.count) interactable element(s) have no accessibility label.",
+            remediation: "Provide a localized accessible name. Automation identifiers are not spoken labels.",
+            evidence: unlabeled.map { el in
                 AuditEvidence(
                     kind: .selector,
                     summary: "type=\(el.type?.rawValue ?? "unknown")",
@@ -255,14 +255,18 @@ public struct SmallTapTargetRule: AuditRule {
         references: ["WCAG 2.1 - 2.5.5", "Apple HIG - 44pt minimum"]
     )
 
-    private let minimumSize: Double = 44.0
+    /// Coordinate arithmetic can place an exact 44-point edge a few ULPs below the threshold.
+    private let comparisonTolerance: Double = 1e-9
 
     public init() {}
 
     public func evaluate(_ input: AuditInput) async throws -> [AuditFinding] {
+        guard ["points", "dp"].contains(input.geometryUnit) else { return [] }
+        let minimumSize = input.geometryUnit == "dp" ? 48.0 : 44.0
         let tooSmall = input.interactableElements.filter { el in
             guard let frame = el.frame else { return false }
-            return frame.width < minimumSize || frame.height < minimumSize
+            return frame.width < minimumSize - comparisonTolerance
+                || frame.height < minimumSize - comparisonTolerance
         }
 
         guard !tooSmall.isEmpty else { return [] }
@@ -272,13 +276,15 @@ public struct SmallTapTargetRule: AuditRule {
             ruleID: metadata.id,
             severity: metadata.defaultSeverity,
             confidence: 0.85,
-            summary: "\(tooSmall.count) interactive element(s) have tap targets smaller than \(Int(minimumSize))pt.",
-            remediation: "Ensure all interactive elements have a minimum tap target of 44x44pt per Apple HIG.",
-            evidence: tooSmall.prefix(5).compactMap { el -> AuditEvidence? in
+            summary: "\(tooSmall.count) element(s) have bounds below the \(Int(minimumSize))-\(input.geometryUnit)"
+                + " heuristic; hit regions unverified.",
+            remediation: "Inspect actual hit regions and platform units; prefer the native hit-region audit on iOS.",
+            evidence: tooSmall.compactMap { el -> AuditEvidence? in
                 guard let frame = el.frame else { return nil }
                 return AuditEvidence(
                     kind: .selector,
-                    summary: "\(el.label.isEmpty ? el.id : el.label): \(Int(frame.width))x\(Int(frame.height))pt",
+                    summary: "\(el.label.isEmpty ? el.id : el.label): "
+                        + "\(frame.width)x\(frame.height) \(input.geometryUnit)",
                     sourceRef: el.id,
                     attributes: ["width": "\(frame.width)", "height": "\(frame.height)"]
                 )
@@ -388,6 +394,11 @@ private let maxHierarchyDepth = 256
 // MARK: - Rule Pack Collections
 
 public enum RulePacks {
+    /// Current-screen naming and bounds heuristics; automation identifiers are a separate concern.
+    public static var accessibility: [any AuditRule] {
+        [MissingAccessibilityLabelRule(), SmallTapTargetRule()]
+    }
+
     public static var security: [any AuditRule] {
         [DebugBuildExposureRule(), InsecureTextFieldRule(), DeepLinkValidationRule()]
     }

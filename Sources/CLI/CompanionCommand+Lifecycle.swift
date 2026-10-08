@@ -18,6 +18,7 @@ func holdCompanion(
     announce: () -> Void,
     shutdown: @Sendable () async -> Void,
     runnerExit: @escaping @Sendable () async -> Void = { await CompanionSignalWaiter.never() },
+    runnerUnavailable: @escaping @Sendable () async -> Void = { await CompanionSignalWaiter.never() },
     maxRestarts: Int = 3,
     signals: CompanionSignalWaiter = CompanionSignalWaiter()
 ) async throws {
@@ -47,21 +48,29 @@ func holdCompanion(
     var iterator = events.makeAsyncIterator()
     var restarts = 0
     while true {
+        let generation = UUID()
         let watcher = Task {
             await runnerExit()
             if !Task.isCancelled {
-                eventSink.yield(.runnerExited)
+                eventSink.yield(.runnerExited(generation))
             }
         }
-        let event = await iterator.next() ?? .signal
+        let healthWatcher = Task {
+            await runnerUnavailable()
+            if !Task.isCancelled {
+                eventSink.yield(.runnerUnavailable(generation))
+            }
+        }
+        let event = await nextHoldEvent(&iterator, generation: generation)
         watcher.cancel()
-        guard event == .runnerExited else { break }
+        healthWatcher.cancel()
+        guard event != .signal else { break }
         restarts += 1
         guard restarts <= maxRestarts else {
             await shutdown()
             throw CompanionHoldError.runnerKeepsExiting(restarts: maxRestarts)
         }
-        print("Restarting the companion runner (\(restarts)/\(maxRestarts))...")
+        print("Restarting the companion runner: \(event.restartReason) (\(restarts)/\(maxRestarts))...")
         do {
             try await start()
         } catch {
@@ -73,8 +82,32 @@ func holdCompanion(
     await shutdown()
 }
 
-private enum HoldEvent: Sendable {
-    case signal, runnerExited
+/// Both watchers can observe one crash. A late event cannot restart the replacement.
+func nextHoldEvent(_ iterator: inout AsyncStream<HoldEvent>.Iterator, generation: UUID) async -> HoldEvent {
+    var event = await iterator.next() ?? .signal
+    while let observed = event.generation, observed != generation {
+        event = await iterator.next() ?? .signal
+    }
+    return event
+}
+
+enum HoldEvent: Sendable, Equatable {
+    case signal, runnerExited(UUID), runnerUnavailable(UUID)
+
+    var restartReason: String {
+        if case .runnerUnavailable = self {
+            "API unavailable"
+        } else {
+            "runner exited"
+        }
+    }
+
+    var generation: UUID? {
+        switch self {
+        case .signal: nil
+        case let .runnerExited(generation), let .runnerUnavailable(generation): generation
+        }
+    }
 }
 
 enum CompanionHoldError: Error, CustomStringConvertible {

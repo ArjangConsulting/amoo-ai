@@ -9,6 +9,7 @@ private enum FixtureRoute: Hashable {
     case deepLink
     case confirmation
     case unlabeled
+    case accessibility(String)
 }
 
 @main
@@ -49,6 +50,8 @@ struct CompanionHostApp: App {
                         FixtureDeepLinkView(deepLinkValue: $deepLinkValue)
                     case .confirmation:
                         FixtureConfirmationView()
+                    case let .accessibility(seed):
+                        FixtureAccessibilityView(seed: seed)
                     case .unlabeled:
                         FixtureUnlabeledView(dismissCount: $unlabeledDismissCount)
                     }
@@ -86,6 +89,10 @@ struct CompanionHostApp: App {
             path = [.appearance]
         case "confirm":
             path = [.confirmation]
+        case "accessibility":
+            let seed = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "seed" }?.value ?? "clean"
+            path = [.accessibility(seed)]
         case "unlabeled":
             path = [.unlabeled]
         default:

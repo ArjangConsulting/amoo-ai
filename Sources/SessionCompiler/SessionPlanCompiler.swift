@@ -117,18 +117,6 @@ public enum SessionPlanCompiler {
         let approximate: Bool
     }
 
-    /// MCP tool names that map 1:1 onto a Studio tool with no argument remapping needed.
-    ///
-    /// `scroll` is listed separately from `swipe_in_direction` on purpose, even though its
-    /// `direction`/`distance` arguments look like a subset of the latter's. The two have *inverted*
-    /// direction semantics: `scroll` names the direction the content moves (the companions
-    /// implement `scroll(.down)` as a swipe-*up* gesture — see `XCUITestBridge.scroll` and
-    /// `UIAutomatorBridge.scroll`), while `swipe_in_direction` names the raw finger direction.
-    /// Collapsing them into one tool would silently reverse every recorded scroll.
-    private static let directTranslations: Set<StudioTool> = [
-        .tapElement, .setText, .typeText, .swipeInDirection, .scroll, .takeScreenshot, .pressBack
-    ]
-
     /// amoo's own session / codegen lifecycle tools. They never touch the app under test, so they
     /// must never surface as a step — not even as an `XCTFail` placeholder — in a generated test.
     ///
@@ -136,17 +124,6 @@ public enum SessionPlanCompiler {
     static let controlPlaneTools: Set<String> = [
         "start_session", "start_test_session", "end_session", "end_test_session",
         "list_sessions", "get_session_report", "compile_session_to_plan", "session_startup_status", "run_steps"
-    ]
-
-    /// Tools that inspect the app without changing it. They have no place in generated test code,
-    /// so their absence from `toolOperations` is intended rather than a gap in the vocabulary —
-    /// recorded as `.notApplicable` so it reads as a deliberate decision, not a silent drop.
-    private static let queryOnlyTools: Set<String> = [
-        "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
-        "is_keyboard_visible", "current_app", "list_devices", "list_apps", "list_sessions",
-        "get_session_report", "take_screenshot_metadata", "find_element_by_description",
-        "suggest_test_actions", "analyze_ai_testability", "highlight_a11y_issues",
-        "audit_app", "audit_accessibility", "audit_security"
     ]
 
     /// MCP tool names that map onto Studio's codegen-facing tool vocabulary, and how their
@@ -180,7 +157,7 @@ public enum SessionPlanCompiler {
     }
 
     // Keeps the ordered action-classification and warning pipeline visible in one place.
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     private static func process(
         index: Int,
         action: SessionAction,
@@ -201,6 +178,28 @@ public enum SessionPlanCompiler {
                     actionIndex: index,
                     toolName: action.toolName,
                     reason: "amoo session/codegen control-plane call; never part of the generated test"
+                )]
+            )
+        }
+
+        if action.toolName == "assert_accessibility_journey" {
+            return ProcessedAction(
+                operation: nil,
+                step: nil,
+                warnings: [unsupportedJourneyAssertion(index: index, action: action)]
+            )
+        }
+
+        // Legacy reports may mark audits as test steps; observations never become assertions.
+        if DiagnosticEvidence.toolNames.contains(action.toolName) {
+            return ProcessedAction(
+                operation: nil,
+                step: nil,
+                warnings: [SessionPlanWarning(
+                    kind: .notApplicable,
+                    actionIndex: index,
+                    toolName: action.toolName,
+                    reason: "diagnostic observation; evidence retained in the session report"
                 )]
             )
         }

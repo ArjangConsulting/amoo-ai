@@ -373,6 +373,12 @@ extension DriverToolExecutor {
             return .success("Orientation set to \(reported.rawValue)")
 
         // Audit tools
+        case "assert_accessibility_journey":
+            return try await executeAccessibilityJourney(driver: driver, arguments: arguments)
+
+        case "audit_accessibility_native", "test_voiceover":
+            return try await executeAccessibilityInspection(driver: driver, arguments: arguments, toolName: toolName)
+
         case "audit_app":
             return try await executeAudit(driver: driver, arguments: arguments, rulePacks: RulePacks.all)
 
@@ -380,7 +386,7 @@ extension DriverToolExecutor {
             return try await executeAudit(
                 driver: driver,
                 arguments: arguments,
-                rulePacks: RulePacks.ux + RulePacks.testability
+                rulePacks: RulePacks.accessibility
             )
 
         case "audit_security":

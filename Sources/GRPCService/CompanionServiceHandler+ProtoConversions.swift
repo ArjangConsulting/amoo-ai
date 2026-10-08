@@ -49,6 +49,9 @@ extension ElementInfo {
         element.type = type?.rawValue ?? ""
         element.isEnabled = isEnabled
         element.isVisible = isVisible
+        if let isSelected {
+            element.isSelected = isSelected
+        }
         element.isSecureTextEntry = isSecureTextEntry
         if let frame {
             var rect = Amoo_Rect()

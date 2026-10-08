@@ -72,7 +72,7 @@ final class AgentInstallTests: XCTestCase {
         )
     }
 
-    func testProjectInstallCoversEveryClientAndBothSkillDirectories() throws {
+    func testProjectInstallCoversEveryClientAndSkillReferences() throws {
         let target = try temporaryDirectory()
         let files = try agentInstallPlan(AgentInstallOptions(target: target.path), assetsRoot: pluginRoot)
         let paths = relativePaths(files, under: target)
@@ -89,6 +89,16 @@ final class AgentInstallTests: XCTestCase {
             XCTAssertTrue(paths.contains("\(skills)/driving-amoo/SKILL.md"))
             XCTAssertTrue(paths.contains("\(skills)/driving-amoo/references/recording.md"))
             XCTAssertTrue(paths.contains("\(skills)/device-verifier/SKILL.md"))
+            for platform in ["ios", "android"] {
+                let directory = "\(skills)/\(platform)-accessibility"
+                XCTAssertTrue(paths.contains("\(directory)/SKILL.md"))
+                let reference = "\(directory)/references/platform-checks.md"
+                let installed = try XCTUnwrap(files
+                    .first { $0.destination.path == target.appendingPathComponent(reference).path })
+                let expected = try Data(contentsOf: pluginRoot
+                    .appendingPathComponent("skills/\(platform)-accessibility/references/platform-checks.md"))
+                XCTAssertEqual(installed.contents, expected, "platform guidance must travel with the installed skill")
+            }
         }
         XCTAssertEqual(paths.count, files.count, "every destination is written once")
     }

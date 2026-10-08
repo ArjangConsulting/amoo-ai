@@ -76,6 +76,7 @@ public actor SessionManager {
             launchArguments: arguments,
             launchEnvironment: environment,
             testName: testName,
+            appArtifactSHA256: bootstrap.appArtifactSHA256,
             cleanup: bootstrap.cleanup
         )
         sessions[id] = session

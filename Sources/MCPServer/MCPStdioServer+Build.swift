@@ -22,6 +22,9 @@ extension MCPStdioServer {
             "stale": .bool(buildInfo.replacedBinaryDate() != nil)
         ]
         fields["commit"] = buildInfo.sourceCommit.map(Value.string)
+        fields["binary_sha256"] = buildInfo.binarySHA256.map(Value.string)
+        fields["source_fingerprint"] = buildInfo.sourceFingerprint.map(Value.string)
+        fields["source_dirty"] = buildInfo.sourceDirty.map(Value.string)
         fields["binary_path"] = buildInfo.executablePath.map(Value.string)
         fields["binary_modified_at"] = buildInfo.binaryModifiedAt.map { .string(format.string(from: $0)) }
         return .object(fields)
@@ -35,7 +38,9 @@ extension MCPStdioServer {
     }
 
     func legacyToolResult(_ result: ToolResult) -> Value {
-        .object(toolResultFields(result))
+        var fields = toolResultFields(result)
+        fields["_meta"] = .object(["dev.amoo/build": buildMeta])
+        return .object(fields)
     }
 
     func toolResultFields(_ result: ToolResult) -> [String: Value] {

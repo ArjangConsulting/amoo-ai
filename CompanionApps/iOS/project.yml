@@ -25,6 +25,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "6"
+    AMOO_RECOVERY_APP_GROUP: group.com.amoo.companion
 
 targets:
   AmooCompanion:
@@ -48,12 +49,24 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion
         INFOPLIST_FILE: HostApp/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Recovery.entitlements
 
   AmooCompanionUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
       - path: Sources
+      - path: ../../Sources/AmooCore/AccessibilityInspection.swift
+      - path: ../../Sources/AmooCore/AccessibilityInspection+Codable.swift
+      - path: ../../Sources/AmooCore/VoiceOverPhase.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourney.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourney+Validation.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourneyRunner.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourneyRunner+Evidence.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourneyRunner+Transition.swift
+      - path: ../../Sources/AmooCore/VoiceOverTraversal+Lifetime.swift
+      - path: ../../Sources/AmooCore/VoiceOverTraversal.swift
+      - path: ../../Sources/AmooCore/VoiceOverRecoveryJournal.swift
       - path: GeneratedProtos
         optional: true
     dependencies:
@@ -69,6 +82,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion.uitests
+        CODE_SIGN_ENTITLEMENTS: Recovery.entitlements
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: ""
         TEST_TARGET_NAME: AmooCompanion
+    info:
+      path: Sources/Info.plist
+      properties:
+        AmooRecoveryAppGroup: $(AMOO_RECOVERY_APP_GROUP)

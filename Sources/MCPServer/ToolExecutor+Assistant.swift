@@ -23,7 +23,7 @@ extension DriverToolExecutor {
             interactableCount: interactable.count
         )
         var fields = try Value(report).objectValue ?? [:]
-        fields["actions"] = .array(interactable.prefix(7).map(elementFields))
+        fields["actions"] = .array(interactable.prefix(7).map { elementFields($0) })
         fields["has_more"] = .bool(interactable.count > 7)
         fields["screen_token"] = .string(observation.token)
         return .success(description, structuredContent: .object(fields))
@@ -31,7 +31,7 @@ extension DriverToolExecutor {
 
     func executeSuggestActions(driver: any PlatformDriver) async throws -> ToolResult {
         let report = try await buildSuggestionReport(driver: driver)
-        return try .success(formatSuggestionReport(report), structuredContent: Value(report))
+        return try .success(formatSuggestionReport(report), structuredContent: assistantDiagnosticFields(Value(report)))
     }
 
     func buildSuggestionReport(driver: any PlatformDriver) async throws -> TestActionSuggestionReport {
@@ -65,9 +65,10 @@ extension DriverToolExecutor {
     }
 
     func executeAnalyzeAITestability(driver: any PlatformDriver) async throws -> ToolResult {
-        let context = try await driver.getScreenContext()
-        let allElements = try await driver.findElements(ElementSelector())
-        let interactable = try await filterAppRelevantElements(driver.getInteractableElements())
+        let observation = try await driver.observeScreen()
+        let context = observation.context
+        let allElements = observation.elements
+        let interactable = filterAppRelevantElements(observation.interactableElements)
         let diagnostics = collectAccessibilityDiagnostics(allElements: allElements, interactableElements: interactable)
         let elementsWithIssues = collectElementA11yIssues(allElements: allElements, interactableElements: interactable)
         let report = AITestabilityReport(
@@ -79,19 +80,19 @@ extension DriverToolExecutor {
             elementsWithIssues: elementsWithIssues
         )
 
-        return try .success(formatAITestabilityReport(report), structuredContent: Value(report))
+        return try .success(
+            formatAITestabilityReport(report),
+            structuredContent: assistantDiagnosticFields(Value(report))
+        )
     }
 
     func executeHighlightA11yIssues(driver: any PlatformDriver) async throws -> ToolResult {
-        async let hierarchyTask = driver.getViewHierarchy()
-        async let allElementsTask = driver.findElements(ElementSelector())
-        async let interactableTask = driver.getInteractableElements()
-        async let screenshotTask = driver.takeScreenshot(format: .png)
-
-        let hierarchy = try await hierarchyTask
-        let allElements = try await allElementsTask
-        let interactable = try await filterAppRelevantElements(interactableTask)
-        let screenshotData = try await screenshotTask
+        let observation = try await driver.observeScreen()
+        let hierarchy = observation.hierarchy
+        let allElements = observation.elements
+        let interactable = filterAppRelevantElements(observation.interactableElements)
+        let screenshotData = try await driver.takeScreenshot(format: .png)
+        let after = try await driver.observeScreen()
 
         let issues = collectElementA11yIssues(allElements: allElements, interactableElements: interactable)
 
@@ -111,13 +112,16 @@ extension DriverToolExecutor {
 
         let text: String
         if issues.isEmpty {
-            text = "No accessibility issues found — nothing to highlight."
+            text = "No naming concerns detected in the captured elements."
+                + " Other accessibility properties are unassessed."
         } else {
             let lines = issues.map { issue in
                 let typeStr = issue.type.map { " [\($0)]" } ?? ""
                 let idStr = issue.id.isEmpty ? "(no id)" : issue.id
                 let frameStr = issue.frame
-                    .map { frame in " at (\(Int(frame.x)),\(Int(frame.y))) \(Int(frame.width))×\(Int(frame.height))pt" }
+                    .map { frame in
+                        " at (\(frame.x),\(frame.y)) bounds \(frame.width)×\(frame.height) in capture units"
+                    }
                     ?? ""
                 return "  \(idStr)\(typeStr)\(frameStr) — \(issue.issue)"
             }
@@ -127,9 +131,27 @@ extension DriverToolExecutor {
 
         return try ToolResult(
             content: text,
-            structuredContent: Value(report),
-            image: annotated.map { ToolImageContent(data: $0, mimeType: ImageFormat.png.mimeType) }
+            structuredContent: assistantDiagnosticFields(Value(report), unstable: observation.token != after.token),
+            image: observation.token == after.token
+                ? annotated.map { ToolImageContent(data: $0, mimeType: ImageFormat.png.mimeType) } : nil
         )
+    }
+
+    private func assistantDiagnosticFields(_ payload: Value, unstable: Bool = false) -> Value {
+        var fields = payload.objectValue ?? [:]
+        fields["executionStatus"] = .string("succeeded")
+        fields["verdict"] = .string("notAssessed")
+        fields["cleanupStatus"] = .string("notRequired")
+        fields["limitations"] =
+            .array([.string("Naming/testability heuristics only; no accessibility conformance verdict.")])
+        fields["coverage"] = .object([
+            "requested": .array([.string("accessibility.semanticAssessment")]), "evaluated": .array([]),
+            "notEvaluated": .object(["accessibility.semanticAssessment": .string(unstable
+                    ? "Screen changed during screenshot capture; annotation withheld."
+                    : "Requires native semantics or authored screen-reader assertions.")]),
+            "truncated": .bool(false)
+        ])
+        return .object(fields)
     }
 
     func executeFindByDescription(

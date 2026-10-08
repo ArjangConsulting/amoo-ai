@@ -1,6 +1,7 @@
 import CoreGraphics
 
 struct ElementSnapshot {
+    var isSelected: Bool?
     var id: String
     var label: String
     var value: String

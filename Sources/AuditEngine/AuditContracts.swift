@@ -91,19 +91,27 @@ public struct AuditInput: Sendable {
     public var hierarchy: ViewNode
     public var elements: [ElementInfo]
     public var interactableElements: [ElementInfo]
+    /// Capture failures, instability or truncation invalidate clean coverage, independently of findings.
+    public var evidenceProblems: [String]
+    /// Coordinate unit supplied by the capture adapter: points, dp, pixels, or unknown.
+    public var geometryUnit: String
 
     public init(
         appID: String,
         screenContext: ScreenContext,
         hierarchy: ViewNode,
         elements: [ElementInfo] = [],
-        interactableElements: [ElementInfo] = []
+        interactableElements: [ElementInfo] = [],
+        evidenceProblems: [String] = [],
+        geometryUnit: String = "unknown"
     ) {
         self.appID = appID
         self.screenContext = screenContext
         self.hierarchy = hierarchy
         self.elements = elements
         self.interactableElements = interactableElements
+        self.evidenceProblems = evidenceProblems
+        self.geometryUnit = geometryUnit
     }
 }
 
@@ -115,7 +123,11 @@ public protocol AuditRule: Sendable {
 
 public extension AuditRule {
     func evidenceCoverage(_: AuditInput) -> AuditRuleEvaluation {
-        AuditRuleEvaluation(ruleID: metadata.id, status: .evaluated, reason: "Evaluated current-screen evidence only.")
+        AuditRuleEvaluation(
+            ruleID: metadata.id,
+            status: .insufficientEvidence,
+            reason: "Rule has not declared its evidence prerequisites."
+        )
     }
 }
 
@@ -123,6 +135,11 @@ public struct AuditReport: Sendable, Codable {
     public var appID: String
     public var findings: [AuditFinding]
     public var evaluations: [AuditRuleEvaluation]
+
+    /// Provider failures are retained alongside all findings from successful rules.
+    public var executionFailed: Bool {
+        evaluations.contains { $0.status == .executionError }
+    }
 
     public init(appID: String, findings: [AuditFinding], evaluations: [AuditRuleEvaluation] = []) {
         self.appID = appID
@@ -133,7 +150,7 @@ public struct AuditReport: Sendable, Codable {
 
 /// Explicit evidence coverage: an empty finding list is not proof that untested properties hold.
 public struct AuditRuleEvaluation: Sendable, Codable {
-    public enum Status: String, Sendable, Codable { case evaluated, notEvaluated, insufficientEvidence }
+    public enum Status: String, Sendable, Codable { case evaluated, notEvaluated, insufficientEvidence, executionError }
     public let ruleID: String
     public let status: Status
     public let reason: String
