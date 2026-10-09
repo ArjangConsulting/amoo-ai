@@ -1,6 +1,15 @@
 public enum AuditTools {
     public static let names = definitions.map(\.name)
 
+    /// A threshold yields verdict=fail on a qualifying finding, and verdict=pass only when every selected
+    /// rule was evaluated. Scenario-only rules such as SEC-003 (deep links) keep a clean screen notAssessed.
+    private static let failOnProperty = ToolInputProperty(
+        type: "string",
+        description: "Minimum severity to fail on: critical, high, medium, low, info."
+            + " Omit for a report without a verdict. verdict=pass also requires every selected rule to be"
+            + " evaluated; rules that need scenario evidence (SEC-003 deep links) leave the verdict notAssessed."
+    )
+
     public static let definitions: [ToolDefinition] = [
         ToolDefinition(
             name: "assert_accessibility_journey",
@@ -80,13 +89,9 @@ public enum AuditTools {
                 "rule_packs": .init(
                     type: "string",
                     description: "Comma-separated list of rule packs to run:"
-                        + " security, quality, ux, testability, all. Defaults to all."
+                        + " security, quality, ux, accessibility, testability, all. Defaults to all."
                 ),
-                "fail_on": .init(
-                    type: "string",
-                    description: "Minimum severity to fail on: critical, high, medium, low, info."
-                        + " Omit for a report without a failure threshold."
-                )
+                "fail_on": failOnProperty
             ],
             required: ["app_id"]
         ),
@@ -96,7 +101,8 @@ public enum AuditTools {
                 + " Missing automation identifiers are testability concerns, not accessibility defects."
                 + " Other accessibility properties require native semantics or authored task evidence.",
             properties: [
-                "app_id": .init(type: "string", description: "The app's bundle identifier or package name")
+                "app_id": .init(type: "string", description: "The app's bundle identifier or package name"),
+                "fail_on": failOnProperty
             ],
             required: ["app_id"]
         ),
@@ -105,7 +111,8 @@ public enum AuditTools {
             description: "Check the current screen for security issues:"
                 + " debug indicators and insecure text fields. Deep-link validation requires scenario evidence.",
             properties: [
-                "app_id": .init(type: "string", description: "The app's bundle identifier or package name")
+                "app_id": .init(type: "string", description: "The app's bundle identifier or package name"),
+                "fail_on": failOnProperty
             ],
             required: ["app_id"]
         )

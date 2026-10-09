@@ -653,7 +653,8 @@ final class XCUITestBridge: @unchecked Sendable {
             ),
             isEnabled: snapshot.isEnabled,
             isVisible: isVisible,
-            children: children
+            children: children,
+            placeholder: snapshot.placeholderValue
         )
     }
 
@@ -686,7 +687,8 @@ final class XCUITestBridge: @unchecked Sendable {
             hitPoint: interactionPoint(frame: element.frame, visibleFrame: nil, viewport: viewport),
             isEnabled: element.isEnabled,
             isVisible: isVisible,
-            children: children
+            children: children,
+            placeholder: element.placeholderValue
         )
     }
 
@@ -1021,7 +1023,8 @@ final class XCUITestBridge: @unchecked Sendable {
                 snapshot,
                 visibleFrame: visibleFrame,
                 viewport: viewport
-            )
+            ),
+            placeholder: snapshot.placeholderValue
         )
     }
 

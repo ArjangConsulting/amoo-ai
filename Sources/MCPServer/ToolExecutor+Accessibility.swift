@@ -21,7 +21,10 @@ extension DriverToolExecutor {
         }
         let operation = toolName == "test_voiceover" ? "voiceOver" : "nativeAudit"
         let categories = arguments["categories"]
-            .map { $0.split(separator: ",", omittingEmptySubsequences: false).map(String.init) }
+            .map {
+                $0.split(separator: ",", omittingEmptySubsequences: false)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+            }
             ?? AccessibilityInspectionOptions.auditCategories.sorted()
         let steps: Int
         if let value = arguments["steps"] {

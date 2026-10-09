@@ -1112,7 +1112,8 @@ private extension Amoo_ElementInfo {
             isEnabled: isEnabled,
             isVisible: isVisible,
             isSecureTextEntry: isSecureTextEntry,
-            isSelected: hasIsSelected ? isSelected : nil
+            isSelected: hasIsSelected ? isSelected : nil,
+            placeholder: hasPlaceholder ? placeholder : nil
         )
     }
 }
@@ -1129,7 +1130,8 @@ private extension Amoo_ViewNode {
             isEnabled: isEnabled,
             isVisible: isVisible,
             children: children.map(\.coreViewNode),
-            isSecureTextEntry: isSecureTextEntry
+            isSecureTextEntry: isSecureTextEntry,
+            placeholder: hasPlaceholder ? placeholder : nil
         )
     }
 }

@@ -36,7 +36,7 @@ public struct ScreenObservation: Sendable {
             elements.append(ElementInfo(
                 id: node.id, label: node.label, value: node.value, type: node.type, frame: node.frame,
                 hitPoint: node.hitPoint, isEnabled: node.isEnabled, isVisible: node.isVisible,
-                isSecureTextEntry: node.isSecureTextEntry
+                isSecureTextEntry: node.isSecureTextEntry, placeholder: node.placeholder
             ))
             nodes.append(contentsOf: node.children.reversed())
         }

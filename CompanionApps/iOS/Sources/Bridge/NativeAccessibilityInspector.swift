@@ -107,7 +107,7 @@ enum NativeAccessibilityInspector {
             result.error = "Native audit requires supported, nonempty categories."
             return result
         }
-        let selected = categories.reduce(XCUIAccessibilityAuditType()) { $0.union(types[$1]!) }
+        let selected = categories.compactMap { types[$0] }.reduce(XCUIAccessibilityAuditType()) { $0.union($1) }
         do {
             try app.performAccessibilityAudit(for: selected) { issue in
                 var captured = Amoo_AccessibilityInspectionIssue()

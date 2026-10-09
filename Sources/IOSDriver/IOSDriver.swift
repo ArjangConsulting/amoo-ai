@@ -351,6 +351,11 @@ public actor IOSDriver: PlatformDriver {
         try await companion.setOrientation(orientation)
     }
 
+    /// XCUITest frames are already in points.
+    public func elementGeometry() async throws -> ElementGeometry? {
+        ElementGeometry(unit: "points", framesPerUnit: 1)
+    }
+
     public func screenGeometry() async throws -> ScreenSize {
         let info = try await companion.screenInfo()
         return ScreenSize(

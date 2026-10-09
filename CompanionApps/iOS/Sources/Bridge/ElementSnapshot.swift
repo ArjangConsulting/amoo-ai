@@ -11,4 +11,6 @@ struct ElementSnapshot {
     var isEnabled: Bool
     var isSecureTextEntry: Bool = false
     var isVisible: Bool
+    /// Text-input placeholder; `nil` for other controls.
+    var placeholder: String?
 }

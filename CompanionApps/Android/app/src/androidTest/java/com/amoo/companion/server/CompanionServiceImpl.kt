@@ -405,6 +405,7 @@ private fun ElementSnapshot.toElementInfo(): ElementInfo {
         .setIsEnabled(isEnabled)
         .setIsVisible(isVisible)
         .setIsSecureTextEntry(isSecureTextEntry)
+        .apply { placeholder?.let { setPlaceholder(it) } }
         .build()
 }
 
@@ -425,5 +426,6 @@ private fun ElementSnapshot.toViewNode(): ViewNode {
         .setIsEnabled(isEnabled)
         .setIsVisible(isVisible)
         .setIsSecureTextEntry(isSecureTextEntry)
+        .apply { placeholder?.let { setPlaceholder(it) } }
         .build()
 }

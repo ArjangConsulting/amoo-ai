@@ -219,21 +219,93 @@ public struct MissingAccessibilityLabelRule: AuditRule {
     /// nor a label. A companion that filters those out before answering leaves this rule unable
     /// to fire at all — it will find nothing and report a clean screen, which is the one outcome
     /// it must never produce by accident.
+    ///
+    /// A text input without a label is still announced by its placeholder (iOS) or hint (Android),
+    /// so it is reported separately: named only by a placeholder when the capture reports one, and
+    /// unconfirmed when the capture predates placeholder reporting — on iOS an empty field's value
+    /// is its placeholder, so a nonempty value alone cannot distinguish the two.
     public func evaluate(_ input: AuditInput) async throws -> [AuditFinding] {
         let unlabeled = input.interactableElements.filter { el in
             el.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
+        var missing: [ElementInfo] = []
+        var placeholderOnly: [ElementInfo] = []
+        var unconfirmed: [ElementInfo] = []
+        for element in unlabeled {
+            guard element.type == .textField else {
+                missing.append(element)
+                continue
+            }
+            if let placeholder = element.placeholder {
+                if placeholder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    missing.append(element)
+                } else {
+                    placeholderOnly.append(element)
+                }
+            } else if element.value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                unconfirmed.append(element)
+            } else {
+                missing.append(element)
+            }
+        }
 
-        guard !unlabeled.isEmpty else { return [] }
+        var findings: [AuditFinding] = []
+        if !missing.isEmpty {
+            findings.append(finding(
+                input,
+                suffix: "",
+                severity: metadata.defaultSeverity,
+                confidence: 0.9,
+                elements: missing,
+                summary: "\(missing.count) interactable element(s) have no accessibility label.",
+                remediation: "Provide a localized accessible name. Automation identifiers are not spoken labels."
+            ))
+        }
+        if !placeholderOnly.isEmpty {
+            findings.append(finding(
+                input,
+                suffix: "-placeholder",
+                severity: .low,
+                confidence: 0.8,
+                elements: placeholderOnly,
+                summary: "\(placeholderOnly.count) text input(s) are named only by placeholder text,"
+                    + " which is no longer announced once a value is entered.",
+                remediation: "Provide a persistent localized accessibility label in addition to the placeholder."
+            ))
+        }
+        if !unconfirmed.isEmpty {
+            findings.append(finding(
+                input,
+                suffix: "-unconfirmed",
+                severity: .low,
+                confidence: 0.4,
+                elements: unconfirmed,
+                summary: "\(unconfirmed.count) text input(s) have no label; the capture did not report placeholder"
+                    + " text, so their spoken name could not be confirmed.",
+                remediation: "Rebuild the companion to report placeholders, or verify the announced name natively."
+            ))
+        }
+        return findings
+    }
 
-        return [AuditFinding(
-            id: "finding-\(metadata.id)-\(input.appID)",
+    // swiftlint:disable:next function_parameter_count
+    private func finding(
+        _ input: AuditInput,
+        suffix: String,
+        severity: Severity,
+        confidence: Double,
+        elements: [ElementInfo],
+        summary: String,
+        remediation: String
+    ) -> AuditFinding {
+        AuditFinding(
+            id: "finding-\(metadata.id)-\(input.appID)\(suffix)",
             ruleID: metadata.id,
-            severity: metadata.defaultSeverity,
-            confidence: 0.9,
-            summary: "\(unlabeled.count) interactable element(s) have no accessibility label.",
-            remediation: "Provide a localized accessible name. Automation identifiers are not spoken labels.",
-            evidence: unlabeled.map { el in
+            severity: severity,
+            confidence: confidence,
+            summary: summary,
+            remediation: remediation,
+            evidence: elements.prefix(maxEvidenceItems).map { el in
                 AuditEvidence(
                     kind: .selector,
                     summary: "type=\(el.type?.rawValue ?? "unknown")",
@@ -242,7 +314,7 @@ public struct MissingAccessibilityLabelRule: AuditRule {
                 )
             },
             tags: ["ux", "accessibility", "a11y"]
-        )]
+        )
     }
 }
 
@@ -279,7 +351,7 @@ public struct SmallTapTargetRule: AuditRule {
             summary: "\(tooSmall.count) element(s) have bounds below the \(Int(minimumSize))-\(input.geometryUnit)"
                 + " heuristic; hit regions unverified.",
             remediation: "Inspect actual hit regions and platform units; prefer the native hit-region audit on iOS.",
-            evidence: tooSmall.compactMap { el -> AuditEvidence? in
+            evidence: tooSmall.prefix(maxEvidenceItems).compactMap { el -> AuditEvidence? in
                 guard let frame = el.frame else { return nil }
                 return AuditEvidence(
                     kind: .selector,
@@ -390,6 +462,9 @@ public struct HierarchyDepthRule: AuditRule {
 /// Hard cap on view hierarchy traversal depth. Prevents stack overflow when
 /// a companion sends a cyclic or pathologically deep tree.
 private let maxHierarchyDepth = 256
+
+/// Evidence items kept per finding; the summary still reports the full count.
+private let maxEvidenceItems = 25
 
 // MARK: - Rule Pack Collections
 

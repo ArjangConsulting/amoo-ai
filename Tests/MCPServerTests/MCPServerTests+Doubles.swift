@@ -82,14 +82,28 @@ func amooExecutableCandidates() -> [URL] {
 
 /// Mock driver that returns elements triggering audit rules.
 actor AuditMockDriver: PlatformDriver {
+    private let platform: Platform
+    private let geometry: ElementGeometry?
+    private let hierarchy: ViewNode?
+
+    init(platform: Platform = .ios, geometry: ElementGeometry? = nil, hierarchy: ViewNode? = nil) {
+        self.platform = platform
+        self.geometry = geometry
+        self.hierarchy = hierarchy
+    }
+
     func currentApp() async throws -> CurrentApp {
         CurrentApp(bundleID: "com.test", targetBundleID: "com.test")
+    }
+
+    func elementGeometry() async throws -> ElementGeometry? {
+        geometry
     }
 
     func boot() async throws {}
     func shutdown() async throws {}
     func deviceInfo() async throws -> DeviceInfo {
-        DeviceInfo(id: "mock", name: "Mock", platform: .ios, osVersion: "17.0", state: .booted)
+        DeviceInfo(id: "mock", name: "Mock", platform: platform, osVersion: "17.0", state: .booted)
     }
 
     func installApp(path _: String) async throws {}
@@ -154,7 +168,7 @@ actor AuditMockDriver: PlatformDriver {
     }
 
     func getViewHierarchy() async throws -> ViewNode {
-        ViewNode(
+        hierarchy ?? ViewNode(
             id: "root",
             children: [
                 ViewNode(id: "title", label: "Test screen", type: .staticText),
