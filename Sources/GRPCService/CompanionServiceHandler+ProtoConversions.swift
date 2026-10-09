@@ -52,6 +52,9 @@ extension ElementInfo {
         if let isSelected {
             element.isSelected = isSelected
         }
+        if let placeholder {
+            element.placeholder = placeholder
+        }
         element.isSecureTextEntry = isSecureTextEntry
         if let frame {
             var rect = Amoo_Rect()
@@ -93,6 +96,9 @@ extension ViewNode {
         }
         node.isEnabled = isEnabled
         node.isVisible = isVisible
+        if let placeholder {
+            node.placeholder = placeholder
+        }
         node.children = children.map(\.protoViewNode)
         return node
     }

@@ -30,12 +30,24 @@ extension DriverToolExecutor {
         }
         let observation = try await driver.observeScreen(appID: appID)
         let after = try? await driver.currentApp()
+        let geometry = try? await driver.elementGeometry()
         let platform = try? await driver.deviceInfo().platform
+        // Without a density, Android frames stay in pixels and size heuristics decline to evaluate.
+        let fallbackUnit = platform == .ios ? "points" : platform == .android ? "pixels" : "unknown"
+        let normalize: ([ElementInfo]) -> [ElementInfo] = { elements in
+            guard let geometry else { return elements }
+            return elements.map { element in
+                var copy = element
+                copy.frame = element.frame.map(geometry.normalized)
+                return copy
+            }
+        }
         let input = AuditInput(
             appID: appID, screenContext: observation.context, hierarchy: observation.hierarchy,
-            elements: observation.elements, interactableElements: observation.interactableElements,
+            elements: normalize(observation.elements),
+            interactableElements: normalize(observation.interactableElements),
             evidenceProblems: after?.bundleID == appID ? [] : ["Foreground app changed during capture."],
-            geometryUnit: platform == .ios ? "points" : platform == .android ? "pixels" : "unknown"
+            geometryUnit: geometry?.unit ?? fallbackUnit
         )
 
         let engine = AuditEngine(rules: selectedRules)

@@ -699,6 +699,9 @@ extension ElementSnapshot {
         if let isSelected {
             element.isSelected = isSelected
         }
+        if let placeholder {
+            element.placeholder = placeholder
+        }
 
         var rect = Amoo_Rect()
         rect.x = frame.origin.x
@@ -726,6 +729,9 @@ extension ViewNodeSnapshot {
         node.type = type
         node.isEnabled = isEnabled
         node.isVisible = isVisible
+        if let placeholder {
+            node.placeholder = placeholder
+        }
 
         var rect = Amoo_Rect()
         rect.x = frame.origin.x

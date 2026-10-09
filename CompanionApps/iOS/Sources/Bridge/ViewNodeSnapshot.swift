@@ -11,4 +11,6 @@ struct ViewNodeSnapshot {
     var isEnabled: Bool
     var isVisible: Bool
     var children: [ViewNodeSnapshot]
+    /// Text-input placeholder; `nil` for other controls.
+    var placeholder: String?
 }

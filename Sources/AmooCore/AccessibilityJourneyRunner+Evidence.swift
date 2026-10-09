@@ -27,7 +27,7 @@ extension AccessibilityJourneyRunner {
             copy.value = copy.value.map { String($0.prefix(4096)) }
             return copy
         }
-        let index = result.journey!.checkpoints.count - 1
+        guard let index = result.journey?.checkpoints.indices.last else { return }
         result.journey?.checkpoints[index].elements.append(contentsOf: bounded)
         if result.journey?.checkpoints[index].elementCaptures == nil {
             result.journey?.checkpoints[index].elementCaptures = []
@@ -44,9 +44,33 @@ extension AccessibilityJourneyRunner {
             return bounded
         }
         result.utterances.append(bounded)
-        let index = result.journey!.checkpoints.count - 1
-        result.journey?.checkpoints[index].utterances.append(bounded)
+        if let index = result.journey?.checkpoints.indices.last {
+            result.journey?.checkpoints[index].utterances.append(bounded)
+        }
         return bounded
+    }
+
+    /// A valid journey makes at most 68 decisive reads (30 moves, plus a before and a final recovery
+    /// read for each of at most 19 transitions alongside a move step). Stopping polls at 48 keeps the
+    /// total under the 128-utterance cap, so polling can never truncate a decisive read.
+    static let recoveryPollBudget = 48
+
+    /// Recovery reads repeat while focus is unchanged, so a repeat of the checkpoint's last utterance
+    /// is kept once. Intermediate polls are supplementary: beyond the budget they are dropped without
+    /// marking truncation. The decisive read is always retained, and its own oversize still counts.
+    static func captureRecoveryRead(_ speech: String, decisive: Bool, result: inout AccessibilityInspection) {
+        let bounded = String(speech.prefix(4096))
+        guard let index = result.journey?.checkpoints.indices.last,
+              result.journey?.checkpoints[index].utterances.last != bounded else {
+            result.truncated = result.truncated || (decisive && speech.count > 4096)
+            return
+        }
+        if decisive {
+            capture(speech, result: &result)
+        } else if result.utterances.count < recoveryPollBudget {
+            result.utterances.append(bounded)
+            result.journey?.checkpoints[index].utterances.append(bounded)
+        }
     }
 
     static func recordSpeech(

@@ -36,14 +36,23 @@ and locale-specific; no role or selected state is parsed out of speech.
   backward step in the same call. A failed sequence stops subsequent checkpoints.
 - `transition`: `element` specifies the unique action target and its expected metadata;
   `action` is `tap` or `doubleTap`; `before` and `after` are required speech expectations;
+  the gesture is an ordinary XCTest gesture on the target's frame, delivered while VoiceOver is
+  on, so it is subject to VoiceOver's touch handling: a `tap` may only move focus, and a
+  `doubleTap` activates whichever element holds VoiceOver focus, which is not necessarily
+  `element`. `before` is the only evidence that focus sits on the target, so make it specific
+  to the target (its `elementID` is an author association, not observed identity);
   `destination` specifies metadata that must newly match after the action. Before speech
   is read without moving. The action is withheld if its anchor or target is wrong. The
   destination must differ from its previous capture and must not have already matched.
   Then current speech is read without a repair move or VoiceOver disable/enable. Optional
-  `recoveryTimeoutMS` bounds this wait from 0 to 5000 milliseconds (default 2000), with at
-  most 21 samples. Intermediate speech remains evidence; only matching speech within the
-  bound establishes recovery. Zero requests one immediate read. A synchronous read that
-  completes after a positive deadline leaves recovery not evaluated. Failed
+  `recoveryTimeoutMS` bounds this wait from 0 to 5000 milliseconds (default 2000), polling
+  every 250 ms. Matching speech establishes recovery only when its read completes by the
+  deadline; a mismatch fails recovery only when its read starts at or after the deadline. The
+  last poll is timed to complete just before the deadline (judged by the slowest read so far),
+  and a mismatch there is confirmed by one read at the deadline. Distinct intermediate speech remains
+  evidence (repeats are kept once, and polling evidence is capped without affecting the
+  verdict). Zero requests one immediate read. Matching speech first read after a positive
+  deadline leaves recovery not evaluated. Failed
   readiness never establishes focus recovery. Use a destination name/value/state that
   changes on paging, navigation or dismissal; an unchanged background control is insufficient.
 

@@ -6,7 +6,7 @@ import TestCommons
 import XCTest
 
 @MainActor
-private final class JourneyControl: AccessibilityJourneyControlling {
+final class JourneyControl: AccessibilityJourneyControlling {
     var isEnabled = false
     var changes: [Bool] = []
     var moves = 0

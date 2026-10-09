@@ -37,6 +37,32 @@ public extension AndroidDriver {
         }
         return reported
     }
+
+    /// Element frames are screen pixels. `wm density` reports the physical density and, when one is
+    /// set, the override that actually lays out the UI; dp = px * 160 / dpi.
+    func elementGeometry() async throws -> ElementGeometry? {
+        guard let result = try? await adb.run(adbArgs() + ["shell", "wm", "density"], timeoutSeconds: 5),
+              result.exitCode == 0, let dpi = Self.effectiveDensity(result.stdout) else { return nil }
+        return ElementGeometry(unit: "dp", framesPerUnit: dpi / 160)
+    }
+
+    /// Parses `wm density`: `Physical density: 420` plus an optional `Override density: 480`.
+    static func effectiveDensity(_ output: String) -> Double? {
+        var physical: Double?
+        var override: Double?
+        for line in output.split(whereSeparator: \.isNewline) {
+            let parts = line.split(separator: ":", maxSplits: 1)
+            guard parts.count == 2,
+                  let value = Double(parts[1].trimmingCharacters(in: .whitespaces)), value.isFinite, value > 0
+            else { continue }
+            if parts[0].contains("Override") {
+                override = value
+            } else if parts[0].contains("Physical") {
+                physical = value
+            }
+        }
+        return override ?? physical
+    }
 }
 
 extension DeviceOrientation {

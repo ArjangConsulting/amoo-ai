@@ -129,6 +129,8 @@ public struct ViewNode: Sendable, Equatable {
     public var isSecureTextEntry: Bool
     public var isVisible: Bool
     public var children: [Self]
+    /// Placeholder (iOS) or hint (Android) text; `nil` when the capture source does not report it.
+    public var placeholder: String?
 
     public init(
         id: String,
@@ -140,7 +142,8 @@ public struct ViewNode: Sendable, Equatable {
         isEnabled: Bool = true,
         isVisible: Bool = true,
         children: [Self] = [],
-        isSecureTextEntry: Bool = false
+        isSecureTextEntry: Bool = false,
+        placeholder: String? = nil
     ) {
         self.id = id
         self.label = label
@@ -152,6 +155,7 @@ public struct ViewNode: Sendable, Equatable {
         self.isVisible = isVisible
         self.isSecureTextEntry = isSecureTextEntry
         self.children = children
+        self.placeholder = placeholder
     }
 }
 
@@ -167,6 +171,9 @@ public struct ElementInfo: Sendable, Equatable {
     public var isEnabled: Bool
     public var isSecureTextEntry: Bool
     public var isVisible: Bool
+    /// Placeholder (iOS) or hint (Android) a screen reader announces for an empty input;
+    /// `nil` when the capture source does not report it.
+    public var placeholder: String?
 
     public init(
         id: String,
@@ -178,7 +185,8 @@ public struct ElementInfo: Sendable, Equatable {
         isEnabled: Bool = true,
         isVisible: Bool = true,
         isSecureTextEntry: Bool = false,
-        isSelected: Bool? = nil
+        isSelected: Bool? = nil,
+        placeholder: String? = nil
     ) {
         self.id = id
         self.label = label
@@ -190,6 +198,7 @@ public struct ElementInfo: Sendable, Equatable {
         self.isVisible = isVisible
         self.isSecureTextEntry = isSecureTextEntry
         self.isSelected = isSelected
+        self.placeholder = placeholder
     }
 }
 

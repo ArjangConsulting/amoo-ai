@@ -29,7 +29,7 @@ private struct LowConfidenceRule: AuditRule {
 
 final class AuditEngineTests: XCTestCase {
     func testLowConfidencePreservesImpactSeverity() async throws {
-        let engine = AuditEngine(rules: [LowConfidenceRule()], lowConfidenceThreshold: 0.5)
+        let engine = AuditEngine(rules: [LowConfidenceRule()])
         let report = try await engine.run(
             AuditInput(appID: "com.example.app", screenContext: .init(summary: "ok"), hierarchy: .init(id: "root"))
         )

@@ -75,6 +75,9 @@ message ElementInfo {
   bool is_secure_text_entry = 9;
   // Presence distinguishes unsupported/older companions from a known false state.
   optional bool is_selected = 10;
+  // Placeholder (iOS) or hint (Android) text a screen reader announces for an empty input.
+  // Presence distinguishes companions that report it from an input that has none.
+  optional string placeholder = 11;
 }
 
 message ViewNode {
@@ -88,6 +91,8 @@ message ViewNode {
   bool is_visible = 8;
   Point hit_point = 9;
   bool is_secure_text_entry = 10;
+  // Placeholder (iOS) or hint (Android) text; see ElementInfo.placeholder.
+  optional string placeholder = 11;
 }
 
 message ActionResponse {

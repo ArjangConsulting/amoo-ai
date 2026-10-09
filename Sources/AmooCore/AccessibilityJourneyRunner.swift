@@ -18,7 +18,9 @@ public enum AccessibilityJourneyRunner {
         appID: String, journey: AccessibilityJourney, service: any AccessibilityJourneyControlling,
         journal: VoiceOverRecoveryJournal, isTargetForeground: @escaping () -> Bool,
         isCancelled: @escaping () -> Bool,
-        uptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }, budget: TimeInterval = 90
+        uptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+        budget: TimeInterval = 90
     ) -> AccessibilityInspection {
         var result = AccessibilityInspection(status: "executionError", provider: "authoredAccessibilityJourney")
         do {
@@ -35,7 +37,7 @@ public enum AccessibilityJourneyRunner {
         VoiceOverTraversal.withRecovery(
             appID: appID, service: service, journal: journal,
             isTargetForeground: isTargetForeground, isCancelled: isCancelled,
-            uptime: uptime, budget: budget, result: &result
+            uptime: uptime, sleep: sleep, budget: budget, result: &result
         ) { context, result in
             for step in journey.steps {
                 try context.check()
@@ -53,7 +55,9 @@ public enum AccessibilityJourneyRunner {
             "Speech matches are locale-specific; target element IDs are author associations, not observed focus IDs.",
             "Transitions use ordinary targeted XCTest gestures; rotor, custom actions and screen-reader activation"
                 + " semantics are not certified.",
-            "Focus recovery reads current speech within a bounded wait, without moving or re-enabling VoiceOver.",
+            "Focus recovery polls current speech until the authored deadline, without moving or re-enabling"
+                + " VoiceOver. A match must be read by the deadline; a mismatch must be read at or after it.",
+            "Repeated recovery polls are retained once, and polling evidence is capped; decisive reads are kept.",
             "A synchronous platform call cannot be interrupted; cancellation/deadlines are checked between calls."
         ]
         return result
@@ -65,7 +69,7 @@ public enum AccessibilityJourneyRunner {
     ) throws -> Bool {
         switch step.kind {
         case .element:
-            let expected = step.element!
+            guard let expected = step.element else { throw AccessibilityJourneyValidationError() }
             let captured = try service.elements(id: expected.id)
             try context.check()
             capture(captured, result: &result)
@@ -89,14 +93,18 @@ public enum AccessibilityJourneyRunner {
         _ step: AccessibilityJourneyStep, service: any AccessibilityJourneyControlling,
         context: VoiceOverRunContext, result: inout AccessibilityInspection
     ) throws -> Bool {
-        let expectations = step.speech!
-        let count = step.kind == .seek ? step.maxMoves! : expectations.count
+        guard let expectations = step.speech, let anchor = expectations.first, let direction = step.direction,
+              let count = step.kind == .seek ? step.maxMoves : expectations.count
+        else { throw AccessibilityJourneyValidationError() }
         var lastSpeech: String?
+        // Only this step's oversized utterances can hide its anchor; earlier truncation cannot.
+        var stepTruncated = false
         for index in 0 ..< count {
             try context.check()
-            let raw = try service.move(direction: step.direction!)
+            let raw = try service.move(direction: direction)
             let speech = capture(raw, result: &result)
             lastSpeech = speech
+            stepTruncated = stepTruncated || raw.count > 4096
             try context.completedMove()
             let expected = expectations[step.kind == .seek ? 0 : index]
             if step.kind == .seek {
@@ -119,12 +127,13 @@ public enum AccessibilityJourneyRunner {
             record(
                 step: step,
                 suffix: "seek",
-                elementID: expectations[0].elementID,
+                elementID: anchor.elementID,
                 source: "voiceOverSpeech",
-                outcome: result.truncated ? .unsupported : .fail,
-                expected: expectations[0].description,
+                outcome: stepTruncated ? .unsupported : .fail,
+                expected: anchor.description,
                 actual: lastSpeech,
-                reason: "Anchor not observed within the authored move bound",
+                reason: stepTruncated ? "An utterance exceeded the evidence bound; the anchor may be in it"
+                    : "Anchor not observed within the authored move bound",
                 result: &result
             )
             return false

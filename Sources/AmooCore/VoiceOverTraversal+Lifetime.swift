@@ -8,17 +8,21 @@ final class VoiceOverRunContext {
     let journal: VoiceOverRecoveryJournal
     var marker: VoiceOverRecoveryJournal.Record
     let uptime: () -> TimeInterval
+    /// Blocks between polls; injectable so timing can be tested on a virtual clock.
+    let sleep: (TimeInterval) -> Void
     let checkOperation: () throws -> Void
 
     init(
         journal: VoiceOverRecoveryJournal,
         marker: VoiceOverRecoveryJournal.Record,
         uptime: @escaping () -> TimeInterval,
+        sleep: @escaping (TimeInterval) -> Void,
         check: @escaping () throws -> Void
     ) {
         self.journal = journal
         self.marker = marker
         self.uptime = uptime
+        self.sleep = sleep
         checkOperation = check
     }
 
@@ -39,7 +43,9 @@ extension VoiceOverTraversal {
     static func withRecovery(
         appID: String, service: any VoiceOverControlling, journal: VoiceOverRecoveryJournal,
         isTargetForeground: @escaping () -> Bool, isCancelled: @escaping () -> Bool,
-        uptime: @escaping () -> TimeInterval, budget: TimeInterval,
+        uptime: @escaping () -> TimeInterval,
+        sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+        budget: TimeInterval,
         result: inout AccessibilityInspection,
         operation: (VoiceOverRunContext, inout AccessibilityInspection) throws -> Void
     ) {
@@ -60,7 +66,7 @@ extension VoiceOverTraversal {
         let marker = VoiceOverRecoveryJournal.Record(
             originalEnabled: original, appID: appID, completedMoves: 0, startedAt: Date()
         )
-        let context = VoiceOverRunContext(journal: journal, marker: marker, uptime: uptime) {
+        let context = VoiceOverRunContext(journal: journal, marker: marker, uptime: uptime, sleep: sleep) {
             try check(isTargetForeground: isTargetForeground, isCancelled: isCancelled, expired: uptime() >= deadline)
         }
         do {

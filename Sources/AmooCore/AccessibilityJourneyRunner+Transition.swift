@@ -3,27 +3,40 @@
 import Foundation
 
 extension AccessibilityJourneyRunner {
+    /// What the bounded recovery wait established about focus at the authored deadline.
+    enum RecoveryObservation: Equatable {
+        /// Expected speech was read in a sample that completed by the deadline.
+        case recovered
+        /// Expected speech was first read in a sample that completed after the deadline.
+        case late
+        /// A sample started at or after the deadline still read other speech.
+        case notRecovered
+        /// Sampling ended without a decisive sample.
+        case undetermined
+    }
+
     // Keep precondition, action, destination and recovery checks in a single continuous service lifetime.
     // swiftlint:disable:next function_body_length
     static func transition(
         _ step: AccessibilityJourneyStep, service: any AccessibilityJourneyControlling,
         context: VoiceOverRunContext, result: inout AccessibilityInspection
     ) throws -> Bool {
+        guard let target = step.element, let destination = step.destination, let action = step.action,
+              let beforeExpectation = step.before, let afterExpectation = step.after
+        else { throw AccessibilityJourneyValidationError() }
         let before = try service.currentSpeech()
         capture(before, result: &result)
         try context.check()
         recordSpeech(
             step: step,
             suffix: "before",
-            expected: step.before!,
+            expected: beforeExpectation,
             speech: before,
             truncated: before.count > 4096,
             result: &result
         )
-        guard before.count <= 4096, step.before!.matches(before) else { return false }
-        let target = step.element!
+        guard before.count <= 4096, beforeExpectation.matches(before) else { return false }
         let capturedTarget = try service.elements(id: target.id)
-        let destination = step.destination!
         let previousDestination = try service.elements(id: destination.id)
         try context.check()
         capture(capturedTarget, stage: "targetBefore", result: &result)
@@ -44,7 +57,7 @@ extension AccessibilityJourneyRunner {
             return false
         }
         // Never repair focus before checking recovery. The action is the only intervening gesture.
-        try service.perform(action: step.action!, elementID: target.id)
+        try service.perform(action: action, elementID: target.id)
         try context.check()
         record(
             step: step,
@@ -52,7 +65,7 @@ extension AccessibilityJourneyRunner {
             elementID: target.id,
             source: "xctestGesture",
             outcome: .pass,
-            expected: step.action!.rawValue,
+            expected: action.rawValue,
             actual: "Gesture completed",
             result: &result
         )
@@ -60,10 +73,16 @@ extension AccessibilityJourneyRunner {
         try context.check()
         capture(nextDestination, stage: "destinationAfter", result: &result)
         let destinationOutcome = combinedOutcome(expected: destination, captured: nextDestination)
-        let changed = previousDestination != nextDestination
-            && combinedOutcome(expected: destination, captured: previousDestination) != .pass
-        let outcome: AccessibilityJourneyCheck.Outcome = destinationOutcome == .pass && !changed
+        let matchedBefore = combinedOutcome(expected: destination, captured: previousDestination) == .pass
+        let outcome: AccessibilityJourneyCheck.Outcome = destinationOutcome == .pass && matchedBefore
             ? .needsReview : destinationOutcome
+        let reason = if destinationOutcome != .pass {
+            "Destination did not match authored metadata after the gesture"
+        } else if matchedBefore {
+            "Destination already matched before the gesture; transition was not established"
+        } else {
+            "Destination changed to match authored metadata after the gesture"
+        }
         record(
             step: step,
             suffix: "destination",
@@ -72,60 +91,78 @@ extension AccessibilityJourneyRunner {
             outcome: outcome,
             expected: "Changed destination matching authored metadata",
             actual: nil,
-            reason: changed ? "Destination checkpoint comparison"
-                : "Destination already matched before the gesture; transition was not established",
+            reason: reason,
             result: &result
         )
         guard outcome == .pass else { return false }
-        let recovery = try awaitRecovery(step, service: service, context: context, result: &result)
-        let after = recovery.speech
-        guard recovery.withinDeadline else {
+        let recovery = try awaitRecovery(
+            step, expected: afterExpectation, service: service, context: context, result: &result
+        )
+        switch recovery.observation {
+        case .late, .undetermined:
             record(
-                step: step, suffix: "recovery", elementID: step.after!.elementID, source: "voiceOverSpeech",
-                outcome: .notEvaluated, expected: step.after!.description, actual: after,
-                reason: "Synchronous speech read completed after the authored recovery deadline", result: &result
+                step: step, suffix: "recovery", elementID: afterExpectation.elementID, source: "voiceOverSpeech",
+                outcome: .notEvaluated, expected: afterExpectation.description, actual: recovery.speech,
+                reason: recovery.observation == .late
+                    ? "Expected speech was first read after the authored recovery deadline"
+                    : "Recovery sampling ended without a sample at the authored deadline",
+                result: &result
             )
             return false
+        case .recovered, .notRecovered:
+            recordSpeech(
+                step: step,
+                suffix: "recovery",
+                expected: afterExpectation,
+                speech: recovery.speech,
+                truncated: recovery.speech.count > 4096,
+                result: &result
+            )
+            return recovery.observation == .recovered
         }
-        recordSpeech(
-            step: step,
-            suffix: "recovery",
-            expected: step.after!,
-            speech: after,
-            truncated: after.count > 4096,
-            result: &result
-        )
-        return after.count <= 4096 && step.after!.matches(after)
     }
 
+    /// Polls current speech until it matches or the deadline passes. A match counts only when its
+    /// read completed by the deadline; a mismatch counts only when its read started at or after it.
+    /// The last poll is timed to complete just before the deadline, so focus that settles after
+    /// the previous poll is still observed, and a mismatch there is confirmed by one more read.
     private static func awaitRecovery(
-        _ step: AccessibilityJourneyStep, service: any AccessibilityJourneyControlling,
-        context: VoiceOverRunContext, result: inout AccessibilityInspection
-    ) throws -> (speech: String, withinDeadline: Bool) {
+        _ step: AccessibilityJourneyStep, expected: AccessibilitySpeechExpectation,
+        service: any AccessibilityJourneyControlling, context: VoiceOverRunContext,
+        result: inout AccessibilityInspection
+    ) throws -> (speech: String, observation: RecoveryObservation) {
         let timeout = step.recoveryTimeoutMS ?? 2000
         let deadline = context.uptime() + Double(timeout) / 1000
         var speech = ""
-        for sample in 0 ..< 21 {
+        var slowestRead: TimeInterval = 0
+        // 0.25 s polls across at most 5 s, a final in-bound read and a confirming read; the rest absorb jitter.
+        for _ in 0 ..< 26 {
             try context.check()
+            let started = context.uptime()
             speech = try service.currentSpeech()
-            capture(speech, result: &result)
+            let completed = context.uptime()
+            slowestRead = max(slowestRead, completed - started)
+            let observation: RecoveryObservation? = if speech.count <= 4096, expected.matches(speech) {
+                timeout == 0 || completed <= deadline ? .recovered : .late
+            } else if started >= deadline {
+                .notRecovered
+            } else {
+                nil
+            }
+            captureRecoveryRead(speech, decisive: observation != nil, result: &result)
             try context.check()
-            if timeout > 0, context.uptime() > deadline {
-                return (speech, false)
+            if let observation {
+                return (speech, observation)
             }
-            if speech.count <= 4096, step.after!.matches(speech) {
-                break
-            }
-            let remaining = deadline - context.uptime()
-            if remaining <= 0 || sample == 20 {
-                break
-            }
-            Thread.sleep(forTimeInterval: min(0.25, remaining))
-            if context.uptime() >= deadline {
-                break
+            let now = context.uptime()
+            // Latest start that should still complete by the deadline, judged by the slowest read so far.
+            let finalStart = deadline - slowestRead * 1.5 - 0.01
+            let next = now < finalStart ? min(now + 0.25, finalStart) : deadline
+            if next > now {
+                context.sleep(next - now)
             }
         }
-        return (speech, true)
+        return (speech, .undetermined)
     }
 
     private static func combinedOutcome(

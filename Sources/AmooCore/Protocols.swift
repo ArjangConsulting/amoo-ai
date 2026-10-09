@@ -111,6 +111,38 @@ public protocol AccessibilityProvider: Sendable {
     /// Point and pixel geometry of the screen, for converting a position read off a screenshot
     /// into the points that gestures take.
     func screenGeometry() async throws -> ScreenSize
+    /// How `ElementInfo.frame` coordinates relate to density-independent units, or `nil` when
+    /// the driver cannot establish it. Size heuristics must not guess a unit.
+    func elementGeometry() async throws -> ElementGeometry?
+}
+
+public extension AccessibilityProvider {
+    func elementGeometry() async throws -> ElementGeometry? {
+        nil
+    }
+}
+
+/// Element-frame units per density-independent unit: iOS points, or Android dp (density / 160).
+public struct ElementGeometry: Sendable, Equatable {
+    /// The density-independent unit frames normalize to: `points` or `dp`.
+    public let unit: String
+    /// Frame units in one density-independent unit; divide frames by it to normalize.
+    public let framesPerUnit: Double
+
+    public init(unit: String, framesPerUnit: Double) {
+        self.unit = unit
+        self.framesPerUnit = framesPerUnit
+    }
+
+    /// The frame expressed in `unit`.
+    public func normalized(_ frame: Rect) -> Rect {
+        Rect(
+            x: frame.x / framesPerUnit,
+            y: frame.y / framesPerUnit,
+            width: frame.width / framesPerUnit,
+            height: frame.height / framesPerUnit
+        )
+    }
 }
 
 /// Gesture space (points) and screenshot space (pixels), plus the factor between them.

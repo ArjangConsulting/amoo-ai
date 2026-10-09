@@ -426,7 +426,8 @@ class UIAutomatorBridge {
         frame = FrameRect(bounds.left, bounds.top, bounds.width(), bounds.height()),
         isEnabled = isEnabled,
         isVisible = isVisible,
-        isSecureTextEntry = isSecureTextEntry
+        isSecureTextEntry = isSecureTextEntry,
+        placeholder = placeholder
     )
 
     private fun matches(
@@ -512,6 +513,7 @@ class UIAutomatorBridge {
         val isClickable: Boolean,
         val isLongClickable: Boolean,
         val isSecureTextEntry: Boolean,
+        val placeholder: String?,
         /**
          * Nearest clickable ancestor, resolved while walking rather than by climbing `parent`
          * afterwards — a parent walk is another IPC per step, and the walk already knows the
@@ -612,6 +614,7 @@ class UIAutomatorBridge {
             isClickable = isClickable,
             isLongClickable = isLongClickable,
             isSecureTextEntry = isPassword,
+            placeholder = hintText?.toString()?.ifBlank { null },
             clickableAncestor = nearestClickable
         )
     }

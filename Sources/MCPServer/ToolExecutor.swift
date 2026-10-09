@@ -174,14 +174,14 @@ public actor DriverToolExecutor: ToolExecutor {
         if Self.diagnosticTools.contains(toolName) {
             return .diagnostic
         }
+        // Even a failed journey stays an assertion, so plan compilation reports the blocked export.
         if toolName == "assert_accessibility_journey" {
             return .assertion
         }
         if isError {
             return .failedProbe
         }
-        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled", "assert_accessibility_journey"]
-            .contains(toolName) {
+        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled"].contains(toolName) {
             return .assertion
         }
         if [
