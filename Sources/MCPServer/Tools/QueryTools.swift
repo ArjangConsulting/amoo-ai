@@ -87,6 +87,13 @@ public enum QueryTools {
                         + " cuts the image roughly to a quarter of the bytes — enough for reading"
                         + " layout and state, and far cheaper for a model to consume."
                         + " When omitted, the image is only returned inline."
+                ),
+                "settle_timeout_ms": .init(
+                    type: "string",
+                    description: "Wait up to this long for two consecutive identical frames before"
+                        + " returning, so a capture right after a tap does not catch a sheet"
+                        + " mid-dismiss or a page mid-transition. Defaults to 1500; 0 captures"
+                        + " immediately. Check settled in the result."
                 )
             ],
             outputSchema: ToolOutputSchema(
@@ -107,7 +114,13 @@ public enum QueryTools {
                     "saved_path": .init(
                         type: "string",
                         description: "Absolute path written to, when output was provided"
-                    )
+                    ),
+                    "settled": .init(
+                        type: "boolean",
+                        description: "Whether two consecutive frames matched before settle_timeout_ms;"
+                            + " omitted when settle_timeout_ms=0"
+                    ),
+                    "settle_frames": .init(type: "integer", description: "Frames captured while settling")
                 ],
                 required: ["byte_count", "format"]
             )

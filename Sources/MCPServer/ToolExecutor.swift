@@ -77,6 +77,7 @@ public actor DriverToolExecutor: ToolExecutor {
         let clock = ContinuousClock()
         let start = clock.now
         let result: ToolResult
+        var executionTool = toolName
         var executionArguments = arguments
         do {
             try Task.checkCancellation()
@@ -89,8 +90,9 @@ public actor DriverToolExecutor: ToolExecutor {
                     }
                 }
             }
-            executionArguments = try await normalizedCoordinates(tool: toolName, arguments: arguments)
-            result = try await dispatch(toolName: toolName, arguments: executionArguments)
+            (executionTool, executionArguments) = try await canonicalGesture(tool: toolName, arguments: arguments)
+            executionArguments = try await normalizedCoordinates(tool: executionTool, arguments: executionArguments)
+            result = try await dispatch(toolName: executionTool, arguments: executionArguments)
         } catch let error as ToolExecutionError {
             result = error.result
         } catch is CancellationError {
@@ -98,7 +100,7 @@ public actor DriverToolExecutor: ToolExecutor {
         } catch {
             result = await .error(failureMessage(toolName: toolName, error: error, arguments: arguments))
         }
-        await recordIfNeeded(toolName: toolName, arguments: executionArguments, result: result)
+        await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
         PerformanceTelemetry.record(
             category,

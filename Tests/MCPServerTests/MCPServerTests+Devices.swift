@@ -370,6 +370,41 @@ extension MCPServerTests {
         XCTAssertEqual(mcp.content.count, 2)
     }
 
+    /// A capture right after a tap used to catch a sheet mid-dismiss; the default settle step
+    /// keeps capturing until two consecutive frames match.
+    func testTakeScreenshotWaitsForStableFrames() async throws {
+        let driver = MockDriver()
+        await driver.setScreenshotFrames([[1], [2], [3], [3]])
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+
+        let result = await server.execute(toolName: "take_screenshot", arguments: [:])
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertEqual(result.image?.data, Data([3]))
+        let fields = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(fields["settled"]?.boolValue, true)
+        XCTAssertEqual(fields["settle_frames"]?.intValue, 4)
+        let count = await driver.screenshotCount
+        XCTAssertEqual(count, 4)
+    }
+
+    func testTakeScreenshotReportsUnsettledScreenAndCanSkipSettling() async {
+        let driver = MockDriver()
+        await driver.setScreenshotFrames((0 ..< 50).map { [UInt8($0)] })
+        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+
+        let unsettled = await server.execute(toolName: "take_screenshot", arguments: ["settle_timeout_ms": "300"])
+        XCTAssertFalse(unsettled.isError, unsettled.content)
+        XCTAssertEqual(unsettled.structuredContent?.objectValue?["settled"]?.boolValue, false)
+        XCTAssertTrue(unsettled.content.contains("still changing"))
+
+        let before = await driver.screenshotCount
+        let immediate = await server.execute(toolName: "take_screenshot", arguments: ["settle_timeout_ms": "0"])
+        XCTAssertFalse(immediate.isError, immediate.content)
+        XCTAssertNil(immediate.structuredContent?.objectValue?["settled"])
+        let after = await driver.screenshotCount
+        XCTAssertEqual(after - before, 1)
+    }
+
     func testTakeScreenshotJPEGAcceptsJpgAlias() async throws {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)

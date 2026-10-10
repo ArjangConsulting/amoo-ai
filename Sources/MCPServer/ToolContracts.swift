@@ -72,7 +72,7 @@ struct ToolRequest: Sendable {
     init(name: String, arguments: [String: String]) throws {
         self.name = name
         self.arguments = arguments
-        let nonnegative = ["timeout_ms", "duration_ms", "character_count", "offset"]
+        let nonnegative = ["timeout_ms", "duration_ms", "character_count", "offset", "settle_timeout_ms"]
         let coordinates = ["x", "y", "from_x", "from_y", "to_x", "to_y", "latitude", "longitude", "distance", "scale"]
         for key in nonnegative + coordinates {
             guard let raw = arguments[key] else { continue }
