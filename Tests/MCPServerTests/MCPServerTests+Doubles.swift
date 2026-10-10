@@ -346,8 +346,18 @@ actor MockDriver: PlatformDriver {
         false
     }
 
+    /// Frames returned by successive screenshots before falling back to a constant `[0xFF]`.
+    var screenshotFrames: [[UInt8]] = []
+    private(set) var screenshotCount = 0
+
+    func setScreenshotFrames(_ frames: [[UInt8]]) {
+        screenshotFrames = frames
+    }
+
     func takeScreenshot(format: ImageFormat) async throws -> ScreenshotData {
-        ScreenshotData(bytes: [0xFF], format: format)
+        screenshotCount += 1
+        let bytes = screenshotFrames.isEmpty ? [0xFF] : screenshotFrames.removeFirst()
+        return ScreenshotData(bytes: bytes, format: format)
     }
 
     func startRecording() async throws -> RecordingSession {

@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import MCP
 @testable import MCPServer
+import TestCommons
 import TestSession
 import XCTest
 
@@ -208,7 +209,11 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(calls, ["tap:10.0,20.0"])
     }
 
-    func testExecuteDeviceLifecycle() async {
+    func testExecuteDeviceLifecycle() async throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let app = scratch.url.appending(path: "App.app")
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
@@ -216,14 +221,14 @@ final class MCPServerTests: XCTestCase {
         let boot = await server.execute(toolName: "device_boot", arguments: [:])
         XCTAssertFalse(boot.isError)
 
-        let install = await server.execute(toolName: "device_install_app", arguments: ["path": "/tmp/App.app"])
-        XCTAssertFalse(install.isError)
+        let install = await server.execute(toolName: "device_install_app", arguments: ["path": app.path])
+        XCTAssertFalse(install.isError, install.content)
 
         let launch = await server.execute(toolName: "device_launch_app", arguments: ["app_id": "com.example"])
         XCTAssertFalse(launch.isError)
 
         let calls = await driver.calls
-        XCTAssertEqual(calls, ["boot", "install:/tmp/App.app", "launch:com.example"])
+        XCTAssertEqual(calls, ["boot", "install:\(app.path)", "launch:com.example"])
     }
 
     func testExecuteValidatesArguments() async {

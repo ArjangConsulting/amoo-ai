@@ -44,7 +44,14 @@ extension DriverToolExecutor {
     ) async -> ToolResult {
         guard let manager = sessionManager else { return .error("Session configuration is missing.") }
         let deviceHint = arguments["device_hint"]
-        let buildPath = arguments["build_path"]
+        // Validate before any device or companion work, so a typo fails in milliseconds with the
+        // path and nearby candidates instead of minutes later as an opaque simctl/adb lstat error.
+        let buildPath: String?
+        do {
+            buildPath = try arguments["build_path"].map { try AppArtifactPath.validated($0, platform: platform) }
+        } catch {
+            return .error("start_session failed: invalid build_path: \(error)")
+        }
         let launchArgs: [String] = arguments["launch_args"]
             .map { $0.split(separator: ",").map(String.init) } ?? []
         let environment = Self.parseEnvironment(arguments["environment"])

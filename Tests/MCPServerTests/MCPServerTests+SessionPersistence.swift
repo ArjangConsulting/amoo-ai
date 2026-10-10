@@ -8,6 +8,26 @@ import TestSession
 import XCTest
 
 extension MCPServerTests {
+    /// A build_path typo must fail before any device/companion work, naming the path, rather than
+    /// surfacing minutes later as an lstat error from simctl.
+    func testStartSessionRejectsMissingBuildPathBeforeBootstrap() async {
+        let stack = makeSessionStack()
+        let executor = DriverToolExecutor(driver: stack.defaultDriver, sessionManager: stack.manager)
+        let server = MCPServer(executor: executor, sessionManager: stack.manager)
+        let missing = NSTemporaryDirectory() + "amoo-missing-\(UUID().uuidString).app"
+
+        let result = await server.execute(
+            toolName: "start_session",
+            arguments: ["app_id": "com.example", "build_path": missing]
+        )
+
+        XCTAssertTrue(result.isError)
+        XCTAssertTrue(result.content.contains("invalid build_path"), result.content)
+        XCTAssertTrue(result.content.contains(missing), result.content)
+        let bootstrapped = await stack.bootstrapper.lastDriver
+        XCTAssertNil(bootstrapped)
+    }
+
     func testEndSessionAutoWritesPlanArtifactsWhenStoreConfigured() async throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }

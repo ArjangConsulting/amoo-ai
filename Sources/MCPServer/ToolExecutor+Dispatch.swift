@@ -39,8 +39,16 @@ extension DriverToolExecutor {
             return .success("Device shut down")
 
         case "device_install_app":
-            guard let path = arguments["path"] else {
+            guard let rawPath = arguments["path"] else {
                 return .error("Missing required argument: path")
+            }
+            // An unknown platform still gets the existence check; only the shape check needs it.
+            let platform = try? await driver.deviceInfo().platform
+            let path: String
+            do {
+                path = try AppArtifactPath.validated(rawPath, platform: platform)
+            } catch {
+                return .error("device_install_app failed: \(error)")
             }
             let contention = await foreignBuildDetector.contentionWarning()
             try await driver.installApp(path: path)

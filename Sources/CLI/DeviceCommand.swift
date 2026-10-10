@@ -60,9 +60,9 @@ Common tools:
   tap x=<n> y=<n> [unit=<points|pixels|normalized>]
   double_tap x=<n> y=<n> [unit=<points|pixels|normalized>]
   long_press x=<n> y=<n> [duration_ms=<n>]
-  swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n> [duration_ms=<n>]
+  swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n> [duration_ms=<n>] [unit=<points|pixels|normalized>]
   swipe_in_direction direction=<up|down|left|right> [distance=<n>] [duration_ms=<n>]
-      [element_id=<id>] [element_label=<label>]
+      [element_id=<id>] [element_label=<label>] [from_x=<n> from_y=<n> [unit=<...>]]
   scroll direction=<up|down|left|right> [distance=<n>]
   type_text text=<text> [record_value=<fixture>]
   clear_text [character_count=<n>]
@@ -84,6 +84,7 @@ Common tools:
   current_app
   set_target_app [bundle_id=<id>]
   take_screenshot [output=<path>] [format=<png|jpeg>] [scale=<0..1>] [return_image=<true|false>]
+      [settle_timeout_ms=<n>]
   describe_screen
   suggest_test_actions
   analyze_ai_testability

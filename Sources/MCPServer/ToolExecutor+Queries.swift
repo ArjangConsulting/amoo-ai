@@ -27,6 +27,49 @@ struct QueryPage {
 }
 
 extension DriverToolExecutor {
+    /// A `swipe_in_direction` with a start point is the coordinate `swipe` it describes. Executing
+    /// and recording it as that `swipe` lets the recorder bind the start point to the row under it,
+    /// so codegen still emits an element-scoped gesture instead of a screen-centre swipe.
+    func canonicalGesture(tool: String, arguments: [String: String]) async throws -> (String, [String: String]) {
+        guard tool == "swipe_in_direction", arguments["from_x"] != nil || arguments["from_y"] != nil else {
+            return (tool, arguments)
+        }
+        guard let x = arguments["from_x"].flatMap(Double.init), let y = arguments["from_y"].flatMap(Double.init) else {
+            throw ToolExecutionError(code: "invalid_argument", message: "from_x and from_y must be passed together.")
+        }
+        guard arguments["element_id"] == nil, arguments["element_label"] == nil else {
+            throw ToolExecutionError(
+                code: "invalid_argument",
+                message: "Pass either from_x/from_y or element_id/element_label, not both."
+            )
+        }
+        guard let direction = arguments["direction"].flatMap(parseDirection) else {
+            throw ToolExecutionError(
+                code: "invalid_argument",
+                message: "Invalid direction: \(arguments["direction"] ?? ""). Use up, down, left, or right."
+            )
+        }
+        let driver = try await resolveDriver(arguments: arguments)
+        let start = try await convertToPoints(x: x, y: y, unit: arguments["unit"], driver: driver)
+        let distance = arguments["distance"].flatMap(Double.init) ?? 300
+        let (dx, dy): (Double, Double) = switch direction {
+        case .up: (0, -distance)
+        case .down: (0, distance)
+        case .left: (-distance, 0)
+        case .right: (distance, 0)
+        }
+        var swipe = arguments
+        swipe["direction"] = nil
+        swipe["distance"] = nil
+        swipe["from_x"] = String(start.x)
+        swipe["from_y"] = String(start.y)
+        swipe["to_x"] = String(start.x + dx)
+        swipe["to_y"] = String(start.y + dy)
+        swipe["unit"] = "points"
+        swipe["duration_ms"] = arguments["duration_ms"] ?? "400"
+        return ("swipe", swipe)
+    }
+
     func normalizedCoordinates(tool: String, arguments: [String: String]) async throws -> [String: String] {
         guard ["tap", "double_tap", "long_press", "swipe"].contains(tool),
               let unit = arguments["unit"], unit != "points" else { return arguments }

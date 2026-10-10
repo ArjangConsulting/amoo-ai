@@ -189,7 +189,16 @@ extension DriverToolExecutor {
             throw ToolExecutionError(code: "invalid_argument", message: "output is required when return_image=false")
         }
         let requestedFormat = ImageFormat(parsing: arguments["format"])
-        let screenshot = try await driver.takeScreenshot(format: requestedFormat)
+        let settleTimeout = min(
+            arguments["settle_timeout_ms"].flatMap(Int.init) ?? Self.defaultScreenshotSettleMilliseconds,
+            10000
+        )
+        let capture = try await captureSettledScreenshot(
+            driver: driver,
+            format: requestedFormat,
+            timeoutMilliseconds: settleTimeout
+        )
+        let screenshot = capture.screenshot
         // Trust the format the driver actually produced — some drivers ignore the
         // requested format (e.g. Android always returns PNG), so labeling by the
         // request would hand clients a wrong MIME type.
@@ -209,6 +218,15 @@ extension DriverToolExecutor {
         ]
         if data.count != originalData.count {
             fields["original_byte_count"] = .int(originalData.count)
+        }
+        var settleNote = ""
+        if let settled = capture.settled {
+            fields["settled"] = .bool(settled)
+            fields["settle_frames"] = .int(capture.frames)
+            if !settled {
+                settleNote = " — warning: screen was still changing after \(settleTimeout)ms;"
+                    + " image may show a transition"
+            }
         }
 
         // A locked/off screen otherwise looks exactly like the app rendering black — surface it
@@ -271,10 +289,44 @@ extension DriverToolExecutor {
 
         return ToolResult(
             content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
-                + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)",
+                + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)\(settleNote)",
             structuredContent: .object(fields),
             image: boolArgument(arguments["return_image"]) == false
                 ? nil : ToolImageContent(data: data, mimeType: actualFormat.mimeType)
         )
+    }
+
+    static let defaultScreenshotSettleMilliseconds = 1500
+
+    private struct SettledCapture {
+        let screenshot: ScreenshotData
+        /// nil when settling was disabled.
+        let settled: Bool?
+        let frames: Int
+    }
+
+    /// Captures until two consecutive frames are byte-identical or the timeout passes. Identical encoded frames mean
+    /// identical pixels, so this
+    /// catches sheet dismissals and push transitions that a hierarchy snapshot can report as done.
+    private func captureSettledScreenshot(
+        driver: any PlatformDriver,
+        format: ImageFormat,
+        timeoutMilliseconds: Int
+    ) async throws -> SettledCapture {
+        var previous = try await driver.takeScreenshot(format: format)
+        guard timeoutMilliseconds > 0 else { return SettledCapture(screenshot: previous, settled: nil, frames: 1) }
+        let clock = ContinuousClock()
+        let deadline = clock.now + .milliseconds(timeoutMilliseconds)
+        var frames = 1
+        while clock.now < deadline {
+            try await Task.sleep(for: .milliseconds(120))
+            let next = try await driver.takeScreenshot(format: format)
+            frames += 1
+            if next.bytes == previous.bytes {
+                return SettledCapture(screenshot: next, settled: true, frames: frames)
+            }
+            previous = next
+        }
+        return SettledCapture(screenshot: previous, settled: false, frames: frames)
     }
 }

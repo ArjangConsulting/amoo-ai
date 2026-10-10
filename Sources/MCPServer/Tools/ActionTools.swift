@@ -55,7 +55,12 @@ public enum ActionTools {
                 "from_y": .init(type: "string", description: "Start Y coordinate"),
                 "to_x": .init(type: "string", description: "End X coordinate"),
                 "to_y": .init(type: "string", description: "End Y coordinate"),
-                "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 300.")
+                "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 300."),
+                "unit": .init(
+                    type: "string",
+                    description: "Coordinate space for all four coordinates: points (default), pixels,"
+                        + " or normalized."
+                )
             ],
             required: ["from_x", "from_y", "to_x", "to_y"]
         ),
@@ -70,7 +75,9 @@ public enum ActionTools {
                 + " an element-scoped gesture (e.g. groceriesTaskRow.swipeLeft()). Only when the"
                 + " row has no stable id or label, fall back to the coordinate `swipe` tool with the"
                 + " point-space coordinates from find_elements — the recorder then binds that gesture"
-                + " to the resolved element. Never read coordinates off a screenshot.",
+                + " to the resolved element. Never read coordinates off a screenshot. To aim at a"
+                + " point without computing an end point, pass from_x/from_y: the swipe starts there"
+                + " and travels distance in direction.",
             properties: [
                 "direction": .init(type: "string", description: "Swipe direction: up, down, left, or right"),
                 "distance": .init(type: "string", description: "Swipe distance in points. Defaults to 300."),
@@ -79,7 +86,18 @@ public enum ActionTools {
                     type: "string",
                     description: "Accessibility ID of element to swipe on. Omit for screen-center swipe."
                 ),
-                "element_label": .init(type: "string", description: "Accessibility label of element to swipe on.")
+                "element_label": .init(type: "string", description: "Accessibility label of element to swipe on."),
+                "from_x": .init(
+                    type: "string",
+                    description: "Optional start X, e.g. a cell's hitPoint from find_elements. Requires"
+                        + " from_y; cannot be combined with element_id or element_label."
+                ),
+                "from_y": .init(type: "string", description: "Optional start Y. Requires from_x."),
+                "unit": .init(
+                    type: "string",
+                    description: "Coordinate space for from_x/from_y: points (default), pixels, or"
+                        + " normalized. distance is always in points."
+                )
             ],
             required: ["direction"]
         ),
