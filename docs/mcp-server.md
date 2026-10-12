@@ -191,7 +191,10 @@ whose tap point is off-screen, when `check_hittable=true` — and by default whe
 is visible (the check reads the full hierarchy, so it is not on for every tap). It always reports
 `foreground_changed` when the tap left the app (Siri, a system sheet), and with `check_effect=true`
 adds `observable_change` so a tap that moved nothing reads "No observable change" rather than
-success. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
+success. `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
+names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen;
+`dismiss_keyboard` tries Return, a Hide/Done button, then a swipe — `press_key return` does nothing
+on a number pad. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
 large accessibility tree needs longer.
 
 ## Generating tests from a recorded session

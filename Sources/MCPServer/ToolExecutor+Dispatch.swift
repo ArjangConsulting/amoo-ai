@@ -185,6 +185,12 @@ extension DriverToolExecutor {
             try await driver.scroll(direction: direction, distance: distance)
             return .success("Scrolled \(dirStr) by \(distance)")
 
+        case "scroll_to_element":
+            return try await executeScrollToElement(arguments: arguments, driver: driver)
+
+        case "dismiss_keyboard":
+            return try await executeDismissKeyboard(arguments: arguments, driver: driver)
+
         // Text actions
         case "type_text":
             guard let text = arguments["text"] else {
