@@ -232,6 +232,20 @@ names the finger's direction instead). `scroll_to_element` scrolls until a targe
 on a number pad. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
 large accessibility tree needs longer.
 
+## Reviewing screenshots
+
+`amoo flow ... --output-dir shots/` (or `take_screenshot output=`) leaves a folder of PNGs. Two
+offline commands turn it into something reviewable, with no extra tooling:
+
+```bash
+amoo shots montage shots/ --columns 4          # one captioned contact sheet: shots/contact-sheet.png
+amoo shots diff baseline/ shots/ --out diffs/  # per-file same / CHANGED / MISSING / SIZE / NEW, exit 1 on any change
+```
+
+`diff` counts a pixel as changed when any colour channel moves by more than `--tolerance` (8), and
+fails a file when more than `--threshold` (0.1%) of its pixels changed; `--out` writes a red overlay
+of each failing file. Both need CoreGraphics, so they run on macOS only.
+
 ## Generating tests from a recorded session
 
 The canonical workflow is `start_session` → drive the app → `end_session` → inspect `plan.json` →
