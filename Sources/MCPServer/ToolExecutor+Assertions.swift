@@ -220,11 +220,14 @@ extension DriverToolExecutor {
         let timeoutMS = arguments["timeout_ms"].flatMap(Int.init) ?? 5000
         let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
+        let pick = try ElementPick.parse(arguments)
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
-            let match = try await resolveElement(selector: selector, driver: driver, appID: appID)
+            let match = try await resolveElement(
+                selector: selector, driver: driver, appID: appID, pick: pick, missingIsNil: kind == .absent
+            )
             switch kind {
             case .absent where match == nil:
                 return assertionSuccess("Element is absent", element: nil)
@@ -344,10 +347,20 @@ extension DriverToolExecutor {
     func resolveElement(
         selector: ElementSelector,
         driver: any PlatformDriver,
-        appID: String? = nil
+        appID: String? = nil,
+        pick: ElementPick? = nil,
+        missingIsNil: Bool = false
     ) async throws -> ElementInfo? {
         if selector.description == nil {
-            return try await uniqueElement(driver.findElements(selector, appID: appID))
+            return try await pickElement(
+                driver.findElements(selector, appID: appID), pick: pick, missingIsNil: missingIsNil
+            )
+        }
+        if pick != nil {
+            throw ToolExecutionError(
+                code: "invalid_argument",
+                message: "index and first need a precise selector (id, label, or contains_text), not a description."
+            )
         }
         guard let description = selector.description else { return nil }
         let all = try await filterAppRelevantElements(driver.findElements(

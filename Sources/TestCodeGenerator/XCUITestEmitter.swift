@@ -449,34 +449,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
     // swiftlint:enable large_tuple
 
-    private static func query(
-        _ operation: StudioToolOperation,
-        context: StudioTestContext? = nil,
-        idKey: String = "id",
-        labelKey: String = "label",
-        containsTextKey: String = "contains_text"
-    ) throws -> String {
-        if let id = operation.arguments[idKey] {
-            if let mapped = context?.selectorExpressions[id] {
-                let template = context?.idLookupTemplate ?? "app.descendants(matching: .any)[{{id}}]"
-                return template.replacingOccurrences(of: "{{id}}", with: mapped)
-            }
-            return "app.descendants(matching: .any)[\(literal(id))]"
-        }
-        if let label = operation.arguments[labelKey] {
-            return "app.descendants(matching: .any)"
-                + ".matching(NSPredicate(format: \"label == %@\", \(literal(label)))).firstMatch"
-        }
-        if let contains = operation.arguments[containsTextKey] {
-            return "app.descendants(matching: .any)"
-                + ".matching(NSPredicate(format: \"label CONTAINS %@\", \(literal(contains)))).firstMatch"
-        }
-        throw TestCodeGeneratorError.missingArgument(
-            tool: operation.tool, argument: "id, label, or contains_text"
-        )
-    }
-
-    private static func literal(_ value: String) -> String {
+    static func literal(_ value: String) -> String {
         var escaped =
             value
                 .replacingOccurrences(of: "\\", with: "\\\\")

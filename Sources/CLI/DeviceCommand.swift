@@ -74,10 +74,10 @@ Common tools:
   press_back
   press_home
   tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
-      [bundle_id=<id>] [parent_id=<id>]
+      [bundle_id=<id>] [parent_id=<id>] [index=<n>] [first=<true>]
   find_elements [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [labeled_only=<true|false>] [scope=<app|system>] [bundle_id=<id>]
-      [parent_id=<id>] [limit=<n>] [offset=<n>]
+      [labeled_only=<true|false>] [include_noise=<true|false>] [scope=<app|system>]
+      [bundle_id=<id>] [parent_id=<id>] [index=<n>] [first=<true>] [limit=<n>] [offset=<n>]
   get_view_hierarchy [scope=<app|system>] [bundle_id=<id>] [format=<full|summary>] [max_nodes=<n>]
   get_screen_context
   is_keyboard_visible
@@ -97,13 +97,14 @@ Common tools:
   webview_eval expression=<js> [bundle_id=<id>] [all_frames=<true|false>] [timeout_ms=<n>]
   webview_dom [bundle_id=<id>] [mode=<html|a11y>] [max_bytes=<n>]
   assert_visible [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>] [parent_id=<id>]
+      [timeout_ms=<n>] [parent_id=<id>] [index=<n>] [first=<true>]
   assert_enabled [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>] [parent_id=<id>]
+      [timeout_ms=<n>] [parent_id=<id>] [index=<n>] [first=<true>]
   assert_absent [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>] [parent_id=<id>]
+      [timeout_ms=<n>] [parent_id=<id>] [index=<n>] [first=<true>]
   assert_value [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
-      [timeout_ms=<n>] [expected=<text>] [contains=<text>] [parent_id=<id>] [record_value=<fixture>]
+      [timeout_ms=<n>] [expected=<text>] [contains=<text>] [parent_id=<id>] [index=<n>] [first=<true>]
+      [record_value=<fixture>]
   assert_screen_changed from_token=<token> [timeout_ms=<n>]
   device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...] [timeout_ms=<n>]
       (tool-argument form: environment=<K=V,...> launch_args=<a,b,c>)

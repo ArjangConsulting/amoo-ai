@@ -156,11 +156,12 @@ public actor DriverToolExecutor: ToolExecutor {
               await session.isActive
         else { return }
 
+        let recordedResult = result.recordedContent ?? result.content
         let action = SessionAction(
             timestamp: Date(),
             toolName: toolName,
             arguments: redactArguments(toolName: toolName, arguments: arguments),
-            result: toolName == "open_url" ? "Opened URL (query values redacted)" : result.content,
+            result: toolName == "open_url" ? "Opened URL (query values redacted)" : recordedResult,
             isError: result.isError,
             intent: sessionIntent(toolName: toolName, isError: result.isError),
             observedElements: result.observedElements,

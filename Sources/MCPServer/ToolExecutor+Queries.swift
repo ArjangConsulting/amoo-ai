@@ -96,21 +96,25 @@ extension DriverToolExecutor {
             parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) },
             labeledOnly: boolArgument(arguments["labeled_only"]) ?? false
         )
-        let elements = try await driver.findElements(
+        var elements = try await driver.findElements(
             selector,
             appID: queryScopeAppID(arguments: arguments, driver: driver)
         )
-        let selected = Array(elements.dropFirst(page.offset).prefix(page.limit))
-        let rows = selected.map { elementFields($0, includePickerValue: true) }
-        let descriptions = selected.map { element in
-            let point = element.hitPoint ?? element.frame?.centre
-            let position = point.map { " hitPoint: (\(Int($0.x)),\(Int($0.y))) pts" } ?? ""
-            let size = element.frame.map { " \(Int($0.width))x\(Int($0.height))" } ?? ""
-            let identity = element.id.isEmpty && element.label.isEmpty
-                ? "[unlabeled] \(element.type?.rawValue ?? "element")"
-                : "[\(element.id.prefix(240))] \(element.label.prefix(240))"
-            return identity + position + size
+        // `index` / `first` narrow the matches to the one a later tap or assertion would pick. That
+        // index counts the device's own order, so noise is never filtered out from under it.
+        let pick = try ElementPick.parse(arguments)
+        var hiddenNoise = 0
+        if let pick {
+            elements = try pickElement(elements, pick: pick, missingIsNil: true).map { [$0] } ?? []
+        } else if boolArgument(arguments["include_noise"]) != true, Self.listsEverything(arguments) {
+            let kept = Self.removingNoise(elements)
+            hiddenNoise = elements.count - kept.count
+            elements = kept
         }
+        let selected = Array(elements.dropFirst(page.offset).prefix(page.limit))
+        let rows = selected.map { elementFields($0, includeValue: true) }
+        let descriptions = selected.map { Self.describe($0, includeValue: true) }
+        let recordedDescriptions = selected.map { Self.describe($0, includeValue: false) }
         let next = page.offset + selected.count
         var fields: [String: Value] = [
             "elements": .array(rows), "total": .int(elements.count), "has_more": .bool(next < elements.count)
@@ -118,9 +122,14 @@ extension DriverToolExecutor {
         if next < elements.count {
             fields["next_offset"] = .int(next)
         }
+        if hiddenNoise > 0 {
+            fields["hidden_noise"] = .int(hiddenNoise)
+        }
+        let more = next < elements.count ? "\nMore results: offset=\(next)" : ""
+        let hidden = hiddenNoise > 0 ? "\n\(hiddenNoise) noise element(s) hidden; include_noise=true lists them." : ""
+        let header = "Found \(elements.count) element(s):\n"
         return ToolResult(
-            content: "Found \(elements.count) element(s):\n" + descriptions.joined(separator: "\n")
-                + (next < elements.count ? "\nMore results: offset=\(next)" : ""),
+            content: header + descriptions.joined(separator: "\n") + more + hidden,
             structuredContent: .object(fields),
             observedElements: selected.map { element in
                 RecordedElement(
@@ -130,11 +139,34 @@ extension DriverToolExecutor {
                     frame: element.frame.map { RecordedRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height) },
                     hitPoint: element.hitPoint.map { RecordedPoint(x: $0.x, y: $0.y) }
                 )
-            }
+            },
+            // A field's current text reaches the caller but is not written to the session report.
+            recordedContent: header + recordedDescriptions.joined(separator: "\n") + more + hidden
         )
     }
 
-    func elementFields(_ element: ElementInfo, includePickerValue: Bool = false) -> Value {
+    /// One line per element: identity, then the current value, then where it is.
+    static func describe(_ element: ElementInfo, includeValue: Bool) -> String {
+        let point = element.hitPoint ?? element.frame?.centre
+        let position = point.map { " hitPoint: (\(Int($0.x)),\(Int($0.y))) pts" } ?? ""
+        let size = element.frame.map { " \(Int($0.width))x\(Int($0.height))" } ?? ""
+        let identity = element.id.isEmpty && element.label.isEmpty
+            ? "[unlabeled] \(element.type?.rawValue ?? "element")"
+            : "[\(element.id.prefix(240))] \(element.label.prefix(240))"
+        let value = includeValue ? displayValue(of: element).map { " value=\"\($0)\"" } ?? "" : ""
+        return identity + value + position + size
+    }
+
+    /// The element's current value as one line, or `nil` when there is none to show. Secure fields
+    /// never show theirs.
+    static func displayValue(of element: ElementInfo) -> String? {
+        guard !element.isSecureTextEntry, let value = element.value, !value.isEmpty else { return nil }
+        return String(value.prefix(240))
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    func elementFields(_ element: ElementInfo, includeValue: Bool = false) -> Value {
         var fields: [String: Value] = [
             "id": .string(element.id), "label": .string(String(element.label.prefix(240))),
             "type": .string(element.type?.rawValue ?? "other"),
@@ -143,7 +175,7 @@ extension DriverToolExecutor {
         if let selected = element.isSelected {
             fields["selected"] = .bool(selected)
         }
-        if includePickerValue, element.type == .picker, !element.isSecureTextEntry, let value = element.value {
+        if includeValue, !element.isSecureTextEntry, let value = element.value, !value.isEmpty {
             fields["value"] = .string(String(value.prefix(240)))
         }
         if let point = element.hitPoint ?? element.frame?.centre {
