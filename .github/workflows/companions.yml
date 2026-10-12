@@ -43,14 +43,40 @@ jobs:
           path: .build
           key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
       - run: make companion-ios-build
+      - name: Boot iOS simulator
+        id: simulator
+        shell: bash
+        run: |
+          simulator_id="$(python3 - <<'PY'
+          import json
+          import subprocess
+
+          catalog = json.loads(subprocess.check_output(
+              ["xcrun", "simctl", "list", "devices", "available", "--json"]
+          ))
+          candidates = [
+              (tuple(map(int, runtime.rsplit("iOS-", 1)[1].split("-"))), device["name"], device["udid"])
+              for runtime, devices in catalog["devices"].items() if "iOS-" in runtime
+              for device in devices if device["name"].startswith("iPhone")
+          ]
+          if not candidates:
+              raise SystemExit("No available iPhone simulator runtime is installed")
+          newest = max(version for version, _, _ in candidates)
+          print(min((name, udid) for version, name, udid in candidates if version == newest)[1])
+          PY
+          )"
+          xcrun simctl bootstatus "$simulator_id" -b
+          echo "udid=$simulator_id" >> "$GITHUB_OUTPUT"
       - name: Simulator smoke
-        run: scripts/run-e2e-ios.sh --skip-build 2>&1 | tee smoke-ios.log
+        shell: bash
+        run: scripts/run-e2e-ios.sh --skip-build --device "${{ steps.simulator.outputs.udid }}" 2>&1 | tee smoke-ios.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ios-smoke
           path: |
             smoke-ios.log
+            CompanionApps/iOS/build/companion-ios-build.log
             CompanionApps/iOS/build/Logs/Test/*.xcresult
   android:
     runs-on: ubuntu-latest

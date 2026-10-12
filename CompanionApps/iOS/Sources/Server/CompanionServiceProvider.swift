@@ -92,11 +92,13 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         var speech = Amoo_CapabilityDescriptor()
         speech.key = "accessibility.voiceOverTraversal"
         speech.tier = .optional
+        speech.reasonIfUnsupported = "Requires an Xcode 27+ companion build and iOS 27 public VoiceOver service"
+        #if compiler(>=6.4)
         if #available(iOS 27.0, *) {
             speech.supported = true
-        } else {
-            speech.reasonIfUnsupported = "Requires iOS 27 public VoiceOver service"
+            speech.reasonIfUnsupported = ""
         }
+        #endif
         response.capabilities.append(speech)
         var phases = speech
         phases.key = "accessibility.voiceOverPhases"

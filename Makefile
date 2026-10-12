@@ -49,11 +49,12 @@ companion-ios-protos:
 	./CompanionApps/iOS/generate-protos.sh
 
 companion-ios-build: companion-ios-protos companion-ios-project
+	mkdir -p CompanionApps/iOS/build
 	set -o pipefail; cd CompanionApps/iOS && xcodebuild build-for-testing \
 		-project AmooCompanion.xcodeproj \
 		-scheme AmooCompanion \
 		-destination 'generic/platform=iOS Simulator' \
-		-derivedDataPath build 2>&1 | tail -5
+		-derivedDataPath build 2>&1 | tee build/companion-ios-build.log
 	python3 CompanionApps/iOS/sign-simulator-products.py CompanionApps/iOS/build/Build/Products
 
 companion-android-build:
