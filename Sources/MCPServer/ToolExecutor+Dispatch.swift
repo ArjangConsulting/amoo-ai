@@ -251,8 +251,13 @@ extension DriverToolExecutor {
                 return .error("tap_element failed: matched element is not visible and enabled")
             }
             let tapPoint = matched.hitPoint ?? matched.frame.map(\.centre)
-            if let tapPoint, await shouldCheckHittable(arguments: arguments, driver: driver),
-               let refusal = await tapBlockError(matched: matched, point: tapPoint, driver: driver, appID: appID) {
+            if let tapPoint, let refusal = await tapBlockError(
+                matched: matched,
+                point: tapPoint,
+                check: hittableCheck(arguments: arguments),
+                driver: driver,
+                appID: appID
+            ) {
                 return refusal
             }
             let checkEffect = arguments["check_effect"].flatMap(boolArgument) ?? false

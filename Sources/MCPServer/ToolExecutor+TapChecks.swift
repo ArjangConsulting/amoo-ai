@@ -7,6 +7,8 @@ enum TapBlock: Equatable {
     case offScreen(Point)
     /// Another control is painted over the tap point.
     case covered(by: String)
+    /// A container that clips its content (tab bar, scroll view, sheet) ends before the tap point.
+    case clipped(by: String)
 
     var explanation: String {
         switch self {
@@ -14,6 +16,8 @@ enum TapBlock: Equatable {
             "its tap point (\(Int(point.x)), \(Int(point.y))) is outside the visible screen"
         case let .covered(blocker):
             "it is covered by \(blocker)"
+        case let .clipped(container):
+            "it lies outside \(container), which clips it"
         }
     }
 }
@@ -31,9 +35,18 @@ enum TapHittability {
         .button, .textField, .switchControl, .slider, .picker, .alert, .sheet, .tabBar, .navigationBar
     ]
 
+    /// Containers whose frame bounds what is visible inside them. An element that lies beyond one is
+    /// scrolled out or clipped, whatever its own frame says.
+    private static let clipping: Set<ElementType> = [
+        .tabBar, .scrollView, .table, .collectionView, .navigationBar, .sheet, .alert
+    ]
+
     static func block(for target: ElementInfo, at point: Point, in root: ViewNode) -> TapBlock? {
         if let window = root.frame, !contains(window, point) {
             return .offScreen(point)
+        }
+        if let container = clippingAncestor(of: target, containing: point, in: root) {
+            return .clipped(by: describe(container))
         }
         var order: [(node: ViewNode, insideTarget: Bool)] = []
         collect(root, target: target, insideTarget: false, into: &order)
@@ -45,6 +58,30 @@ enum TapHittability {
             }
         }
         return nil
+    }
+
+    /// The nearest clipping ancestor of `target` whose frame does not contain `point`, if any.
+    private static func clippingAncestor(
+        of target: ElementInfo,
+        containing point: Point,
+        in root: ViewNode
+    ) -> ViewNode? {
+        func search(_ node: ViewNode, path: [ViewNode]) -> [ViewNode]? {
+            if isTarget(node, target) {
+                return path
+            }
+            for child in node.children {
+                if let found = search(child, path: path + [node]) {
+                    return found
+                }
+            }
+            return nil
+        }
+        guard let ancestors = search(root, path: []) else { return nil }
+        return ancestors.reversed().first { node in
+            guard let type = node.type, clipping.contains(type), let frame = node.frame else { return false }
+            return !contains(frame, point)
+        }
     }
 
     private static func collect(
@@ -77,26 +114,46 @@ enum TapHittability {
 }
 
 extension DriverToolExecutor {
-    /// Whether `tap_element` should look at the hierarchy before tapping.
+    /// How `tap_element` checks the tap point against the hierarchy before tapping.
     ///
-    /// `check_hittable` forces it on or off. Without it the check runs only while the keyboard is
-    /// up — the one overlay that routinely covers a control — because a hierarchy snapshot is the
-    /// most expensive call on a dense screen.
-    func shouldCheckHittable(arguments: [String: String], driver: any PlatformDriver) async -> Bool {
+    /// `check_hittable=true` insists on it, `false` skips it. By default the check is best effort: a
+    /// hierarchy read is ~0.1s on an ordinary screen, so it is worth running on every tap, but on a
+    /// very dense one (accessibility text sizes) it can take far longer — so the default gives up
+    /// after `hittable_timeout_ms` (1500) and taps unchecked rather than slowing every call.
+    enum HittableCheck: Equatable {
+        case off
+        case required
+        case bestEffort(milliseconds: Int)
+    }
+
+    func hittableCheck(arguments: [String: String]) -> HittableCheck {
         if let raw = arguments["check_hittable"], let flag = boolArgument(raw) {
-            return flag
+            return flag ? .required : .off
         }
-        return await (try? driver.isKeyboardVisible()) ?? false
+        let budget = arguments["hittable_timeout_ms"].flatMap(Int.init) ?? 1500
+        return budget > 0 ? .bestEffort(milliseconds: budget) : .off
     }
 
     /// A refusal for a tap that would miss `matched`, or `nil` when it looks safe to tap.
     func tapBlockError(
         matched: ElementInfo,
         point: Point,
+        check: HittableCheck,
         driver: any PlatformDriver,
         appID: String?
     ) async -> ToolResult? {
-        guard let hierarchy = try? await driver.getViewHierarchy(appID: appID),
+        let hierarchy: ViewNode?
+        switch check {
+        case .off:
+            return nil
+        case .required:
+            hierarchy = try? await driver.getViewHierarchy(appID: appID)
+        case let .bestEffort(milliseconds):
+            hierarchy = await Self.withinBudget(milliseconds: milliseconds) {
+                try? await driver.getViewHierarchy(appID: appID)
+            }
+        }
+        guard let hierarchy,
               let block = TapHittability.block(for: matched, at: point, in: hierarchy)
         else { return nil }
         let name = preferredElementName(label: matched.label, id: matched.id) ?? matched.id
@@ -109,6 +166,26 @@ extension DriverToolExecutor {
 }
 
 extension DriverToolExecutor {
+    /// Runs `operation`, or returns `nil` if it has not finished within `milliseconds`.
+    static func withinBudget<T: Sendable>(
+        milliseconds: Int,
+        _ operation: @escaping @Sendable () async -> T?
+    ) async -> T? {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await operation() }
+            group.addTask {
+                try? await Task.sleep(for: .milliseconds(milliseconds))
+                return nil
+            }
+            var result: T?
+            if let first = await group.next() {
+                result = first
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+
     /// Builds the `tap_element` success result, flagging taps that landed somewhere unexpected.
     ///
     /// `verified` still means the target was resolved, visible and enabled before the tap. What

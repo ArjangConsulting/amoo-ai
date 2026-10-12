@@ -85,14 +85,57 @@ final class TapChecksTests: XCTestCase {
         XCTAssertEqual(taps.count, 1)
     }
 
-    func testSkipsTheHierarchyReadByDefaultWithoutAKeyboard() async {
+    func testChecksHittabilityByDefaultEvenWithoutAKeyboard() async {
         let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(overlay: keypad))
         let result = await DriverToolExecutor(driver: driver).execute(
             toolName: "tap_element", arguments: ["id": "add"]
         )
+        XCTAssertTrue(result.isError, result.content)
+        XCTAssertTrue(result.content.contains("covered by"), result.content)
+        let taps = await driver.taps
+        XCTAssertTrue(taps.isEmpty)
+    }
+
+    func testAZeroBudgetTurnsTheDefaultCheckOff() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(overlay: keypad))
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "hittable_timeout_ms": "0"]
+        )
         XCTAssertFalse(result.isError, result.content)
         let reads = await driver.hierarchyReads
         XCTAssertEqual(reads, 0)
+    }
+
+    func testASlowHierarchyDoesNotHoldUpTheDefaultTap() async {
+        let driver = TapCheckDriver(
+            target: Self.addButton, hierarchy: screen(overlay: keypad), hierarchyDelay: .seconds(5)
+        )
+        let started = ContinuousClock.now
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "hittable_timeout_ms": "200"]
+        )
+        XCTAssertFalse(result.isError, "an unchecked tap proceeds: \(result.content)")
+        XCTAssertLessThan(ContinuousClock.now - started, .seconds(3))
+        let taps = await driver.taps
+        XCTAssertEqual(taps.count, 1)
+    }
+
+    func testAnElementBeyondItsClippingContainerIsClipped() {
+        let pillTab = ElementInfo(
+            id: "tab.settings", label: "Settings", type: .button, frame: Rect(x: 500, y: 20, width: 100, height: 40)
+        )
+        let pill = ViewNode(
+            id: "pill", type: .tabBar, frame: Rect(x: 100, y: 10, width: 465, height: 60),
+            children: [ViewNode(id: "tab.settings", label: "Settings", type: .button, frame: pillTab.frame)]
+        )
+        let root = ViewNode(
+            id: "root", type: .other, frame: Rect(x: 0, y: 0, width: 1024, height: 768), children: [pill]
+        )
+        XCTAssertEqual(
+            TapHittability.block(for: pillTab, at: Point(x: 586, y: 40), in: root),
+            .clipped(by: "tabBar 'pill'")
+        )
+        XCTAssertNil(TapHittability.block(for: pillTab, at: Point(x: 540, y: 40), in: root))
     }
 
     func testWarnsWhenTheForegroundAppChanges() async {
@@ -133,6 +176,7 @@ private actor TapCheckDriver: PlatformDriver {
     private let target: ElementInfo
     private let hierarchy: ViewNode
     private let keyboardVisible: Bool
+    private let hierarchyDelay: Swift.Duration?
     private var foregrounds: [String]
     private var summaries: [String]
     private(set) var taps: [Point] = []
@@ -143,8 +187,10 @@ private actor TapCheckDriver: PlatformDriver {
         hierarchy: ViewNode,
         keyboardVisible: Bool = false,
         foregrounds: [String] = ["com.jot", "com.jot"],
-        summaries: [String] = ["Home", "Home"]
+        summaries: [String] = ["Home", "Home"],
+        hierarchyDelay: Swift.Duration? = nil
     ) {
+        self.hierarchyDelay = hierarchyDelay
         self.target = target
         self.hierarchy = hierarchy
         self.keyboardVisible = keyboardVisible
@@ -170,6 +216,9 @@ private actor TapCheckDriver: PlatformDriver {
 
     func getViewHierarchy(appID _: String?) async throws -> ViewNode {
         hierarchyReads += 1
+        if let hierarchyDelay {
+            try await Task.sleep(for: hierarchyDelay)
+        }
         return hierarchy
     }
 

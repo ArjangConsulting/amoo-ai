@@ -218,9 +218,15 @@ public enum ActionTools {
                 ),
                 "check_hittable": .init(
                     type: "string",
-                    description: "'true' refuses the tap when another control (keyboard, sheet) covers the"
-                        + " tap point or it lies off-screen; 'false' skips the check. By default the check runs"
-                        + " only while the keyboard is visible, because it reads the full hierarchy."
+                    description: "Before tapping, read the hierarchy and refuse a target another control"
+                        + " (keyboard, sheet) covers, a clipping container cuts off, or that is off-screen."
+                        + " Runs by default, giving up after hittable_timeout_ms; 'true' makes it required,"
+                        + " 'false' skips it."
+                ),
+                "hittable_timeout_ms": .init(
+                    type: "string",
+                    description: "Budget for the default check, in milliseconds (default 1500). A hierarchy"
+                        + " read that takes longer is abandoned and the tap proceeds unchecked; 0 disables."
                 ),
                 "check_effect": .init(
                     type: "string",

@@ -204,9 +204,11 @@ another companion process".
 
 ### Tap safety and scrolling
 
-`tap_element` refuses a target that another control (a keyboard key, a sheet) is painted over, or
-whose tap point is off-screen, when `check_hittable=true` — and by default whenever the keyboard
-is visible (the check reads the full hierarchy, so it is not on for every tap). It always reports
+`tap_element` reads the hierarchy before tapping and refuses a target that another control (a
+keyboard key, a sheet) is painted over, that a clipping container (a tab pill, a scroll view) cuts
+off, or whose tap point is off-screen. The check is on by default but best effort: it gives up after
+`hittable_timeout_ms` (1500) and taps unchecked, so a very dense screen never slows every call.
+`check_hittable=true` makes it required; `false` skips it. It always reports
 `foreground_changed` when the tap left the app (Siri, a system sheet), and with `check_effect=true`
 adds `observable_change` so a tap that moved nothing reads "No observable change" rather than
 success. `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
