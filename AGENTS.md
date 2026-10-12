@@ -23,6 +23,7 @@ swift test                 # XCTest, ~1500 case executions across ~15 bundles; a
 make lint                  # swiftformat --lint  +  swiftlint --strict   (both, they enforce different rules)
 make format                # swiftformat, run twice (not idempotent here — see scripts/ci/format.sh)
 make check                 # format + lint + test — the pre-commit gate
+make release-local          # rebuild .build/release/amoo (what an MCP client pointed at a checkout runs); prints `amoo version`
 ```
 
 Every code contribution must pass `make lint` before it is committed or submitted for review. Run

@@ -29,6 +29,25 @@ public struct CLIApp {
         AmooVersion.current
     }
 
+    /// `amoo version`: the version plus what identifies *this build* — local builds all report the last
+    /// release-stamped version, so only the source commit and build time say whether a binary is stale.
+    static func verboseVersion(_ info: AmooBuildInfo) -> String {
+        let format = ISO8601DateFormatter()
+        var lines = ["amoo \(info.version)"]
+        if let commit = info.sourceCommit {
+            lines.append("commit:  \(commit)\(info.sourceDirty == "true" ? " (uncommitted changes)" : "")")
+        } else {
+            lines.append("commit:  unknown (not a source build)")
+        }
+        if let built = info.binaryModifiedAt {
+            lines.append("built:   \(format.string(from: built))")
+        }
+        if let path = info.executablePath {
+            lines.append("binary:  \(path)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
@@ -70,6 +89,10 @@ public struct CLIApp {
 
         if args == ["--version"] {
             return CLIResult(output: Self.versionString, exitCode: 0)
+        }
+
+        if args == ["version"] || args == ["--version", "--verbose"] {
+            return CLIResult(output: Self.verboseVersion(AmooBuildInfo.current), exitCode: 0)
         }
 
         if isHelpToken(args.first) {
@@ -325,6 +348,7 @@ func renderCLIHelp() -> String {
 
     Commands:
       help                         Show this help
+      version                      Show the version, source commit and build time of this binary
       preflight [--platform ...]   Check local tooling and environment
       doctor [--json] [--kill-stale]  Health check: build, stale MCP servers, devices, runtimes, companions, leases
       device ...                   Run a device tool against iOS or Android

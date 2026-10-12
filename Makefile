@@ -30,6 +30,13 @@ build: swift-build companion-build
 swift-build:
 	./scripts/with-protoc.sh swift build
 
+# Rebuild the optimized binary at .build/release/amoo (the path an MCP client configured against a
+# checkout points at) and print which build it now is. A stale one lacks every tool added since it
+# was built, so run this after pulling.
+release-local:
+	./scripts/with-protoc.sh swift build -c release --product amoo
+	.build/release/amoo version
+
 # Regenerate the client-specific agent files committed in plugins/amoo from its canonical
 # agents/*.md. AmooPluginTests fails when they are stale.
 plugin:
