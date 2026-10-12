@@ -95,7 +95,6 @@ final class ContextExampleTest: MyAppUITestCase {
         let tasksTab = app.descendants(matching: .any)["app.tab.tasks"]
         waitForHittability(tasksTab, named: "tasksTab", timeout: 5.0)
         tasksTab.tap()
-
         waitForHittability(tasksTab, named: "tasksTab", timeout: 5.0)
     }
 }

@@ -95,7 +95,6 @@ final class _2FALoginTest: XCTestCase {
         let emailField = app.descendants(matching: .any)["email-field"]
         waitForHittability(emailField, named: "emailField", timeout: 5.0)
         emailField.tap()
-
         waitForHittability(emailField, named: "emailField", timeout: 5.0)
         replaceText(in: emailField, with: "user@example.com")
         app.typeText("line one\nline two\ttabbed")
@@ -106,12 +105,10 @@ final class _2FALoginTest: XCTestCase {
         waitForExistence(spinner, named: "spinner", timeout: 2.0)
         let welcome = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Welcome")).firstMatch
         waitForHittability(welcome, named: "welcome", timeout: 5.0)
-
         waitForAbsence(spinner, named: "spinner", timeout: 5.0)
         let greeting = app.descendants(matching: .any)["greeting"]
         waitForExistence(greeting, named: "greeting", timeout: 5.0)
         XCTAssertEqual(greeting.label, "Hi there")
-
         waitForExistence(emailField, named: "emailField", timeout: 5.0)
         XCTAssertEqual(emailField.value as? String, "user@example.com")
         let screenshot = XCTAttachment(screenshot: app.screenshot())

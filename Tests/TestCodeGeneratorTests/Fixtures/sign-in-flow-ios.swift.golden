@@ -95,7 +95,6 @@ final class SignInFlowTest: XCTestCase {
         let emailField = app.descendants(matching: .any)["email-field"]
         waitForHittability(emailField, named: "emailField", timeout: 5.0)
         emailField.tap()
-
         waitForHittability(emailField, named: "emailField", timeout: 5.0)
         replaceText(in: emailField, with: "user@example.com")
         let signInButton = app.descendants(matching: .any)["sign-in-button"]

@@ -34,7 +34,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 at: min(warning.actionIndex, statements.count)
             )
         }
-        let body = statements.joined(separator: "\n")
+        let body = Self.collapsingRepeatedWaits(statements.joined(separator: "\n"))
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
             .joined(separator: "\n")
@@ -198,6 +198,25 @@ public struct XCUITestEmitter: StudioCodeEmitting {
     }
 
     private static let indent = "        "
+
+    /// Drops the blank line a re-used element's empty declaration leaves behind, and a wait that
+    /// repeats the line before it. `assert_visible(x)` followed by `tap_element(x)` waited for the same
+    /// element twice in a row — the second wait proves nothing the first did not.
+    static func collapsingRepeatedWaits(_ body: String) -> String {
+        var kept: [Substring] = []
+        for line in body.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                continue
+            }
+            let isWait = trimmed.hasPrefix("waitForHittability(") || trimmed.hasPrefix("waitForExistence(")
+            if isWait, kept.last == line {
+                continue
+            }
+            kept.append(line)
+        }
+        return kept.joined(separator: "\n")
+    }
 
     private static func launchConfiguration(for test: StudioAuthoredTest) -> String {
         guard let requirements = test.requirements else { return "" }

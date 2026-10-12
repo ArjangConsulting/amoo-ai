@@ -106,3 +106,29 @@ final class ElementPickCodegenTests: XCTestCase {
         }
     }
 }
+
+final class RepeatedWaitCollapseTests: XCTestCase {
+    func testAnAssertThenATapOfTheSameElementWaitsOnce() {
+        let body = """
+                let close = app.buttons["Close"]
+                waitForHittability(close, named: "close", timeout: 5.0)
+
+                waitForHittability(close, named: "close", timeout: 5.0)
+                close.tap()
+        """
+        let collapsed = XCUITestEmitter.collapsingRepeatedWaits(body)
+        XCTAssertEqual(collapsed.components(separatedBy: "waitForHittability(").count - 1, 1, collapsed)
+        XCTAssertFalse(collapsed.contains("\n\n"), collapsed)
+        XCTAssertTrue(collapsed.hasSuffix("close.tap()"))
+    }
+
+    func testDifferentOrNonAdjacentWaitsAreKept() {
+        let body = """
+                waitForHittability(a, named: "a", timeout: 5.0)
+                waitForHittability(b, named: "b", timeout: 5.0)
+                a.tap()
+                waitForHittability(a, named: "a", timeout: 5.0)
+        """
+        XCTAssertEqual(XCUITestEmitter.collapsingRepeatedWaits(body), body)
+    }
+}
