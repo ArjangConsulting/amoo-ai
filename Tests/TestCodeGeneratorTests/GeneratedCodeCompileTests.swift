@@ -56,4 +56,33 @@ final class GeneratedCodeCompileTests: XCTestCase {
         let result = try ComposeEspressoEmitter().generate(makeTest(platform: .android))
         try CompileVerification.verifyKotlinCompiles(result.source)
     }
+
+    /// Picks among duplicate matches (`index` / `first`) on every targeting step.
+    private static let pickOperations: [StudioToolOperation] = [
+        .init(id: "p1", tool: "tap_element", arguments: ["id": "tab.reports", "index": "1"]),
+        .init(id: "p2", tool: "assert_visible", arguments: ["label": "Reports", "first": "true"]),
+        .init(id: "p3", tool: "tap_element", arguments: ["contains_text": "Rep", "index": "0"])
+    ]
+
+    private func makePickTest(platform: Platform) -> StudioAuthoredTest {
+        StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Pick Flow",
+            description: "",
+            platform: platform,
+            steps: [.init(id: "step-1", instruction: "Tap", expected: "Tapped")],
+            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: Self.pickOperations)
+        )
+    }
+
+    func testGeneratedEspressoPicksCompile() throws {
+        let result = try EspressoEmitter().generate(makePickTest(platform: .android))
+        XCTAssertTrue(result.source.contains("private fun withIndex("), "the helper accompanies its use")
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
+
+    func testGeneratedComposePicksCompile() throws {
+        let result = try ComposeEspressoEmitter().generate(makePickTest(platform: .android))
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
 }

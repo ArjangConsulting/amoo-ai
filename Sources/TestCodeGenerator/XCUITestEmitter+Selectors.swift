@@ -50,6 +50,14 @@ extension XCUITestEmitter {
         case first
         case index(Int)
 
+        /// The 0-based position among the matches, for emitters that index a list of them.
+        var position: Int {
+            switch self {
+            case .first: 0
+            case let .index(index): index
+            }
+        }
+
         /// The query suffix that narrows a multi-match query to one element.
         var suffix: String {
             switch self {
