@@ -64,7 +64,10 @@ final class GeneratedCodeCompileTests: XCTestCase {
         .init(id: "p3", tool: "tap_element", arguments: ["contains_text": "Rep", "index": "0"]),
         // A substring value check, beside an exact one.
         .init(id: "p4", tool: "assert_value", arguments: ["id": "greeting", "contains": "Hi"]),
-        .init(id: "p5", tool: "assert_value", arguments: ["id": "greeting", "value": "Hi there"])
+        .init(id: "p5", tool: "assert_value", arguments: ["id": "greeting", "value": "Hi there"]),
+        // Scrolling a below-the-fold row into view, in both directions of travel.
+        .init(id: "p6", tool: "scroll_to_element", arguments: ["id": "row.far", "max_attempts": "5"]),
+        .init(id: "p7", tool: "scroll_to_element", arguments: ["label": "Top", "direction": "up"])
     ]
 
     private func makePickTest(platform: Platform) -> StudioAuthoredTest {

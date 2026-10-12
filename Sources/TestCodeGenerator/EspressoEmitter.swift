@@ -24,6 +24,8 @@ public struct EspressoEmitter: StudioCodeEmitting {
             .map { "    \($0)" }
             .joined(separator: "\n")
         let needsIndexMatcher = body.contains("withIndex(")
+        let scrollImport = body
+            .contains("scrollTo()") ? "\nimport androidx.test.espresso.action.ViewActions.scrollTo" : ""
         let needsResourceNameMatcher = operations.contains {
             ($0.arguments["id"] != nil || $0.arguments["element_id"] != nil) && [
                 "tap_element",
@@ -57,7 +59,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         import androidx.test.espresso.UiController
         import androidx.test.espresso.ViewAction
         import androidx.test.espresso.action.ViewActions.click
-        import androidx.test.espresso.action.ViewActions.replaceText
+        import androidx.test.espresso.action.ViewActions.replaceText\(scrollImport)
         import androidx.test.espresso.action.ViewActions.swipeDown
         import androidx.test.espresso.action.ViewActions.swipeLeft
         import androidx.test.espresso.action.ViewActions.swipeRight
@@ -305,6 +307,15 @@ public struct EspressoEmitter: StudioCodeEmitting {
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             \(indent)onView(\(target)).check(matches(withText(\(textMatcher))))
+            """
+
+        case .scrollToElement:
+            let target = try matcher(operation)
+            // `scrollTo()` scrolls a ScrollView/NestedScrollView; a RecyclerView needs
+            // `RecyclerViewActions.scrollTo` with the same matcher, which this file cannot assume.
+            return try """
+            \(indent)onView(\(target)).perform(scrollTo())
+            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             """
 
         case .assertEnabled:

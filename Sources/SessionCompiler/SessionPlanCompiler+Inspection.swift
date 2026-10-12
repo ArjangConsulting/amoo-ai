@@ -23,7 +23,7 @@ extension SessionPlanCompiler {
     static let stateChangingTools: Set<String> = [
         "tap_element", "tap", "double_tap", "long_press",
         "set_text", "type_text", "fill_field",
-        "swipe", "swipe_in_direction", "scroll", "press_back"
+        "swipe", "swipe_in_direction", "scroll", "scroll_to_element", "press_back"
     ]
 
     static func isTransition(_ action: SessionAction) -> Bool {

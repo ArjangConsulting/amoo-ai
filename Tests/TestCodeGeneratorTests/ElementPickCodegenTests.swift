@@ -23,6 +23,21 @@ final class ElementPickCodegenTests: XCTestCase {
         return try XCUITestEmitter().generate(test).source
     }
 
+    func testScrollToElementLoopsSwipesUntilHittableThenWaits() throws {
+        let code = try source([
+            .init(
+                id: "op-1",
+                tool: "scroll_to_element",
+                arguments: ["id": "row.far", "direction": "down", "max_attempts": "5"]
+            )
+        ])
+        XCTAssertTrue(code.contains("for _ in 0 ..< 5 where !"), code)
+        XCTAssertTrue(code.contains(".isHittable { app.swipeUp() }"), "scrolling down swipes up:\n\(code)")
+        let loop = try XCTUnwrap(code.range(of: "app.swipeUp()"))
+        let wait = try XCTUnwrap(code.range(of: "waitForHittability(", range: loop.upperBound ..< code.endIndex))
+        XCTAssertLessThan(loop.lowerBound, wait.lowerBound)
+    }
+
     func testASwipeOnAPickedElementKeepsThePickInTheQuery() throws {
         let code = try source([
             .init(

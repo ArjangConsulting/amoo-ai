@@ -43,6 +43,19 @@ final class SessionPlanCompilerValueTests: XCTestCase {
         XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings, [])
     }
 
+    func testScrollToElementIsAPlanStepNotAnExclusion() throws {
+        let report = makeReport(actions: [
+            makeAction(tool: "scroll_to_element", arguments: ["id": "row.far", "direction": "down"]),
+            makeAction(tool: "tap_element", arguments: ["id": "row.far"])
+        ])
+
+        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
+
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+        XCTAssertEqual(operations.map(\.tool), ["scroll_to_element", "tap_element"])
+        XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings, [])
+    }
+
     func testExactValueAssertionStillCompilesToEquality() throws {
         let report = makeReport(actions: [
             makeAction(tool: "assert_value", arguments: ["id": "message", "expected": "Welcome back"])
