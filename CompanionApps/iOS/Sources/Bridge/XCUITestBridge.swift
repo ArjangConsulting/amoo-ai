@@ -343,8 +343,39 @@ final class XCUITestBridge: @unchecked Sendable {
     /// register the drag finishing over them.
     private static let dropSettleSeconds: TimeInterval = 0.2
 
+    /// Scrolls the view so content in `direction` comes into view: `.down` reveals what is below, so
+    /// the finger travels up.
+    ///
+    /// `distance` is points of finger travel, centred on the screen. It used to be handed to
+    /// `swipeUp(velocity:)` as a *velocity*, so the default 300 became a slow 300 pt/s flick that
+    /// barely moved a list and did nothing inside a sheet with the keyboard up.
     func scroll(direction: ScrollDirection, distance: Double) {
         defer { invalidateSnapshotCache() }
+        let frame = gestureTarget().frame.standardized
+        guard !frame.isNull, !frame.isEmpty else {
+            scrollWithDirectionalSwipe(direction: direction, distance: distance)
+            return
+        }
+        let (unitX, unitY): (Double, Double) = switch direction {
+        case .down: (0, -1)
+        case .up: (0, 1)
+        case .right: (-1, 0)
+        case .left: (1, 0)
+        }
+        let extent = unitX != 0 ? frame.width : frame.height
+        let travel = min(max(distance, 1), extent * 0.7)
+        let centre = (x: Double(frame.midX), y: Double(frame.midY))
+        drag(
+            fromX: centre.x - unitX * travel / 2,
+            fromY: centre.y - unitY * travel / 2,
+            toX: centre.x + unitX * travel / 2,
+            toY: centre.y + unitY * travel / 2,
+            durationSeconds: 0.4,
+            holdSeconds: 0.05
+        )
+    }
+
+    private func scrollWithDirectionalSwipe(direction: ScrollDirection, distance: Double) {
         let target = gestureTarget()
         switch direction {
         case .up:
@@ -453,6 +484,15 @@ final class XCUITestBridge: @unchecked Sendable {
         gestureTarget().typeText(deleteString)
     }
 
+    /// What `setText` did, so a field that was found but did not take the text is not reported as
+    /// "not found" — which sent callers retrying into a field that already held part of the value.
+    enum SetTextOutcome {
+        case set
+        case fieldNotFound
+        /// The field was focused and typed into, but did not read back the requested text.
+        case valueNotAccepted
+    }
+
     func setText(
         id: String?,
         label: String?,
@@ -460,7 +500,7 @@ final class XCUITestBridge: @unchecked Sendable {
         text: String,
         bundleID: String?,
         candidateBundleIDs: [String]
-    ) async -> Bool {
+    ) async -> SetTextOutcome {
         defer { invalidateSnapshotCache() }
         guard await tapElement(
             id: id,
@@ -468,18 +508,28 @@ final class XCUITestBridge: @unchecked Sendable {
             containsText: containsText,
             bundleID: bundleID,
             candidateBundleIDs: candidateBundleIDs
-        ) else { return false }
+        ) else { return .fieldNotFound }
         // `typeText`/`clearText` no-op when nothing resolves as a text input. Without this check
         // a tap that landed on a static label would still report the field as filled.
-        guard let textInput = resolvedTextInput() else { return false }
+        guard let textInput = resolvedTextInput() else { return .fieldNotFound }
         let before = (textInput.value as? String) ?? ""
         clearText(characterCount: nil)
         typeText(text)
-        let after = (textInput.value as? String) ?? ""
+        var after = (textInput.value as? String) ?? ""
+        if textInput.elementType != .secureTextField, after != text {
+            // The clear deletes as many characters as the field read back, from the caret. When the
+            // caret sat left of the existing text, or the field reformats what it holds, that left
+            // some of it behind and the new text landed beside it ("0" + "8" → "08"). One retry
+            // that over-deletes — extra deletes on an empty field are harmless — settles it.
+            clearText(characterCount: max(after.count, before.count) + 4)
+            typeText(text)
+            after = (textInput.value as? String) ?? ""
+        }
         // A secure field reports a mask rather than what was typed, so an exact match is not
         // always available — but the content still has to have moved off what was there before.
-        return after == text ||
+        let accepted = after == text ||
             (textInput.elementType == .secureTextField && !text.isEmpty && !after.isEmpty && after != before)
+        return accepted ? .set : .valueNotAccepted
     }
 
     // MARK: - Navigation

@@ -309,7 +309,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         context _: ServerContext
     ) async throws -> Amoo_ActionResponse {
         let selector = request.selector
-        let set = await text.setText(
+        let outcome = await text.setText(
             id: selector.id.nonEmpty,
             label: selector.label.nonEmpty,
             containsText: selector.containsText.nonEmpty,
@@ -317,7 +317,15 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             bundleID: request.appID.nonEmpty,
             candidateBundleIDs: request.candidateBundleIds
         )
-        return set ? successResponse() : failResponse("text field not found")
+        switch outcome {
+        case .set: return successResponse()
+        case .fieldNotFound: return failResponse("text field not found")
+        case .valueNotAccepted:
+            return failResponse(
+                "text field was focused and typed into, but did not read back the requested text; "
+                    + "read its value before retrying so partial text is not appended to"
+            )
+        }
     }
 
     // MARK: - Navigation

@@ -103,12 +103,39 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "scroll",
-            description: "Scroll in a direction",
+            description: "Scroll the view so content in a direction comes into view: down reveals what is"
+                + " below (the finger travels up), up reveals what is above. This is the opposite of"
+                + " swipe_in_direction, whose direction is the finger's. To bring one element on screen,"
+                + " use scroll_to_element.",
             properties: [
-                "direction": .init(type: "string", description: "Scroll direction: up, down, left, or right"),
-                "distance": .init(type: "string", description: "Scroll distance in points. Defaults to 300.")
+                "direction": .init(type: "string", description: "Which way to scroll: up, down, left, or right"),
+                "distance": .init(
+                    type: "string",
+                    description: "Finger travel in points, centred on the screen. Defaults to 300."
+                )
             ],
             required: ["direction"]
+        ),
+        ToolDefinition(
+            name: "scroll_to_element",
+            description: "Scroll until an element is on screen and tappable, then stop. Matches by id, label,"
+                + " or contains_text; scrolls down by default, and reverses once it reaches the end of the"
+                + " content. Fails with the number of attempts when the element never appears.",
+            properties: [
+                "id": .init(type: "string", description: "Accessibility identifier of the element"),
+                "label": .init(type: "string", description: "Exact accessibility label of the element"),
+                "contains_text": .init(type: "string", description: "Partial text to match in the element label"),
+                "direction": .init(type: "string", description: "First scroll direction. Defaults to down."),
+                "max_attempts": .init(type: "string", description: "Scroll gestures to try. Defaults to 8."),
+                "distance": .init(type: "string", description: "Finger travel per scroll in points. Defaults to 300.")
+            ]
+        ),
+        ToolDefinition(
+            name: "dismiss_keyboard",
+            description: "Hide the on-screen keyboard. Tries the Return/Done key, then a keyboard Hide/Done"
+                + " button, then a swipe down on the keyboard, and reports which worked. Use it when"
+                + " press_key return does nothing, as on a decimal or number pad.",
+            properties: [:]
         ),
         ToolDefinition(
             name: "type_text",

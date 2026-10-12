@@ -25,7 +25,7 @@ final class TextHandler: @unchecked Sendable {
         text: String,
         bundleID: String?,
         candidateBundleIDs: [String]
-    ) async -> Bool {
+    ) async -> XCUITestBridge.SetTextOutcome {
         await bridge.setText(
             id: id,
             label: label,
