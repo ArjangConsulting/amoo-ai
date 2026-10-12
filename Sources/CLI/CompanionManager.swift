@@ -233,7 +233,10 @@ final class CompanionManager: @unchecked Sendable {
             await shutdown(deviceUDID: config.deviceUDID)
         }
 
-        if await isTCPPortReachable(host: config.host, port: config.port, timeoutSeconds: 1.5) {
+        // The retired runner app can outlive its xcodebuild and still hold the port, which made a
+        // holder's own restart collide with itself. Reclaim it when it is provably this device's.
+        let portFree = await reclaimPort(config: config, mayTakeOver: own != nil || force)
+        if !portFree, await isTCPPortReachable(host: config.host, port: config.port, timeoutSeconds: 1.5) {
             // `shutdown()` only reaches a runner this process spawned. A companion started by a
             // separate `amoo companion start` still owns the port, and relaunching on top of it
             // would leave the caller talking to the stale build.

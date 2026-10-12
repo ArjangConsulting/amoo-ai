@@ -176,6 +176,14 @@ process environment so credentials do not enter source control. The runner stops
 failed action or assertion and prints the verified result for every completed step. See
 [`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format.
 
+### Running several companions
+
+`amoo companion start --detach` registers each holder, so `amoo companion list` shows pid, platform,
+port, state, device and app, and `amoo companion stop --port N` / `--device UDID` / `--all` stops
+exactly those (never `pkill`, which also stops other sessions' companions). A holder that restarts
+its runner now reclaims the port the old runner app left bound instead of failing with "owned by
+another companion process".
+
 ## Generating tests from a recorded session
 
 The canonical workflow is `start_session` → drive the app → `end_session` → inspect `plan.json` →

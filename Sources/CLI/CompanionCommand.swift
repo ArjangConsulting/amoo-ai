@@ -31,6 +31,8 @@ struct CompanionCommandOptions {
     var port: Int?
     /// `start` only: hand the holder to a background process and return once the companion is ready.
     var detach = false
+    /// `stop` only: stop every registered companion instead of one matched by `--port` / `--device`.
+    var all = false
 }
 
 enum CompanionAction {
@@ -41,6 +43,10 @@ enum CompanionAction {
     case warm
     /// Report where a `warm` is (building / built / ready / failed / not_started) without blocking.
     case status
+    /// List the companions started with `start`, with pid, port, device and state.
+    case list
+    /// Stop the companion(s) matching `--port` / `--device` without touching the others.
+    case stop
 }
 
 enum CompanionCommandParseError: Error, CustomStringConvertible {
@@ -110,6 +116,17 @@ func renderCompanionHelp() -> String {
                  'building' / 'launching' (a warm is in progress), 'failed', or 'not_started'.
                  Non-blocking. Exit code 0 = usable, 2 = in progress, 1 = needs action.
                  Same --platform / --device / --port / --companion-dir options.
+
+      list       Show the companions started with `start` (pid, platform, port, state,
+                 device, app). Reads a per-holder record, so it only lists companions
+                 started through `amoo companion start` / `--detach`.
+
+      stop       Stop one companion without touching the others (other sessions' included).
+                 Options:
+                   --port <port>           Stop the companion listening on this port
+                   --device <id>           Stop the companion serving this device
+                   --all                   Stop every registered companion
+                 One of --port, --device or --all is required; a bare `stop` does nothing.
     """
 }
 
@@ -122,6 +139,7 @@ private struct CompanionCommandFlags {
     var readyTimeoutSeconds: Int?
     var port: Int?
     var detach = false
+    var all = false
 }
 
 /// Consumes and returns the next token in `remaining`, if any, without failing when absent
@@ -184,6 +202,8 @@ private func applyCompanionFlag(
         flags.force = true
     case "--detach":
         flags.detach = true
+    case "--all":
+        flags.all = true
     default:
         break
     }
@@ -226,6 +246,10 @@ func parseCompanionCommandOptions(
         action = .warm
     case "status":
         action = .status
+    case "list":
+        action = .list
+    case "stop":
+        action = .stop
     default:
         return .failure(.unknownAction(actionStr))
     }
@@ -246,7 +270,8 @@ func parseCompanionCommandOptions(
             appID: flags.appID,
             readyTimeoutSeconds: flags.readyTimeoutSeconds,
             port: flags.port,
-            detach: flags.detach
+            detach: flags.detach,
+            all: flags.all
         )
     )
 }
@@ -272,6 +297,10 @@ func runCompanionCommand(
                 currentDirectory: currentDirectory
             )
         }
+    case .list:
+        await runCompanionList()
+    case .stop:
+        await runCompanionStop(options: options)
     case .start where options.detach:
         await runDetachedCompanionStart(options: options)
     case .start:
@@ -329,6 +358,10 @@ func runIOSCompanionStart(
         targetAppID: options.appID
     )
     let manager = CompanionManager(processRunner: processRunner)
+    let unregister = registerCompanionHolder(
+        platform: .ios, deviceID: options.deviceID, port: config.port, appID: options.appID
+    )
+    defer { unregister() }
 
     do {
         try await holdCompanion(
@@ -368,6 +401,10 @@ func runAndroidCompanionStart(
             ?? AndroidCompanionConfig.readyTimeoutFromEnvironment()
     )
     let manager = AndroidCompanionManager(processRunner: processRunner)
+    let unregister = registerCompanionHolder(
+        platform: .android, deviceID: options.deviceID, port: config.port, appID: options.appID
+    )
+    defer { unregister() }
 
     do {
         try await holdCompanion(
