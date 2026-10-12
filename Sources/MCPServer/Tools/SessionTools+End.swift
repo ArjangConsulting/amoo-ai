@@ -14,6 +14,12 @@ extension SessionTools {
                 "force": .init(
                     type: "boolean",
                     description: "Cancel device work and skip app termination. Defaults to false."
+                ),
+                "stop_companion": .init(
+                    type: "boolean",
+                    description: "Also stop the device's companion now. By default it stays warm for a"
+                        + " following session and stops itself after AMOO_COMPANION_IDLE_SECONDS (120)."
+                        + " Stop it when another XCTest runner is about to use the simulator."
                 )
             ],
             required: ["session_id"],

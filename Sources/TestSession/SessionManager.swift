@@ -250,6 +250,16 @@ public actor SessionManager {
     }
 
     /// Closes every active session. Used during MCP server shutdown.
+    /// Stops the companion left running for a device a session has ended on.
+    public func stopCompanion(platform: Platform, deviceID: String) async {
+        await bootstrapper.stopCompanion(platform: platform, deviceID: deviceID)
+    }
+
+    /// Stops and forgets a device's companion, including one a dead amoo process left behind.
+    public func resetCompanion(platform: Platform, deviceHint: String?) async throws -> String {
+        try await bootstrapper.resetCompanion(platform: platform, deviceHint: deviceHint)
+    }
+
     public func closeAll() async {
         shuttingDown = true
         let active = Array(sessions.values)

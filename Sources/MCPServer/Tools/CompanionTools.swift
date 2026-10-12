@@ -38,10 +38,31 @@ public enum CompanionTools {
                 + " read ready right before the channel actually fails.",
             properties: [
                 "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
-                "device_hint": .init(type: "string", description: "Optional UDID/serial or name.")
+                "device_hint": .init(type: "string", description: "Optional UDID/serial or name."),
+                "session_id": .init(
+                    type: "string",
+                    description: "Probe this session's own connection instead: reports whether the device"
+                        + " answers, how fast (rpc_ms), and the foreground app."
+                )
             ],
             outputSchema: ToolOutputSchema(
                 properties: ["status": .init(type: "string", description: "One-line readiness report")],
+                required: ["status"]
+            )
+        ),
+        ToolDefinition(
+            name: "reset_companion",
+            title: "Reset Companion",
+            description: "Stop and forget a device's companion — including one a dead amoo process left"
+                + " running, or one wedged so every call times out — and free its port, so the next"
+                + " start_session launches a fresh one. End the session on that device first. A listener"
+                + " that is not that simulator's companion is left alone and reported.",
+            properties: [
+                "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
+                "device_hint": .init(type: "string", description: "UDID/serial of the device to reset.")
+            ],
+            outputSchema: ToolOutputSchema(
+                properties: ["status": .init(type: "string", description: "What was stopped")],
                 required: ["status"]
             )
         )

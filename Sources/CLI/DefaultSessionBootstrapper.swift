@@ -10,7 +10,7 @@ import TestSession
 /// running on that device, opens a gRPC connection, installs + launches the
 /// app under test, and waits for the first stable screen.
 struct DefaultSessionBootstrapper: SessionBootstrapper {
-    private static let leases = DeviceLeaseRegistry()
+    static let leases = DeviceLeaseRegistry()
     let iOSCompanionManager: any IOSCompanionManaging
     let androidCompanionManager: any AndroidCompanionManaging
     let processRunner: any ProcessRunner
@@ -140,14 +140,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             throw BootstrapError.connectionFailed(error.localizedDescription)
         }
 
-        let tunnel = usbTunnel
-        let cleanup: @Sendable () async -> Void = { [companion, tunnelHandle, tunnel] in
-            await companion.shutdown()
-            if let tunnelHandle {
-                try? await tunnel.close(tunnelHandle)
-            }
-            await Self.leases.release(lease.deviceKey, owner: lease.owner)
-        }
+        let cleanup = makeSessionCleanup(
+            companion: companion, tunnelHandle: tunnelHandle, lease: lease, device: available
+        )
 
         let platformDriver: any PlatformDriver
         let appArtifactSHA256: String?

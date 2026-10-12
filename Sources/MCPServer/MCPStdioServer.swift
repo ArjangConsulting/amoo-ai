@@ -33,7 +33,7 @@ public struct MCPStdioServer: Sendable {
     Physical devices require an explicit ID; other sessions' leased devices are refused.
     Launch/terminate/reinstall through amoo in a session: raw simctl/adb desyncs the channel.
     companion_status may briefly say ready after desync. On connection failure, end_session with
-    force=true closes without app termination; inspect status and start again. Forced closure
+    force=true closes without app termination; reset_companion if it stays wedged, then start again. Forced closure
     may omit in-flight actions.
 
     Use current_app for identity, describe_screen for orientation, scoped find_elements for targets,

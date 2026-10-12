@@ -202,6 +202,19 @@ exactly those (never `pkill`, which also stops other sessions' companions). A ho
 its runner now reclaims the port the old runner app left bound instead of failing with "owned by
 another companion process".
 
+### Companion lifetime in an MCP server
+
+A session's companion stays warm after `end_session` — starting one is the slow part — and stops
+itself after `AMOO_COMPANION_IDLE_SECONDS` (default 120; `0` stops it at once) with no new session
+on that simulator. `end_session stop_companion=true` stops it now, which is what to do before an XCTest
+run on the same simulator, since two XCTest runners share a device badly (the second swallows taps).
+
+If an `amoo mcp serve` is killed mid-session, its companion is left running with no owner. The next
+`start_session` on that simulator adopts it when it still answers, and retires it when it does not —
+only a runner whose parent process is gone is touched, never one another live amoo is using.
+`reset_companion` does the same on demand for a wedged companion, and `companion_status` with a
+`session_id` probes that session's connection (`rpc_ms`, foreground app) instead of the build state.
+
 ### Tap safety and scrolling
 
 `tap_element` reads the hierarchy before tapping and refuses a target that another control (a

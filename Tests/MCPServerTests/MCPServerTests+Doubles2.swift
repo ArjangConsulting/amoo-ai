@@ -16,6 +16,8 @@ actor MockSessionBootstrapper: SessionBootstrapper {
     private(set) var lastListIncludeOffline: Bool?
     private(set) var lastBootHint: String?
     private(set) var lastBootPlatform: Platform?
+    private(set) var stoppedCompanions: [String] = []
+    private(set) var resetRequests: [String] = []
 
     func setDevices(_ values: [DeviceInfo]) {
         devices = values
@@ -45,6 +47,15 @@ actor MockSessionBootstrapper: SessionBootstrapper {
 
     func listDevices(platform _: Platform?) async throws -> [DeviceInfo] {
         devices
+    }
+
+    func stopCompanion(platform: Platform, deviceID: String) async {
+        stoppedCompanions.append("\(platform.rawValue):\(deviceID)")
+    }
+
+    func resetCompanion(platform: Platform, deviceHint: String?) async throws -> String {
+        resetRequests.append("\(platform.rawValue):\(deviceHint ?? "-")")
+        return "companion stopped; port 23000 is free"
     }
 
     func listDevices(platform _: Platform?, includeOffline: Bool) async throws -> [DeviceInfo] {

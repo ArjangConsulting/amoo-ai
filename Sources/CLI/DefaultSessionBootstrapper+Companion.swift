@@ -130,6 +130,25 @@ extension DefaultSessionBootstrapper {
         }
     }
 
+    func stopCompanion(platform: Platform, deviceID: String) async {
+        guard platform == .ios, UUID(uuidString: deviceID) != nil else { return }
+        await iOSCompanionManager.stopCompanion(config: iosCompanionConfig(udid: deviceID, appID: nil))
+    }
+
+    func resetCompanion(platform: Platform, deviceHint: String?) async throws -> String {
+        switch platform {
+        case .ios:
+            let udid = await resolveIOSWarmDevice(hint: deviceHint)
+            guard UUID(uuidString: udid) != nil else {
+                return "reset_companion needs a simulator; pass its UDID as device_hint"
+            }
+            return await iOSCompanionManager.resetCompanion(config: iosCompanionConfig(udid: udid, appID: nil))
+        case .android:
+            await androidCompanionManager.shutdown()
+            return "android companions started by this server were stopped"
+        }
+    }
+
     func companionStatus(platform: Platform, deviceHint: String?) async throws -> String {
         let host: String
         let port: Int
@@ -161,7 +180,7 @@ extension DefaultSessionBootstrapper {
 
     /// The iOS companion config for `udid`, on the port a session for that simulator would use, so
     /// `companion_warm` / `companion_status` look where `start_session` will launch it.
-    private func iosCompanionConfig(udid: String, appID: String?) async -> CompanionConfig {
+    func iosCompanionConfig(udid: String, appID: String?) async -> CompanionConfig {
         var config = CompanionConfig(deviceUDID: udid, targetAppID: appID)
         guard UUID(uuidString: udid) != nil else { return config }
         let runner = processRunner

@@ -485,6 +485,9 @@ extension DriverToolExecutor {
         case "companion_status":
             return try await executeCompanionStatus(arguments: arguments)
 
+        case "reset_companion":
+            return try await executeResetCompanion(arguments: arguments)
+
         case "webview_eval":
             return await executeWebViewEval(arguments: arguments)
 

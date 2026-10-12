@@ -63,6 +63,7 @@ final class MCPServerTests: XCTestCase {
         // should advertise it.
         let exempt: Set = [
             "start_session", "list_sessions", "companion_warm", "companion_status", "session_startup_status",
+            "reset_companion",
             "webview_eval", "webview_dom"
         ]
         for def in defs where !exempt.contains(def.name) {
