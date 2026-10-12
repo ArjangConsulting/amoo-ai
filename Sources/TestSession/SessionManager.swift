@@ -48,7 +48,8 @@ public actor SessionManager {
         buildMode: SessionBuildMode = .auto,
         arguments: [String] = [],
         environment: [String: String] = [:],
-        testName: String? = nil
+        testName: String? = nil,
+        port: Int? = nil
     ) async throws -> TestSession {
         guard !shuttingDown else { throw SessionError.closed("server") }
         let bootstrap = try await bootstrapper.bootstrap(
@@ -59,7 +60,8 @@ public actor SessionManager {
                 buildPath: buildPath,
                 buildMode: buildMode,
                 arguments: arguments,
-                environment: environment
+                environment: environment,
+                port: port
             )
         )
         guard !shuttingDown else {

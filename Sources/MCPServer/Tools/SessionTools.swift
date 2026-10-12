@@ -20,6 +20,13 @@ public enum SessionTools {
                     type: "string",
                     description: "Optional UDID/serial or name. Auto-selects when omitted."
                 ),
+                "port": .init(
+                    type: "string",
+                    description: "Optional TCP port for this session's companion (1024-65535). Defaults to"
+                        + " the port `amoo mcp serve` was started with, else a stable per-device port, so"
+                        + " sessions on different simulators/emulators can run at once. Set it to move off"
+                        + " a port another process holds."
+                ),
                 "build_mode": .init(
                     type: "string",
                     description: "auto (default): use bundled/cached products, "

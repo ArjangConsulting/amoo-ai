@@ -12,6 +12,7 @@ actor MockSessionBootstrapper: SessionBootstrapper {
     private(set) var lastDriver: MockDriver?
     private(set) var lastLaunchArguments: [String] = []
     private(set) var lastLaunchEnvironment: [String: String] = [:]
+    private(set) var lastRequestedPort: Int?
     private(set) var lastListIncludeOffline: Bool?
     private(set) var lastBootHint: String?
     private(set) var lastBootPlatform: Platform?
@@ -33,6 +34,7 @@ actor MockSessionBootstrapper: SessionBootstrapper {
         lastDriver = driver
         lastLaunchArguments = request.arguments
         lastLaunchEnvironment = request.environment
+        lastRequestedPort = request.port
         return BootstrapResult(
             driver: driver,
             deviceID: "mock-\(request.platform.rawValue)",
