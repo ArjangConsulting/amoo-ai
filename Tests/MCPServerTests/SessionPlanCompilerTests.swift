@@ -445,19 +445,6 @@ final class SessionPlanCompilerTests: XCTestCase {
         XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings, [])
     }
 
-    func testContainsOnlyValueAssertionIsExcludedRatherThanChangedToEquality() throws {
-        let report = makeReport(actions: [
-            makeAction(tool: "assert_value", arguments: ["id": "message", "contains": "Welcome"])
-        ])
-
-        let result = try SessionPlanCompiler.compile(report: report, testName: nil, testDescription: nil)
-
-        XCTAssertEqual(result.testFlow.steps.map(\.tool), ["assert_value"])
-        XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations, [])
-        XCTAssertEqual(result.warnings.count, 1)
-        XCTAssertTrue(result.warnings[0].reason.contains("no Studio tool equivalent"))
-    }
-
     func testFlowEncodesRecordedDeviceUsingCLIFieldName() throws {
         let result = try SessionPlanCompiler.compile(
             report: makeReport(actions: [makeAction(tool: "press_back")]),

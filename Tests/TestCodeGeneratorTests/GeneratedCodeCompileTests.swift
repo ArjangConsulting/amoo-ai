@@ -61,7 +61,10 @@ final class GeneratedCodeCompileTests: XCTestCase {
     private static let pickOperations: [StudioToolOperation] = [
         .init(id: "p1", tool: "tap_element", arguments: ["id": "tab.reports", "index": "1"]),
         .init(id: "p2", tool: "assert_visible", arguments: ["label": "Reports", "first": "true"]),
-        .init(id: "p3", tool: "tap_element", arguments: ["contains_text": "Rep", "index": "0"])
+        .init(id: "p3", tool: "tap_element", arguments: ["contains_text": "Rep", "index": "0"]),
+        // A substring value check, beside an exact one.
+        .init(id: "p4", tool: "assert_value", arguments: ["id": "greeting", "contains": "Hi"]),
+        .init(id: "p5", tool: "assert_value", arguments: ["id": "greeting", "value": "Hi there"])
     ]
 
     private func makePickTest(platform: Platform) -> StudioAuthoredTest {
@@ -73,6 +76,12 @@ final class GeneratedCodeCompileTests: XCTestCase {
             steps: [.init(id: "step-1", instruction: "Tap", expected: "Tapped")],
             compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: Self.pickOperations)
         )
+    }
+
+    func testGeneratedXCUITestPicksAndSubstringValueCompile() throws {
+        let result = try XCUITestEmitter().generate(makePickTest(platform: .ios))
+        XCTAssertTrue(result.source.contains(".contains(\"Hi\")"), result.source)
+        try CompileVerification.verifySwiftCompiles(result.source)
     }
 
     func testGeneratedEspressoPicksCompile() throws {
