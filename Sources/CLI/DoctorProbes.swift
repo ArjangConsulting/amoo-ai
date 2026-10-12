@@ -79,12 +79,16 @@ func androidDoctorDevices(leaseByDevice: [String: String]) async -> [DoctorRepor
     var devices: [DoctorReport.Device] = []
     for device in await selector.listOnlineDevices() {
         let emulator = device.serial.hasPrefix("emulator-")
-        await devices.append(.init(
+        // Evaluate the awaited value first: `await devices.append(<expr with await>)` holds a
+        // mutable access across the suspension, which aborts release builds with
+        // "freed pointer was not the last allocation" (see `DefaultPreflightChecker.run`).
+        let avd = await emulator ? selector.runningAVDName(serial: device.serial) : nil
+        devices.append(.init(
             platform: "android",
             id: device.serial,
             name: device.name,
             os: nil,
-            avd: emulator ? selector.runningAVDName(serial: device.serial) : nil,
+            avd: avd,
             physical: !emulator,
             lease: leaseByDevice[device.serial]
         ))
