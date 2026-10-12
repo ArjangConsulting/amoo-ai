@@ -60,6 +60,25 @@ extension CompanionManager {
         (hash ^ UInt64(byte)) &* 1_099_511_628_211
     }
 
+    /// Whether the companion's sources moved on since it was built. Bundled products are exempt: a
+    /// release install cannot compile, so it reuses them as shipped.
+    ///
+    /// `ensureRunning` rebuilds under this rule and `companion status` reports `stale` under it, so
+    /// the two can never disagree about whether the next start has to build.
+    func sourcesChanged(config: CompanionConfig, bundled: Bool) -> Bool {
+        config.buildMode == .rebuild ||
+            (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config))
+    }
+
+    /// True when a start would launch the existing build as is: products exist and nothing that
+    /// would trigger a rebuild has changed.
+    func isBuildCurrent(config: CompanionConfig) -> Bool {
+        let bundled = hasBundledProducts(config: config)
+        let products = companionProductsDirectory(config: config, bundled: bundled)
+        return findXCTestRun(productsDir: products, config: config) != nil
+            && !sourcesChanged(config: config, bundled: bundled)
+    }
+
     func sourceFingerprintMatches(config: CompanionConfig) -> Bool {
         let path = fingerprintPath(config: config)
         return (try? String(contentsOfFile: path, encoding: .utf8)) == currentSourceFingerprint(config: config)

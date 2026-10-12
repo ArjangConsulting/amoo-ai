@@ -30,7 +30,8 @@ public enum CompanionTools {
             name: "companion_status",
             title: "Companion Status",
             description: "Non-blocking one-line report of companion readiness: ready (API responding),"
-                + " built (bundle ready, not launched), building / launching (a warm is in"
+                + " built (bundle ready, not launched), stale (built, but sources changed so the next start"
+                + " rebuilds), building / launching (a warm is in"
                 + " progress), failed, or not_started. Built means call start_session;"
                 + " polling alone will not launch it. If"
                 + " the app-under-test was touched outside amoo (raw simctl/adb) this can still"
