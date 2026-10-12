@@ -230,8 +230,15 @@ public enum ActionTools {
                 ),
                 "check_effect": .init(
                     type: "string",
-                    description: "'true' compares the screen before and after the tap and reports"
-                        + " observable_change=false when nothing changed. Costs two extra screen reads."
+                    description: "Compare the screen before and after the tap and report observable_change=false"
+                        + " ('No observable change') when nothing moved. Runs by default within"
+                        + " effect_timeout_ms; 'true' makes it required, 'false' skips it."
+                ),
+                "effect_timeout_ms": .init(
+                    type: "string",
+                    description: "Budget for the default effect check, in milliseconds (default 1500). A hierarchy"
+                        + " read that takes longer is abandoned and the result carries no effect report; 0"
+                        + " disables."
                 )
             ]
         )

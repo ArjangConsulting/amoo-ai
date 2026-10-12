@@ -114,54 +114,138 @@ enum TapHittability {
 }
 
 extension DriverToolExecutor {
-    /// How `tap_element` checks the tap point against the hierarchy before tapping.
+    /// How `tap_element` uses the hierarchy around a tap: reads it before to refuse a tap that would
+    /// miss, and again after to report a tap that changed nothing.
     ///
-    /// `check_hittable=true` insists on it, `false` skips it. By default the check is best effort: a
-    /// hierarchy read is ~0.1s on an ordinary screen, so it is worth running on every tap, but on a
-    /// very dense one (accessibility text sizes) it can take far longer — so the default gives up
-    /// after `hittable_timeout_ms` (1500) and taps unchecked rather than slowing every call.
-    enum HittableCheck: Equatable {
+    /// `true` insists, `false` skips. By default both are best effort: a hierarchy read is ~0.1s on an
+    /// ordinary screen, so worth doing on every tap, but on a very dense one (accessibility text
+    /// sizes) it can take far longer — so the default gives up after the budget and carries on
+    /// unchecked rather than slowing every call.
+    enum HierarchyCheck: Equatable {
         case off
         case required
         case bestEffort(milliseconds: Int)
     }
 
-    func hittableCheck(arguments: [String: String]) -> HittableCheck {
-        if let raw = arguments["check_hittable"], let flag = boolArgument(raw) {
-            return flag ? .required : .off
-        }
-        let budget = arguments["hittable_timeout_ms"].flatMap(Int.init) ?? 1500
-        return budget > 0 ? .bestEffort(milliseconds: budget) : .off
+    func hittableCheck(arguments: [String: String]) -> HierarchyCheck {
+        check(arguments["check_hittable"], budget: arguments["hittable_timeout_ms"])
     }
 
-    /// A refusal for a tap that would miss `matched`, or `nil` when it looks safe to tap.
-    func tapBlockError(
-        matched: ElementInfo,
-        point: Point,
-        check: HittableCheck,
+    func effectCheck(arguments: [String: String]) -> HierarchyCheck {
+        check(arguments["check_effect"], budget: arguments["effect_timeout_ms"])
+    }
+
+    private func check(_ flag: String?, budget: String?) -> HierarchyCheck {
+        if let flag, let value = boolArgument(flag) {
+            return value ? .required : .off
+        }
+        let milliseconds = budget.flatMap(Int.init) ?? 1500
+        return milliseconds > 0 ? .bestEffort(milliseconds: milliseconds) : .off
+    }
+
+    private func readHierarchy(
+        _ check: HierarchyCheck,
         driver: any PlatformDriver,
         appID: String?
-    ) async -> ToolResult? {
-        let hierarchy: ViewNode?
+    ) async -> ViewNode? {
         switch check {
         case .off:
-            return nil
+            nil
         case .required:
-            hierarchy = try? await driver.getViewHierarchy(appID: appID)
+            try? await driver.getViewHierarchy(appID: appID)
         case let .bestEffort(milliseconds):
-            hierarchy = await Self.withinBudget(milliseconds: milliseconds) {
+            await Self.withinBudget(milliseconds: milliseconds) {
                 try? await driver.getViewHierarchy(appID: appID)
             }
         }
-        guard let hierarchy,
+    }
+
+    /// The two hierarchy checks of one `tap_element` call.
+    struct TapChecks {
+        var hittable: HierarchyCheck
+        var effect: HierarchyCheck
+    }
+
+    func tapChecks(arguments: [String: String]) -> TapChecks {
+        TapChecks(hittable: hittableCheck(arguments: arguments), effect: effectCheck(arguments: arguments))
+    }
+
+    /// What `tapPreflight` found before the tap.
+    struct TapPreflight {
+        var refusal: ToolResult?
+        /// The hierarchy read for the check, kept as the "before" picture for the effect check.
+        var hierarchy: ViewNode?
+    }
+
+    /// Reads the hierarchy once and refuses a tap that would miss `matched`.
+    func tapPreflight(
+        matched: ElementInfo,
+        point: Point?,
+        checks: TapChecks,
+        driver: any PlatformDriver,
+        appID: String?
+    ) async -> TapPreflight {
+        let (hittable, effect) = (checks.hittable, checks.effect)
+        // One read serves both checks; the stricter mode decides how hard to try.
+        let mode: HierarchyCheck = switch (hittable, effect) {
+        case (.required, _), (_, .required): .required
+        case let (.bestEffort(a), .bestEffort(b)): .bestEffort(milliseconds: max(a, b))
+        case let (.bestEffort(a), .off): .bestEffort(milliseconds: a)
+        case let (.off, .bestEffort(b)): .bestEffort(milliseconds: b)
+        case (.off, .off): .off
+        }
+        guard let hierarchy = await readHierarchy(mode, driver: driver, appID: appID) else {
+            return TapPreflight(refusal: nil, hierarchy: nil)
+        }
+        guard hittable != .off, let point,
               let block = TapHittability.block(for: matched, at: point, in: hierarchy)
-        else { return nil }
+        else { return TapPreflight(refusal: nil, hierarchy: hierarchy) }
         let name = preferredElementName(label: matched.label, id: matched.id) ?? matched.id
-        return .error(
+        let refusal = ToolResult.error(
             "tap_element failed: '\(name)' would not receive the tap because \(block.explanation)."
                 + " Dismiss the overlay (keyboard, sheet) or scroll the element into view, then retry,"
                 + " or pass check_hittable=false to tap the point anyway."
         )
+        return TapPreflight(refusal: refusal, hierarchy: hierarchy)
+    }
+
+    /// Whether the screen changed within the effect budget after a tap: compares hierarchy
+    /// fingerprints, polling briefly so a transition still animating is not mistaken for no change.
+    func screenChanged(
+        since before: ViewNode,
+        check: HierarchyCheck,
+        driver: any PlatformDriver,
+        appID: String?
+    ) async -> Bool? {
+        guard check != .off else { return nil }
+        let reference = Self.hierarchyFingerprint(before)
+        let settleMilliseconds = 800
+        let deadline = ContinuousClock.now.advanced(by: .milliseconds(settleMilliseconds))
+        var observed = false
+        repeat {
+            guard let after = await readHierarchy(check, driver: driver, appID: appID) else {
+                return observed ? false : nil
+            }
+            observed = true
+            if Self.hierarchyFingerprint(after) != reference {
+                return true
+            }
+            try? await Task.sleep(for: .milliseconds(150))
+        } while ContinuousClock.now < deadline
+        return false
+    }
+
+    /// Ids, labels, values, geometry and state of the first 800 nodes: anything a tap could change.
+    static func hierarchyFingerprint(_ root: ViewNode) -> String {
+        var parts: [String] = []
+        func walk(_ node: ViewNode) {
+            guard parts.count < 800 else { return }
+            let frame = node.frame.map { "\(Int($0.x)),\(Int($0.y)),\(Int($0.width)),\(Int($0.height))" } ?? "-"
+            parts.append("\(node.id)|\(node.label)|\(node.value ?? "")|\(frame)|\(node.isEnabled)|\(node.isVisible)")
+            node.children.forEach(walk)
+        }
+        walk(root)
+        return parts.joined(separator: "\n")
     }
 }
 
@@ -186,19 +270,23 @@ extension DriverToolExecutor {
         }
     }
 
+    /// What `tap_element` knew before tapping, for the result.
+    struct TapOutcomeContext {
+        var matched: ElementInfo
+        var foregroundBefore: String?
+        var hierarchyBefore: ViewNode?
+        var effect: HierarchyCheck
+        var appID: String?
+    }
+
     /// Builds the `tap_element` success result, flagging taps that landed somewhere unexpected.
     ///
     /// `verified` still means the target was resolved, visible and enabled before the tap. What
     /// the tap did is reported separately: `foreground_changed` when another app (Siri, a system
-    /// sheet) took over, and with `check_effect` an `observable_change` flag so a tap that moved
-    /// nothing reads as "no observable change" instead of success.
-    func tapElementResult(
-        matched: ElementInfo,
-        foregroundBefore: String?,
-        screenBefore: String?,
-        checkEffect: Bool,
-        driver: any PlatformDriver
-    ) async -> ToolResult {
+    /// sheet) took over, and `observable_change` — "No observable change" in the text — when the
+    /// screen is identical before and after.
+    func tapElementResult(_ context: TapOutcomeContext, driver: any PlatformDriver) async -> ToolResult {
+        let matched = context.matched
         let name = "[\(matched.id)] \(matched.label)"
         var notes: [String] = []
         var fields: [String: Value] = [
@@ -206,21 +294,21 @@ extension DriverToolExecutor {
             "element_id": .string(matched.id),
             "element_label": .string(matched.label)
         ]
-        if let foregroundBefore, let foregroundAfter = try? await driver.currentApp().bundleID {
+        if let foregroundBefore = context.foregroundBefore,
+           let foregroundAfter = try? await driver.currentApp().bundleID {
             fields["foreground_bundle_id"] = .string(foregroundAfter)
             fields["foreground_changed"] = .bool(foregroundAfter != foregroundBefore)
             if foregroundAfter != foregroundBefore {
                 notes.append("Foreground app changed from \(foregroundBefore) to \(foregroundAfter) after the tap.")
             }
         }
-        if checkEffect {
-            let screenAfter = try? await driver.getScreenContext().summary
-            if let screenBefore, let screenAfter {
-                let changed = screenBefore != screenAfter
-                fields["observable_change"] = .bool(changed)
-                if !changed {
-                    notes.append("No observable change: the screen is identical before and after the tap.")
-                }
+        if let before = context.hierarchyBefore,
+           let changed = await screenChanged(
+               since: before, check: context.effect, driver: driver, appID: context.appID
+           ) {
+            fields["observable_change"] = .bool(changed)
+            if !changed {
+                notes.append("No observable change: the screen is identical before and after the tap.")
             }
         }
         let message = (["Tapped verified element \(name)"] + notes).joined(separator: "\n")
