@@ -294,15 +294,17 @@ public struct EspressoEmitter: StudioCodeEmitting {
             """
 
         case .assertValue:
-            guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
+            let exact = operation.arguments["value"] ?? operation.arguments["expected"]
+            guard let expected = exact ?? operation.arguments["contains"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
+            let textMatcher = exact == nil ? "containsString(\(literal(expected)))" : literal(expected)
             let target = try matcher(operation)
             // On Android Views, the accessibility value represented by assert_value is exposed as
             // text. Compose has its own semantics-specific implementation below.
             return try """
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
-            \(indent)onView(\(target)).check(matches(withText(\(literal(expected)))))
+            \(indent)onView(\(target)).check(matches(withText(\(textMatcher))))
             """
 
         case .assertEnabled:

@@ -19,18 +19,21 @@ extension SessionPlanCompiler {
 
     static func translateFillField(_ arguments: [String: String]) -> TranslatedAction {
         var mapped = arguments
+        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
         mapped["contains_text"] = mapped["contains_text"] ?? mapped["field_description"]
         mapped["field_description"] = nil
-        return TranslatedAction(studioTool: .setText, studioArguments: mapped, approximate: true)
+        return TranslatedAction(studioTool: .setText, studioArguments: mapped, approximate: usesDescription)
     }
 
     static func translateAssertVisible(_ arguments: [String: String]) -> TranslatedAction {
         var mapped = arguments
-        if mapped["id"] == nil, mapped["label"] == nil, mapped["contains_text"] == nil {
+        // An id or label maps exactly; only a free-text `description` is a guess.
+        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
+        if usesDescription {
             mapped["contains_text"] = mapped["description"]
         }
         mapped["description"] = nil
-        return TranslatedAction(studioTool: .assertVisible, studioArguments: mapped, approximate: true)
+        return TranslatedAction(studioTool: .assertVisible, studioArguments: mapped, approximate: usesDescription)
     }
 
     static func translateAssertAbsent(_ arguments: [String: String]) -> TranslatedAction {
@@ -62,17 +65,18 @@ extension SessionPlanCompiler {
     }
 
     static func translateAssertValue(_ arguments: [String: String]) -> TranslatedAction? {
-        // Studio's assert_text is exact equality. A contains-only assertion cannot be translated
-        // without changing its meaning, so leave it out of the compiled plan and surface a warning.
-        guard let expected = arguments["expected"] else { return nil }
+        // `expected` is exact equality; `contains` is a substring check. Studio carries both, so
+        // neither is left out of the plan.
+        guard arguments["expected"] != nil || arguments["contains"] != nil else { return nil }
         var mapped = arguments
         let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
         if usesDescription {
             mapped["contains_text"] = mapped["description"]
         }
-        mapped["value"] = expected
+        if let expected = mapped["expected"] {
+            mapped["value"] = expected
+        }
         mapped["expected"] = nil
-        mapped["contains"] = nil
         mapped["description"] = nil
         return TranslatedAction(
             studioTool: .assertValue,

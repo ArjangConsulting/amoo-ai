@@ -344,16 +344,23 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             """
 
         case .assertValue:
-            guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
+            let exact = operation.arguments["value"] ?? operation.arguments["expected"]
+            let substring = operation.arguments["contains"]
+            guard exact != nil || substring != nil else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
             let (_, variable, declaration) = try lookup(
                 operation, context: context, localNames: &localNames, lookups: &lookups
             )
+            let assertion = if let exact {
+                "XCTAssertEqual(\(variable).value as? String, \(literal(exact)))"
+            } else {
+                "XCTAssertTrue(((\(variable).value as? String) ?? \"\").contains(\(literal(substring ?? ""))))"
+            }
             return try """
             \(declaration)
             \(indent)\(waitCall("waitForExistence", variable, operation))
-            \(indent)XCTAssertEqual(\(variable).value as? String, \(literal(expected)))
+            \(indent)\(assertion)
             """
 
         case .takeScreenshot:

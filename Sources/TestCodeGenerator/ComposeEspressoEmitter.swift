@@ -38,6 +38,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import androidx.compose.ui.test.SemanticsNodeInteraction
         import androidx.compose.ui.test.assertIsDisplayed
         import androidx.compose.ui.test.assertIsEnabled
+        import androidx.compose.ui.test.assertTextContains
         import androidx.compose.ui.test.assertTextEquals
         import androidx.compose.ui.test.hasContentDescription
         import androidx.compose.ui.test.hasTestTag
@@ -214,11 +215,13 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertTextEquals(\(literal(expected)))"
         case .assertValue:
-            guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
+            let exact = operation.arguments["value"] ?? operation.arguments["expected"]
+            guard let expected = exact ?? operation.arguments["contains"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
             let target = try guardedNode(operation)
-            return "\(target.wait)\n\(indent)\(target.node).assertTextEquals(\(literal(expected)))"
+            let assertion = exact == nil ? "assertTextContains" : "assertTextEquals"
+            return "\(target.wait)\n\(indent)\(target.node).\(assertion)(\(literal(expected)))"
         case .assertEnabled:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"
