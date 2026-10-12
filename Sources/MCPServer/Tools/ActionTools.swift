@@ -111,7 +111,7 @@ public enum ActionTools {
                 "direction": .init(type: "string", description: "Which way to scroll: up, down, left, or right"),
                 "distance": .init(
                     type: "string",
-                    description: "Finger travel in points, centred on the screen. Defaults to 300."
+                    description: "Finger travel in points, centred on the screen; at least 10. Defaults to 300."
                 )
             ],
             required: ["direction"]

@@ -190,3 +190,44 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
 private enum KeyboardFix { case returnKey, doneButton, swipe, nothing }
 
 // swiftlint:enable multiline_arguments
+
+final class GestureDistanceTests: XCTestCase {
+    private actor RecordingDriver: PlatformDriver {
+        private(set) var scrolls: [Double] = []
+        func scroll(direction _: Direction, distance: Double) async throws {
+            scrolls.append(distance)
+        }
+
+        func swipe(
+            direction _: Direction,
+            distance: Double,
+            duration _: Duration,
+            element _: ElementSelector?
+        ) async throws {
+            scrolls.append(distance)
+        }
+    }
+
+    func testTinyDistancesAreRejectedBeforeTouchingTheDevice() async {
+        for (tool, distance) in [("scroll", "0.4"), ("scroll", "1"), ("swipe_in_direction", "9.9")] {
+            let driver = RecordingDriver()
+            let result = await DriverToolExecutor(driver: driver).execute(
+                toolName: tool, arguments: ["direction": "down", "distance": distance]
+            )
+            XCTAssertTrue(result.isError, "\(tool) \(distance): \(result.content)")
+            XCTAssertTrue(result.content.contains("at least 10"), result.content)
+            let sent = await driver.scrolls
+            XCTAssertTrue(sent.isEmpty, "\(tool) \(distance) must not reach the device")
+        }
+    }
+
+    func testRealDistancesAndTheDefaultStillGo() async {
+        let driver = RecordingDriver()
+        let executor = DriverToolExecutor(driver: driver)
+        _ = await executor.execute(toolName: "scroll", arguments: ["direction": "down", "distance": "10"])
+        _ = await executor.execute(toolName: "scroll", arguments: ["direction": "down"])
+        _ = await executor.execute(toolName: "swipe_in_direction", arguments: ["direction": "up", "distance": "250"])
+        let sent = await driver.scrolls
+        XCTAssertEqual(sent, [10, 300, 250])
+    }
+}

@@ -158,6 +158,9 @@ extension DriverToolExecutor {
                 return .error("Invalid direction: \(dirStr). Use up, down, left, or right.")
             }
             let distance = arguments["distance"].flatMap(Double.init) ?? 300
+            if let tooShort = Self.gestureDistanceError(tool: "swipe_in_direction", distance: distance) {
+                return tooShort
+            }
             let ms = arguments["duration_ms"].flatMap(Int.init) ?? 400
             let element: ElementSelector? = if let id = arguments["element_id"] {
                 ElementSelector(id: id)
@@ -182,6 +185,9 @@ extension DriverToolExecutor {
                 return .error("Invalid direction: \(dirStr). Use up, down, left, or right.")
             }
             let distance = arguments["distance"].flatMap(Double.init) ?? 300
+            if let tooShort = Self.gestureDistanceError(tool: "scroll", distance: distance) {
+                return tooShort
+            }
             try await driver.scroll(direction: direction, distance: distance)
             return .success("Scrolled \(dirStr) by \(distance)")
 
