@@ -40,6 +40,9 @@ func renderGenerateHelp() -> String {
       --test-name         Override the recorded/semantic test name; sanitized for generated code.
       --allow-incomplete  Generate even though the plan records steps that could not be compiled.
                           Without this, generation stops rather than emitting a test missing steps.
+
+    To get a plan without recording a session, see `amoo generate plan --help`
+    (`--report` recompiles a recorded report.json; `--from-flow` compiles a hand-written flow).
     """
 }
 

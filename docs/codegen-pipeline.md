@@ -23,7 +23,9 @@ flowchart TD
 Entry points that drive this offline (no `amoo mcp serve`):
 
 - `amoo generate plan --report report.json [--context …] --out dir/` — step D only
-  (`Sources/CLI/GeneratePlanCommand.swift`).
+  (`Sources/CLI/GeneratePlanCommand.swift`). `--from-flow flow.amoo.json` replaces `--report` to
+  author a plan by hand: the flow is turned into the report a recording of it would have produced
+  (a `device_launch_app` step supplies the app id and launch configuration) and compiled the same way.
 - `amoo generate test --plan plan.json [--context …]` — steps H–I
   (`Sources/CLI/GenerateCommand.swift`).
 - MCP `end_session` — step D on session close, writing `plan.json` + `flow.json` via

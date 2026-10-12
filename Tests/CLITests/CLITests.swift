@@ -105,6 +105,17 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(recorded, [[]], "the REPL is entered exactly once, with no arguments")
     }
 
+    /// `amoo generate` with nothing after it is a usage error, like `amoo generate test` (64).
+    func testGenerateWithoutASubcommandExitsNonZeroWhileHelpStillExitsZero() async {
+        let app = CLIApp()
+        let bare = await app.run(args: ["generate"])
+        XCTAssertEqual(bare.exitCode, 64)
+        XCTAssertTrue(bare.output.contains("Usage: amoo generate"), bare.output)
+        let help = await app.run(args: ["generate", "--help"])
+        XCTAssertEqual(help.exitCode, 0)
+        XCTAssertTrue(help.output.contains("Usage: amoo generate"), help.output)
+    }
+
     /// Regression: Homebrew 0.2.1 aborted ("freed pointer was not the last allocation") on any
     /// subcommand it did not know, because unknown words fell through into the device-picking REPL.
     func testUnknownCommandPrintsUsageAndExitsTwoWithoutEnteringTheREPL() async {

@@ -122,7 +122,8 @@ public struct CLIApp {
             }
         }
         guard remaining.first == "test" else {
-            return CLIResult(output: renderGenerateHelp(), exitCode: remaining.isEmpty ? 0 : 64)
+            // Only an explicit help request succeeds; a missing or unknown subcommand is a usage error.
+            return CLIResult(output: renderGenerateHelp(), exitCode: isHelpRequest(remaining) ? 0 : 64)
         }
         let commandArgs = Array(remaining.dropFirst())
         if isHelpRequest(commandArgs) {
