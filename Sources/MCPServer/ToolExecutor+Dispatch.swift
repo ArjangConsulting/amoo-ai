@@ -171,6 +171,19 @@ extension DriverToolExecutor {
             } else {
                 nil
             }
+            if let pick = try ElementPick.parse(arguments) {
+                guard let element else {
+                    return .error("swipe_in_direction failed: index/first pick one of several matches of"
+                        + " element_id or element_label; pass one of them.")
+                }
+                return try await swipePickedElement(
+                    element,
+                    pick: pick,
+                    gesture: PickedSwipe(direction: direction, distance: distance, durationMilliseconds: ms),
+                    driver: driver,
+                    appID: queryScopeAppID(arguments: arguments, driver: driver)
+                )
+            }
             try await driver.swipe(
                 direction: direction,
                 distance: distance,

@@ -23,6 +23,20 @@ final class ElementPickCodegenTests: XCTestCase {
         return try XCUITestEmitter().generate(test).source
     }
 
+    func testASwipeOnAPickedElementKeepsThePickInTheQuery() throws {
+        let code = try source([
+            .init(
+                id: "op-1",
+                tool: "swipe_in_direction",
+                arguments: ["element_id": "day.screen", "first": "true", "direction": "up"]
+            )
+        ])
+        XCTAssertTrue(
+            code.contains(#"app.descendants(matching: .any).matching(identifier: "day.screen").firstMatch"#), code
+        )
+        XCTAssertTrue(code.contains(".swipeUp()"), code)
+    }
+
     func testIDWithIndexNarrowsAMatchingQueryByPosition() throws {
         let code = try source([.init(id: "op-1", tool: "tap_element", arguments: ["id": "tab.reports", "index": "1"])])
         XCTAssertTrue(

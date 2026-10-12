@@ -62,7 +62,8 @@ Common tools:
   long_press x=<n> y=<n> [duration_ms=<n>]
   swipe from_x=<n> from_y=<n> to_x=<n> to_y=<n> [duration_ms=<n>] [unit=<points|pixels|normalized>]
   swipe_in_direction direction=<up|down|left|right> [distance=<n>] [duration_ms=<n>]
-      [element_id=<id>] [element_label=<label>] [from_x=<n> from_y=<n> [unit=<...>]]
+      [element_id=<id>] [element_label=<label>] [index=<n>] [first=<true>]
+      [from_x=<n> from_y=<n> [unit=<...>]]
   scroll direction=<up|down|left|right> [distance=<n>]   (direction = which way to scroll: down reveals below)
   scroll_to_element [id=<id>] [label=<label>] [contains_text=<text>] [direction=<up|down|left|right>]
       [max_attempts=<n>] [distance=<n>]

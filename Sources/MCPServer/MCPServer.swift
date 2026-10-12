@@ -96,6 +96,7 @@ extension ToolDefinition {
         if [
             "find_elements",
             "tap_element",
+            "swipe_in_direction",
             "assert_visible",
             "assert_enabled",
             "assert_absent",

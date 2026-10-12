@@ -1,6 +1,13 @@
 import AmooCore
 import Foundation
 
+/// The direction, travel and duration of a swipe aimed at a picked element.
+struct PickedSwipe {
+    var direction: Direction
+    var distance: Double
+    var durationMilliseconds: Int
+}
+
 extension DriverToolExecutor {
     /// The smallest finger travel that is a swipe. Anything shorter is a press that happens to move a
     /// pixel: a `scroll distance=0.4` long-pressed the screen centre, raised a keyboard and a loupe,
@@ -63,6 +70,36 @@ extension DriverToolExecutor {
             }
         }
         return .error("scroll_to_element failed: element not on screen after \(maxAttempts) scroll(s).")
+    }
+
+    /// Swipes from the centre of the match `pick` names, for elements the device cannot tell apart by
+    /// selector alone (the companion refuses an ambiguous `element_id`). The step is recorded with its
+    /// `element_id` and pick, so generated code scopes the gesture to the same match.
+    func swipePickedElement(
+        _ selector: ElementSelector,
+        pick: ElementPick,
+        gesture: PickedSwipe,
+        driver: any PlatformDriver,
+        appID: String?
+    ) async throws -> ToolResult {
+        let (direction, distance, duration) = (gesture.direction, gesture.distance, gesture.durationMilliseconds)
+        guard let matched = try await resolveElement(selector: selector, driver: driver, appID: appID, pick: pick),
+              let start = matched.hitPoint ?? matched.frame?.centre
+        else {
+            return .error("swipe_in_direction failed: no element matched, or it reports no position to swipe from")
+        }
+        let (dx, dy): (Double, Double) = switch direction {
+        case .up: (0, -distance)
+        case .down: (0, distance)
+        case .left: (-distance, 0)
+        case .right: (distance, 0)
+        }
+        try await driver.swipe(
+            from: start,
+            to: Point(x: start.x + dx, y: start.y + dy),
+            duration: Duration(milliseconds: duration)
+        )
+        return .success("Swiped \(direction.rawValue) by \(distance) pts from [\(matched.id)] \(matched.label)")
     }
 
     /// What is on screen, as ids, labels and vertical positions. Scrolling moves the positions, so two
