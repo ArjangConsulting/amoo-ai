@@ -191,7 +191,8 @@ whose tap point is off-screen, when `check_hittable=true` — and by default whe
 is visible (the check reads the full hierarchy, so it is not on for every tap). It always reports
 `foreground_changed` when the tap left the app (Siri, a system sheet), and with `check_effect=true`
 adds `observable_change` so a tap that moved nothing reads "No observable change" rather than
-success.
+success. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
+large accessibility tree needs longer.
 
 ## Generating tests from a recorded session
 
