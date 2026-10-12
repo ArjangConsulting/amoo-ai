@@ -71,7 +71,7 @@ when repeated controls share labels, and `index=<n>` or `first=true` when matche
 duplicates (iPadOS tab bars list each tab twice). `find_elements` hides scroll bars and
 decorative text unless `include_noise=true`. `tap_element` refuses a target a keyboard or sheet
 covers, or one off-screen (`check_hittable`), and says when the foreground app changed after the
-tap; add `check_effect=true` to learn whether the screen changed at all. Pass `port` to
+tap, or that it changed nothing (`No observable change`). Pass `port` to
 `start_session` when sessions run on several simulators at once.
 
 Queries return bounded pages. Follow next_offset with the same selector when has_more is true.

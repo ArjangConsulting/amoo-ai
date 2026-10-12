@@ -26,7 +26,8 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
         func findElements(_: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
             let visible = offset >= scrollsNeeded
             return [ElementInfo(
-                id: "row", label: "Row", type: .cell, frame: Rect(x: 0, y: 900, width: 100, height: 40),
+                id: "row", label: "Row", type: .cell,
+                frame: Rect(x: 0, y: Double(900 - offset * 100), width: 100, height: 40),
                 isVisible: visible
             )]
         }

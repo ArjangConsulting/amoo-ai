@@ -78,7 +78,8 @@ Common tools:
   press_home
   tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
       [bundle_id=<id>] [parent_id=<id>] [index=<n>] [first=<true>]
-      [check_hittable=<true|false>] [hittable_timeout_ms=<n>] [check_effect=<true|false>]
+      [check_hittable=<true|false>] [hittable_timeout_ms=<n>]
+      [check_effect=<true|false>] [effect_timeout_ms=<n>]
   find_elements [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [labeled_only=<true|false>] [include_noise=<true|false>] [scope=<app|system>]
       [bundle_id=<id>] [parent_id=<id>] [index=<n>] [first=<true>] [limit=<n>] [offset=<n>]

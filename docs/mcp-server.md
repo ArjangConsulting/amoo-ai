@@ -209,9 +209,10 @@ keyboard key, a sheet) is painted over, that a clipping container (a tab pill, a
 off, or whose tap point is off-screen. The check is on by default but best effort: it gives up after
 `hittable_timeout_ms` (1500) and taps unchecked, so a very dense screen never slows every call.
 `check_hittable=true` makes it required; `false` skips it. It always reports
-`foreground_changed` when the tap left the app (Siri, a system sheet), and with `check_effect=true`
-adds `observable_change` so a tap that moved nothing reads "No observable change" rather than
-success. `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
+`foreground_changed` when the tap left the app (Siri, a system sheet), and compares the screen before
+and after the tap — within `effect_timeout_ms` (1500), `check_effect=false` to skip — so a tap that
+moved nothing says "No observable change" (`observable_change=false`) instead of reading as success.
+`scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
 names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen;
 `dismiss_keyboard` tries Return, a Hide/Done button, then a swipe — `press_key return` does nothing
 on a number pad. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very

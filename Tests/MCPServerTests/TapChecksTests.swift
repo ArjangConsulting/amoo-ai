@@ -99,7 +99,7 @@ final class TapChecksTests: XCTestCase {
     func testAZeroBudgetTurnsTheDefaultCheckOff() async {
         let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(overlay: keypad))
         let result = await DriverToolExecutor(driver: driver).execute(
-            toolName: "tap_element", arguments: ["id": "add", "hittable_timeout_ms": "0"]
+            toolName: "tap_element", arguments: ["id": "add", "hittable_timeout_ms": "0", "effect_timeout_ms": "0"]
         )
         XCTAssertFalse(result.isError, result.content)
         let reads = await driver.hierarchyReads
@@ -152,23 +152,49 @@ final class TapChecksTests: XCTestCase {
         XCTAssertEqual(result.structuredContent?.objectValue?["foreground_changed"]?.boolValue, true)
     }
 
-    func testCheckEffectReportsNoObservableChange() async {
-        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), summaries: ["Home", "Home"])
+    func testNoObservableChangeIsReportedByDefault() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
         let result = await DriverToolExecutor(driver: driver).execute(
-            toolName: "tap_element", arguments: ["id": "add", "check_effect": "true"]
+            toolName: "tap_element", arguments: ["id": "add"]
         )
         XCTAssertFalse(result.isError)
         XCTAssertTrue(result.content.contains("No observable change"), result.content)
         XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, false)
     }
 
-    func testCheckEffectConfirmsAChangedScreen() async {
-        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), summaries: ["Home", "Day detail"])
+    func testAChangedScreenIsConfirmed() async {
+        let changed = ViewNode(id: "root", type: .other, frame: Self.window, children: [
+            ViewNode(id: "detail", label: "Day detail", type: .other, frame: Self.window)
+        ])
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), hierarchyAfterTap: changed)
         let result = await DriverToolExecutor(driver: driver).execute(
-            toolName: "tap_element", arguments: ["id": "add", "check_effect": "true"]
+            toolName: "tap_element", arguments: ["id": "add"]
         )
         XCTAssertFalse(result.content.contains("No observable change"), result.content)
         XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, true)
+    }
+
+    func testAChangeThatLandsAfterTheTapStillCounts() async {
+        let changed = ViewNode(id: "root", type: .other, frame: Self.window, children: [
+            ViewNode(id: "detail", label: "Day detail", type: .other, frame: Self.window)
+        ])
+        // The first post-tap read still shows the old screen (a transition under way).
+        let driver = TapCheckDriver(
+            target: Self.addButton, hierarchy: screen(), hierarchyAfterTap: changed, staleReadsAfterTap: 2
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add"]
+        )
+        XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, true, result.content)
+    }
+
+    func testCheckEffectFalseSkipsTheAfterRead() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "check_effect": "false"]
+        )
+        XCTAssertFalse(result.content.contains("No observable change"), result.content)
+        XCTAssertNil(result.structuredContent?.objectValue?["observable_change"])
     }
 }
 
@@ -177,6 +203,8 @@ private actor TapCheckDriver: PlatformDriver {
     private let hierarchy: ViewNode
     private let keyboardVisible: Bool
     private let hierarchyDelay: Swift.Duration?
+    private let hierarchyAfterTap: ViewNode?
+    private var staleReadsAfterTap: Int
     private var foregrounds: [String]
     private var summaries: [String]
     private(set) var taps: [Point] = []
@@ -188,9 +216,13 @@ private actor TapCheckDriver: PlatformDriver {
         keyboardVisible: Bool = false,
         foregrounds: [String] = ["com.jot", "com.jot"],
         summaries: [String] = ["Home", "Home"],
-        hierarchyDelay: Swift.Duration? = nil
+        hierarchyDelay: Swift.Duration? = nil,
+        hierarchyAfterTap: ViewNode? = nil,
+        staleReadsAfterTap: Int = 0
     ) {
         self.hierarchyDelay = hierarchyDelay
+        self.hierarchyAfterTap = hierarchyAfterTap
+        self.staleReadsAfterTap = staleReadsAfterTap
         self.target = target
         self.hierarchy = hierarchy
         self.keyboardVisible = keyboardVisible
@@ -198,12 +230,16 @@ private actor TapCheckDriver: PlatformDriver {
         self.summaries = summaries
     }
 
-    func findElements(_: ElementSelector) async throws -> [ElementInfo] {
-        [target]
+    func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+        try await findElements(selector, appID: nil)
     }
 
-    func findElements(_: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
-        [target]
+    /// A precise selector finds the target; an empty one lists the screen, whose title row follows
+    /// the scripted summaries so a test can make "the screen" change or stay put.
+    func findElements(_ selector: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+        guard selector.id == nil, selector.label == nil, selector.containsText == nil else { return [target] }
+        let title = summaries.count > 1 ? summaries.removeFirst() : (summaries.first ?? "")
+        return [target, ElementInfo(id: "title", label: title)]
     }
 
     func tap(at point: Point) async throws {
@@ -218,6 +254,13 @@ private actor TapCheckDriver: PlatformDriver {
         hierarchyReads += 1
         if let hierarchyDelay {
             try await Task.sleep(for: hierarchyDelay)
+        }
+        if !taps.isEmpty, let hierarchyAfterTap {
+            if staleReadsAfterTap > 0 {
+                staleReadsAfterTap -= 1
+                return hierarchy
+            }
+            return hierarchyAfterTap
         }
         return hierarchy
     }

@@ -34,9 +34,9 @@ extension DriverToolExecutor {
                 )
             }
             guard attempt < maxAttempts else { break }
-            let before = try? await driver.getScreenContext().summary
+            let before = await screenFingerprint(driver: driver, appID: appID)
             try await driver.scroll(direction: direction, distance: distance)
-            let after = try? await driver.getScreenContext().summary
+            let after = await screenFingerprint(driver: driver, appID: appID)
             if let before, before == after {
                 guard !reversed else {
                     return .error("scroll_to_element failed: reached both ends without finding the element.")
@@ -46,6 +46,15 @@ extension DriverToolExecutor {
             }
         }
         return .error("scroll_to_element failed: element not on screen after \(maxAttempts) scroll(s).")
+    }
+
+    /// What is on screen, as ids, labels and vertical positions. Scrolling moves the positions, so two
+    /// equal fingerprints mean the content did not move. The screen *summary* cannot stand in: on
+    /// Android it holds only status-bar text, which never changes while a list scrolls.
+    func screenFingerprint(driver: any PlatformDriver, appID: String?) async -> String? {
+        guard let elements = try? await driver.findElements(ElementSelector(), appID: appID) else { return nil }
+        return elements.prefix(300).map { "\($0.id)|\($0.label)|\(Int($0.frame?.y ?? -1))|\(Int($0.frame?.x ?? -1))" }
+            .joined(separator: "\n")
     }
 
     /// Hides the keyboard by the gentlest means that works and says which one did.

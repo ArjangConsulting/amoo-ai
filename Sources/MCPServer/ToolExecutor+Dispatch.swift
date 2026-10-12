@@ -251,17 +251,17 @@ extension DriverToolExecutor {
                 return .error("tap_element failed: matched element is not visible and enabled")
             }
             let tapPoint = matched.hitPoint ?? matched.frame.map(\.centre)
-            if let tapPoint, let refusal = await tapBlockError(
+            let checks = tapChecks(arguments: arguments)
+            let preflight = await tapPreflight(
                 matched: matched,
                 point: tapPoint,
-                check: hittableCheck(arguments: arguments),
+                checks: checks,
                 driver: driver,
                 appID: appID
-            ) {
+            )
+            if let refusal = preflight.refusal {
                 return refusal
             }
-            let checkEffect = arguments["check_effect"].flatMap(boolArgument) ?? false
-            let screenBefore = checkEffect ? try? await driver.getScreenContext().summary : nil
             let foregroundBefore = try? await driver.currentApp().bundleID
             // The verification query already resolved the element and returned XCTest/UIAutomator's
             // preferred screen-space hit point. Re-sending the selector makes the companion take and
@@ -277,10 +277,13 @@ extension DriverToolExecutor {
                 try await driver.tapElement(selector, appID: appID)
             }
             return await tapElementResult(
-                matched: matched,
-                foregroundBefore: foregroundBefore,
-                screenBefore: screenBefore,
-                checkEffect: checkEffect,
+                TapOutcomeContext(
+                    matched: matched,
+                    foregroundBefore: foregroundBefore,
+                    hierarchyBefore: preflight.hierarchy,
+                    effect: checks.effect,
+                    appID: appID
+                ),
                 driver: driver
             )
 
