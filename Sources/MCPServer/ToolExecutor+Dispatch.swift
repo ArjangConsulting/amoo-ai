@@ -244,14 +244,20 @@ extension DriverToolExecutor {
             guard matched.isVisible, matched.isEnabled else {
                 return .error("tap_element failed: matched element is not visible and enabled")
             }
+            let tapPoint = matched.hitPoint ?? matched.frame.map(\.centre)
+            if let tapPoint, await shouldCheckHittable(arguments: arguments, driver: driver),
+               let refusal = await tapBlockError(matched: matched, point: tapPoint, driver: driver, appID: appID) {
+                return refusal
+            }
+            let checkEffect = arguments["check_effect"].flatMap(boolArgument) ?? false
+            let screenBefore = checkEffect ? try? await driver.getScreenContext().summary : nil
+            let foregroundBefore = try? await driver.currentApp().bundleID
             // The verification query already resolved the element and returned XCTest/UIAutomator's
             // preferred screen-space hit point. Re-sending the selector makes the companion take and
             // walk another accessibility snapshot immediately before the gesture, duplicating the
             // most expensive part of this tool. Use that verified coordinate for the same gesture.
             // Fall back to the frame center for older companions that do not provide hit points.
-            if let point = matched.hitPoint ?? matched.frame.map({ frame in
-                Point(x: frame.x + frame.width / 2, y: frame.y + frame.height / 2)
-            }) {
+            if let point = tapPoint {
                 try await driver.tap(at: point)
             } else if pick != nil {
                 // Re-sending the selector would let the device choose among the duplicates.
@@ -259,13 +265,12 @@ extension DriverToolExecutor {
             } else {
                 try await driver.tapElement(selector, appID: appID)
             }
-            return .success(
-                "Tapped verified element [\(matched.id)] \(matched.label)",
-                structuredContent: .object([
-                    "verified": .bool(true),
-                    "element_id": .string(matched.id),
-                    "element_label": .string(matched.label)
-                ])
+            return await tapElementResult(
+                matched: matched,
+                foregroundBefore: foregroundBefore,
+                screenBefore: screenBefore,
+                checkEffect: checkEffect,
+                driver: driver
             )
 
         // Queries
