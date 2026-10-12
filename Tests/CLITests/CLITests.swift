@@ -390,3 +390,33 @@ struct MockAuditRunner: AuditRunning {
         report
     }
 }
+
+final class VerboseVersionTests: XCTestCase {
+    func testVerboseVersionNamesTheCommitBuildTimeAndBinary() {
+        let info = AmooBuildInfo(
+            version: "0.2.0",
+            executablePath: "/x/.build/release/amoo",
+            binaryModifiedAt: Date(timeIntervalSince1970: 1_791_800_000),
+            sourceCommit: "55e25dbabc12",
+            startedAt: Date(),
+            pid: 1,
+            sourceDirty: "true"
+        )
+        let text = CLIApp.verboseVersion(info)
+        XCTAssertTrue(text.hasPrefix("amoo 0.2.0\n"), text)
+        XCTAssertTrue(text.contains("commit:  55e25dbabc12 (uncommitted changes)"), text)
+        XCTAssertTrue(text.contains("built:   "), text)
+        XCTAssertTrue(text.contains("binary:  /x/.build/release/amoo"), text)
+    }
+
+    func testVersionCommandsPrintItAndPlainVersionStaysMachineReadable() async {
+        let plain = await CLIApp().run(args: ["--version"])
+        XCTAssertEqual(plain.output, CLIApp.versionString, "scripts parse this")
+        for args in [["version"], ["--version", "--verbose"]] {
+            let result = await CLIApp().run(args: args)
+            XCTAssertEqual(result.exitCode, 0)
+            XCTAssertTrue(result.output.hasPrefix("amoo \(CLIApp.versionString)"), result.output)
+        }
+        XCTAssertTrue(renderCLIHelp().contains("version "))
+    }
+}
