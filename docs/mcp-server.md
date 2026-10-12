@@ -224,6 +224,10 @@ event; they omit request arguments and app content. Default operation emits no l
 - `output_error`: writing a response failed, for example because the client closed its read pipe.
   The CLI ignores SIGPIPE so this takes the error/cleanup path once input ends.
 
+A fatal signal inside `amoo mcp serve` (a Swift runtime abort, a trap, a segfault) is also recorded in
+`~/Library/Logs/amoo/mcp-serve-crash.log` (`AMOO_CRASH_LOG` overrides) and on stderr, so a client
+that only reports "Connection closed" leaves a trace.
+
 Collect `amoo doctor --json` before and after a reproduction, the exact failing tool and timestamp,
 and the client's MCP logs/exit status. A missing session should return `session_not_found` while a
 subsequent `ping` still succeeds. Separate MCP server processes cannot attach to each other's live
