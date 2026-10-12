@@ -92,17 +92,27 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(resolved, companion.path)
     }
 
-    /// No subcommand enters the REPL and returns nothing to print. The real REPL is replaced: it
-    /// picks whatever simulator is booted and builds and starts a companion there — minutes of
-    /// work, and a rebuild of the companion under any other session using it.
-    func testDefaultOutput() async {
+    /// Bare `amoo` at a terminal is the interactive REPL, entered exactly once with no arguments.
+    func testBareInvocationAtATerminalEntersTheREPL() async {
         let launches = CallRecorder<[String]>()
-        let app = CLIApp(launchREPL: { await launches.record($0) })
+        let app = CLIApp(launchREPL: { await launches.record($0) }, isInteractiveTerminal: { true })
         let result = await app.run(args: [])
         XCTAssertEqual(result.output, "")
         XCTAssertEqual(result.exitCode, 0)
         let recorded = await launches.values()
-        XCTAssertEqual(recorded, [[]], "the REPL is entered exactly once, with no arguments")
+        XCTAssertEqual(recorded, [[]])
+    }
+
+    /// Spawned over a pipe (an MCP client that forgot `mcp serve`), bare `amoo` prints help and exits
+    /// instead of hanging in a REPL that would pick a simulator and build a companion on it.
+    func testBareInvocationWithoutATerminalPrintsHelpAndNeverStartsTheREPL() async {
+        let launches = CallRecorder<[String]>()
+        let app = CLIApp(launchREPL: { await launches.record($0) }, isInteractiveTerminal: { false })
+        let result = await app.run(args: [])
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("Usage: amoo <command> [options]"), result.output)
+        let recorded = await launches.values()
+        XCTAssertTrue(recorded.isEmpty, "a non-interactive bare `amoo` must not start the REPL")
     }
 
     /// `amoo generate` with nothing after it is a usage error, like `amoo generate test` (64).
