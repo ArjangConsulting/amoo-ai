@@ -221,3 +221,38 @@ final class XCUITestContextTests: XCTestCase {
         }
     }
 }
+
+/// A swipe on an element an earlier step already bound reuses that variable instead of looking the
+/// element up again, and a lookup goes through the context's selector expressions like any other step.
+final class XCUITestSwipeLookupTests: XCTestCase {
+    private func source(_ operations: [StudioToolOperation], context: StudioTestContext? = nil) throws -> String {
+        let test = StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Swipe Flow",
+            description: "",
+            platform: .ios,
+            steps: [.init(id: "step-1", instruction: "Swipe", expected: "Swiped")],
+            testContext: context,
+            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: operations)
+        )
+        return try XCUITestEmitter().generate(test).source
+    }
+
+    func testASwipeOnAnAlreadyBoundElementReusesItsVariable() throws {
+        let code = try source([
+            .init(id: "1", tool: "assert_visible", arguments: ["id": "day.screen"]),
+            .init(id: "2", tool: "swipe_in_direction", arguments: ["element_id": "day.screen", "direction": "up"])
+        ])
+        XCTAssertEqual(code.components(separatedBy: #"["day.screen"]"#).count - 1, 1, "looked up once:\n\(code)")
+        XCTAssertTrue(code.contains(".swipeUp()"), code)
+    }
+
+    func testASwipeTargetUsesTheContextSelectorExpression() throws {
+        let context = StudioTestContext(selectorExpressions: ["day.screen": "JotUIAutomationID.DayDetail.screen"])
+        let code = try source([
+            .init(id: "1", tool: "swipe_in_direction", arguments: ["element_id": "day.screen", "direction": "up"])
+        ], context: context)
+        XCTAssertTrue(code.contains("JotUIAutomationID.DayDetail.screen"), code)
+        XCTAssertFalse(code.contains(#"["day.screen"]"#), "no raw id lookup:\n\(code)")
+    }
+}

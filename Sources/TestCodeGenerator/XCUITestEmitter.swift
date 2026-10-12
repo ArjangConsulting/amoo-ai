@@ -277,23 +277,22 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             return "\(indent)app.typeText(\(literal(text)))"
 
         case .swipeInDirection:
-            let target =
-                operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil
-                    ? try query(operation, idKey: "element_id", labelKey: "element_label")
-                    : "app"
             let gesture = try gesture(for: operation)
-            if target == "app" {
+            guard operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil else {
                 return "\(indent)app.\(gesture)()"
             }
-            let variable = localNames.next(
-                elementVariableName(
-                    for: operation,
-                    idKey: "element_id",
-                    labelKey: "element_label"
-                )
+            // Same lookup as every other element step, so a swipe on an element a previous step
+            // already bound reuses that variable and honours the context's selector expressions.
+            let (_, variable, declaration) = try lookup(
+                operation,
+                context: context,
+                localNames: &localNames,
+                lookups: &lookups,
+                idKey: "element_id",
+                labelKey: "element_label"
             )
             return try """
-            \(indent)let \(variable) = \(target)
+            \(declaration)
             \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)\(variable).\(gesture)()
             """
@@ -458,16 +457,18 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         _ operation: StudioToolOperation,
         context: StudioTestContext?,
         localNames: inout LocalNameAllocator,
-        lookups: inout [String: String]
+        lookups: inout [String: String],
+        idKey: String = "id",
+        labelKey: String = "label"
     ) throws -> (element: String, variable: String, declaration: String) {
-        let element = try query(operation, context: context)
+        let element = try query(operation, context: context, idKey: idKey, labelKey: labelKey)
         if let variable = lookups[element] {
             return (element, variable, "")
         }
-        let mappedID = operation.arguments["id"].flatMap { context?.selectorExpressions[$0] }
+        let mappedID = operation.arguments[idKey].flatMap { context?.selectorExpressions[$0] }
         let base =
             mappedID.map { TestIdentifierNaming.elementVariableBase(id: $0) }
-                ?? elementVariableName(for: operation)
+                ?? elementVariableName(for: operation, idKey: idKey, labelKey: labelKey)
         let variable = localNames.next(base)
         lookups[element] = variable
         return (element, variable, "\(indent)let \(variable) = \(element)")
