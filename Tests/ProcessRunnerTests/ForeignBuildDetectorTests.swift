@@ -62,6 +62,24 @@ final class ForeignBuildDetectorTests: XCTestCase {
         XCTAssertTrue(foreign.isEmpty)
     }
 
+    /// A build for another simulator cannot race an install here, so it must not trigger the advisory.
+    func testAdvisoryIsScopedToTheTargetDevice() async {
+        let runner = StubRunner(stdout: """
+        4242 /usr/bin/xcodebuild test -scheme Jot -destination id=AAAAAAAA-0000-0000-0000-000000000001
+        4343 /usr/bin/xcodebuild build-for-testing -scheme Other -destination generic/platform=iOS Simulator
+        """)
+        let detector = ForeignBuildDetector(processRunner: runner, ownProcessIDs: [])
+
+        let sameDevice = await detector.foreignBuildProcesses(deviceID: "AAAAAAAA-0000-0000-0000-000000000001")
+        XCTAssertEqual(sameDevice.map { $0.prefix(4) }, ["4242"])
+        let otherDevice = await detector.contentionWarning(deviceID: "BBBBBBBB-0000-0000-0000-000000000002")
+        XCTAssertNil(otherDevice)
+        let unscoped = await detector.foreignBuildProcesses(deviceID: "booted")
+        XCTAssertEqual(unscoped.count, 2, "no specific device keeps the machine-wide view")
+        let anyDevice = await detector.foreignBuildProcesses()
+        XCTAssertEqual(anyDevice.count, 2)
+    }
+
     func testNoWarningWhenPgrepFindsNothing() async {
         let runner = StubRunner(stdout: "", exitCode: 1)
         let detector = ForeignBuildDetector(processRunner: runner, ownProcessIDs: [])

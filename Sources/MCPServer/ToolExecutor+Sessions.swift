@@ -67,7 +67,6 @@ extension DriverToolExecutor {
         let contextJSON: String?
         do { contextJSON = try Self.contextSnapshot(arguments) } catch { return .error("Invalid context: \(error)") }
         await StartupProgress.report("Preparing session startup")
-        let contentionWarning = await foreignBuildDetector.contentionWarning()
 
         do {
             let session = try await manager.startSession(
@@ -93,6 +92,8 @@ extension DriverToolExecutor {
                 ),
                 for: session.id
             )
+            // Scoped to the session's device: a build for another simulator cannot race this install.
+            let contentionWarning = await foreignBuildDetector.contentionWarning(deviceID: session.deviceID)
             var summary: [String: Value] = [
                 "session_id": .string(session.id),
                 "app_id": .string(session.appID),

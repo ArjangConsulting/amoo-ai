@@ -50,7 +50,9 @@ extension DriverToolExecutor {
             } catch {
                 return .error("device_install_app failed: \(error)")
             }
-            let contention = await foreignBuildDetector.contentionWarning()
+            let contention = await foreignBuildDetector.contentionWarning(
+                deviceID: try? driver.deviceInfo().id
+            )
             try await driver.installApp(path: path)
             guard let contention else {
                 return .success("App installed from \(path)")

@@ -32,7 +32,7 @@ final class ForeignBuildWarningTests: XCTestCase {
 
     private func detector(reporting foreign: Bool) -> ForeignBuildDetector {
         let runner = foreign
-            ? StubRunner(stdout: "4242 /usr/bin/xcodebuild build\n", exitCode: 0)
+            ? StubRunner(stdout: "4242 /usr/bin/xcodebuild build -destination id=mock\n", exitCode: 0)
             : StubRunner(stdout: "", exitCode: 1)
         return ForeignBuildDetector(processRunner: runner, ownProcessIDs: [])
     }
