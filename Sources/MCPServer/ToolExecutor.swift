@@ -95,6 +95,9 @@ public actor DriverToolExecutor: ToolExecutor {
             result = try await dispatch(toolName: executionTool, arguments: executionArguments)
         } catch let error as ToolExecutionError {
             result = error.result
+        } catch is OperationDeadline.DeadlineExceeded {
+            result = ToolExecutionError(code: "deadline_exceeded", message: "Operation exceeded its time budget.")
+                .result
         } catch is CancellationError {
             result = ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
         } catch {

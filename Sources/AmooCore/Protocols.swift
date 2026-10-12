@@ -23,6 +23,7 @@ public protocol TextActions: Sendable {
     func typeText(_ text: String) async throws
     func clearText(characterCount: Int?) async throws
     func setText(_ selector: ElementSelector, text: String) async throws
+    func setText(_ selector: ElementSelector, text: String, appID: String?) async throws
     /// Presses one hardware-keyboard key, holding `modifiers`, in the frontmost app.
     func pressKey(_ key: KeyboardKey, modifiers: Set<KeyModifier>) async throws
 }
@@ -277,6 +278,12 @@ public extension TextActions {
 
     func clearText(characterCount _: Int?) async throws {
         throw AmooError.notImplemented("clearText")
+    }
+
+    /// Scope-aware text entry. Backends must explicitly support non-default app targets.
+    func setText(_ selector: ElementSelector, text: String, appID: String?) async throws {
+        guard appID == nil else { throw AmooError.notImplemented("scoped setText") }
+        try await setText(selector, text: text)
     }
 
     func setText(_: ElementSelector, text _: String) async throws {

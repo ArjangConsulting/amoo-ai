@@ -5,6 +5,7 @@ import TestSession
 
 public struct MCPServer: Sendable {
     private let profile: ToolProfile
+    private let definitions: [ToolDefinition]
     private let deviceService: DeviceService
     private let executor: (any ToolExecutor)?
     public let sessionManager: SessionManager?
@@ -16,17 +17,18 @@ public struct MCPServer: Sendable {
         profile: ToolProfile = .all
     ) {
         self.profile = profile
+        definitions = Self.makeDefinitions(profile: profile)
         self.deviceService = deviceService
         self.executor = executor
         self.sessionManager = sessionManager
     }
 
     public func toolNames() -> [String] {
-        allDefinitions.map(\.name)
+        definitions.map(\.name)
     }
 
     public func toolDefinitions() -> [ToolDefinition] {
-        allDefinitions
+        definitions
     }
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
@@ -43,7 +45,7 @@ public struct MCPServer: Sendable {
         deviceService.health()
     }
 
-    private var allDefinitions: [ToolDefinition] {
+    private static func makeDefinitions(profile: ToolProfile) -> [ToolDefinition] {
         // All driver-routed tools advertise an optional session_id so MCP
         // clients that honor schema (additionalProperties: false) can route
         // calls to a specific session created by start_session.

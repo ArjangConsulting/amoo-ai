@@ -489,7 +489,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
     package func inspectAccessibility(_ request: Amoo_AccessibilityInspectionRequest) async throws
         -> Amoo_AccessibilityInspectionResponse {
         var options = Self.gestureCallOptions
-        options.timeout = inspectionTimeout
+        options.timeout = OperationDeadline.remaining(cappedAt: inspectionTimeout)
         return try await connectedClient.inspectAccessibility(request, options: options)
     }
 
@@ -497,7 +497,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         var options = GRPCCore.CallOptions.defaults
         // XCUITest can wedge on beta runtimes. A deadline keeps the client usable and makes
         // recovery (`amoo companion start --force`) possible instead of hanging forever.
-        options.timeout = Self.gestureTimeout()
+        options.timeout = OperationDeadline.remaining(cappedAt: Self.gestureTimeout())
         return options
     }
 
@@ -564,7 +564,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         _ request: Amoo_CapabilitiesRequest
     ) async throws -> Amoo_CapabilitiesResponse {
         var options = Self.gestureCallOptions
-        options.timeout = .seconds(2)
+        options.timeout = OperationDeadline.remaining(cappedAt: .seconds(2))
         return try await connectedClient.getCapabilities(request, options: options)
     }
 
@@ -641,7 +641,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         _ request: Amoo_WaitForElementRequest
     ) async throws -> Amoo_WaitForElementResponse {
         var options = Self.gestureCallOptions
-        options.timeout = .milliseconds(Int64(max(0, request.timeout.milliseconds)) + 2000)
+        options.timeout = OperationDeadline.remaining(cappedAt: .milliseconds(Int64(max(
+            0,
+            request.timeout.milliseconds
+        )) + 2000))
         return try await connectedClient.waitForElement(request, options: options)
     }
 

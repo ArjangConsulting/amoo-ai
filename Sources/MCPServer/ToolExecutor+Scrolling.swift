@@ -107,7 +107,8 @@ extension DriverToolExecutor {
     /// Android it holds only status-bar text, which never changes while a list scrolls.
     func screenFingerprint(driver: any PlatformDriver, appID: String?) async -> String? {
         guard let elements = try? await driver.findElements(ElementSelector(), appID: appID) else { return nil }
-        return elements.prefix(300).map { "\($0.id)|\($0.label)|\(Int($0.frame?.y ?? -1))|\(Int($0.frame?.x ?? -1))" }
+        return elements.prefix(300)
+            .map { "\($0.id)|\($0.label)|\(geometryNumber($0.frame?.y ?? -1))|\(geometryNumber($0.frame?.x ?? -1))" }
             .joined(separator: "\n")
     }
 

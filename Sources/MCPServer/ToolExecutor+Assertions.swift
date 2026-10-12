@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import AuditEngine
 import Foundation
@@ -50,15 +51,16 @@ extension DriverToolExecutor {
         try await Task.sleep(for: .milliseconds(800))
 
         // Wait for screen change up to the requested timeout.
-        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000.0)
+        let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
         var current = initial
-        while Date() < deadline {
+        while ContinuousClock.now < deadline {
             try Task.checkCancellation()
-            current = await (try? driver.getScreenContext()) ?? current
+            current = await (try? OperationDeadline.read(until: deadline) { try await driver.getScreenContext() }) ??
+                current
             if current.summary != initial.summary {
                 break
             }
-            try? await Task.sleep(for: .milliseconds(200))
+            try? await Task.sleep(until: min(deadline, .now + .milliseconds(200)), clock: .continuous)
         }
 
         return .success(
@@ -81,7 +83,10 @@ extension DriverToolExecutor {
         driver: any PlatformDriver,
         timeoutMS: Int = 5000
     ) async -> ToolResult {
-        if let state = try? await driver.screenState(), state != .on {
+        let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
+        if let state = try? await OperationDeadline.read(until: deadline, operation: {
+            try await driver.screenState()
+        }), state != .on {
             return ToolResult(
                 content: "device_launch_app failed: device screen is \(state.rawValue). "
                     + "Wake and unlock the device, then retry.",
@@ -91,7 +96,6 @@ extension DriverToolExecutor {
                 ])
             )
         }
-        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
         let unverified = ToolResult.success(
             "App launched: \(appID) (verified=false)",
             structuredContent: .object(["app_id": .string(appID), "verified": .bool(false)])
@@ -101,7 +105,7 @@ extension DriverToolExecutor {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
-            let current = try? await driver.currentApp()
+            let current = try? await OperationDeadline.read(until: deadline) { try await driver.currentApp() }
             let frontmost = current?.bundleID
             if let frontmost, !frontmost.isEmpty {
                 lastFrontmost = frontmost
@@ -127,8 +131,8 @@ extension DriverToolExecutor {
             if lastFrontmost == nil, await (try? driver.appState(appID: appID)) == nil {
                 return unverified
             }
-            try? await Task.sleep(for: .milliseconds(250))
-        } while Date() < deadline
+            try? await Task.sleep(until: min(deadline, .now + .milliseconds(250)), clock: .continuous)
+        } while ContinuousClock.now < deadline
 
         guard let lastFrontmost else {
             return unverified
@@ -156,7 +160,7 @@ extension DriverToolExecutor {
             ? ElementSelector(label: matched.label, parentSelector: selector.parentSelector)
             : ElementSelector(id: matched.id, parentSelector: selector.parentSelector)
         let before = matched.value ?? ""
-        try await driver.setText(stableSelector, text: value)
+        try await driver.setText(stableSelector, text: value, appID: appID)
 
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
         var mode = "unverified"
@@ -165,7 +169,9 @@ extension DriverToolExecutor {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
             try Task.checkCancellation()
-            let updated = try await resolveElement(selector: stableSelector, driver: driver, appID: appID)
+            let updated = try await OperationDeadline.read(until: deadline) {
+                try await self.resolveElement(selector: stableSelector, driver: driver, appID: appID)
+            }
             if updated?.value == value {
                 mode = "exact"
                 break
@@ -193,7 +199,7 @@ extension DriverToolExecutor {
         )
     }
 
-    enum ElementAssertionKind {
+    enum ElementAssertionKind: Sendable {
         /// On screen. Deliberately weaker than `.enabled`: a disabled-but-present control is
         /// visible, and asserting otherwise would make `assert_visible` silently mean
         /// "visible and interactive".
@@ -218,16 +224,18 @@ extension DriverToolExecutor {
         driver: any PlatformDriver
     ) async throws -> ToolResult {
         let timeoutMS = arguments["timeout_ms"].flatMap(Int.init) ?? 5000
-        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
+        let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
         let pick = try ElementPick.parse(arguments)
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
-            let match = try await resolveElement(
-                selector: selector, driver: driver, appID: appID, pick: pick, missingIsNil: kind == .absent
-            )
+            let match = try await OperationDeadline.read(until: deadline) {
+                try await self.resolveElement(
+                    selector: selector, driver: driver, appID: appID, pick: pick, missingIsNil: kind == .absent
+                )
+            }
             switch kind {
             case .absent where match == nil:
                 return assertionSuccess("Element is absent", element: nil)
@@ -246,8 +254,8 @@ extension DriverToolExecutor {
             case .absent:
                 break
             }
-            try? await Task.sleep(for: .milliseconds(200))
-        } while Date() < deadline
+            try? await Task.sleep(until: min(deadline, .now + .milliseconds(200)), clock: .continuous)
+        } while ContinuousClock.now < deadline
 
         return ToolResult(
             content: "Assertion failed after \(timeoutMS)ms.",
@@ -283,12 +291,15 @@ extension DriverToolExecutor {
         timeoutMS: Int,
         driver: any PlatformDriver
     ) async -> ToolResult {
-        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000)
+        let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
-            if let observation = try? await driver.observeScreen() {
+            if let observation = try? await OperationDeadline.read(
+                until: deadline,
+                operation: { try await driver.observeScreen() }
+            ) {
                 let context = observation.context
                 let current = observation.token
                 if current != baseline {
@@ -302,8 +313,8 @@ extension DriverToolExecutor {
                     )
                 }
             }
-            try? await Task.sleep(for: .milliseconds(200))
-        } while Date() < deadline
+            try? await Task.sleep(until: min(deadline, .now + .milliseconds(200)), clock: .continuous)
+        } while ContinuousClock.now < deadline
         return ToolResult(
             content: "assert_screen_changed failed after \(timeoutMS)ms.",
             isError: true,
@@ -353,7 +364,8 @@ extension DriverToolExecutor {
     ) async throws -> ElementInfo? {
         if selector.description == nil {
             return try await pickElement(
-                driver.findElements(selector, appID: appID), pick: pick, missingIsNil: missingIsNil
+                validateGeometry(driver.findElements(selector, appID: appID)), pick: pick,
+                missingIsNil: missingIsNil
             )
         }
         if pick != nil {
@@ -392,17 +404,22 @@ extension DriverToolExecutor {
         timeoutMS: Int,
         driver: any PlatformDriver
     ) async throws -> ToolResult {
-        let deadline = Date().addingTimeInterval(Double(timeoutMS) / 1000.0)
+        let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
         let lowered = description.lowercased()
         var lastScreenSummary = ""
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
-            if let context = try? await driver.getScreenContext() {
+            if let context = try? await OperationDeadline.read(
+                until: deadline,
+                operation: { try await driver.getScreenContext() }
+            ) {
                 lastScreenSummary = context.summary
             }
-            if let match = try await findFirstNavigableElement(query: description, driver: driver) {
+            if let match = try await OperationDeadline.read(until: deadline, operation: {
+                try await self.findFirstNavigableElement(query: description, driver: driver)
+            }) {
                 return .success(
                     "Visible: '\(preferredElementName(label: match.label, id: match.id) ?? match.id)'",
                     structuredContent: .object([
@@ -414,8 +431,8 @@ extension DriverToolExecutor {
                     ])
                 )
             }
-            try? await Task.sleep(for: .milliseconds(500))
-        } while Date() < deadline
+            try? await Task.sleep(until: min(deadline, .now + .milliseconds(500)), clock: .continuous)
+        } while ContinuousClock.now < deadline
         return ToolResult(
             content: """
             assert_visible failed: no element matched '\(description)' within \(timeoutMS)ms.
@@ -462,3 +479,5 @@ extension DriverToolExecutor {
         return false
     }
 }
+
+// swiftlint:enable multiline_arguments

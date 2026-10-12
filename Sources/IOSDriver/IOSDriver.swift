@@ -187,6 +187,11 @@ public actor IOSDriver: PlatformDriver {
         try await companion.clearText(characterCount: characterCount)
     }
 
+    public func setText(_ selector: ElementSelector, text: String, appID: String?) async throws {
+        guard let appID else { return try await setText(selector, text: text) }
+        try await companion.setText(selector, text: text, appID: appID, candidateBundleIDs: [])
+    }
+
     public func setText(_ selector: ElementSelector, text: String) async throws {
         let focusSelector = try await resolvedTextFieldSelector(selector)
         let context = try await appQueryContext()

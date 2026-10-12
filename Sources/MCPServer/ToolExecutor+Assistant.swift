@@ -253,8 +253,9 @@ extension DriverToolExecutor {
             fields["width_points"] = .double(screen.widthPoints)
             fields["height_points"] = .double(screen.heightPoints)
             fields["scale"] = .double(imagePixelsPerPoint)
-            geometryNote = " — image is \(Int(imageWidth))x\(Int(imageHeight))px;"
-                + " gestures take points (\(Int(screen.widthPoints))x\(Int(screen.heightPoints))),"
+            geometryNote = " — image is \(geometryNumber(imageWidth))x\(geometryNumber(imageHeight))px;"
+                + " gestures take points (\(geometryNumber(screen.widthPoints))"
+                + "x\(geometryNumber(screen.heightPoints))),"
                 + " so divide image coordinates by \(imagePixelsPerPoint.formatted())"
             if scaledData == nil {
                 geometryNote += " or pass unit=pixels"
@@ -320,7 +321,12 @@ extension DriverToolExecutor {
         var frames = 1
         while clock.now < deadline {
             try await Task.sleep(for: .milliseconds(120))
-            let next = try await driver.takeScreenshot(format: format)
+            guard clock.now < deadline else { break }
+            let next: ScreenshotData
+            do {
+                next = try await OperationDeadline
+                    .read(until: deadline) { try await driver.takeScreenshot(format: format) }
+            } catch is OperationDeadline.DeadlineExceeded { break }
             frames += 1
             if next.bytes == previous.bytes {
                 return SettledCapture(screenshot: next, settled: true, frames: frames)

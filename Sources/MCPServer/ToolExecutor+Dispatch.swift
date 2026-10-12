@@ -273,7 +273,7 @@ extension DriverToolExecutor {
             }
             let tapPoint = matched.hitPoint ?? matched.frame.map(\.centre)
             let checks = tapChecks(arguments: arguments)
-            let preflight = await tapPreflight(
+            let preflight = try await tapPreflight(
                 matched: matched,
                 point: tapPoint,
                 checks: checks,
@@ -289,6 +289,7 @@ extension DriverToolExecutor {
             // walk another accessibility snapshot immediately before the gesture, duplicating the
             // most expensive part of this tool. Use that verified coordinate for the same gesture.
             // Fall back to the frame center for older companions that do not provide hit points.
+            try Task.checkCancellation()
             if let point = tapPoint {
                 try await driver.tap(at: point)
             } else if pick != nil {
@@ -297,13 +298,14 @@ extension DriverToolExecutor {
             } else {
                 try await driver.tapElement(selector, appID: appID)
             }
-            return await tapElementResult(
+            return try await tapElementResult(
                 TapOutcomeContext(
                     matched: matched,
                     foregroundBefore: foregroundBefore,
                     hierarchyBefore: preflight.hierarchy,
                     effect: checks.effect,
-                    appID: appID
+                    appID: appID,
+                    hittabilityChecked: checks.hittable != .off && preflight.hierarchy != nil && tapPoint != nil
                 ),
                 driver: driver
             )

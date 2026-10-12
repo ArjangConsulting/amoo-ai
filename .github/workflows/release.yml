@@ -168,6 +168,10 @@ jobs:
         run: |
           test "$(./amoo --version)" = "${RELEASE_VERSION}"
           ./amoo --help >/dev/null
+          python3 scripts/ci/mcp-smoke.py ./amoo --arch arm64
+          python3 scripts/ci/mcp-smoke.py ./amoo --arch x86_64
+          swift --version > release-toolchain.txt
+          cp Package.resolved release-dependencies.json
 
       - name: Download prebuilt companions
         uses: actions/download-artifact@v4
@@ -184,6 +188,8 @@ jobs:
             amoo \
             CompanionApps/iOS \
             CompanionApps/Android \
+            release-toolchain.txt \
+            release-dependencies.json \
             scripts/install-mcp.sh \
             plugins/amoo
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'amoo'
@@ -260,6 +266,9 @@ jobs:
         run: |
           test "$(.build/release/amoo --version)" = "${RELEASE_VERSION}"
           .build/release/amoo --help >/dev/null
+          python3 scripts/ci/mcp-smoke.py .build/release/amoo
+          swift --version > release-toolchain.txt
+          cp Package.resolved release-dependencies.json
 
       - name: Download prebuilt companions
         uses: actions/download-artifact@v4
@@ -276,6 +285,8 @@ jobs:
           tar -czf "amoo-${VERSION}-linux-static.tar.gz" \
             amoo \
             CompanionApps/Android \
+            release-toolchain.txt \
+            release-dependencies.json \
             scripts/install-mcp.sh \
             plugins/amoo
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'amoo'

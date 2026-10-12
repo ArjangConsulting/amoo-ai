@@ -19,6 +19,7 @@ public actor TestSession {
 
     public private(set) var endedAt: Date?
     public private(set) var actions: [SessionAction] = []
+    private(set) var recordedErrorCount = 0
     public private(set) var isActive: Bool = true
     public private(set) var codegenIntent: SessionCodegenIntent?
 
@@ -72,6 +73,9 @@ public actor TestSession {
             action = action.recordingGestureTarget(target)
         }
         actions.append(action)
+        if action.isError {
+            recordedErrorCount += 1
+        }
         if action.observedElements.isEmpty == false {
             recentElements = action.observedElements
         }

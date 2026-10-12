@@ -177,7 +177,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
         let server = MCPServer(executor: executor, sessionManager: sessionManager, profile: profile)
 
         do {
-            try await MCPStdioServer(server: server).run(output: protocolOutput)
+            try await serveMCP(server: server, output: protocolOutput)
         } catch {
             await sessionManager.closeAll()
             await iOSCM.shutdown()
@@ -231,4 +231,20 @@ private func isolateMCPOutput() -> FileHandle? {
     fflush(nil)
     guard dup2(STDERR_FILENO, STDOUT_FILENO) >= 0 else { return nil }
     return output
+}
+
+private func serveMCP(server: MCPServer, output: FileHandle) async throws {
+    let signals = CompanionSignalWaiter()
+    let serving = Task { try await MCPStdioServer(server: server).run(output: output) }
+    let signalTask = Task {
+        await signals.wait()
+        if !Task.isCancelled {
+            serving.cancel()
+        }
+    }
+    defer {
+        signalTask.cancel()
+        signals.finish()
+    }
+    try await serving.value
 }
