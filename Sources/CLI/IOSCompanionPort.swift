@@ -1,3 +1,5 @@
+import Foundation
+
 /// Chooses the TCP port an iOS session's companion listens on.
 ///
 /// Every session used to share port 22087, so a second simulator could not be recorded while the
@@ -25,6 +27,13 @@ enum IOSCompanionPort {
             hash &*= 1_099_511_628_211
         }
         return derivedBase + Int(hash % UInt64(derivedSpan))
+    }
+
+    /// The port a long-lived host (the Studio service) gives an iOS device's companion: the one derived
+    /// from a simulator's UDID so two devices can be driven at once, or the shared default for a
+    /// device identifier that is not a simulator UDID (a physical device, `booted`).
+    static func forDevice(_ identifier: String) -> Int {
+        UUID(uuidString: identifier) != nil ? derived(forUDID: identifier) : CompanionConfig.defaultPort
     }
 
     /// Picks the port for a session on `udid`.

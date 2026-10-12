@@ -61,7 +61,8 @@ actor CLIStudioToolExecutor: StudioToolExecuting {
         let driver: any PlatformDriver
         switch normalizedPlatform {
         case "ios":
-            let port = 22087
+            // One port per simulator, so two devices open in Studio do not fight over a shared one.
+            let port = IOSCompanionPort.forDevice(deviceId)
             try await iOSCompanionManager.ensureRunning(config: .init(
                 port: port,
                 deviceUDID: deviceId,
