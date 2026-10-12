@@ -72,11 +72,13 @@ enum NativeAccessibilityInspector {
                 result.error = "Requires 1...6 forward/backward phases and at most 30 total moves."
                 return result
             }
+            #if compiler(>=6.4)
             if #available(iOS 27.0, *) {
                 return traverse(appID: request.appID, phases: phases, isCancelled: isCancelled)
             }
+            #endif
             result.status = "unsupported"
-            result.error = "Public VoiceOver service requires iOS 27 or newer."
+            result.error = "Public VoiceOver service requires an Xcode 27+ companion build and iOS 27 or newer."
         default:
             result.error = "Unknown inspection operation."
         }
@@ -148,6 +150,7 @@ enum NativeAccessibilityInspector {
         return result
     }
 
+    #if compiler(>=6.4)
     @available(iOS 27.0, *)
     private static func traverse(
         appID: String, phases: [Amoo_VoiceOverPhase], isCancelled: @escaping @Sendable () -> Bool
@@ -168,4 +171,5 @@ enum NativeAccessibilityInspector {
         )
         return voiceOverResponse(report)
     }
+    #endif
 }

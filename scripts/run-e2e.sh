@@ -418,7 +418,15 @@ else
     log "Skipping build (--skip-build)."
 fi
 
-# Step 2: Find the xctestrun file
+# Step 2: Install the fixture from this build and find the xctestrun file
+HOST_APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/AmooCompanion.app"
+if [[ ! -d "$HOST_APP" ]]; then
+    error "No companion fixture app found. Run make companion-ios-build first."
+    exit 1
+fi
+log "Installing fixture app from current build..."
+xcrun simctl install "$TARGET_ID" "$HOST_APP"
+
 XCTESTRUN=$(find "$DERIVED_DATA/Build/Products" -name "*.xctestrun" -maxdepth 1 | head -1)
 if [[ -z "$XCTESTRUN" ]]; then
     error "No .xctestrun file found. Build may have failed."

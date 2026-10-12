@@ -11,6 +11,9 @@ extension NativeAccessibilityInspector {
             }
             let journey = try AccessibilityJourney.decodeJSON(request.journeyJson)
             try journey.validate()
+            // Xcode 27 (Swift 6.4) introduces the VoiceOver SDK; runtime checks alone
+            // cannot hide its symbols when building with Xcode 26.
+            #if compiler(>=6.4)
             if #available(iOS 27.0, *) {
                 let report = try AccessibilityJourneyRunner.run(
                     appID: request.appID, journey: journey,
@@ -24,10 +27,11 @@ extension NativeAccessibilityInspector {
                     .journeyReportJson = try String(bytes: JSONEncoder().encode(report.journey), encoding: .utf8) ?? ""
                 return response
             }
+            #endif
             return voiceOverResponse(.init(
                 status: "unsupported",
                 provider: "authoredAccessibilityJourney",
-                error: "Requires iOS 27 public VoiceOver service"
+                error: "Requires an Xcode 27+ companion build and iOS 27 public VoiceOver service"
             ))
         } catch {
             return voiceOverResponse(.init(
@@ -39,6 +43,7 @@ extension NativeAccessibilityInspector {
     }
 }
 
+#if compiler(>=6.4)
 @available(iOS 27.0, *)
 @MainActor
 private final class XCTestAccessibilityJourneyControl: AccessibilityJourneyControlling {
@@ -115,3 +120,4 @@ private extension XCUIElement.ElementType {
         }
     }
 }
+#endif

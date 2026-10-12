@@ -20,6 +20,7 @@ extension NativeAccessibilityInspector {
     static var startupVoiceOverRecovery: [String: String] = ["startup_voiceover_recovery": "notAttempted"]
 
     static func recoverVoiceOverAtStartup() {
+        #if compiler(>=6.4)
         if #available(iOS 27.0, *) {
             do {
                 let recovered = try VoiceOverTraversal.recover(
@@ -35,6 +36,7 @@ extension NativeAccessibilityInspector {
                 print("[Accessibility] VoiceOver restoration pending; traversal will remain blocked.")
             }
         }
+        #endif
     }
 
     static func voiceOverResponse(_ report: AccessibilityInspection) -> Amoo_AccessibilityInspectionResponse {
@@ -67,6 +69,7 @@ extension NativeAccessibilityInspector {
     }
 }
 
+#if compiler(>=6.4)
 @available(iOS 27.0, *)
 @MainActor
 final class XCTestVoiceOverControl: VoiceOverControlling {
@@ -87,3 +90,4 @@ final class XCTestVoiceOverControl: VoiceOverControlling {
         return try direction == "forward" ? service.moveForward().utterance : service.moveBackward().utterance
     }
 }
+#endif

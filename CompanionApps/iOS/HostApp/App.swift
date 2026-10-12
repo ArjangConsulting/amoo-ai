@@ -59,11 +59,11 @@ struct CompanionHostApp: App {
                 .toolbar {
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button("Details") { path = [.details] }
-                            .accessibilityIdentifier("fixture-open-details")
+                            .accessibilityIdentifier("fixture-toolbar-details")
                         Button("Text") { path = [.textInput] }
-                            .accessibilityIdentifier("fixture-open-text")
+                            .accessibilityIdentifier("fixture-toolbar-text")
                         Button("Gesture") { path = [.gesture] }
-                            .accessibilityIdentifier("fixture-open-gesture")
+                            .accessibilityIdentifier("fixture-toolbar-gesture")
                     }
                 }
             }
