@@ -202,6 +202,13 @@ amoo generate plan --report report.json --context test-context.json --out out/
 amoo generate test --plan out/plan.json
 ```
 
+To author a plan with no recording at all, compile the same `*.amoo.json` flow `amoo flow` runs:
+
+```bash
+amoo generate plan --from-flow Examples/sign-in.amoo.json --test-name SignIn --out out/
+amoo generate test --plan out/plan.json
+```
+
 ## Efficient and reliable clients
 
 ### Diagnosing a closed transport

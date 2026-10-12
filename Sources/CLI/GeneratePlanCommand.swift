@@ -1,10 +1,13 @@
+import AmooCore
 import Foundation
+import MCPServer
 import SessionCompiler
 import StudioProtocol
 import TestSession
 
-/// `amoo generate plan` — recompile a recorded session's `report.json` into a fresh
-/// `plan.json` (and `flow.json`) without going back through `amoo mcp serve`.
+/// `amoo generate plan` — recompile a recorded session's `report.json`, or compile a hand-authored
+/// `*.amoo.json` flow, into a `plan.json` (and `flow.json`) without going back through
+/// `amoo mcp serve`.
 ///
 /// This is the offline replay path for a recorded scenario: the same deterministic
 /// `SessionPlanCompiler` the MCP `compile_session_to_plan` tool runs, so control-plane calls are
@@ -12,26 +15,41 @@ import TestSession
 /// role-distinguished names. Feed the result straight to `amoo generate test --plan`.
 func renderGeneratePlanHelp() -> String {
     """
-    Usage: amoo generate plan --report <path-to-report.json> [--out <directory>]
+    Usage: amoo generate plan (--report <path-to-report.json> | --from-flow <path.amoo.json>)
+                              [--out <directory>]
                               [--context <path-to-test-context.json>]
                               [--test-name <name>] [--test-description <text>]
 
-      Recompiles a recorded session into plan.json / flow.json using the same compiler as the
-      MCP `compile_session_to_plan` tool. Prints the plan JSON to stdout when --out is omitted.
+      Compiles a session into plan.json / flow.json using the same compiler as the MCP
+      `compile_session_to_plan` tool. Prints the plan JSON to stdout when --out is omitted.
       The MCP `end_session` tool already writes plan.json on close; this is the offline path for
-      re-running that compile against a saved report.json.
+      re-running that compile against a saved report.json, or for authoring a plan by hand with
+      no recorded session at all.
 
       --report            Path to the recorded session report.json.
+      --from-flow         Path to a hand-written flow (the same *.amoo.json `amoo flow` runs) to
+                          compile as if it had been recorded. Steps are {"tool", "arguments"} pairs
+                          such as tap_element / set_text / assert_visible; a device_launch_app step
+                          supplies the app id, launch arguments and environment instead of becoming
+                          a test step. ${ENV} values are kept verbatim, not read from the
+                          environment — put fixture values in the flow, or bind a helper through
+                          --context. Give exactly one of --report and --from-flow.
       --out               Directory to write plan.json and flow.json into.
       --context           App-owned test-context JSON to fold into the plan's testContext.
       --test-name         Descriptive test name. Falls back to the recorded name, then a
                           semantic name inferred from the flow.
       --test-description  One-line description for the generated test.
+
+    Example (author a plan with no recording, then emit the test):
+      amoo generate plan --from-flow Examples/sign-in.amoo.json --test-name SignIn --out out/
+      amoo generate test --plan out/plan.json --out Tests/
     """
 }
 
 struct GeneratePlanOptions: Equatable {
-    var reportPath: String
+    /// Exactly one of `reportPath` and `flowPath` is set.
+    var reportPath: String?
+    var flowPath: String?
     var outputDirectory: String?
     var contextPath: String?
     var testName: String?
@@ -42,12 +60,14 @@ enum GeneratePlanParseError: Error, CustomStringConvertible {
     case usage
     case missingValue(flag: String)
     case unexpectedArgument(String)
+    case conflictingInputs
 
     var description: String {
         switch self {
         case .usage: renderGeneratePlanHelp()
         case let .missingValue(flag): "Missing value for \(flag)."
         case let .unexpectedArgument(arg): "Unexpected argument '\(arg)'."
+        case .conflictingInputs: "Pass exactly one of --report and --from-flow."
         }
     }
 }
@@ -57,6 +77,7 @@ enum GeneratePlanParseError: Error, CustomStringConvertible {
 func parseGeneratePlanOptions(args: [String]) throws -> GeneratePlanOptions {
     guard !args.isEmpty else { throw GeneratePlanParseError.usage }
     var reportPath: String?
+    var flowPath: String?
     var outputDirectory: String?
     var contextPath: String?
     var testName: String?
@@ -70,6 +91,7 @@ func parseGeneratePlanOptions(args: [String]) throws -> GeneratePlanOptions {
         let value = args[valueIndex]
         switch flag {
         case "--report": reportPath = value
+        case "--from-flow": flowPath = value
         case "--out": outputDirectory = value
         case "--context": contextPath = value
         case "--test-name": testName = value
@@ -78,9 +100,13 @@ func parseGeneratePlanOptions(args: [String]) throws -> GeneratePlanOptions {
         }
         index += 2
     }
-    guard let reportPath else { throw GeneratePlanParseError.missingValue(flag: "--report") }
+    if reportPath != nil, flowPath != nil {
+        throw GeneratePlanParseError.conflictingInputs
+    }
+    guard reportPath != nil || flowPath != nil else { throw GeneratePlanParseError.missingValue(flag: "--report") }
     return GeneratePlanOptions(
         reportPath: reportPath,
+        flowPath: flowPath,
         outputDirectory: outputDirectory,
         contextPath: contextPath,
         testName: testName,
@@ -88,12 +114,89 @@ func parseGeneratePlanOptions(args: [String]) throws -> GeneratePlanOptions {
     )
 }
 
-func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
-    let reportURL = URL(fileURLWithPath: (options.reportPath as NSString).expandingTildeInPath)
-    let report = try SessionReport.makeJSONDecoder().decode(
-        SessionReport.self,
-        from: Data(contentsOf: reportURL)
+/// Turns a hand-written flow into the session report a recording of it would have produced, so the
+/// one deterministic compiler serves both. A `device_launch_app` step becomes the report's app id and
+/// launch configuration (a recording keeps those on the report, not as a step); every other step is
+/// an action. Steps are spaced apart so the compiler's retry-collapse never merges two deliberate,
+/// identical taps.
+func sessionReport(fromFlow flow: TestFlow, name: String) -> SessionReport {
+    var appID = ""
+    var launchArguments: [String] = []
+    var launchEnvironment: [String: String] = [:]
+    var actions: [SessionAction] = []
+    let start = Date(timeIntervalSince1970: 0)
+    for step in flow.steps {
+        if step.tool == "device_launch_app" || step.tool == "start_session" {
+            appID = step.arguments["app_id"] ?? appID
+            launchArguments = step.arguments["launch_args"]
+                .map { $0.split(separator: ",").map(String.init) } ?? launchArguments
+            launchEnvironment = step.arguments["environment"]
+                .map { DriverToolExecutor.parseEnvironment($0) } ?? launchEnvironment
+            continue
+        }
+        actions.append(SessionAction(
+            timestamp: start.addingTimeInterval(Double(actions.count) * flowStepSpacingSeconds),
+            toolName: step.tool,
+            arguments: step.arguments,
+            result: "authored in \(name)",
+            isError: false,
+            intent: flowIntent(forTool: step.tool)
+        ))
+    }
+    return SessionReport(
+        sessionID: name,
+        appID: appID,
+        deviceID: flow.deviceID ?? "booted",
+        platform: flow.platform.lowercased(),
+        startedAt: start,
+        endedAt: start.addingTimeInterval(Double(actions.count) * flowStepSpacingSeconds),
+        durationSeconds: Double(actions.count) * flowStepSpacingSeconds,
+        actionCount: actions.count,
+        errorCount: 0,
+        isActive: false,
+        actions: actions,
+        launchArguments: launchArguments,
+        launchEnvironment: launchEnvironment
     )
+}
+
+/// Longer than the compiler's retry-tap window, so repeated identical steps stay separate.
+private let flowStepSpacingSeconds = 5.0
+
+/// Mirrors how the recorder classifies a live call: queries are diagnostics, `assert_*` are
+/// assertions, everything else is a step to reproduce.
+private func flowIntent(forTool tool: String) -> SessionAction.Intent {
+    if tool.hasPrefix("assert_") {
+        return .assertion
+    }
+    let queries: Set = [
+        "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
+        "take_screenshot", "current_app", "list_devices", "list_apps"
+    ]
+    return queries.contains(tool) ? .diagnostic : .testStep
+}
+
+func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
+    let report: SessionReport
+    if let flowPath = options.flowPath {
+        let flowURL = URL(fileURLWithPath: (flowPath as NSString).expandingTildeInPath)
+        let flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: flowURL))
+        guard !flow.steps.isEmpty else {
+            return CLIResult(output: "Flow has no steps: \(flowURL.path)", exitCode: 64)
+        }
+        guard Platform(rawValue: flow.platform.lowercased()) != nil else {
+            return CLIResult(output: "Unknown flow platform '\(flow.platform)'.", exitCode: 64)
+        }
+        report = sessionReport(fromFlow: flow, name: flowURL.deletingPathExtension().lastPathComponent)
+    } else if let reportPath = options.reportPath {
+        let reportURL = URL(fileURLWithPath: (reportPath as NSString).expandingTildeInPath)
+        report = try SessionReport.makeJSONDecoder().decode(
+            SessionReport.self,
+            from: Data(contentsOf: reportURL)
+        )
+    } else {
+        throw GeneratePlanParseError.missingValue(flag: "--report")
+    }
 
     var result = try SessionPlanCompiler.compile(
         report: report,
