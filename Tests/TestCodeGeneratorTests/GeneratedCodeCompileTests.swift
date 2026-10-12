@@ -78,6 +78,21 @@ final class GeneratedCodeCompileTests: XCTestCase {
         )
     }
 
+    func testGeneratedXCUITestWithAnIdiomGuardCompiles() throws {
+        var test = makePickTest(platform: .ios)
+        test = StudioAuthoredTest(
+            formatVersion: test.formatVersion,
+            name: test.name,
+            description: test.description,
+            platform: .ios,
+            steps: test.steps,
+            testContext: StudioTestContext(requiredIdiom: .pad),
+            compiledPlan: test.compiledPlan
+        )
+        let result = try XCUITestEmitter().generate(test)
+        try CompileVerification.verifySwiftCompiles(result.source)
+    }
+
     func testGeneratedXCUITestPicksAndSubstringValueCompile() throws {
         let result = try XCUITestEmitter().generate(makePickTest(platform: .ios))
         XCTAssertTrue(result.source.contains(".contains(\"Hi\")"), result.source)
