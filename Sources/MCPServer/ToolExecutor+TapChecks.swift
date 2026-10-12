@@ -41,7 +41,15 @@ enum TapHittability {
         .tabBar, .scrollView, .table, .collectionView, .navigationBar, .sheet, .alert
     ]
 
+    /// Android inspection returns a flat query result, not parentage or paint order. Compose
+    /// exposes a label and its clickable owner as separate entries; treating the owner as a
+    /// later sibling incorrectly reports that the button covers its own label.
+    static func supportsChecks(in root: ViewNode) -> Bool {
+        !(["android-root", "android-cli-root"].contains(root.id) && root.children.allSatisfy(\.children.isEmpty))
+    }
+
     static func block(for target: ElementInfo, at point: Point, in root: ViewNode) -> TapBlock? {
+        guard supportsChecks(in: root) else { return nil }
         if let window = root.frame, !contains(window, point) {
             return .offScreen(point)
         }
@@ -177,6 +185,7 @@ extension DriverToolExecutor {
         var refusal: ToolResult?
         /// The hierarchy read for the check, kept as the "before" picture for the effect check.
         var hierarchy: ViewNode?
+        var hittabilityChecked = false
     }
 
     /// Reads the hierarchy once and refuses a tap that would miss `matched`.
@@ -206,9 +215,17 @@ extension DriverToolExecutor {
         guard let hierarchy = try await readHierarchy(mode, driver: driver, appID: appID) else {
             return TapPreflight(refusal: nil, hierarchy: nil)
         }
-        guard hittable != .off, let point,
+        guard TapHittability.supportsChecks(in: hierarchy) else {
+            return TapPreflight(
+                refusal: hittable == .required
+                    ? .error("Hittability cannot be checked: Android inspection returns a flat element list.") : nil,
+                hierarchy: hierarchy
+            )
+        }
+        let checked = hittable != .off && point != nil
+        guard checked, let point,
               let block = TapHittability.block(for: matched, at: point, in: hierarchy)
-        else { return TapPreflight(refusal: nil, hierarchy: hierarchy) }
+        else { return TapPreflight(refusal: nil, hierarchy: hierarchy, hittabilityChecked: checked) }
         let name = preferredElementName(label: matched.label, id: matched.id) ?? matched.id
         let refusal = ToolResult.error(
             "tap_element failed: '\(name)' would not receive the tap because \(block.explanation)."
