@@ -150,8 +150,8 @@ public struct SessionReport: Sendable, Codable, Equatable {
 extension TestSession {
     /// Capture secrets, actions and lifecycle state in one actor turn. Separate awaits could
     /// combine a new action with an older redaction set during an idle flush.
-    func reportSnapshot() -> SessionReport {
-        let sanitizedActions = actions.map { $0.redacted(using: redactor) }
+    func reportSnapshot(includeActions: Bool = true) -> SessionReport {
+        let sanitizedActions = includeActions ? actions.map { $0.redacted(using: redactor) } : []
         let end = endedAt ?? Date()
         return SessionReport(
             sessionID: id,
@@ -161,8 +161,8 @@ extension TestSession {
             startedAt: startedAt,
             endedAt: endedAt,
             durationSeconds: end.timeIntervalSince(startedAt),
-            actionCount: sanitizedActions.count,
-            errorCount: sanitizedActions.reduce(0) { $0 + ($1.isError ? 1 : 0) },
+            actionCount: actions.count,
+            errorCount: recordedErrorCount,
             isActive: isActive,
             actions: sanitizedActions,
             launchArguments: launchArguments.map(redactor.redact),

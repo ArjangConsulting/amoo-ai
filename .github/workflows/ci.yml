@@ -53,6 +53,13 @@ jobs:
       - name: Test orchestration scripts
         run: python3 -m unittest discover -s scripts/tests -v
 
+      - name: Release MCP and subprocess regression gate
+        run: |
+          swift build -c release --product amoo
+          python3 scripts/ci/mcp-smoke.py .build/release/amoo
+          # CLI test helpers require DEBUG; optimization remains enabled.
+          swift test -c release -Xswiftc -DDEBUG --filter ProcessRunnerTests
+
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
 

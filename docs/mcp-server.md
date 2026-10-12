@@ -290,9 +290,9 @@ event; they omit request arguments and app content. Default operation emits no l
 - `started`: the stdio loop began.
 - `stdin_eof`: all client input writers closed; outstanding requests are draining.
 - `requests_drained`: the stdio loop returned normally; CLI session/companion cleanup follows.
-- `input_oversized_frame`, `input_backpressure`, or `input_error`: the input loop failed.
+- `input_oversized_frame` or `input_error`: the input loop failed.
 - `output_error`: writing a response failed, for example because the client closed its read pipe.
-  The CLI ignores SIGPIPE so this takes the error/cleanup path once input ends.
+  The CLI ignores SIGPIPE and immediately enters cleanup, even when client input stays open.
 
 A fatal signal inside `amoo mcp serve` (a Swift runtime abort, a trap, a segfault) is also recorded in
 `~/Library/Logs/amoo/mcp-serve-crash.log` (`AMOO_CRASH_LOG` overrides) and on stderr, so a client
@@ -335,12 +335,23 @@ round trip per action.
 Requests execute independently across devices and serialize per device within one server process.
 Cancellation notifications propagate to outstanding request tasks. RPC deadlines and bounded input
 frames prevent indefinite client work; device-side cancellation may finish later. Production
-session bootstrap also rejects simultaneous leases of the same device within that process.
+session bootstrap holds an OS file lock until session cleanup, rejecting a second MCP process on
+the same device as well as conflicting environment leases. Queued calls cancel promptly; an active
+mutation keeps its place until its backend stops. Recovery calls have reserved request capacity.
+
+Output runs on a separate worker with a 16 MiB queue limit and a five-second write deadline.
+EOF allows two seconds for pending responses, then cancels remaining requests before session
+cleanup. SIGTERM follows the same cleanup path. Assertions propagate their remaining monotonic
+deadline into RPCs and subprocesses; a late read cannot turn an expired assertion into success.
+Required hittability inspection must succeed before a tap; best-effort taps report
+`hittability_checked=false` when inspection was unavailable.
 
 Reports flush after ten pending actions or five seconds of idle time, and at orderly shutdown.
+Pending writes coalesce per session, and session listings use lightweight summaries. The persisted
+report remains a complete snapshot; very long recordings still have snapshot rewrite costs.
 An abrupt crash can lose the pending batch. `get_session_report` and `end_session` expose
 `recording_health`: saved, pending, failed, unknown (no observed write), or disabled. A device action
-can succeed while persistence fails; check this field before claiming the recording is durable. Known entered secrets and sensitive launch metadata
+can succeed while persistence fails; `saved` covers the latest queued generation, not an older write; check this field before claiming the recording is durable. Known entered secrets and sensitive launch metadata
 are redacted across recorded arguments, results, and observed selectors. `record_value=fixture`
 explicitly preserves non-sensitive sample text for generation. Redacted values require runtime
 bindings before complete test export. Screenshots can still contain sensitive pixels: choose
@@ -355,3 +366,11 @@ device queue, stop at the first failure, and each attempted step is recorded onc
 lifecycle calls and per-step session overrides are rejected before execution. Per-step timeouts
 are capped at 10 seconds and gesture durations at 3 seconds. Completed actions are not rolled back.
 Use normal discovery calls to decide the sequence first; batch responses contain compact summaries.
+
+### Testing a release executable
+
+Run `python3 scripts/ci/mcp-smoke.py /absolute/path/to/amoo` before distributing a build. It checks
+initialization, device discovery, request IDs, recovery after a tool error, EOF, output disconnect,
+and SIGTERM without booting or driving a device. `--fatal-signal` also validates the preallocated
+fatal-signal diagnostic in a child process. Release artifacts include the compiler version and
+dependency lockfile; use initialization's `dev.amoo/build` metadata to identify the running binary.

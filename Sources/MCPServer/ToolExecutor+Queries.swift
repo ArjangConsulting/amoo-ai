@@ -100,6 +100,7 @@ extension DriverToolExecutor {
             selector,
             appID: queryScopeAppID(arguments: arguments, driver: driver)
         )
+        elements = try validateGeometry(elements)
         // `index` / `first` narrow the matches to the one a later tap or assertion would pick. That
         // index counts the device's own order, so noise is never filtered out from under it.
         let pick = try ElementPick.parse(arguments)
@@ -148,8 +149,8 @@ extension DriverToolExecutor {
     /// One line per element: identity, then the current value, then where it is.
     static func describe(_ element: ElementInfo, includeValue: Bool) -> String {
         let point = element.hitPoint ?? element.frame?.centre
-        let position = point.map { " hitPoint: (\(Int($0.x)),\(Int($0.y))) pts" } ?? ""
-        let size = element.frame.map { " \(Int($0.width))x\(Int($0.height))" } ?? ""
+        let position = point.map { " hitPoint: (\(geometryNumber($0.x)),\(geometryNumber($0.y))) pts" } ?? ""
+        let size = element.frame.map { " \(geometryNumber($0.width))x\(geometryNumber($0.height))" } ?? ""
         let identity = element.id.isEmpty && element.label.isEmpty
             ? "[unlabeled] \(element.type?.rawValue ?? "element")"
             : "[\(element.id.prefix(240))] \(element.label.prefix(240))"

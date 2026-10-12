@@ -38,6 +38,17 @@ public extension SessionStore {
 
 private actor PersistenceHealth {
     private var states: [String: String] = [:]
+    private var summaries: [String: (Date, SessionReport)] = [:]
+
+    func summary(_ id: String, modified: Date) -> SessionReport? {
+        guard let cached = summaries[id], cached.0 == modified else { return nil }
+        return cached.1
+    }
+
+    func cache(_ report: SessionReport, modified: Date) {
+        summaries[report.sessionID] = (modified, report)
+    }
+
     func set(_ id: String, state: String) {
         states[id] = state
     }
@@ -136,9 +147,15 @@ public struct FileSessionStore: SessionStore {
             let reportDate = try? reportURL.resourceValues(forKeys: [.contentModificationDateKey])
                 .contentModificationDate
             if let summaryDate, let reportDate, summaryDate >= reportDate,
+               let cached = await health.summary(entry.lastPathComponent, modified: summaryDate) {
+                summaries.append(cached)
+                continue
+            }
+            if let summaryDate, let reportDate, summaryDate >= reportDate,
                let data = try? Data(contentsOf: summaryURL),
                let summary = try? SessionReport.makeJSONDecoder().decode(SessionReport.self, from: data) {
                 summaries.append(summary)
+                await health.cache(summary, modified: summaryDate)
             } else if let report = await loadReport(sessionID: entry.lastPathComponent) {
                 // Legacy stores and a crash between report and index replacement remain readable.
                 summaries.append(report.summary)

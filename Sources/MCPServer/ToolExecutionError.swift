@@ -36,7 +36,7 @@ extension DriverToolExecutor {
                     parts.append("type=\(type.rawValue)")
                 }
                 if let point = element.hitPoint ?? element.frame?.centre {
-                    parts.append("at=(\(Int(point.x)),\(Int(point.y)))")
+                    parts.append("at=(\(geometryNumber(point.x)),\(geometryNumber(point.y)))")
                 }
                 return "[" + parts.joined(separator: " ") + "]"
             }.joined(separator: ", ")

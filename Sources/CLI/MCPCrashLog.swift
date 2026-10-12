@@ -14,8 +14,15 @@ import Glibc
 enum MCPCrashLog {
     private static let signals: [Int32] = [SIGABRT, SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGFPE]
 
-    /// Pre-built so the handler never allocates.
-    nonisolated(unsafe) private static var logPath: UnsafeMutablePointer<CChar>?
+    private struct SignalRecord {
+        var message: UnsafePointer<CChar>?
+        var count: Int = 0
+        var previous: (@convention(c) (Int32) -> Void)?
+    }
+
+    // Allocated and filled before handler installation; never freed while handlers are installed.
+    nonisolated(unsafe) private static var records: UnsafeMutablePointer<SignalRecord>?
+    nonisolated(unsafe) private static var logDescriptor: Int32 = -1
 
     /// The file fatal signals are appended to. `AMOO_CRASH_LOG` overrides the default.
     static func defaultLogURL(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
@@ -36,40 +43,30 @@ enum MCPCrashLog {
         try? FileManager.default.createDirectory(
             at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true
         )
-        logPath = strdup(logURL.path)
+        guard records == nil else { return }
+        let prepared = UnsafeMutablePointer<SignalRecord>.allocate(capacity: 64)
+        prepared.initialize(repeating: SignalRecord(), count: 64)
+        logDescriptor = open(logURL.path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0o600)
         for number in signals {
-            signal(number) { received in
-                Self.report(signal: received)
-                signal(received, SIG_DFL)
+            let message = "amoo mcp serve: fatal signal \(number) in pid \(getpid())\n"
+            prepared[Int(number)].message = strdup(message).map { UnsafePointer($0) }
+            prepared[Int(number)].count = message.utf8.count
+        }
+        records = prepared
+        for number in signals {
+            prepared[Int(number)].previous = signal(number) { received in
+                guard let records = Self.records, received >= 0, received < 64 else { return }
+                let record = records[Int(received)]
+                if let message = record.message {
+                    _ = write(STDERR_FILENO, message, record.count)
+                    if Self.logDescriptor >= 0 {
+                        _ = write(Self.logDescriptor, message, record.count)
+                    }
+                }
+                // Let the previously installed runtime/system handler produce its own report.
+                signal(received, record.previous)
                 raise(received)
             }
         }
-    }
-
-    private static func report(signal number: Int32) {
-        var message: [UInt8] = Array("amoo mcp serve: fatal signal ".utf8)
-        appendDecimal(Int(number), to: &message)
-        message += Array(" in pid ".utf8)
-        appendDecimal(Int(getpid()), to: &message)
-        message.append(0x0A)
-        message.withUnsafeBytes { _ = write(STDERR_FILENO, $0.baseAddress, $0.count) }
-        guard let path = logPath else { return }
-        let descriptor = open(path, O_WRONLY | O_CREAT | O_APPEND, 0o644)
-        guard descriptor >= 0 else { return }
-        message.withUnsafeBytes { _ = write(descriptor, $0.baseAddress, $0.count) }
-        close(descriptor)
-    }
-
-    private static func appendDecimal(_ value: Int, to buffer: inout [UInt8]) {
-        var digits: [UInt8] = []
-        var remaining = value < 0 ? -value : value
-        repeat {
-            digits.append(UInt8(48 + remaining % 10))
-            remaining /= 10
-        } while remaining > 0
-        if value < 0 {
-            buffer.append(0x2D)
-        }
-        buffer += digits.reversed()
     }
 }

@@ -1,21 +1,37 @@
+// swiftlint:disable multiline_arguments
+import AmooCore
 import Foundation
 
-/// FIFO execution per physical device. A cancelled waiter never invokes its operation, and
-/// cancellation propagates into the running operation without releasing the device early.
+/// FIFO per device. Queued cancellation returns immediately; active work retains ownership
+/// until it has actually stopped, even when its backend ignores cancellation.
 actor DeviceOperationQueue {
     private struct Pending {
-        let id: UUID
-        let task: Task<ToolResult, Never>
+        let key: String
         let owner: String?
+        let operation: @Sendable () async -> ToolResult
+        let continuation: CheckedContinuation<ToolResult, Never>
+        var task: Task<Void, Never>?
     }
 
-    private var tails: [String: Pending] = [:]
-    private var operations: [String: [UUID: Pending]] = [:]
+    private var pending: [UUID: Pending] = [:]
+    private var queues: [String: [UUID]] = [:]
+    private var running = Set<String>()
 
-    /// Cancel active and queued work without waiting behind a stalled device operation.
     func cancel(key: String, owner: String? = nil) {
-        for operation in operations[key]?.values ?? [:].values where owner == nil || operation.owner == owner {
-            operation.task.cancel()
+        let ids = pending.filter { $0.value.key == key && (owner == nil || $0.value.owner == owner) }.map(\.key)
+        for id in ids {
+            cancel(id: id)
+        }
+    }
+
+    private func cancel(id: UUID) {
+        guard let entry = pending[id] else { return }
+        if let task = entry.task {
+            task.cancel()
+        } else {
+            pending[id] = nil
+            queues[entry.key]?.removeAll { $0 == id }
+            entry.continuation.resume(returning: Self.cancelledResult)
         }
     }
 
@@ -24,35 +40,51 @@ actor DeviceOperationQueue {
         owner: String? = nil,
         operation: @escaping @Sendable () async -> ToolResult
     ) async -> ToolResult {
-        // The inner task is unstructured, so the caller's cancellation only reaches it through
-        // `onCancel` below — which can land after the task has already passed its own check.
-        // Refuse an already-cancelled caller here so its operation can never start.
-        guard !Task.isCancelled else { return Self.cancelledResult }
-        let previous = tails[key]?.task
         let id = UUID()
-        let task = Task {
-            _ = await previous?.value
-            guard !Task.isCancelled else { return Self.cancelledResult }
-            return await operation()
-        }
-        tails[key] = Pending(id: id, task: task, owner: owner)
-        operations[key, default: [:]][id] = Pending(id: id, task: task, owner: owner)
-        let result = await withTaskCancellationHandler {
-            await task.value
+        let queuedAt = ContinuousClock.now
+        let traceID = PerformanceTelemetry.traceID
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else {
+                    continuation.resume(returning: Self.cancelledResult)
+                    return
+                }
+                pending[id] = Pending(key: key, owner: owner, operation: {
+                    await PerformanceTelemetry.$traceID.withValue(traceID) {
+                        PerformanceTelemetry.record(
+                            "device_queue",
+                            operation: "wait",
+                            duration: queuedAt.duration(to: .now)
+                        )
+                        return await operation()
+                    }
+                }, continuation: continuation)
+                queues[key, default: []].append(id)
+                startNext(key)
+            }
         } onCancel: {
-            task.cancel()
+            Task { await self.cancel(id: id) }
         }
-        operations[key]?[id] = nil
-        if operations[key]?.isEmpty == true {
-            operations[key] = nil
+    }
+
+    private func startNext(_ key: String) {
+        guard !running.contains(key), let id = queues[key]?.first, let entry = pending[id] else { return }
+        queues[key]?.removeFirst()
+        running.insert(key)
+        pending[id]?.task = Task {
+            let result = Task.isCancelled ? Self.cancelledResult : await entry.operation()
+            pending.removeValue(forKey: id)?.continuation.resume(returning: result)
+            running.remove(key)
+            if queues[key]?.isEmpty == true {
+                queues[key] = nil
+            }
+            startNext(key)
         }
-        if tails[key]?.id == id {
-            tails.removeValue(forKey: key)
-        }
-        return result
     }
 
     private static var cancelledResult: ToolResult {
         ToolExecutionError(code: "cancelled", message: "Operation cancelled before execution.").result
     }
 }
+
+// swiftlint:enable multiline_arguments

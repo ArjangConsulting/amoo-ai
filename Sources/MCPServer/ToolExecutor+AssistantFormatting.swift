@@ -69,7 +69,8 @@ extension DriverToolExecutor {
                 let idStr = issue.id.isEmpty ? "(no id)" : issue.id
                 let labelStr = issue.label.isEmpty ? "(no label)" : "\"\(issue.label)\""
                 let frameStr = issue.frame.map { frame in
-                    " at (\(Int(frame.x)), \(Int(frame.y))) \(Int(frame.width))×\(Int(frame.height))pt"
+                    " at (\(geometryNumber(frame.x)), \(geometryNumber(frame.y))) "
+                        + "\(geometryNumber(frame.width))×\(geometryNumber(frame.height))pt"
                 } ?? ""
                 lines.append("  \(idStr)\(typeStr) \(labelStr)\(frameStr) — \(issue.issue)")
             }

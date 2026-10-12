@@ -15,8 +15,10 @@ public actor SessionManager {
     private var flushTimers: [String: Task<Void, Never>] = [:]
     private var shuttingDown = false
     private var lastFlush: [String: Date] = [:]
-    /// Serializes store writes so they land in the order they were produced.
-    private var writeChain: Task<Void, Never>?
+    /// One writer per session coalesces pending flushes before constructing their snapshots.
+    private var writers: [String: Task<Void, Never>] = [:]
+    private var requestedWrites: [String: UInt64] = [:]
+    private var completedWrites: [String: UInt64] = [:]
 
     /// Per-session codegen intent supplied through the control plane (`start_session` /
     /// `compile_session_to_plan`): a descriptive test name/description and a reference to the
@@ -51,6 +53,7 @@ public actor SessionManager {
         testName: String? = nil,
         port: Int? = nil
     ) async throws -> TestSession {
+        try Task.checkCancellation()
         guard !shuttingDown else { throw SessionError.closed("server") }
         let bootstrap = try await bootstrapper.bootstrap(
             SessionBootstrapRequest(
@@ -64,8 +67,11 @@ public actor SessionManager {
                 port: port
             )
         )
-        guard !shuttingDown else {
+        guard !shuttingDown, !Task.isCancelled else {
             await bootstrap.cleanup()
+            if Task.isCancelled {
+                throw CancellationError()
+            }
             throw SessionError.closed("server")
         }
         let id = idGenerator()
@@ -125,10 +131,7 @@ public actor SessionManager {
     /// Note a recorded action and flush the session's history to the store once enough have
     /// accumulated (or enough time has passed).
     ///
-    /// Each flush re-encodes the session's *whole* history and atomically rewrites `report.json`,
-    /// so flushing on every single action is quadratic in the length of a recording. Batching
-    /// reduces the constant write cost but remains quadratic; the window bounds crash loss. `endSession` always
-    /// flushes, so an orderly close never loses any.
+    /// Flushes coalesce while a write is pending; close always drains the latest snapshot.
     public func persist(_ id: String) async {
         guard store != nil, sessions[id] != nil else { return }
         let pending = (unflushedActions[id] ?? 0) + 1
@@ -152,30 +155,36 @@ public actor SessionManager {
         flushTimers.removeValue(forKey: id)?.cancel()
         unflushedActions[id] = 0
         lastFlush[id] = Date()
-        let report = await SessionReport.make(from: session)
-        // `FileSessionStore.save` does blocking file I/O, which would otherwise hold up every other
-        // caller of this actor. Hand it to a chained task instead: off the actor, but still strictly
-        // ordered, so a later report can never be overwritten by an earlier one.
-        let previous = writeChain
-        writeChain = Task {
-            await previous?.value
-            await store.save(report)
-        }
+        requestedWrites[id, default: 0] += 1
+        guard writers[id] == nil else { return }
+        writers[id] = Task { await self.writeLatest(id, session: session, store: store) }
     }
 
-    /// Wait for every queued store write to land. Used by tests and by any caller that is about to
-    /// read `report.json` back from disk.
+    private func writeLatest(_ id: String, session: TestSession, store: any SessionStore) async {
+        while let generation = requestedWrites[id], generation != completedWrites[id] {
+            let report = await SessionReport.make(from: session)
+            await store.save(report)
+            completedWrites[id] = generation
+        }
+        writers[id] = nil
+    }
+
+    /// Wait for the latest coalesced snapshot of every session, including writes queued while draining.
     public func drainPendingWrites() async {
-        await writeChain?.value
+        while let writer = writers.values.first {
+            await writer.value
+        }
     }
 
     /// Reports pending batches separately from the last completed store write.
     public func recordingHealth(for id: String) async -> String {
         guard let store else { return "disabled" }
-        if (unflushedActions[id] ?? 0) > 0 {
+        let health = await store.recordingHealth(sessionID: id)
+        // Recheck after suspension: a new flush may have arrived while consulting the store.
+        if (unflushedActions[id] ?? 0) > 0 || requestedWrites[id] != completedWrites[id] {
             return "pending"
         }
-        return await store.recordingHealth(sessionID: id)
+        return health
     }
 
     /// The on-disk directory backing a session, or `nil` when no store is
@@ -217,8 +226,7 @@ public actor SessionManager {
             byID[id] = includeActions ? report : report.summary
         }
         for (id, session) in sessions {
-            let report = await SessionReport.make(from: session)
-            byID[id] = includeActions ? report : report.summary
+            byID[id] = await session.reportSnapshot(includeActions: includeActions)
         }
         return byID.values.sorted { $0.startedAt < $1.startedAt }
     }
@@ -264,7 +272,7 @@ public actor SessionManager {
         shuttingDown = true
         let active = Array(sessions.values)
         for session in active {
-            await session.close()
+            await session.close(terminateApp: false)
             await flush(session.id)
         }
         await drainPendingWrites()

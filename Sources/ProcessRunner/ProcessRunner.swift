@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import SwiftyShell
 
@@ -80,7 +81,7 @@ public struct SystemProcessRunner: ProcessRunner {
             throw ProcessRunnerError.emptyCommand
         }
 
-        let command = Command(arguments[0]).args(Array(arguments.dropFirst()))
+        let command = try bounded(Command(arguments[0]).args(Array(arguments.dropFirst())), context: context)
         do {
             return try await command.run(in: context).processResult
         } catch let error as ShellError {
@@ -92,11 +93,25 @@ public struct SystemProcessRunner: ProcessRunner {
     }
 
     public func run(_ request: ProcessExecutionRequest) async throws -> ProcessResult {
-        try await SubprocessExecutor().execute(request.command, in: request.context).processResult
+        let command = try bounded(request.command, context: request.context)
+        return try await SubprocessExecutor().execute(command, in: request.context).processResult
     }
 
     public func run(_ pipeline: Pipeline, context: ShellContext) async throws -> ProcessResult {
-        try await SubprocessExecutor().execute(pipeline, in: context).processResult
+        guard OperationDeadline.current != nil, pipeline.stages.count >= 2 else {
+            return try await SubprocessExecutor().execute(pipeline, in: context).processResult
+        }
+        let stages = try pipeline.stages.map { try bounded($0, context: context) }
+        let limited = stages.dropFirst(2).reduce(stages[0].pipe(to: stages[1])) { $0.pipe(to: $1) }
+        return try await SubprocessExecutor().execute(limited, in: context).processResult
+    }
+
+    private func bounded(_ command: Command, context: ShellContext) throws -> Command {
+        try Task.checkCancellation()
+        guard let deadline = OperationDeadline.current else { return command }
+        guard ContinuousClock.now < deadline else { throw OperationDeadline.DeadlineExceeded() }
+        let existing = command.timeoutOverride ?? context.defaultTimeout ?? .seconds(86400)
+        return command.timeout(OperationDeadline.remaining(cappedAt: existing))
     }
 }
 

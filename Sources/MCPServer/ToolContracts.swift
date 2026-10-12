@@ -3,11 +3,18 @@ import MCP
 
 /// Shared additions to the public tool contract; used by discovery and request validation.
 enum ToolContracts {
+    // Catalog enrichment is a linear mapping of tool-specific schema fields.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func enrich(_ definition: ToolDefinition) -> ToolDefinition {
         var definition = definition
         if let schema = definition.outputSchema {
             var fields = schema.properties
             switch definition.name {
+            case "tap_element":
+                fields["hittability_checked"] = .init(
+                    type: "boolean",
+                    description: "Whether the tap point was checked against the hierarchy"
+                )
             case "describe_screen":
                 fields["actions"] = .init(type: "array", description: "First seven actionable elements")
                 fields["has_more"] = .init(type: "boolean", description: "Use find_elements for remaining elements")
@@ -79,8 +86,8 @@ struct ToolRequest: Sendable {
         let coordinates = ["x", "y", "from_x", "from_y", "to_x", "to_y", "latitude", "longitude", "distance", "scale"]
         for key in nonnegative + coordinates {
             guard let raw = arguments[key] else { continue }
-            guard let number = Double(raw), number.isFinite,
-                  !nonnegative.contains(key) || (number >= 0 && number <= 3_600_000 && number.rounded() == number),
+            guard let number = Double(raw), number.isFinite, abs(number) <= 1_000_000_000,
+                  !nonnegative.contains(key) || Int(raw).map({ (0 ... 3_600_000).contains($0) }) == true,
                   key != "scale" || (number > 0 && number <= 1),
                   key != "latitude" || abs(number) <= 90,
                   key != "longitude" || abs(number) <= 180 else {

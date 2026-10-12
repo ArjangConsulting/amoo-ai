@@ -3,6 +3,8 @@ import Foundation
 /// One-line JSON performance events. Values are intentionally compact and hierarchy contents are
 /// never included, making the stream safe to collect from long MCP runs.
 public enum PerformanceTelemetry {
+    /// Correlates queue, transport, and execution events for one external request.
+    @TaskLocal public static var traceID: String?
     public static func record(
         _ category: String,
         operation: String,
@@ -15,7 +17,7 @@ public enum PerformanceTelemetry {
             + Double(components.attoseconds) / 1_000_000_000_000_000
         var event: [String: Any] = metadata
         event["event"] = "amoo.performance"
-        event["trace_id"] = UUID().uuidString
+        event["trace_id"] = traceID ?? UUID().uuidString
         event["timestamp"] = Date().ISO8601Format()
         event["category"] = category
         event["operation"] = operation

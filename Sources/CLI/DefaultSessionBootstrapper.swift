@@ -61,6 +61,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         }
         // Cross-process: a device another session leased via `amoo env up` is off limits unless
         // this server was started with that lease in AMOO_LEASE.
+        try Task.checkCancellation()
+        let claim = try SessionDeviceClaim(deviceID: available.deviceID, store: leaseStore)
         try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
         let installAndroidBuild = try await androidBuild
         let owner = try await Self.leases.acquire(deviceKey)
@@ -69,7 +71,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 request,
                 available: available,
                 start: bootstrapStart,
-                lease: (deviceKey, owner),
+                lease: SessionOwnership(deviceKey: deviceKey, owner: owner, claim: claim),
                 installAndroidBuild: installAndroidBuild
             )
         } catch {
@@ -84,7 +86,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         _ request: SessionBootstrapRequest,
         available: AvailableDevice,
         start bootstrapStart: ContinuousClock.Instant,
-        lease: (deviceKey: String, owner: UUID),
+        lease: SessionOwnership,
         installAndroidBuild: Bool
     ) async throws -> BootstrapResult {
         let clock = ContinuousClock()
@@ -158,7 +160,13 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
 
         // Wait for the first screen to be queryable (best-effort).
         await StartupProgress.report("Waiting for the first app screen")
-        await waitForScreenReady(driver: platformDriver)
+        do {
+            try await waitForScreenReady(driver: platformDriver)
+            try Task.checkCancellation()
+        } catch {
+            await cleanup()
+            throw error
+        }
         await StartupProgress.report("Session ready")
 
         PerformanceTelemetry.record(
@@ -304,48 +312,6 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             try await androidCompanionManager.ensureRunning(config: config, force: false)
             return (serial, port)
         }
-    }
-
-    private func waitForScreenReady(driver: any PlatformDriver) async {
-        let deadline = Date().addingTimeInterval(screenStabilizationTimeoutSeconds)
-        while Date() < deadline {
-            if await (try? driver.getScreenContext()) != nil {
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(300))
-        }
-    }
-
-    private func waitForCompanionReady(_ companion: any CompanionClient) async throws {
-        let deadline = Date().addingTimeInterval(30)
-        var lastError: (any Error)?
-        while Date() < deadline {
-            do {
-                let capabilities = try await companion.getCapabilities()
-                guard capabilities.contains(where: { $0.key == "protocol.amoo.v1" && $0.supported }) else {
-                    throw BootstrapError.connectionFailed(
-                        "Companion protocol is incompatible with this Amoo CLI. Update/reinstall the companion "
-                            + "with `amoo companion install --platform ios` (or android), then restart the session."
-                    )
-                }
-                return
-            } catch let error as BootstrapError {
-                throw error
-            } catch {
-                if error.localizedDescription.localizedCaseInsensitiveContains("rpc isn't implemented")
-                    || error.localizedDescription.localizedCaseInsensitiveContains("unimplemented") {
-                    throw BootstrapError.connectionFailed(
-                        "The running companion does not implement the RPCs required by this Amoo CLI. "
-                            + "Update/reinstall it with `amoo companion install --platform ios` (or android)."
-                    )
-                }
-                lastError = error
-                try? await Task.sleep(for: .milliseconds(300))
-            }
-        }
-        throw BootstrapError.connectionFailed(
-            lastError?.localizedDescription ?? "Companion gRPC readiness timed out."
-        )
     }
 }
 

@@ -131,7 +131,8 @@ struct DeviceLeaseStore {
         owner: String?,
         now: Date = Date()
     ) throws -> DeviceLease {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let claim = try SessionDeviceClaim(deviceID: deviceID, store: self)
+        defer { claim.release() }
         if let existing = lease(forDevice: deviceID, now: now) {
             throw DeviceLeaseError.leasedByOther(existing)
         }

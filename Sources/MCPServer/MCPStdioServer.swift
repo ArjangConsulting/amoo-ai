@@ -59,9 +59,9 @@ public struct MCPStdioServer: Sendable {
     Review selectors, helper bindings, and semantic variable names. Use --test-name, run in the
     host target, and report artifacts, warnings, results, and dependencies. End sessions when done.
     """
-    private static let cacheTTLMilliseconds = 3_600_000
+    static let cacheTTLMilliseconds = 3_600_000
 
-    private let server: MCPServer
+    let server: MCPServer
     let buildInfo: AmooBuildInfo
 
     public init(server: MCPServer, buildInfo: AmooBuildInfo = .current) {
@@ -70,13 +70,14 @@ public struct MCPStdioServer: Sendable {
     }
 
     public func run(input: FileHandle = .standardInput, output: FileHandle = .standardOutput) async throws {
-        let runtime = MCPRequestRuntime(output: output)
+        let lifetime = MCPPipeLifetime()
+        let runtime = MCPRequestRuntime(output: output, lifetime: lifetime)
         let diagnostics = MCPTransportDiagnostics()
         diagnostics.emit("started")
         var buffer = Data()
         var legacyInitialized = false
         do {
-            for try await chunk in MCPRequestRuntime.input(input) {
+            for try await chunk in mcpInput(input, lifetime: lifetime) {
                 buffer.append(chunk)
                 while let newline = buffer.firstIndex(of: 0x0A) {
                     guard newline - buffer.startIndex <= 1_048_576 else {
@@ -106,9 +107,14 @@ public struct MCPStdioServer: Sendable {
 
     private func submit(_ data: Data, initialized: Bool, runtime: MCPRequestRuntime) async -> Bool {
         let request = try? JSONDecoder().decode(WireRequest.self, from: data)
+        if let request, request.jsonrpc != "2.0" || !(request.id.map(validRequestID) ?? true)
+            || (request.params != nil && request.params?.objectValue == nil) {
+            await runtime.write(encoded(.failure(id: .null, code: -32600, message: "Invalid Request")))
+            return initialized
+        }
         if request?.method == "notifications/cancelled",
            let id = request?.params?.objectValue?["requestId"] {
-            await runtime.cancel(id: id.description)
+            await runtime.cancel(id: requestKey(id))
             return initialized
         }
         // Initialization is cheap and ordered before dependent requests.
@@ -120,7 +126,11 @@ public struct MCPStdioServer: Sendable {
             return initialized || outcome.initializedLegacy
         }
         let id = request?.id ?? .null
-        let accepted = await runtime.submit(id: id.description) {
+        let name = request?.params?.objectValue?["name"]?.stringValue ?? ""
+        let control = ["ping", "tools/list", "server/discover"].contains(request?.method ?? "")
+            || ["end_session", "companion_status", "session_startup_status", "list_sessions"].contains(name)
+        let duplicate = await runtime.contains(id: requestKey(id))
+        let accepted = await runtime.submit(id: requestKey(id), control: control) {
             let token = request?.params?.objectValue?["_meta"]?.objectValue?["progressToken"]
             return await withMCPStartupProgress(runtime: runtime, token: token) {
                 let outcome = await handle(data, legacyInitialized: initialized)
@@ -130,8 +140,8 @@ public struct MCPStdioServer: Sendable {
         if !accepted {
             await runtime.write(encoded(.failure(
                 id: id,
-                code: -32600,
-                message: "Duplicate request ID or too many requests"
+                code: duplicate ? -32600 : -32000,
+                message: duplicate ? "Duplicate request ID" : "Server capacity exhausted; retry later"
             )))
         }
         return initialized
@@ -142,10 +152,16 @@ public struct MCPStdioServer: Sendable {
         do {
             request = try JSONDecoder().decode(WireRequest.self, from: data)
         } catch {
-            return .response(.failure(id: .null, code: -32700, message: "Parse error"))
+            let isJSON = (try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)) != nil
+            return .response(.failure(
+                id: .null,
+                code: isJSON ? -32600 : -32700,
+                message: isJSON ? "Invalid Request" : "Parse error"
+            ))
         }
 
-        guard request.jsonrpc == "2.0" else {
+        guard request.jsonrpc == "2.0", request.id.map(validRequestID) ?? true,
+              request.params == nil || request.params?.objectValue != nil else {
             return .response(.failure(id: request.id ?? .null, code: -32600, message: "Invalid Request"))
         }
 
@@ -281,54 +297,6 @@ public struct MCPStdioServer: Sendable {
             return .failure(id: id, code: -32601, message: "Method not found: \(request.method)")
         }
     }
-
-    private var encodedTools: Value {
-        let tools = server.toolDefinitions()
-            .sorted { $0.name < $1.name }
-            .compactMap { try? Value($0.mcpTool()) }
-        return .array(tools)
-    }
-
-    private var serverCapabilities: Value {
-        .object(["tools": .object(["listChanged": .bool(false)])])
-    }
-
-    var serverInfo: Value {
-        .object([
-            "name": .string("amoo"),
-            "version": .string(AmooVersion.current),
-            "title": .string("Amoo Mobile Testing")
-        ])
-    }
-
-    private func withModernResultFields(_ fields: [String: Value]) -> Value {
-        var result = fields
-        result["resultType"] = .string("complete")
-        result["_meta"] = .object(["io.modelcontextprotocol/serverInfo": serverInfo, "dev.amoo/build": buildMeta])
-        return .object(result)
-    }
-
-    private func unsupportedVersion(id: Value, requested: String) -> WireResponse {
-        .failure(
-            id: id,
-            code: -32022,
-            message: "Unsupported protocol version",
-            data: .object([
-                "supported": .array(
-                    ([Self.modernProtocolVersion] + Self.legacyProtocolVersions).map(Value.string)
-                ),
-                "requested": .string(requested)
-            ])
-        )
-    }
-
-    private func encoded(_ response: WireResponse) -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        var data = (try? encoder.encode(response)) ?? Data()
-        data.append(0x0A)
-        return data
-    }
 }
 
 private struct WireRequest: Decodable, Sendable {
@@ -338,7 +306,7 @@ private struct WireRequest: Decodable, Sendable {
     let params: Value?
 }
 
-private struct WireResponse: Encodable, Sendable {
+struct WireResponse: Encodable, Sendable {
     let jsonrpc = "2.0"
     let id: Value
     let result: Value?
@@ -410,5 +378,20 @@ func stringifyArgumentValue(_ value: Value) -> String {
             return ""
         }
         return json
+    }
+}
+
+private func validRequestID(_ id: Value) -> Bool {
+    switch id {
+    case .string, .int: true
+    default: false
+    }
+}
+
+private func requestKey(_ id: Value) -> String {
+    switch id {
+    case let .string(value): "string:" + value
+    case let .int(value): "integer:" + String(value)
+    default: "invalid"
     }
 }

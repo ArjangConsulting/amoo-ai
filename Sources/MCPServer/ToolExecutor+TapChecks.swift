@@ -13,7 +13,7 @@ enum TapBlock: Equatable {
     var explanation: String {
         switch self {
         case let .offScreen(point):
-            "its tap point (\(Int(point.x)), \(Int(point.y))) is outside the visible screen"
+            "its tap point (\(geometryNumber(point.x)), \(geometryNumber(point.y))) is outside the visible screen"
         case let .covered(blocker):
             "it is covered by \(blocker)"
         case let .clipped(container):
@@ -147,12 +147,14 @@ extension DriverToolExecutor {
         _ check: HierarchyCheck,
         driver: any PlatformDriver,
         appID: String?
-    ) async -> ViewNode? {
+    ) async throws -> ViewNode? {
         switch check {
         case .off:
             nil
         case .required:
-            try? await driver.getViewHierarchy(appID: appID)
+            try await OperationDeadline.read(until: .now + .seconds(12)) {
+                try await driver.getViewHierarchy(appID: appID)
+            }
         case let .bestEffort(milliseconds):
             await Self.withinBudget(milliseconds: milliseconds) {
                 try? await driver.getViewHierarchy(appID: appID)
@@ -184,7 +186,7 @@ extension DriverToolExecutor {
         checks: TapChecks,
         driver: any PlatformDriver,
         appID: String?
-    ) async -> TapPreflight {
+    ) async throws -> TapPreflight {
         let (hittable, effect) = (checks.hittable, checks.effect)
         // One read serves both checks; the stricter mode decides how hard to try.
         let mode: HierarchyCheck = switch (hittable, effect) {
@@ -194,7 +196,14 @@ extension DriverToolExecutor {
         case let (.off, .bestEffort(b)): .bestEffort(milliseconds: b)
         case (.off, .off): .off
         }
-        guard let hierarchy = await readHierarchy(mode, driver: driver, appID: appID) else {
+        try Task.checkCancellation()
+        if hittable == .required, point == nil {
+            return TapPreflight(
+                refusal: .error("Hittability cannot be checked: the element has no tap point."),
+                hierarchy: nil
+            )
+        }
+        guard let hierarchy = try await readHierarchy(mode, driver: driver, appID: appID) else {
             return TapPreflight(refusal: nil, hierarchy: nil)
         }
         guard hittable != .off, let point,
@@ -216,21 +225,28 @@ extension DriverToolExecutor {
         check: HierarchyCheck,
         driver: any PlatformDriver,
         appID: String?
-    ) async -> Bool? {
+    ) async throws -> Bool? {
         guard check != .off else { return nil }
         let reference = Self.hierarchyFingerprint(before)
         let settleMilliseconds = 800
         let deadline = ContinuousClock.now.advanced(by: .milliseconds(settleMilliseconds))
         var observed = false
         repeat {
-            guard let after = await readHierarchy(check, driver: driver, appID: appID) else {
+            try Task.checkCancellation()
+            let snapshot: ViewNode?
+            do {
+                snapshot = try await OperationDeadline.read(until: deadline) {
+                    try await self.readHierarchy(check, driver: driver, appID: appID)
+                }
+            } catch is OperationDeadline.DeadlineExceeded { return observed ? false : nil }
+            guard let after = snapshot else {
                 return observed ? false : nil
             }
             observed = true
             if Self.hierarchyFingerprint(after) != reference {
                 return true
             }
-            try? await Task.sleep(for: .milliseconds(150))
+            try await Task.sleep(for: .milliseconds(150))
         } while ContinuousClock.now < deadline
         return false
     }
@@ -240,7 +256,10 @@ extension DriverToolExecutor {
         var parts: [String] = []
         func walk(_ node: ViewNode) {
             guard parts.count < 800 else { return }
-            let frame = node.frame.map { "\(Int($0.x)),\(Int($0.y)),\(Int($0.width)),\(Int($0.height))" } ?? "-"
+            let frame = node.frame
+                .map {
+                    [$0.x, $0.y, $0.width, $0.height].map(geometryNumber).joined(separator: ",")
+                } ?? "-"
             parts.append("\(node.id)|\(node.label)|\(node.value ?? "")|\(frame)|\(node.isEnabled)|\(node.isVisible)")
             node.children.forEach(walk)
         }
@@ -255,18 +274,8 @@ extension DriverToolExecutor {
         milliseconds: Int,
         _ operation: @escaping @Sendable () async -> T?
     ) async -> T? {
-        await withTaskGroup(of: T?.self) { group in
-            group.addTask { await operation() }
-            group.addTask {
-                try? await Task.sleep(for: .milliseconds(milliseconds))
-                return nil
-            }
-            var result: T?
-            if let first = await group.next() {
-                result = first
-            }
-            group.cancelAll()
-            return result
+        try? await OperationDeadline.read(until: .now + .milliseconds(milliseconds)) {
+            await operation()
         }
     }
 
@@ -277,6 +286,7 @@ extension DriverToolExecutor {
         var hierarchyBefore: ViewNode?
         var effect: HierarchyCheck
         var appID: String?
+        var hittabilityChecked = false
     }
 
     /// Builds the `tap_element` success result, flagging taps that landed somewhere unexpected.
@@ -285,15 +295,19 @@ extension DriverToolExecutor {
     /// the tap did is reported separately: `foreground_changed` when another app (Siri, a system
     /// sheet) took over, and `observable_change` — "No observable change" in the text — when the
     /// screen is identical before and after.
-    func tapElementResult(_ context: TapOutcomeContext, driver: any PlatformDriver) async -> ToolResult {
+    func tapElementResult(_ context: TapOutcomeContext, driver: any PlatformDriver) async throws -> ToolResult {
         let matched = context.matched
         let name = "[\(matched.id)] \(matched.label)"
         var notes: [String] = []
         var fields: [String: Value] = [
             "verified": .bool(true),
+            "hittability_checked": .bool(context.hittabilityChecked),
             "element_id": .string(matched.id),
             "element_label": .string(matched.label)
         ]
+        if !context.hittabilityChecked {
+            notes.append("Hittability was not checked.")
+        }
         if let foregroundBefore = context.foregroundBefore,
            let foregroundAfter = try? await driver.currentApp().bundleID {
             fields["foreground_bundle_id"] = .string(foregroundAfter)
@@ -303,7 +317,7 @@ extension DriverToolExecutor {
             }
         }
         if let before = context.hierarchyBefore,
-           let changed = await screenChanged(
+           let changed = try await screenChanged(
                since: before, check: context.effect, driver: driver, appID: context.appID
            ) {
             fields["observable_change"] = .bool(changed)

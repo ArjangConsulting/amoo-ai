@@ -5,13 +5,19 @@ import ProcessRunner
 import TestSession
 
 extension DefaultSessionBootstrapper {
+    struct SessionOwnership: Sendable {
+        let deviceKey: String
+        let owner: UUID
+        let claim: SessionDeviceClaim
+    }
+
     /// What ending a session releases: the gRPC client, any USB tunnel, the device lease — and, for a
     /// simulator, a pending stop of its companion once it has been idle (see
     /// `CompanionManager.idleShutdownSeconds`), so a companion does not outlive its sessions forever.
     func makeSessionCleanup(
         companion: GRPCCompanionClient,
         tunnelHandle: USBTunnelHandle?,
-        lease: (deviceKey: String, owner: UUID),
+        lease: SessionOwnership,
         device: AvailableDevice
     ) -> @Sendable () async -> Void {
         let tunnel = usbTunnel
@@ -28,6 +34,7 @@ extension DefaultSessionBootstrapper {
                 try? await tunnel.close(tunnelHandle)
             }
             await Self.leases.release(lease.deviceKey, owner: lease.owner)
+            lease.claim.release()
             if let simulatorUDID {
                 companionManager.scheduleIdleShutdown(deviceUDID: simulatorUDID, after: idleSeconds)
             }
