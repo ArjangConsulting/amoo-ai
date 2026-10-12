@@ -2,6 +2,23 @@ import AmooCore
 import Foundation
 
 extension DriverToolExecutor {
+    /// The smallest finger travel that is a swipe. Anything shorter is a press that happens to move a
+    /// pixel: a `scroll distance=0.4` long-pressed the screen centre, raised a keyboard and a loupe,
+    /// and wedged the companion.
+    static let minimumGestureDistance = 10.0
+
+    /// A refusal for a `scroll` / `swipe_in_direction` too short to be a swipe, or `nil` if it is fine.
+    static func gestureDistanceError(tool: String, distance: Double) -> ToolResult? {
+        guard distance.isFinite, distance >= minimumGestureDistance else {
+            return .error(
+                "\(tool) failed: distance is points of finger travel and must be at least"
+                    + " \(Int(minimumGestureDistance)) (got \(distance)); a shorter gesture is a press, not a"
+                    + " swipe. Omit it for the 300-point default, or use scroll_to_element to bring a row on screen."
+            )
+        }
+        return nil
+    }
+
     /// Scrolls until the element is on screen, reversing once if the content ends first.
     ///
     /// Without it, reaching a below-the-fold row meant guessing a `scroll` distance and re-querying
