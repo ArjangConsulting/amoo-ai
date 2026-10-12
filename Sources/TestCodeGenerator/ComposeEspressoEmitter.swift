@@ -268,6 +268,10 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             containsTextKey: containsTextKey
         )
         let wait = try waitForNodePresent(matcher, timeout: timeoutMilliseconds(for: operation))
+        // A recorded `index` / `first` picks one of several identical matches, which `onNode` rejects.
+        if let pick = try XCUITestEmitter.elementPick(operation) {
+            return (wait, "composeTestRule.onAllNodes(\(matcher))[\(pick.position)]")
+        }
         return (wait, "composeTestRule.onNode(\(matcher))")
     }
 

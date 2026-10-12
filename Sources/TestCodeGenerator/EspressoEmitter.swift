@@ -23,6 +23,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         let launchedBody = body.split(separator: "\n", omittingEmptySubsequences: false)
             .map { "    \($0)" }
             .joined(separator: "\n")
+        let needsIndexMatcher = body.contains("withIndex(")
         let needsResourceNameMatcher = operations.contains {
             ($0.arguments["id"] != nil || $0.arguments["element_id"] != nil) && [
                 "tap_element",
@@ -35,6 +36,10 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 "assert_enabled"
             ].contains($0.tool)
         }
+        let matcherHelpers = [
+            needsResourceNameMatcher ? Self.resourceNameMatcherHelper : nil,
+            needsIndexMatcher ? Self.indexMatcherHelper : nil
+        ].compactMap(\.self).map { $0 + "\n" }.joined(separator: "\n")
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
             .joined(separator: "\n")
@@ -83,7 +88,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
          */
         @RunWith(AndroidJUnit4::class)
         class \(className)\(baseClass) {
-        \(needsResourceNameMatcher ? Self.resourceNameMatcherHelper + "\n" : "")
+        \(matcherHelpers)
         \(Self.waitHelpers)
 
             @Test
@@ -123,6 +128,31 @@ public struct EspressoEmitter: StudioCodeEmitting {
                     } catch (error: Exception) {
                         false
                     }
+                }
+            }
+        }
+        """
+        return raw.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.isEmpty ? "" : "    \($0)" }
+            .joined(separator: "\n")
+    }()
+
+    /// Position-based matcher for a recorded `index` / `first`. Stateless — it recomputes the match
+    /// list from the view's own hierarchy — because `waitUntil` re-evaluates one matcher many times,
+    /// which a counting matcher would drift on.
+    private static let indexMatcherHelper: String = {
+        let raw = """
+        private fun withIndex(matcher: Matcher<View>, index: Int): Matcher<View> {
+            return object : TypeSafeMatcher<View>() {
+                override fun describeTo(description: Description) {
+                    description.appendText("the match at index $index of ").appendDescriptionOf(matcher)
+                }
+
+                override fun matchesSafely(view: View): Boolean {
+                    if (!matcher.matches(view)) return false
+                    val matches = TreeIterables.breadthFirstViewTraversal(view.rootView)
+                        .filter { matcher.matches(it) }
+                    return matches.getOrNull(index) === view
                 }
             }
         }
@@ -311,17 +341,23 @@ public struct EspressoEmitter: StudioCodeEmitting {
         labelKey: String = "label",
         containsTextKey: String = "contains_text"
     ) throws -> String {
+        let base: String
         if let id = operation.arguments[idKey] {
-            return "anyOf(hasResourceEntryName(\(literal(id))), withContentDescription(\(literal(id))))"
-        }
-        if let label = operation.arguments[labelKey] {
-            return "anyOf(withText(\(literal(label))), withContentDescription(\(literal(label))))"
-        }
-        if let contains = operation.arguments[containsTextKey] {
-            return "anyOf(withText(containsString(\(literal(contains)))), "
+            base = "anyOf(hasResourceEntryName(\(literal(id))), withContentDescription(\(literal(id))))"
+        } else if let label = operation.arguments[labelKey] {
+            base = "anyOf(withText(\(literal(label))), withContentDescription(\(literal(label))))"
+        } else if let contains = operation.arguments[containsTextKey] {
+            base = "anyOf(withText(containsString(\(literal(contains)))), "
                 + "withContentDescription(containsString(\(literal(contains)))))"
+        } else {
+            throw TestCodeGeneratorError.missingArgument(
+                tool: operation.tool, argument: "id, label, or contains_text"
+            )
         }
-        throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "id, label, or contains_text")
+        // A recorded `index` / `first` picks one of several identical matches; without it Espresso
+        // throws AmbiguousViewMatcherException on the duplicates.
+        guard let pick = try XCUITestEmitter.elementPick(operation) else { return base }
+        return "withIndex(\(base), \(pick.position))"
     }
 
     private static func timeoutMilliseconds(for operation: StudioToolOperation) throws -> Int64 {

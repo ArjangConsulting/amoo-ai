@@ -107,6 +107,47 @@ final class ElementPickCodegenTests: XCTestCase {
     }
 }
 
+/// Android picks: Espresso gets a stateless `withIndex` matcher, Compose indexes `onAllNodes`.
+final class AndroidElementPickCodegenTests: XCTestCase {
+    private func test(_ operations: [StudioToolOperation]) -> StudioAuthoredTest {
+        StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Pick Flow",
+            description: "",
+            platform: .android,
+            steps: [.init(id: "step-1", instruction: "Tap", expected: "Tapped")],
+            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: operations)
+        )
+    }
+
+    func testEspressoWrapsTheMatcherInWithIndexOnlyWhenPicked() throws {
+        let picked = try EspressoEmitter().generate(test([
+            .init(id: "1", tool: "tap_element", arguments: ["id": "tab.reports", "index": "2"]),
+            .init(id: "2", tool: "tap_element", arguments: ["label": "Reports", "first": "true"])
+        ])).source
+        XCTAssertTrue(picked.contains(#"withIndex(anyOf(hasResourceEntryName("tab.reports")"#), picked)
+        XCTAssertTrue(picked.contains(#"withContentDescription("tab.reports")), 2)"#), picked)
+        XCTAssertTrue(picked.contains(#"withIndex(anyOf(withText("Reports")"#), picked)
+        XCTAssertTrue(picked.contains("private fun withIndex("), picked)
+
+        let plain = try EspressoEmitter().generate(test([
+            .init(id: "1", tool: "tap_element", arguments: ["id": "tab.reports"])
+        ])).source
+        XCTAssertFalse(plain.contains("withIndex"), "no pick, no helper")
+    }
+
+    func testComposeIndexesAllNodesForAPick() throws {
+        let code = try ComposeEspressoEmitter().generate(test([
+            .init(id: "1", tool: "tap_element", arguments: ["id": "tab.reports", "index": "1"]),
+            .init(id: "2", tool: "tap_element", arguments: ["id": "tab.reports", "first": "true"]),
+            .init(id: "3", tool: "tap_element", arguments: ["id": "plain"])
+        ])).source
+        XCTAssertTrue(code.contains(#"composeTestRule.onAllNodes(hasTestTag("tab.reports"))[1]"#), code)
+        XCTAssertTrue(code.contains(#"composeTestRule.onAllNodes(hasTestTag("tab.reports"))[0]"#), code)
+        XCTAssertTrue(code.contains(#"composeTestRule.onNode(hasTestTag("plain"))"#), code)
+    }
+}
+
 final class RepeatedWaitCollapseTests: XCTestCase {
     func testAnAssertThenATapOfTheSameElementWaitsOnce() {
         let body = """

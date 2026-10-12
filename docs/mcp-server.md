@@ -290,8 +290,8 @@ Use explicit assertions as postconditions. Mutations reject ambiguous matches; r
 and `parent_id`, or, when several elements are truly indistinguishable (iPadOS 27's top tab bar
 exposes each tab twice), pick one with `index` (0-based, in the device's order) or `first: true` on
 `find_elements`, `tap_element` and the `assert_*` tools. A recorded pick becomes
-`.element(boundBy:)` / `.firstMatch` in the generated XCUITest (iOS only; the Android emitters do not
-read it yet). `find_elements` also prints each element's current `value` (never for secure fields,
+`.element(boundBy:)` / `.firstMatch` in the generated XCUITest, a `withIndex(...)` matcher in
+Espresso, and `onAllNodes(...)[n]` in Compose (`set_text` / `fill_field` take no pick yet). `find_elements` also prints each element's current `value` (never for secure fields,
 and never written to the session report) and, for a whole-screen listing, hides repeated-label static
 text and scroll bars unless `include_noise=true`. A timeout can occur after a device action started: inspect before retrying.
 
