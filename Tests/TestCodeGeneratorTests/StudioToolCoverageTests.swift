@@ -12,7 +12,7 @@ final class StudioToolCoverageTests: XCTestCase {
     /// Minimal arguments that should satisfy every emitter for the given tool.
     private func arguments(for tool: StudioTool) -> [String: String] {
         switch tool {
-        case .tapElement, .assertVisible, .assertNotVisible, .assertEnabled, .waitForElement:
+        case .tapElement, .assertVisible, .assertNotVisible, .assertEnabled, .waitForElement, .scrollToElement:
             ["id": "submit"]
         case .setText:
             ["id": "field", "value": "hello"]

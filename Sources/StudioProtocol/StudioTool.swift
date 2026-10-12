@@ -22,6 +22,8 @@ public enum StudioTool: String, CaseIterable, Codable, Sendable, Hashable {
     case swipeInDirection = "swipe_in_direction"
     case scroll
     case waitForElement = "wait_for_element"
+    /// Scrolls until the target element is on screen and tappable.
+    case scrollToElement = "scroll_to_element"
     case assertVisible = "assert_visible"
     case assertNotVisible = "assert_not_visible"
     case assertText = "assert_text"

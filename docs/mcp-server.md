@@ -226,7 +226,8 @@ off, or whose tap point is off-screen. The check is on by default but best effor
 and after the tap — within `effect_timeout_ms` (1500), `check_effect=false` to skip — so a tap that
 moved nothing says "No observable change" (`observable_change=false`) instead of reading as success.
 `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
-names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen;
+names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen, and exports
+(a swipe-until-hittable loop in XCUITest, `scrollTo()` in Espresso, `performScrollTo()` in Compose);
 `dismiss_keyboard` tries Return, a Hide/Done button, then a swipe — `press_key return` does nothing
 on a number pad. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
 large accessibility tree needs longer.

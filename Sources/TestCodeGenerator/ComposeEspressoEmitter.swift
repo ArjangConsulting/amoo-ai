@@ -46,6 +46,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import androidx.compose.ui.test.isFocused
         import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
         import androidx.compose.ui.test.onRoot
+        import androidx.compose.ui.test.performScrollTo
         import androidx.compose.ui.test.performClick
         import androidx.compose.ui.test.performScrollToNode
         import androidx.compose.ui.test.performSemanticsAction
@@ -222,6 +223,9 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             let target = try guardedNode(operation)
             let assertion = exact == nil ? "assertTextContains" : "assertTextEquals"
             return "\(target.wait)\n\(indent)\(target.node).\(assertion)(\(literal(expected)))"
+        case .scrollToElement:
+            let target = try guardedNode(operation)
+            return "\(target.wait)\n\(indent)\(target.node).performScrollTo().assertIsDisplayed()"
         case .assertEnabled:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"

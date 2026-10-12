@@ -199,7 +199,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         return StudioTestExportResult(fileName: "\(className).swift", source: source + "\n")
     }
 
-    private static let indent = "        "
+    static let indent = "        "
 
     /// Drops the blank line a re-used element's empty declaration leaves behind, and a wait that
     /// repeats the line before it. `assert_visible(x)` followed by `tap_element(x)` waited for the same
@@ -298,6 +298,11 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)\(waitCall("waitForHittability", variable, operation))
             \(indent)\(variable).\(gesture)()
             """
+
+        case .scrollToElement:
+            return try scrollToElementStatement(
+                for: operation, context: context, localNames: &localNames, lookups: &lookups
+            )
 
         case .scroll:
             // GestureDirection inverts scroll for us — see its documentation for why.
@@ -402,7 +407,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
     /// One call to a generated wait helper. `named:` carries the local variable's name so a
     /// timeout failure says which element it was waiting on.
-    private static func waitCall(
+    static func waitCall(
         _ helper: String,
         _ variable: String,
         _ operation: StudioToolOperation
@@ -434,13 +439,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         guard let raw = operation.arguments["direction"] else {
             throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
         }
-        let direction = try GestureDirection.gestureDirection(for: operation.tool, rawDirection: raw)
-        switch direction {
-        case .up: return "swipeUp"
-        case .down: return "swipeDown"
-        case .left: return "swipeLeft"
-        case .right: return "swipeRight"
-        }
+        return try gestureMethod(GestureDirection.gestureDirection(for: operation.tool, rawDirection: raw))
     }
 
     private static func timeoutSeconds(for operation: StudioToolOperation) throws -> Double {
@@ -455,7 +454,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
     // Named components make this tuple an internal rendering detail, never an API value.
     // swiftlint:disable large_tuple
-    private static func lookup(
+    static func lookup(
         _ operation: StudioToolOperation,
         context: StudioTestContext?,
         localNames: inout LocalNameAllocator,
