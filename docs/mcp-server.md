@@ -184,6 +184,15 @@ exactly those (never `pkill`, which also stops other sessions' companions). A ho
 its runner now reclaims the port the old runner app left bound instead of failing with "owned by
 another companion process".
 
+### Tap safety and scrolling
+
+`tap_element` refuses a target that another control (a keyboard key, a sheet) is painted over, or
+whose tap point is off-screen, when `check_hittable=true` — and by default whenever the keyboard
+is visible (the check reads the full hierarchy, so it is not on for every tap). It always reports
+`foreground_changed` when the tap left the app (Siri, a system sheet), and with `check_effect=true`
+adds `observable_change` so a tap that moved nothing reads "No observable change" rather than
+success.
+
 ## Generating tests from a recorded session
 
 The canonical workflow is `start_session` → drive the app → `end_session` → inspect `plan.json` →

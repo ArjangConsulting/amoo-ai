@@ -188,6 +188,17 @@ public enum ActionTools {
                 "bundle_id": .init(
                     type: "string",
                     description: "Explicit bundle/package id to resolve the element in."
+                ),
+                "check_hittable": .init(
+                    type: "string",
+                    description: "'true' refuses the tap when another control (keyboard, sheet) covers the"
+                        + " tap point or it lies off-screen; 'false' skips the check. By default the check runs"
+                        + " only while the keyboard is visible, because it reads the full hierarchy."
+                ),
+                "check_effect": .init(
+                    type: "string",
+                    description: "'true' compares the screen before and after the tap and reports"
+                        + " observable_change=false when nothing changed. Costs two extra screen reads."
                 )
             ]
         )
