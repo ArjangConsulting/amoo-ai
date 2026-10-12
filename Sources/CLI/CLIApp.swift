@@ -33,26 +33,37 @@ public struct CLIApp {
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
     private let launchREPL: @Sendable ([String]) async -> Void
+    private let isInteractiveTerminal: @Sendable () -> Bool
 
-    /// - Parameter launchREPL: the interactive mode `amoo` with no arguments enters. It selects a
-    ///   booted device and builds and starts a real companion on it, so tests replace it.
+    /// - Parameter launchREPL: the interactive mode `amoo` enters when given only flags (no
+    ///   subcommand). It selects a booted device and builds and starts a real companion on it, so
+    ///   tests replace it.
+    /// - Parameter isInteractiveTerminal: whether stdin is a terminal. Bare `amoo` enters the REPL only
+    ///   when it is, so a client that spawns `amoo` over a pipe gets help instead of a hung process.
     public init(
         mcpServer: MCPServer = .init(),
         preflightChecker: any PreflightChecking = DefaultPreflightChecker(),
         auditRunner: any AuditRunning = DefaultAuditRunner(),
-        launchREPL: (@Sendable ([String]) async -> Void)? = nil
+        launchREPL: (@Sendable ([String]) async -> Void)? = nil,
+        isInteractiveTerminal: (@Sendable () -> Bool)? = nil
     ) {
         self.mcpServer = mcpServer
         self.preflightChecker = preflightChecker
         self.auditRunner = auditRunner
         self.launchREPL = launchREPL ?? { await startREPLMode(args: $0) }
+        self.isInteractiveTerminal = isInteractiveTerminal ?? { isatty(STDIN_FILENO) == 1 }
     }
 
     public func run(args: [String]) async -> CLIResult {
         // Pin the launched binary's identity before anything can rebuild it underneath us.
         _ = AmooBuildInfo.current
         if args.isEmpty {
-            // Default interactive mode when no arguments are provided.
+            // Bare `amoo` is the interactive REPL — but only at a terminal. A client that spawns it
+            // over a pipe (one that forgot `mcp serve`) would otherwise hang a process that picks
+            // whatever simulator is booted and builds a companion on it; it gets help instead.
+            guard isInteractiveTerminal() else {
+                return CLIResult(output: renderCLIHelp(), exitCode: 0)
+            }
             await launchREPL(args)
             return CLIResult(output: "", exitCode: 0)
         }
