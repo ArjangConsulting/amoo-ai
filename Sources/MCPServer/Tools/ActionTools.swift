@@ -221,7 +221,8 @@ public enum ActionTools {
                     description: "Before tapping, read the hierarchy and refuse a target another control"
                         + " (keyboard, sheet) covers, a clipping container cuts off, or that is off-screen."
                         + " Runs by default, giving up after hittable_timeout_ms; 'true' makes it required,"
-                        + " 'false' skips it."
+                        + " 'false' skips it. Android flat inspection cannot establish occlusion: the default"
+                        + " proceeds unchecked, while 'true' returns an unsupported-check error."
                 ),
                 "hittable_timeout_ms": .init(
                     type: "string",

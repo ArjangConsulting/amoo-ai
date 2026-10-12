@@ -305,7 +305,7 @@ extension DriverToolExecutor {
                     hierarchyBefore: preflight.hierarchy,
                     effect: checks.effect,
                     appID: appID,
-                    hittabilityChecked: checks.hittable != .off && preflight.hierarchy != nil && tapPoint != nil
+                    hittabilityChecked: preflight.hittabilityChecked
                 ),
                 driver: driver
             )

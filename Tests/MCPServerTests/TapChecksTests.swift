@@ -47,6 +47,44 @@ final class TapChecksTests: XCTestCase {
         XCTAssertNil(TapHittability.block(for: Self.addButton, at: Point(x: 80, y: 722), in: root))
     }
 
+    private func flatAndroidScreen(rootID: String = "android-root") -> ViewNode {
+        ViewNode(id: rootID, children: [
+            ViewNode(id: "add", label: "Add entry", type: .staticText, frame: Self.addButton.frame),
+            ViewNode(id: "", type: .button, frame: Self.addButton.frame)
+        ])
+    }
+
+    func testFlatAndroidButtonOwnerDoesNotBlockItsLabel() {
+        for rootID in ["android-root", "android-cli-root"] {
+            XCTAssertNil(TapHittability.block(
+                for: Self.addButton, at: Point(x: 80, y: 722), in: flatAndroidScreen(rootID: rootID)
+            ))
+        }
+    }
+
+    func testDefaultAndroidTapProceedsUncheckedAndStillChecksItsEffect() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: flatAndroidScreen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertEqual(result.structuredContent?.objectValue?["hittability_checked"], .bool(false))
+        XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"], .bool(false))
+        let taps = await driver.taps
+        XCTAssertEqual(taps.count, 1)
+    }
+
+    func testRequiredAndroidHittabilityRefusesWithoutTapping() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: flatAndroidScreen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "check_hittable": "true"]
+        )
+        XCTAssertTrue(result.isError, result.content)
+        XCTAssertTrue(result.content.contains("flat element list"), result.content)
+        let taps = await driver.taps
+        XCTAssertTrue(taps.isEmpty)
+    }
+
     func testTapPointOutsideTheWindowIsOffScreen() {
         let block = TapHittability.block(for: Self.addButton, at: Point(x: 586, y: 53), in: screen())
         XCTAssertEqual(block, .offScreen(Point(x: 586, y: 53)))
