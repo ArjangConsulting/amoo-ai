@@ -6,6 +6,8 @@ import Foundation
 enum CompanionPhase: String, Codable, Sendable {
     case building
     case built
+    /// Built earlier, but its sources changed since, so the next start rebuilds it.
+    case stale
     case launching
     case ready
     case failed
@@ -16,7 +18,7 @@ enum CompanionPhase: String, Codable, Sendable {
         switch self {
         case .ready: 0
         case .building, .launching: 2
-        case .failed, .notStarted, .built: 1
+        case .failed, .notStarted, .built, .stale: 1
         }
     }
 }

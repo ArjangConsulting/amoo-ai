@@ -134,13 +134,17 @@ extension DefaultSessionBootstrapper {
         let host: String
         let port: Int
         let dir: String
+        let isBuildCurrent: @Sendable () -> Bool
+        let runner = processRunner
         switch platform {
         case .ios:
             let config = CompanionConfig(deviceUDID: deviceHint ?? "booted")
+            isBuildCurrent = { CompanionManager(processRunner: runner).isBuildCurrent(config: config) }
             (host, port, dir) = (config.host, config.port, config.companionDir)
         case .android:
             let resolvedPort = try await resolveAndroidCompanionPort(deviceID: deviceHint, processRunner: processRunner)
             let config = AndroidCompanionConfig(port: resolvedPort, serial: deviceHint)
+            isBuildCurrent = { AndroidCompanionManager(processRunner: runner).isBuildCurrent(config: config) }
             (host, port, dir) = (config.host, config.port, config.companionDir)
         }
         let store = CompanionStatusStore(companionDir: dir)
@@ -148,7 +152,8 @@ extension DefaultSessionBootstrapper {
             platform: platform.rawValue,
             host: host,
             port: port,
-            store: store
+            store: store,
+            isBuildCurrent: isBuildCurrent
         )
         return result.output
     }

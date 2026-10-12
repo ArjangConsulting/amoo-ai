@@ -77,11 +77,13 @@ func runIOSCompanionStatus(options: CompanionCommandOptions) async -> CLIResult 
         deviceUDID: options.deviceID,
         targetAppID: options.appID
     )
+    let manager = CompanionManager()
     return await companionStatusResult(
         platform: "ios",
         host: config.host,
         port: config.port,
-        store: CompanionStatusStore(companionDir: config.companionDir)
+        store: CompanionStatusStore(companionDir: config.companionDir),
+        isBuildCurrent: { manager.isBuildCurrent(config: config) }
     )
 }
 
@@ -107,20 +109,27 @@ func runAndroidCompanionStatus(
         companionDir: companionDir,
         serial: options.deviceID
     )
+    let manager = AndroidCompanionManager(processRunner: processRunner)
     return await companionStatusResult(
         platform: "android",
         host: config.host,
         port: config.port,
-        store: CompanionStatusStore(companionDir: config.companionDir)
+        store: CompanionStatusStore(companionDir: config.companionDir),
+        isBuildCurrent: { manager.isBuildCurrent(config: config) }
     )
 }
 
 /// Shared status resolution: a live companion always wins; otherwise report the last `warm` record.
+///
+/// - Parameter isBuildCurrent: asks the companion manager whether a start would reuse the existing
+///   build. A "built" record the manager would rebuild is reported as `stale` instead, so `status`
+///   never promises a quick start that `start` then spends a build on.
 func companionStatusResult(
     platform: String,
     host: String,
     port: Int,
-    store: CompanionStatusStore
+    store: CompanionStatusStore,
+    isBuildCurrent: (@Sendable () -> Bool)? = nil
 ) async -> CLIResult {
     let reachable = await isCompanionReady(host: host, port: port)
     let record = store.read()
@@ -130,8 +139,15 @@ func companionStatusResult(
         phase = .ready
         detail = "companion API responding on port \(port)"
     } else if let record {
-        phase = record.phase == .ready ? .built : record.phase
-        detail = phase == .built ? "bundle built; call start_session to launch and bind the app" : record.detail
+        let recorded: CompanionPhase = record.phase == .ready ? .built : record.phase
+        if recorded == .built, isBuildCurrent?() == false {
+            phase = .stale
+            detail = "bundle was built, but the companion sources changed since; the next start rebuilds it"
+                + " (run 'amoo companion warm' to rebuild ahead of time)"
+        } else {
+            phase = recorded
+            detail = phase == .built ? "bundle built; call start_session to launch and bind the app" : record.detail
+        }
     } else {
         phase = .notStarted
         detail = nil

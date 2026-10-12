@@ -4,6 +4,19 @@ import Foundation
 extension AndroidCompanionManager {
     static let buildCoordinator = AndroidBuildCoordinator()
 
+    /// True when `start_session` would reuse the existing APKs as is. `prepareBuild` reuses under
+    /// this rule and `companion status` reports `stale` under it, so the two cannot disagree.
+    func isBuildCurrent(config: AndroidCompanionConfig) -> Bool {
+        let paths = apkPaths(companionDir: config.companionDir, useBundled: config.buildMode != .rebuild)
+        guard config.buildMode != .rebuild,
+              FileManager.default.fileExists(atPath: paths.app),
+              FileManager.default.fileExists(atPath: paths.test)
+        else { return false }
+        return config.buildMode == .reuse
+            || paths.app.contains("/prebuilt/")
+            || sourceFingerprintMatches(config: config)
+    }
+
     /// Builds APKs independently of emulator boot; returns whether the products need reinstalling.
     @discardableResult
     func prepareBuild(config: AndroidCompanionConfig) async throws -> Bool {
@@ -17,8 +30,7 @@ extension AndroidCompanionManager {
             await StartupProgress.report("Reusing Android companion build")
             return false
         }
-        let bundled = paths.app.contains("/prebuilt/")
-        if config.buildMode != .rebuild, exists, bundled || sourceFingerprintMatches(config: config) {
+        if isBuildCurrent(config: config) {
             await StartupProgress.report("Reusing Android companion build")
             return false
         }

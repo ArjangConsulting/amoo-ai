@@ -29,6 +29,8 @@ struct CompanionCommandOptions {
     /// Port the companion listens on. `nil` uses the platform default. A second simulator needs its
     /// own port: one companion per port, and each serves exactly one device.
     var port: Int?
+    /// `start` only: hand the holder to a background process and return once the companion is ready.
+    var detach = false
 }
 
 enum CompanionAction {
@@ -88,6 +90,10 @@ func renderCompanionHelp() -> String {
                    --port <port>           Port to listen on; pass the same to 'amoo device --port'
                    --companion-dir <path>  Override companion app directory
                    --force                 Rebuild before starting
+                   --detach                Start the companion in the background and return once
+                                           it is ready, printing its pid, port and log path.
+                                           Stop it later with `kill <pid>`. Without it, start
+                                           stays in the foreground holding the companion open.
                    --ready-timeout <secs>  How long to wait for the companion to listen
                                            (default: ios 300, android 180). xcodebuild is
                                            silent while it installs and boots the runner, so
@@ -100,9 +106,10 @@ func renderCompanionHelp() -> String {
                  / --port / --companion-dir / --force options as install.
 
       status     Print one line: 'ready' (a companion is listening), 'built' (bundle ready,
-                 not launched), 'building' / 'launching' (a warm is in progress), 'failed',
-                 or 'not_started'. Non-blocking. Exit code 0 = usable, 2 = in progress,
-                 1 = needs action. Same --platform / --device / --port / --companion-dir options.
+                 not launched), 'stale' (built, but sources changed so the next start rebuilds),
+                 'building' / 'launching' (a warm is in progress), 'failed', or 'not_started'.
+                 Non-blocking. Exit code 0 = usable, 2 = in progress, 1 = needs action.
+                 Same --platform / --device / --port / --companion-dir options.
     """
 }
 
@@ -114,6 +121,7 @@ private struct CompanionCommandFlags {
     var appID: String?
     var readyTimeoutSeconds: Int?
     var port: Int?
+    var detach = false
 }
 
 /// Consumes and returns the next token in `remaining`, if any, without failing when absent
@@ -174,6 +182,8 @@ private func applyCompanionFlag(
         flags.appID = consumeOptionalValue(remaining: &remaining) ?? flags.appID
     case "--force":
         flags.force = true
+    case "--detach":
+        flags.detach = true
     default:
         break
     }
@@ -235,7 +245,8 @@ func parseCompanionCommandOptions(
             force: flags.force,
             appID: flags.appID,
             readyTimeoutSeconds: flags.readyTimeoutSeconds,
-            port: flags.port
+            port: flags.port,
+            detach: flags.detach
         )
     )
 }
@@ -261,6 +272,8 @@ func runCompanionCommand(
                 currentDirectory: currentDirectory
             )
         }
+    case .start where options.detach:
+        await runDetachedCompanionStart(options: options)
     case .start:
         switch options.platform {
         case .ios:
