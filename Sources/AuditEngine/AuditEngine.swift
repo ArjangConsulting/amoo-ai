@@ -27,7 +27,10 @@ public struct AuditEngine: Sendable {
             }
             do {
                 try Task.checkCancellation()
-                try await collected.append(contentsOf: rule.evaluate(input))
+                // Evaluate first: `try await x.append(contentsOf: <await>)` holds a mutable access across
+                // the suspension, which aborts release builds (see `DefaultPreflightChecker.run`).
+                let found = try await rule.evaluate(input)
+                collected.append(contentsOf: found)
                 evaluations.append(coverage)
             } catch {
                 evaluations.append(AuditRuleEvaluation(
