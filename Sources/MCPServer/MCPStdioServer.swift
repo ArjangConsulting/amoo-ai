@@ -27,23 +27,24 @@ public struct MCPStdioServer: Sendable {
     Delegate app_id/build/device requirements, not a live ID. Each agent starts its own session
     on an available device; the owner ends its session before another agent reuses that device.
     companion_warm builds ahead; poll companion_status until built, then start_session to launch.
-    Cold startup takes minutes: relay progress to the user or poll session_startup_status while
-    pending. Never start a duplicate session. build_mode=reuse never compiles; auto uses bundled
-    products or builds missing/changed checkout products. Reuse a booted device with the app.
+    Cold startup takes minutes: relay progress or poll session_startup_status while pending. Never start a duplicate
+    session. build_mode=reuse never compiles; auto uses bundled
+    products or builds missing/changed checkout products.
     Physical devices require an explicit ID; other sessions' leased devices are refused.
-    Launch/terminate/reinstall through amoo during a session: raw simctl/adb desyncs the channel.
+    Launch/terminate/reinstall through amoo in a session: raw simctl/adb desyncs the channel.
     companion_status may briefly say ready after desync. On connection failure, end_session with
     force=true closes without app termination; inspect status and start again. Forced closure
     may omit in-flight actions.
 
     Use current_app for identity, describe_screen for orientation, scoped find_elements for targets,
     and timeout_ms on semantic assertions. Follow next_offset when has_more; truncated results
-    cannot prove absence. Prefer IDs, then exact labels/text; use parent_id to disambiguate.
-    tap_element resolves its target. Verify mutations with assert_visible, assert_absent,
-    assert_enabled, or assert_value: dispatch is not a postcondition. After timeout, inspect state
-    before retrying. Secure masked_change cannot prove exact equality. record_value=fixture is
-    only for non-sensitive test data.
-    Use run_steps for known action/assertion sequences; inspect when the next step needs a decision.
+    cannot prove absence. Prefer IDs, then exact labels/text; use parent_id, or index/first for exact
+    duplicates. include_noise=true shows scroll bars/decor. tap_element refuses covered or off-screen
+    targets and flags a changed foreground app; also scroll_to_element, dismiss_keyboard, port.
+    Verify mutations with assert_visible, assert_absent, assert_enabled, or assert_value: dispatch is
+    not a postcondition. After timeout, inspect state before retrying. Secure masked_change cannot prove
+    exact equality. record_value=fixture is only for non-sensitive test data.
+    Use run_steps for known sequences; inspect when the next step needs a decision.
     Prefer scoped queries and artifact-only screenshots; keep semantic postconditions.
 
     Screenshots are pixels; gestures are points. Read geometry and scale. A locked/off screen_state

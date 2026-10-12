@@ -61,11 +61,18 @@ needed rather than guessing its arguments.
 | Inspect WebView-only state | webview_dom or webview_eval |
 | Test landscape or rotation | set_orientation, then re-query — every coordinate moves |
 | Keyboard navigation or shortcuts | press_key with key= and optional modifiers= |
+| Hide the keyboard (press_key return does nothing on a number pad) | dismiss_keyboard |
+| Reach a row below the fold | scroll_to_element; `scroll` direction names where to scroll (down reveals below) |
 
 Prefer stable IDs, then exact labels, then scoped text queries. `tap_element` resolves its own
 target; a separate query is useful for ambiguity or recording semantic observations, not
 mandatory when you already have a reliable selector. Mutations require one match. Use parent_id
-when repeated controls share labels.
+when repeated controls share labels, and `index=<n>` or `first=true` when matches are exact
+duplicates (iPadOS tab bars list each tab twice). `find_elements` hides scroll bars and
+decorative text unless `include_noise=true`. `tap_element` refuses a target a keyboard or sheet
+covers, or one off-screen (`check_hittable`), and says when the foreground app changed after the
+tap; add `check_effect=true` to learn whether the screen changed at all. Pass `port` to
+`start_session` when sessions run on several simulators at once.
 
 Queries return bounded pages. Follow next_offset with the same selector when has_more is true.
 Do not interpret a truncated result as proof an element is absent. Use assert_absent instead.
