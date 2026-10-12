@@ -256,3 +256,53 @@ final class XCUITestSwipeLookupTests: XCTestCase {
         XCTAssertFalse(code.contains(#"["day.screen"]"#), "no raw id lookup:\n\(code)")
     }
 }
+
+/// `requiredIdiom` makes an iPhone recording skip itself on an iPad (and the reverse) instead of
+/// tapping controls that are not there; before it, every export needed a hand-added guard and import.
+final class XCUITestIdiomGuardTests: XCTestCase {
+    private func source(idiom: StudioTestContext.Idiom?) throws -> String {
+        let test = StudioAuthoredTest(
+            formatVersion: 1,
+            name: "Idiom Flow",
+            description: "",
+            platform: .ios,
+            steps: [.init(id: "step-1", instruction: "Tap", expected: "Tapped")],
+            testContext: idiom.map { StudioTestContext(requiredIdiom: $0) },
+            compiledPlan: .init(
+                compiler: "ai",
+                compilerVersion: "1",
+                toolOperations: [.init(id: "1", tool: "tap_element", arguments: ["id": "go"])]
+            )
+        )
+        return try XCUITestEmitter().generate(test).source
+    }
+
+    func testAPhoneRecordingSkipsOnAPadBeforeLaunching() throws {
+        let code = try source(idiom: .phone)
+        XCTAssertTrue(code.contains("import UIKit"), code)
+        let skip = try XCTUnwrap(code.range(of: "UIDevice.current.userInterfaceIdiom == .phone"), code)
+        let launch = try XCTUnwrap(code.range(of: "app.launch()"), code)
+        XCTAssertLessThan(skip.lowerBound, launch.lowerBound, "the guard runs before the launch")
+    }
+
+    func testAPadRecordingGuardsOnPad() throws {
+        let code = try source(idiom: .pad)
+        XCTAssertTrue(code.contains("== .pad"), code)
+        XCTAssertTrue(code.contains("Recorded for iPad"), code)
+    }
+
+    func testNoIdiomMeansNoGuardAndNoUIKit() throws {
+        let code = try source(idiom: nil)
+        XCTAssertFalse(code.contains("UIKit"), code)
+        XCTAssertFalse(code.contains("XCTSkipUnless"), code)
+    }
+
+    func testContextFilesDecodeTheIdiomAndRejectUnknownOnes() throws {
+        let ok = try JSONDecoder().decode(StudioTestContext.self, from: Data(#"{"requiredIdiom":"pad"}"#.utf8))
+        XCTAssertEqual(ok.requiredIdiom, .pad)
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            StudioTestContext.self,
+            from: Data(#"{"requiredIdiom":"tv"}"#.utf8)
+        ))
+    }
+}

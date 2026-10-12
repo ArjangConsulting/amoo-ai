@@ -60,7 +60,12 @@ fields are kept). The plan's embedded `testContext` is what `amoo generate test`
 
   // Optional lookup template for mapped ids. Default keeps the standalone XCUITest shape:
   //   "app.descendants(matching: .any)[{{id}}]"
-  "idLookupTemplate": "app.element(id: {{id}})"
+  "idLookupTemplate": "app.element(id: {{id}})",
+
+  // iOS only: "phone" or "pad". The generated test skips itself on the other device class
+  // (`import UIKit` plus an `XCTSkipUnless` on the user interface idiom, before the launch), so
+  // an iPhone recording does not tap controls an iPad layout does not have. Omit for no guard.
+  "requiredIdiom": "phone"
 }
 ```
 

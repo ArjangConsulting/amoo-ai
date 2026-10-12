@@ -187,6 +187,14 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     /// Optional expression template for mapped IDs, e.g. `app.element(id: {{id}})`. The default
     /// keeps the standalone XCUITest lookup shape.
     public let idLookupTemplate: String?
+    /// The iOS device class the test was recorded for. When set, the generated test skips itself on
+    /// the other class — an iPhone recording on an iPad would tap controls that are not there.
+    public let requiredIdiom: Idiom?
+
+    public enum Idiom: String, Codable, Equatable, Sendable {
+        case phone
+        case pad
+    }
 
     public init(
         imports: [String] = [],
@@ -195,15 +203,18 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         harnessLaunchesApp: Bool = false,
         helpers: [Helper] = [],
         selectorExpressions: [String: String] = [:],
-        idLookupTemplate: String? = nil
+        idLookupTemplate: String? = nil,
+        requiredIdiom: Idiom? = nil
     ) {
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
         self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
+        self.requiredIdiom = requiredIdiom
     }
 
     private enum CodingKeys: String, CodingKey {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
+        case requiredIdiom
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -217,6 +228,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         helpers = try container.decodeIfPresent([Helper].self, forKey: .helpers) ?? []
         selectorExpressions = try container.decodeIfPresent([String: String].self, forKey: .selectorExpressions) ?? [:]
         idLookupTemplate = try container.decodeIfPresent(String.self, forKey: .idLookupTemplate)
+        requiredIdiom = try container.decodeIfPresent(Idiom.self, forKey: .requiredIdiom)
     }
 
     public func helper(named name: String) -> Helper? {
