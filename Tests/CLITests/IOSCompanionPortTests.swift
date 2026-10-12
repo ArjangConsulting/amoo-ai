@@ -96,3 +96,13 @@ final class IOSCompanionPortTests: XCTestCase {
 }
 
 // swiftlint:enable multiline_arguments
+
+final class IOSCompanionPortDeviceTests: XCTestCase {
+    func testASimulatorUDIDGetsItsDerivedPortAndEverythingElseTheSharedDefault() {
+        let udid = "C5373D4B-5EB8-4AE0-92FA-B8EFE908E6F5"
+        XCTAssertEqual(IOSCompanionPort.forDevice(udid), IOSCompanionPort.derived(forUDID: udid))
+        XCTAssertEqual(IOSCompanionPort.forDevice(udid.lowercased()), IOSCompanionPort.derived(forUDID: udid))
+        XCTAssertEqual(IOSCompanionPort.forDevice("booted"), CompanionConfig.defaultPort)
+        XCTAssertEqual(IOSCompanionPort.forDevice("00008110-001A2B3C4D5E"), CompanionConfig.defaultPort)
+    }
+}
