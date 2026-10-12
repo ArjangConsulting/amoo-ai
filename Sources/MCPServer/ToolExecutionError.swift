@@ -43,7 +43,8 @@ extension DriverToolExecutor {
             throw ToolExecutionError(
                 code: "ambiguous_selector",
                 message: "Selector matched \(elements.count) elements: \(summary). Retry with the"
-                    + " id of the one you want, or scope with parent_id. If none has an id, tap its"
+                    + " id of the one you want, scope with parent_id, or pick one of the matches with"
+                    + " index (0-based) or first=true. If none has an id, tap its"
                     + " listed point directly rather than guessing coordinates from a screenshot.",
                 extra: ["candidates": .array(candidates.map { elementFields($0) })]
             )

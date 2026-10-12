@@ -235,7 +235,13 @@ needed. Contributor skills are not required to operate the device.
 observation. Tokens detect changes in labels, values, geometry, visibility, and tree order within
 companion hierarchy limits. They are change hints, not durable selectors or proof of readiness.
 Use explicit assertions as postconditions. Mutations reject ambiguous matches; refine with IDs
-and `parent_id`. A timeout can occur after a device action started: inspect before retrying.
+and `parent_id`, or, when several elements are truly indistinguishable (iPadOS 27's top tab bar
+exposes each tab twice), pick one with `index` (0-based, in the device's order) or `first: true` on
+`find_elements`, `tap_element` and the `assert_*` tools. A recorded pick becomes
+`.element(boundBy:)` / `.firstMatch` in the generated XCUITest (iOS only; the Android emitters do not
+read it yet). `find_elements` also prints each element's current `value` (never for secure fields,
+and never written to the session report) and, for a whole-screen listing, hides repeated-label static
+text and scroll bars unless `include_noise=true`. A timeout can occur after a device action started: inspect before retrying.
 
 `find_elements`, `list_apps`, `list_sessions`, and `get_session_report` default to 50 results;
 use `limit` and `next_offset` while `has_more` is true. Offsets query live state, so keep the screen

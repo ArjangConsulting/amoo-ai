@@ -92,6 +92,28 @@ extension ToolDefinition {
                 description: "Restrict to descendants of this identifier"
             )
         }
+        // `set_text` / `fill_field` are left out: the device-side write cannot take the pick.
+        if [
+            "find_elements",
+            "tap_element",
+            "assert_visible",
+            "assert_enabled",
+            "assert_absent",
+            "assert_value"
+        ].contains(name) {
+            copy.properties["index"] = .init(
+                type: "string",
+                description: "0-based index among elements matching the selector, in the order the device"
+                    + " reports them. For duplicates the selector cannot tell apart (an iPadOS tab bar that"
+                    + " exposes each tab twice). Generated XCUITest uses .element(boundBy:). Not combinable"
+                    + " with first."
+            )
+            copy.properties["first"] = .init(
+                type: "string",
+                description: "true picks the first match when several elements match. Generated XCUITest"
+                    + " uses .firstMatch. Not combinable with index."
+            )
+        }
         if ["type_text", "set_text", "fill_field", "assert_value"].contains(name) {
             copy.properties["record_value"] = .init(
                 type: "string", description: "fixture records non-sensitive test data; default secret redacts it"

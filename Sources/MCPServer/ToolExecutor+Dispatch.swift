@@ -235,7 +235,10 @@ extension DriverToolExecutor {
                 return .error("At least one of id, label, or contains_text is required")
             }
             let appID = queryScopeAppID(arguments: arguments, driver: driver)
-            guard let matched = try await resolveElement(selector: selector, driver: driver, appID: appID) else {
+            let pick = try ElementPick.parse(arguments)
+            guard let matched = try await resolveElement(
+                selector: selector, driver: driver, appID: appID, pick: pick
+            ) else {
                 return .error("tap_element failed: no element matched the selector")
             }
             guard matched.isVisible, matched.isEnabled else {
@@ -250,6 +253,9 @@ extension DriverToolExecutor {
                 Point(x: frame.x + frame.width / 2, y: frame.y + frame.height / 2)
             }) {
                 try await driver.tap(at: point)
+            } else if pick != nil {
+                // Re-sending the selector would let the device choose among the duplicates.
+                return .error("tap_element failed: the picked element reports no frame or hit point to tap")
             } else {
                 try await driver.tapElement(selector, appID: appID)
             }

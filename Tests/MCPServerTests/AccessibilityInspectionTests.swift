@@ -135,7 +135,7 @@ final class AccessibilityInspectionTests: XCTestCase {
         let executor = DriverToolExecutor(driver: MockDriver())
         let known = await executor.elementFields(
             .init(id: "wheel", label: "Year", value: "2026", type: .picker, isSelected: false),
-            includePickerValue: true
+            includeValue: true
         )
         let unknown = await executor.elementFields(.init(id: "old", label: "Year"))
         XCTAssertNotEqual(known, unknown)

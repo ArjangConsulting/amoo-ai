@@ -5,7 +5,8 @@ public enum QueryTools {
         ToolDefinition(
             name: "find_elements",
             description: "Find UI elements matching a selector. Returns matching element IDs and labels,"
-                + " each with its centre in points. With no selector, returns everything on screen,"
+                + " each with its centre in points and, for non-secure fields, its current value. With no"
+                + " selector, returns everything on screen,"
                 + " including unlabeled elements listed as [unlabeled] with their type and frame —"
                 + " that is how an icon-only button with no accessibility label is found.",
             properties: [
@@ -15,6 +16,13 @@ public enum QueryTools {
                 "description": .init(type: "string", description: "Natural language description for AI matching"),
                 "limit": .init(type: "integer", description: "Maximum matches to return, 1–2000; default 50"),
                 "offset": .init(type: "integer", description: "Skip this many matches; default 0"),
+                "include_noise": .init(
+                    type: "string",
+                    description: "Set true to also list elements an unfiltered listing hides by default:"
+                        + " static text that only repeats its parent control's label, and scroll bars."
+                        + " Only the no-selector listing is filtered, and never when index/first is given;"
+                        + " the reply says how many were hidden."
+                ),
                 "labeled_only": .init(
                     type: "string",
                     description: "Set true to list only elements that have an identifier or label."

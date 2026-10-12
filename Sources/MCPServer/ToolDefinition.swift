@@ -133,14 +133,19 @@ public struct ToolResult: Sendable, Equatable {
     /// Optional image (screenshot, annotated overlay, …) returned as an MCP image content block.
     public var image: ToolImageContent?
     public var observedElements: [RecordedElement]
+    /// What the session recorder persists instead of `content`, when `content` carries values that
+    /// should reach the caller but not a report on disk (for example typed field text).
+    public var recordedContent: String?
 
     public init(
         content: String,
         isError: Bool = false,
         structuredContent: Value? = nil,
         image: ToolImageContent? = nil,
-        observedElements: [RecordedElement] = []
+        observedElements: [RecordedElement] = [],
+        recordedContent: String? = nil
     ) {
+        self.recordedContent = recordedContent
         self.content = content
         self.isError = isError
         self.structuredContent = structuredContent
