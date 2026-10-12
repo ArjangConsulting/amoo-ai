@@ -171,10 +171,28 @@ one companion connection:
 amoo flow Examples/sign-in.amoo.json
 ```
 
-Each step names a normal device/MCP tool. Exact `${ENV_NAME}` argument values are resolved from the
-process environment so credentials do not enter source control. The runner stops at the first
-failed action or assertion and prints the verified result for every completed step. See
-[`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format.
+Each step names a normal device/MCP tool. `${name}` in an argument value (anywhere in the string)
+resolves from the flow's `"vars"`, then `--var name=value`, then the process environment, so
+credentials do not enter source control. Argument values may be JSON strings, numbers or booleans.
+The runner stops at the first failed action or assertion and prints the verified result for every
+completed step; a step (or the whole flow) with `"on_error": "continue"`, or `--continue-on-error`,
+keeps going and the exit code is still 1 if anything failed. `"repeat": N` runs a step N times.
+See [`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format.
+
+Flow-only steps cover what used to need a shell loop:
+
+| Step | Arguments | Does |
+| --- | --- | --- |
+| `wait` | `duration_ms` or `seconds` | Pauses. |
+| `wait_for` | `id`/`label`/`contains_text`, `timeout_ms` (default 10000) | Waits for the element (an `assert_visible` with a timeout). |
+| `wait_for` | `idle: true`, `stable_ms` (500), `timeout_ms` | Waits until the screen stops changing — first frame after a launch, end of a rotation. |
+| `screenshot` | `name` (optional) | Saves `<--output-dir>/NN-<name>.png`, numbered by step. |
+
+One flow can run on several devices at once: `amoo flow f.amoo.json --devices UDID1:22111,UDID2:22112
+--output-dir out/` runs them in parallel, writes screenshots to `out/<device>/`, and ends with a
+`PASS`/`FAIL` line per device (`${device}` is available as a variable). An iOS entry without
+`:port` uses the port derived from its UDID. Flow-only steps are dropped (or, for `wait_for` on an
+element, turned into `assert_visible`) by `generate plan --from-flow`.
 
 ### Running several companions
 

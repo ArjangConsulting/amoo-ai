@@ -134,13 +134,16 @@ func sessionReport(fromFlow flow: TestFlow, name: String) -> SessionReport {
                 .map { DriverToolExecutor.parseEnvironment($0) } ?? launchEnvironment
             continue
         }
+        // Flow-only steps lower to what a recording would hold: waiting for an element is an
+        // assertion, and pauses, idle waits and screenshots reproduce nothing in a test.
+        guard let (tool, arguments) = flowStepForPlan(step) else { continue }
         actions.append(SessionAction(
             timestamp: start.addingTimeInterval(Double(actions.count) * flowStepSpacingSeconds),
-            toolName: step.tool,
-            arguments: step.arguments,
+            toolName: tool,
+            arguments: arguments,
             result: "authored in \(name)",
             isError: false,
-            intent: flowIntent(forTool: step.tool)
+            intent: flowIntent(forTool: tool)
         ))
     }
     return SessionReport(
@@ -158,6 +161,19 @@ func sessionReport(fromFlow flow: TestFlow, name: String) -> SessionReport {
         launchArguments: launchArguments,
         launchEnvironment: launchEnvironment
     )
+}
+
+/// The tool and arguments a flow step contributes to a plan, or `nil` when it contributes nothing.
+func flowStepForPlan(_ step: TestFlow.Step) -> (tool: String, arguments: [String: String])? {
+    switch step.tool {
+    case FlowPseudoTool.wait, FlowPseudoTool.screenshot:
+        return nil
+    case FlowPseudoTool.waitFor:
+        guard step.arguments["idle"] == nil else { return nil }
+        return ("assert_visible", step.arguments)
+    default:
+        return (step.tool, step.arguments)
+    }
 }
 
 /// Longer than the compiler's retry-tap window, so repeated identical steps stay separate.
