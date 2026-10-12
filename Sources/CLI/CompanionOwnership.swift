@@ -98,5 +98,7 @@ func companionMismatchMessage(port: Int, requested: String, owner: String) -> St
     To target \(requested), stop that companion, or run one for it on a free port and use that port:
       amoo companion start --platform ios --device \(requested) --port <free-port> --app <bundle-id>
       amoo device --device \(requested) --port <free-port> <tool> ...
+    From an MCP client, pass `port` to start_session instead, or start the server with \
+    `amoo mcp serve --port <free-port>`.
     """
 }

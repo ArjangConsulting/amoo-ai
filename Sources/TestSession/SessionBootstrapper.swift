@@ -69,6 +69,9 @@ public struct SessionBootstrapRequest: Sendable {
     public let buildMode: SessionBuildMode
     public let arguments: [String]
     public let environment: [String: String]
+    /// Explicit companion port for this session. `nil` lets the bootstrapper choose a per-device
+    /// port, so sessions on different simulators/emulators can run side by side.
+    public let port: Int?
 
     public init(
         appID: String,
@@ -77,8 +80,10 @@ public struct SessionBootstrapRequest: Sendable {
         buildPath: String? = nil,
         buildMode: SessionBuildMode = .auto,
         arguments: [String] = [],
-        environment: [String: String] = [:]
+        environment: [String: String] = [:],
+        port: Int? = nil
     ) {
+        self.port = port
         self.appID = appID
         self.platform = platform
         self.deviceHint = deviceHint

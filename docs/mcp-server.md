@@ -28,6 +28,13 @@ By default this targets the iOS companion on port `22087`. For Android or custom
 amoo mcp serve --platform android --port 22088
 ```
 
+That port is the server's default driver for calls without a `session_id`. `start_session` picks its
+own companion port per device, so sessions on different simulators or emulators can run at once:
+the `port` argument of `start_session` wins, then an explicit `--port` of `amoo mcp serve`, then a
+companion already listening on `22087` for that same simulator, and otherwise a stable port derived
+from the simulator's UDID (`23000-23999`; Android emulators keep their `22088+` block). If something
+else holds the port, `start_session` fails naming the holder; pass a free `port` to move off it.
+
 The server speaks JSON-RPC over `stdio` and exits cleanly when the client closes
 stdin. It supports both stateless MCP `2026-07-28` requests and the legacy
 `initialize` flow used by MCP `2025-11-25` clients.

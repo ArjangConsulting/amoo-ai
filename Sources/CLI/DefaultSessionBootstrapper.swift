@@ -21,6 +21,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     let screenStabilizationTimeoutSeconds: Double
     /// Cross-process device leases (`amoo env up`); injectable so tests never read `~/.amoo`.
     let leaseStore: DeviceLeaseStore
+    /// The `--port` an MCP server was started with, used for iOS sessions that name no port of
+    /// their own. `nil` derives a stable per-simulator port instead (see `IOSCompanionPort`).
+    let serverPort: Int?
 
     init(
         iOSCompanionManager: any IOSCompanionManaging,
@@ -28,8 +31,10 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         processRunner: any ProcessRunner = SystemProcessRunner(),
         usbTunnel: any USBTunneling = IProxyTunnel(),
         screenStabilizationTimeoutSeconds: Double = 10,
-        leaseStore: DeviceLeaseStore = DeviceLeaseStore()
+        leaseStore: DeviceLeaseStore = DeviceLeaseStore(),
+        serverPort: Int? = nil
     ) {
+        self.serverPort = serverPort
         self.leaseStore = leaseStore
         self.iOSCompanionManager = iOSCompanionManager
         self.androidCompanionManager = androidCompanionManager
@@ -100,7 +105,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 for: available,
                 appID: request.appID,
                 buildMode: request.buildMode,
-                installAndroidBuild: installAndroidBuild
+                installAndroidBuild: installAndroidBuild,
+                requestedPort: request.port
             )
             PerformanceTelemetry.record(
                 "companion_startup",
@@ -263,11 +269,22 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         for device: AvailableDevice,
         appID: String,
         buildMode: SessionBuildMode,
-        installAndroidBuild: Bool
+        installAndroidBuild: Bool,
+        requestedPort: Int?
     ) async throws -> (deviceID: String, port: Int) {
         switch device {
         case let .ios(booted):
-            let port = 22087
+            // One port per simulator: a fixed shared port let only one simulator be recorded at a
+            // time and broke whenever anything else held it.
+            let port = await IOSCompanionPort.resolve(
+                requested: requestedPort,
+                serverDefault: serverPort,
+                udid: booted.udid,
+                isPhysicalDevice: booted.isPhysicalDevice,
+                legacyPortOwner: {
+                    await companionSimulatorUDID(port: CompanionConfig.defaultPort, processRunner: processRunner)
+                }
+            )
             var config = CompanionConfig(
                 port: port,
                 deviceUDID: booted.udid,
@@ -280,7 +297,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             return (booted.udid, port)
         case let .android(serial, _):
             // One port per device: concurrent sessions on different emulators must not share one.
-            let port = await androidCompanionManager.companionPort(forSerial: serial)
+            let port: Int = if let requestedPort {
+                requestedPort
+            } else {
+                await androidCompanionManager.companionPort(forSerial: serial)
+            }
             var config = AndroidCompanionConfig(port: port, serial: serial)
             config.buildMode = buildMode
             config.buildPrepared = true

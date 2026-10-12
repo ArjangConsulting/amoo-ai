@@ -22,6 +22,12 @@ extension DriverToolExecutor {
         guard let buildMode = SessionBuildMode(rawValue: arguments["build_mode"] ?? "auto") else {
             return .error("build_mode must be auto, reuse, or rebuild.")
         }
+        let port: Int?
+        do {
+            port = try Self.parseCompanionPort(arguments["port"])
+        } catch {
+            return .error("start_session failed: \(error)")
+        }
         let operation = StartupOperation()
         await StartupProgressStore.shared.add(operation)
         return await StartupProgress.$startup.withValue(operation) {
@@ -29,7 +35,8 @@ extension DriverToolExecutor {
                 arguments: arguments,
                 appID: appID,
                 platform: platform,
-                buildMode: buildMode
+                buildMode: buildMode,
+                port: port
             )
             await operation.finish(success: !result.isError)
             return result
@@ -40,7 +47,8 @@ extension DriverToolExecutor {
         arguments: [String: String],
         appID: String,
         platform: Platform,
-        buildMode: SessionBuildMode
+        buildMode: SessionBuildMode,
+        port: Int?
     ) async -> ToolResult {
         guard let manager = sessionManager else { return .error("Session configuration is missing.") }
         let deviceHint = arguments["device_hint"]
@@ -70,7 +78,8 @@ extension DriverToolExecutor {
                 buildMode: buildMode,
                 arguments: launchArgs,
                 environment: environment,
-                testName: testName
+                testName: testName,
+                port: port
             )
             // Persist the codegen intent (descriptive name/description + app-owned test-context
             // reference) so `end_session`'s auto-compile reproduces the plan an explicit

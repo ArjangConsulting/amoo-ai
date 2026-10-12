@@ -134,8 +134,9 @@ protocol IOSCompanionManaging: Sendable {
 }
 
 final class CompanionManager: @unchecked Sendable {
-    private var companionProcess: (any SpawnedProcess)?
-    private var activeConfig: CompanionConfig?
+    /// Companions this manager launched, keyed by device UDID. See `CompanionManager+Tracking.swift`.
+    var running: [String: RunningCompanion] = [:]
+    let stateLock = NSLock()
     private let shellContext: ShellContext
     let processRunner: any ProcessRunner
 
@@ -205,29 +206,31 @@ final class CompanionManager: @unchecked Sendable {
     /// Ensures the companion is running. Builds and launches it if necessary.
     func ensureRunning(config: CompanionConfig, force: Bool = false) async throws {
         if force {
-            await shutdown()
+            await shutdown(deviceUDID: config.deviceUDID)
         }
         await StartupProgress.report("Checking iOS companion")
         let bundled = hasBundledProducts(config: config)
-        let sourcesChanged = config.buildMode == .rebuild ||
-            (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config))
-        if config.isPhysicalDevice, companionProcess != nil, activeConfig == config, !force, !sourcesChanged {
+        let sourcesChanged = sourcesChanged(config: config, bundled: bundled)
+        let own = tracked(deviceUDID: config.deviceUDID)
+        if config.isPhysicalDevice, own?.config == config, !force, !sourcesChanged {
             print("Companion already running on physical device \(config.deviceUDID).")
             return
         }
-        if !force, !sourcesChanged,
-           activeConfig == nil || activeConfig?.deviceUDID == config.deviceUDID,
-           await isCompanionReady(host: config.host, port: config.port) {
-            if activeConfig == nil {
+        // A companion this manager launched for another device already owns the port: reusing it
+        // would drive that device, and relaunching would collide with it.
+        try refusePortHeldByAnotherDevice(config: config)
+        if !force, !sourcesChanged, await isCompanionReady(host: config.host, port: config.port) {
+            if own == nil {
                 try await refuseOtherSimulatorsCompanion(config: config, processRunner: processRunner)
             }
             print("Companion already running on port \(config.port).")
             return
         }
 
-        // Retire an owned runner that stopped answering its API before launching a replacement.
-        if companionProcess != nil {
-            await shutdown()
+        // Retire this device's owned runner if it stopped answering its API, before launching a
+        // replacement. Companions for other devices are left alone.
+        if own != nil {
+            await shutdown(deviceUDID: config.deviceUDID)
         }
 
         if await isTCPPortReachable(host: config.host, port: config.port, timeoutSeconds: 1.5) {
@@ -238,7 +241,8 @@ final class CompanionManager: @unchecked Sendable {
                 ? "Stop that process (Ctrl-C in its terminal) and retry."
                 : "Stop its 'amoo companion start' process, then retry with --force."
             throw CompanionError.launchFailed(
-                "Port \(config.port) is owned by another companion process. \(retryHint)"
+                "Port \(config.port) is owned by another companion process. \(retryHint) "
+                    + "Or use a different port: \(companionPortAdvice)"
             )
         }
 
@@ -296,29 +300,23 @@ final class CompanionManager: @unchecked Sendable {
     /// Never returns when this process spawned none — it is only attached to another holder's
     /// companion, whose lifetime is not its to manage.
     func waitForRunnerExit() async {
-        guard let process = companionProcess else {
+        guard let entry = soleTracked() else {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3600))
             }
             return
         }
-        let output = await process.waitForExit()
+        let output = await entry.process.waitForExit()
         guard !Task.isCancelled else { return }
-        let log = activeConfig.map { " Log: \(Self.launchLogPath(port: $0.port))" } ?? ""
+        let log = " Log: \(Self.launchLogPath(port: entry.config.port))"
         print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red) + log)
     }
 
     /// Detect a dead simulator API even when Xcode keeps its child process alive after a crash.
     /// Attached companions and physical-device tunnels are owned by a different lifecycle.
     func waitForRunnerUnavailable() async {
-        await Self.watchOwnedRunner(ownsRunner: companionProcess != nil, config: activeConfig)
-    }
-
-    func shutdown() async {
-        guard let process = companionProcess else { return }
-        _ = await process.teardownAndWait()
-        companionProcess = nil
-        activeConfig = nil
+        let entry = soleTracked()
+        await Self.watchOwnedRunner(ownsRunner: entry != nil, config: entry?.config)
     }
 
     // MARK: - Private
@@ -438,7 +436,7 @@ final class CompanionManager: @unchecked Sendable {
         let deviceUDID = try await resolvedDeviceUDID(for: config)
 
         do {
-            companionProcess = try await XcodeBuild(context: shellContext)
+            let process = try await XcodeBuild(context: shellContext)
                 .trailingArgument("test-without-building")
                 .option(.xctestrun(xctestrunPath))
                 .option(.destination(xcodeDestination(for: config, deviceUDID: deviceUDID)))
@@ -461,7 +459,7 @@ final class CompanionManager: @unchecked Sendable {
                 .stdout(.file(path: logPath, append: true))
                 .stderr(.file(path: logPath, append: true))
                 .spawn(teardown: .graceful)
-            activeConfig = config
+            track(RunningCompanion(process: process, config: config))
         } catch {
             throw CompanionError.launchFailed(error.localizedDescription)
         }

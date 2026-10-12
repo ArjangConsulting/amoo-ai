@@ -45,6 +45,10 @@ struct MCPServeOptions: Sendable, Equatable {
     var platform: Platform
     var port: Int
     var deviceID: String?
+    /// The `--port` the user passed, if any. Unlike `port` (which falls back to the platform
+    /// default for the initial driver), this is only set when the user chose one, so sessions
+    /// started with `start_session` can derive a per-device port when it is `nil`.
+    var explicitPort: Int?
 }
 
 func renderMCPHelp() -> String {
@@ -121,7 +125,8 @@ func parseMCPServeOptions(args: [String]) -> Result<MCPServeOptions, MCPCommandP
     return .success(MCPServeOptions(
         platform: flags.platform,
         port: flags.port ?? defaultMCPPort(for: flags.platform),
-        deviceID: normalizedMCPDeviceID(flags.deviceID, for: flags.platform)
+        deviceID: normalizedMCPDeviceID(flags.deviceID, for: flags.platform),
+        explicitPort: flags.port
     ))
 }
 
@@ -157,7 +162,8 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
         let androidCM = AndroidCompanionManager()
         let bootstrapper = DefaultSessionBootstrapper(
             iOSCompanionManager: iOSCM,
-            androidCompanionManager: androidCM
+            androidCompanionManager: androidCM,
+            serverPort: options.explicitPort
         )
         let sessionManager = SessionManager(bootstrapper: bootstrapper, store: FileSessionStore())
         let executor = DriverToolExecutor(

@@ -93,7 +93,7 @@ extension DefaultSessionBootstrapper {
         switch platform {
         case .ios:
             let udid = await resolveIOSWarmDevice(hint: deviceHint)
-            let config = CompanionConfig(deviceUDID: udid, targetAppID: appID)
+            let config = await iosCompanionConfig(udid: udid, appID: appID)
             let store = CompanionStatusStore(companionDir: config.companionDir)
             let port = config.port
             store.write(warmRecord(.building, platform: "ios", device: udid, port: port, detail: "build"))
@@ -138,14 +138,15 @@ extension DefaultSessionBootstrapper {
         let runner = processRunner
         switch platform {
         case .ios:
-            let config = CompanionConfig(deviceUDID: deviceHint ?? "booted")
-            isBuildCurrent = { CompanionManager(processRunner: runner).isBuildCurrent(config: config) }
+            let udid = await resolveIOSWarmDevice(hint: deviceHint)
+            let config = await iosCompanionConfig(udid: udid, appID: nil)
             (host, port, dir) = (config.host, config.port, config.companionDir)
+            isBuildCurrent = { CompanionManager(processRunner: runner).isBuildCurrent(config: config) }
         case .android:
             let resolvedPort = try await resolveAndroidCompanionPort(deviceID: deviceHint, processRunner: processRunner)
             let config = AndroidCompanionConfig(port: resolvedPort, serial: deviceHint)
-            isBuildCurrent = { AndroidCompanionManager(processRunner: runner).isBuildCurrent(config: config) }
             (host, port, dir) = (config.host, config.port, config.companionDir)
+            isBuildCurrent = { AndroidCompanionManager(processRunner: runner).isBuildCurrent(config: config) }
         }
         let store = CompanionStatusStore(companionDir: dir)
         let result = await companionStatusResult(
@@ -156,6 +157,22 @@ extension DefaultSessionBootstrapper {
             isBuildCurrent: isBuildCurrent
         )
         return result.output
+    }
+
+    /// The iOS companion config for `udid`, on the port a session for that simulator would use, so
+    /// `companion_warm` / `companion_status` look where `start_session` will launch it.
+    private func iosCompanionConfig(udid: String, appID: String?) async -> CompanionConfig {
+        var config = CompanionConfig(deviceUDID: udid, targetAppID: appID)
+        guard UUID(uuidString: udid) != nil else { return config }
+        let runner = processRunner
+        config.port = await IOSCompanionPort.resolve(
+            requested: nil,
+            serverDefault: serverPort,
+            udid: udid,
+            isPhysicalDevice: false,
+            legacyPortOwner: { await companionSimulatorUDID(port: CompanionConfig.defaultPort, processRunner: runner) }
+        )
+        return config
     }
 
     private func resolveIOSWarmDevice(hint: String?) async -> String {
