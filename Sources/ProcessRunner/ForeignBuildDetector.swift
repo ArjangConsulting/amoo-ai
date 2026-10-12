@@ -46,7 +46,12 @@ public struct ForeignBuildDetector: Sendable {
 
     /// `"<pid> <command>"` lines for running `xcodebuild` / `xctest` processes not started by this
     /// `amoo` process. Empty when nothing foreign is running or the probe could not run.
-    public func foreignBuildProcesses() async -> [String] {
+    ///
+    /// - Parameter deviceID: when given (and not `booted`), only processes that name that device count.
+    ///   A build for another simulator cannot race an install here, and warning about it taught
+    ///   callers to ignore the advisory.
+    public func foreignBuildProcesses(deviceID: String? = nil) async -> [String] {
+        let scope = deviceID.flatMap { $0.isEmpty || $0 == "booted" ? nil : $0 }
         // `pgrep -f -l` matches (and prints) the full argument vector; the ERE alternation is what
         // pgrep uses by default on macOS. `-l` prints "<pid> <command>".
         guard
@@ -70,14 +75,17 @@ public struct ForeignBuildDetector: Sendable {
                 // by a separate `amoo companion start` process and so outside this ancestry. It is
                 // running for the whole session, so counting it warned on every install.
                 guard !line.contains(Self.companionMarker) else { return false }
+                if let scope, !line.contains(scope) {
+                    return false
+                }
                 // Guard against a pgrep build that treated the pattern as a fixed string.
                 return line.contains("xcodebuild") || line.contains("xctest")
             }
     }
 
     /// `contentionWarning` when a foreign build is running, otherwise `nil`.
-    public func contentionWarning() async -> String? {
-        await foreignBuildProcesses().isEmpty ? nil : Self.contentionWarning
+    public func contentionWarning(deviceID: String? = nil) async -> String? {
+        await foreignBuildProcesses(deviceID: deviceID).isEmpty ? nil : Self.contentionWarning
     }
 }
 
