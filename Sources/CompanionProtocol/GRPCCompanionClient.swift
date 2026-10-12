@@ -497,8 +497,22 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         var options = GRPCCore.CallOptions.defaults
         // XCUITest can wedge on beta runtimes. A deadline keeps the client usable and makes
         // recovery (`amoo companion start --force`) possible instead of hanging forever.
-        options.timeout = .seconds(12)
+        options.timeout = Self.gestureTimeout()
         return options
+    }
+
+    /// The per-call deadline for gestures and element queries: 12 seconds, or
+    /// `AMOO_RPC_TIMEOUT_SECONDS` (1...600) for a device whose accessibility tree is slow to
+    /// snapshot — Dynamic Type at an accessibility size can push one past the default.
+    package static let timeoutEnvironmentKey = "AMOO_RPC_TIMEOUT_SECONDS"
+
+    package static func gestureTimeout(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Swift.Duration {
+        guard let raw = environment[timeoutEnvironmentKey], let seconds = Int(raw), (1 ... 600).contains(seconds) else {
+            return .seconds(12)
+        }
+        return .seconds(seconds)
     }
 
     private let grpcClient: GRPCClient<HTTP2ClientTransport.Posix>

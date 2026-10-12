@@ -121,4 +121,27 @@ final class ForeignBuildWarningTests: XCTestCase {
         XCTAssertTrue(message.hasPrefix("tap failed:"), message)
         XCTAssertFalse(message.contains("hijacked"), message)
     }
+
+    /// Dynamic Type at an accessibility size made every call miss its 12s deadline; the error now
+    /// says why and how to get past it.
+    func testTimeoutWithoutAHijackerExplainsSlowSnapshotsAndTheDeadlineOverride() async {
+        let executor = DriverToolExecutor(driver: MockDriver(), foreignBuildDetector: detector(reporting: false))
+        let message = await executor.failureMessage(
+            toolName: "tap",
+            error: AmooError.commandFailed(command: "tap", output: "deadlineExceeded: RPC timed out before completing"),
+            arguments: [:]
+        )
+        XCTAssertTrue(message.contains("AMOO_RPC_TIMEOUT_SECONDS"), message)
+        XCTAssertTrue(message.contains("find_elements"), message)
+    }
+
+    func testNonTimeoutErrorsGetNoSnapshotHint() async {
+        let executor = DriverToolExecutor(driver: MockDriver(), foreignBuildDetector: detector(reporting: false))
+        let message = await executor.failureMessage(
+            toolName: "tap",
+            error: AmooError.commandFailed(command: "tap", output: "element not found"),
+            arguments: [:]
+        )
+        XCTAssertFalse(message.contains("AMOO_RPC_TIMEOUT_SECONDS"), message)
+    }
 }

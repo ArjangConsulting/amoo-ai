@@ -360,7 +360,20 @@ extension DriverToolExecutor {
               let driver = try? await resolveDriver(arguments: arguments),
               let info = try? await driver.deviceInfo(),
               let hijack = await foreignBuildDetector.hijackMessage(platform: info.platform, deviceID: info.id)
-        else { return plain }
+        else { return plain + slowSnapshotHint(for: text) }
         return "\(toolName) failed: \(hijack) (original error: \(error))"
+    }
+
+    /// Explains a deadline the device missed with no one else driving it. The usual cause is an
+    /// accessibility snapshot too large to finish in time — an accessibility Dynamic Type size, a
+    /// long list, a deep SwiftUI tree — not a wedged companion, so say how to get past it.
+    private func slowSnapshotHint(for errorText: String) -> String {
+        guard errorText.contains("timed out") || errorText.contains("deadlineexceeded")
+            || errorText.contains("deadline exceeded") else { return "" }
+        return "\nThe device did not answer in time. If the screen is large or dense (accessibility text sizes,"
+            + " long lists), the accessibility snapshot can take longer than the 12s default: scope the next"
+            + " query (find_elements with id or parent_id, not an unfiltered one), relaunch the app to"
+            + " reset a stuck snapshot, or raise the deadline by starting the MCP server with"
+            + " AMOO_RPC_TIMEOUT_SECONDS=<seconds> (1-600)."
     }
 }
