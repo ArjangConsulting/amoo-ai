@@ -221,11 +221,21 @@ public struct CLIApp {
         }
         var flags = EnvFlagReader(remaining)
         do {
-            let overrides = try FlowOverrides(
+            var overrides = try FlowOverrides(
                 deviceID: flags.value("--device"),
                 port: flags.int("--port"),
                 lease: flags.value("--lease")
             )
+            overrides.outputDirectory = try flags.value("--output-dir")
+            overrides.continueOnError = flags.take("--continue-on-error")
+            try overrides.devices = flowDeviceTargets(from: flags.value("--devices"))
+            while let assignment = try flags.value("--var") {
+                guard let equals = assignment.firstIndex(of: "="), equals != assignment.startIndex else {
+                    throw EnvCommandParseError.usage("--var expects name=value, got '\(assignment)'.")
+                }
+                overrides
+                    .variables[String(assignment[..<equals])] = String(assignment[assignment.index(after: equals)...])
+            }
             let paths = flags.remainingPositionals()
             try flags.finish()
             guard paths.count == 1 else { return CLIResult(output: renderFlowHelp(), exitCode: 64) }
