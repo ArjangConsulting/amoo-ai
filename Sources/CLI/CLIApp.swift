@@ -129,6 +129,7 @@ public struct CLIApp {
         case "preflight": return await handlePreflightCommand(remaining: remaining)
         case "device": return await handleDeviceCommand(remaining: remaining)
         case "companion": return await handleCompanionCommand(remaining: remaining)
+        case "shots": return runShotsCommand(args: remaining)
         case "flow": return await handleFlowCommand(remaining: remaining)
         case "audit": return await handleAuditCommand(remaining: remaining)
         case "chat": return await handleChatCommand(remaining: remaining)
@@ -348,6 +349,7 @@ func renderCLIHelp() -> String {
 
     Commands:
       help                         Show this help
+      shots montage|diff ...       Contact sheet / baseline diff of a screenshot folder
       version                      Show the version, source commit and build time of this binary
       preflight [--platform ...]   Check local tooling and environment
       doctor [--json] [--kill-stale]  Health check: build, stale MCP servers, devices, runtimes, companions, leases
