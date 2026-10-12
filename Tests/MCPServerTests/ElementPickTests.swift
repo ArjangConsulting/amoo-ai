@@ -56,6 +56,27 @@ final class ElementPickTests: XCTestCase {
         XCTAssertEqual(taps, [Point(x: 140, y: 42)])
     }
 
+    func testSwipeInDirectionWithAPickSwipesFromThatMatch() async {
+        let driver = DuplicateElementsDriver(Self.duplicates)
+        let result = await executor(driver).execute(
+            toolName: "swipe_in_direction",
+            arguments: ["element_id": "tab.reports", "index": "2", "direction": "left", "distance": "100"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let swipes = await driver.swipes
+        XCTAssertEqual(swipes.count, 1)
+        XCTAssertEqual(swipes.first?.from, Point(x: 340, y: 522))
+        XCTAssertEqual(swipes.first?.to, Point(x: 240, y: 522), "left moves the finger left")
+    }
+
+    func testSwipePickNeedsAnElementToPickFrom() async {
+        let result = await executor(DuplicateElementsDriver(Self.duplicates)).execute(
+            toolName: "swipe_in_direction", arguments: ["first": "true", "direction": "up"]
+        )
+        XCTAssertTrue(result.isError)
+        XCTAssertTrue(result.content.contains("element_id or element_label"), result.content)
+    }
+
     func testIndexPastTheLastMatchNamesTheValidRange() async {
         let driver = DuplicateElementsDriver(Self.duplicates)
         let result = await executor(driver).execute(
@@ -205,6 +226,12 @@ actor DuplicateElementsDriver: PlatformDriver {
 
     func tap(at point: Point) async throws {
         taps.append(point)
+    }
+
+    private(set) var swipes: [(from: Point, to: Point)] = []
+
+    func swipe(from: Point, to: Point, duration _: Duration) async throws {
+        swipes.append((from, to))
     }
 }
 
