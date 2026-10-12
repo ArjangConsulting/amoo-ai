@@ -61,7 +61,9 @@ public actor StartupProgressStore {
     public func summaries() async -> String {
         var result: [String] = []
         for operation in operations {
-            await result.append(operation.summary())
+            // Not `await result.append(operation.summary())`: see `DefaultPreflightChecker.run`.
+            let summary = await operation.summary()
+            result.append(summary)
         }
         return result.isEmpty ? "No session startups recorded." : result.joined(separator: "\n\n")
     }
