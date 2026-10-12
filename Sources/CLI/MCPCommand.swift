@@ -138,6 +138,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
     guard let protocolOutput = isolateMCPOutput() else {
         return CLIResult(output: "Cannot isolate MCP stdout", exitCode: 1)
     }
+    MCPCrashLog.install()
     defer {
         fflush(nil)
         _ = dup2(protocolOutput.fileDescriptor, STDOUT_FILENO)
