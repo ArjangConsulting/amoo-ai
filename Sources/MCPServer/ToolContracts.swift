@@ -135,6 +135,7 @@ public enum ToolProfile: String, Sendable, CaseIterable {
                 "end_session",
                 "companion_warm",
                 "companion_status",
+                "reset_companion",
                 "session_startup_status"
             ]
             return driving.contains(name) || management.contains(name)

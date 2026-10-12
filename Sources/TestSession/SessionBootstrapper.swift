@@ -27,6 +27,14 @@ public protocol SessionBootstrapper: Sendable {
     /// A one-line, non-blocking report of where the companion is: reachable, built, building,
     /// failed, or not started. Defaults to throwing.
     func companionStatus(platform: Platform, deviceHint: String?) async throws -> String
+
+    /// Stops the companion a session on `deviceID` left running, now rather than after the idle
+    /// timeout. Defaults to doing nothing.
+    func stopCompanion(platform: Platform, deviceID: String) async
+
+    /// Stops and forgets the companion for a device — including one a dead amoo process left behind —
+    /// so the next `start_session` launches a fresh one. Defaults to throwing.
+    func resetCompanion(platform: Platform, deviceHint: String?) async throws -> String
 }
 
 public extension SessionBootstrapper {
@@ -43,6 +51,12 @@ public extension SessionBootstrapper {
     }
 
     func companionStatus(platform _: Platform, deviceHint _: String?) async throws -> String {
+        throw SessionBootstrapError.unsupported
+    }
+
+    func stopCompanion(platform _: Platform, deviceID _: String) async {}
+
+    func resetCompanion(platform _: Platform, deviceHint _: String?) async throws -> String {
         throw SessionBootstrapError.unsupported
     }
 }

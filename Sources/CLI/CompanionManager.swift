@@ -129,14 +129,12 @@ enum CompanionError: Error, CustomStringConvertible {
 
 // MARK: - CompanionManager
 
-protocol IOSCompanionManaging: Sendable {
-    func ensureRunning(config: CompanionConfig, force: Bool) async throws
-}
-
 final class CompanionManager: @unchecked Sendable {
     /// Companions this manager launched, keyed by device UDID. See `CompanionManager+Tracking.swift`.
     var running: [String: RunningCompanion] = [:]
     let stateLock = NSLock()
+    /// Pending stops for idle companions, keyed by device UDID. See `scheduleIdleShutdown`.
+    var pendingIdleShutdowns: [String: Task<Void, Never>] = [:]
     private let shellContext: ShellContext
     let processRunner: any ProcessRunner
 
@@ -202,12 +200,12 @@ final class CompanionManager: @unchecked Sendable {
         print(colored("Companion ready.", .bold, .green))
     }
 
-    // swiftlint:disable function_body_length - linear startup lifecycle with rollback.
     /// Ensures the companion is running. Builds and launches it if necessary.
     func ensureRunning(config: CompanionConfig, force: Bool = false) async throws {
         if force {
             await shutdown(deviceUDID: config.deviceUDID)
         }
+        cancelIdleShutdown(deviceUDID: config.deviceUDID)
         await StartupProgress.report("Checking iOS companion")
         let bundled = hasBundledProducts(config: config)
         let sourcesChanged = sourcesChanged(config: config, bundled: bundled)
@@ -227,27 +225,7 @@ final class CompanionManager: @unchecked Sendable {
             return
         }
 
-        // Retire this device's owned runner if it stopped answering its API, before launching a
-        // replacement. Companions for other devices are left alone.
-        if own != nil {
-            await shutdown(deviceUDID: config.deviceUDID)
-        }
-
-        // The retired runner app can outlive its xcodebuild and still hold the port, which made a
-        // holder's own restart collide with itself. Reclaim it when it is provably this device's.
-        let portFree = await reclaimPort(config: config, mayTakeOver: own != nil || force)
-        if !portFree, await isTCPPortReachable(host: config.host, port: config.port, timeoutSeconds: 1.5) {
-            // `shutdown()` only reaches a runner this process spawned. A companion started by a
-            // separate `amoo companion start` still owns the port, and relaunching on top of it
-            // would leave the caller talking to the stale build.
-            let retryHint = force
-                ? "Stop that process (Ctrl-C in its terminal) and retry."
-                : "Stop its 'amoo companion start' process, then retry with --force."
-            throw CompanionError.launchFailed(
-                "Port \(config.port) is owned by another companion process. \(retryHint) "
-                    + "Or use a different port: \(companionPortAdvice)"
-            )
-        }
+        try await freePortForLaunch(config: config, ownedRunner: own != nil, force: force)
 
         async let simulatorReady: Void = prepareSimulator(config: config)
         let productsDir = companionProductsDirectory(config: config, bundled: bundled)
@@ -296,8 +274,6 @@ final class CompanionManager: @unchecked Sendable {
         }
         print(colored("Companion ready.", .bold, .green))
     }
-
-    // swiftlint:enable function_body_length
 
     /// Returns once the runner this manager spawned exits, reporting its exit code and log.
     /// Never returns when this process spawned none — it is only attached to another holder's

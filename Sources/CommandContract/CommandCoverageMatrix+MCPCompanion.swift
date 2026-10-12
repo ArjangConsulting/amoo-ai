@@ -87,6 +87,15 @@ public extension CommandCoverageMatrix {
             platforms: allPlatforms,
             fixtureScreen: .environment,
             expectedAssertion: "a one-line companion readiness phase is reported without blocking"
+        ),
+        .init(
+            name: "reset_companion",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "a device's companion is stopped and its port freed for the next session"
         )
     ]
 }

@@ -141,9 +141,13 @@ protocol AndroidCompanionManaging: Sendable {
     /// The host port the companion for `serial` is reachable on. Distinct per device so that
     /// concurrent sessions on different emulators do not share a port.
     func companionPort(forSerial serial: String) async -> Int
+    /// Stops the companions this manager launched. Defaults to doing nothing.
+    func shutdown() async
 }
 
 extension AndroidCompanionManaging {
+    func shutdown() async {}
+
     func prepareBuild(config _: AndroidCompanionConfig) async throws -> Bool {
         false
     }

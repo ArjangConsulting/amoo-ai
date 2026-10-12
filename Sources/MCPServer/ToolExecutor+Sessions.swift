@@ -127,20 +127,27 @@ extension DriverToolExecutor {
             return .error("Missing required argument: session_id")
         }
 
-        guard await manager.session(sessionID) != nil else {
+        guard let session = await manager.session(sessionID) else {
             return .error("Session not found: \(sessionID)")
         }
+        let platform = session.platform
+        let deviceID = session.deviceID
 
         do {
             try await manager.endSession(sessionID, force: boolArgument(arguments["force"]) == true)
         } catch {
             return .error("end_session failed: \(error)")
         }
+        let stopCompanion = boolArgument(arguments["stop_companion"]) == true
+        if stopCompanion {
+            await manager.stopCompanion(platform: platform, deviceID: deviceID)
+        }
 
         var summary: [String: Value] = [
             "session_id": .string(sessionID),
             "ended_at": .string(ISO8601DateFormatter().string(from: Date())),
-            "forced": .bool(boolArgument(arguments["force"]) == true)
+            "forced": .bool(boolArgument(arguments["force"]) == true),
+            "companion_stopped": .bool(stopCompanion)
         ]
 
         summary["recording_health"] = await .string(manager.recordingHealth(for: sessionID))
@@ -151,35 +158,9 @@ extension DriverToolExecutor {
         let actionCount = report?.actionCount ?? 0
         summary["action_count"] = .int(actionCount)
 
-        // `end_session` advertises plan_path/flow_path in its output schema, so a failure to produce
-        // them has to be visible — silently omitting the keys is indistinguishable from "no store
-        // configured", and the caller cannot tell it needs to re-run compile_session_to_plan.
-        var artifactNote = ""
-        let directory = await manager.sessionDirectory(for: sessionID)
-        let intent = await manager.codegenIntent(for: sessionID)
-        if let report, let directory {
-            do {
-                var result = try SessionPlanCompiler.compile(
-                    report: report,
-                    testName: intent?.testName ?? report.testName,
-                    testDescription: intent?.testDescription
-                )
-                result = try Self.applyingTestContext(intent, to: result)
-                let paths = try SessionArtifactWriter.write(result, to: directory)
-                summary["plan_path"] = .string(paths.plan)
-                summary["flow_path"] = .string(paths.flow)
-                summary["warning_count"] = .int(result.warnings.count)
-                artifactNote = " Plan written to \(paths.plan)"
-                    + (result.warnings.isEmpty ? "" : " (\(result.warnings.count) warning(s))") + "."
-            } catch {
-                summary["artifact_error"] = .string("\(error)")
-                artifactNote = " Could not write replay artifacts: \(error)."
-                    + " Re-run compile_session_to_plan to retry."
-            }
-        } else if directory == nil {
-            artifactNote = " No session store is configured, so no replay artifacts were written;"
-                + " call compile_session_to_plan to keep this run."
-        }
+        var artifactNote = await writeSessionArtifacts(
+            sessionID: sessionID, report: report, manager: manager, summary: &summary
+        )
 
         if boolArgument(arguments["force"]) == true {
             artifactNote += " Forced close: app termination skipped; in-flight actions may be absent from the report."
@@ -188,6 +169,44 @@ extension DriverToolExecutor {
             "Ended session \(sessionID) (\(actionCount) action(s) recorded).\(artifactNote)",
             structuredContent: .object(summary)
         )
+    }
+
+    /// Compiles the recorded history into plan.json / flow.json beside the report.
+    ///
+    /// `end_session` advertises plan_path/flow_path in its output schema, so a failure to produce
+    /// them has to be visible — silently omitting the keys is indistinguishable from "no store
+    /// configured", and the caller cannot tell it needs to re-run compile_session_to_plan.
+    private func writeSessionArtifacts(
+        sessionID: String,
+        report: SessionReport?,
+        manager: SessionManager,
+        summary: inout [String: Value]
+    ) async -> String {
+        let directory = await manager.sessionDirectory(for: sessionID)
+        let intent = await manager.codegenIntent(for: sessionID)
+        guard let report, let directory else {
+            return directory == nil
+                ? " No session store is configured, so no replay artifacts were written;"
+                + " call compile_session_to_plan to keep this run."
+                : ""
+        }
+        do {
+            var result = try SessionPlanCompiler.compile(
+                report: report,
+                testName: intent?.testName ?? report.testName,
+                testDescription: intent?.testDescription
+            )
+            result = try Self.applyingTestContext(intent, to: result)
+            let paths = try SessionArtifactWriter.write(result, to: directory)
+            summary["plan_path"] = .string(paths.plan)
+            summary["flow_path"] = .string(paths.flow)
+            summary["warning_count"] = .int(result.warnings.count)
+            return " Plan written to \(paths.plan)"
+                + (result.warnings.isEmpty ? "" : " (\(result.warnings.count) warning(s))") + "."
+        } catch {
+            summary["artifact_error"] = .string("\(error)")
+            return " Could not write replay artifacts: \(error). Re-run compile_session_to_plan to retry."
+        }
     }
 
     func executeListSessions(arguments: [String: String] = [:]) async throws -> ToolResult {
@@ -399,25 +418,6 @@ extension DriverToolExecutor {
             return .success(status, structuredContent: .object(["status": .string(status)]))
         } catch {
             return .error("companion_warm failed: \(error)")
-        }
-    }
-
-    func executeCompanionStatus(arguments: [String: String]) async throws -> ToolResult {
-        guard let manager = sessionManager else {
-            return .error("Companion management requires `amoo mcp serve`.")
-        }
-        let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
-        guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
-            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
-        }
-        do {
-            let status = try await manager.companionStatus(
-                platform: platform,
-                deviceHint: arguments["device_hint"]
-            )
-            return .success(status, structuredContent: .object(["status": .string(status)]))
-        } catch {
-            return .error("companion_status failed: \(error)")
         }
     }
 
