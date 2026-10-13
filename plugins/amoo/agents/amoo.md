@@ -35,17 +35,24 @@ accessibility_policy: path/to/amoo.accessibility.json  # optional skill review p
   provenance from inspection results; report unknown values explicitly.
 - `amoo --version`. Missing → report `blocked` (owner: environment) with the install hint
   `brew tap arjangconsulting/tap && brew install amoo`.
-- `amoo --help` must list `env` and `doctor`. If it does not, this amoo predates device leases:
-  use MCP only, never run a subcommand the help does not list (an unknown one falls through to
-  the interactive REPL), and suggest `brew upgrade amoo` in `notes`.
+- Check `amoo --help` before CLI setup. If `env` is absent, this installed version lacks CLI
+  device reservation commands: use available MCP managed sessions for supported work and suggest
+  `brew upgrade amoo` for Homebrew installs in `notes`. Never run an unlisted subcommand
+  (an unknown one can fall through to the interactive REPL). Missing required capabilities
+  block the affected requirements; do not claim that unsupported checks passed.
 - Load the `driving-amoo` skill (it may be listed as `amoo:driving-amoo`) before driving; it holds
   the tool-selection, recovery and recording rules this file only summarizes.
-- `amoo doctor --json` when anything looks off (stale MCP server, leases, companion state).
+- `amoo doctor --json`, when listed, if anything looks off (stale MCP server, leases, companion state).
 
 ## 2. Pick a transport — same tool names on both
 
-**MCP** — when amoo tools are available to you (`start_session`, `find_elements`, … possibly
-prefixed, e.g. `mcp__amoo__start_session`, `amoo/start_session`):
+Subagents delegate work; MCP/CLI execute it; leases coordinate device ownership. MCP
+`start_session` acquires ownership and `end_session` releases it automatically. CLI commands
+use the explicit lease returned by `env up`. A missing CLI lease command is a version-specific
+limitation, not a separate integration mode. Follow the driving-amoo mode-selection table.
+
+**MCP (recommended for interactive work)** — when amoo tools are available to you
+(`start_session`, `find_elements`, … possibly prefixed, e.g. `mcp__amoo__start_session`, `amoo/start_session`):
 `start_session` (app_id, platform, device_hint, build_path, environment) → pass its `session_id`
 to every call → `end_session`. Required for `record-flow` and `generate-test`: the session
 report is what `amoo generate test` compiles.
@@ -56,7 +63,8 @@ requirements on an available device; ask the caller to end its session before re
 If the caller needs the exact current screen preserved, return blocked and have the owning
 context perform the remaining interactions. Never drop session_id to bypass an attachment error.
 
-**CLI** — otherwise (and always fine for inspect/verify/debug):
+**Leased CLI (recommended for checked-in flows/probes)** — otherwise use it for inspect/verify/debug:
+Check that the required subcommands and flags appear in the pinned binary's help first.
 
 ```sh
 amoo env up --platform <p> [--device <id> | --avd <name> | --runtime <iOS-x> --model <name>] \

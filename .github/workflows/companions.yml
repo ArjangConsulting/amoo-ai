@@ -37,12 +37,22 @@ jobs:
           key: brew-${{ runner.os }}-companion-${{ hashFiles('.github/workflows/companions.yml') }}
           restore-keys: brew-${{ runner.os }}-companion-
       - run: brew install protobuf swift-protobuf protoc-gen-grpc-swift xcodegen
-      - name: Cache SPM dependencies
-        uses: actions/cache@v4
+      - name: Restore host SPM dependencies
+        id: host-spm
+        uses: actions/cache/restore@v4
         with:
           path: .build
           key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
       - run: make companion-ios-build
+      - name: Build host integration tests
+        run: ./scripts/with-protoc.sh swift build --build-tests
+      # Keep a successful host build even if the later device smoke fails.
+      - name: Save host SPM dependencies
+        if: steps.host-spm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ steps.host-spm.outputs.cache-primary-key }}
       - name: Boot iOS simulator
         timeout-minutes: 8
         id: simulator
@@ -71,7 +81,7 @@ jobs:
       - name: Simulator smoke
         timeout-minutes: 15
         shell: bash
-        run: scripts/run-e2e-ios.sh --skip-build --device "${{ steps.simulator.outputs.udid }}" 2>&1 | tee smoke-ios.log
+        run: scripts/run-e2e-ios.sh --skip-build --skip-test-build --device "${{ steps.simulator.outputs.udid }}" 2>&1 | tee smoke-ios.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

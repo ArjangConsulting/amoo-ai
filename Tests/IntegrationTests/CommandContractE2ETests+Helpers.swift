@@ -7,6 +7,7 @@ import Darwin.C
 #endif
 import IOSDriver
 import MCPServer
+import TestCommons
 import XCTest
 
 extension CommandContractE2ETests {
@@ -238,6 +239,41 @@ extension CommandContractE2ETests {
         }
 
         return readyAfterLabel
+    }
+
+    /// A fresh iOS installation can require system confirmation before delivering a custom URL.
+    /// App-scoped queries cannot see that modal, and relaunching the fixture does not dismiss it.
+    func acceptDeepLinkConfirmationIfPresent(
+        on server: MCPServer,
+        driver: any PlatformDriver,
+        url: String
+    ) async throws {
+        guard Self.platform == .ios else { return }
+        let systemAppID = try XCTUnwrap(driver.systemUIAppID, "iOS deep-link confirmation needs system scope")
+        let fixtureAppID = Self.fixtureAppID
+        let needsConfirmation = try await waitUntil(
+            timeout: .seconds(15),
+            pollInterval: .milliseconds(200),
+            operation: { () async throws -> Bool? in
+                let delivered = try await driver.findElements(
+                    .init(id: "fixture-deeplink-value", containsText: url),
+                    appID: fixtureAppID
+                )
+                if !delivered.isEmpty {
+                    return false
+                }
+                let confirmation = try await driver.findElements(.init(label: "Open"), appID: systemAppID)
+                return confirmation.isEmpty ? nil : true
+            },
+            matching: { $0 != nil }
+        )
+        if needsConfirmation == true {
+            let accepted = await server.execute(
+                toolName: "tap_element",
+                arguments: ["label": "Open", "scope": "system"]
+            )
+            XCTAssertFalse(accepted.isError, accepted.content)
+        }
     }
 
     func compactArguments(id: String?, label: String?, containsText: String?) -> [String: String] {

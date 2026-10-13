@@ -4,11 +4,11 @@ set -euo pipefail
 # Backward-compatible iOS end-to-end entrypoint.
 #
 # Usage:
-#   scripts/run-e2e.sh [--skip-build] [--device <udid|name>]
+#   scripts/run-e2e.sh [--skip-build] [--skip-test-build] [--device <udid|name>]
 #
 # Steps:
 #   1. Build the companion app for the simulator
-#   2. Install the companion into the booted simulator
+#   2. Prepare macOS host tests, then install the companion into the booted simulator
 #   3. Launch the companion XCUITest (starts gRPC server)
 #   4. Wait for the companion to be reachable
 #   5. Run the integration tests
@@ -21,6 +21,7 @@ DERIVED_DATA="$COMPANION_DIR/build"
 COMPANION_PORT="${COMPANION_PORT:-22087}"
 DEVICE="${DEVICE:-booted}"
 SKIP_BUILD=false
+SKIP_TEST_BUILD=false
 XCTESTRUN_PID=""
 COMPANION_LOG="$REPO_ROOT/companion-ios.log"
 SIMCTL_JSON=""
@@ -40,12 +41,13 @@ error() {
 
 usage() {
     cat <<EOF
-Usage: scripts/run-e2e.sh [--skip-build] [--device <udid|name>] [--help]
+Usage: scripts/run-e2e.sh [--skip-build] [--skip-test-build] [--device <udid|name>] [--help]
 
 Run the repo-root iOS companion e2e flow against a simulator.
 
 Options:
   --skip-build       Reuse the existing companion build products
+  --skip-test-build  Reuse host tests prepared with swift build --build-tests
   --device <value>   Use a specific simulator UDID or name
   --help             Show this help text
 
@@ -67,6 +69,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-build)
             SKIP_BUILD=true
+            shift
+            ;;
+        --skip-test-build)
+            SKIP_TEST_BUILD=true
             shift
             ;;
         --device)
@@ -414,6 +420,15 @@ else
     log "Skipping build (--skip-build)."
 fi
 
+# Build the macOS host tests before starting a long-lived companion. --filter only selects
+# tests to run; it does not prevent swift test from compiling the package and dependencies.
+if [[ "$SKIP_TEST_BUILD" == false ]]; then
+    log "Building host integration tests..."
+    (cd "$REPO_ROOT" && swift build --build-tests)
+else
+    log "Reusing prebuilt host integration tests (--skip-test-build)."
+fi
+
 # Step 2: Install the fixture from this build and find the xctestrun file
 HOST_APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/AmooCompanion.app"
 if [[ ! -d "$HOST_APP" ]]; then
@@ -461,7 +476,7 @@ log "Companion is reachable after ${WAITED}s."
 # Step 5: Run integration tests
 log "Running integration tests..."
 cd "$REPO_ROOT"
-COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="ios" E2E_DEVICE_ID="$TARGET_ID" E2E_APP_ID="com.amoo.companion" swift test --filter "${AMOO_E2E_FILTER:-IntegrationTests}" 2>&1
+COMPANION_PORT="$COMPANION_PORT" E2E_PLATFORM="ios" E2E_DEVICE_ID="$TARGET_ID" E2E_APP_ID="com.amoo.companion" swift test --skip-build --filter "${AMOO_E2E_FILTER:-IntegrationTests}" 2>&1
 E2E_EXIT=$?
 
 if [[ $E2E_EXIT -eq 0 ]]; then

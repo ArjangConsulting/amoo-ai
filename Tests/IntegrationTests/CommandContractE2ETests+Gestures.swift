@@ -269,18 +269,26 @@ extension CommandContractE2ETests {
     }
 
     func testOpenURLAndScreenshot() async throws {
-        let server = try makeServer()
+        let (server, driver) = try makeServerWithDriver()
         let reset = await resetFixtureApp(on: server)
         XCTAssertFalse(reset.isError, reset.content)
+        // This runner starts without a target. Require binding for system-sheet gestures;
+        // device_launch_app's compatibility path treats target binding as best effort.
+        try await driver.setTargetApp(bundleID: Self.fixtureAppID)
+        let bindingClient = try makeCompanion()
+        let binding = try await bindingClient.currentApp()
+        XCTAssertEqual(binding.targetBundleID, Self.fixtureAppID)
+        await bindingClient.shutdown()
 
         // Keep Android routing distinct from the installed companion's amoo:// handler.
         let scheme = Self.platform == .android ? "amoo-compose" : "amoo"
         let deepLink = "\(scheme)://deep-link?source=contract"
         let openURL = await server.execute(toolName: "open_url", arguments: ["url": deepLink])
-        XCTAssertFalse(openURL.isError)
+        XCTAssertFalse(openURL.isError, openURL.content)
+        try await acceptDeepLinkConfirmationIfPresent(on: server, driver: driver, url: deepLink)
 
         let deepLinkResult = await waitForElement(on: server, containsText: deepLink)
-        XCTAssertFalse(deepLinkResult.isError)
+        XCTAssertFalse(deepLinkResult.isError, deepLinkResult.content)
 
         let screenshot = await server.execute(toolName: "take_screenshot", arguments: [:])
         XCTAssertFalse(screenshot.isError)

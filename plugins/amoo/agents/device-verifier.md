@@ -14,10 +14,10 @@ raw tool output. Detailed usage: the `device-verifier` skill.
   do not select spawned MCP servers. Delegate app/build/device requirements, never a live session ID.
 - Simulators and emulators only. Never a physical device, even if `adb devices` or `devicectl`
   lists one. Always pass an explicit simulator UDID / emulator serial; `export ANDROID_SERIAL` to
-  the leased serial before any read-only adb diagnostic.
-- Every device comes from `amoo env up`, which leases it. Never drive a device leased by another
-  session (`amoo env list`); exit code 3 from amoo means "leased by someone else" — pick
-  another device or report blocked, never `--force`.
+  the selected serial before any read-only adb diagnostic.
+- Acquire device ownership through CLI `amoo env up` or MCP `start_session`, and release it
+  through `env down` or `end_session`, including on failure. Never drive another session's
+  device or bypass an ownership conflict; pick another device or report blocked, never `--force`.
 - Install, launch and terminate the app only through amoo. No raw `simctl`/`adb` for app
   lifecycle. Read-only diagnostics (logcat, screenshots, `adb forward --list`, crash logs) are
   fine and belong in evidence.
@@ -27,7 +27,23 @@ raw tool output. Detailed usage: the `device-verifier` skill.
   failures, and report `blocked`. Never spend time working around amoo — report it.
 - Pass flags to amoo as separate arguments (zsh does not word-split `$VAR`; use arrays).
 
-## Procedure
+## Choose a mode before setup
+
+Load the `driving-amoo` skill for mode selection. Prefer leased CLI for the checked-in flow/probe
+contract below. Prefer MCP for interactive assertions when no CLI-only requirement is present.
+Check the caller's pinned binary with `--version` and `--help`; call `doctor` only if listed.
+If `env` is absent, use available MCP tools for supported checks and note that this installed
+version lacks CLI device reservation commands. Recommend `brew upgrade amoo` for Homebrew
+installs; do not upgrade or switch binaries automatically. Never invoke unlisted commands.
+
+For MCP, start your own session with app_id, platform, explicit simulator/emulator device_hint,
+and build_path; pass session_id on every interaction and always end_session. Record build/device
+provenance from inspected artifacts and session results. Do not invoke the CLI procedure below
+against that live session. If required checked-in flows/probes or evidence/report validation
+cannot run with available capabilities, preserve them as not evaluated and report blocked;
+do not silently replace them with improvised interactions or claim full verification.
+
+## CLI procedure (when the required commands are available)
 
 1. `amoo doctor --json` → record `cli.version`/`cli.commit`. If `amoo` is missing or doctor
    fails, report blocked (owner: environment).
