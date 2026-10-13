@@ -37,19 +37,6 @@ WORKSPACE_SWIFT_CACHE="${PWD}/.build/swift-module-cache"
 
 mkdir -p "$WORKSPACE_HOME" "$WORKSPACE_CLANG_CACHE" "$WORKSPACE_SWIFT_CACHE"
 
-if [[ -z "${PROTOC_PATH:-}" ]]; then
-  if command -v protoc >/dev/null 2>&1; then
-    PROTOC_PATH="$(command -v protoc)"
-  elif command -v brew >/dev/null 2>&1 && [[ -x "$(brew --prefix protobuf 2>/dev/null)/bin/protoc" ]]; then
-    PROTOC_PATH="$(brew --prefix protobuf)/bin/protoc"
-  else
-    echo "error: protoc is not installed or PROTOC_PATH is not set" >&2
-    exit 1
-  fi
-fi
-
-export PROTOC_PATH
-
 if [[ ! -f Package.swift ]]; then
   echo "No Package.swift found. Skipping tests and coverage gate for now."
   exit 0
@@ -170,7 +157,9 @@ def aggregate(prefixes: list[str], excludes: list[str] = []):
 
 root_cov = aggregate(
     [f"{repo_root}/Sources/"],
-    ["/Sources/CLIReadline/", "/Sources/CLI/main.swift"],
+    # Protos/Generated is committed protoc output, not hand-written code; the plugin-generated
+    # copy used to live under .build/ and so never counted.
+    ["/Sources/CLIReadline/", "/Sources/CLI/main.swift", "/Sources/Protos/Generated/"],
 )
 core_cov = aggregate(["/Sources/AmooCore/"])
 cli_cov = aggregate(["/Sources/CLI/"], ["/Sources/CLI/main.swift"])
@@ -190,7 +179,7 @@ if root_cov is None:
 modules = sorted({Path(entry["filename"]).parts[Path(entry["filename"]).parts.index("Sources") + 1]
                   for entry in files if f"{repo_root}/Sources/" in entry.get("filename", "")})
 for module in modules:
-    coverage = aggregate([f"{repo_root}/Sources/{module}/"])
+    coverage = aggregate([f"{repo_root}/Sources/{module}/"], ["/Sources/Protos/Generated/"])
     if coverage is not None:
         print(f"Module {module}: {coverage:.2f}%")
 

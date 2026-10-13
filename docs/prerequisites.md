@@ -10,7 +10,7 @@ for Swift builds, including the iOS companion; other tools depend on the platfor
 | Dependency | Install | Required for |
 | --- | --- | --- |
 | Xcode + Command Line Tools | App Store / developer.apple.com | Anything iOS |
-| `protoc` | `brew install protobuf` | **All builds** — the gRPC Swift protobuf plugin |
+| `protoc` | `brew install protobuf` | `make protos` after editing a `.proto`, and building the iOS companion. Not needed for `swift build` / `swift test`. |
 | `xcodegen` | `brew install xcodegen` | Regenerating the iOS companion project |
 | **`libimobiledevice`** | **`brew install libimobiledevice`** | **Physical iOS devices** — supplies `iproxy`, the USB tunnel to the companion. Not needed for simulators. |
 | JDK 17–26 | `brew install --cask temurin@21` | Android companion. The project uses AGP 9.3 / Gradle 9.5. The build resolves an installed JDK in this range on its own, so `JAVA_HOME` rarely needs setting. |
@@ -67,9 +67,6 @@ make lint
 make format
 ```
 
-The Make targets route through `scripts/with-protoc.sh` to locate `protoc`. If you invoke
-`swift build` / `swift test` directly instead, export it once in your shell:
-
-```bash
-export PROTOC_PATH="$(command -v protoc)"
-```
+The host-side protobuf Swift is committed in `Sources/Protos/Generated`, so building and testing need
+no `protoc`. After editing a `.proto` in `Protos/`, run `make protos` (it uses
+`scripts/with-protoc.sh` to locate `protoc`) and commit the regenerated files.

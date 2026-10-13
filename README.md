@@ -109,10 +109,9 @@ kept unless you pass `--force`.
 
 ## Build from Source (Contributors)
 
-From an amoo checkout, use Swift 6.2 or newer (see `Package.swift`) and install `protoc`:
+From an amoo checkout, use Swift 6.2 or newer (see `Package.swift`):
 
 ```bash
-brew install protobuf
 swift build -c release
 swift run amoo preflight --platform ios
 make test

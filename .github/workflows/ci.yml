@@ -27,7 +27,6 @@ jobs:
         with:
           path: |
             ~/Library/Caches/Homebrew
-            /usr/local/Cellar/protobuf
             /usr/local/Cellar/swiftformat
             /usr/local/Cellar/swiftlint
           key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -35,17 +34,13 @@ jobs:
 
       - name: Install tooling
         run: |
-          brew install protobuf swiftformat swiftlint
+          brew install swiftformat swiftlint
 
       - name: Cache SPM dependencies
         uses: actions/cache@v4
         with:
           path: .build
           key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-
-      - name: Export protoc path
-        run: |
-          echo "PROTOC_PATH=$(brew --prefix protobuf)/bin/protoc" >> "$GITHUB_ENV"
 
       - name: Lint
         run: ./scripts/ci/lint.sh
@@ -106,3 +101,11 @@ jobs:
         # not a Linux-compatibility issue, just a host tooling gap. Skipped here the same way
         # ShipItSwifty skips its own macOS-only test targets on Linux.
         run: swift test --skip IntegrationTests --skip CLIQualityCoverageTests
+
+      # Host builds no longer run the protobuf plugin (it compiled protoc from C++ source on every
+      # clean build), so this is the one place that proves Sources/Protos/Generated matches
+      # Protos/*.proto. Fix a failure with `make protos` and commit the result.
+      - name: Check generated protos are current
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./scripts/regenerate-protos.sh --check

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: format lint check test coverage ci build swift-build plugin verify-linux companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build plugin verify-linux protos protos-check companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -15,7 +15,7 @@ check: format lint test
 
 test:
 	@if [ -f Package.swift ]; then \
-		./scripts/with-protoc.sh swift test; \
+		swift test; \
 	else \
 		echo "No Package.swift found. Skipping tests."; \
 	fi
@@ -28,19 +28,29 @@ ci: lint coverage
 build: swift-build companion-build
 
 swift-build:
-	./scripts/with-protoc.sh swift build
+	swift build
 
 # Rebuild the optimized binary at .build/release/amoo (the path an MCP client configured against a
 # checkout points at) and print which build it now is. A stale one lacks every tool added since it
 # was built, so run this after pulling.
 release-local:
-	./scripts/with-protoc.sh swift build -c release --product amoo
+	swift build -c release --product amoo
 	.build/release/amoo version
 
 # Regenerate the client-specific agent files committed in plugins/amoo from its canonical
 # agents/*.md. AmooPluginTests fails when they are stale.
 plugin:
-	./scripts/with-protoc.sh swift run amoo agent render --out plugins/amoo
+	swift run amoo agent render --out plugins/amoo
+
+# Regenerate the committed host protobuf/gRPC Swift (Sources/Protos/Generated) from Protos/*.proto.
+# Needed only after editing a .proto. Normal builds skip the generator plugin because it makes
+# SwiftPM compile protoc from C++ source; see Package.swift and scripts/regenerate-protos.sh.
+protos:
+	./scripts/regenerate-protos.sh
+
+# Fails when the committed generated files are stale (CI runs this in the Linux job).
+protos-check:
+	./scripts/regenerate-protos.sh --check
 
 # Reproduce the CI "Build & Test (Linux)" job locally inside the swift:6.3-noble container.
 # Needs Docker. Builds/tests into .build-linux/ so the host .build/ is untouched.
@@ -105,4 +115,4 @@ e2e-all:
 	bash ./scripts/run-e2e-all.sh
 
 docs:
-	./scripts/with-protoc.sh scripts/generate-docs.sh
+	scripts/generate-docs.sh
