@@ -23,11 +23,34 @@ func devicePreflight(
     do {
         try enforceLease(deviceID: options.deviceID, lease: presentedLease(flag: options.lease))
     } catch {
-        var refused = deviceCommandResult(options: options, content: "\(error)", isError: true, structured: nil)
-        refused.exitCode = 3
-        return refused
+        return leaseRefusal(options: options, error: error)
     }
     return nil
+}
+
+/// Resolves the lease's endpoint into `options`, then runs the preflight checks; a failure is the
+/// finished result to print.
+func prepareDeviceCommand(_ options: DeviceCommandOptions) async -> DeviceCommandPreparation {
+    switch options.applyingLease() {
+    case let .failure(error):
+        return .finished(leaseRefusal(options: options, error: error))
+    case let .success(adopted):
+        if let early = await devicePreflight(adopted) {
+            return .finished(early)
+        }
+        return .ready(adopted)
+    }
+}
+
+enum DeviceCommandPreparation {
+    case ready(DeviceCommandOptions)
+    case finished(CLIResult)
+}
+
+func leaseRefusal(options: DeviceCommandOptions, error: Error) -> CLIResult {
+    var refused = deviceCommandResult(options: options, content: "\(error)", isError: true, structured: nil)
+    refused.exitCode = 3
+    return refused
 }
 
 private func runDeviceBootHint(options: DeviceCommandOptions, hint: String) async -> CLIResult {
@@ -50,5 +73,31 @@ private func runDeviceBootHint(options: DeviceCommandOptions, hint: String) asyn
             isError: true,
             structured: nil
         )
+    }
+}
+
+extension DeviceCommandOptions {
+    /// Fills the port and device from the presented lease (`--lease` / `AMOO_LEASE`), so a lease id
+    /// alone reaches the companion `amoo env up` started. An explicit `--port` / `--device` wins.
+    /// A lease for another platform is an error; an unknown or expired lease changes nothing, and
+    /// `enforceLease` still refuses a device another session holds.
+    func applyingLease(
+        store: DeviceLeaseStore = DeviceLeaseStore(),
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Result<Self, DeviceLeaseError> {
+        guard let leaseID = presentedLease(flag: lease, environment: environment),
+              let held = store.lease(id: leaseID)
+        else { return .success(self) }
+        guard held.platform == platform else { return .failure(.wrongPlatform(held, requested: platform)) }
+        var adopted = self
+        if portIsDefault, let port = held.port {
+            adopted.port = port
+            adopted.portIsDefault = false
+        }
+        // iOS parsing turns an omitted `--device` into "booted".
+        if adopted.deviceID == nil || adopted.deviceID == "booted" {
+            adopted.deviceID = held.deviceID
+        }
+        return .success(adopted)
     }
 }
