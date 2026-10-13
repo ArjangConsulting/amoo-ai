@@ -22,6 +22,7 @@ COMPANION_PORT="${COMPANION_PORT:-22087}"
 DEVICE="${DEVICE:-booted}"
 SKIP_BUILD=false
 XCTESTRUN_PID=""
+COMPANION_LOG="$REPO_ROOT/companion-ios.log"
 SIMCTL_JSON=""
 XCDEVICE_JSON=""
 
@@ -384,23 +385,18 @@ cleanup() {
     if [[ -n "$XCTESTRUN_PID" ]]; then
         kill "$XCTESTRUN_PID" 2>/dev/null || true
 
-        local waited=0
-        while kill -0 "$XCTESTRUN_PID" 2>/dev/null; do
-            if [[ $waited -ge 10 ]]; then
-                warn "Companion process did not exit after 10s; forcing termination."
-                kill -9 "$XCTESTRUN_PID" 2>/dev/null || true
-                break
-            fi
-            sleep 1
-            waited=$((waited + 1))
-        done
-
         wait "$XCTESTRUN_PID" 2>/dev/null || true
+    fi
+    if [[ -f "$COMPANION_LOG" ]]; then
+        log "Companion startup/runner log (last 100 lines):"
+        tail -100 "$COMPANION_LOG"
     fi
     log "Done."
 }
 
 trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 
 # Step 1: Build companion
 if [[ "$SKIP_BUILD" == false ]]; then
@@ -436,18 +432,23 @@ log "Using xctestrun: $(basename "$XCTESTRUN")"
 
 # Step 3: Launch companion XCUITest in background
 log "Starting companion on port $COMPANION_PORT..."
-xcodebuild test-without-building \
+python3 "$REPO_ROOT/scripts/run-companion-process.py" xcodebuild test-without-building \
     -xctestrun "$XCTESTRUN" \
     -destination "$DESTINATION" \
+    -parallel-testing-enabled NO \
     -only-testing "AmooCompanionUITests/CompanionRunner/testRunCompanion" \
-    2>&1 | sed 's/^/  [companion] /' &
+    >"$COMPANION_LOG" 2>&1 &
 XCTESTRUN_PID=$!
 
 # Step 4: Wait for companion to be reachable
 log "Waiting for companion gRPC server on port $COMPANION_PORT..."
-MAX_WAIT=30
+MAX_WAIT="${AMOO_COMPANION_STARTUP_TIMEOUT:-180}"
 WAITED=0
 while ! nc -z 127.0.0.1 "$COMPANION_PORT" 2>/dev/null; do
+    if ! kill -0 "$XCTESTRUN_PID" 2>/dev/null; then
+        error "Companion runner exited before opening port $COMPANION_PORT."
+        exit 1
+    fi
     sleep 1
     WAITED=$((WAITED + 1))
     if [[ $WAITED -ge $MAX_WAIT ]]; then
