@@ -49,7 +49,23 @@ Open Simulator.app, boot a simulator, then run:
 scripts/run-e2e.sh --skip-build
 ```
 
-If build products are stale or missing, run without `--skip-build`:
+`--skip-build` reuses only the iOS companion products. The script still prepares the macOS
+host test binaries before starting the companion, then executes tests with `swift test --skip-build`.
+A filter selects which tests run; it does not reduce SwiftPM's build graph. A cold host build can
+include dependency resolution, code-generation plugins and compilation of unrelated test targets.
+
+For repeated runs with unchanged host sources and dependencies, prepare the tests once:
+
+```bash
+./scripts/with-protoc.sh swift build --build-tests
+scripts/run-e2e-ios.sh --skip-build --skip-test-build --device <simulator-udid>
+```
+
+Rebuild host tests after changing host sources, tests, dependencies or the Swift toolchain. CI builds
+and saves the host SPM cache before booting the simulator, keeping compilation outside the smoke
+step's timeout and retaining a successful build even if device tests later fail.
+
+If companion build products are stale or missing, run without `--skip-build`:
 
 ```bash
 scripts/run-e2e.sh

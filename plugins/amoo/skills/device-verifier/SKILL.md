@@ -37,7 +37,22 @@ Probes are JavaScript expressions (sync or async IIFEs) run in the app's inspect
 returning `{probe, pass, details}` as an object or JSON string. Checked-in probes and flows
 beat improvised steps: they are what makes two runs comparable.
 
-## Agent: commands
+## Agent: select a mode
+
+Read the `driving-amoo` skill's mode-selection table before setup. Subagents delegate the run;
+MCP/CLI execute it; device ownership prevents concurrent runs from interfering.
+Prefer leased CLI for checked-in flows and probes. MCP managed sessions are recommended for
+interactive checks and can handle supported checks when the installed CLI lacks `env`.
+Check the pinned binary's `--version`, `--help`, and required subcommand help first; call
+`doctor` only when listed. Never invoke unlisted commands or silently change the binary.
+
+With MCP, `start_session` owns the device; pass session_id on each call and always end_session.
+No separate CLI lease token is needed. Preserve required flow/probe execution and report/evidence
+validation: if available tools cannot fulfill a requirement, mark it not evaluated and report
+blocked. Missing `env` means "this installed version lacks CLI device reservation commands";
+recommend `brew upgrade amoo` for Homebrew installs, rather than marking all leases unsupported.
+
+## Agent: leased CLI commands
 
 ```sh
 amoo doctor --json                                  # build, stale MCP servers, devices, leases
