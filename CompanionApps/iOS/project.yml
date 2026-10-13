@@ -41,6 +41,8 @@ targets:
         # regenerates HostApp/Info.plist from this project.yml on every `xcodegen generate` —
         # editing the plist file directly does not survive the next build, so the scheme has
         # to be declared here instead.
+        # Opt into native screen geometry instead of legacy 320-point compatibility mode.
+        UILaunchScreen: {}
         CFBundleURLTypes:
           - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
             CFBundleURLSchemes:

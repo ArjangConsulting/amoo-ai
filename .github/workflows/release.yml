@@ -230,7 +230,7 @@ jobs:
       - name: Install protoc
         run: |
           apt-get update -qq
-          apt-get install -y -qq protobuf-compiler
+          apt-get install -y -qq protobuf-compiler python3
           echo "PROTOC_PATH=$(which protoc)" >> "$GITHUB_ENV"
 
       - name: Stamp version from tag

@@ -255,6 +255,15 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Uses XCTest's runner-daemon event API when present. Unlike `XCUICoordinate.tap()`, this
     /// returns when synthesis completes without adding an implicit post-event confirmation wait.
     private func tapWithoutCacheInvalidation(x: Double, y: Double) async {
+        // App-root coordinate taps can report success without dismissing a SpringBoard alert.
+        // Resolve the live alert button under the requested screen point and let XCTest target
+        // that element directly; do not redirect taps elsewhere in an alert to an arbitrary button.
+        let point = CGPoint(x: x, y: y)
+        if springboard.alerts.firstMatch.exists,
+           let button = springboard.alerts.buttons.allElementsBoundByIndex.first(where: { $0.frame.contains(point) }) {
+            button.tap()
+            return
+        }
         guard FastTapSynthesizer.isAvailable else {
             gestureCoordinate(x: x, y: y).tap()
             return

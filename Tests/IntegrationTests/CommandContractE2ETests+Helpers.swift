@@ -149,6 +149,14 @@ extension CommandContractE2ETests {
             return homeReady
         }
 
+        if Self.platform == .ios {
+            let reveal = await server.execute(
+                toolName: "scroll_to_element",
+                arguments: ["id": launcherID]
+            )
+            guard !reveal.isError else { return reveal }
+        }
+
         let context = FixtureLauncherContext(
             server: server,
             launcherID: launcherID,
@@ -162,6 +170,9 @@ extension CommandContractE2ETests {
 
         let openByID = await server.execute(toolName: "tap_element", arguments: ["id": launcherID])
         guard !openByID.isError else {
+            if Self.platform == .ios {
+                return openByID
+            }
             return await openFixtureScreenViaLabelFallback(context)
         }
 
@@ -170,6 +181,9 @@ extension CommandContractE2ETests {
             return readyAfterID
         }
 
+        if Self.platform == .ios {
+            return .error("Fixture screen did not become ready after \(openByID.content): \(readyAfterID.content)")
+        }
         return await retryFixtureScreenViaLabel(context, prepareHome: prepareHome, readyAfterID: readyAfterID)
     }
 
@@ -255,15 +269,17 @@ extension CommandContractE2ETests {
             timeout: .seconds(15),
             pollInterval: .milliseconds(200),
             operation: { () async throws -> Bool? in
+                // An app snapshot can expose the delivered URL behind a system alert.
+                // Clear confirmation before accepting that app state as ready.
+                let confirmation = try await driver.findElements(.init(label: "Open"), appID: systemAppID)
+                if !confirmation.isEmpty {
+                    return true
+                }
                 let delivered = try await driver.findElements(
                     .init(id: "fixture-deeplink-value", containsText: url),
                     appID: fixtureAppID
                 )
-                if !delivered.isEmpty {
-                    return false
-                }
-                let confirmation = try await driver.findElements(.init(label: "Open"), appID: systemAppID)
-                return confirmation.isEmpty ? nil : true
+                return delivered.isEmpty ? nil : false
             },
             matching: { $0 != nil }
         )
@@ -273,6 +289,11 @@ extension CommandContractE2ETests {
                 arguments: ["label": "Open", "scope": "system"]
             )
             XCTAssertFalse(accepted.isError, accepted.content)
+            let dismissed = await server.execute(
+                toolName: "assert_absent",
+                arguments: ["label": "Open", "scope": "system", "timeout_ms": "10000"]
+            )
+            XCTAssertFalse(dismissed.isError, dismissed.content)
         }
     }
 
