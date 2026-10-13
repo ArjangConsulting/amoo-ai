@@ -144,6 +144,71 @@ final class DeviceLeaseTests: XCTestCase {
     }
 }
 
+final class DeviceLeaseEndpointTests: XCTestCase {
+    private func leased(port: Int?) throws -> (DeviceLeaseStore, DeviceLease) {
+        let store = DeviceLeaseStore.temporary()
+        var lease = try store.acquire(platform: .ios, deviceID: "UDID-1", deviceName: "iPad", owner: "t")
+        lease.port = port
+        return try (store, store.update(lease))
+    }
+
+    private func options(args: [String]) throws -> DeviceCommandOptions {
+        guard case let .success(parsed) = parseDeviceCommandOptions(args: args) else {
+            throw XCTSkip("options did not parse")
+        }
+        return parsed
+    }
+
+    func testLeaseSuppliesPortAndDevice() throws {
+        let (store, lease) = try leased(port: 22093)
+        let parsed = try options(args: ["--platform", "ios", "--lease", lease.id, "current_app"])
+
+        let adopted = try parsed.applyingLease(store: store, environment: [:]).get()
+
+        XCTAssertEqual(adopted.port, 22093)
+        XCTAssertEqual(adopted.deviceID, "UDID-1")
+    }
+
+    func testLeaseComesFromEnvironment() throws {
+        let (store, lease) = try leased(port: 22093)
+        let parsed = try options(args: ["--platform", "ios", "current_app"])
+
+        let adopted = try parsed.applyingLease(store: store, environment: ["AMOO_LEASE": lease.id]).get()
+
+        XCTAssertEqual(adopted.port, 22093)
+    }
+
+    func testExplicitPortAndDeviceBeatTheLease() throws {
+        let (store, lease) = try leased(port: 22093)
+        let parsed = try options(args: [
+            "--platform", "ios", "--port", "22100", "--device", "UDID-1", "--lease", lease.id, "current_app"
+        ])
+
+        let adopted = try parsed.applyingLease(store: store, environment: [:]).get()
+
+        XCTAssertEqual(adopted.port, 22100)
+    }
+
+    func testUnknownLeaseChangesNothing() throws {
+        let parsed = try options(args: ["--platform", "ios", "--lease", "lease-nope", "current_app"])
+
+        let adopted = try parsed.applyingLease(store: .temporary(), environment: [:]).get()
+
+        XCTAssertEqual(adopted.port, parsed.port)
+        XCTAssertEqual(adopted.deviceID, parsed.deviceID)
+    }
+
+    func testLeaseForAnotherPlatformIsRefused() throws {
+        let (store, lease) = try leased(port: 22093)
+        let parsed = try options(args: ["--platform", "android", "--lease", lease.id, "current_app"])
+
+        guard case let .failure(error) = parsed.applyingLease(store: store, environment: [:]) else {
+            return XCTFail("an iOS lease must not drive an Android call")
+        }
+        XCTAssertTrue("\(error)".contains("Pass --platform ios"), "\(error)")
+    }
+}
+
 private final class ReapRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var recorded: [String] = []

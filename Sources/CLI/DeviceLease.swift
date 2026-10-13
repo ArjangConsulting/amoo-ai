@@ -42,6 +42,7 @@ struct DeviceLease: Codable, Equatable {
 enum DeviceLeaseError: Error, CustomStringConvertible, Equatable {
     case leasedByOther(DeviceLease)
     case unknownLease(String)
+    case wrongPlatform(DeviceLease, requested: Platform)
 
     var description: String {
         switch self {
@@ -50,6 +51,9 @@ enum DeviceLeaseError: Error, CustomStringConvertible, Equatable {
                 + "pick another device, or pass its --lease id if it is yours. `amoo env list` shows all leases."
         case let .unknownLease(id):
             "No active lease '\(id)'. It may have expired; run `amoo env up` again."
+        case let .wrongPlatform(lease, requested):
+            "Lease \(lease.id) is for \(lease.platform.rawValue), not \(requested.rawValue). "
+                + "Pass --platform \(lease.platform.rawValue)."
         }
     }
 }

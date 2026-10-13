@@ -17,6 +17,8 @@ struct DeviceCommandOptions {
     var lease: String?
     /// `--json`: print one JSON object instead of the human-readable result.
     var json = false
+    /// `port` is the platform default, not a `--port` the caller chose, so a lease may supply it.
+    var portIsDefault = false
 }
 
 // MARK: - Parsing
@@ -337,23 +339,25 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
         tool: tool,
         arguments: arguments,
         lease: flags.lease,
-        json: flags.json
+        json: flags.json,
+        portIsDefault: flags.port == nil
     ))
 }
 
 // MARK: - Execution
 
 func runDeviceCommand(
-    options: DeviceCommandOptions,
+    options requested: DeviceCommandOptions,
     resolveCompanionDevice: @Sendable (Int) async -> String? = { port in
         await companionSimulatorUDID(port: port, processRunner: SystemProcessRunner())
     }
 ) async -> CLIResult {
-    if let early = await devicePreflight(options) {
-        return early
+    var options: DeviceCommandOptions
+    switch await prepareDeviceCommand(requested) {
+    case let .ready(prepared): options = prepared
+    case let .finished(early): return early
     }
 
-    var options = options
     if options.platform == .ios {
         let requested = options.deviceID ?? "booted"
         let owner = await resolveCompanionDevice(options.port)
