@@ -20,7 +20,7 @@ extension CommandContractE2ETests {
             launcherLabel: "Open Details",
             readyID: "fixture-detail-row-0"
         )
-        XCTAssertFalse(detailsReady.isError)
+        XCTAssertFalse(detailsReady.isError, detailsReady.content)
 
         let beforeScroll = await server.execute(
             toolName: "find_elements",
@@ -63,7 +63,7 @@ extension CommandContractE2ETests {
             launcherLabel: "Open Details",
             readyID: "fixture-detail-row-0"
         )
-        XCTAssertFalse(detailsReady.isError)
+        XCTAssertFalse(detailsReady.isError, detailsReady.content)
 
         let initialHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(initialHierarchy.isError)
@@ -94,7 +94,7 @@ extension CommandContractE2ETests {
             launcherLabel: "Open Details",
             readyID: "fixture-detail-row-0"
         )
-        XCTAssertFalse(detailsReady.isError)
+        XCTAssertFalse(detailsReady.isError, detailsReady.content)
 
         let initialHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
         XCTAssertFalse(initialHierarchy.isError)
@@ -118,7 +118,7 @@ extension CommandContractE2ETests {
             launcherLabel: "Open Text Input",
             readyID: "fixture-text-input"
         )
-        XCTAssertFalse(textReady.isError, textReady.content)
+        guard !textReady.isError else { return XCTFail(textReady.content) }
 
         let focusInput = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-text-input"])
         let androidFocusInput = await server.execute(
@@ -189,35 +189,13 @@ extension CommandContractE2ETests {
 
     func testGestureCommands() async throws {
         let (server, driver) = try makeServerWithDriver()
-        if Self.platform == .ios {
-            let reset = await resetFixtureApp(on: server)
-            XCTAssertFalse(reset.isError, reset.content)
-            let homeReady = await waitForElement(on: server, id: "fixture-home-title")
-            XCTAssertFalse(homeReady.isError, homeReady.content)
-            XCTAssertTrue(homeReady.content.contains("fixture-home-title"), homeReady.content)
-
-            let launchers = try await driver.findElements(.init(label: "Gesture"))
-            guard let launcherFrame = launchers.first?.frame else {
-                return XCTFail("Gesture launcher not found: \(launchers)")
-            }
-
-            let launcherX = String(launcherFrame.x + launcherFrame.width / 2)
-            let launcherY = String(launcherFrame.y + launcherFrame.height / 2)
-            let openGesture = await server.execute(toolName: "tap", arguments: ["x": launcherX, "y": launcherY])
-            XCTAssertFalse(openGesture.isError, openGesture.content)
-
-            let gestureReady = await waitForElement(on: server, label: "Gesture Pad")
-            XCTAssertFalse(gestureReady.isError, gestureReady.content)
-            XCTAssertTrue(gestureReady.content.contains("Gesture Pad"), gestureReady.content)
-        } else {
-            let gestureReady = await openFixtureScreen(
-                on: server,
-                launcherID: "fixture-open-gesture",
-                launcherLabel: "Open Gesture Lab",
-                readyID: "fixture-gesture-pad"
-            )
-            XCTAssertFalse(gestureReady.isError, gestureReady.content)
-        }
+        let gestureReady = await openFixtureScreen(
+            on: server,
+            launcherID: "fixture-open-gesture",
+            launcherLabel: "Open Gesture Lab",
+            readyID: "fixture-gesture-pad"
+        )
+        XCTAssertFalse(gestureReady.isError, gestureReady.content)
 
         let gestureQuery = await server.execute(toolName: "find_elements", arguments: ["label": "Gesture Pad"])
         XCTAssertFalse(gestureQuery.isError, gestureQuery.content)
@@ -288,7 +266,13 @@ extension CommandContractE2ETests {
         try await acceptDeepLinkConfirmationIfPresent(on: server, driver: driver, url: deepLink)
 
         let deepLinkResult = await waitForElement(on: server, containsText: deepLink)
-        XCTAssertFalse(deepLinkResult.isError, deepLinkResult.content)
+        if deepLinkResult.isError {
+            let appHierarchy = await server.execute(toolName: "get_view_hierarchy", arguments: [:])
+            let systemHierarchy = await server.execute(
+                toolName: "get_view_hierarchy", arguments: ["scope": "system"]
+            )
+            XCTFail("\(deepLinkResult.content) | app=\(appHierarchy.content) | system=\(systemHierarchy.content)")
+        }
 
         let screenshot = await server.execute(toolName: "take_screenshot", arguments: [:])
         XCTAssertFalse(screenshot.isError)
