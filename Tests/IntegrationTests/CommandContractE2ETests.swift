@@ -37,7 +37,26 @@ final class CommandContractE2ETests: XCTestCase {
             .environment["E2E_APP_ID"] ?? (platform == .ios ? "com.amoo.companion" : "com.amoo.companion")
     }
 
+    /// Set once any test in this run has failed. Only consulted when `AMOO_E2E_FAIL_FAST=1`.
+    ///
+    /// The live suite runs serially against one simulator/emulator, and a broken fixture makes
+    /// every following test sit through its full wait-for-element timeouts (tens of seconds each)
+    /// before failing the same way. Skipping the rest turns a ~15 min timeout into a quick,
+    /// readable failure; the first failure still fails the run.
+    nonisolated(unsafe) private static var hasFailedTest = false
+
+    private static var failFastEnabled: Bool {
+        ProcessInfo.processInfo.environment["AMOO_E2E_FAIL_FAST"] == "1"
+    }
+
     override func setUp() async throws {
+        if Self.failFastEnabled, Self.hasFailedTest {
+            throw XCTSkip("Skipped: an earlier E2E test failed and AMOO_E2E_FAIL_FAST=1.")
+        }
+        // Stop a test at its first failed assertion; later steps would only wait on state the
+        // failed step was meant to produce.
+        continueAfterFailure = false
+
         // Opt-in only: a bare `swift test` used to run this suite whenever *anything* listened on
         // 22087 — including another session's companion — and then drove the `booted` simulator.
         guard ProcessInfo.processInfo.environment["E2E_PLATFORM"] != nil else {
@@ -49,6 +68,13 @@ final class CommandContractE2ETests: XCTestCase {
         }
 
         try await waitForCompanionReady()
+    }
+
+    override func tearDown() async throws {
+        if let run = testRun, !run.hasSucceeded, !run.hasBeenSkipped {
+            Self.hasFailedTest = true
+        }
+        try await super.tearDown()
     }
 
     static func environmentFailure(_ message: String) -> any Error {

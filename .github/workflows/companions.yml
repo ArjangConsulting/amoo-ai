@@ -20,6 +20,8 @@ concurrency:
   cancel-in-progress: true
 env:
   AMOO_E2E_STRICT: '1'
+  # After the first failing E2E test, skip the rest instead of waiting out each one's timeouts.
+  AMOO_E2E_FAIL_FAST: '1'
   AMOO_E2E_FILTER: 'IntegrationTests.CommandContractE2ETests'
 jobs:
   ios:
@@ -37,24 +39,10 @@ jobs:
           key: brew-${{ runner.os }}-companion-${{ hashFiles('.github/workflows/companions.yml') }}
           restore-keys: brew-${{ runner.os }}-companion-
       - run: brew install protobuf swift-protobuf protoc-gen-grpc-swift xcodegen
-      - name: Restore host SPM dependencies
-        id: host-spm
-        uses: actions/cache/restore@v4
-        with:
-          path: .build
-          key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
-      - run: make companion-ios-build
-      - name: Build host integration tests
-        run: ./scripts/with-protoc.sh swift build --build-tests
-      # Keep a successful host build even if the later device smoke fails.
-      - name: Save host SPM dependencies
-        if: steps.host-spm.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .build
-          key: ${{ steps.host-spm.outputs.cache-primary-key }}
-      - name: Boot iOS simulator
-        timeout-minutes: 8
+      # Kick the simulator boot off before the ~15 min of builds so it finishes in the background
+      # instead of adding a 2-7 min serial wait afterwards. `simctl boot` returns immediately.
+      - name: Start iOS simulator boot
+        timeout-minutes: 3
         id: simulator
         shell: bash
         run: |
@@ -76,8 +64,36 @@ jobs:
           print(min((name, udid) for version, name, udid in candidates if version == newest)[1])
           PY
           )"
-          xcrun simctl bootstatus "$simulator_id" -b
+          # Already-booted is fine; the wait step below fails if the device never becomes ready.
+          xcrun simctl boot "$simulator_id" || true
           echo "udid=$simulator_id" >> "$GITHUB_OUTPUT"
+      - name: Restore host SPM dependencies
+        id: host-spm
+        uses: actions/cache/restore@v4
+        with:
+          path: .build
+          key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
+      # xcodebuild otherwise re-clones ~20 packages (~2.5 min) on every run. Only the fetched
+      # sources are cached; compiled products are rebuilt (project.yml pins exact versions).
+      - name: Restore companion SPM checkouts
+        uses: actions/cache@v4
+        with:
+          path: CompanionApps/iOS/build/SourcePackages
+          key: spm-companion-xcode-${{ hashFiles('CompanionApps/iOS/project.yml') }}
+      - run: make companion-ios-build
+      - name: Build host integration tests
+        run: ./scripts/with-protoc.sh swift build --build-tests
+      # Keep a successful host build even if the later device smoke fails.
+      - name: Save host SPM dependencies
+        if: steps.host-spm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ steps.host-spm.outputs.cache-primary-key }}
+      - name: Wait for iOS simulator
+        timeout-minutes: 8
+        shell: bash
+        run: xcrun simctl bootstatus "${{ steps.simulator.outputs.udid }}" -b
       - name: Simulator smoke
         timeout-minutes: 15
         shell: bash

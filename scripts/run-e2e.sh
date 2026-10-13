@@ -96,12 +96,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-load_device_catalogs() {
+load_simulator_catalog() {
     if ! SIMCTL_JSON="$(xcrun simctl list devices -j 2>/dev/null)"; then
         error "Unable to query simulators via simctl. Make sure Xcode and CoreSimulator are available."
         exit 1
     fi
+}
 
+# `xcdevice list` is the slow part of target discovery (it probes USB/network devices) and is only
+# needed to find physical devices, so callers that already have a simulator match skip it.
+load_physical_device_catalog() {
+    if [[ -n "$XCDEVICE_JSON" ]]; then
+        return 0
+    fi
     if ! XCDEVICE_JSON="$(xcrun xcdevice list --timeout 2 2>/dev/null)"; then
         warn "Unable to query connected physical devices via xcdevice. Physical-device detection will be skipped."
         XCDEVICE_JSON="[]"
@@ -236,7 +243,10 @@ collect_targets() {
         results+=("$line")
     done < <(query_targets "$mode" "$needle")
 
-    printf '%s\n' "${results[@]}"
+    # Guard the expansion: bash 3.2 (macOS /bin/bash) treats an empty array as unset under `set -u`.
+    if [[ "${#results[@]}" -gt 0 ]]; then
+        printf '%s\n' "${results[@]}"
+    fi
 }
 
 describe_target() {
@@ -349,6 +359,7 @@ resolve_target() {
             [[ -n "$match" ]] && matches+=("$match")
         done < <(collect_targets booted_simulators)
         if [[ "${#matches[@]}" -eq 0 ]]; then
+            load_physical_device_catalog
             while IFS= read -r device; do
                 [[ -n "$device" ]] && physical+=("$device")
             done < <(collect_targets physical_devices)
@@ -360,9 +371,19 @@ resolve_target() {
         fi
         selected="$(choose_target "booted simulators" "${matches[@]}")"
     else
+        # A simulator UDID is unambiguous (physical devices never share one), so skip the slow
+        # physical-device probe when it already resolves. Names still consult both catalogs.
+        local uuid_pattern='^[0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}$'
         while IFS= read -r match; do
             [[ -n "$match" ]] && matches+=("$match")
         done < <(collect_targets selector_matches "$DEVICE")
+        if [[ "${#matches[@]}" -eq 0 || ! "$DEVICE" =~ $uuid_pattern ]]; then
+            load_physical_device_catalog
+            matches=()
+            while IFS= read -r match; do
+                [[ -n "$match" ]] && matches+=("$match")
+            done < <(collect_targets selector_matches "$DEVICE")
+        fi
         if [[ "${#matches[@]}" -eq 0 ]]; then
             error "No simulator or physical device matched '$DEVICE'."
             print_boot_instructions
@@ -379,7 +400,7 @@ resolve_target() {
     printf '%s\n' "$selected"
 }
 
-load_device_catalogs
+load_simulator_catalog
 TARGET="$(resolve_target)"
 IFS=$'\t' read -r TARGET_KIND TARGET_ID TARGET_NAME TARGET_OS TARGET_STATE TARGET_AVAILABLE TARGET_DETAIL <<< "$TARGET"
 DESTINATION="platform=iOS Simulator,id=$TARGET_ID"
