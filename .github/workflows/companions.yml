@@ -44,6 +44,7 @@ jobs:
           key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
       - run: make companion-ios-build
       - name: Boot iOS simulator
+        timeout-minutes: 8
         id: simulator
         shell: bash
         run: |
@@ -68,6 +69,7 @@ jobs:
           xcrun simctl bootstatus "$simulator_id" -b
           echo "udid=$simulator_id" >> "$GITHUB_OUTPUT"
       - name: Simulator smoke
+        timeout-minutes: 15
         shell: bash
         run: scripts/run-e2e-ios.sh --skip-build --device "${{ steps.simulator.outputs.udid }}" 2>&1 | tee smoke-ios.log
       - uses: actions/upload-artifact@v4
@@ -76,6 +78,7 @@ jobs:
           name: ios-smoke
           path: |
             smoke-ios.log
+            companion-ios.log
             CompanionApps/iOS/build/companion-ios-build.log
             CompanionApps/iOS/build/Logs/Test/*.xcresult
   android:
