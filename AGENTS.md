@@ -75,8 +75,12 @@ platform-conditional code (`ProcessRunner`, anything with `#if os`/`canImport`) 
   must create a path itself, pass a child such as `scratch.url.appending(path: "store")`.
 - Poll with `waitUntil(timeout:pollInterval:operation:matching:)` instead of
   `for … where … { Task.sleep }` loops; it uses a monotonic deadline and reports the last value.
-- Proto codegen runs through the `GRPCProtobufGenerator` SwiftPM plugin; `.proto` files in
-  `Protos/` are the shared companion-service contract.
+- `.proto` files in `Protos/` are the shared companion-service contract. The host-side Swift is
+  **generated and committed** in `Sources/Protos/Generated` — normal builds do not run the
+  `GRPCProtobufGenerator` plugin, because it makes SwiftPM compile `protoc` from C++ source
+  (3–6 min per clean build). After editing a `.proto`, run `make protos` and commit the result;
+  `make protos-check` (CI's Linux job) fails on stale output. The plugin only runs under
+  `AMOO_REGENERATE_PROTOS=1` (see `Package.swift`).
 
 ### Lint: recurring fixes
 
@@ -120,7 +124,7 @@ rather than `FAIL`, so simulator-only setups still pass.
 
 | Tool | Install | Needed for |
 | --- | --- | --- |
-| `protoc` | `brew install protobuf` | gRPC Swift protobuf build plugin (all builds). |
+| `protoc` | `brew install protobuf` | `make protos` (regenerating `Sources/Protos/Generated`) and the iOS companion's `generate-protos.sh`. **Not** needed for `swift build` / `swift test`. |
 | **JDK 17–26** | `brew install --cask temurin@21` | Android companion. The range is the intersection of AGP 9.3 (17+) and Gradle 9.5 (17–26; 27+ unsupported). A JDK outside it fails partway through the build with errors naming neither Java nor the JDK. `make companion-android-build` and `amoo companion` resolve a supported JDK themselves (`scripts/android-jdk.sh` / `Sources/CLI/AndroidJDK.swift`); `JAVA_HOME` only needs setting for a non-standard install location. Do **not** commit `gradle/gradle-daemon-jvm.properties` — it pins and silently downloads one JDK, overriding that resolution. |
 | `iproxy` | `brew install libimobiledevice` | **Physical iOS devices only.** USB tunnel to the companion (`devicectl` has no port forwarding, unlike `adb forward`). Ships in `libusbmuxd`, pulled in as a dependency of `libimobiledevice`. |
 | `kotlinc` | `brew install kotlin` | **Optional, test-only.** Real-compiles generated Espresso code in `GeneratedCodeCompileTests`. Missing → those tests `XCTSkip`. Also needs a resolved Espresso/JUnit/Hamcrest classpath from `Tooling/espresso-classpath/resolve.sh` (runs `gradle`, network on first run, then caches to `$TMPDIR/amoo-espresso-classpath`). The Swift-side `swiftc -typecheck` check needs only Xcode. |

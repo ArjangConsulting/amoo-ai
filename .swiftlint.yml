@@ -6,6 +6,7 @@ included:
 
 excluded:
   - .build
+  - Sources/Protos/Generated
   - .swiftpm
   - DerivedData
 

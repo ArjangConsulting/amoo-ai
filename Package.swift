@@ -1,6 +1,13 @@
 // swift-tools-version: 6.2
 import PackageDescription
 
+// The generated protobuf/gRPC Swift is committed in `Sources/Protos/Generated`. The
+// `GRPCProtobufGenerator` build plugin depends on swift-protobuf's `protoc` product, which SwiftPM
+// compiles from ~1,500 C++ files (3-6 min, every clean build, on every platform) even when
+// `PROTOC_PATH` points at a prebuilt protoc. So normal builds skip the plugin entirely. Regenerate
+// with `make protos`, which sets this flag to add the `ProtosGenerator` target below.
+let regenerateProtos = Context.environment["AMOO_REGENERATE_PROTOS"] == "1"
+
 let package = Package(
     name: "Amoo",
     platforms: [.macOS(.v15), .iOS(.v18)],
@@ -51,11 +58,6 @@ let package = Package(
             dependencies: [
                 .product(name: "GRPCCore", package: "grpc-swift-2"),
                 .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf")
-            ],
-            path: "Protos",
-            exclude: ["protoc"],
-            plugins: [
-                .plugin(name: "GRPCProtobufGenerator", package: "grpc-swift-protobuf")
             ]
         ),
         .target(
@@ -213,3 +215,22 @@ let package = Package(
         )
     ]
 )
+
+if regenerateProtos {
+    // Runs the plugin over `Protos/*.proto` (the shared companion contract) so
+    // scripts/regenerate-protos.sh can copy its output into `Sources/Protos/Generated`.
+    package.targets.append(
+        .target(
+            name: "ProtosGenerator",
+            dependencies: [
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf")
+            ],
+            path: "Protos",
+            exclude: ["protoc"],
+            plugins: [
+                .plugin(name: "GRPCProtobufGenerator", package: "grpc-swift-protobuf")
+            ]
+        )
+    )
+}

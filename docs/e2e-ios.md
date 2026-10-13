@@ -25,7 +25,7 @@ The integration tests then talk to:
 
 - Xcode installed and usable from the command line
 - an iOS simulator runtime installed
-- `protoc` (`brew install protobuf`) for the gRPC Swift build plugin
+- `protoc` (`brew install protobuf`) — used by the companion's `generate-protos.sh`
 - `xcodegen` available if you want the script to rebuild the companion
 - a booted iOS simulator, unless you pass a specific simulator and boot it yourself first
 
@@ -57,13 +57,16 @@ include dependency resolution, code-generation plugins and compilation of unrela
 For repeated runs with unchanged host sources and dependencies, prepare the tests once:
 
 ```bash
-./scripts/with-protoc.sh swift build --build-tests
+swift build --build-tests
 scripts/run-e2e-ios.sh --skip-build --skip-test-build --device <simulator-udid>
 ```
 
 Rebuild host tests after changing host sources, tests, dependencies or the Swift toolchain. CI builds
-and saves the host SPM cache before booting the simulator, keeping compilation outside the smoke
-step's timeout and retaining a successful build even if device tests later fail.
+and saves the host SPM cache before the smoke step, keeping compilation outside its timeout and
+retaining a successful build even if device tests later fail. It also starts the simulator boot
+before the builds so the 2–7 min boot overlaps them, caches the companion's fetched Swift packages,
+and sets `AMOO_E2E_FAIL_FAST=1`: after the first failing E2E test the rest are skipped instead of
+each waiting out its element timeouts (unset it locally to see every failure in one run).
 
 If companion build products are stale or missing, run without `--skip-build`:
 

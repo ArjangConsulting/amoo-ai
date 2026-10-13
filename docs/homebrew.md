@@ -15,7 +15,7 @@ Use this checklist when publishing `amoo` to the Homebrew tap.
 Run the release build and blocking test suite before tagging:
 
 ```bash
-./scripts/with-protoc.sh swift build -c release
+swift build -c release
 ./scripts/ci/test_coverage.sh
 .build/release/amoo --help
 ```

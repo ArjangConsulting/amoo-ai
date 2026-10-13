@@ -82,7 +82,7 @@ jobs:
           key: spm-companion-xcode-${{ hashFiles('CompanionApps/iOS/project.yml') }}
       - run: make companion-ios-build
       - name: Build host integration tests
-        run: ./scripts/with-protoc.sh swift build --build-tests
+        run: swift build --build-tests
       # Keep a successful host build even if the later device smoke fails.
       - name: Save host SPM dependencies
         if: steps.host-spm.outputs.cache-hit != 'true'
