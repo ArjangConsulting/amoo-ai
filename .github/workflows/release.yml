@@ -370,7 +370,7 @@ jobs:
 
       - name: Generate release notes
         run: |
-          python3 scripts/ci/release-notes.py "${RELEASE_VERSION}" \
+          bash scripts/ci/generate-release-notes.sh "${RELEASE_VERSION}" \
             --repo "${GITHUB_REPOSITORY}" \
             --output release-notes.md
 
