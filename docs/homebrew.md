@@ -42,19 +42,20 @@ tests. Both paths refuse a version that is not a bare `MAJOR.MINOR.PATCH` tag.
 
 ## Release Notes
 
-The workflow does not use GitHub's `generate_release_notes`: that generator only lists merged pull
-requests, and this repository is trunk-based, so it produced notes with nothing but a "Full
-Changelog" line. `scripts/ci/release-notes.py` renders the notes from the commits in
-`<previous-tag>..<release>` instead, grouped by conventional-commit type (`feat` → Added, `fix` →
-Fixed, `perf` → Performance, `refactor`/`revert` → Changed, `docs` → Documentation,
-`build`/`ci`/`chore`/`test`/`style` → Maintenance), with `!`/`BREAKING CHANGE:` commits pulled into a
-Breaking Changes section up top. Subjects without a conventional prefix — common in this history —
-keep their subject verbatim under Other rather than being dropped.
+Release bodies contain concise highlights and a link to the full commit history. Enter optional
+Markdown in the manual run's `highlights` field to provide an edited summary. Otherwise the
+workflow selects up to five commit summaries, prioritizing breaking changes, features, fixes,
+and performance improvements. No changelog file needs maintaining.
 
-Preview the notes for a pending release locally:
+To run from GitHub, open **Actions → Release → Run workflow**, select `main`, enter the bare
+version (for example `0.3.0`), optionally enter highlights, and click **Run workflow**. The workflow
+must be present on the default branch for GitHub to show this button. A new tag is created only
+after verification and packaging succeed; an existing tag is rebuilt from its original commit.
+
+Preview notes for an existing tag locally, or pass `--target HEAD` for a pending release:
 
 ```bash
-python3 scripts/ci/release-notes.py <version> --repo ArjangConsulting/amoo-ai
+bash scripts/ci/generate-release-notes.sh <version> --target HEAD --repo ArjangConsulting/amoo-ai
 ```
 
 ## Tap Update Is Automated

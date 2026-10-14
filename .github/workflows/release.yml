@@ -10,6 +10,10 @@ on:
         description: Release tag to publish — an existing tag to rebuild, or a new version to cut
         required: true
         type: string
+      highlights:
+        description: Optional Markdown release highlights (otherwise up to five commit summaries)
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -32,33 +36,31 @@ jobs:
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
     steps:
+      - name: Checkout selected commit and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Resolve ${{ env.RELEASE_VERSION }}
         id: resolve
         run: |
           set -euo pipefail
           version="${RELEASE_VERSION}"
-
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::'${version}' is not a bare SemVer release tag (expected e.g. 1.2.3)."
+          if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Expected a bare SemVer release tag, e.g. 1.2.3."
             exit 1
           fi
 
-          remote="https://github.com/${GITHUB_REPOSITORY}"
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]] \
-            || git ls-remote --exit-code --tags "$remote" "refs/tags/${version}" >/dev/null 2>&1; then
-            ref="refs/tags/${version}"
+          if git show-ref --verify --quiet "refs/tags/${version}"; then
+            sha="$(git rev-parse "refs/tags/${version}^{commit}")"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "::error::Release tag is missing."
+            exit 1
           else
-            echo "::notice::tag ${version} does not exist — building ${GITHUB_REF} and creating the tag on publish."
-            ref="${GITHUB_REF}"
+            # Checkout defaults to the event SHA, even if the selected branch has moved.
+            sha="$(git rev-parse HEAD)"
+            echo "::notice::Creating ${version} at ${sha} after verification."
           fi
-
-          sha="$(git ls-remote "$remote" "$ref" | awk 'NR == 1 { print $1 }')"
-          if [[ -z "$sha" ]]; then
-            echo "::error::could not resolve ${ref} in ${GITHUB_REPOSITORY}."
-            exit 1
-          fi
-
-          echo "Resolved ${version} to ${sha} (${ref})."
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
   verify:
@@ -369,8 +371,13 @@ jobs:
           name: linux-static
 
       - name: Generate release notes
+        env:
+          RELEASE_HIGHLIGHTS: ${{ inputs.highlights }}
         run: |
+          printf '%s\n' "$RELEASE_HIGHLIGHTS" > "$RUNNER_TEMP/release-highlights.md"
           bash scripts/ci/generate-release-notes.sh "${RELEASE_VERSION}" \
+            --target "${{ needs.preflight.outputs.sha }}" \
+            --highlights "$RUNNER_TEMP/release-highlights.md" \
             --repo "${GITHUB_REPOSITORY}" \
             --output release-notes.md
 
