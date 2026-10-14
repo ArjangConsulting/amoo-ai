@@ -30,8 +30,10 @@ class Amoo < Formula
   def caveats
     <<~EOS
       Add the amoo subagent to your AI coding clients (Claude Code, Cursor, Codex, Copilot,
-      Gemini CLI, OpenCode):
-        amoo agent install --user
+      Gemini CLI, OpenCode); it asks which ones:
+        amoo agent install
+      Prepare simulators from a prebuilt app (and set up your AI clients) with a guided flow:
+        amoo init
       Or install the amoo plugin from your client's marketplace:
         https://github.com/ArjangConsulting/amoo-ai#use-amoo-from-any-ai-agent
     EOS

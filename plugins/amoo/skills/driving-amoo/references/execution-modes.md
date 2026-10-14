@@ -8,6 +8,8 @@ its own available transport and acquires its own device ownership.
 | Interactive inspection, debugging, or assertions | MCP when its tools are available; otherwise leased CLI |
 | Record a flow or generate tests | MCP managed session (required for the recording pipeline) |
 | Run checked-in flows and probe files | Leased CLI (`env up` → `flow` / `probe run` → `env down`) |
+| Prepare several devices from one build | `init` (guided, terminal) or `init --platform --app --app-id --device ... --out <manifest>` (agents) |
+| Install repository skills/client configuration | `init repo --target <repo> [--client <name>]` |
 | Delegate a bounded verification run | device-verifier subagent, using the applicable mode above |
 
 Check the pinned binary's `--version` and `--help` before choosing CLI commands. Read subcommand
@@ -19,6 +21,29 @@ flow/probe or reporting capability is unavailable, mark that requirement blocked
 claiming an equivalent run. Do not upgrade or switch the caller's binary automatically.
 
 For CLI simulator/emulator interaction, acquire ownership before driving:
+
+For multi-device setup, build once externally and reuse the identical artifact. A person runs bare
+`amoo init` for the guided flow; agents (no terminal) must pass `--platform`, `--app`, `--app-id` and
+`--device`, and get every missing input listed at once. `AGENTS.md` may hold the app/manifest locations
+under `## amoo init`.
+
+```sh
+amoo init repo --target /path/to/repo --client codex --client claude --json
+amoo init --platform ios --app /path/to/Jot.app --app-id com.example.jot \
+  --device <phone-udid> --device <tablet-udid> --launch --out /tmp/amoo-init.json --json  # add --dry-run to validate only
+amoo init device --manifest /tmp/amoo-init.json --device <phone-udid> --json current_app
+amoo init down --manifest /tmp/amoo-init.json --json
+```
+
+Read `results[]` even when exit status is 1: successes remain leased until cleanup. Each
+entry carries its device, lease, port, holder_pid, log, app identity/hash and install/launch
+status. Use those lease/device/port fields directly for `amoo flow` or `probe run`.
+The manifest is an ownership credential, not an MCP session. To record, release it with
+`init down`, then start_session on each selected device with the same prebuilt build_path.
+Do not transfer a CLI lease to MCP or rebuild the app per device. Companion builds may
+still occur when companion products are missing or changed. Check help first on older binaries.
+
+For a single device or selection by runtime/model/AVD, `env up` remains available:
 
 ```sh
 amoo env up --platform ios --device <udid> --app-id <bundle-id> --owner amoo-agent --json

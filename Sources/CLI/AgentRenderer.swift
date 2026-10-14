@@ -158,6 +158,12 @@ enum AgentRenderer {
         guard !mcp || executablePath.hasPrefix("/") else {
             throw AgentRenderError.unsupportedBody("MCP configuration requires an absolute amoo executable path.")
         }
+        var source = source
+        if mode == .standalone, executablePath.hasPrefix("/") {
+            source.body = "Use the executable at \(quoted(executablePath)) "
+                + "for every CLI command shown as `amoo` below. "
+                + "Use this absolute path rather than PATH or shell aliases.\n\n" + source.body
+        }
         switch client {
         case .claude:
             return .init(

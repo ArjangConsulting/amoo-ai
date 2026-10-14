@@ -97,6 +97,23 @@ platform-conditional code (`ProcessRunner`, anything with `#if os`/`canImport`) 
 SwiftFormat is not idempotent on this codebase — `make format` runs it twice; do the same if you
 run `swiftformat` directly on specific files.
 
+## `amoo init` (guided multi-device setup)
+
+Code: `Sources/CLI/Init*.swift` — `InitCommand.swift` (manifest, `runInit`, `init down|device`),
+`InitCommand+Run.swift` (flow: collect → validate → confirm → run), `InitWizard.swift` (flags, prompts,
+plan), `InitDiscovery.swift` (apps, simulators), `InitSavedLocations.swift` (the `AGENTS.md` block),
+`Prompting.swift` (shared `CLIPrompting`), `AgentInstallWizard.swift` (guided `amoo agent install`, also
+the AI-client step of init). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
+It reuses `runEnvUp`/`runEnvDown`; never duplicate lease, port or companion logic there.
+
+- `amoo init` in a terminal asks for whatever flags omitted; `--json`/`--non-interactive`/no TTY never
+  prompts and requires `--platform --app --app-id --device`.
+- The AI-client step (`amoo agent install` guided; `amoo init --client`/`--no-skills`) reuses
+  `runAgentInstall`; with `--client`, `--json`, `--non-interactive` or no TTY it never prompts.
+- It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the app
+  artifact, app id and manifest directory — **locations only, never device or lease ids**. When it is
+  present below, read it instead of searching for the build.
+
 ## Recording → plan → generated-test pipeline
 
 The session-recording and code-generation path (MCP tool calls → `report.json` →

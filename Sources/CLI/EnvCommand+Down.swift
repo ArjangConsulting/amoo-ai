@@ -7,7 +7,7 @@ import Darwin
 import Glibc
 #endif
 
-struct EnvDownReport: Encodable {
+struct EnvDownReport: Codable {
     var ok: Bool
     var lease: String?
     var device: String?

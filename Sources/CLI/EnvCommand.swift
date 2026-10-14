@@ -26,6 +26,8 @@ struct EnvUpOptions: Equatable {
     var appPath: String?
     /// Bundle id / package name of the app under test.
     var appID: String?
+    /// Digest of `appPath` when the caller already computed it (init hashes once for all devices).
+    var appSHA256: String?
     var launch = false
     var owner: String?
     var ttlMinutes: Int?

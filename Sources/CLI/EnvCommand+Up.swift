@@ -8,65 +8,6 @@ import Darwin
 import Glibc
 #endif
 
-// MARK: - Reports
-
-struct EnvDeviceReport: Encodable, Equatable {
-    var id: String
-    var name: String?
-    var os: String?
-    var avd: String?
-    var bootedByEnv: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, os, avd
-        case bootedByEnv = "booted_by_env"
-    }
-}
-
-struct EnvAppReport: Encodable, Equatable {
-    var id: String?
-    var path: String?
-    var sha256: String?
-    var installed: Bool
-    var launched: Bool
-}
-
-struct EnvUpReport: Encodable {
-    var ok: Bool
-    var lease: String?
-    var platform: String
-    var device: EnvDeviceReport?
-    var port: Int?
-    var holderPID: Int32?
-    var app: EnvAppReport?
-    var log: String?
-    var amooVersion = AmooBuildInfo.current.version
-    var amooCommit = AmooBuildInfo.current.sourceCommit
-    var error: String?
-
-    enum CodingKeys: String, CodingKey {
-        case ok, lease, platform, device, port, app, log, error
-        case holderPID = "holder_pid"
-        case amooVersion = "amoo_version"
-        case amooCommit = "amoo_commit"
-    }
-
-    var humanSummary: String {
-        guard ok, let lease, let device, let port else {
-            return "env up failed: \(error ?? "unknown error")" + (log.map { "\nLog: \($0)" } ?? "")
-        }
-        var lines = [
-            "Leased \(device.name ?? device.id) (\(device.id)) as \(lease).",
-            "Companion on port \(port) (holder pid \(holderPID.map(String.init) ?? "?"), log \(log ?? "-")).",
-            "Use: amoo device --platform \(platform) --device \(device.id) --port \(port) --lease \(lease) <tool>"
-        ]
-        if let app {
-            lines.append("App \(app.id ?? app.path ?? "?"): installed=\(app.installed) launched=\(app.launched)")
-        }
-        return lines.joined(separator: "\n")
-    }
-}
-
 enum EnvError: Error, CustomStringConvertible {
     case physicalDevice(String)
     case noDevice(String)
@@ -85,7 +26,29 @@ enum EnvError: Error, CustomStringConvertible {
 
 // MARK: - env up
 
-func runEnvUp(_ options: EnvUpOptions, store: DeviceLeaseStore = DeviceLeaseStore()) async -> CLIResult {
+/// Injectable lifecycle boundaries; init and env share the same lease orchestration.
+struct EnvUpDependencies {
+    var resolve: (EnvUpOptions, DeviceLeaseStore) async throws -> EnvDeviceReport = { options, store in
+        switch options.platform {
+        case .android: try await resolveEnvAndroidDevice(options, store: store)
+        case .ios: try await resolveEnvIOSDevice(options, store: store)
+        }
+    }
+
+    var start: (EnvUpOptions, DeviceLease, DeviceLeaseStore) async throws -> DeviceLease = {
+        try await startLeasedCompanion($0, lease: $1, store: $2)
+    }
+
+    var prepare: (EnvUpOptions, DeviceLease, inout EnvAppReport?) async throws -> Void = {
+        try await prepareEnvApp($0, lease: $1, app: &$2)
+    }
+}
+
+func runEnvUp(
+    _ options: EnvUpOptions,
+    store: DeviceLeaseStore = DeviceLeaseStore(),
+    dependencies: EnvUpDependencies = EnvUpDependencies()
+) async -> CLIResult {
     var report = EnvUpReport(ok: false, platform: options.platform.rawValue)
     let finish: (Int32) -> CLIResult = { code in
         CLIResult(output: options.json ? renderJSON(report) : report.humanSummary, exitCode: code)
@@ -94,15 +57,21 @@ func runEnvUp(_ options: EnvUpOptions, store: DeviceLeaseStore = DeviceLeaseStor
 
     let device: EnvDeviceReport
     do {
-        device = switch options.platform {
-        case .android: try await resolveEnvAndroidDevice(options, store: store)
-        case .ios: try await resolveEnvIOSDevice(options, store: store)
-        }
+        device = try await dependencies.resolve(options, store)
     } catch {
         report.error = "\(error)"
         return finish(1)
     }
     report.device = device
+    if options.appID != nil || options.appPath != nil {
+        report.app = EnvAppReport(
+            id: options.appID,
+            path: options.appPath,
+            sha256: options.appSHA256 ?? options.appPath.flatMap { sha256Hex(ofPath: $0) },
+            installed: false,
+            launched: false
+        )
+    }
 
     var lease: DeviceLease
     do {
@@ -121,15 +90,18 @@ func runEnvUp(_ options: EnvUpOptions, store: DeviceLeaseStore = DeviceLeaseStor
     report.lease = lease.id
 
     do {
-        lease = try await startLeasedCompanion(options, lease: lease, store: store)
+        lease = try await dependencies.start(options, lease, store)
         report.port = lease.port
         report.holderPID = lease.holderPID
         report.log = store.logURL(leaseID: lease.id).path
-        report.app = try await prepareEnvApp(options, lease: lease)
+        try await dependencies.prepare(options, lease, &report.app)
     } catch {
         report.error = "\(error)"
         report.log = store.logURL(leaseID: lease.id).path
-        stopHolder(pid: lease.holderPID)
+        let storedLease = store.lease(id: lease.id) ?? lease
+        report.port = storedLease.port
+        report.holderPID = storedLease.holderPID
+        stopHolder(pid: storedLease.holderPID)
         store.release(lease)
         return finish(1)
     }
@@ -183,6 +155,9 @@ private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceLeaseStor
 
     let simulator: IOSSimulatorDevice
     if let udid = options.deviceID {
+        if let existing = store.lease(forDevice: udid) {
+            throw DeviceLeaseError.leasedByOther(existing)
+        }
         guard let match = available.first(where: { $0.udid == udid }) else {
             if await selector.isPhysicalDevice(deviceID: udid) {
                 throw EnvError.physicalDevice(udid)
@@ -424,10 +399,8 @@ func logTail(_ path: String, characters: Int = 2000) -> String {
 
 // MARK: - App
 
-private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceLease) async throws -> EnvAppReport? {
-    guard options.appPath != nil || options.appID != nil else { return nil }
-    guard let port = lease.port else { return nil }
-    var app = EnvAppReport(id: options.appID, path: options.appPath, sha256: nil, installed: false, launched: false)
+private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceLease, app: inout EnvAppReport?) async throws {
+    guard options.appPath != nil || options.appID != nil, let port = lease.port else { return }
 
     func run(_ tool: String, _ arguments: [String: String]) async throws {
         let result = await runDeviceCommand(options: DeviceCommandOptions(
@@ -443,20 +416,20 @@ private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceLease) async th
 
     if let path = options.appPath {
         guard FileManager.default.fileExists(atPath: path) else { throw EnvError.appFailed("No app at \(path).") }
-        app.sha256 = sha256Hex(ofPath: path)
         try await run("device_install_app", ["path": path])
+        app?.installed = true
     }
     if let appID = options.appID {
-        app.installed = await isAppInstalled(platform: options.platform, deviceID: lease.deviceID, appID: appID)
-        guard app.installed else { throw EnvError.appFailed("\(appID) is not installed on \(lease.deviceID).") }
+        app?.installed = await isAppInstalled(platform: options.platform, deviceID: lease.deviceID, appID: appID)
+        guard app?.installed == true
+        else { throw EnvError.appFailed("\(appID) is not installed on \(lease.deviceID).") }
         if options.launch {
             try await run("device_launch_app", ["app_id": appID])
-            app.launched = true
+            app?.launched = true
         }
     } else {
-        app.installed = options.appPath != nil
+        app?.installed = options.appPath != nil
     }
-    return app
 }
 
 /// Read-only install check, independent of the companion.

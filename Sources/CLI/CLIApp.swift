@@ -137,6 +137,7 @@ public struct CLIApp {
         case "studio": return await handleStudioCommand(remaining: remaining)
         case "generate": return handleGenerateCommand(remaining: remaining)
         case "env": return await handleEnvCommand(remaining: remaining)
+        case "init": return await handleInitCommand(remaining: remaining)
         case "probe": return await handleProbeCommand(remaining: remaining)
         case "doctor": return await handleDoctorCommand(remaining: remaining)
         case "agent": return handleAgentCommand(remaining: remaining)
@@ -356,8 +357,9 @@ func renderCLIHelp() -> String {
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       env up|down|list ...         Lease a simulator/emulator with a running companion (agents)
+      init ...                    Guided setup: devices from one app build + AI client skills
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
-      agent install|render         Install the amoo subagents for any AI client (Claude, Codex, …)
+      agent install|render         Install the amoo subagents/skills for AI clients (guided; Claude, Codex, …)
       flow <path.amoo.json>        Run a reusable checked-in device flow
       generate plan ...            Recompile a recorded session report into plan.json
       generate test ...            Emit a standalone XCUITest/Espresso test from a plan

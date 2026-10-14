@@ -12,8 +12,15 @@ and distinguish deterministic evidence from contextual LLM findings and missing 
 
 ## Start
 
-From an installed binary, use `amoo`. From this checkout use `.build/release/amoo` after
-`swift build -c release`, or `swift run amoo`.
+Set up the amoo subagents and skills for an AI client with `amoo agent install` (guided in a terminal:
+it asks which clients and where; scripts pass `--client <name> --json`). `amoo init` offers the same
+step. Existing files are preserved unless `--force`; preview with `--dry-run`.
+
+From an installed binary, use `amoo`. For local development, run `swift build` and use the
+absolute path to `.build/debug/amoo` for both MCP and CLI/subagents. Install local agents
+with that same `--binary` path so CLI calls and their MCP server use the same build.
+Shell aliases such as amoo-debug do not select spawned MCP processes. Reconnect a running
+MCP server after rebuilding to load the new executable. Release builds are for release verification.
 
 For MCP, call `start_session` with app_id, platform, and a device_hint when multiple devices
 are available. It ensures the device/companion is ready, installs build_path if supplied,
@@ -131,6 +138,12 @@ not something to wait out. Most of a slow loop is rebuilding what has not change
   `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
 
 ## Shared machines and agents
+
+For several devices, build the app once externally, then `amoo init` (guided in a terminal; agents pass
+`--platform --app --app-id --device ... --out <manifest> --json`, validate with `--dry-run`). Each device gets
+its own lease, companion and port from that one artifact; never rebuild per device. `AGENTS.md` may record
+the app and manifest locations under `## amoo init`. Commands, manifest use, cleanup and the recording
+hand-off (release CLI leases, then MCP `start_session`) are in `references/execution-modes.md`.
 
 Live session IDs are local to one MCP server process; a separate agent server cannot attach.
 Delegate app/build/device requirements, then start_session in the receiving context on an available

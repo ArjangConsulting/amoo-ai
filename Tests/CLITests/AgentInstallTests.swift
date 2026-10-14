@@ -28,6 +28,24 @@ final class AgentInstallTests: XCTestCase {
         XCTAssertEqual(root?.standardizedFileURL, pluginRoot.standardizedFileURL)
     }
 
+    func testExplicitBinaryPreservesTheDebugSymlink() throws {
+        let scratch = try makeScratchDirectory()
+        let target = scratch.url.appendingPathComponent("built-amoo")
+        try Data().write(to: target)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: target.path)
+        let directory = scratch.url.appendingPathComponent(".build/debug")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let alias = directory.appendingPathComponent("amoo")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: target)
+
+        let options = try parseAgentInstallOptions(["--binary", alias.path, "--client", "codex"])
+
+        XCTAssertEqual(options.executablePath, alias.standardizedFileURL.path)
+        XCTAssertNotEqual(options.executablePath, target.path)
+        let files = try agentInstallPlan(options, assetsRoot: pluginRoot)
+        XCTAssertTrue(files.contains { String(bytes: $0.contents, encoding: .utf8)?.contains(alias.path) == true })
+    }
+
     /// Regression: `.build/release/amoo agent install` from a source build could not find the plugin.
     /// SwiftPM's `.build/release` is a symlink into `.build/<triple>/release` (or `out/Products/...`),
     /// so the checkout root is several levels above the resolved binary.

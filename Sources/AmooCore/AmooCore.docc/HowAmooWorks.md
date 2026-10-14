@@ -32,7 +32,7 @@ Swift dependency edges. CLI commands can call drivers directly; they do not all 
 | AuditEngine | Deterministic rules evaluated against explicit evidence | Host orchestration provides evidence and consumes findings |
 | WebInspector | Inspectable WebView support | Configured host inspection services |
 | OllamaClient | Local model client | CLI features that request local inference |
-| CLI | Setup, device commands, MCP server startup, and offline generation | Composes the library modules for command-line use |
+| CLI | Setup (`init`, `agent install`, `env`), device commands, MCP server startup, and offline generation | Composes the library modules for command-line use |
 
 The external AI client supplies reasoning when driving MCP tools. Running MCP does not require
 routing every action through Ollama. Likewise, the host's GRPCService adapter and the companion's
