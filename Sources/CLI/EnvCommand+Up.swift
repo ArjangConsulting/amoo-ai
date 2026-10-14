@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileCore
 import MobileDevices
 import ProcessRunner
 import SwiftyShell
@@ -211,20 +212,23 @@ func simulatorBootFailure(exitCode: Int32?, stderr: String?) -> String? {
 
 private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
-    let boot = try? await Command("xcrun").args(["simctl", "boot", udid]).timeout(.seconds(60)).run(in: context)
-    // A missing runtime image ("The iOS 27.0 simulator runtime is not available") can never boot;
-    // say so now rather than waiting on `bootstatus` and reporting a bogus timeout.
-    if let failure = simulatorBootFailure(exitCode: boot?.exitCode, stderr: boot?.stderr) {
-        throw EnvError.noDevice("Simulator \(udid) could not boot: \(failure)")
-    }
     let waitSeconds = readyTimeoutSeconds ?? 300
-    let status = try? await Command("xcrun").args(["simctl", "bootstatus", udid, "-b"])
-        .timeout(.seconds(waitSeconds)).run(in: context)
-    guard status?.exitCode == 0 else {
-        let detail = status.map {
-            $0.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        }.flatMap { $0.isEmpty ? nil : $0 } ?? "no `simctl bootstatus` result within \(waitSeconds)s"
-        throw EnvError.noDevice("Simulator \(udid) did not finish booting: \(detail)")
+    do {
+        try await SimulatorManager(shell: context).boot(udid, timeout: .seconds(waitSeconds))
+    } catch let MobileKitError.commandFailed(command, exitCode, output)
+        where command.last == udid && command.contains("boot") {
+        // A missing runtime image ("The iOS 27.0 simulator runtime is not available") can never boot;
+        // say so now rather than waiting on `bootstatus` and reporting a bogus timeout.
+        let failure = simulatorBootFailure(exitCode: exitCode, stderr: output) ?? "simctl boot exited \(exitCode)"
+        throw EnvError.noDevice("Simulator \(udid) could not boot: \(failure)")
+    } catch let MobileKitError.commandFailed(_, _, output) {
+        throw EnvError
+            .noDevice(
+                "Simulator \(udid) did not finish booting: \(output.isEmpty ? "simctl bootstatus failed" : output)"
+            )
+    } catch MobileKitError.timedOut {
+        throw EnvError
+            .noDevice("Simulator \(udid) did not finish booting: no `simctl bootstatus` result within \(waitSeconds)s")
     }
 }
 
