@@ -14,7 +14,8 @@ extension SessionPlanCompiler {
     /// `UIAutomatorBridge.scroll`), while `swipe_in_direction` names the raw finger direction.
     /// Collapsing them into one tool would silently reverse every recorded scroll.
     static let directTranslations: Set<StudioTool> = [
-        .tapElement, .setText, .typeText, .swipeInDirection, .scroll, .scrollToElement, .takeScreenshot, .pressBack
+        .tapElement, .setText, .typeText, .swipeInDirection, .scroll, .scrollToElement, .takeScreenshot, .pressBack,
+        .relaunchApplication
     ]
 
     static func translateFillField(_ arguments: [String: String]) -> TranslatedAction {
@@ -126,6 +127,8 @@ extension SessionPlanCompiler {
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected value.", "Value matches.")
         case .takeScreenshot:
             return ("Take a screenshot.", "Screenshot is captured.")
+        case .relaunchApplication:
+            return ("Relaunch the application preserving stored state.", "Stored state survives relaunch.")
         case .pressBack:
             return ("Press back.", "Previous screen is shown.")
         case .scrollToElement:

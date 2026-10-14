@@ -32,6 +32,8 @@ public enum StudioTool: String, CaseIterable, Codable, Sendable, Hashable {
     case assertEnabled = "assert_enabled"
     case takeScreenshot = "take_screenshot"
     case pressBack = "press_back"
+    /// Relaunches through a repository harness without resetting persisted state.
+    case relaunchApplication = "relaunch_application"
 
     /// Every tool name a plan may contain, for validating AI-proposed plans and for the prompt that
     /// tells the model what it may emit. Derived from the cases so the two cannot drift.

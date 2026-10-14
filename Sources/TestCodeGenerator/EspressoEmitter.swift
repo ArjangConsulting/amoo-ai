@@ -329,6 +329,12 @@ public struct EspressoEmitter: StudioCodeEmitting {
             return "\(indent)// take_screenshot: capture via androidx.test.runner.screenshot.Screenshot "
                 + "in an instrumented test if needed"
 
+        case .relaunchApplication:
+            guard let call = context?.relaunchHelper else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "relaunchHelper")
+            }
+            return "        \(call)"
+
         case .pressBack:
             return "\(indent)pressBack()"
         }

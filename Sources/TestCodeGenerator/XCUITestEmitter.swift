@@ -196,6 +196,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 with: "            TestCommonsXCUI.attachDiagnostics(of: app, to: self)"
             )
         }
+        source = Self.applyingHarness(to: source, context: test.testContext)
         return StudioTestExportResult(fileName: "\(className).swift", source: source + "\n")
     }
 
@@ -247,6 +248,11 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         guard let tool = StudioTool(rawValue: operation.tool) else {
             throw TestCodeGeneratorError.unsupportedTool(operation.tool)
         }
+        if let call = try assertionCall(
+            operation, context: context, localNames: &localNames, lookups: &lookups
+        ) {
+            return call
+        }
         // No `default`: adding a StudioTool case must fail to compile here until it is handled.
         switch tool {
         case .tapElement:
@@ -255,7 +261,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             )
             return try """
             \(declaration)
-            \(indent)\(waitCall("waitForHittability", variable, operation))
+            \(indent)\(waitCall("waitForHittability", variable, operation, context: context))
             \(indent)\(variable).tap()
             """
 
@@ -268,7 +274,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             )
             return try """
             \(declaration)
-            \(indent)\(waitCall("waitForHittability", variable, operation))
+            \(indent)\(waitCall("waitForHittability", variable, operation, context: context))
             \(indent)replaceText(in: \(variable), with: \(literal(value)))
             """
 
@@ -295,7 +301,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             )
             return try """
             \(declaration)
-            \(indent)\(waitCall("waitForHittability", variable, operation))
+            \(indent)\(waitCall("waitForHittability", variable, operation, context: context))
             \(indent)\(variable).\(gesture)()
             """
 
@@ -332,7 +338,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             )
             return try """
             \(declaration)
-            \(indent)\(waitCall("waitForExistence", variable, operation))
+            \(indent)\(waitCall("waitForExistence", variable, operation, context: context))
             \(indent)XCTAssertTrue(\(variable).isEnabled)
             """
 
@@ -345,7 +351,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             )
             return try """
             \(declaration)
-            \(indent)\(waitCall("waitForExistence", variable, operation))
+            \(indent)\(waitCall("waitForExistence", variable, operation, context: context))
             \(indent)XCTAssertEqual(\(variable).label, \(literal(expected)))
             """
 
@@ -365,7 +371,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             }
             return try """
             \(declaration)
-            \(indent)\(waitCall("waitForExistence", variable, operation))
+            \(indent)\(waitCall("waitForExistence", variable, operation, context: context))
             \(indent)\(assertion)
             """
 
@@ -379,6 +385,13 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
         case .pressBack:
             return "\(indent)pressBack()"
+
+        case .relaunchApplication:
+            guard let call = context?.relaunchHelper else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "relaunchHelper")
+            }
+            lookups.removeAll()
+            return "\(indent)\(call)"
         }
     }
 
@@ -401,19 +414,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         // what makes the failure readable.
         return try """
         \(declaration)
-        \(indent)\(waitCall(helper, variable, operation))
+        \(indent)\(waitCall(helper, variable, operation, context: context))
         """
-    }
-
-    /// One call to a generated wait helper. `named:` carries the local variable's name so a
-    /// timeout failure says which element it was waiting on.
-    static func waitCall(
-        _ helper: String,
-        _ variable: String,
-        _ operation: StudioToolOperation
-    ) throws -> String {
-        try
-            "\(helper)(\(variable), named: \(literal(variable)), timeout: \(timeoutSeconds(for: operation)))"
     }
 
     private static func elementVariableName(
@@ -440,16 +442,6 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "direction")
         }
         return try gestureMethod(GestureDirection.gestureDirection(for: operation.tool, rawDirection: raw))
-    }
-
-    private static func timeoutSeconds(for operation: StudioToolOperation) throws -> Double {
-        guard let rawValue = operation.arguments["timeout_ms"] else { return 5 }
-        guard let milliseconds = Int64(rawValue), milliseconds > 0 else {
-            throw TestCodeGeneratorError.invalidArgument(
-                tool: operation.tool, argument: "timeout_ms", value: rawValue
-            )
-        }
-        return Double(milliseconds) / 1000
     }
 
     // Named components make this tuple an internal rendering detail, never an API value.

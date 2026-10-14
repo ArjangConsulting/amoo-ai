@@ -182,3 +182,60 @@ standalone unless explicitly opted in.
 Set `TESTCOMMONS_XCUI_MODULE_PATH` to an iOS Simulator build's module directory
 when running the generator's shared-helper compilation test. That test checks the
 actual generated source with Swift 6 and the simulator SDK.
+
+## Repository integration profile
+
+`amoo init --save` discovers Swift UI-test harness evidence and writes `amoo.md` alongside
+`AGENTS.md`. It creates no tests, adapter class, or Generated directory and preserves an existing
+profile. Review and complete uncertain conventions using the listed source files. A fenced
+`amoo-context` block holds the export bindings; no separate JSON file is required.
+
+Recording (`start_session`) and CLI plan/test generation discover the nearest `amoo.md` from the
+working directory. Recording snapshots its bindings into the session. A discovered Swift harness
+is marked `targetPlatform: "ios"` so it is not automatically applied to Android recordings or exports. An embedded plan context
+wins over automatic discovery; explicit context arguments win over both. `--context` and
+`context_path` also accept the Markdown profile. Malformed profiles report an error.
+
+For a harness that owns and launches its application, add these bindings:
+
+```amoo-context
+{
+  "imports": ["JotUIIdentifiers"],
+  "baseClass": "JotUITestCase",
+  "harnessOwnsApp": true,
+  "harnessLaunchesApp": true,
+  "factoryOverride": "super.makeApplication().usingLanguage(\"en\", locale: \"en_US\")",
+  "waitBindings": {
+    "waitForHittability": "waitForExistence({{element}})",
+    "waitForExistence": "waitForExistence({{element}})",
+    "waitForAbsence": "waitForAbsence({{element}})"
+  },
+  "timeoutExpressions": {"default": "UITestConstants.timeout"},
+  "assertionBindings": {},
+  "relaunchHelper": "relaunchApplication()",
+  "selectorExpressions": {"app.tab.habits": "JotUIAutomationID.Tab.habits"},
+  "idLookupTemplate": "app.element(id: {{id}})"
+}
+```
+
+Use the actual catalog IDs, helper signatures, and timeout constants from the receiving repository.
+`harnessOwnsApp` suppresses the property and isolates the subclass to `@MainActor`.
+`factoryOverride` supplies the expression returned by `override func makeApplication()`;
+customization runs before the base class launches during setup. Wait bindings replace generated
+wait calls and remove their equivalent private implementations. Templates receive Swift expressions
+for `{{element}}` and `{{timeout}}`. Timeout keys are recorded milliseconds or `default`.
+Assertion bindings are keyed by Studio assertion tool and additionally accept a string-literal
+`{{value}}` (or `{{contains}}` for substring expectations). A binding that drops a recorded
+expectation is rejected. Only configure bindings whose semantics match the recorded assertion.
+
+Document onboarding, initial reset, language, persistence, and relative calendar rules in the
+profile. Apply the appropriate factory expression and relative catalog mappings for the scenario;
+the deterministic compiler cannot infer relative date intent from a literal recorded date.
+Adjacent successful `device_terminate_app` / `device_launch_app` calls for the session app,
+without launch overrides, compile to `relaunch_application`. Generation requires `relaunchHelper`
+and emits that call, preserving harness state rules. Failed pairs, other app IDs, and custom launch
+configuration remain excluded for review. Authored plans may also use `relaunch_application`.
+
+Export provenance is stored in a `provenance/` directory beside the input plan, outside the exported
+Swift/Kotlin directory. Keep input plans and recordings in tool storage. Compile and run generated
+source in the receiving target before treating it as validated.

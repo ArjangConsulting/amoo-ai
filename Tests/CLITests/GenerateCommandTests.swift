@@ -125,7 +125,8 @@ final class GenerateCommandTests: XCTestCase {
         XCTAssertTrue(second.output.hasSuffix("SignIn2Test.swift"))
         let source = try String(contentsOf: directory.appendingPathComponent("SignIn2Test.swift"), encoding: .utf8)
         XCTAssertTrue(source.contains("class SignIn2Test"))
-        let metadataURL = directory.appendingPathComponent("SignIn2Test.swift.provenance.json")
+        let metadataURL = URL(fileURLWithPath: options.planPath).deletingLastPathComponent()
+            .appendingPathComponent("provenance/SignIn2Test.swift.provenance.json")
         let metadata = try XCTUnwrap(JSONSerialization
             .jsonObject(with: Data(contentsOf: metadataURL)) as? [String: Any])
         XCTAssertEqual(metadata["sourcePlan"] as? String, options.planPath)

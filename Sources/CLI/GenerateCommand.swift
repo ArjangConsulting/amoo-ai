@@ -158,12 +158,13 @@ public func runGenerateTestCommand(
 ) throws -> CLIResult {
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
     let decodedTest = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
-    var test: StudioAuthoredTest
-    if let contextPath = options.contextPath {
-        let contextData = try Data(contentsOf: URL(fileURLWithPath: contextPath))
-        test = try decodedTest.replacingTestContext(JSONDecoder().decode(StudioTestContext.self, from: contextData))
+    var test: StudioAuthoredTest = if let contextPath = options.contextPath {
+        try decodedTest.replacingTestContext(RepositoryTestProfile.load(URL(fileURLWithPath: contextPath)))
+    } else if decodedTest.testContext == nil,
+              let context = try RepositoryTestProfile.discover(platform: decodedTest.platform) {
+        decodedTest.replacingTestContext(context)
     } else {
-        test = decodedTest
+        decodedTest
     }
     if let testName = options.testName {
         test = test.replacingName(testName)

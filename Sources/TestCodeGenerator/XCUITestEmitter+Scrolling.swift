@@ -21,7 +21,7 @@ extension XCUITestEmitter {
         return try """
         \(declaration)
         \(indent)for _ in 0 ..< \(attempts) where !\(variable).isHittable { app.\(gestureMethod(direction))() }
-        \(indent)\(waitCall("waitForHittability", variable, operation))
+        \(indent)\(waitCall("waitForHittability", variable, operation, context: context))
         """
     }
 

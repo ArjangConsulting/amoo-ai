@@ -251,6 +251,7 @@ private func finishInit(
                 ),
                 agentsFile: agentsFile
             )
+            try saveInitTestProfile(at: URL(fileURLWithPath: agentsFile).deletingLastPathComponent())
             if interactive {
                 lines.append("Saved locations to \(agentsFile).")
             }

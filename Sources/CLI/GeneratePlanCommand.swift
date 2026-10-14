@@ -219,9 +219,10 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
         testName: options.testName,
         testDescription: options.testDescription
     )
-    if let contextPath = options.contextPath {
-        let contextURL = URL(fileURLWithPath: (contextPath as NSString).expandingTildeInPath)
-        let context = try JSONDecoder().decode(StudioTestContext.self, from: Data(contentsOf: contextURL))
+    let context = try options.contextPath.map {
+        try RepositoryTestProfile.load(URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath))
+    } ?? RepositoryTestProfile.discover(platform: result.studioTest.platform)
+    if let context {
         result = CompileSessionToPlanResult(
             testFlow: result.testFlow,
             studioTest: result.studioTest.replacingTestContext(context),

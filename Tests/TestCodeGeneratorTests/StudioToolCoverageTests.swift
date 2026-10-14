@@ -22,7 +22,7 @@ final class StudioToolCoverageTests: XCTestCase {
             ["direction": "down"]
         case .assertText, .assertValue:
             ["id": "greeting", "value": "hi"]
-        case .takeScreenshot, .pressBack:
+        case .takeScreenshot, .pressBack, .relaunchApplication:
             [:]
         }
     }
@@ -34,6 +34,7 @@ final class StudioToolCoverageTests: XCTestCase {
             description: "",
             platform: platform,
             steps: [],
+            testContext: StudioTestContext(relaunchHelper: "relaunchApplication()"),
             compiledPlan: .init(
                 compiler: "test",
                 compilerVersion: "1",
