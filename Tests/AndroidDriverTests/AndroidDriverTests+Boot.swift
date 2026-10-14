@@ -2,6 +2,7 @@ import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import Foundation
+import MobileDevices
 import ProcessRunner
 import TestCommons
 import XCTest
@@ -18,7 +19,9 @@ extension AndroidDriverTests {
         let adb = MockADBRunner()
         await adb.setDeviceOutputs(["List of devices attached\n"])
         let emulator = MockEmulatorRunner()
-        await emulator.setHandle(EmulatorLaunch(pid: pid, logPath: log))
+        await emulator.setHandle(
+            EmulatorInstance(avd: "Medium_Phone_API_35", serial: "emulator-5554", pid: pid, logPath: log)
+        )
         let driver = AndroidDriver(
             companion: MockCompanionClient(),
             adb: adb,
@@ -39,9 +42,9 @@ extension AndroidDriverTests {
         XCTAssertLessThan(ContinuousClock.now - started, .seconds(15))
     }
 
-    func testEmulatorLaunchLivenessNoticesAnExitedProcess() async throws {
+    func testEmulatorInstanceLivenessNoticesAnExitedProcess() async throws {
         let pid = try await DetachedProcess.spawn(["sh", "-c", "exit 7"])
-        let launch = EmulatorLaunch(pid: pid, logPath: nil)
+        let launch = EmulatorInstance(avd: "Pixel", serial: "emulator-5554", pid: pid)
         let state = try await waitUntil(
             timeout: .seconds(5),
             pollInterval: .milliseconds(100),

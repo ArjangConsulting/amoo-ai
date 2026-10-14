@@ -46,50 +46,51 @@ final class DetachedProcessTests: XCTestCase {
     }
 }
 
+/// The `am start` argument building and launcher parsing are covered by MobileDevices' own tests;
+/// these check that `ADBRunner` wires its overloads to the right options.
 final class AndroidLaunchArgumentsTests: XCTestCase {
+    private func makeRunner() -> (ADBRunner, MockExecutor) {
+        let mock = MockExecutor { command, _ in
+            let stdout = command.arguments.contains("resolve-activity")
+                ? "priority=0 preferredOrder=0\ncom.app/com.other.Main\n"
+                : ""
+            return ShellOutput(stdout: stdout, stderr: "", exitCode: 0)
+        }
+        return (ADBRunner(context: ShellContext(executor: mock)), mock)
+    }
+
+    /// The `am start` invocations, minus the `-s <serial>` prefix.
+    private func amStarts(_ mock: MockExecutor) -> [[String]] {
+        mock.recordedCommands.map(\.arguments)
+            .filter { $0.starts(with: ["-s", "phone", "shell", "am", "start"]) }
+            .map { Array($0.dropFirst(2)) }
+    }
+
     /// Regression: Android dropped `environment` entirely, and repeated `--es arg` extras kept only
     /// the last launch argument.
-    func testEnvironmentBecomesExtrasAndArgumentsSurvive() {
-        let command = ADBRunner.amStartArguments(
-            component: "com.app/.Main",
-            arguments: ["-a", "two words"],
-            environment: ["UI_TEST_SKIP_ONBOARDING": "1", "API": "http://10.0.2.2:8080"]
+    func testEnvironmentBecomesExtrasAndArgumentsSurvive() async throws {
+        let (runner, mock) = makeRunner()
+        try await runner.launch(
+            serial: "phone", appID: "com.app", arguments: ["-a", "two words"], environment: ["K": "1"]
         )
-        XCTAssertEqual(command, [
-            "shell", "am", "start", "--activity-clear-top", "-n", "com.app/.Main",
-            "--es", "API", "http://10.0.2.2:8080",
-            "--es", "UI_TEST_SKIP_ONBOARDING", "1",
-            "--esa", "args", "'-a,two words'"
+        XCTAssertEqual(amStarts(mock), [[
+            "shell", "am", "start", "--activity-clear-top", "-n", "com.app/com.other.Main",
+            "--es", "K", "1", "--esa", "args", "'-a,two words'"
+        ]])
+        // A non-empty environment force-stops the app first, so `onCreate` sees the extras.
+        XCTAssertTrue(mock.recordedCommands.map(\.arguments).contains {
+            $0.contains("force-stop")
+        })
+    }
+
+    func testPlainLaunchAndLaunchResettingKeepTheirClearTopSemantics() async throws {
+        let (runner, mock) = makeRunner()
+        try await runner.launch(serial: "phone", appID: "com.app", arguments: [])
+        try await runner.launchResetting(serial: "phone", appID: "com.app")
+        XCTAssertEqual(amStarts(mock), [
+            ["shell", "am", "start", "-n", "com.app/com.other.Main"],
+            ["shell", "am", "start", "--activity-clear-top", "-n", "com.app/com.other.Main"]
         ])
-    }
-
-    func testSingleArgumentKeepsTheHistoricalExtra() {
-        let command = ADBRunner.amStartArguments(component: "c/.M", arguments: ["it's"], environment: [:])
-        XCTAssertEqual(Array(command.suffix(3)), ["--es", "arg", "'it'\\''s'"])
-    }
-
-    /// Regression (a6e9f6c): the launcher class can live outside the applicationId package, and the
-    /// resolver must filter on MAIN/LAUNCHER or it returns nothing and the `.MainActivity` guess ran.
-    func testLauncherComponentOutsideApplicationIdPackage() {
-        let output = "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\n"
-            + "com.novalingo.android.qa/com.novalingo.MainActivity\n"
-        XCTAssertEqual(
-            ADBRunner.parseLauncherComponent(output, appID: "com.novalingo.android.qa"),
-            "com.novalingo.android.qa/com.novalingo.MainActivity"
-        )
-    }
-
-    func testNoLauncherMatchIsNotGuessed() {
-        XCTAssertNil(ADBRunner.parseLauncherComponent("No activity found\n", appID: "com.app"))
-        XCTAssertNil(ADBRunner.parseLauncherComponent(
-            "android/com.android.internal.app.ResolverActivity",
-            appID: "com.app"
-        ))
-    }
-
-    func testResolveArgumentsFilterOnMainLauncher() {
-        let args = ADBRunner.resolveLauncherArguments(appID: "com.app")
-        XCTAssertTrue(args.contains("android.intent.category.LAUNCHER"))
-        XCTAssertEqual(args.last, "com.app")
+        XCTAssertFalse(mock.recordedCommands.map(\.arguments).contains { $0.contains("force-stop") })
     }
 }

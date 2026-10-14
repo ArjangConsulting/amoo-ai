@@ -2,6 +2,7 @@ import AdbKit
 import AmooCore
 import Foundation
 import GradleKit
+import MobileCore
 import MobileDevices
 import SwiftyShell
 
@@ -54,7 +55,7 @@ public extension ADBRunning {
 }
 
 public struct ADBRunner: ADBRunning {
-    /// Read-only probes are bounded; mutations use 30 seconds and APK installs allow 180 seconds.
+    /// Deadline for the raw `run(_:)` passthrough; the typed operations use MobileDevices' own deadlines.
     private static let readTimeoutSeconds: TimeInterval = 20
 
     private let context: ShellContext
@@ -83,244 +84,168 @@ public struct ADBRunner: ADBRunning {
     // MARK: - Device Lifecycle
 
     public func startServer() async throws {
-        _ = try await run(Adb(context: context).startServer())
+        try await translatingMobileKitErrors {
+            try await devices.startServer()
+        }
     }
 
     public func killEmulator(serial: String? = nil) async throws {
-        _ = try await run(adb(serial: serial).emuKill())
+        try await onDevice(serial) { serial in
+            try await devices.killEmulator(serial)
+        }
     }
 
     public func listDevices() async throws -> String {
-        let result = try await run(Adb(context: context).devices(long: true).timeout(.seconds(Self.readTimeoutSeconds)))
-        return result.stdout
+        try await translatingMobileKitErrors {
+            try await devices.devicesOutput()
+        }
     }
 
     // MARK: - App Management
 
     public func install(serial: String? = nil, apkPath: String) async throws {
-        try await translatingMobileKitErrors {
-            try await devices.install(apkAt: apkPath, on: resolvedSerial(serial))
+        try await onDevice(serial) { serial in
+            try await devices.install(apkAt: apkPath, on: serial)
         }
     }
 
+    /// Launches without `--activity-clear-top` and without a force-stop, as this overload always did.
     public func launch(serial: String? = nil, appID: String, arguments: [String] = []) async throws {
-        let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
-        _ = try await run(
-            adb(serial: serial).amStartActivity(component: component, arguments: arguments)
+        try await launch(
+            serial: serial,
+            appID: appID,
+            options: AndroidLaunchOptions(arguments: arguments, clearTop: false, forceStopFirst: false)
         )
     }
 
+    /// Launches with `--activity-clear-top`; a non-empty `environment` force-stops the app first.
     public func launch(
         serial: String?,
         appID: String,
         arguments: [String],
         environment: [String: String]
     ) async throws {
-        let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
-        if !environment.isEmpty {
-            _ = try await run(adb(serial: serial).amForceStop(package: appID))
-        }
-        _ = try await run(adb(serial: serial).rawArguments(
-            Self.amStartArguments(component: component, arguments: arguments, environment: environment)
-        ))
-    }
-
-    /// `shell am start` for `component` with `environment` as `--es KEY VALUE` extras. One launch
-    /// argument keeps the historical `--es arg <value>`; several go as one `--esa args a,b,c`
-    /// array, because repeated `--es arg` extras overwrite each other and only the last survived.
-    /// Values are single-quoted: `adb shell` re-tokenizes the command on the device.
-    public static func amStartArguments(
-        component: String,
-        arguments: [String],
-        environment: [String: String]
-    ) -> [String] {
-        var command = ["shell", "am", "start", "--activity-clear-top", "-n", component]
-        for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
-            command += ["--es", shellQuoted(key), shellQuoted(value)]
-        }
-        switch arguments.count {
-        case 0: break
-        case 1: command += ["--es", "arg", shellQuoted(arguments[0])]
-        default: command += ["--esa", "args", shellQuoted(arguments.joined(separator: ","))]
-        }
-        return command
-    }
-
-    static func shellQuoted(_ value: String) -> String {
-        let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-.:/=@%+,"))
-        guard !value.isEmpty, value.unicodeScalars.contains(where: { !safe.contains($0) }) else {
-            return value.isEmpty ? "''" : value
-        }
-        return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
-
-    public func launchResetting(serial: String? = nil, appID: String) async throws {
-        let component = try await resolveLaunchableActivity(serial: serial, appID: appID)
-        _ = try await run(
-            adb(serial: serial).rawArguments([
-                "shell", "am", "start",
-                "--activity-clear-top",
-                "-n", component
-            ])
+        try await launch(
+            serial: serial,
+            appID: appID,
+            options: AndroidLaunchOptions(arguments: arguments, environment: environment)
         )
     }
 
+    public func launchResetting(serial: String? = nil, appID: String) async throws {
+        try await launch(serial: serial, appID: appID, options: AndroidLaunchOptions())
+    }
+
     public func terminate(serial: String? = nil, appID: String) async throws {
-        try await translatingMobileKitErrors {
-            try await devices.terminate(package: appID, on: resolvedSerial(serial))
+        try await onDevice(serial) { serial in
+            try await devices.terminate(package: appID, on: serial)
         }
     }
 
     public func uninstall(serial: String? = nil, appID: String) async throws {
-        try await translatingMobileKitErrors {
-            try await devices.uninstall(package: appID, from: resolvedSerial(serial))
+        try await onDevice(serial) { serial in
+            try await devices.uninstall(package: appID, from: serial)
         }
     }
 
     public func clearAppData(serial: String? = nil, appID: String) async throws {
-        try await translatingMobileKitErrors {
-            try await devices.clearData(package: appID, on: resolvedSerial(serial))
+        try await onDevice(serial) { serial in
+            try await devices.clearData(package: appID, on: serial)
         }
     }
 
     public func listPackages(serial: String? = nil) async throws -> String {
-        let result = try await run(adb(serial: serial).pmListPackages().timeout(.seconds(Self.readTimeoutSeconds)))
-        return result.stdout
+        try await onDevice(serial) { serial in
+            try await devices.installedPackagesOutput(on: serial)
+        }
     }
 
     // MARK: - Capture
 
     public func screenshot(serial: String? = nil) async throws -> Data {
-        let remotePath = "/sdcard/screenshot_tmp.png"
-        let localPath = NSTemporaryDirectory() + "screenshot_\(UUID().uuidString).png"
-        _ = try await run(adb(serial: serial).screencap(remotePath: remotePath)
-            .timeout(.seconds(Self.readTimeoutSeconds)))
-        _ = try await run(adb(serial: serial).pull(remote: remotePath, local: localPath)
-            .timeout(.seconds(Self.readTimeoutSeconds)))
-        _ = try await run(adb(serial: serial).shell("rm \(remotePath)").timeout(.seconds(Self.readTimeoutSeconds)))
-        let data = try Data(contentsOf: URL(fileURLWithPath: localPath))
-        try? FileManager.default.removeItem(atPath: localPath)
-        return data
+        try await onDevice(serial) { serial in
+            try await devices.screenshot(on: serial)
+        }
     }
 
+    /// Starts `screenrecord`, writing to `outputPath` on the device.
+    ///
+    /// A second recording on the same device fails with ``AmooError/commandFailed(command:output:)``.
     public func startRecording(serial: String? = nil, outputPath: String) async throws {
-        let serialKey = serial ?? "__default__"
-        guard await ADBRecordingRegistry.shared.lookup(serialKey: serialKey) == nil else {
-            throw AmooError.commandFailed(
-                command: "adb screenrecord",
-                output: "A recording is already active for \(serial ?? "default device")."
-            )
+        do {
+            try await onDevice(serial) { serial in
+                try await devices.startRecording(on: serial, remotePath: outputPath)
+            }
+        } catch let MobileKitError.invalidRequest(message) {
+            throw AmooError.commandFailed(command: "adb screenrecord", output: message)
         }
-
-        let process = try await adb(serial: serial)
-            .screenrecord(remotePath: outputPath)
-            .spawn(teardown: .interruptThenTerminate)
-        await ADBRecordingRegistry.shared.register(process, serialKey: serialKey)
     }
 
     public func stopRecording(serial: String? = nil) async throws {
-        let serialKey = serial ?? "__default__"
-        if let process = await ADBRecordingRegistry.shared.remove(serialKey: serialKey) {
-            try await process.interrupt()
-            _ = await process.waitForExit()
-            return
+        try await onDevice(serial) { serial in
+            try await devices.stopRecording(on: serial)
         }
-
-        _ = try await run(adb(serial: serial).shellPkill(process: "screenrecord"))
     }
 
     // MARK: - Configuration
 
     public func grantPermission(serial: String? = nil, appID: String, permission: String) async throws {
-        _ = try await run(adb(serial: serial).pmGrantPermission(package: appID, permission: permission))
+        try await onDevice(serial) { serial in
+            try await devices.grantPermission(permission, to: appID, on: serial)
+        }
     }
 
     public func revokePermission(serial: String? = nil, appID: String, permission: String)
         async throws {
-        _ = try await run(
-            adb(serial: serial).pmRevokePermission(package: appID, permission: permission)
-        )
+        try await onDevice(serial) { serial in
+            try await devices.revokePermission(permission, from: appID, on: serial)
+        }
     }
 
     public func openURL(serial: String? = nil, url: String) async throws {
-        _ = try await run(adb(serial: serial).amStartViewURL(url))
+        try await onDevice(serial) { serial in
+            try await devices.openURL(url, on: serial)
+        }
     }
 
     // MARK: - Port Forwarding
 
     public func forwardPort(serial: String? = nil, localPort: Int, remotePort: Int) async throws {
-        _ = try await run(adb(serial: serial).forwardTCP(localPort: localPort, remotePort: remotePort))
+        try await onDevice(serial) { serial in
+            try await devices.forwardPort(local: localPort, remote: remotePort, on: serial)
+        }
     }
 
     public func removeForward(serial: String? = nil, localPort: Int) async throws {
-        _ = try await run(adb(serial: serial).removeForwardTCP(localPort: localPort))
+        try await onDevice(serial) { serial in
+            try await devices.removeForward(local: localPort, on: serial)
+        }
     }
 
     // MARK: - Private
-
-    private func adb(serial: String?) -> Adb {
-        Adb(context: context).serial(serial)
-    }
 
     private var devices: AndroidDeviceManager {
         AndroidDeviceManager(shell: context)
     }
 
-    /// `AndroidDeviceManager` addresses a device by serial, while `adb` without `-s` picks the only
-    /// attached one. Resolve that default here, and fail the way `adb` does when it is ambiguous.
-    private func resolvedSerial(_ serial: String?) async throws -> String {
-        if let serial {
-            return serial
-        }
-        let ready = try await devices.list().filter { $0.state == .device }
-        guard let only = ready.first, ready.count == 1 else {
-            throw ProcessRunnerError.nonZeroExit(
-                command: "adb",
-                exitCode: 1,
-                stderr: ready.isEmpty ? "adb: no devices/emulators found" : "adb: more than one device/emulator"
-            )
-        }
-        return only.serial
-    }
-
-    /// `cmd package resolve-activity` arguments that select the LAUNCHER activity. Without the
-    /// MAIN/LAUNCHER filter the query matches nothing useful (or the system resolver activity).
-    static func resolveLauncherArguments(appID: String) -> [String] {
-        [
-            "shell", "cmd", "package", "resolve-activity", "--brief",
-            "-a", "android.intent.action.MAIN",
-            "-c", "android.intent.category.LAUNCHER",
-            appID
-        ]
-    }
-
-    /// The `<pkg>/<class>` component in `resolve-activity --brief` output, or nil when nothing
-    /// launchable matched. The class may live outside the applicationId package (product flavors,
-    /// `applicationIdSuffix`), so only the package half of the component is checked.
-    static func parseLauncherComponent(_ output: String, appID: String) -> String? {
-        output
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .last { $0.hasPrefix(appID + "/") && !$0.contains(" ") }
-    }
-
-    private func resolveLaunchableActivity(serial: String?, appID: String) async throws -> String {
-        let result = try await run(adb(serial: serial).rawArguments(Self.resolveLauncherArguments(appID: appID)))
-        guard let component = Self.parseLauncherComponent(result.stdout, appID: appID) else {
-            throw ProcessRunnerError.nonZeroExit(
-                command: "resolve-activity \(appID)",
-                exitCode: 1,
-                stderr: "No launchable (MAIN/LAUNCHER) activity found for \(appID); is it installed?"
-            )
-        }
-        return component
-    }
-
-    private func run(_ command: Adb) async throws -> ProcessResult {
+    private func launch(serial: String?, appID: String, options: AndroidLaunchOptions) async throws {
         do {
-            return try await command.timeout(command.command().timeoutOverride ?? .seconds(30)).run().processResult
-        } catch let error as ShellError {
-            throw processRunnerError(error, command: command.command().displayString())
+            try await onDevice(serial) { serial in
+                try await devices.launch(package: appID, on: serial, options: options)
+            }
+        } catch let MobileKitError.notFound(message) {
+            throw ProcessRunnerError.nonZeroExit(command: "resolve-activity \(appID)", exitCode: 1, stderr: message)
+        }
+    }
+
+    /// Runs `body` on `serial`, or on the only attached device when it is nil (the way `adb` without
+    /// `-s` picks one), rethrowing MobileDevices failures as ``ProcessRunnerError``.
+    private func onDevice<Result>(
+        _ serial: String?,
+        _ body: (String) async throws -> Result
+    ) async throws -> Result {
+        try await translatingMobileKitErrors {
+            try await body(devices.resolveSerial(serial))
         }
     }
 }
@@ -332,22 +257,4 @@ private func processRunnerError(_ error: ShellError, command: String) -> Error {
         )
     }
     return error
-}
-
-private actor ADBRecordingRegistry {
-    static let shared = ADBRecordingRegistry()
-
-    private var processes: [String: any SpawnedProcess] = [:]
-
-    func lookup(serialKey: String) -> (any SpawnedProcess)? {
-        processes[serialKey]
-    }
-
-    func register(_ process: any SpawnedProcess, serialKey: String) {
-        processes[serialKey] = process
-    }
-
-    func remove(serialKey: String) -> (any SpawnedProcess)? {
-        processes.removeValue(forKey: serialKey)
-    }
 }

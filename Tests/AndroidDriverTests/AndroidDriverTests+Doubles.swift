@@ -2,6 +2,7 @@ import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import Foundation
+import MobileDevices
 import ProcessRunner
 import XCTest
 
@@ -193,13 +194,13 @@ actor MockADBRunner: ADBRunning {
 actor MockEmulatorRunner: EmulatorRunning {
     private(set) var launches: [String] = []
     /// When set, `launchProcess` hands this back so boot waits can watch the "process".
-    var handle: EmulatorLaunch?
+    var handle: EmulatorInstance?
 
-    func setHandle(_ handle: EmulatorLaunch?) {
+    func setHandle(_ handle: EmulatorInstance?) {
         self.handle = handle
     }
 
-    func launchProcess(avdName: String, port: Int) async throws -> EmulatorLaunch? {
+    func launchProcess(avdName: String, port: Int) async throws -> EmulatorInstance? {
         launches.append("\(avdName):\(port)")
         return handle
     }
