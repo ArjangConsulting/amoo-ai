@@ -90,6 +90,23 @@ class RenderTests(unittest.TestCase):
         self.assertIn('- **feat(api):** drop the v1 tool', body)
 
 
+class HighlightsTests(unittest.TestCase):
+    def test_summary_is_bounded_and_prioritizes_features(self):
+        entries = [('a' * 40, f'ci: maintenance {i}', '') for i in range(8)]
+        entries.append(('b' * 40, 'feat: device recording', ''))
+        body = notes.render_highlights('0.3.0', '0.2.0', entries, 'owner/name')
+        self.assertEqual(sum(line.startswith('- ') for line in body.splitlines()), 5)
+        self.assertIn('- device recording', body)
+        self.assertIn('/compare/0.2.0...0.3.0', body)
+
+    def test_editorial_highlights_replace_automatic_summary(self):
+        body = notes.render_highlights('0.3.0', None,
+                                       [('a' * 40, 'ci: internal work', '')],
+                                       'owner/name', '\n- Faster recording\n')
+        self.assertIn('- Faster recording', body)
+        self.assertNotIn('internal work', body)
+
+
 class HistoryTests(unittest.TestCase):
     def test_reads_commits_and_tags_from_a_real_repository(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -113,6 +130,9 @@ class HistoryTests(unittest.TestCase):
 
             sha, subject, body = next(notes.commits('0.1.0..HEAD', cwd=directory))
             self.assertEqual(len(sha), 40)
+            self.assertEqual(len(list(notes.commits('HEAD', cwd=directory))), 2)
+            self.assertTrue(all(len(entry[0]) == 40
+                                for entry in notes.commits('HEAD', cwd=directory)))
             self.assertEqual(subject, 'fix: guard the port probe')
             self.assertEqual(body.strip().splitlines(), ['A multi-line body', 'still parses.'])
 
