@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Exercise the exact packaged MCP executable without booting or driving a device."""
+"""Exercise the exact packaged CLI/MCP executable without booting or driving a device."""
 import argparse
 import json
 import os
 from pathlib import Path
 import selectors
 import signal
+import socket
 import subprocess
 import tempfile
 import time
@@ -63,6 +64,23 @@ def finish(child):
 
 def smoke(binary, fatal_signal=False, architecture=None):
     with tempfile.TemporaryDirectory(prefix="amoo-mcp-smoke-") as directory:
+        # Exercise CLI host subprocesses too; help/version alone never enter SwiftyShell.
+        # Reserve a local port without listening so no real companion can be driven.
+        with socket.socket() as reserved:
+            reserved.bind(("127.0.0.1", 0))
+            port = str(reserved.getsockname()[1])
+            env = dict(os.environ, AMOO_LEASE_DIR=directory)
+            env.pop("AMOO_LEASE", None)
+            for tool in ("current_app", "describe_screen"):
+                command = [binary, "device", "--platform", "ios", "--device",
+                           "amoo-regression-nonexistent-device", "--port", port, "--json", tool]
+                if architecture:
+                    command = ["/usr/bin/arch", "-" + architecture] + command
+                inspected = subprocess.run(command, capture_output=True, env=env, timeout=30)
+                assert inspected.returncode == 1, (tool, inspected.returncode,
+                                                   inspected.stderr.decode(errors="replace"))
+                result = json.loads(inspected.stdout)
+                assert result["tool"] == tool and result["ok"] is False, result
         child = start(binary, directory, architecture)
         try:
             send(child, INITIALIZE)
@@ -125,7 +143,7 @@ def smoke(binary, fatal_signal=False, architecture=None):
                 assert "fatal signal" in (Path(directory) / "crash.log").read_text()
             finally:
                 finish(child)
-    print(f"MCP smoke passed: {binary}")
+    print(f"CLI/MCP smoke passed: {binary}")
 
 
 if __name__ == "__main__":
