@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import ProcessRunner
 
 /// ADB plumbing: device enumeration, serial resolution, and boot waiting.
@@ -70,7 +71,7 @@ extension AndroidDriver {
 
     /// Waits for `serial` to finish booting. When `launch` is given, an emulator process that dies
     /// first fails the wait at once — with its exit code and log — instead of timing out.
-    func waitForBoot(serial: String, timeoutSeconds: Int, launch: EmulatorLaunch? = nil) async throws {
+    func waitForBoot(serial: String, timeoutSeconds: Int, launch: EmulatorInstance? = nil) async throws {
         let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
         var launcherExitedAt: Date?
         while Date() < deadline {

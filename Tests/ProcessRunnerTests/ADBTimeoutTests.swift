@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import ProcessRunner
 import SwiftyShell
@@ -38,5 +39,26 @@ final class ADBTimeoutTests: XCTestCase {
             return ShellOutput(stdout: "", stderr: "", exitCode: 0)
         })
         try await ADBRunner(context: context).install(serial: "phone", apkPath: "/tmp/app.apk")
+    }
+}
+
+final class ADBRecordingTests: XCTestCase {
+    /// The recording registry now lives in MobileDevices; its "already active" refusal must still
+    /// surface as the `AmooError.commandFailed` callers saw before.
+    func testSecondRecordingOnTheSameDeviceIsRefused() async throws {
+        let runner = ADBRunner(context: ShellContext(executor: MockExecutor { _, _ in
+            ShellOutput(stdout: "", stderr: "", exitCode: 0)
+        }))
+        let serial = "emulator-\(UUID().uuidString)"
+        try await runner.startRecording(serial: serial, outputPath: "/sdcard/a.mp4")
+        defer { Task { try? await runner.stopRecording(serial: serial) } }
+
+        do {
+            try await runner.startRecording(serial: serial, outputPath: "/sdcard/b.mp4")
+            XCTFail("expected the second recording to be refused")
+        } catch let AmooError.commandFailed(command, output) {
+            XCTAssertEqual(command, "adb screenrecord")
+            XCTAssertTrue(output.contains("already active"), output)
+        }
     }
 }
