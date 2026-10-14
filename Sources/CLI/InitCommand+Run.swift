@@ -45,6 +45,37 @@ func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> C
     case let .success(value): complete = value
     case let .failure(refusal): return refusal.result
     }
+    let requests = [complete] + complete.additionalRequests
+    // Validate every platform before any lease is acquired.
+    for item in requests {
+        if case let .failure(failure) = await buildInitPlan(item, discovery: runtime.discovery) {
+            return InitRefusal(
+                message: "Cannot start:\n" + failure.issues.joined(separator: "\n"),
+                code: 1,
+                json: item.json
+            ).result
+        }
+    }
+    var results: [CLIResult] = []
+    for item in requests {
+        let result = await runCompletedInit(item, interactive: interactive, agentsFile: agentsFile, runtime: runtime)
+        results.append(result)
+        if result.output == cancelledResult.output {
+            break
+        }
+    }
+    return CLIResult(
+        output: results.map(\.output).joined(separator: "\n\n"),
+        exitCode: results.map(\.exitCode).max() ?? 0
+    )
+}
+
+private func runCompletedInit(
+    _ complete: InitRequest,
+    interactive: Bool,
+    agentsFile: String,
+    runtime: InitRuntime
+) async -> CLIResult {
     if interactive {
         runtime.prompter.say("\nChecking the app and devices…")
     }
@@ -256,7 +287,8 @@ private func missingInputsMessage(
 ) async -> String {
     var lines = ["amoo init needs these before it can run non-interactively:"]
     lines += request.missing.map { "  \($0)" }
-    if let saved, let app = saved.appPath {
+    let remembered = request.platform.flatMap { saved?.forPlatform($0) } ?? saved
+    if let saved = remembered, let app = saved.appPath {
         lines.append("AGENTS.md remembers: --app \(shellQuoted(app))"
             + (saved.appID.map { " --app-id \(shellQuoted($0))" } ?? ""))
     }

@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 
 /// A terminal conversation shared by the guided commands (`init`, `agent install`). Every method
@@ -34,8 +35,14 @@ func parseSelection(_ text: String, count: Int) -> [Int]? {
 }
 
 struct StdioPrompter: CLIPrompting {
+    private func styled(_ text: String) -> String {
+        guard ProcessInfo.processInfo.environment["NO_COLOR"] == nil,
+              ProcessInfo.processInfo.environment["TERM"] != "dumb" else { return text }
+        return colored(text, .bold, .cyan)
+    }
+
     func say(_ text: String) {
-        print(text)
+        print(styled(text))
     }
 
     func ask(_ prompt: String, default defaultValue: String?) -> String? {
@@ -61,9 +68,9 @@ struct StdioPrompter: CLIPrompting {
     }
 
     func choose(_ prompt: String, options: [String], default index: Int) -> Int? {
-        print("\(prompt):")
+        print(styled("\(prompt):"))
         for (offset, option) in options.enumerated() {
-            print("  \(offset + 1)) \(option)")
+            print("  " + styled("\(offset + 1))") + " \(option)")
         }
         while true {
             print("Choose [1-\(options.count)] [\(index + 1)]: ", terminator: "")
@@ -81,9 +88,9 @@ struct StdioPrompter: CLIPrompting {
     }
 
     func chooseMany(_ prompt: String, options: [String], defaults: [Int]) -> [Int]? {
-        print("\(prompt):")
+        print(styled("\(prompt):"))
         for (offset, option) in options.enumerated() {
-            print("  \(offset + 1)) \(option)")
+            print("  " + styled("\(offset + 1))") + " \(option)")
         }
         let fallback = defaults.map { String($0 + 1) }.joined(separator: ",")
         while true {

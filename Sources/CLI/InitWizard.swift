@@ -7,6 +7,7 @@ import Foundation
 /// session is asked for it, a headless one is refused with the full list of what is missing.
 struct InitRequest: Equatable {
     var platform: Platform?
+    var additionalRequests: [Self] = []
     var appPath: String?
     var appID: String?
     var devices: [String] = []
@@ -147,13 +148,13 @@ private struct InitWizard<Prompter: CLIPrompting> {
     let now: Date
     let fileExists: (String) -> Bool
 
-    func platform() throws -> Platform {
+    func platforms() throws -> [Platform] {
         guard let index = prompter.choose(
             "Platform",
-            options: ["iOS simulator", "Android emulator"],
+            options: ["🍎 iOS", "🤖 Android", "🍎 + 🤖 Both"],
             default: 0
         ) else { throw InitWizardError.cancelled }
-        return index == 0 ? .ios : .android
+        return index == 2 ? [.ios, .android] : [index == 0 ? .ios : .android]
     }
 
     func appPath(platform: Platform) throws -> String {
@@ -255,21 +256,54 @@ func completeInitRequest(
     fileExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
 ) async throws -> InitRequest {
     let wizard = InitWizard(discovery: discovery, prompter: prompter, saved: saved, now: now, fileExists: fileExists)
-    prompter.say("amoo init — prepare simulators/emulators from one prebuilt app.")
+    prompter.say("╭─ amoo init ─────────────────────────╮")
+    prompter.say("Prepare iOS simulators and Android emulators from prebuilt apps.")
     prompter.say("Flags already given are kept; answer the rest. The app is never rebuilt.\n")
 
     var result = request
-    let platform = try request.platform ?? wizard.platform()
-    result.platform = platform
-    let appPath = try request.appPath ?? wizard.appPath(platform: platform)
-    result.appPath = appPath
-    result.appID = try request.appID ?? wizard.appID(platform: platform, appPath: appPath)
-    if request.devices.isEmpty {
-        result.devices = try await wizard.devices(platform: platform)
+    let platforms = try request.platform.map { [$0] } ?? wizard.platforms()
+    if request.platform == nil {
+        guard let framework = prompter.choose(
+            "App framework",
+            options: ["Native / other", "React Native", "Flutter", "Kotlin Multiplatform (KMP)"],
+            default: 0
+        ) else { throw InitWizardError.cancelled }
+        let guidance = [
+            "Use an iOS simulator .app and/or an Android .apk.",
+            "React Native: use a simulator .app and/or an .apk. Start Metro if your debug build needs it.",
+            "Flutter: use build/ios/iphonesimulator/*.app and/or build/app/outputs/flutter-apk/*.apk.",
+            "KMP: use the iOS host simulator .app and/or Android .apk; the shared module is not an app."
+        ]
+        prompter.say(guidance[framework])
     }
-    result.launch = try request.launch ?? wizard.launch()
-    result.owner = try request.owner ?? wizard.owner()
-    result.out = try request.out ?? wizard.manifest(platform: platform)
+    let platform = platforms[0]
+    let platformWizard = InitWizard(
+        discovery: discovery, prompter: prompter, saved: saved?.forPlatform(platform), now: now, fileExists: fileExists
+    )
+    prompter.say("\n\(platform == .ios ? "🍎 iOS — simulator build" : "🤖 Android — emulator build")")
+    result.platform = platform
+    let appPath = try request.appPath ?? platformWizard.appPath(platform: platform)
+    result.appPath = appPath
+    result.appID = try request.appID ?? platformWizard.appID(platform: platform, appPath: appPath)
+    if request.devices.isEmpty {
+        result.devices = try await platformWizard.devices(platform: platform)
+    }
+    result.launch = try request.launch ?? platformWizard.launch()
+    result.owner = try request.owner ?? platformWizard.owner()
+    result.out = try request.out ?? platformWizard.manifest(platform: platform)
+    if platforms.count == 2 {
+        var android = request
+        android.platform = .android
+        android.appPath = nil
+        android.appID = nil
+        android.devices = []
+        android.out = nil
+        android.skills = false
+        android.clients = []
+        result.additionalRequests = try await [completeInitRequest(
+            android, discovery: discovery, prompter: prompter, saved: saved, now: now, fileExists: fileExists
+        )]
+    }
     return result
 }
 

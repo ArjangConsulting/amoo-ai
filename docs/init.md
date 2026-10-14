@@ -114,3 +114,11 @@ installs nothing. `--json` and skills cannot be combined in `init` (one JSON doc
 `amoo init repo …` is an alias for `amoo agent install …`.
 The documented `device_launch_app --arg` is accepted and covered by parser tests. The Homebrew 0.2.1
 crash is written up in [homebrew-0.2.1-crash.md](homebrew-0.2.1-crash.md).
+
+The interactive platform picker offers **iOS**, **Android**, and **Both**. Both collects a
+simulator `.app` and an Android `.apk`, validates both before setup, and writes separate
+platform manifests. The managed AGENTS.md block remembers locations for both platforms,
+and later single-platform runs preserve the other platform’s locations.
+The framework picker provides artifact guidance for native apps, React Native, Flutter,
+and Kotlin Multiplatform. React Native debug builds may require Metro to be started separately.
+Terminal prompts use icons and color; `NO_COLOR` or `TERM=dumb` disables color.
