@@ -3,6 +3,7 @@ import Darwin
 #endif
 import AmooCore
 import Foundation
+import IProxyKit
 import SwiftyShell
 
 /// A live host→device TCP forward, so host code can reach a port on a physical device.
@@ -76,8 +77,9 @@ public struct IProxyTunnel: USBTunneling {
             )
         }
 
-        let command = Command("iproxy").args(["\(localPort):\(devicePort)", "-u", deviceUDID])
-        let process = try await command.spawn(in: context, teardown: .interruptThenTerminate)
+        let process = try await IProxy(context: context)
+            .forward(localPort: localPort, devicePort: devicePort, udid: deviceUDID)
+            .spawn(teardown: .interruptThenTerminate)
         await USBTunnelRegistry.shared.register(process)
 
         let handle = USBTunnelHandle(
