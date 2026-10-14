@@ -231,6 +231,11 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"
         case .takeScreenshot:
             return "\(indent)// take_screenshot: capture through the Android test runner when needed"
+        case .relaunchApplication:
+            guard let call = context?.relaunchHelper else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "relaunchHelper")
+            }
+            return "        \(call)"
         case .pressBack:
             return "\(indent)pressBack()"
         }

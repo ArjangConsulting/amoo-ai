@@ -167,6 +167,8 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         }
     }
 
+    /// Platform this repository harness targets; automatic discovery ignores other platforms.
+    public let targetPlatform: Platform?
     public let imports: [String]
     public let baseClass: String?
     /// An expression that constructs the app under test, e.g. `makeApp()`. Constructs only — the
@@ -180,6 +182,18 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     /// base class may do nothing but register fixtures. Guessing here either double-launches or
     /// silently runs every generated test against an app that was never launched.
     public let harnessLaunchesApp: Bool
+    /// Whether the base class provides `app`; suppresses the generated property.
+    public let harnessOwnsApp: Bool
+    /// Expression returned by an override of `makeApplication()` before harness setup launches it.
+    public let factoryOverride: String?
+    /// Wait helper name to call template; `{{element}}` and `{{timeout}}` are Swift expressions.
+    public let waitBindings: [String: String]
+    /// Timeout in milliseconds (or `default`) to repository-owned Swift expressions.
+    public let timeoutExpressions: [String: String]
+    /// Studio assertion tool to call template (`{{element}}`, `{{value}}`, `{{timeout}}`).
+    public let assertionBindings: [String: String]
+    /// Repository-owned call that relaunches without resetting stored state.
+    public let relaunchHelper: String?
     public let helpers: [Helper]
     /// Raw recorded accessibility IDs mapped to a repository-owned Swift/Kotlin identifier
     /// expression, e.g. `{"uuid": "AppUIAutomationID.task.chore"}`.
@@ -204,17 +218,29 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         helpers: [Helper] = [],
         selectorExpressions: [String: String] = [:],
         idLookupTemplate: String? = nil,
-        requiredIdiom: Idiom? = nil
+        requiredIdiom: Idiom? = nil,
+        harnessOwnsApp: Bool = false,
+        factoryOverride: String? = nil,
+        waitBindings: [String: String] = [:],
+        timeoutExpressions: [String: String] = [:],
+        assertionBindings: [String: String] = [:],
+        relaunchHelper: String? = nil,
+        targetPlatform: Platform? = nil
     ) {
+        self.targetPlatform = targetPlatform
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
         self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
         self.requiredIdiom = requiredIdiom
+        self.harnessOwnsApp = harnessOwnsApp; self.factoryOverride = factoryOverride
+        self.waitBindings = waitBindings; self.timeoutExpressions = timeoutExpressions
+        self.assertionBindings = assertionBindings; self.relaunchHelper = relaunchHelper
     }
 
     private enum CodingKeys: String, CodingKey {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
-        case requiredIdiom
+        case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
+        case assertionBindings, relaunchHelper, targetPlatform
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -222,6 +248,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         imports = try container.decodeIfPresent([String].self, forKey: .imports) ?? []
+        targetPlatform = try container.decodeIfPresent(Platform.self, forKey: .targetPlatform)
         baseClass = try container.decodeIfPresent(String.self, forKey: .baseClass)
         appFactory = try container.decodeIfPresent(String.self, forKey: .appFactory)
         harnessLaunchesApp = try container.decodeIfPresent(Bool.self, forKey: .harnessLaunchesApp) ?? false
@@ -229,6 +256,12 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         selectorExpressions = try container.decodeIfPresent([String: String].self, forKey: .selectorExpressions) ?? [:]
         idLookupTemplate = try container.decodeIfPresent(String.self, forKey: .idLookupTemplate)
         requiredIdiom = try container.decodeIfPresent(Idiom.self, forKey: .requiredIdiom)
+        harnessOwnsApp = try container.decodeIfPresent(Bool.self, forKey: .harnessOwnsApp) ?? false
+        factoryOverride = try container.decodeIfPresent(String.self, forKey: .factoryOverride)
+        waitBindings = try container.decodeIfPresent([String: String].self, forKey: .waitBindings) ?? [:]
+        timeoutExpressions = try container.decodeIfPresent([String: String].self, forKey: .timeoutExpressions) ?? [:]
+        assertionBindings = try container.decodeIfPresent([String: String].self, forKey: .assertionBindings) ?? [:]
+        relaunchHelper = try container.decodeIfPresent(String.self, forKey: .relaunchHelper)
     }
 
     public func helper(named name: String) -> Helper? {

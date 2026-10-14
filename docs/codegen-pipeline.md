@@ -144,4 +144,4 @@ tests so their action indexes remain traceable.
 
 Exports written with `--out` include a `<generated-file>.provenance.json` sidecar.
 It retains the effective plan after context/helper binding and name collision resolution,
-including warnings, plus the source plan path. Keep it beside the finalized test.
+including warnings, plus the source plan path. Keep it with the input plan in tool storage; it is written under `provenance/` beside that plan.

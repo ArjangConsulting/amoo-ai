@@ -11,6 +11,26 @@ import XCTest
 /// compile time (not only via a later `amoo generate test --context` CLI override), and it is
 /// persisted so an `end_session` recompile keeps it.
 extension MCPServerTests {
+    func testMarkdownProfileIsSnapshottedWithHarnessOwnership() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let file = scratch.url.appendingPathComponent("amoo.md")
+        try """
+        # Repository integration
+        ```amoo-context
+        {"baseClass":"JotUITestCase","harnessOwnsApp":true,"harnessLaunchesApp":true,
+         "factoryOverride":"super.makeApplication()"}
+        ```
+        """.write(to: file, atomically: true, encoding: .utf8)
+        let snapshot = try XCTUnwrap(DriverToolExecutor.contextSnapshot(["context_path": file.path]))
+        try "Changed repository profile".write(to: file, atomically: true, encoding: .utf8)
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: Data(snapshot.utf8))
+        XCTAssertTrue(context.harnessOwnsApp)
+        XCTAssertTrue(context.harnessLaunchesApp)
+        XCTAssertEqual(context.factoryOverride, "super.makeApplication()")
+        XCTAssertNil(try DriverToolExecutor.contextSnapshot([:], discoverProfile: false))
+    }
+
     private var contextJSON: String {
         """
         {

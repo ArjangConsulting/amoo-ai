@@ -122,3 +122,9 @@ and later single-platform runs preserve the other platform’s locations.
 The framework picker provides artifact guidance for native apps, React Native, Flutter,
 and Kotlin Multiplatform. React Native debug builds may require Metro to be started separately.
 Terminal prompts use icons and color; `NO_COLOR` or `TERM=dumb` disables color.
+
+With saved repository setup (`--save` or the guided save choice), init also discovers Swift UI-test
+harness evidence into `amoo.md` alongside `AGENTS.md`. It does not generate tests or alter targets.
+An existing profile is preserved, including reviewed bindings. Review uncertain target, catalog,
+launch, and helper conventions before export; see [repository test context](test-context.md).
+Recording and export consume its fenced context automatically from the repository working directory.

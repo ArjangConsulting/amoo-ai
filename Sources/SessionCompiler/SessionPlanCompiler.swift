@@ -104,8 +104,7 @@ public struct CompileSessionToPlanResult: Codable, Sendable {
     }
 }
 
-// Compiler pipeline helpers are split across extensions.
-// swiftlint:disable type_body_length
+/// Compiler pipeline helpers are split across extensions.
 /// Deterministically translates a recorded `SessionReport` into both a directly-replayable
 /// `CompiledSessionFlow` (for `amoo flow`) and a best-effort `StudioAuthoredTest` (for
 /// `amoo generate test --plan`). No LLM involved — this mirrors the mechanical nature of a
@@ -150,7 +149,7 @@ public enum SessionPlanCompiler {
         }
     }
 
-    private struct ProcessedAction {
+    struct ProcessedAction {
         let operation: StudioToolOperation?
         let step: StudioAuthoredTest.Step?
         let warnings: [SessionPlanWarning]
@@ -158,7 +157,7 @@ public enum SessionPlanCompiler {
 
     // Keeps the ordered action-classification and warning pipeline visible in one place.
     // swiftlint:disable:next function_body_length cyclomatic_complexity
-    private static func process(
+    static func process(
         index: Int,
         action: SessionAction,
         next: SessionAction?,
@@ -343,65 +342,6 @@ public enum SessionPlanCompiler {
         return ProcessedAction(operation: operation, step: step, warnings: [warning])
     }
 
-    /// Throws when the recorded session names a platform that is neither iOS nor Android. A session
-    /// is written by our own recorder, so that means a corrupt or hand-edited report — guessing a
-    /// platform there would generate a test for the wrong OS.
-    /// Runs `process` over the actions the retry pass kept, giving each one its retry context.
-    ///
-    /// `next` deliberately skips suppressed actions: the pre-transition inspection heuristic asks
-    /// "what happens after this?", and a suppressed duplicate tap is not a distinct next step.
-    private static func processActions(
-        _ actions: [SessionAction],
-        retries: RetryAnalysis,
-        interval: TimeInterval
-    ) -> [ProcessedAction] {
-        let gapsByIndex = Dictionary(
-            uniqueKeysWithValues: retries.observations.map { ($0.actionIndex, $0.gaps) }
-        )
-        func nextAction(after offset: Int) -> SessionAction? {
-            var cursor = offset + 1
-            while cursor < actions.count {
-                if !retries.suppressed.contains(cursor) {
-                    return actions[cursor]
-                }
-                cursor += 1
-            }
-            return nil
-        }
-
-        var processed: [ProcessedAction] = []
-        var recentElements: [RecordedElement] = []
-        processed.reserveCapacity(actions.count)
-        for (offset, action) in actions.enumerated() where !retries.suppressed.contains(offset) {
-            if action.observedElements.isEmpty == false {
-                recentElements = action.observedElements
-            } else if action.toolName == "find_elements" {
-                recentElements = legacyRecordedElements(from: action.result)
-            }
-            let effectiveAction = attachObservedLabel(
-                attachGestureTargetLabel(
-                    semanticCoordinateSwipe(action, recentElements: recentElements),
-                    recentElements: recentElements
-                ),
-                recentElements: recentElements
-            )
-            processed.append(process(
-                index: offset,
-                action: effectiveAction,
-                next: nextAction(after: offset),
-                retry: RetryContext(
-                    count: retries.counts[offset] ?? 1,
-                    interval: interval,
-                    gaps: gapsByIndex[offset] ?? []
-                )
-            ))
-            if invalidatesRecordedGeometry(action.toolName) {
-                recentElements = []
-            }
-        }
-        return processed
-    }
-
     // Preserve ordered plan construction and validation.
     // swiftlint:disable function_body_length
     /// - Parameter retryTapInterval: How close together identical taps must be to read as a retry
@@ -429,7 +369,7 @@ public enum SessionPlanCompiler {
         )
 
         let retries = retryRuns(report.actions, interval: interval)
-        let processed = processActions(report.actions, retries: retries, interval: interval)
+        let processed = processActions(report.actions, retries: retries, interval: interval, appID: report.appID)
         let toolOperations = annotatePresetOptionTaps(processed.compactMap(\.operation))
         let steps = processed.compactMap(\.step)
         var warnings = processed.flatMap(\.warnings) + SessionPlanQualityReview.warnings(for: report.actions)
@@ -496,4 +436,3 @@ public enum SessionPlanCompiler {
 }
 
 // swiftlint:enable function_body_length
-// swiftlint:enable type_body_length
