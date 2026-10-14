@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Existing release tag to rebuild and publish
+        description: Release tag to publish — an existing tag to rebuild, or a new version to cut
         required: true
         type: string
 
@@ -22,13 +22,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Resolve the release to an immutable commit before anything is built, so every job builds the
+  # same tree and `publish` can tag exactly what was verified. A tag push always resolves to its
+  # tag; a manual dispatch resolves to the tag when it exists (rebuild) and to the dispatched ref
+  # otherwise, which is what lets a dispatch cut a brand-new version instead of failing checkout.
+  preflight:
+    name: Resolve release commit
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve ${{ env.RELEASE_VERSION }}
+        id: resolve
+        run: |
+          set -euo pipefail
+          version="${RELEASE_VERSION}"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'${version}' is not a bare SemVer release tag (expected e.g. 1.2.3)."
+            exit 1
+          fi
+
+          remote="https://github.com/${GITHUB_REPOSITORY}"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]] \
+            || git ls-remote --exit-code --tags "$remote" "refs/tags/${version}" >/dev/null 2>&1; then
+            ref="refs/tags/${version}"
+          else
+            echo "::notice::tag ${version} does not exist — building ${GITHUB_REF} and creating the tag on publish."
+            ref="${GITHUB_REF}"
+          fi
+
+          sha="$(git ls-remote "$remote" "$ref" | awk 'NR == 1 { print $1 }')"
+          if [[ -z "$sha" ]]; then
+            echo "::error::could not resolve ${ref} in ${GITHUB_REPOSITORY}."
+            exit 1
+          fi
+
+          echo "Resolved ${version} to ${sha} (${ref})."
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
   verify:
+    needs: preflight
     runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ needs.preflight.outputs.sha }}
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -91,14 +131,14 @@ jobs:
 
   build-macos:
     name: Build macOS Universal Binary
-    needs: verify
+    needs: [preflight, verify]
     runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ needs.preflight.outputs.sha }}
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -212,7 +252,7 @@ jobs:
 
   build-linux:
     name: Build Linux Static Binary
-    needs: verify
+    needs: [preflight, verify]
     runs-on: ubuntu-latest
     # amoo's Swift code compiles on Linux even though iOS-simulator/Xcode-project features
     # (XcodeBuildKit, XcodeGenKit, XCUITest bridge) are functionally macOS-only at runtime —
@@ -225,7 +265,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ needs.preflight.outputs.sha }}
 
       - name: Install protoc
         run: |
@@ -305,14 +345,18 @@ jobs:
 
   publish:
     name: Create GitHub Release
-    needs: [build-macos, build-linux]
+    needs: [preflight, build-macos, build-linux]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ needs.preflight.outputs.sha }}
+          # Full history and tags: the release notes are generated from the commits in the range
+          # `previous-tag..this-release`, which needs more than the default single-commit clone.
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
@@ -324,11 +368,20 @@ jobs:
         with:
           name: linux-static
 
+      - name: Generate release notes
+        run: |
+          python3 scripts/ci/release-notes.py "${RELEASE_VERSION}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --output release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
-          generate_release_notes: true
+          # Only consulted when the tag doesn't exist yet (a bootstrapping dispatch), where it pins
+          # the new tag to the commit these binaries were built from.
+          target_commitish: ${{ needs.preflight.outputs.sha }}
+          body_path: release-notes.md
           files: |
             amoo-*-macos-universal.tar.gz
             amoo-*-linux-static.tar.gz

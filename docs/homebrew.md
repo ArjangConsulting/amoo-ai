@@ -8,7 +8,8 @@ Use this checklist when publishing `amoo` to the Homebrew tap.
 
 - `ArjangConsulting/amoo-ai` is public.
 - The tap repository `ArjangConsulting/homebrew-tap` exists.
-- The release tag exists in this repository.
+- The release tag exists in this repository, unless you are cutting a new version through the
+  manual dispatch below.
 
 ## Pre-Tag Validation
 
@@ -31,6 +32,29 @@ amoo uses plain semantic-version tags, not `v`-prefixed tags:
 ```bash
 git tag <version>
 git push origin <version>
+```
+
+Pushing the tag runs the `Release` workflow for it. Alternatively, run the workflow manually with
+`version: <version>` (`gh workflow run release.yml -f version=<version>`). A manual run resolves the
+version to its tag when the tag exists, so it rebuilds exactly what was tagged; when the tag does
+not exist yet it builds the dispatched ref and creates the tag once the binaries pass their smoke
+tests. Both paths refuse a version that is not a bare `MAJOR.MINOR.PATCH` tag.
+
+## Release Notes
+
+The workflow does not use GitHub's `generate_release_notes`: that generator only lists merged pull
+requests, and this repository is trunk-based, so it produced notes with nothing but a "Full
+Changelog" line. `scripts/ci/release-notes.py` renders the notes from the commits in
+`<previous-tag>..<release>` instead, grouped by conventional-commit type (`feat` → Added, `fix` →
+Fixed, `perf` → Performance, `refactor`/`revert` → Changed, `docs` → Documentation,
+`build`/`ci`/`chore`/`test`/`style` → Maintenance), with `!`/`BREAKING CHANGE:` commits pulled into a
+Breaking Changes section up top. Subjects without a conventional prefix — common in this history —
+keep their subject verbatim under Other rather than being dropped.
+
+Preview the notes for a pending release locally:
+
+```bash
+python3 scripts/ci/release-notes.py <version> --repo ArjangConsulting/amoo-ai
 ```
 
 ## Tap Update Is Automated
