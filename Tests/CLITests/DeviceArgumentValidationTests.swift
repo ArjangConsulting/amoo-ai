@@ -16,6 +16,16 @@ final class DeviceArgumentValidationTests: XCTestCase {
         XCTAssertNil(unknownArgumentMessage(tool: "device_launch_app", arguments: ["app_id": "com.example.app"]))
     }
 
+    func testDocumentedLaunchFlagsPassParsingAndSchemaValidation() throws {
+        let options = try parseDeviceCommandOptions(args: [
+            "--platform", "ios", "--device", "phone", "--port", "22093", "--lease", "owned",
+            "device_launch_app", "app_id=com.example.app", "--arg", "-UITest", "--arg", "fast",
+            "--env", "UITEST=1"
+        ]).get()
+        XCTAssertEqual(options.arguments["launch_args"], "-UITest,fast")
+        XCTAssertNil(unknownArgumentMessage(tool: options.tool, arguments: options.arguments))
+    }
+
     func testArgumentlessToolSaysSo() throws {
         let message = try XCTUnwrap(unknownArgumentMessage(tool: "press_home", arguments: ["force": "true"]))
         XCTAssertTrue(message.hasSuffix("It takes no arguments."), message)
