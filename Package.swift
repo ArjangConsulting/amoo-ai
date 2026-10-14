@@ -143,6 +143,7 @@ let package = Package(
                 .product(name: "XcodeGenKit", package: "cli-wrappers"),
                 .product(name: "MobileCore", package: "mobile-kits"),
                 .product(name: "MobileDevices", package: "mobile-kits"),
+                .product(name: "MobileProject", package: "mobile-kits"),
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
