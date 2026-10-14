@@ -53,7 +53,11 @@ func runEnvUp(
     let finish: (Int32) -> CLIResult = { code in
         CLIResult(output: options.json ? renderJSON(report) : report.humanSummary, exitCode: code)
     }
-    let store = options.ttlMinutes.map { DeviceLeaseStore(directory: store.directory, ttl: Double($0) * 60) } ?? store
+    let store = options.ttlMinutes.map {
+        DeviceLeaseStore(directory: store.directory, ttl: Double($0) * 60, reaper: store.reaper)
+    } ?? store
+    // `env up` takes devices, so it clears what expired leases left running; listing never does.
+    store.reapExpired()
 
     let device: EnvDeviceReport
     do {

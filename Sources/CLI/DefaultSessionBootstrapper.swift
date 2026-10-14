@@ -63,6 +63,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         // this server was started with that lease in AMOO_LEASE.
         try Task.checkCancellation()
         let claim = try SessionDeviceClaim(deviceID: available.deviceID, store: leaseStore)
+        leaseStore.reapIfExpired(deviceID: available.deviceID)
         try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
         let installAndroidBuild = try await androidBuild
         let owner = try await Self.leases.acquire(deviceKey)
