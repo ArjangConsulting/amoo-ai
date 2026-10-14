@@ -76,10 +76,74 @@ final class DeviceLeaseTests: XCTestCase {
             now: past
         )
 
-        XCTAssertTrue(store.all().isEmpty)
+        XCTAssertEqual(store.reapExpired().map(\.id), [lease.id])
         XCTAssertEqual(reaped.ids, [lease.id])
-        XCTAssertTrue(store.all().isEmpty)
+        XCTAssertTrue(store.reapExpired().isEmpty)
         XCTAssertEqual(reaped.ids, [lease.id], "the file is gone, so it is reaped only once")
+    }
+
+    /// Regression: `env list`, `doctor` and access checks reaped expired leases as a side effect.
+    func testReadingAnExpiredLeaseNeitherReapsNorRemovesIt() throws {
+        let reaped = ReapRecorder()
+        let store = DeviceLeaseStore.temporary(ttl: 60) { reaped.record($0.id) }
+        let past = Date().addingTimeInterval(-3600)
+        let lease = try store.acquire(
+            platform: .android,
+            deviceID: "emulator-5554",
+            deviceName: nil,
+            owner: nil,
+            now: past
+        )
+
+        XCTAssertTrue(store.all().isEmpty)
+        XCTAssertNil(store.lease(forDevice: "emulator-5554"))
+        XCTAssertNil(store.lease(id: lease.id))
+        XCTAssertEqual(store.access(deviceID: "emulator-5554", lease: nil), .free)
+        XCTAssertTrue(reaped.ids.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.fileURL(deviceID: "emulator-5554").path))
+    }
+
+    func testAcquiringADeviceReapsItsExpiredLease() throws {
+        let reaped = ReapRecorder()
+        let store = DeviceLeaseStore.temporary(ttl: 60) { reaped.record($0.id) }
+        let past = Date().addingTimeInterval(-3600)
+        let expired = try store.acquire(
+            platform: .android,
+            deviceID: "emulator-5554",
+            deviceName: nil,
+            owner: nil,
+            now: past
+        )
+
+        let fresh = try store.acquire(platform: .android, deviceID: "emulator-5554", deviceName: nil, owner: nil)
+        XCTAssertEqual(reaped.ids, [expired.id])
+        XCTAssertEqual(store.lease(forDevice: "emulator-5554")?.id, fresh.id)
+    }
+
+    func testReapingSkipsADeviceAnotherSessionIsDriving() throws {
+        let reaped = ReapRecorder()
+        let store = DeviceLeaseStore.temporary(ttl: 60) { reaped.record($0.id) }
+        let past = Date().addingTimeInterval(-3600)
+        _ = try store.acquire(platform: .android, deviceID: "emulator-5554", deviceName: nil, owner: nil, now: past)
+        let claim = try SessionDeviceClaim(deviceID: "emulator-5554", store: store)
+        defer { claim.release() }
+
+        XCTAssertTrue(store.reapExpired().isEmpty)
+        XCTAssertTrue(reaped.ids.isEmpty)
+    }
+
+    func testOwnerCanReleaseItsExpiredLease() throws {
+        let store = DeviceLeaseStore.temporary(ttl: 60)
+        let past = Date().addingTimeInterval(-3600)
+        let lease = try store.acquire(
+            platform: .android,
+            deviceID: "emulator-5554",
+            deviceName: nil,
+            owner: nil,
+            now: past
+        )
+        store.release(lease)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL(deviceID: "emulator-5554").path))
     }
 
     func testHolderCommandMatchingGuardsAgainstPIDReuse() {

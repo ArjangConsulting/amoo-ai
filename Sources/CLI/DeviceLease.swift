@@ -93,28 +93,37 @@ struct DeviceLeaseStore {
             .appendingPathComponent(".amoo/leases", isDirectory: true)
     }
 
-    /// Active (unexpired) leases. Expired files are removed as they are found.
+    /// Active (unexpired) leases. Read-only: an expired lease is skipped, never reaped or removed,
+    /// so listing or checking access cannot stop another caller's companion. Cleanup belongs to
+    /// the paths that take a device (`acquire`, `reapExpired`, `reapIfExpired(deviceID:)`).
     func all(now: Date = Date()) -> [DeviceLease] {
-        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
-        return files.filter { $0.pathExtension == "json" }.compactMap { url in
-            guard let lease = read(url) else { return nil }
-            if lease.isExpired(at: now) {
-                reaper(lease)
-                try? FileManager.default.removeItem(at: url)
-                return nil
-            }
-            return lease
-        }.sorted { $0.createdAt < $1.createdAt }
+        stored().filter { !$0.isExpired(at: now) }.sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// The device's active lease. Read-only, like `all`.
     func lease(forDevice deviceID: String, now: Date = Date()) -> DeviceLease? {
-        let url = fileURL(deviceID: deviceID)
-        guard let lease = read(url) else { return nil }
-        if lease.isExpired(at: now) {
-            reaper(lease)
-            try? FileManager.default.removeItem(at: url)
-            return nil
+        read(fileURL(deviceID: deviceID)).flatMap { $0.isExpired(at: now) ? nil : $0 }
+    }
+
+    /// Reaps every expired lease whose device no session is driving. Each device is re-read under
+    /// its `SessionDeviceClaim`, so a lease taken in the meantime is never removed.
+    @discardableResult
+    func reapExpired(now: Date = Date()) -> [DeviceLease] {
+        stored().filter { $0.isExpired(at: now) }.compactMap { expired in
+            guard let claim = try? SessionDeviceClaim(deviceID: expired.deviceID, store: self) else { return nil }
+            defer { claim.release() }
+            return reapIfExpired(deviceID: expired.deviceID, now: now)
         }
+    }
+
+    /// Stops what the device's expired lease left running, then removes its file. The caller must
+    /// hold the device's `SessionDeviceClaim`, so no other process can take the device meanwhile.
+    @discardableResult
+    func reapIfExpired(deviceID: String, now: Date = Date()) -> DeviceLease? {
+        let url = fileURL(deviceID: deviceID)
+        guard let lease = read(url), lease.isExpired(at: now) else { return nil }
+        reaper(lease)
+        try? FileManager.default.removeItem(at: url)
         return lease
     }
 
@@ -137,6 +146,7 @@ struct DeviceLeaseStore {
     ) throws -> DeviceLease {
         let claim = try SessionDeviceClaim(deviceID: deviceID, store: self)
         defer { claim.release() }
+        reapIfExpired(deviceID: deviceID, now: now)
         if let existing = lease(forDevice: deviceID, now: now) {
             throw DeviceLeaseError.leasedByOther(existing)
         }
@@ -176,7 +186,8 @@ struct DeviceLeaseStore {
     }
 
     func release(_ lease: DeviceLease) {
-        guard self.lease(forDevice: lease.deviceID)?.id == lease.id else { return }
+        // Raw read: an owner may release its own lease after it expired.
+        guard read(fileURL(deviceID: lease.deviceID))?.id == lease.id else { return }
         try? FileManager.default.removeItem(at: fileURL(deviceID: lease.deviceID))
     }
 
@@ -190,6 +201,12 @@ struct DeviceLeaseStore {
     func fileURL(deviceID: String) -> URL {
         let safe = deviceID.map { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "." ? $0 : "_" }
         return directory.appendingPathComponent(String(safe) + ".json")
+    }
+
+    /// Every readable lease file, expired or not.
+    private func stored() -> [DeviceLease] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.pathExtension == "json" }.compactMap(read)
     }
 
     private func read(_ url: URL) -> DeviceLease? {
