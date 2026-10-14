@@ -9,6 +9,11 @@ struct InitSavedLocations: Equatable {
     var appPath: String?
     var appID: String?
     var manifestDirectory: String?
+    var additionalLocations: [Self] = []
+
+    func forPlatform(_ platform: Platform) -> Self? {
+        ([self] + additionalLocations).first { $0.platform == platform || $0.platform == nil }
+    }
 }
 
 private let blockStart = "<!-- amoo:init:start -->"
@@ -32,18 +37,25 @@ func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: Stri
         "",
         "Written by `amoo init`; re-run it to update. Build the app externally: init never rebuilds it."
     ]
-    if let platform = saved.platform {
-        lines.append("- Platform: `\(platform.rawValue)`")
-    }
-    if let app = saved.appPath {
-        lines.append("- App artifact: `\(portableInitPath(app, relativeTo: base))`")
-    }
-    if let appID = saved.appID {
-        lines.append("- App ID: `\(appID)`")
-    }
-    if let directory = saved.manifestDirectory {
-        lines
-            .append("- Manifests: `\(portableInitPath(directory, relativeTo: base))` (lease credentials; never commit)")
+    for location in [saved] + saved.additionalLocations {
+        if !saved.additionalLocations.isEmpty, let platform = location.platform {
+            lines += ["", "### \(platform == .ios ? "iOS" : "Android")", ""]
+        }
+        if let platform = location.platform {
+            lines.append("- Platform: `\(platform.rawValue)`")
+        }
+        if let app = location.appPath {
+            lines.append("- App artifact: `\(portableInitPath(app, relativeTo: base))`")
+        }
+        if let appID = location.appID {
+            lines.append("- App ID: `\(appID)`")
+        }
+        if let directory = location.manifestDirectory {
+            lines
+                .append(
+                    "- Manifests: `\(portableInitPath(directory, relativeTo: base))` (lease credentials; never commit)"
+                )
+        }
     }
     lines.append("- Prepare devices: `amoo init` (guided) or `amoo init --help`")
     lines.append(blockEnd)
@@ -67,6 +79,7 @@ func parseInitLocations(from text: String, relativeTo base: String) -> InitSaved
           let end = text.range(of: blockEnd, range: start.upperBound ..< text.endIndex)
     else { return nil }
     var saved = InitSavedLocations()
+    var locations: [InitSavedLocations] = []
     func resolved(_ raw: String) -> String {
         absoluteInitPath(raw, workingDirectory: base)
     }
@@ -75,12 +88,22 @@ func parseInitLocations(from text: String, relativeTo base: String) -> InitSaved
         guard parts.count >= 3 else { continue }
         let value = String(parts[1])
         switch true {
-        case line.hasPrefix("- Platform:"): saved.platform = Platform(rawValue: value)
+        case line.hasPrefix("- Platform:"):
+            if saved.platform != nil {
+                locations.append(saved)
+                saved = InitSavedLocations()
+            }
+            saved.platform = Platform(rawValue: value)
         case line.hasPrefix("- App artifact:"): saved.appPath = resolved(value)
         case line.hasPrefix("- App ID:"): saved.appID = value
         case line.hasPrefix("- Manifests:"): saved.manifestDirectory = resolved(value)
         default: continue
         }
+    }
+    if !locations.isEmpty {
+        locations.append(saved)
+        saved = locations.removeFirst()
+        saved.additionalLocations = locations
     }
     return saved
 }
@@ -93,6 +116,17 @@ func readInitLocations(agentsFile: String) -> InitSavedLocations? {
 func saveInitLocations(_ saved: InitSavedLocations, agentsFile: String) throws {
     let base = URL(fileURLWithPath: agentsFile).deletingLastPathComponent().path
     let existing = (try? String(contentsOfFile: agentsFile, encoding: .utf8)) ?? ""
-    let updated = upsertInitBlock(into: existing, block: renderInitLocationsBlock(saved, relativeTo: base))
+    var merged = saved
+    let incoming = [saved] + saved.additionalLocations
+    if let previous = parseInitLocations(from: existing, relativeTo: base) {
+        merged.additionalLocations += ([previous] + previous.additionalLocations).filter { location in
+            !incoming.contains { $0.platform == location.platform }
+        }.map { location in
+            var entry = location
+            entry.additionalLocations = []
+            return entry
+        }
+    }
+    let updated = upsertInitBlock(into: existing, block: renderInitLocationsBlock(merged, relativeTo: base))
     try updated.write(toFile: agentsFile, atomically: true, encoding: .utf8)
 }

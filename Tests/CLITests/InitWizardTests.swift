@@ -5,6 +5,30 @@ import TestCommons
 import XCTest
 
 final class InitWizardTests: InitTestCase {
+    func testBothPlatformsCollectSeparateArtifactsAndManifests() async throws {
+        let scratch = try makeScratchDirectory()
+        let app = try makeApp(in: scratch)
+        let apk = scratch.url.appendingPathComponent("app.apk").path
+        try Data("apk".utf8).write(to: URL(fileURLWithPath: apk))
+        let found = InitDiscovery(
+            devices: { platform in [self.candidate(platform == .ios ? "phone" : "emulator")] },
+            apps: { $0 == .ios ? [app] : [apk] },
+            bundleID: { _, _ in "com.jot" }
+        )
+        let prompter = ScriptedPrompter()
+        prompter.choices = [2, 2, 0, 0] // both, Flutter, iOS artifact, Android artifact
+        let completed = try await completeInitRequest(InitRequest(), discovery: found, prompter: prompter)
+        let android = try XCTUnwrap(completed.additionalRequests.first)
+        XCTAssertEqual(completed.platform, .ios)
+        XCTAssertEqual(android.platform, .android)
+        XCTAssertEqual(completed.appPath, app)
+        XCTAssertEqual(android.appPath, apk)
+        XCTAssertEqual(completed.devices, ["phone"])
+        XCTAssertEqual(android.devices, ["emulator"])
+        XCTAssertNotEqual(completed.out, android.out)
+        XCTAssertTrue(prompter.transcript.joined().contains("flutter-apk"))
+    }
+
     func testGuidedFlowAsksOnlyForWhatIsMissingAndRecordsLocations() async throws {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
@@ -12,7 +36,7 @@ final class InitWizardTests: InitTestCase {
         try "# Repo\n\nKeep me.\n".write(toFile: agents, atomically: true, encoding: .utf8)
         let out = scratch.url.appendingPathComponent("manifests/run.json").path
         let prompter = ScriptedPrompter()
-        prompter.choices = [0, 0] // platform: iOS, app: first found
+        prompter.choices = [0, 0, 0] // platform: iOS, app: first found
         prompter.multi = [[0, 1]] // both devices
         prompter.asks = ["", "", out] // app id (detected), owner (default), manifest path
         var setups: [EnvUpOptions] = []
@@ -82,6 +106,49 @@ final class InitWizardTests: InitTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: agents), "nothing is saved unless the run proceeds")
     }
 
+    func testSavingBothPlatformsPreservesLocationsAndRestoresMatchingDefaults() async throws {
+        let scratch = try makeScratchDirectory()
+        let agents = scratch.url.appendingPathComponent("AGENTS.md").path
+        try "# Keep this\n".write(toFile: agents, atomically: true, encoding: .utf8)
+        let app = try makeApp(in: scratch)
+        let apk = scratch.url.appendingPathComponent("app.apk").path
+        try Data("apk".utf8).write(to: URL(fileURLWithPath: apk))
+        let ios = InitSavedLocations(
+            platform: .ios, appPath: app, appID: "com.ios", manifestDirectory: scratch.url.path + "/ios"
+        )
+        let android = InitSavedLocations(
+            platform: .android, appPath: apk, appID: "com.android", manifestDirectory: scratch.url.path + "/android"
+        )
+        try saveInitLocations(ios, agentsFile: agents)
+        try saveInitLocations(android, agentsFile: agents)
+        try saveInitLocations(ios, agentsFile: agents)
+        let saved = try XCTUnwrap(readInitLocations(agentsFile: agents))
+        XCTAssertEqual(saved.forPlatform(.android), android)
+        XCTAssertEqual(saved.forPlatform(.ios)?.appPath, app)
+        let text = try String(contentsOfFile: agents, encoding: .utf8)
+        XCTAssertTrue(text.hasPrefix("# Keep this\n"))
+        XCTAssertEqual(text.components(separatedBy: "amoo:init:start").count, 2)
+        for platform in [Platform.ios, .android] {
+            let prompter = ScriptedPrompter()
+            var request = InitRequest()
+            request.platform = platform
+            request.devices = ["phone"]
+            let restored = try await completeInitRequest(
+                request,
+                discovery: discovery(devices: [candidate("phone")]),
+                prompter: prompter,
+                saved: saved
+            )
+            let expected = platform == .ios ? ios : android
+            XCTAssertEqual(restored.appPath, expected.appPath)
+            XCTAssertEqual(restored.appID, expected.appID)
+            XCTAssertEqual(
+                restored.out.map { URL(fileURLWithPath: $0).deletingLastPathComponent().path },
+                expected.manifestDirectory
+            )
+        }
+    }
+
     func testSavedLocationsAreRemembered() {
         let base = "/repo"
         let saved = InitSavedLocations(
@@ -144,7 +211,7 @@ final class InitWizardTests: InitTestCase {
         let app = try makeApp(in: scratch)
         let prompter = ScriptedPrompter()
         prompter.multi = [[0], [1, 2]] // devices: first; AI clients: Cursor + Codex
-        prompter.choices = [0, 0, 1] // platform, app, scope = home directory
+        prompter.choices = [0, 0, 0, 1] // platform, app, scope = home directory
         prompter.confirms = [true, true, true, true, true] // launch, skills?, install files?, save, proceed
         prompter.asks = ["", "", scratch.url.appendingPathComponent("m.json").path]
         var installed: [AgentInstallOptions] = []
