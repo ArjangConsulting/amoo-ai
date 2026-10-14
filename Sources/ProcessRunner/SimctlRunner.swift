@@ -83,6 +83,9 @@ public struct SimctlRunner: SimctlRunning {
         try await translatingMobileKitErrors { try await simulators.shutdown(device) }
     }
 
+    /// Stays on the raw wrapper: the protocol returns simctl's JSON verbatim for the CLI's own
+    /// parsers (`DeviceSelector`, `CompanionManager`, preflight), and `SimulatorManager.list`
+    /// returns a lossy `[Simulator]` model, so delegating would change what callers receive.
     public func listDevices() async throws -> String {
         let result = try await run(.list(.devices, json: true, searchTerm: "available"))
         return result.stdout
@@ -120,76 +123,68 @@ public struct SimctlRunner: SimctlRunning {
     }
 
     public func listApps(device: String) async throws -> String {
-        let result = try await run(.custom("listapps", arguments: [device]))
-        return result.stdout
+        try await translatingMobileKitErrors { try await simulators.listApps(on: device) }
     }
 
     // MARK: - Capture
 
     public func screenshot(device: String, format: ImageFormat = .png) async throws -> Data {
-        let tmpPath = NSTemporaryDirectory() + "screenshot_\(UUID().uuidString).\(format.rawValue)"
-        _ = try await run(
-            .io(device, command: "screenshot", arguments: ["--type=\(format.rawValue)", tmpPath])
-        )
-        let data = try Data(contentsOf: URL(fileURLWithPath: tmpPath))
-        try? FileManager.default.removeItem(atPath: tmpPath)
-        return data
+        try await translatingMobileKitErrors {
+            try await simulators.screenshot(device, format: format.simulatorFormat)
+        }
     }
 
     public func startRecording(device: String, outputPath: String) async throws -> Int32 {
-        let process = try await Simctl(context: context)
-            .command(
-                .io(device, command: "recordVideo", arguments: ["--codec=h264", "--force", outputPath])
-            )
-            .spawn(teardown: .interruptThenTerminate)
-        await SimctlRecordingRegistry.shared.register(process)
-        return process.processIdentifier
+        try await translatingMobileKitErrors {
+            try await simulators.startRecording(on: device, to: outputPath)
+        }
     }
 
     public func stopRecording(pid: Int32) async throws {
-        if let process = await SimctlRecordingRegistry.shared.remove(pid: pid) {
-            try await process.interrupt()
-            _ = await process.waitForExit()
-            return
-        }
-
-        _ = try await SystemProcessRunner(context: context).run(["kill", "-INT", String(pid)])
+        try await translatingMobileKitErrors { try await simulators.stopRecording(pid: pid) }
     }
 
     // MARK: - Configuration
 
     public func setPermission(device: String, action: String, permission: String, appID: String)
         async throws {
-        _ = try await run(
-            .privacy(device, action: action, service: permission, bundleIdentifier: appID)
-        )
+        guard let privacyAction = SimulatorPrivacyAction(rawValue: action) else {
+            let supported = SimulatorPrivacyAction.allCases.map(\.rawValue).joined(separator: ", ")
+            throw ProcessRunnerError.nonZeroExit(
+                command: "xcrun simctl privacy \(device) \(action) \(permission) \(appID)",
+                exitCode: 64,
+                stderr: "Unknown permission action '\(action)'; expected one of: \(supported)."
+            )
+        }
+        try await translatingMobileKitErrors {
+            try await simulators.privacy(privacyAction, service: permission, bundleID: appID, on: device)
+        }
     }
 
     public func setLocation(device: String, latitude: Double, longitude: Double) async throws {
-        _ = try await run(.location(device, action: "set", arguments: ["\(latitude),\(longitude)"]))
+        try await translatingMobileKitErrors {
+            try await simulators.setLocation(latitude: latitude, longitude: longitude, on: device)
+        }
     }
 
     public func clearLocation(device: String) async throws {
-        _ = try await run(.location(device, action: "clear"))
+        try await translatingMobileKitErrors { try await simulators.clearLocation(on: device) }
     }
 
     public func setAppearance(device: String, appearance: Appearance) async throws {
-        _ = try await run(.ui(device, arguments: ["appearance", appearance.rawValue]))
+        try await translatingMobileKitErrors {
+            try await simulators.setAppearance(appearance.simulatorAppearance, on: device)
+        }
     }
 
     public func openURL(device: String, url: String) async throws {
-        _ = try await run(.openURL(device, url))
+        try await translatingMobileKitErrors { try await simulators.openURL(url, on: device) }
     }
 
     // MARK: - App Inspection
 
     public func listInstalledAppIDs(device: String) async throws -> [String] {
-        let result = try await run(.custom("listapps", arguments: [device]))
-        guard let data = result.stdout.data(using: .utf8),
-              let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil),
-              let dict = plist as? [String: Any]
-        else { return [] }
-        return Array(dict.keys)
+        try await translatingMobileKitErrors { try await simulators.installedAppBundleIDs(on: device) }
     }
 
     private func run(_ command: SimctlCommand) async throws -> ProcessResult {
@@ -212,17 +207,21 @@ private func processRunnerError(_ error: ShellError, command: String) -> Error {
     return error
 }
 
-private actor SimctlRecordingRegistry {
-    static let shared = SimctlRecordingRegistry()
-
-    private var processes: [Int32: any SpawnedProcess] = [:]
-
-    func register(_ process: any SpawnedProcess) {
-        processes[process.processIdentifier] = process
+private extension ImageFormat {
+    var simulatorFormat: SimulatorImageFormat {
+        switch self {
+        case .png: .png
+        case .jpeg: .jpeg
+        }
     }
+}
 
-    func remove(pid: Int32) -> (any SpawnedProcess)? {
-        processes.removeValue(forKey: pid)
+private extension Appearance {
+    var simulatorAppearance: SimulatorAppearance {
+        switch self {
+        case .light: .light
+        case .dark: .dark
+        }
     }
 }
 
