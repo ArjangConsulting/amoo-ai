@@ -2,7 +2,7 @@ import AmooCore
 import Foundation
 import SwiftyShell
 #if os(macOS)
-import ShipItKit
+import XcrunKit
 #endif
 
 public protocol SimctlRunning: Sendable {

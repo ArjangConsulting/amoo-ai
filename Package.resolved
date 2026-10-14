@@ -1,6 +1,15 @@
 {
-  "originHash" : "ca503c5f8dd0a97c9730e11267064ab61b01bb8aa1c9ad53fc7bc53821173973",
+  "originHash" : "2ef767e43ccd9affb86f42f50770f8eacf46d6573285223818824af02b649fae",
   "pins" : [
+    {
+      "identity" : "cli-wrappers",
+      "kind" : "localSourceControl",
+      "location" : "https://github.com/ShipItSwifty/cli-wrappers.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a9ef8c9958b3abc942a2addd0c6f299962973ed4"
+      }
+    },
     {
       "identity" : "eventsource",
       "kind" : "remoteSourceControl",
@@ -38,39 +47,12 @@
       }
     },
     {
-      "identity" : "jwt-kit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/vapor/jwt-kit",
-      "state" : {
-        "revision" : "1b55c7529eff82cd9fa907e67a539404459a02e6",
-        "version" : "5.7.1"
-      }
-    },
-    {
-      "identity" : "shipitswifty",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ShipItSwifty/shipitswifty.git",
-      "state" : {
-        "revision" : "d481fd630e55670c252a1113dd20fb48ee19786e",
-        "version" : "0.6.1"
-      }
-    },
-    {
       "identity" : "swift-algorithms",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-algorithms.git",
       "state" : {
         "revision" : "87e50f483c54e6efd60e885f7f5aa946cee68023",
         "version" : "1.2.1"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
-      "state" : {
-        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
-        "version" : "1.8.2"
       }
     },
     {
@@ -168,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
-        "version" : "1.15.1"
+        "revision" : "4038b6a4f74a1426f47eb1dd5b4bb5628a15d597",
+        "version" : "1.16.1"
       }
     },
     {
@@ -287,15 +269,6 @@
       "state" : {
         "revision" : "0d3a46717bdd0fdd71da20e44ea8b8dfc703cb68",
         "version" : "0.7.0"
-      }
-    },
-    {
-      "identity" : "yams",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jpsim/Yams",
-      "state" : {
-        "revision" : "a27b21e0c81c5bf42049b897a62aaf387e80f279",
-        "version" : "6.2.2"
       }
     }
   ],

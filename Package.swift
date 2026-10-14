@@ -34,7 +34,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.2"),
         .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
-        .package(url: "https://github.com/ShipItSwifty/shipitswifty.git", from: "0.6.0"),
+        // Typed tool wrappers (xcrun/simctl, Gradle, adb, …). Tracks main until it reaches 1.0.
+        .package(url: "https://github.com/ShipItSwifty/cli-wrappers.git", branch: "main"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
@@ -74,9 +75,10 @@ let package = Package(
             dependencies: [
                 "AmooCore",
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
-                .product(name: "ShipItKit", package: "ShipItSwifty"),
-                .product(name: "GradleKit", package: "ShipItSwifty"),
-                .product(name: "AndroidCLIKit", package: "ShipItSwifty")
+                .product(name: "XcrunKit", package: "cli-wrappers"),
+                .product(name: "GradleKit", package: "cli-wrappers"),
+                .product(name: "AdbKit", package: "cli-wrappers"),
+                .product(name: "AndroidCLIKit", package: "cli-wrappers")
             ]
         ),
         .target(name: "WebInspector"),
@@ -133,9 +135,10 @@ let package = Package(
                 "StudioProtocol",
                 "TestCodeGenerator",
                 "WebInspector",
-                .product(name: "GradleKit", package: "ShipItSwifty"),
-                .product(name: "XcodeBuildKit", package: "ShipItSwifty"),
-                .product(name: "XcodeGenKit", package: "ShipItSwifty"),
+                .product(name: "AdbKit", package: "cli-wrappers"),
+                .product(name: "GradleKit", package: "cli-wrappers"),
+                .product(name: "XcodeBuildKit", package: "cli-wrappers"),
+                .product(name: "XcodeGenKit", package: "cli-wrappers"),
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
