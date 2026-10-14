@@ -3,11 +3,11 @@
   "pins" : [
     {
       "identity" : "cli-wrappers",
-      "kind" : "localSourceControl",
+      "kind" : "remoteSourceControl",
       "location" : "https://github.com/ShipItSwifty/cli-wrappers.git",
       "state" : {
         "branch" : "main",
-        "revision" : "40b8d9fd8f7cc0ac3624dd1c05ccf97b65228a3f"
+        "revision" : "aad3afa18dd8161f64837838aadcae0b5daf9754"
       }
     },
     {
@@ -48,11 +48,11 @@
     },
     {
       "identity" : "mobile-kits",
-      "kind" : "localSourceControl",
+      "kind" : "remoteSourceControl",
       "location" : "https://github.com/ShipItSwifty/mobile-kits.git",
       "state" : {
         "branch" : "main",
-        "revision" : "88ebf5b493152b2cabdfe042e90e1e6d59b05094"
+        "revision" : "d9d8fa004d80f2c04e16d69c8ae3af1809f06884"
       }
     },
     {
