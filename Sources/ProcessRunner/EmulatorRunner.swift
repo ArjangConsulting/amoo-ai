@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import SwiftyShell
 #if canImport(Darwin)
 import Darwin
@@ -78,15 +79,13 @@ public struct EmulatorRunner: EmulatorRunning {
 
     public func launchProcess(avdName: String, port: Int) async throws -> EmulatorLaunch? {
         let log = NSTemporaryDirectory() + "amoo-emulator-\(port).log"
-        let pid = try await DetachedProcess.spawn(
-            Self.launchArguments(avdName: avdName, port: port),
-            logPath: log,
-            context: context
-        )
-        return EmulatorLaunch(pid: pid, logPath: log)
-    }
-
-    public static func launchArguments(avdName: String, port: Int) -> [String] {
-        ["emulator", "-avd", avdName, "-port", String(port), "-no-snapshot-save"]
+        // `.loadOnly` quick-boots from the snapshot but never saves one, so device state does not
+        // accumulate between runs (`-no-snapshot-save`).
+        let instance = try await translatingMobileKitErrors {
+            try await AndroidEmulatorManager(shell: context).start(
+                avd: avdName, options: .init(snapshot: .loadOnly, port: port), logPath: log
+            )
+        }
+        return EmulatorLaunch(pid: instance.pid, logPath: instance.logPath)
     }
 }

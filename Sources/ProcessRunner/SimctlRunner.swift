@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import SwiftyShell
 #if os(macOS)
+import MobileDevices
 import XcrunKit
 #endif
 
@@ -50,6 +51,10 @@ public struct SimctlRunner: SimctlRunning {
         self.context = context
     }
 
+    private var simulators: SimulatorManager {
+        SimulatorManager(shell: context)
+    }
+
     @discardableResult
     public func run(_ arguments: [String]) async throws -> ProcessResult {
         guard let subcommand = arguments.first else {
@@ -75,7 +80,7 @@ public struct SimctlRunner: SimctlRunning {
     }
 
     public func shutdown(device: String = "booted") async throws {
-        _ = try await run(.shutdown([device]))
+        try await translatingMobileKitErrors { try await simulators.shutdown(device) }
     }
 
     public func listDevices() async throws -> String {
@@ -86,7 +91,7 @@ public struct SimctlRunner: SimctlRunning {
     // MARK: - App Management
 
     public func install(device: String, appPath: String) async throws {
-        _ = try await run(.install(device, appAt: appPath))
+        try await translatingMobileKitErrors { try await simulators.install(appAt: appPath, on: device) }
     }
 
     public func launch(
@@ -95,29 +100,23 @@ public struct SimctlRunner: SimctlRunning {
         arguments: [String] = [],
         environment: [String: String] = [:]
     ) async throws {
-        // `simctl` reads `SIMCTL_CHILD_<KEY>` from its own environment and
-        // re-exports them as `<KEY>` to the launched app. This is Apple's
-        // documented way to pass environment variables through `simctl launch`.
-        let childEnv = Dictionary(uniqueKeysWithValues: environment.map {
-            ("SIMCTL_CHILD_\($0.key)", $0.value)
-        })
-        // `--terminate-running-process`: launching must start a fresh process, as it does on a
-        // physical device (devicectl's `--terminate-existing`). Without it simctl re-activated a
-        // running app, so a "relaunch" silently kept the old process and its state — and a test
-        // relying on a clean launch measured the previous session instead.
-        _ = try await run(
-            .custom("launch", arguments: ["--terminate-running-process", device, appID]),
-            trailingArguments: arguments,
-            environment: childEnv
-        )
+        // `SimulatorManager` re-exports `environment` as `SIMCTL_CHILD_<KEY>` and passes
+        // `--terminate-running-process`, so launching starts a fresh process as it does on a
+        // physical device (devicectl's `--terminate-existing`) instead of re-activating a running
+        // app that keeps its old state.
+        _ = try await translatingMobileKitErrors {
+            try await simulators.launch(
+                bundleID: appID, on: device, arguments: arguments, environment: environment
+            )
+        }
     }
 
     public func terminate(device: String, appID: String) async throws {
-        _ = try await run(.terminate(device, bundleIdentifier: appID))
+        try await translatingMobileKitErrors { try await simulators.terminate(bundleID: appID, on: device) }
     }
 
     public func uninstall(device: String, appID: String) async throws {
-        _ = try await run(.uninstall(device, bundleIdentifier: appID))
+        try await translatingMobileKitErrors { try await simulators.uninstall(bundleID: appID, from: device) }
     }
 
     public func listApps(device: String) async throws -> String {
@@ -193,25 +192,12 @@ public struct SimctlRunner: SimctlRunning {
         return Array(dict.keys)
     }
 
-    private func run(
-        _ command: SimctlCommand,
-        trailingArguments: [String] = [],
-        environment: [String: String] = [:]
-    ) async throws -> ProcessResult {
+    private func run(_ command: SimctlCommand) async throws -> ProcessResult {
         do {
-            var builder = Simctl(context: context)
-                .command(command)
-                .args(trailingArguments)
-            if !environment.isEmpty {
-                builder = builder.env(environment)
-            }
-            return try await builder.run().processResult
+            return try await Simctl(context: context).command(command).run().processResult
         } catch let error as ShellError {
             throw processRunnerError(
-                error,
-                command: (["xcrun", "simctl"] + command.arguments + trailingArguments).joined(
-                    separator: " "
-                )
+                error, command: (["xcrun", "simctl"] + command.arguments).joined(separator: " ")
             )
         }
     }

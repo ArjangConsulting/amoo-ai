@@ -207,8 +207,8 @@ final class ProcessRunnerTests: XCTestCase {
 
         try await runner.install(serial: "emulator-5554", apkPath: "/tmp/app.apk")
         try await runner.launch(serial: nil, appID: "com.example.app")
-        try await runner.terminate(serial: nil, appID: "com.example.app")
-        try await runner.uninstall(serial: nil, appID: "com.example.app")
+        try await runner.terminate(serial: "emulator-5554", appID: "com.example.app")
+        try await runner.uninstall(serial: "emulator-5554", appID: "com.example.app")
         try await runner.clearAppData(serial: "emulator-5554", appID: "com.example.app")
 
         let commands = await mock.recordedCommands()
@@ -224,12 +224,51 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(
             commands[2], ["adb", "shell", "am", "start", "-n", "com.example.app/.RealLauncherActivity"]
         )
-        XCTAssertEqual(commands[3], ["adb", "shell", "am", "force-stop", "com.example.app"])
-        XCTAssertEqual(commands[4], ["adb", "uninstall", "com.example.app"])
+        XCTAssertEqual(
+            commands[3], ["adb", "-s", "emulator-5554", "shell", "am", "force-stop", "com.example.app"]
+        )
+        XCTAssertEqual(commands[4], ["adb", "-s", "emulator-5554", "uninstall", "com.example.app"])
         XCTAssertEqual(
             commands[5],
             ["adb", "-s", "emulator-5554", "shell", "pm", "clear", "com.example.app"]
         )
+    }
+
+    /// `adb` without `-s` picks the only attached device; `AndroidDeviceManager` needs a serial, so
+    /// the runner resolves that default itself.
+    func testADBRunnerResolvesTheOnlyDeviceWhenNoSerialIsGiven() async throws {
+        let mock = MockShellExecutor(results: [
+            .init(exitCode: 0, stdout: "List of devices attached\nemulator-5554 device model:sdk\n", stderr: ""),
+            .init(exitCode: 0, stdout: "", stderr: "")
+        ])
+
+        try await ADBRunner(context: mock.context).terminate(serial: nil, appID: "com.example.app")
+
+        let commands = await mock.recordedCommands()
+        XCTAssertEqual(commands[0], ["adb", "devices", "-l"])
+        XCTAssertEqual(
+            commands[1], ["adb", "-s", "emulator-5554", "shell", "am", "force-stop", "com.example.app"]
+        )
+    }
+
+    func testADBRunnerRefusesAnAmbiguousDefaultDevice() async throws {
+        let mock = MockShellExecutor(result: .init(
+            exitCode: 0,
+            stdout: "List of devices attached\nemulator-5554 device\nemulator-5556 device\n",
+            stderr: ""
+        ))
+
+        do {
+            try await ADBRunner(context: mock.context).uninstall(serial: nil, appID: "com.example.app")
+            XCTFail("Expected an ambiguous default device to fail")
+        } catch let error as ProcessRunnerError {
+            XCTAssertEqual(
+                error,
+                .nonZeroExit(command: "adb", exitCode: 1, stderr: "adb: more than one device/emulator")
+            )
+        }
+        let commands = await mock.recordedCommands()
+        XCTAssertEqual(commands.count, 1, "no mutation may run without a resolved device")
     }
 
     func testGradleProjectBuilderUsesShipItGradleKit() async throws {
