@@ -39,15 +39,12 @@ struct InitManifest: Codable {
             contents: Data(renderJSON(self).utf8),
             attributes: [.posixPermissions: 0o600]
         ) else { throw EnvCommandParseError.usage("Cannot create \(temporary.path).") }
-        do {
-            if FileManager.default.fileExists(atPath: url.path) {
-                _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary)
-            } else {
-                try FileManager.default.moveItem(at: temporary, to: url)
-            }
-        } catch {
+        // POSIX rename replaces atomically on every platform; Foundation's replaceItemAt fails on
+        // Linux (swift-corelibs-foundation) when the destination already exists.
+        guard rename(temporary.path, url.path) == 0 else {
+            let code = errno
             try? FileManager.default.removeItem(at: temporary)
-            throw error
+            throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
         }
     }
 }
