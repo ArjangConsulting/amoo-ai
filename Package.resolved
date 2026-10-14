@@ -1,5 +1,5 @@
 {
-  "originHash" : "e759b032f7b1977fcd25fd3c17b7153ccdf59b83da7d9d7f8dc299ac850a1519",
+  "originHash" : "a4e15869beb1b0151cef0498e6fb20b9eadacff73e45ac6bfaaa18202e692cd2",
   "pins" : [
     {
       "identity" : "cli-wrappers",
@@ -52,7 +52,7 @@
       "location" : "https://github.com/ShipItSwifty/mobile-kits.git",
       "state" : {
         "branch" : "main",
-        "revision" : "b2b07344a97432b93a4528a52670f29fbe6ec42c"
+        "revision" : "88ebf5b493152b2cabdfe042e90e1e6d59b05094"
       }
     },
     {
