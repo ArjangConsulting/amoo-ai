@@ -78,8 +78,11 @@ let package = Package(
                 "AmooCore",
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "XcrunKit", package: "cli-wrappers"),
+                .product(name: "DeviceCtlKit", package: "cli-wrappers"),
+                .product(name: "IProxyKit", package: "cli-wrappers"),
                 .product(name: "GradleKit", package: "cli-wrappers"),
                 .product(name: "AdbKit", package: "cli-wrappers"),
+                .product(name: "AVDManagerKit", package: "cli-wrappers"),
                 .product(name: "AndroidCLIKit", package: "cli-wrappers")
             ]
         ),

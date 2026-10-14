@@ -1,3 +1,4 @@
+import AVDManagerKit
 import SwiftyShell
 
 /// Typed process-layer boundary for Android Virtual Device creation.
@@ -15,14 +16,12 @@ public struct AndroidVirtualDeviceRunner: AndroidVirtualDeviceCreating {
 
     public func create(name: String, systemImage: String, deviceType: String) async throws {
         do {
-            let command = Command("avdmanager")
-                .args([
-                    "create", "avd", "--force",
-                    "--name", name,
-                    "--package", systemImage,
-                    "--device", deviceType
-                ])
-            _ = try await Command("printf").args(["no\n"]).pipe(to: command).run(in: context)
+            // avdmanager asks whether to create a custom hardware profile; answer no.
+            let command = AVDManager(context: context)
+                .createAVD(name: name, systemImage: systemImage, deviceProfile: deviceType, force: true)
+                .command()
+                .stdin(.string("no\n"))
+            _ = try await command.run(in: context)
         } catch let error as ShellError {
             if case let .exitFailure(_, output) = error {
                 throw ProcessRunnerError.nonZeroExit(
