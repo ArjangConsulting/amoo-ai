@@ -1,4 +1,5 @@
 import Foundation
+import MobileDevices
 
 /// Finds a JDK the Android companion's Gradle build can actually run on.
 ///
@@ -12,7 +13,8 @@ import Foundation
 /// the AGP 9 upgrade; the cap is now Gradle's.
 ///
 /// Rather than make every caller export `JAVA_HOME` by hand, the build entry points resolve a
-/// supported JDK themselves and hand it to Gradle.
+/// supported JDK themselves and hand it to Gradle. Discovery is MobileDevices' `JavaRuntimes`;
+/// the supported range is the companion's, so it lives here.
 enum AndroidJDK {
     /// Oldest JDK the companion's `sourceCompatibility`/`jvmTarget` of 17 can build on, and also
     /// AGP 9.3's own minimum.
@@ -20,12 +22,13 @@ enum AndroidJDK {
     /// Newest JVM Gradle 9.5 can run on.
     static let maximumMajorVersion = 26
 
-    /// Directories macOS installs JDKs into. `/usr/libexec/java_home` searches the same two.
+    static var supported: ClosedRange<Int> {
+        minimumMajorVersion ... maximumMajorVersion
+    }
+
+    /// Directories JDKs install into on this host (`JavaRuntimes.defaultSearchPaths`).
     static func defaultSearchPaths(homeDirectory: String = NSHomeDirectory()) -> [String] {
-        [
-            "/Library/Java/JavaVirtualMachines",
-            homeDirectory + "/Library/Java/JavaVirtualMachines"
-        ]
+        JavaRuntimes.defaultSearchPaths(homeDirectory: homeDirectory)
     }
 
     /// The `JAVA_HOME` to run Gradle with, or `nil` to leave the caller's environment alone.
@@ -37,16 +40,8 @@ enum AndroidJDK {
         searchPaths: [String] = defaultSearchPaths(),
         fileManager: FileManager = .default
     ) -> String? {
-        if let current = environment["JAVA_HOME"],
-           let version = majorVersion(ofJavaHome: current, fileManager: fileManager),
-           isSupported(version) {
-            return current
-        }
-        return installedJDKs(searchPaths: searchPaths, fileManager: fileManager)
-            .filter { isSupported($0.majorVersion) }
-            // Newest supported wins, so a machine with both 17 and 21 builds on 21.
-            .max(by: { $0.majorVersion < $1.majorVersion })?
-            .path
+        JavaRuntimes(searchPaths: searchPaths)
+            .resolveJavaHome(supported: supported, environment: environment, fileManager: fileManager)
     }
 
     /// The environment to run Gradle in — the caller's, with `JAVA_HOME` corrected when a
@@ -56,62 +51,19 @@ enum AndroidJDK {
         searchPaths: [String] = defaultSearchPaths(),
         fileManager: FileManager = .default
     ) -> [String: String] {
-        guard let javaHome = resolveJavaHome(
-            environment: environment,
-            searchPaths: searchPaths,
+        JavaRuntimes(searchPaths: searchPaths).environment(
+            supported: supported,
+            base: environment,
             fileManager: fileManager
-        ) else { return environment }
-
-        var updated = environment
-        updated["JAVA_HOME"] = javaHome
-        return updated
+        )
     }
 
     static func isSupported(_ majorVersion: Int) -> Bool {
-        (minimumMajorVersion ... maximumMajorVersion).contains(majorVersion)
+        supported.contains(majorVersion)
     }
 
-    struct InstalledJDK: Equatable {
-        var path: String
-        var majorVersion: Int
-    }
-
-    static func installedJDKs(
-        searchPaths: [String] = defaultSearchPaths(),
-        fileManager: FileManager = .default
-    ) -> [InstalledJDK] {
-        searchPaths.flatMap { searchPath -> [InstalledJDK] in
-            let entries = (try? fileManager.contentsOfDirectory(atPath: searchPath)) ?? []
-            return entries.sorted().compactMap { entry in
-                let home = searchPath + "/" + entry + "/Contents/Home"
-                guard let version = majorVersion(ofJavaHome: home, fileManager: fileManager) else {
-                    return nil
-                }
-                return InstalledJDK(path: home, majorVersion: version)
-            }
-        }
-    }
-
-    /// Reads the major version out of a JDK's `release` file, which every distribution ships
-    /// with a `JAVA_VERSION="21.0.12"` line.
+    /// The major version from a JDK's `release` file.
     static func majorVersion(ofJavaHome javaHome: String, fileManager: FileManager = .default) -> Int? {
-        let releasePath = javaHome + "/release"
-        guard fileManager.fileExists(atPath: releasePath),
-              let contents = try? String(contentsOfFile: releasePath, encoding: .utf8)
-        else { return nil }
-
-        for line in contents.split(separator: "\n") where line.hasPrefix("JAVA_VERSION=") {
-            let raw = line
-                .dropFirst("JAVA_VERSION=".count)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\"' \r"))
-            // "1.8.0_402" for 8, "21.0.12" for everything modern.
-            let components = raw.split(separator: ".")
-            guard let first = components.first, let major = Int(first) else { return nil }
-            if major == 1, components.count > 1 {
-                return Int(components[1])
-            }
-            return major
-        }
-        return nil
+        JavaRuntimes.majorVersion(ofJavaHome: javaHome, fileManager: fileManager)
     }
 }
