@@ -43,7 +43,7 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertTrue(text.contains("disallowedTools: Edit, NotebookEdit"))
         XCTAssertTrue(text
             .contains("mcpServers:\n  - amoo:\n      type: stdio\n      command: \"/tmp/local amoo/amoo\""))
-        XCTAssertTrue(text.hasSuffix("---\n\nDo the thing.\n"))
+        XCTAssertTrue(text.hasSuffix("Do the thing.\n"))
     }
 
     func testDeviceVerifierKeepsItsToolAllowlistAndNoMCP() throws {
@@ -55,7 +55,8 @@ final class AgentRendererTests: XCTestCase {
     func testCodexIsTOMLWithALiteralInstructionsBlockAndScopedServer() throws {
         let text = try render(.codex)
         XCTAssertTrue(text.contains("name = \"amoo\"\n"))
-        XCTAssertTrue(text.contains("developer_instructions = '''\nDo the thing.\n'''\n"))
+        XCTAssertTrue(text.contains("developer_instructions = '''\nUse the executable"))
+        XCTAssertTrue(text.contains("Do the thing.\n'''\n"))
         XCTAssertTrue(text
             .contains("[mcp_servers.amoo]\ncommand = \"/tmp/local amoo/amoo\"\nargs = [\"mcp\", \"serve\"]"))
         let tableStart = try XCTUnwrap(text.range(of: "[mcp_servers.amoo]")).lowerBound
@@ -90,6 +91,22 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertEqual(AgentRenderer.agentDirectory(for: .opencode, scope: .user), ".config/opencode/agents")
         XCTAssertEqual(AgentRenderer.skillsDirectory(for: .claude), ".claude/skills")
         XCTAssertEqual(AgentRenderer.skillsDirectory(for: .gemini), ".agents/skills")
+    }
+
+    func testStandaloneAgentsPinCLIToTheConfiguredBinaryForEveryClient() throws {
+        for client in AgentClient.allCases {
+            for definition in AgentDefinition.all {
+                let text = try AgentRenderer.render(
+                    source,
+                    definition: definition,
+                    for: client,
+                    executablePath: "/tmp/local amoo/.build/debug/amoo"
+                ).contents
+                XCTAssertTrue(text.contains("Use the executable at \"/tmp/local amoo/.build/debug/amoo\""))
+                XCTAssertTrue(text.contains("rather than PATH or shell aliases"))
+            }
+        }
+        XCTAssertFalse(try render(.copilot, mode: .plugin).contains("Use the executable at"))
     }
 
     func testRejectsRelativeMCPBinary() {

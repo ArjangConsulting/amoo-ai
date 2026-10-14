@@ -11,6 +11,10 @@ struct AgentInstallOptions: Equatable {
     var force = false
     var dryRun = false
     var json = false
+    /// Whether `--client` / `--target|--user` were passed; the guided flow asks only for what was not.
+    var clientsGiven = false
+    var scopeGiven = false
+    var nonInteractive = false
     var executablePath: String = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? ""
 
     /// The directory agent paths are relative to.
@@ -39,12 +43,15 @@ struct AgentInstallFile: Equatable {
 func renderAgentHelp() -> String {
     """
     Usage: amoo agent install [--target <repo> | --user] [--client <name>]... [--agent <name>]...
-                              [--dry-run] [--force] [--json] [--binary <absolute-path>]
+                              [--dry-run] [--force] [--json] [--non-interactive] [--binary <absolute-path>]
            amoo agent render --out <plugin-dir>
            amoo agent validate-report --report <report.json> --run-id <uuid> --checks <ids> [--json]
            amoo agent evidence --path <absolute-file> --run-id <uuid> --checks <ids>
 
     install  Writes the amoo subagents, in each client's own format, plus the skills they use.
+             In a terminal, without --client, it asks which AI clients to set up (detected ones are
+             preselected) and whether to install for this repository or your home directory, shows
+             the files, and confirms. --client, --json or --non-interactive skip the questions.
              --target <repo>  project scope (default: current directory); commit the files
              --user           user scope: your home directory, for every project
              --client         claude, cursor, codex, copilot, gemini, opencode, or all (default);
@@ -233,13 +240,16 @@ func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
             throw EnvCommandParseError.usage("--target and --user cannot be combined.")
         }
         options.scope = .user
+        options.scopeGiven = true
     }
+    options.scopeGiven = options.scopeGiven || target != nil
     var clients: [AgentClient] = []
     while let raw = try flags.value("--client") {
         clients += try parseAgentList(raw, all: AgentClient.allCases, flag: "--client") { AgentClient(rawValue: $0) }
     }
     if !clients.isEmpty {
         options.clients = clients
+        options.clientsGiven = true
     }
     var agents: [String] = []
     while let raw = try flags.value("--agent") {
@@ -253,16 +263,18 @@ func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
         guard path.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: path) else {
             throw EnvCommandParseError.usage("--binary requires an absolute path to an executable.")
         }
-        options.executablePath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        // Preserve SwiftPM's .build/debug alias so later builds can change its target.
+        options.executablePath = URL(fileURLWithPath: path).standardizedFileURL.path
     }
     options.force = flags.take("--force")
     options.dryRun = flags.take("--dry-run")
     options.json = flags.take("--json")
+    options.nonInteractive = flags.take("--non-interactive")
     try flags.finish()
     return options
 }
 
-private func parseAgentList<T>(
+func parseAgentList<T>(
     _ raw: String,
     all: [T],
     flag: String,
@@ -291,11 +303,7 @@ func handleAgentCommand(remaining: [String]) -> CLIResult {
     case "evidence":
         return runAgentEvidenceCapture(args)
     case "install":
-        do {
-            return try runAgentInstall(parseAgentInstallOptions(args))
-        } catch {
-            return agentUsageError(error)
-        }
+        return runAgentInstallCommand(args)
     case "render":
         var flags = EnvFlagReader(args)
         do {

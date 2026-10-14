@@ -66,6 +66,18 @@ context perform the remaining interactions. Never drop session_id to bypass an a
 **Leased CLI (recommended for checked-in flows/probes)** — otherwise use it for inspect/verify/debug:
 Check that the required subcommands and flags appear in the pinned binary's help first.
 
+For multi-device setup, prefer `amoo init`. A person runs it bare in a terminal for the guided flow;
+an agent has no terminal, so pass every required input: `amoo init --platform <p> --app <absolute-build-path>
+--app-id <id> --device <id> --device <id> --launch --out <manifest.json> --json`. Omitting any of
+`--platform/--app/--app-id/--device` fails with the full list of what is missing and what is available.
+Add `--dry-run` first to validate the app and devices without leasing. Reuse the same externally built
+artifact for every device; never rebuild per device. Inspect all `results` for partial failures. Use
+`amoo init device --manifest <path> --device <id> --json <tool>` and clean up every success with
+`amoo init down --manifest <path> --json`. Release CLI leases before MCP start_session for recording;
+init does not record. `AGENTS.md` may hold an `amoo init` block with the app artifact and manifest
+locations; read it before asking. `amoo agent install --client <name>` installs bundled skills and
+client configuration (a person gets a guided picker; `amoo init --client <name>` does it headless).
+
 ```sh
 amoo env up --platform <p> [--device <id> | --avd <name> | --runtime <iOS-x> --model <name>] \
   [--app <build>] --app-id <id> --owner amoo-agent --json     # → lease, device, port

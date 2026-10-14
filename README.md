@@ -87,10 +87,22 @@ Every route below needs the `amoo` CLI itself, installed with Homebrew (see [Ins
 The plugin registers its own amoo MCP server. If you previously registered amoo with
 `install-mcp.sh` or `claude mcp add`, remove that entry so the tools are not listed twice.
 
+Run `amoo init` in a terminal for a guided setup. It finds your built app and simulators, asks for
+the rest, reuses that one externally built app across independent leased devices, and offers to set up
+the amoo subagents and skills for your AI clients (Claude Code, Cursor, Codex, Copilot, Gemini,
+OpenCode). Agents and CI pass everything as flags instead, for example
+`amoo init --platform ios --app <absolute-build-path> --app-id <id> --device <phone> --device <tablet>
+--out <manifest> --json`. See [initialization and manifest usage](docs/init.md), including the AI
+client step, validation, cleanup and MCP recording.
+
 To install without a marketplace, use `amoo agent install`. It writes the subagents in each
-client's native format, plus the skills they rely on:
+client's native format, plus the skills they rely on. In a terminal, without `--client`, it asks
+which AI clients to set up (detected ones are preselected) and whether to install for the repository
+or your home directory, then shows the files before writing. `--client`, `--json` or
+`--non-interactive` skip the questions, so scripts behave as before:
 
 ```bash
+amoo agent install                             # guided: pick clients and scope
 amoo agent install --user                      # every client, in your home directory
 amoo agent install --target . --client claude  # commit into a repo for your team
 amoo agent install --dry-run --json            # see what would be written
@@ -112,19 +124,20 @@ kept unless you pass `--force`.
 From an amoo checkout, use Swift 6.2 or newer (see `Package.swift`):
 
 ```bash
-swift build -c release
+swift build
 swift run amoo preflight --platform ios
 make test
 make lint
 ```
 
 The user guides use `amoo` for the installed CLI. When developing from this checkout, substitute
-`swift run amoo` or the absolute path to `.build/release/amoo`.
+`swift run amoo` or the absolute path to `.build/debug/amoo`.
 
-To register your local release build across projects:
+To register your local debug build across projects and pin subagent CLI calls to it:
 
 ```bash
-scripts/install-mcp.sh --bin "$PWD/.build/release/amoo"
+scripts/install-mcp.sh --bin "$PWD/.build/debug/amoo"
+.build/debug/amoo agent install --user --client codex --binary "$PWD/.build/debug/amoo"
 ```
 
 Repository end-to-end checks require a checkout and the platform tooling:
