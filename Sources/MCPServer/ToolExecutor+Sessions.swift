@@ -371,49 +371,6 @@ extension DriverToolExecutor {
         return try .success(summary, structuredContent: Value(result))
     }
 
-    /// Loads the app-owned `StudioTestContext` named by a session's codegen intent (a file path or
-    /// inline JSON) into the compiled plan for the host harness, helpers, and identifier catalog.
-    /// A no-op when the intent carries no context reference.
-    static func applyingTestContext(
-        _ intent: SessionCodegenIntent?,
-        to result: CompileSessionToPlanResult
-    ) throws -> CompileSessionToPlanResult {
-        guard let intent else { return result }
-        let context: StudioTestContext
-        if let json = intent.contextJSON, !json.isEmpty {
-            context = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
-        } else if let path = intent.contextPath, !path.isEmpty {
-            context = try RepositoryTestProfile.load(URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
-        } else {
-            return result
-        }
-        return CompileSessionToPlanResult(
-            testFlow: result.testFlow,
-            studioTest: result.studioTest.replacingTestContext(context),
-            warnings: result.warnings,
-            retryRunObservations: result.retryRunObservations,
-            retryTapIntervalSeconds: result.retryTapIntervalSeconds
-        )
-    }
-
-    static func contextSnapshot(
-        _ arguments: [String: String], discoverProfile: Bool = true, platform: Platform? = nil
-    ) throws -> String? {
-        let json: String
-        if let inline = arguments["context_json"], !inline.isEmpty {
-            json = inline
-        } else if let path = arguments["context_path"], !path.isEmpty {
-            let context = try RepositoryTestProfile.load(URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
-            json = try String(bytes: JSONEncoder().encode(context), encoding: .utf8)!
-        } else if discoverProfile, let context = try RepositoryTestProfile.discover(platform: platform) {
-            json = try String(bytes: JSONEncoder().encode(context), encoding: .utf8)!
-        } else {
-            return nil
-        }
-        _ = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
-        return json
-    }
-
     // MARK: - Companion lifecycle
 
     func executeCompanionWarm(arguments: [String: String]) async throws -> ToolResult {
