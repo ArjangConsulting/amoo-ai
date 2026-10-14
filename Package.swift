@@ -1,11 +1,11 @@
 // swift-tools-version: 6.2
 import PackageDescription
 
-// The generated protobuf/gRPC Swift is committed in `Sources/Protos/Generated`. The
-// `GRPCProtobufGenerator` build plugin depends on swift-protobuf's `protoc` product, which SwiftPM
-// compiles from ~1,500 C++ files (3-6 min, every clean build, on every platform) even when
-// `PROTOC_PATH` points at a prebuilt protoc. So normal builds skip the plugin entirely. Regenerate
-// with `make protos`, which sets this flag to add the `ProtosGenerator` target below.
+/// The generated protobuf/gRPC Swift is committed in `Sources/Protos/Generated`. The
+/// `GRPCProtobufGenerator` build plugin depends on swift-protobuf's `protoc` product, which SwiftPM
+/// compiles from ~1,500 C++ files (3-6 min, every clean build, on every platform) even when
+/// `PROTOC_PATH` points at a prebuilt protoc. So normal builds skip the plugin entirely. Regenerate
+/// with `make protos`, which sets this flag to add the `ProtosGenerator` target below.
 let regenerateProtos = Context.environment["AMOO_REGENERATE_PROTOS"] == "1"
 
 let package = Package(
@@ -36,6 +36,8 @@ let package = Package(
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
         // Typed tool wrappers (xcrun/simctl, Gradle, adb, …). Tracks main until it reaches 1.0.
         .package(url: "https://github.com/ShipItSwifty/cli-wrappers.git", branch: "main"),
+        // Device, build, test, and inspection mechanisms shared with ShipItSwifty. Tracks main until 1.0.
+        .package(url: "https://github.com/ShipItSwifty/mobile-kits.git", branch: "main"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
@@ -139,6 +141,8 @@ let package = Package(
                 .product(name: "GradleKit", package: "cli-wrappers"),
                 .product(name: "XcodeBuildKit", package: "cli-wrappers"),
                 .product(name: "XcodeGenKit", package: "cli-wrappers"),
+                .product(name: "MobileCore", package: "mobile-kits"),
+                .product(name: "MobileDevices", package: "mobile-kits"),
                 .product(name: "SwiftyShell", package: "SwiftyShell")
             ]
         ),
@@ -196,7 +200,9 @@ let package = Package(
                 "CLI",
                 "OllamaClient",
                 "MCPServer",
-                .product(name: "SwiftyShell", package: "SwiftyShell")
+                .product(name: "SwiftyShell", package: "SwiftyShell"),
+                .product(name: "MobileCore", package: "mobile-kits"),
+                .product(name: "MobileDevices", package: "mobile-kits")
             ]
         ),
         .testTarget(name: "CommandContractTests", dependencies: ["CommandContract", "MCPServer"]),

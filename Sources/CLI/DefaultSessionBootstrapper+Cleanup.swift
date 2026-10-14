@@ -1,6 +1,7 @@
 import AmooCore
 import CompanionProtocol
 import Foundation
+import MobileDevices
 import ProcessRunner
 import TestSession
 
@@ -8,7 +9,7 @@ extension DefaultSessionBootstrapper {
     struct SessionOwnership: Sendable {
         let deviceKey: String
         let owner: UUID
-        let claim: SessionDeviceClaim
+        let claim: DeviceSessionLock
     }
 
     /// What ending a session releases: the gRPC client, any USB tunnel, the device lease — and, for a

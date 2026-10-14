@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import ProcessRunner
 import SwiftyShell
 
@@ -271,13 +272,13 @@ struct PlatformDeviceSelector {
     private let processRunner: any ProcessRunner
     private let prompter: any DeviceSelectionPrompting
     private let interactive: Bool
-    private let leaseStore: DeviceLeaseStore
+    private let leaseStore: DeviceClaimStore
 
     init(
         processRunner: any ProcessRunner = SystemProcessRunner(),
         prompter: any DeviceSelectionPrompting = ConsoleDeviceSelectionPrompter(),
         interactive: Bool = isInteractiveStdin(),
-        leaseStore: DeviceLeaseStore = DeviceLeaseStore()
+        leaseStore: DeviceClaimStore = DeviceClaimStore()
     ) {
         self.processRunner = processRunner
         self.prompter = prompter
@@ -342,7 +343,7 @@ struct PlatformDeviceSelector {
         // Without a hint, never auto-pick a device another session holds a lease on.
         let presented = presentedLease(flag: nil)
         let unleased = all.filter {
-            if case .leasedByOther = leaseStore.access(deviceID: $0.deviceID, lease: presented) {
+            if case .claimedByOther = leaseStore.access(deviceID: $0.deviceID, presenting: presented) {
                 return false
             }
             return true

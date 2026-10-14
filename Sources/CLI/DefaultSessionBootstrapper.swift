@@ -3,6 +3,7 @@ import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
+import MobileDevices
 import ProcessRunner
 import TestSession
 
@@ -20,7 +21,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     /// before giving up on screen stabilization.
     let screenStabilizationTimeoutSeconds: Double
     /// Cross-process device leases (`amoo env up`); injectable so tests never read `~/.amoo`.
-    let leaseStore: DeviceLeaseStore
+    let leaseStore: DeviceClaimStore
     /// The `--port` an MCP server was started with, used for iOS sessions that name no port of
     /// their own. `nil` derives a stable per-simulator port instead (see `IOSCompanionPort`).
     let serverPort: Int?
@@ -31,7 +32,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         processRunner: any ProcessRunner = SystemProcessRunner(),
         usbTunnel: any USBTunneling = IProxyTunnel(),
         screenStabilizationTimeoutSeconds: Double = 10,
-        leaseStore: DeviceLeaseStore = DeviceLeaseStore(),
+        leaseStore: DeviceClaimStore = DeviceClaimStore(),
         serverPort: Int? = nil
     ) {
         self.serverPort = serverPort
@@ -62,7 +63,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         // Cross-process: a device another session leased via `amoo env up` is off limits unless
         // this server was started with that lease in AMOO_LEASE.
         try Task.checkCancellation()
-        let claim = try SessionDeviceClaim(deviceID: available.deviceID, store: leaseStore)
+        let claim = try DeviceSessionLock(deviceID: available.deviceID, store: leaseStore)
         leaseStore.reapIfExpired(deviceID: available.deviceID)
         try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
         let installAndroidBuild = try await androidBuild

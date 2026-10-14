@@ -1,6 +1,7 @@
 import AmooCore
 import Foundation
 import MCP
+import MobileDevices
 
 /// Checks that answer without a companion: argument names, `device_boot device_hint=…`, and leases.
 /// `nil` means proceed.
@@ -82,13 +83,13 @@ extension DeviceCommandOptions {
     /// A lease for another platform is an error; an unknown or expired lease changes nothing, and
     /// `enforceLease` still refuses a device another session holds.
     func applyingLease(
-        store: DeviceLeaseStore = DeviceLeaseStore(),
+        store: DeviceClaimStore = DeviceClaimStore(),
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Result<Self, DeviceLeaseError> {
         guard let leaseID = presentedLease(flag: lease, environment: environment),
-              let held = store.lease(id: leaseID)
+              let held = store.claim(id: leaseID)
         else { return .success(self) }
-        guard held.platform == platform else { return .failure(.wrongPlatform(held, requested: platform)) }
+        guard held.amooPlatform == platform else { return .failure(.wrongPlatform(held, requested: platform)) }
         var adopted = self
         if portIsDefault, let port = held.port {
             adopted.port = port

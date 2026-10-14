@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 
 // MARK: - Discovery
 
@@ -23,7 +24,7 @@ struct InitDiscovery {
     var apps: (Platform) -> [String]
     var bundleID: (_ appPath: String, _ platform: Platform) -> String?
 
-    static func live(store: DeviceLeaseStore = DeviceLeaseStore()) -> Self {
+    static func live(store: DeviceClaimStore = DeviceClaimStore()) -> Self {
         Self(
             devices: { await discoverInitDevices(platform: $0, store: store) },
             apps: { platform in
@@ -39,7 +40,7 @@ struct InitDiscovery {
     }
 }
 
-private func discoverInitDevices(platform: Platform, store: DeviceLeaseStore) async -> [InitDeviceCandidate] {
+private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) async -> [InitDeviceCandidate] {
     var found: [InitDeviceCandidate]
     switch platform {
     case .ios:
@@ -52,7 +53,7 @@ private func discoverInitDevices(platform: Platform, store: DeviceLeaseStore) as
                 name: $0.name,
                 detail: "iOS \($0.osVersion)",
                 booted: booted.contains($0.udid),
-                leasedBy: store.lease(forDevice: $0.udid)?.summary
+                leasedBy: store.claim(forDevice: $0.udid)?.summary
             )
         }
     case .android:
@@ -63,7 +64,7 @@ private func discoverInitDevices(platform: Platform, store: DeviceLeaseStore) as
                 name: $0.name,
                 detail: "Android emulator",
                 booted: true,
-                leasedBy: store.lease(forDevice: $0.serial)?.summary
+                leasedBy: store.claim(forDevice: $0.serial)?.summary
             )
         }
     }

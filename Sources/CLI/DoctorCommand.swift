@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import ProcessRunner
 #if canImport(Darwin)
 import Darwin
@@ -63,7 +64,7 @@ struct DoctorReport: Encodable {
     var adbServerRunning: Bool
     var devices: [Device]
     var companions: [Companion]
-    var leases: [DeviceLease]
+    var leases: [DeviceClaim]
     /// Problems that make results untrustworthy (stale servers, dead holders). `ok` is false.
     var issues: [String]
     /// Worth knowing, not a failure (e.g. a connected phone amoo will not auto-select).
@@ -110,7 +111,7 @@ func handleDoctorCommand(remaining: [String]) async -> CLIResult {
 
 func runDoctor(
     processRunner: any ProcessRunner = SystemProcessRunner(),
-    store: DeviceLeaseStore = DeviceLeaseStore()
+    store: DeviceClaimStore = DeviceClaimStore()
 ) async -> DoctorReport {
     let build = AmooBuildInfo.current
     let leases = store.all()

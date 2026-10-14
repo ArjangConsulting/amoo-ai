@@ -1,5 +1,5 @@
 {
-  "originHash" : "2ef767e43ccd9affb86f42f50770f8eacf46d6573285223818824af02b649fae",
+  "originHash" : "e759b032f7b1977fcd25fd3c17b7153ccdf59b83da7d9d7f8dc299ac850a1519",
   "pins" : [
     {
       "identity" : "cli-wrappers",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/ShipItSwifty/cli-wrappers.git",
       "state" : {
         "branch" : "main",
-        "revision" : "a9ef8c9958b3abc942a2addd0c6f299962973ed4"
+        "revision" : "40b8d9fd8f7cc0ac3624dd1c05ccf97b65228a3f"
       }
     },
     {
@@ -44,6 +44,15 @@
       "state" : {
         "revision" : "176c5a434fd76f6f479848d1a8f7d44967534168",
         "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "mobile-kits",
+      "kind" : "localSourceControl",
+      "location" : "https://github.com/ShipItSwifty/mobile-kits.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "b2b07344a97432b93a4528a52670f29fbe6ec42c"
       }
     },
     {
@@ -242,6 +251,15 @@
       "state" : {
         "revision" : "b3937ab85dd32f6e9435914599c1519074769c1a",
         "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
+        "version" : "604.0.0"
       }
     },
     {

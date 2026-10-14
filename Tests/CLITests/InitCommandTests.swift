@@ -1,6 +1,7 @@
 import AmooCore
 @testable import CLI
 import Foundation
+import MobileDevices
 import TestCommons
 import XCTest
 
@@ -158,7 +159,7 @@ final class InitCommandTests: InitTestCase {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
         let before = sha256Hex(ofPath: app)
-        let store = DeviceLeaseStore(directory: scratch.url.appendingPathComponent("leases"))
+        let store = DeviceClaimStore(directory: scratch.url.appendingPathComponent("leases"))
         let out = scratch.url.appendingPathComponent("nested/manifest.json").path
         var installed: [(path: String?, sha: String?)] = []
         var manifestSeenByLastDevice: InitManifest?
@@ -167,7 +168,7 @@ final class InitCommandTests: InitTestCase {
         }, start: { _, lease, store in
             var lease = lease
             lease.port = await pickFreeCompanionPort(leasedPorts: Set(store.all().compactMap(\.port))) { _ in false }
-            return try store.update(lease)
+            return try store.renew(lease)
         }, prepare: { options, _, app in
             installed.append((options.appPath, options.appSHA256))
             app?.installed = true
@@ -212,7 +213,7 @@ final class InitCommandTests: InitTestCase {
     func testPartialFailureKeepsInstallStatusAndNeverTakesAnotherSessionsLease() async throws {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
-        let store = DeviceLeaseStore(directory: scratch.url.appendingPathComponent("leases"))
+        let store = DeviceClaimStore(directory: scratch.url.appendingPathComponent("leases"))
         let other = try store.acquire(platform: .ios, deviceID: "phone", deviceName: "Phone", owner: "someone-else")
         var starts: [String] = []
         let dependencies = EnvUpDependencies(resolve: { options, _ in
@@ -221,7 +222,7 @@ final class InitCommandTests: InitTestCase {
             starts.append(lease.deviceID)
             var lease = lease
             lease.port = 22093 + starts.count
-            return try store.update(lease)
+            return try store.renew(lease)
         }, prepare: { options, _, app in
             app?.installed = true
             if options.deviceID == "broken" {
