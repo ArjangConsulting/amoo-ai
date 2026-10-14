@@ -34,9 +34,9 @@ final class ADBTimeoutTests: XCTestCase {
 
     func testInstallAllowsLongerDeadline() async throws {
         let context = ShellContext(executor: MockExecutor { command, _ in
-            XCTAssertEqual(command.timeoutOverride, .seconds(180))
+            XCTAssertEqual(command.timeoutOverride, .seconds(300))
             return ShellOutput(stdout: "", stderr: "", exitCode: 0)
         })
-        try await ADBRunner(context: context).install(apkPath: "/tmp/app.apk")
+        try await ADBRunner(context: context).install(serial: "phone", apkPath: "/tmp/app.apk")
     }
 }

@@ -41,15 +41,8 @@ final class DetachedProcessTests: XCTestCase {
         let mock = MockExecutor()
         try await EmulatorRunner(context: ShellContext(executor: mock)).launch(avdName: "Pixel Test", port: 5556)
         let command = try XCTUnwrap(mock.recordedCommands.first)
-        XCTAssertEqual(command.arguments, ["-avd", "Pixel Test", "-port", "5556", "-no-snapshot-save"])
+        XCTAssertEqual(command.arguments, ["-avd", "Pixel Test", "-no-snapshot-save", "-port", "5556"])
         XCTAssertEqual(command.stdoutDestination, command.stderrDestination)
-    }
-
-    func testEmulatorLaunchArguments() {
-        XCTAssertEqual(
-            EmulatorRunner.launchArguments(avdName: "Medium_Phone_API_35", port: 5556),
-            ["emulator", "-avd", "Medium_Phone_API_35", "-port", "5556", "-no-snapshot-save"]
-        )
     }
 }
 

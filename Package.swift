@@ -83,7 +83,9 @@ let package = Package(
                 .product(name: "GradleKit", package: "cli-wrappers"),
                 .product(name: "AdbKit", package: "cli-wrappers"),
                 .product(name: "AVDManagerKit", package: "cli-wrappers"),
-                .product(name: "AndroidCLIKit", package: "cli-wrappers")
+                .product(name: "AndroidCLIKit", package: "cli-wrappers"),
+                .product(name: "MobileCore", package: "mobile-kits"),
+                .product(name: "MobileDevices", package: "mobile-kits")
             ]
         ),
         .target(name: "WebInspector"),

@@ -2,6 +2,7 @@ import AdbKit
 import AmooCore
 import Foundation
 import GradleKit
+import MobileDevices
 import SwiftyShell
 
 public protocol ADBRunning: Sendable {
@@ -97,7 +98,9 @@ public struct ADBRunner: ADBRunning {
     // MARK: - App Management
 
     public func install(serial: String? = nil, apkPath: String) async throws {
-        _ = try await run(adb(serial: serial).install(apk: apkPath, replace: true).timeout(.seconds(180)))
+        try await translatingMobileKitErrors {
+            try await devices.install(apkAt: apkPath, on: resolvedSerial(serial))
+        }
     }
 
     public func launch(serial: String? = nil, appID: String, arguments: [String] = []) async throws {
@@ -163,15 +166,21 @@ public struct ADBRunner: ADBRunning {
     }
 
     public func terminate(serial: String? = nil, appID: String) async throws {
-        _ = try await run(adb(serial: serial).amForceStop(package: appID))
+        try await translatingMobileKitErrors {
+            try await devices.terminate(package: appID, on: resolvedSerial(serial))
+        }
     }
 
     public func uninstall(serial: String? = nil, appID: String) async throws {
-        _ = try await run(adb(serial: serial).uninstall(package: appID))
+        try await translatingMobileKitErrors {
+            try await devices.uninstall(package: appID, from: resolvedSerial(serial))
+        }
     }
 
     public func clearAppData(serial: String? = nil, appID: String) async throws {
-        _ = try await run(adb(serial: serial).rawArguments(["shell", "pm", "clear", appID]))
+        try await translatingMobileKitErrors {
+            try await devices.clearData(package: appID, on: resolvedSerial(serial))
+        }
     }
 
     public func listPackages(serial: String? = nil) async throws -> String {
@@ -251,6 +260,27 @@ public struct ADBRunner: ADBRunning {
 
     private func adb(serial: String?) -> Adb {
         Adb(context: context).serial(serial)
+    }
+
+    private var devices: AndroidDeviceManager {
+        AndroidDeviceManager(shell: context)
+    }
+
+    /// `AndroidDeviceManager` addresses a device by serial, while `adb` without `-s` picks the only
+    /// attached one. Resolve that default here, and fail the way `adb` does when it is ambiguous.
+    private func resolvedSerial(_ serial: String?) async throws -> String {
+        if let serial {
+            return serial
+        }
+        let ready = try await devices.list().filter { $0.state == .device }
+        guard let only = ready.first, ready.count == 1 else {
+            throw ProcessRunnerError.nonZeroExit(
+                command: "adb",
+                exitCode: 1,
+                stderr: ready.isEmpty ? "adb: no devices/emulators found" : "adb: more than one device/emulator"
+            )
+        }
+        return only.serial
     }
 
     /// `cmd package resolve-activity` arguments that select the LAUNCHER activity. Without the
