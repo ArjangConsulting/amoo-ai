@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import ProcessRunner
 import SwiftyShell
 #if canImport(Darwin)
@@ -28,25 +29,25 @@ enum EnvError: Error, CustomStringConvertible {
 
 /// Injectable lifecycle boundaries; init and env share the same lease orchestration.
 struct EnvUpDependencies {
-    var resolve: (EnvUpOptions, DeviceLeaseStore) async throws -> EnvDeviceReport = { options, store in
+    var resolve: (EnvUpOptions, DeviceClaimStore) async throws -> EnvDeviceReport = { options, store in
         switch options.platform {
         case .android: try await resolveEnvAndroidDevice(options, store: store)
         case .ios: try await resolveEnvIOSDevice(options, store: store)
         }
     }
 
-    var start: (EnvUpOptions, DeviceLease, DeviceLeaseStore) async throws -> DeviceLease = {
+    var start: (EnvUpOptions, DeviceClaim, DeviceClaimStore) async throws -> DeviceClaim = {
         try await startLeasedCompanion($0, lease: $1, store: $2)
     }
 
-    var prepare: (EnvUpOptions, DeviceLease, inout EnvAppReport?) async throws -> Void = {
+    var prepare: (EnvUpOptions, DeviceClaim, inout EnvAppReport?) async throws -> Void = {
         try await prepareEnvApp($0, lease: $1, app: &$2)
     }
 }
 
 func runEnvUp(
     _ options: EnvUpOptions,
-    store: DeviceLeaseStore = DeviceLeaseStore(),
+    store: DeviceClaimStore = DeviceClaimStore(),
     dependencies: EnvUpDependencies = EnvUpDependencies()
 ) async -> CLIResult {
     var report = EnvUpReport(ok: false, platform: options.platform.rawValue)
@@ -54,7 +55,7 @@ func runEnvUp(
         CLIResult(output: options.json ? renderJSON(report) : report.humanSummary, exitCode: code)
     }
     let store = options.ttlMinutes.map {
-        DeviceLeaseStore(directory: store.directory, ttl: Double($0) * 60, reaper: store.reaper)
+        DeviceClaimStore(directory: store.directory, ttl: Double($0) * 60, reaper: store.reaper)
     } ?? store
     // `env up` takes devices, so it clears what expired leases left running; listing never does.
     store.reapExpired()
@@ -77,7 +78,7 @@ func runEnvUp(
         )
     }
 
-    var lease: DeviceLease
+    var lease: DeviceClaim
     do {
         lease = try store.acquire(
             platform: options.platform,
@@ -97,12 +98,12 @@ func runEnvUp(
         lease = try await dependencies.start(options, lease, store)
         report.port = lease.port
         report.holderPID = lease.holderPID
-        report.log = store.logURL(leaseID: lease.id).path
+        report.log = store.logURL(claimID: lease.id).path
         try await dependencies.prepare(options, lease, &report.app)
     } catch {
         report.error = "\(error)"
-        report.log = store.logURL(leaseID: lease.id).path
-        let storedLease = store.lease(id: lease.id) ?? lease
+        report.log = store.logURL(claimID: lease.id).path
+        let storedLease = store.claim(id: lease.id) ?? lease
         report.port = storedLease.port
         report.holderPID = storedLease.holderPID
         stopHolder(pid: storedLease.holderPID)
@@ -115,7 +116,7 @@ func runEnvUp(
 
 // MARK: - Device resolution
 
-private func resolveEnvAndroidDevice(_ options: EnvUpOptions, store: DeviceLeaseStore) async throws -> EnvDeviceReport {
+private func resolveEnvAndroidDevice(_ options: EnvUpOptions, store: DeviceClaimStore) async throws -> EnvDeviceReport {
     let selector = AndroidDeviceSelector()
     let online = await selector.listOnlineDevices()
     if let serial = options.deviceID {
@@ -144,7 +145,7 @@ private func resolveEnvAndroidDevice(_ options: EnvUpOptions, store: DeviceLease
         }
     }
     // Nothing named: the first running emulator nobody has leased.
-    for device in online where device.serial.hasPrefix("emulator-") && store.lease(forDevice: device.serial) == nil {
+    for device in online where device.serial.hasPrefix("emulator-") && store.claim(forDevice: device.serial) == nil {
         let avd = await selector.runningAVDName(serial: device.serial)
         return EnvDeviceReport(id: device.serial, name: nil, os: nil, avd: avd, bootedByEnv: false)
     }
@@ -152,14 +153,14 @@ private func resolveEnvAndroidDevice(_ options: EnvUpOptions, store: DeviceLease
         + (selector.listAvailableVirtualDevices().map(\.name).joined(separator: ", ")))
 }
 
-private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceLeaseStore) async throws -> EnvDeviceReport {
+private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceClaimStore) async throws -> EnvDeviceReport {
     let selector = DeviceSelector()
     let available = await selector.listAvailableSimulators()
     let booted = await Set(selector.listBootedDevices().filter { !$0.isPhysicalDevice }.map(\.udid))
 
     let simulator: IOSSimulatorDevice
     if let udid = options.deviceID {
-        if let existing = store.lease(forDevice: udid) {
+        if let existing = store.claim(forDevice: udid) {
             throw DeviceLeaseError.leasedByOther(existing)
         }
         guard let match = available.first(where: { $0.udid == udid }) else {
@@ -175,7 +176,7 @@ private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceLeaseStor
             model: options.model,
             available: available,
             bootedUDIDs: booted,
-            isLeased: { store.lease(forDevice: $0) != nil }
+            isLeased: { store.claim(forDevice: $0) != nil }
         ) else {
             throw EnvError.noDevice("No unleased simulator matches runtime=\(options.runtime ?? "any")"
                 + " model=\(options.model ?? "any"). `xcrun simctl list devices available` shows the options.")
@@ -233,9 +234,9 @@ private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws
 /// the lease, and waits until the companion answers gRPC.
 private func startLeasedCompanion(
     _ options: EnvUpOptions,
-    lease: DeviceLease,
-    store: DeviceLeaseStore
-) async throws -> DeviceLease {
+    lease: DeviceClaim,
+    store: DeviceClaimStore
+) async throws -> DeviceClaim {
     var lease = lease
     let leasedPorts = Set(store.all().compactMap(\.port))
     var chosenPort = options.port
@@ -265,13 +266,13 @@ private func startLeasedCompanion(
     if let appID = options.appID {
         arguments += ["--app", appID]
     }
-    let log = store.logURL(leaseID: lease.id).path
+    let log = store.logURL(claimID: lease.id).path
     FileManager.default.createFile(atPath: log, contents: nil)
     let pid = try await DetachedProcess.spawn(arguments, logPath: log, environment: ["AMOO_LEASE": lease.id])
 
     lease.port = port
     lease.holderPID = pid
-    lease = try store.update(lease)
+    lease = try store.renew(lease)
 
     // The holder builds (iOS: minutes on a cold cache) and then waits `readyTimeout` itself; give
     // it that plus build slack, and stop early if it dies.
@@ -279,7 +280,7 @@ private func startLeasedCompanion(
     while Date() < deadline {
         if await isCompanionReady(host: "127.0.0.1", port: port) {
             try await verifyCompanionOwner(platform: options.platform, port: port, deviceID: lease.deviceID)
-            return try store.update(lease)
+            return try store.renew(lease)
         }
         guard kill(pid, 0) == 0 else {
             throw EnvError.companionFailed("The companion holder exited before becoming ready:\n" + logTail(log))
@@ -363,10 +364,10 @@ func forceStopAndroidCompanion(serial: String) async {
     }
 }
 
-/// Default `DeviceLeaseStore.reaper`: stop the holder of an expired lease, and for Android
+/// Default `DeviceClaimStore.reaper`: stop the holder of an expired lease, and for Android
 /// force-stop the on-device runner too (killing the host side does not reliably end it).
 @Sendable
-func reapExpiredLease(_ lease: DeviceLease) {
+func reapExpiredLease(_ lease: DeviceClaim) {
     if let pid = lease.holderPID, pid > 0, kill(pid, 0) == 0,
        let command = processCommandLine(pid: pid), isCompanionHolderCommand(command, deviceID: lease.deviceID) {
         kill(-pid, SIGTERM)
@@ -383,7 +384,7 @@ func reapExpiredLease(_ lease: DeviceLease) {
     }
 }
 
-private func reapAndroidRemainder(_ lease: DeviceLease) {
+private func reapAndroidRemainder(_ lease: DeviceClaim) {
     for package in androidCompanionPackages {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -403,7 +404,7 @@ func logTail(_ path: String, characters: Int = 2000) -> String {
 
 // MARK: - App
 
-private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceLease, app: inout EnvAppReport?) async throws {
+private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceClaim, app: inout EnvAppReport?) async throws {
     guard options.appPath != nil || options.appID != nil, let port = lease.port else { return }
 
     func run(_ tool: String, _ arguments: [String: String]) async throws {

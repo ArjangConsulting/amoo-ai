@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import ProcessRunner
 #if canImport(Darwin)
 import Darwin
@@ -24,17 +25,17 @@ struct EnvDownReport: Codable {
     }
 }
 
-func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLeaseStore()) async -> CLIResult {
+func runEnvDown(_ options: EnvDownOptions, store: DeviceClaimStore = DeviceClaimStore()) async -> CLIResult {
     var report = EnvDownReport(ok: false, holderStopped: false, shutdown: false)
     let finish: (Int32) -> CLIResult = { code in
         let human = envDownSummary(report)
         return CLIResult(output: options.json ? renderJSON(report) : human, exitCode: code)
     }
 
-    let lease: DeviceLease? = if let id = options.lease {
-        store.lease(id: id)
+    let lease: DeviceClaim? = if let id = options.lease {
+        store.claim(id: id)
     } else {
-        options.deviceID.flatMap { store.lease(forDevice: $0) }
+        options.deviceID.flatMap { store.claim(forDevice: $0) }
     }
     guard let lease else {
         // No claim, but a holder may have outlived it (the lease expired, or the file was lost).
@@ -78,7 +79,7 @@ func runEnvDown(_ options: EnvDownOptions, store: DeviceLeaseStore = DeviceLease
     return finish(0)
 }
 
-private func shutDownDevice(_ lease: DeviceLease) async -> Bool {
+private func shutDownDevice(_ lease: DeviceClaim) async -> Bool {
     let arguments = switch lease.platform {
     case .android: ["adb", "-s", lease.deviceID, "emu", "kill"]
     case .ios: ["xcrun", "simctl", "shutdown", lease.deviceID]
@@ -107,7 +108,7 @@ private struct EnvListEntry: Encodable {
     }
 }
 
-func runEnvList(json: Bool, store: DeviceLeaseStore = DeviceLeaseStore()) -> CLIResult {
+func runEnvList(json: Bool, store: DeviceClaimStore = DeviceClaimStore()) -> CLIResult {
     let entries = store.all().map { lease in
         EnvListEntry(
             lease: lease.id,
