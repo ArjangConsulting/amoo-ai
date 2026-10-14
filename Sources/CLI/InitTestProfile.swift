@@ -1,38 +1,31 @@
 import Foundation
+import MobileProject
 import StudioProtocol
 
 // swiftlint:disable multiline_arguments
 
 // The Markdown template is a single linear document.
-// Discovers evidence from checked-in Swift tests without modifying the receiving test target.
+// Discovers evidence from checked-in Swift tests (parsed with SwiftSyntax by MobileProject) without
+// modifying the receiving test target.
 // swiftlint:disable:next function_body_length
 func saveInitTestProfile(at root: URL) throws {
     let output = root.appendingPathComponent("amoo.md")
     // Profiles are repository-owned after discovery; never overwrite reviewed bindings on re-init.
     guard !FileManager.default.fileExists(atPath: output.path) else { return }
-    let sources = discoverTestSources(root)
-    let tests = sources.filter { $0.text.contains("XCUIApplication") || $0.text.contains("UITestCase") }
-    let combined = tests.map(\.text).joined(separator: "\n")
-    let bases = profileMatches(#"class\s+\w+\s*:\s*(\w+UITestCase)"#, in: combined)
-    let preferredBases = Set(bases.filter { !$0.contains("Generated") })
-    let base = preferredBases.count == 1 ? preferredBases.first : nil
-    let baseSource = base
-        .flatMap { name in
-            sources.first { $0.text.contains("class \(name):") || $0.text.contains("class \(name) :") }?.text
-        }
-    let ownsApp = baseSource.map { !profileMatches(#"\b(?:var|let)\s+(app)\b"#, in: $0).isEmpty } ?? false
-    let launches = baseSource?.contains("app.launch()") ?? false
-    let imports = Set(profileMatches(#"(?m)^import\s+(\w+)"#, in: combined)).subtracting(["XCTest"])
-    let timeoutConstants = Set(profileMatches(
-        #"timeout\s*:\s*TimeInterval\s*=\s*(\w*Constants\.\w+)"#, in: combined
-    ))
-    let timeoutExpressions = timeoutConstants.count == 1 ? ["default": timeoutConstants.first!] : [:]
-    let selectors = discoverProfileIdentifiers(in: sources.map(\.text))
-    let waits = discoverProfileWaits(in: combined)
-    let targets = Set(tests
-        .flatMap { $0.path.split(separator: "/").filter { $0.hasSuffix("UITests") }.map(String.init) })
-    let snippets = tests.flatMap { file in
-        file.text.split(separator: "\n").enumerated().compactMap { index, line -> String? in
+    let facts = UITestHarnessInspector().inspect(root.path)
+    let tests = facts.uiTestFiles
+    let base = facts.baseClass?.value
+    let ownsApp = facts.harnessOwnsApplication?.value ?? false
+    let launches = facts.harnessLaunchesApplication?.value ?? false
+    let timeoutExpressions = facts.defaultTimeout.map { ["default": $0.value] } ?? [:]
+    // Only the wait helpers generated tests call are bound.
+    let waits = facts.waitHelpers
+        .filter { ["waitForExistence", "waitForHittability", "waitForAbsence"].contains($0.key) }
+        .mapValues(\.template)
+    let targets = facts.testDirectories.compactMap { $0.split(separator: "/").last.map(String.init) }
+    let snippets = tests.flatMap { path -> [String] in
+        guard let text = try? String(contentsOf: root.appendingPathComponent(path), encoding: .utf8) else { return [] }
+        return text.split(separator: "\n").enumerated().compactMap { index, line -> String? in
             let tokens = [
                 "usingLanguage(",
                 "makeApplication(",
@@ -45,24 +38,26 @@ func saveInitTestProfile(at root: URL) throws {
                 "reset"
             ]
             guard tokens.contains(where: line.contains) else { return nil }
-            return "- `\(file.path):\(index + 1)`: `\(line.trimmingCharacters(in: .whitespaces))`"
+            return "- `\(path):\(index + 1)`: `\(line.trimmingCharacters(in: .whitespaces))`"
         }
     }.prefix(40).joined(separator: "\n")
     let context = StudioTestContext(
-        imports: imports.sorted(), baseClass: base, harnessLaunchesApp: launches,
-        selectorExpressions: selectors,
-        idLookupTemplate: combined.contains("app.element(id:") ? "app.element(id: {{id}})" : nil,
+        imports: facts.imports, baseClass: base, harnessLaunchesApp: launches,
+        selectorExpressions: facts.identifierCatalog,
+        idLookupTemplate: facts.applicationExtensions.contains("element(id:)") ? "app.element(id: {{id}})" : nil,
         harnessOwnsApp: ownsApp,
-        factoryOverride: baseSource?.contains("func makeApplication()") == true ? "super.makeApplication()" : nil,
+        factoryOverride: facts.applicationFactory == nil ? nil : "super.makeApplication()",
         waitBindings: waits,
         timeoutExpressions: timeoutExpressions,
-        relaunchHelper: combined.contains("func relaunchApplication(") ? "relaunchApplication()" : nil,
+        relaunchHelper: facts.relaunchHelper?.template,
         targetPlatform: .ios
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    let json = try String(bytes: encoder.encode(context), encoding: .utf8)!
-    let evidence = tests.map { "- `\($0.path)`" }.joined(separator: "\n")
+    guard let json = try String(bytes: encoder.encode(context), encoding: .utf8) else {
+        throw CocoaError(.fileWriteInapplicableStringEncoding)
+    }
+    let evidence = (tests.map { "- `\($0)`" } + facts.diagnostics.map { "- Review: \($0)" }).joined(separator: "\n")
     let document = """
     # Amoo repository integration
 
@@ -75,7 +70,7 @@ func saveInitTestProfile(at root: URL) throws {
     - Base class: \(base ?? "not uniquely discovered; review required")
     - Application property owned by harness: \(ownsApp)
     - Application launched by harness: \(launches)
-    - Target directory: \(targets.count == 1 ? targets.first! : "not uniquely discovered; review project configuration")
+    - Target directory: \(targets.count == 1 ? targets[0] : "not uniquely discovered; review project configuration")
     - Imports: retain only modules required by the exported scenario.
     - Identifier lookup: map recorded IDs to the repository catalog in selectorExpressions;
       set idLookupTemplate to the existing typed lookup (for example app.element(id: {{id}})).
@@ -113,27 +108,6 @@ func saveInitTestProfile(at root: URL) throws {
 
     """
     try document.write(to: output, atomically: true, encoding: .utf8)
-}
-
-private struct TestProfileSource {
-    let path: String
-    let text: String
-}
-
-private func discoverTestSources(_ root: URL) -> [TestProfileSource] {
-    let excluded: Set = [".git", ".build", ".build-linux", "build", "DerivedData", "Pods", "node_modules", ".swiftpm"]
-    guard let enumerator = FileManager.default.enumerator(
-        at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
-    ) else { return [] }
-    var sources: [TestProfileSource] = []
-    for case let file as URL in enumerator {
-        if excluded.contains(file.lastPathComponent) {
-            enumerator.skipDescendants(); continue
-        }
-        guard file.pathExtension == "swift", let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
-        sources.append(TestProfileSource(path: String(file.path.dropFirst(root.path.count + 1)), text: text))
-    }
-    return sources.sorted { $0.path < $1.path }
 }
 
 // swiftlint:enable multiline_arguments
