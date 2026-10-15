@@ -1,5 +1,5 @@
 {
-  "originHash" : "8ab96db30e6232133b6572d6c80b456f09dc80adde07d3a3bbaadece3c539b18",
+  "originHash" : "f16c9279586822752f536895e31ff9f759815a79156d1346a6158622077fcf6c",
   "pins" : [
     {
       "identity" : "cli-wrappers",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/ShipItSwifty/cli-wrappers.git",
       "state" : {
         "branch" : "main",
-        "revision" : "aad3afa18dd8161f64837838aadcae0b5daf9754"
+        "revision" : "ee099c48332124ad4270a10f96afca140fbcb10a"
       }
     },
     {
@@ -52,7 +52,7 @@
       "location" : "https://github.com/ShipItSwifty/mobile-kits.git",
       "state" : {
         "branch" : "main",
-        "revision" : "2e553acdaa8b2719ee8a07047a28d344ab632a87"
+        "revision" : "471dc2ce91f0bcd43795dfba489e86877bb61013"
       }
     },
     {

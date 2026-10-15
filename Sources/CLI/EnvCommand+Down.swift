@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import MobileDevices
 import ProcessRunner
+import SwiftyShell
 #if canImport(Darwin)
 import Darwin
 #else
@@ -80,11 +81,14 @@ func runEnvDown(_ options: EnvDownOptions, store: DeviceClaimStore = DeviceClaim
 }
 
 private func shutDownDevice(_ lease: DeviceClaim) async -> Bool {
-    let arguments = switch lease.platform {
-    case .android: ["adb", "-s", lease.deviceID, "emu", "kill"]
-    case .ios: ["xcrun", "simctl", "shutdown", lease.deviceID]
-    }
-    return await (try? SystemProcessRunner().run(arguments))?.exitCode == 0
+    let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
+    do {
+        switch lease.platform {
+        case .android: try await AndroidDeviceManager(shell: context).killEmulator(lease.deviceID)
+        case .ios: try await SimulatorManager(shell: context).shutdown(lease.deviceID)
+        }
+        return true
+    } catch { return false }
 }
 
 // MARK: - env list

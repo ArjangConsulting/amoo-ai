@@ -1,9 +1,11 @@
+import AdbKit
 import AmooCore
 import Foundation
 import MobileCore
 import MobileDevices
 import ProcessRunner
 import SwiftyShell
+import XcrunKit
 #if canImport(Darwin)
 import Darwin
 #else
@@ -362,9 +364,9 @@ func orphanedCompanionHolders(deviceID: String) async -> [Int32] {
 let androidCompanionPackages = ["com.amoo.companion.test", "com.amoo.companion"]
 
 func forceStopAndroidCompanion(serial: String) async {
-    let runner = SystemProcessRunner()
+    let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
     for package in androidCompanionPackages {
-        _ = try? await runner.run(["adb", "-s", serial, "shell", "am", "force-stop", package])
+        try? await AndroidDeviceManager(shell: context).terminate(package: package, on: serial)
     }
 }
 
@@ -392,7 +394,8 @@ private func reapAndroidRemainder(_ lease: DeviceClaim) {
     for package in androidCompanionPackages {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["adb", "-s", lease.deviceID, "shell", "am", "force-stop", package]
+        let command = Adb().serial(lease.deviceID).amForceStop(package: package).command()
+        process.arguments = [command.executableName] + command.arguments
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         if (try? process.run()) != nil {
@@ -443,9 +446,11 @@ private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceClaim, app: ino
 
 /// Read-only install check, independent of the companion.
 private func isAppInstalled(platform: Platform, deviceID: String, appID: String) async -> Bool {
-    let arguments = switch platform {
-    case .android: ["adb", "-s", deviceID, "shell", "pm", "path", appID]
-    case .ios: ["xcrun", "simctl", "get_app_container", deviceID, appID]
+    let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
+    switch platform {
+    case .android:
+        return await (try? Adb(context: context).serial(deviceID).pmPath(package: appID).run()) != nil
+    case .ios:
+        return await (try? Simctl(context: context).getAppContainer(deviceID, bundleIdentifier: appID).run()) != nil
     }
-    return await (try? SystemProcessRunner().run(arguments))?.exitCode == 0
 }

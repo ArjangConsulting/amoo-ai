@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileCore
 import MobileDevices
 import ProcessRunner
 import SwiftyShell
@@ -260,9 +261,8 @@ struct AndroidDeviceSelector {
 
     func listAvailableVirtualDevices() async -> [AndroidVirtualDevice] {
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
-        guard let result = try? await Command("emulator").args(["-list-avds"]).timeout(.seconds(10)).run(in: context)
-        else { return [] }
-        return parseAndroidVirtualDevices(output: result.stdout)
+        guard let names = try? await AndroidEmulatorManager(shell: context).listAVDs() else { return [] }
+        return names.map { AndroidVirtualDevice(name: $0) }
     }
 }
 
@@ -439,7 +439,7 @@ struct PlatformDeviceSelector {
             if deferIOSBoot {
                 return .ios(BootedDevice(udid: simulator.udid, name: simulator.name, osVersion: simulator.osVersion))
             }
-            return try await .ios(bootIOSSimulator(simulator, selector: iosSelector))
+            return try await .ios(bootIOSSimulator(simulator))
         case .android:
             guard !androidVirtualDevices.isEmpty else {
                 throw DeviceSelectionError.noLaunchableDevices(.android)
@@ -452,28 +452,18 @@ struct PlatformDeviceSelector {
     }
 
     private func bootIOSSimulator(
-        _ simulator: IOSSimulatorDevice,
-        selector: DeviceSelector
+        _ simulator: IOSSimulatorDevice
     ) async throws -> BootedDevice {
         _ = try? await processRunner.run(["open", "-a", "Simulator"])
-        let bootResult = try await processRunner.run(["xcrun", "simctl", "boot", simulator.udid])
-        guard bootResult.exitCode == 0 else {
-            let message = bootResult.stderr.isEmpty ? bootResult.stdout : bootResult.stderr
-            throw DeviceSelectionError.launchFailed(message.trimmingCharacters(in: .whitespacesAndNewlines))
+        let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+        do {
+            _ = try await SimulatorManager(shell: context).boot(simulator.udid, timeout: .seconds(30))
+            return BootedDevice(udid: simulator.udid, name: simulator.name, osVersion: simulator.osVersion)
+        } catch MobileKitError.timedOut {
+            throw DeviceSelectionError.startupTimedOut("Timed out waiting for iOS simulator \(simulator.name) to boot.")
+        } catch {
+            throw DeviceSelectionError.launchFailed(String(describing: error))
         }
-
-        let deadline = Date().addingTimeInterval(30)
-        while Date() < deadline {
-            let bootedDevices = await selector.listBootedDevices()
-            if let booted = bootedDevices.first(where: { $0.udid == simulator.udid }) {
-                return booted
-            }
-            try await Task.sleep(for: .milliseconds(500))
-        }
-
-        throw DeviceSelectionError.startupTimedOut(
-            "Timed out waiting for iOS simulator \(simulator.name) to boot."
-        )
     }
 
     private func startAndroidEmulator(

@@ -3,6 +3,7 @@
 
 # SwiftPM
 .build/
+/Packages/
 .build-linux/
 .swiftpm/
 
