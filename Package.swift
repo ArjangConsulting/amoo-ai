@@ -147,6 +147,7 @@ let package = Package(
                 "TestCodeGenerator",
                 "WebInspector",
                 .product(name: "AdbKit", package: "cli-wrappers"),
+                .product(name: "XcrunKit", package: "cli-wrappers"),
                 .product(name: "GradleKit", package: "cli-wrappers"),
                 .product(name: "XcodeBuildKit", package: "cli-wrappers"),
                 .product(name: "XcodeGenKit", package: "cli-wrappers"),

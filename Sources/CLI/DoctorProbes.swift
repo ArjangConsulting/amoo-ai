@@ -1,6 +1,9 @@
+import AdbKit
 import AmooCore
 import Foundation
 import ProcessRunner
+import SwiftyShell
+import XcrunKit
 #if canImport(Darwin)
 import Darwin
 #else
@@ -140,7 +143,8 @@ func companionListeners(processRunner: any ProcessRunner) async -> [DoctorReport
     guard let lsof = try? await processRunner.run(["/usr/sbin/lsof", "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn"])
     else { return [] }
     var listeners = parseCompanionListeners(lsof.stdout, ports: 22080 ... 22199)
-    let forwards = await (try? processRunner.run(["adb", "forward", "--list"]))?.stdout ?? ""
+    let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+    let forwards = await (try? Adb(context: context).listForwards().run())?.stdout ?? ""
     for index in listeners.indices {
         let port = listeners[index].port
         if let serial = forwards.split(whereSeparator: \.isNewline)
@@ -210,8 +214,9 @@ func parseUnavailableSimulatorProblems(runtimesJSON: String, devicesJSON: String
 
 func simulatorRuntimeProblems(processRunner: any ProcessRunner) async -> [String] {
     #if os(macOS)
-    async let runtimes = try? processRunner.run(["xcrun", "simctl", "list", "runtimes", "-j"])
-    async let devices = try? processRunner.run(["xcrun", "simctl", "list", "devices", "-j"])
+    let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+    async let runtimes = try? Simctl(context: context).list(.runtimes, json: true).run()
+    async let devices = try? Simctl(context: context).list(.devices, json: true).run()
     return await parseUnavailableSimulatorProblems(
         runtimesJSON: runtimes?.stdout ?? "",
         devicesJSON: devices?.stdout ?? ""

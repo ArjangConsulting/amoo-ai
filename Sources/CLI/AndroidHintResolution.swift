@@ -1,3 +1,4 @@
+import AdbKit
 import AmooCore
 import Foundation
 import ProcessRunner
@@ -9,10 +10,9 @@ extension AndroidDeviceSelector {
     func runningAVDName(serial: String) async -> String? {
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
         guard serial.hasPrefix("emulator-"),
-              let result = try? await Command("adb")
-              .args(["-s", serial, "shell", "getprop", "ro.boot.qemu.avd_name"])
+              let result = try? await Adb(context: context).serial(serial).getprop("ro.boot.qemu.avd_name")
               .timeout(.seconds(5))
-              .run(in: context)
+              .run()
         else { return nil }
         let name = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         return name.isEmpty ? nil : name

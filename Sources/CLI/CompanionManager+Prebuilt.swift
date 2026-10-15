@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MobileDevices
 import ProcessRunner
 import SwiftyShell
 
@@ -67,31 +68,13 @@ extension CompanionManager {
         await StartupProgress.report("Booting iOS simulator")
         // Bounded: an unresponsive simulator must surface as an error, not wedge the startup
         // (and the build error behind it, since `ensureRunning` joins this task on every exit).
-        let boot = try await simctlResult(["boot", config.deviceUDID], seconds: 60)
-        guard boot.exitCode == 0 || boot.stderr.contains("current state: Booted") else {
-            throw CompanionError.launchFailed("Simulator boot failed: \(boot.stderr)")
-        }
-        let ready = try await simctlResult(["bootstatus", config.deviceUDID, "-b"], seconds: 300)
-        guard ready.exitCode == 0 else {
-            throw CompanionError.launchFailed("Simulator boot readiness failed: \(ready.stderr)")
+        let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
+        do {
+            _ = try await SimulatorManager(shell: context).boot(config.deviceUDID, timeout: .seconds(300))
+        } catch {
+            throw CompanionError.launchFailed("Simulator boot readiness failed: \(error)")
         }
         await StartupProgress.report("iOS simulator boot complete; waiting for companion preparation")
-    }
-
-    private func simctlResult(_ arguments: [String], seconds: Int) async throws -> ProcessResult {
-        do {
-            return try await processRunner.run(Self.simctlRequest(arguments, seconds: seconds))
-        } catch let ShellError.exitFailure(_, output) {
-            // Typed requests throw on exit failure; preserve stderr for the boot-state decision.
-            return ProcessResult(exitCode: output.exitCode, stdout: output.stdout, stderr: output.stderr)
-        }
-    }
-
-    private static func simctlRequest(_ arguments: [String], seconds: Int) -> ProcessExecutionRequest {
-        ProcessExecutionRequest(
-            command: Command("xcrun").args(["simctl"] + arguments).timeout(.seconds(seconds)),
-            context: ShellContext()
-        )
     }
 
     /// Release device builds are unsigned. Sign a writable copy with the user's profiles.
