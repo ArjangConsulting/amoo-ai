@@ -61,3 +61,42 @@ extension DriverToolExecutor {
         return json
     }
 }
+
+/// The launch configuration a session starts with.
+extension DriverToolExecutor {
+    struct LaunchConfiguration: Equatable {
+        var arguments: [String]
+        var environment: [String: String]
+        /// `explicit` (the caller's), `profile` (the repository's `amoo.md` / context), `explicit+profile`
+        /// (explicit arguments over profile environment, or the reverse) or `none`.
+        var source: String
+    }
+
+    /// Explicit `launch_args` and `environment` win. The profile supplies what the caller left out,
+    /// so a recording is made under the language, locale and text size the repository's tests use
+    /// without every caller having to remember them. The profile's environment sits beneath an
+    /// explicit one key by key.
+    static func launchConfiguration(arguments: [String: String], contextJSON: String?) -> LaunchConfiguration {
+        let explicitArguments: [String] = arguments["launch_args"]
+            .map { $0.split(separator: ",").map(String.init) } ?? []
+        let explicitEnvironment = parseEnvironment(arguments["environment"])
+        let profile = contextJSON.flatMap { try? JSONDecoder().decode(StudioTestContext.self, from: Data($0.utf8)) }
+        let profileArguments = explicitArguments.isEmpty ? profile?.launchArguments ?? [] : []
+        let profileEnvironment = profile?.launchEnvironment ?? [:]
+        let environment = profileEnvironment.merging(explicitEnvironment) { _, explicit in explicit }
+        let usedProfile = !profileArguments.isEmpty || profileEnvironment.keys
+            .contains { explicitEnvironment[$0] == nil }
+        let usedExplicit = !explicitArguments.isEmpty || !explicitEnvironment.isEmpty
+        let source = switch (usedExplicit, usedProfile) {
+        case (true, true): "explicit+profile"
+        case (true, false): "explicit"
+        case (false, true): "profile"
+        case (false, false): "none"
+        }
+        return LaunchConfiguration(
+            arguments: explicitArguments.isEmpty ? profileArguments : explicitArguments,
+            environment: environment,
+            source: source
+        )
+    }
+}

@@ -117,7 +117,9 @@ app, use the CLI path.
 2. Locate with `find_elements` (prefer id, then exact label, then `contains_text`; disambiguate
    with `parent_id`). `tap_element` / `set_text` / `fill_field` resolve their own target.
 3. After every mutation, prove the outcome with `assert_visible`, `assert_absent`,
-   `assert_enabled` or `assert_value` using `timeout_ms` — a dispatched gesture proves nothing.
+   `assert_enabled`, `assert_value` or `assert_selected` (`expected=true|false`) using `timeout_ms` —
+   a dispatched gesture proves nothing. `find_elements` reports `selected`, but an observation is
+   not an assertion: assert every selection the test must keep.
    Compare screens with `get_screen_context` → `assert_screen_changed from_token=…`.
 4. Results are paged: follow `next_offset` while `has_more`; a truncated list never proves
    absence — use `assert_absent`.

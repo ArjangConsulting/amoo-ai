@@ -204,6 +204,11 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     /// The iOS device class the test was recorded for. When set, the generated test skips itself on
     /// the other class — an iPhone recording on an iPad would tap controls that are not there.
     public let requiredIdiom: Idiom?
+    /// Launch arguments `start_session` applies when the caller passes none, so a recording is made
+    /// under the language, locale and text size the repository's tests use. Explicit arguments win.
+    public let launchArguments: [String]
+    /// Launch environment `start_session` applies beneath an explicit `environment`.
+    public let launchEnvironment: [String: String]
 
     public enum Idiom: String, Codable, Equatable, Sendable {
         case phone
@@ -225,9 +230,12 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         timeoutExpressions: [String: String] = [:],
         assertionBindings: [String: String] = [:],
         relaunchHelper: String? = nil,
-        targetPlatform: Platform? = nil
+        targetPlatform: Platform? = nil,
+        launchArguments: [String] = [],
+        launchEnvironment: [String: String] = [:]
     ) {
         self.targetPlatform = targetPlatform
+        self.launchArguments = launchArguments; self.launchEnvironment = launchEnvironment
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
         self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
@@ -240,7 +248,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
         case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
-        case assertionBindings, relaunchHelper, targetPlatform
+        case assertionBindings, relaunchHelper, targetPlatform, launchArguments, launchEnvironment
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -262,6 +270,35 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         timeoutExpressions = try container.decodeIfPresent([String: String].self, forKey: .timeoutExpressions) ?? [:]
         assertionBindings = try container.decodeIfPresent([String: String].self, forKey: .assertionBindings) ?? [:]
         relaunchHelper = try container.decodeIfPresent(String.self, forKey: .relaunchHelper)
+        launchArguments = try container.decodeIfPresent([String].self, forKey: .launchArguments) ?? []
+        launchEnvironment = try container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
+    }
+
+    /// Omits the two launch fields while they are empty, so contexts written before they existed
+    /// (and plans embedding one) keep their exact serialized form.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(imports, forKey: .imports)
+        try container.encodeIfPresent(targetPlatform, forKey: .targetPlatform)
+        try container.encodeIfPresent(baseClass, forKey: .baseClass)
+        try container.encodeIfPresent(appFactory, forKey: .appFactory)
+        try container.encode(harnessLaunchesApp, forKey: .harnessLaunchesApp)
+        try container.encode(helpers, forKey: .helpers)
+        try container.encode(selectorExpressions, forKey: .selectorExpressions)
+        try container.encodeIfPresent(idLookupTemplate, forKey: .idLookupTemplate)
+        try container.encodeIfPresent(requiredIdiom, forKey: .requiredIdiom)
+        try container.encode(harnessOwnsApp, forKey: .harnessOwnsApp)
+        try container.encodeIfPresent(factoryOverride, forKey: .factoryOverride)
+        try container.encode(waitBindings, forKey: .waitBindings)
+        try container.encode(timeoutExpressions, forKey: .timeoutExpressions)
+        try container.encode(assertionBindings, forKey: .assertionBindings)
+        try container.encodeIfPresent(relaunchHelper, forKey: .relaunchHelper)
+        if !launchArguments.isEmpty {
+            try container.encode(launchArguments, forKey: .launchArguments)
+        }
+        if !launchEnvironment.isEmpty {
+            try container.encode(launchEnvironment, forKey: .launchEnvironment)
+        }
     }
 
     public func helper(named name: String) -> Helper? {
@@ -341,6 +378,33 @@ public struct StudioPlanWarning: Codable, Equatable, Sendable {
         case approximate
         /// Included, but carries a redacted value that must be hand-filled before the test runs.
         case redacted
+        /// Informational: an authored assertion was carried into the plan with its full meaning.
+        /// Listed only for assertions a reviewer checks coverage against (selected state, combined
+        /// selector constraints), so a missing entry reads as a gap rather than as silence.
+        case preserved
+    }
+
+    /// What a warning says about behavioral coverage, finer than `kind`. Review cares about these
+    /// distinctions: an omitted inspection is expected, an observation approximated as a
+    /// visibility check is a guess, and an explicit assertion that was weakened or dropped makes
+    /// the generated test pass for the wrong reason.
+    public enum Category: String, Codable, Sendable {
+        /// An inspection was left out of the test on purpose; nothing was authored.
+        case inspectionOmitted = "inspection_omitted"
+        /// An observation was compiled into a visibility assertion nobody authored.
+        case observationApproximated = "observation_approximated"
+        /// An observation read a selected state, but only an explicit `assert_selected` asserts one.
+        case selectedStateNotAsserted = "selected_state_not_asserted"
+        /// An authored assertion was carried into the plan with the same meaning.
+        case assertionPreserved = "assertion_preserved"
+        /// An authored assertion was translated loosely and checks less than was recorded.
+        case assertionWeakened = "assertion_weakened"
+        /// An authored assertion has no equivalent, so nothing in the plan checks it.
+        case assertionUnsupported = "assertion_unsupported"
+        /// A recorded action the test needs has no plan equivalent and was left out.
+        case actionExcluded = "action_excluded"
+        /// A recorded selector field is not part of the compiled selector.
+        case selectorConstraintDiscarded = "selector_constraint_discarded"
     }
 
     public let kind: Kind
@@ -352,21 +416,39 @@ public struct StudioPlanWarning: Codable, Equatable, Sendable {
     /// suppress these, so a finalize pass can drop the step once it knows the build does — but only
     /// if the compiler tells it which steps qualify.
     public let transient: Bool
+    /// `nil` on warnings written before categories existed, or for a kind that needs none.
+    public let category: Category?
+    /// The recorded selector fields, as `id=…, contains_text=…`, when the warning is about one.
+    public let selector: String?
+    /// The state the warning concerns, such as `selected=true` observed or `expected=false` asserted.
+    public let state: String?
 
-    public init(kind: Kind, actionIndex: Int, toolName: String, reason: String, transient: Bool = false) {
+    public init(
+        kind: Kind,
+        actionIndex: Int,
+        toolName: String,
+        reason: String,
+        transient: Bool = false,
+        category: Category? = nil,
+        selector: String? = nil,
+        state: String? = nil
+    ) {
         self.kind = kind
         self.actionIndex = actionIndex
         self.toolName = toolName
         self.reason = reason
         self.transient = transient
+        self.category = category
+        self.selector = selector
+        self.state = state
     }
 
     private enum CodingKeys: String, CodingKey {
-        case kind, actionIndex, toolName, reason, transient
+        case kind, actionIndex, toolName, reason, transient, category, selector, state
     }
 
-    /// `transient` was added after plans were already being written to disk. Absence decodes as
-    /// `false` so an older plan still round-trips instead of failing to decode.
+    /// `transient` and the coverage fields were added after plans were already being written to
+    /// disk. Absence decodes as `false` / `nil` so an older plan still round-trips.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         kind = try container.decode(Kind.self, forKey: .kind)
@@ -374,6 +456,9 @@ public struct StudioPlanWarning: Codable, Equatable, Sendable {
         toolName = try container.decode(String.self, forKey: .toolName)
         reason = try container.decode(String.self, forKey: .reason)
         transient = try container.decodeIfPresent(Bool.self, forKey: .transient) ?? false
+        category = try container.decodeIfPresent(Category.self, forKey: .category)
+        selector = try container.decodeIfPresent(String.self, forKey: .selector)
+        state = try container.decodeIfPresent(String.self, forKey: .state)
     }
 }
 

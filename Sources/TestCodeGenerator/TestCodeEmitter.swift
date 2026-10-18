@@ -7,6 +7,9 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
     case invalidArgument(tool: String, argument: String, value: String)
     case unknownTestHelper(String)
     case invalidTestHelperTemplate(helper: String, placeholder: String)
+    /// An authored assertion this emitter cannot express. Generation stops rather than substituting
+    /// a weaker check, since a test that passes without checking the recorded state is worse than none.
+    case unsupportedAssertion(tool: String, emitter: String, reason: String)
 
     public var description: String {
         switch self {
@@ -22,7 +25,40 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
             "Generated operation requests test helper '\(name)', but it is absent from testContext.helpers."
         case let .invalidTestHelperTemplate(helper, placeholder):
             "Test helper '\(helper)' references missing operation argument '\(placeholder)'."
+        case let .unsupportedAssertion(tool, emitter, reason):
+            "The \(emitter) emitter cannot express '\(tool)': \(reason) Generation stops instead of"
+                + " substituting a weaker assertion."
         }
+    }
+}
+
+/// The expectation of an `assert_selected` operation, shared so every emitter reads it the same way.
+enum SelectedAssertion {
+    /// `expected` must state the intended state outright. A plan from the session compiler always
+    /// does; a hand-written one that omits it is rejected instead of defaulting, because an omitted
+    /// negative expectation would silently become a positive one.
+    static func expectation(_ operation: StudioToolOperation) throws -> Bool {
+        guard let raw = operation.arguments["expected"] else {
+            throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "expected")
+        }
+        switch raw.lowercased() {
+        case "true": return true
+        case "false": return false
+        default:
+            throw TestCodeGeneratorError.invalidArgument(tool: operation.tool, argument: "expected", value: raw)
+        }
+    }
+}
+
+extension TestCodeGeneratorError {
+    /// The Android companion reports no selected state, so no Android emitter can express the assertion.
+    static func selectionUnsupportedOnAndroid(tool: String, emitter: String) -> Self {
+        .unsupportedAssertion(
+            tool: tool,
+            emitter: emitter,
+            reason: "the Android companion does not report a selected state, so the assertion can be neither"
+                + " recorded nor verified there."
+        )
     }
 }
 
@@ -39,6 +75,12 @@ enum TestHelperRendering {
             throw TestCodeGeneratorError.unknownTestHelper(helperName)
         }
 
+        // A helper that does not take the expectation cannot tell selected from unselected.
+        if operation.tool == StudioTool.assertSelected.rawValue, !helper.callTemplate.contains("{{expected}}") {
+            throw TestCodeGeneratorError.invalidArgument(
+                tool: operation.tool, argument: "helper", value: "\(helperName) drops the recorded expectation"
+            )
+        }
         var call = helper.callTemplate
         while let start = call.range(of: "{{"), let end = call.range(
             of: "}}",

@@ -15,6 +15,7 @@ func saveInitTestProfile(at root: URL) throws {
     let android = AndroidTestProfile.discover(at: root)
     let tests = facts.uiTestFiles
     let base = facts.baseClass?.value
+    let project = discoverInitProjectFacts(root: root, testFiles: tests, baseClass: base)
     let ownsApp = facts.harnessOwnsApplication?.value ?? false
     let launches = facts.harnessLaunchesApplication?.value ?? false
     let timeoutExpressions = facts.defaultTimeout.map { ["default": $0.value] } ?? [:]
@@ -50,7 +51,8 @@ func saveInitTestProfile(at root: URL) throws {
         waitBindings: waits,
         timeoutExpressions: timeoutExpressions,
         relaunchHelper: facts.relaunchHelper?.template,
-        targetPlatform: .ios
+        targetPlatform: .ios,
+        launchArguments: project.launchArguments
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -89,6 +91,8 @@ func saveInitTestProfile(at root: URL) throws {
       previous month); do not substitute a recording's literal date for relative scenario intent.
     - Keep recordings, plans, and provenance outside test source directories. Create Swift files
       only when generation is requested. Compile and run exports in the real target.
+
+    \(project.markdown())
 
     ## Source evidence
 

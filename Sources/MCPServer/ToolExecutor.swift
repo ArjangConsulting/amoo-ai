@@ -188,7 +188,8 @@ public actor DriverToolExecutor: ToolExecutor {
         if isError {
             return .failedProbe
         }
-        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled"].contains(toolName) {
+        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled", "assert_selected"]
+            .contains(toolName) {
             return .assertion
         }
         if [
@@ -228,6 +229,9 @@ public actor DriverToolExecutor: ToolExecutor {
             copy["contains"] = copy["contains"].map { "<redacted, \($0.count) chars>" }
         case "open_url":
             copy["url"] = copy["url"].map(ArtifactRedactor.redactedURL)
+        case "assert_selected":
+            // Recorded explicitly, so a defaulted expectation is never read back as an absent one.
+            copy["expected"] = (try? Self.parseExpectedSelection(copy["expected"])).map(String.init) ?? copy["expected"]
         default:
             break
         }

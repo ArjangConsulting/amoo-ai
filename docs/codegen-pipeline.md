@@ -95,7 +95,8 @@ Three cooperating layers — a change in the wrong one is silently overridden:
    onto operations, never touching the selector or step text:
    - `attachObservedLabel` — carries a `find_elements` label onto an id-only selector as `name_hint`.
    - `attachGestureTargetLabel` — carries a row label onto an element-scoped
-     `swipe_in_direction` / `scroll` as `element_label`.
+     `swipe_in_direction` / `scroll` as `name_hint`. (Not `element_label`: that is a selector
+     constraint and, next to `element_id`, must match too.)
    - `annotatePresetOptionTaps` — a bare-label tap in a create → choose → confirm flow gets
      `name_hint = "<label> preset option"` so a picker option (`laundryPresetOption`) does not
      collide with the catalog row of the same name (`laundryTaskRow`).
@@ -132,6 +133,47 @@ application step — never for a lifecycle call (those are `.notApplicable`, see
 - `Tests/IntegrationTests/IOSSessionCodegenRegressionTests.swift` — the full record → compile →
   generate acceptance scenario, end to end.
 - `Tests/CLITests/GenerateCommandTests.swift`, `GeneratePlanCommandTests.swift` — the CLI surface.
+
+## Plan warning categories
+
+Every `compiledPlan.warnings` entry keeps its `kind` and adds an optional `category`, the action
+index, and the `selector` / `state` involved, so a reviewer can tell what a recording's behavioral
+checks became:
+
+| `category` | `kind` | Meaning |
+| --- | --- | --- |
+| `inspection_omitted` | `notApplicable` | An inspection was left out on purpose; nothing was authored. |
+| `observation_approximated` | `approximate` | A `find_elements` observation became an `assert_visible` nobody authored. |
+| `selected_state_not_asserted` | `approximate` | An observation read `selected=…` but only `assert_selected` asserts it. |
+| `assertion_preserved` | `preserved` | An authored `assert_selected` (or multi-constraint assertion) reached the plan intact. |
+| `assertion_weakened` | `approximate` | An authored assertion used a `description` and was mapped to a `contains_text` guess. |
+| `assertion_unsupported` | `excluded` | An authored assertion has no plan equivalent; **blocks generation**. |
+| `action_excluded` | `excluded` | A required action has no plan equivalent; blocks generation. |
+| `selector_constraint_discarded` | `approximate` | A recorded selector field is not part of the compiled selector. |
+
+An explicit assertion is never rewritten into a weaker one: `assert_selected` with an unreadable
+`expected` is `assertion_unsupported`, an emitter that cannot express an assertion throws instead
+of substituting visibility, and `assertionBindings` / helpers that drop the expectation are rejected.
+`kind: preserved` is informational and is listed only for assertions a reviewer checks coverage
+against (selected state, combined selector constraints).
+
+## Generated XCUITest isolation
+
+`XCUIApplication` and `XCUIElement` are main-actor isolated, so the generated class is
+`@MainActor` — otherwise a Swift 6 UI-test target rejects `private lazy var app = XCUIApplication()`
+("main actor-isolated default value in a nonisolated context") and the `\.isHittable` /
+`\.isSelected` key paths. A custom `baseClass` whose lifecycle methods are not isolated would make
+a generated `setUpWithError` override nonisolated too (an override inherits the isolation of what it
+overrides) and its body could not touch `app`; wrapping it in `MainActor.assumeIsolated` is rejected
+as "sending 'self' risks causing data races". So for any base other than `XCTestCase` the setup and
+teardown work lives in XCTest's main-actor `setUp() async throws` / `tearDown() async throws`, which
+run after / before the synchronous pair and leave the base class's own `setUpWithError` /
+`tearDownWithError` untouched. No `@unchecked Sendable`, no `nonisolated(unsafe)`, no
+concurrency-checking opt-outs. `SwiftConcurrencyCompileTests` compiles the output to SIL (region
+isolation is diagnosed there, so `-typecheck` is not enough) under `-swift-version 6` and
+`-strict-concurrency=complete` (set
+`AMOO_COMPILE_DEVELOPER_DIR` to repeat it with another Xcode) and proves the two original errors
+come back when the isolation is removed.
 
 ## Assertion-quality review
 

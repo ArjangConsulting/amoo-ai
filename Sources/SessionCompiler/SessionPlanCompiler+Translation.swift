@@ -65,6 +65,26 @@ extension SessionPlanCompiler {
         )
     }
 
+    /// `expected` is normalised to an explicit `"true"` / `"false"`, so the plan always states the
+    /// expectation. Anything else cannot be preserved, and returning `nil` makes the compiler report
+    /// the assertion as unsupported rather than guess which state was meant.
+    static func translateAssertSelected(_ arguments: [String: String]) -> TranslatedAction? {
+        var mapped = arguments
+        let expected = (arguments["expected"] ?? "true").lowercased()
+        guard expected == "true" || expected == "false" else { return nil }
+        mapped["expected"] = expected
+        let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
+        if usesDescription {
+            mapped["contains_text"] = mapped["description"]
+        }
+        mapped["description"] = nil
+        return TranslatedAction(
+            studioTool: .assertSelected,
+            studioArguments: mapped,
+            approximate: usesDescription
+        )
+    }
+
     static func translateAssertValue(_ arguments: [String: String]) -> TranslatedAction? {
         // `expected` is exact equality; `contains` is a substring check. Studio carries both, so
         // neither is left out of the plan.
@@ -121,6 +141,9 @@ extension SessionPlanCompiler {
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is not visible.", "Element is not visible.")
         case .assertEnabled:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is enabled.", "Element is enabled.")
+        case .assertSelected:
+            let state = arguments[.expected]?.lowercased() == "false" ? "not selected" : "selected"
+            return ("Assert element\(selector.map { " '\($0)'" } ?? "") is \(state).", "Element is \(state).")
         case .assertText:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") has expected text.", "Text matches.")
         case .assertValue:

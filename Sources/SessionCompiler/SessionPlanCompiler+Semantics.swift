@@ -24,7 +24,7 @@ extension SessionPlanCompiler {
     static let idSelectorTools: Set<String> = [
         "tap_element", "double_tap", "long_press", "set_text", "type_text", "fill_field",
         "assert_visible", "assert_absent", "wait_for_element", "assert_enabled",
-        "assert_text", "assert_value"
+        "assert_text", "assert_value", "assert_selected"
     ]
 
     /// Copies the label/type from the `find_elements` observation of this action's target onto the
@@ -72,10 +72,14 @@ extension SessionPlanCompiler {
         guard ["swipe_in_direction", "scroll"].contains(action.toolName),
               let id = action.arguments["element_id"], !id.isEmpty,
               (action.arguments["element_label"] ?? "").isEmpty,
+              action.arguments["name_hint"] == nil,
               let observed = recentElements.first(where: { $0.id == id }) else { return action }
         var arguments = action.arguments
+        // `element_label` is a selector constraint like `label`, so the observed label goes in
+        // `name_hint`: written there it would make the generated gesture match on text the
+        // recording never asked for.
         if let label = observed.label, !label.isEmpty {
-            arguments["element_label"] = label
+            arguments["name_hint"] = label
         }
         if let elementType = observed.elementType, arguments["element_type"] == nil {
             arguments["element_type"] = elementType
@@ -171,8 +175,14 @@ extension SessionPlanCompiler {
         arguments["element_id"] = target.elementID
         // Keep the resolved label even when an id drives the selector: the id stays the stable test
         // contract, but the label is what makes the generated variable name readable
-        // (`groceriesTaskRow`, not `taskListRow`).
-        arguments["element_label"] = target.elementLabel
+        // (`groceriesTaskRow`, not `taskListRow`). Beside an id it goes in `name_hint`, because
+        // `element_label` is a selector constraint and would also have to match; it is the selector
+        // itself only when there is no id.
+        if target.elementID?.isEmpty == false {
+            arguments["name_hint"] = target.elementLabel
+        } else {
+            arguments["element_label"] = target.elementLabel
+        }
         arguments["element_type"] = target.elementType
         for key in ["from_x", "from_y", "to_x", "to_y"] {
             arguments[key] = nil

@@ -183,7 +183,7 @@ let package = Package(
             name: "MCPServerTests",
             dependencies: [
                 .product(name: "TestCommons", package: "SwiftTestCommons"), "MCPServer", "SessionCompiler",
-                "ProcessRunner", "WebInspector"
+                "ProcessRunner", "WebInspector", "TestCodeGenerator"
             ]
         ),
         .testTarget(name: "WebInspectorTests", dependencies: ["WebInspector"]),

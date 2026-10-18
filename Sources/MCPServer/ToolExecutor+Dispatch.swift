@@ -164,13 +164,12 @@ extension DriverToolExecutor {
                 return tooShort
             }
             let ms = arguments["duration_ms"].flatMap(Int.init) ?? 400
-            let element: ElementSelector? = if let id = arguments["element_id"] {
-                ElementSelector(id: id)
-            } else if let label = arguments["element_label"] {
-                ElementSelector(label: label)
-            } else {
-                nil
-            }
+            // Both given means both must match, like id + label everywhere else.
+            let elementID = arguments["element_id"].flatMap { $0.isEmpty ? nil : $0 }
+            let elementLabel = arguments["element_label"].flatMap { $0.isEmpty ? nil : $0 }
+            let element: ElementSelector? = elementID == nil && elementLabel == nil
+                ? nil
+                : ElementSelector(id: elementID, label: elementLabel)
             if let pick = try ElementPick.parse(arguments) {
                 guard let element else {
                     return .error("swipe_in_direction failed: index/first pick one of several matches of"
@@ -231,7 +230,7 @@ extension DriverToolExecutor {
             guard let value = arguments["value"] else {
                 return .error("Missing required argument: value")
             }
-            guard let selector = preferredSelector(arguments: arguments) else {
+            guard let selector = try preferredSelector(arguments: arguments) else {
                 return .error("At least one of id, label, or contains_text is required")
             }
             return try await executeSetText(
@@ -258,7 +257,7 @@ extension DriverToolExecutor {
             return .success("Opened URL: \(url)")
 
         case "tap_element":
-            guard let selector = preferredSelector(arguments: arguments) else {
+            guard let selector = try preferredSelector(arguments: arguments) else {
                 return .error("At least one of id, label, or contains_text is required")
             }
             let appID = queryScopeAppID(arguments: arguments, driver: driver)
@@ -521,7 +520,7 @@ extension DriverToolExecutor {
             guard let value = arguments["value"] else {
                 return .error("Missing required argument: value")
             }
-            guard let selector = preferredSelector(arguments: arguments, includeDescription: true) else {
+            guard let selector = try preferredSelector(arguments: arguments, includeDescription: true) else {
                 return .error("At least one of id, label, contains_text, or field_description is required")
             }
             return try await executeSetText(
@@ -533,7 +532,7 @@ extension DriverToolExecutor {
 
         case "assert_visible":
             // Selector first, `description` as the fuzzy fallback — see `ElementAssertionKind`.
-            if let selector = preferredSelector(arguments: arguments, includeDescription: false) {
+            if let selector = try preferredSelector(arguments: arguments, includeDescription: false) {
                 return try await executeElementAssertion(
                     kind: .visible,
                     selector: selector,
@@ -552,7 +551,7 @@ extension DriverToolExecutor {
             )
 
         case "assert_enabled":
-            guard let selector = preferredSelector(arguments: arguments, includeDescription: true) else {
+            guard let selector = try preferredSelector(arguments: arguments, includeDescription: true) else {
                 return .error("An element selector is required")
             }
             return try await executeElementAssertion(
@@ -563,7 +562,7 @@ extension DriverToolExecutor {
             )
 
         case "assert_absent":
-            guard let selector = preferredSelector(arguments: arguments, includeDescription: true) else {
+            guard let selector = try preferredSelector(arguments: arguments, includeDescription: true) else {
                 return .error("An element selector is required")
             }
             return try await executeElementAssertion(
@@ -574,7 +573,7 @@ extension DriverToolExecutor {
             )
 
         case "assert_value":
-            guard let selector = preferredSelector(arguments: arguments, includeDescription: true) else {
+            guard let selector = try preferredSelector(arguments: arguments, includeDescription: true) else {
                 return .error("An element selector is required")
             }
             guard arguments["expected"] != nil || arguments["contains"] != nil else {
@@ -586,6 +585,9 @@ extension DriverToolExecutor {
                 arguments: arguments,
                 driver: driver
             )
+
+        case "assert_selected":
+            return try await executeAssertSelected(arguments: arguments, driver: driver)
 
         case "assert_screen_changed":
             guard let baseline = arguments["from_token"] else {

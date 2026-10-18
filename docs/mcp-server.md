@@ -324,6 +324,43 @@ Espresso, and `onAllNodes(...)[n]` in Compose (`set_text` / `fill_field` take no
 and never written to the session report) and, for a whole-screen listing, hides repeated-label static
 text and scroll bars unless `include_noise=true`. A timeout can occur after a device action started: inspect before retrying.
 
+#### Selector constraints
+
+`id`, `label` and `contains_text` are **constraints, and all of them must match**. `assert_visible
+id=day.30 contains_text="Range end"` passes only for an element that has that identifier *and* a
+label containing the text; a correct identifier with the wrong text fails. `parent_id` scopes the
+search to that element's descendants before any constraint applies, and `index` / `first` pick among
+the survivors afterwards. `description` / `field_description` are natural-language guesses, not
+constraints, so combining one with an exact field is rejected with `invalid_argument` rather than
+ignored. For `swipe_in_direction`, `element_id` and `element_label` follow the same rule. (Before,
+the host used the first of `id`, `label`, `contains_text` and dropped the rest, so such a call
+passed on the identifier alone; the companions have always matched every field they were sent.)
+`parent_id` was likewise a no-op on a real device: the request carried the parent, but neither
+companion read it, so a day "under" a button that had no children still matched. The host now
+applies the scope itself from the companion's view hierarchy — the parent must resolve to exactly
+one element (several is `ambiguous_selector`, none matches nothing), only its descendants are
+candidates, and if the hierarchy cannot be read the call fails with `scope_unavailable` instead of
+quietly running unscoped.
+The same constraints reach `report.json`, `plan.json` and every emitter: XCUITest chains
+`.matching(identifier:)` and `NSPredicate` filters, Espresso uses `allOf(…)` with
+`isDescendantOfA(…)`, and Compose joins matchers with `and` and `hasAnyAncestor(…)`.
+
+#### Asserting selection
+
+`assert_selected` (`id`/`label`/`contains_text`/`description`, `expected=true|false`, default
+`true`, `timeout_ms`, `parent_id`, `index`/`first`) polls until an **existing** element's selected
+state equals `expected`. An absent element fails even for `expected=false`; the failure reports
+`selector`, `expected`, `observed` (`selected`, `unselected`, `not_found`) and
+`resolution_failed`. Duplicate matches are `ambiguous_selector`, as for every other assertion. A
+device that reports no selected state returns `selected_state_unsupported`; visibility, enabled
+state and `assert_value` are never substituted (they cannot see the selected trait). iOS reports
+the state; Android does not yet, so Android recordings cannot contain the assertion and the
+Espresso/Compose emitters refuse a hand-written one.
+
+`find_elements` prints each element's `selected` state, but that is an observation: it is never
+compiled into an assertion. When a recorded observation read a selected state, the plan carries a
+`selected_state_not_asserted` warning naming the action and the state, so the gap is visible.
+
 `find_elements`, `list_apps`, `list_sessions`, and `get_session_report` default to 50 results;
 use `limit` and `next_offset` while `has_more` is true. Offsets query live state, so keep the screen
 stable while paging and restart if it changes. Hierarchy output defaults to 200 nodes with an

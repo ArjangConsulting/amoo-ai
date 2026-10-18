@@ -144,6 +144,8 @@ public enum SessionPlanCompiler {
             return translateAssertValue(arguments)
         case "assert_enabled":
             return translateAssertEnabled(arguments)
+        case "assert_selected":
+            return translateAssertSelected(arguments)
         default:
             return nil
         }
@@ -245,7 +247,11 @@ public enum SessionPlanCompiler {
                 actionIndex: index,
                 toolName: action.toolName,
                 reason: excludedReason(for: action),
-                transient: transient
+                transient: transient,
+                // An authored assertion that cannot be compiled leaves nothing in the plan to fail,
+                // which is a different problem from a missing step.
+                category: assertionTools.contains(action.toolName) ? .assertionUnsupported : .actionExcluded,
+                selector: selectorSummary(action.arguments)
             )
             return ProcessedAction(operation: nil, step: nil, warnings: [warning])
         }
@@ -257,9 +263,12 @@ public enum SessionPlanCompiler {
                 actionIndex: index,
                 toolName: action.toolName,
                 reason: "translated to '\(translated.studioTool.rawValue)' using an approximate selector mapping;"
-                    + " review before generating"
+                    + " review before generating",
+                category: assertionTools.contains(action.toolName) ? .assertionWeakened : nil,
+                selector: selectorSummary(action.arguments)
             ))
         }
+        warnings.append(contentsOf: coverageWarnings(index: index, action: action, translated: translated))
         if translated.studioArguments.values.contains(where: { $0.contains("<redacted") }) {
             warnings.append(SessionPlanWarning(
                 kind: .redacted,
@@ -311,17 +320,19 @@ public enum SessionPlanCompiler {
                 ? "inspection right before a state change, but it queried nothing assertable; "
                 + "consider adding an explicit assertion here"
                 : "inspection-only tool with no effect on the app; intentionally omitted from compiledPlan"
-            return ProcessedAction(
-                operation: nil,
-                step: nil,
-                warnings: [SessionPlanWarning(
-                    kind: .notApplicable,
-                    actionIndex: index,
-                    toolName: action.toolName,
-                    reason: reason,
-                    transient: transient
-                )]
-            )
+            var warnings = [SessionPlanWarning(
+                kind: .notApplicable,
+                actionIndex: index,
+                toolName: action.toolName,
+                reason: reason,
+                transient: transient,
+                category: .inspectionOmitted,
+                selector: selectorSummary(action.arguments)
+            )]
+            if let state = observedSelectedState(action) {
+                warnings.append(selectedStateNotAsserted(index: index, action: action, state: state))
+            }
+            return ProcessedAction(operation: nil, step: nil, warnings: warnings)
         }
         let stepID = "step-\(index)"
         let operation = StudioToolOperation(
@@ -331,15 +342,20 @@ public enum SessionPlanCompiler {
         )
         let described = describe(tool: .assertVisible, arguments: selector)
         let step = StudioAuthoredTest.Step(id: stepID, instruction: described.instruction, expected: described.expected)
-        let warning = SessionPlanWarning(
+        var warnings = [SessionPlanWarning(
             kind: .approximate,
             actionIndex: index,
             toolName: action.toolName,
-            reason: "compiled a pre-transition inspection into assert_visible on its queried element; "
+            reason: "observation compiled into an assert_visible nobody authored, on its queried element; "
                 + "confirm this is the check the recording meant to make",
-            transient: transient
-        )
-        return ProcessedAction(operation: operation, step: step, warnings: [warning])
+            transient: transient,
+            category: .observationApproximated,
+            selector: selectorSummary(selector)
+        )]
+        if let state = observedSelectedState(action) {
+            warnings.append(selectedStateNotAsserted(index: index, action: action, state: state))
+        }
+        return ProcessedAction(operation: operation, step: step, warnings: warnings)
     }
 
     // Preserve ordered plan construction and validation.

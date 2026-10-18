@@ -93,6 +93,7 @@ platform-conditional code (`ProcessRunner`, anything with `#if os`/`canImport`) 
 | `prefer_self_in_static_references` | Inside a type's own body, refer to it as `Self`, not by name. |
 | `optional_data_string_conversion` | `String(bytes: data, encoding: .utf8)`, not `String(decoding: data, as: UTF8.self)`. |
 | `cyclomatic_complexity` / `function_body_length` | For an inherently long linear switch (arg parsing, a tool dispatch), add `// swiftlint:disable:next <rule>` with a one-line reason rather than splitting it artificially. |
+| `no_trailing_comment` (custom) | Never end a line of code with a comment. Put it on its own line above the code. This applies to Kotlin, Python and shell too, which lint does not check. |
 
 SwiftFormat is not idempotent on this codebase — `make format` runs it twice; do the same if you
 run `swiftformat` directly on specific files.
@@ -132,6 +133,14 @@ mapped in **[`docs/codegen-pipeline.md`](docs/codegen-pipeline.md)** — read it
 `SessionPlanCompiler`, the emitters, `ToolExecutor` recording, or the MCP `initialize` instructions.
 App-owned generated-test context (base class, helpers, id catalog) is in
 [`docs/test-context.md`](docs/test-context.md).
+
+Fidelity rules that span those stages (details in the pipeline doc): selector fields `id` /
+`label` / `contains_text` are **all-must-match** constraints, with `parent_id` scoping applied first
+(host-side, from the view hierarchy) and `index` / `first` last; an observation (`find_elements`
+printing `selected`) never becomes an assertion — only `assert_selected` does; an explicit assertion
+is never rewritten into a weaker one (emitters throw, warnings carry a `category`); and generated
+XCUITest classes are `@MainActor`. `element_label` on a gesture is a constraint, so compiler-added
+naming hints go in `name_hint`.
 
 ## Distributable plugin (`plugins/amoo`)
 

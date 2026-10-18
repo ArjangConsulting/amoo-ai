@@ -16,7 +16,8 @@ extension DriverToolExecutor {
         let allowed: Set = [
             "tap", "tap_element", "double_tap", "long_press", "type_text", "set_text", "fill_field",
             "clear_text", "swipe", "swipe_in_direction", "scroll", "press_back",
-            "assert_visible", "assert_absent", "assert_enabled", "assert_value", "assert_screen_changed"
+            "assert_visible", "assert_absent", "assert_enabled", "assert_value", "assert_selected",
+            "assert_screen_changed"
         ]
         let prepared = try steps.map { step -> (String, [String: String]) in
             guard allowed.contains(step.tool), step.arguments["session_id"] == nil else {

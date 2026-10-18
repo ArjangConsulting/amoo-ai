@@ -33,7 +33,7 @@ extension DriverToolExecutor {
     /// clipped by the viewport counts as not yet there. An attempt that leaves the screen unchanged
     /// means the content ended in that direction.
     func executeScrollToElement(arguments: [String: String], driver: any PlatformDriver) async throws -> ToolResult {
-        guard let selector = preferredSelector(arguments: arguments) else {
+        guard let selector = try preferredSelector(arguments: arguments) else {
             return .error("At least one of id, label, or contains_text is required")
         }
         var direction = Direction.down

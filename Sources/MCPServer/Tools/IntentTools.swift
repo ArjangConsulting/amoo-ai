@@ -126,6 +126,38 @@ public enum IntentTools {
             required: []
         ),
         ToolDefinition(
+            name: "assert_selected",
+            title: "Assert Selected",
+            description: "Assert that a matching element exists and is (or is not) selected. Polls until the"
+                + " selected state equals expected or the timeout expires. An absent element fails even when"
+                + " expected is false, and a device that reports no selected state returns an unsupported"
+                + " error rather than falling back to visibility. id, label and contains_text must all match.",
+            properties: assertionSelectorProperties.merging([
+                "expected": .init(
+                    type: "string",
+                    description: "true (default) asserts the element is selected; false asserts it exists and is not"
+                )
+            ]) { current, _ in current },
+            required: [],
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "passed": .init(type: "boolean", description: "Whether the selected state matched in time"),
+                    "expected": .init(type: "boolean", description: "The selected state that was required"),
+                    "observed": .init(
+                        type: "string",
+                        description: "selected, unselected, not_found or no_observation at the last query"
+                    ),
+                    "resolution_failed": .init(
+                        type: "boolean", description: "True when no element matched, so no state was checked"
+                    ),
+                    "selector": .init(type: "string", description: "The exact constraints that were applied"),
+                    "element_id": .init(type: "string", description: "Matched element id"),
+                    "element_label": .init(type: "string", description: "Matched element label")
+                ],
+                required: ["passed"]
+            )
+        ),
+        ToolDefinition(
             name: "assert_screen_changed",
             title: "Assert Screen Changed",
             description: "Assert that the screen differs from a token returned by get_screen_context.",

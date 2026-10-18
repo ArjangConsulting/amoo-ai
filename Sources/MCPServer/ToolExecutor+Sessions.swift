@@ -62,14 +62,14 @@ extension DriverToolExecutor {
         } catch {
             return .error("start_session failed: invalid build_path: \(error)")
         }
-        let launchArgs: [String] = arguments["launch_args"]
-            .map { $0.split(separator: ",").map(String.init) } ?? []
-        let environment = Self.parseEnvironment(arguments["environment"])
         let testName = arguments["test_name"]
         let contextJSON: String?
         do { contextJSON = try Self.contextSnapshot(arguments, platform: platform) } catch {
             return .error("Invalid context: \(error)")
         }
+        let launch = Self.launchConfiguration(arguments: arguments, contextJSON: contextJSON)
+        let launchArgs = launch.arguments
+        let environment = launch.environment
         await StartupProgress.report("Preparing session startup")
 
         do {
@@ -110,6 +110,7 @@ extension DriverToolExecutor {
                 ])
             ]
             summary["recording_health"] = await .string(manager.recordingHealth(for: session.id))
+            summary["launch_config_source"] = .string(launch.source)
             var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
                 + " device \(session.deviceID)."
             if let contentionWarning {

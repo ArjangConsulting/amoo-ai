@@ -7,19 +7,24 @@ public struct RecordedElement: Sendable, Codable, Equatable {
     public let elementType: String?
     public let frame: RecordedRect?
     public let hitPoint: RecordedPoint?
+    /// The selected state the device reported, `nil` when it reported none. An observation of it is
+    /// not an assertion; only `assert_selected` becomes a check in a generated test.
+    public let isSelected: Bool?
 
     public init(
         id: String?,
         label: String?,
         elementType: String? = nil,
         frame: RecordedRect?,
-        hitPoint: RecordedPoint?
+        hitPoint: RecordedPoint?,
+        isSelected: Bool? = nil
     ) {
         self.id = id
         self.label = label
         self.elementType = elementType
         self.frame = frame
         self.hitPoint = hitPoint
+        self.isSelected = isSelected
     }
 }
 
@@ -156,7 +161,8 @@ public extension SessionAction {
             observedElements: observedElements.map { element in
                 RecordedElement(
                     id: element.id.map(redactor.redact), label: element.label.map(redactor.redact),
-                    elementType: element.elementType, frame: element.frame, hitPoint: element.hitPoint
+                    elementType: element.elementType, frame: element.frame, hitPoint: element.hitPoint,
+                    isSelected: element.isSelected
                 )
             },
             gestureTarget: gestureTarget.map { target in

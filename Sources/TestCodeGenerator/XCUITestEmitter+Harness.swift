@@ -8,7 +8,9 @@ extension XCUITestEmitter {
         lookups: inout [String: String]
     ) throws -> String? {
         guard let template = context?.assertionBindings[operation.tool] else { return nil }
-        let value = operation.arguments["value"] ?? operation.arguments["expected"]
+        // `expected` of a selection check is a state, not text; it has its own placeholder below.
+        let isSelection = operation.tool == StudioTool.assertSelected.rawValue
+        let value = operation.arguments["value"] ?? (isSelection ? nil : operation.arguments["expected"])
         let contains = operation.arguments["contains"]
         // A binding must preserve the recorded expectation, including substring semantics.
         if (value != nil && !template.contains("{{value}}"))
@@ -16,6 +18,19 @@ extension XCUITestEmitter {
             throw TestCodeGeneratorError.invalidArgument(
                 tool: operation.tool, argument: "assertionBindings", value: "template drops the recorded expectation"
             )
+        }
+        // The selected state has no string form to match on, so it has its own placeholder, and the
+        // template must carry it or selected and unselected would render the same call.
+        var selected: Bool?
+        if operation.tool == StudioTool.assertSelected.rawValue {
+            guard template.contains("{{selected}}") else {
+                throw TestCodeGeneratorError.invalidArgument(
+                    tool: operation.tool,
+                    argument: "assertionBindings",
+                    value: "template drops the recorded expectation"
+                )
+            }
+            selected = try SelectedAssertion.expectation(operation)
         }
         if template.contains("{{value}}"), value == nil {
             throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
@@ -30,6 +45,7 @@ extension XCUITestEmitter {
             .replacingOccurrences(of: "{{timeout}}", with: timeoutExpression(operation, context: context))
             .replacingOccurrences(of: "{{value}}", with: literal(value ?? ""))
             .replacingOccurrences(of: "{{contains}}", with: literal(contains ?? ""))
+            .replacingOccurrences(of: "{{selected}}", with: selected.map(String.init) ?? "")
         return "\(declaration)\n\(indent)\(call)"
     }
 
@@ -80,7 +96,7 @@ extension XCUITestEmitter {
             }
         }
         if let expression = context.factoryOverride,
-           let insertion = source.range(of: "    override func setUpWithError") {
+           let insertion = source.range(of: "    override func setUp") {
             source.insert(contentsOf: """
                 override func makeApplication() -> XCUIApplication {
                     \(expression)

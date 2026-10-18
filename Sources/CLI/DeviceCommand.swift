@@ -114,6 +114,8 @@ Common tools:
   assert_value [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [timeout_ms=<n>] [expected=<text>] [contains=<text>] [parent_id=<id>] [index=<n>] [first=<true>]
       [record_value=<fixture>]
+  assert_selected [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [timeout_ms=<n>] [expected=<true|false>] [parent_id=<id>] [index=<n>] [first=<true>]
   assert_screen_changed from_token=<token> [timeout_ms=<n>]
   device_launch_app app_id=<id> [--env KEY=VALUE ...] [--arg VALUE ...] [timeout_ms=<n>]
       (tool-argument form: environment=<K=V,...> launch_args=<a,b,c>)
