@@ -1,11 +1,12 @@
 import AmooCore
 import Foundation
 
-/// One reusable artifact, independent leased environments, and no recording transport.
+/// Independent leased environments, an optional explicit artifact, and no recording transport.
 struct InitOptions {
     var environment: EnvUpOptions
     var devices: [String]
     var out: String?
+    var framework: String?
 }
 
 /// Versioned CLI setup manifest. Lease tokens are ownership credentials; keep this file private.
@@ -33,6 +34,15 @@ struct InitManifest: Codable {
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
+        if url.lastPathComponent == ".amoo.json" {
+            let ignore = directory.appendingPathComponent(".gitignore")
+            let existing = FileManager.default.fileExists(atPath: ignore.path)
+                ? try String(contentsOf: ignore, encoding: .utf8) : ""
+            if !existing.split(separator: "\n").contains("/.amoo.json") {
+                let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
+                try (existing + separator + "/.amoo.json\n").write(to: ignore, atomically: true, encoding: .utf8)
+            }
+        }
         let temporary = directory.appendingPathComponent(".\(url.lastPathComponent).\(UUID().uuidString).tmp")
         guard FileManager.default.createFile(
             atPath: temporary.path,
@@ -52,9 +62,10 @@ struct InitManifest: Codable {
 func renderInitHelp() -> String {
     """
     Usage: amoo init                      guided setup (asks for anything not given)
-           amoo init --platform ios|android --app <absolute-build-path> --app-id <id>
-                     --device <id> [--device <id> ...] [--launch|--no-launch] [--owner <label>]
+           amoo init --platform ios|android --device <id> [--device <id> ...]
+                     [--app <absolute-build-path> --app-id <id>] [--launch|--no-launch] [--owner <label>]
                      [--ttl <minutes>] [--ready-timeout <seconds>] [--out <manifest.json>]
+                     [--framework native|react-native|flutter|kmp]
                      [--dry-run] [--yes] [--save|--no-save] [--agents-file <path>]
                      [--client <name>]... [--skills|--no-skills]
                      [--non-interactive] [--json]
@@ -62,17 +73,18 @@ func renderInitHelp() -> String {
            amoo init down --manifest <path> [--shutdown] [--json]
            amoo init repo [--target <repo>] [--client <name> ...] [--dry-run] [--json]
 
-    Build your app once, externally. Init reuses that artifact unchanged on every device, giving
-    each its own lease, companion and port through the same code as `env up`.
+    Prepare devices without supplying an app build. Each gets its own lease, companion and port
+    through the same code as `env up`. To also install an app, explicitly pass --app and --app-id.
 
-    In a terminal, `amoo init` walks you through it: it finds built apps and simulators, reads the
-    bundle id from the app, shows the plan with the equivalent command, and asks before leasing
-    anything. Flags you pass are kept and not asked again. With --json, --non-interactive or no
-    terminal it never prompts: all of --platform, --app, --app-id and --device are required, and
-    every missing one is reported at once. --dry-run validates and prints the plan without leasing.
+    In a terminal, `amoo init` walks you through device selection, shows the plan with the equivalent
+    command, and asks before leasing anything. It never asks for a build path or searches for builds.
+    Flags you pass are kept and not asked again. With --json, --non-interactive or no terminal it
+    never prompts: --platform and --device are required; --app-id is also required when supplying
+    --app or --launch. Every missing input is reported at once. --dry-run validates without leasing.
 
-    The app location and manifest directory are recorded in ./AGENTS.md (asked in a terminal;
-    --save to do it headless) and offered as defaults next time. Device and lease ids are never saved.
+    The platform, manifest directory and any explicitly supplied app are recorded in ./AGENTS.md
+    (asked in a terminal; --save to do it headless). Guided setup defaults to ./.amoo.json;
+    saved app paths are never selected automatically. Device and lease ids are never saved in AGENTS.md.
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.
@@ -87,17 +99,32 @@ func renderInitHelp() -> String {
     down releases every successful entry through env down, without forcing another lease.
     repo is `amoo agent install` (guided in a terminal) for when you only want the AI client setup.
     Treat manifests as private credentials. For recording, release CLI leases first, then
-    use MCP start_session with the same device_hint/build_path; end_session exports the plan.
+    use MCP start_session with device_hint and the app's build_path; end_session exports the plan.
     """
 }
 
-/// Runs each device through `env up` in turn. `onProgress` narrates for a terminal; the manifest is
-/// rewritten after every device so a killed run never leaves leases that nothing records.
+private func previousInitConnections(at path: String?) throws -> [EnvUpReport] {
+    guard let path, FileManager.default.fileExists(atPath: path) else { return [] }
+    return try InitManifest.read(path).results.filter { $0.lease != nil }
+}
+
+// Runs each device through `env up` in turn. `onProgress` narrates for a terminal; the manifest is
+// rewritten after every device so a killed run never leaves leases that nothing records.
+// swiftlint:disable:next function_body_length
 func runInit(
     _ options: InitOptions,
     setup: (EnvUpOptions) async -> CLIResult = { await runEnvUp($0) },
     onProgress: ((String) -> Void)? = nil
 ) async -> CLIResult {
+    let previous: [EnvUpReport]
+    do { previous = try previousInitConnections(at: options.out) } catch {
+        let message = "Cannot read existing device connections: \(error)"
+        return CLIResult(
+            output: options.environment.json
+                ? renderJSON(InitManifest(ok: false, results: [], error: message)) : message,
+            exitCode: 1
+        )
+    }
     var results: [EnvUpReport] = []
     let app = EnvAppReport(
         id: options.environment.appID,
@@ -106,12 +133,18 @@ func runInit(
         installed: false,
         launched: false
     )
-    var manifest = InitManifest(ok: true, results: [])
+    var manifest = InitManifest(ok: true, results: previous)
     func persist() {
         guard let out = options.out else { return }
         do { try manifest.write(out) } catch {
             manifest.error = "Cannot write manifest: \(error). Use the returned leases for cleanup."
         }
+    }
+    // Verify persistence before taking ownership of any device.
+    persist()
+    if let error = manifest.error {
+        manifest.ok = false
+        return CLIResult(output: options.environment.json ? renderJSON(manifest) : error, exitCode: 1)
     }
     // Sequential setup lets env up see each preceding lease/port and keeps companion builds serialized.
     for (index, device) in options.devices.enumerated() {
@@ -127,13 +160,21 @@ func runInit(
         if report.device == nil {
             report.device = EnvDeviceReport(id: device, bootedByEnv: false)
         }
-        if report.app == nil {
+        if report.app == nil, app.id != nil || app.path != nil {
             report.app = app
         }
         results.append(report)
-        manifest.results = results
+        // Retain credentials for other devices/platforms and failed attempts to replace a device.
+        manifest.results = results + previous.filter { old in
+            !results.contains { new in
+                new.lease == old.lease || (new.ok && new.platform == old.platform && new.device?.id == old.device?.id)
+            }
+        }
         manifest.ok = results.allSatisfy(\.ok)
         persist()
+        if manifest.error != nil {
+            break
+        }
         onProgress?(report.ok
             ? "\(step) Ready: lease \(report.lease ?? "?"), port \(report.port.map(String.init) ?? "?")"
             : "\(step) Failed: \(report.error ?? "unknown error")")
@@ -201,7 +242,8 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
         guard let index = args.firstIndex(of: "--manifest"), args.indices.contains(index + 1) else {
             throw EnvCommandParseError.usage("--manifest <path> is required.")
         }
-        let manifest = try InitManifest.read(args[index + 1])
+        let manifestPath = args[index + 1]
+        let manifest = try InitManifest.read(manifestPath)
         args.removeSubrange(index ... index + 1)
         if remaining.first == "down" {
             var flags = EnvFlagReader(args)
@@ -209,6 +251,9 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
             let json = flags.take("--json")
             try flags.finish()
             let result = await runInitDown(manifest, shutdown: shutdown)
+            if result.exitCode == 0 {
+                try InitManifest(ok: true, results: []).write(manifestPath)
+            }
             return json ? result : CLIResult(
                 output: result.exitCode == 0 ? "Released initialized environments." : result.output,
                 exitCode: result.exitCode
@@ -221,6 +266,15 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
         args.removeSubrange(index ... index + 1)
         return try await CLIApp().run(args: ["device"] + initDeviceArguments(manifest, device: device, args: args))
     } catch {
-        return CLIResult(output: "\(error)\n\n" + renderInitHelp(), exitCode: 64)
+        return initFailure(error, json: remaining.contains("--json"))
     }
+}
+
+/// Keeps usage and file errors machine-readable whenever JSON was requested.
+func initFailure(_ error: any Error, json: Bool) -> CLIResult {
+    CLIResult(
+        output: json ? renderJSON(InitManifest(ok: false, results: [], error: String(describing: error)))
+            : "\(error)\n\n" + renderInitHelp(),
+        exitCode: 64
+    )
 }

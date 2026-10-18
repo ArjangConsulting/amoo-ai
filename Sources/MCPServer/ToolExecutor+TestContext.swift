@@ -18,10 +18,14 @@ extension DriverToolExecutor {
         if let json = intent.contextJSON, !json.isEmpty {
             context = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
         } else if let path = intent.contextPath, !path.isEmpty {
-            context = try RepositoryTestProfile.load(URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
+            context = try RepositoryTestProfile.load(
+                URL(fileURLWithPath: (path as NSString).expandingTildeInPath),
+                platform: result.studioTest.platform
+            )
         } else {
             return result
         }
+        try RepositoryTestProfile.validate(context, platform: result.studioTest.platform)
         return CompileSessionToPlanResult(
             testFlow: result.testFlow,
             studioTest: result.studioTest.replacingTestContext(context),
@@ -39,13 +43,14 @@ extension DriverToolExecutor {
             json = inline
         } else if let path = arguments["context_path"], !path.isEmpty {
             json = try encodedContext(RepositoryTestProfile
-                .load(URL(fileURLWithPath: (path as NSString).expandingTildeInPath)))
+                .load(URL(fileURLWithPath: (path as NSString).expandingTildeInPath), platform: platform))
         } else if discoverProfile, let context = try RepositoryTestProfile.discover(platform: platform) {
             json = try encodedContext(context)
         } else {
             return nil
         }
-        _ = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: Data(json.utf8))
+        try RepositoryTestProfile.validate(context, platform: platform)
         return json
     }
 

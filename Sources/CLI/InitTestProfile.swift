@@ -10,9 +10,9 @@ import StudioProtocol
 // swiftlint:disable:next function_body_length
 func saveInitTestProfile(at root: URL) throws {
     let output = root.appendingPathComponent("amoo.md")
-    // Profiles are repository-owned after discovery; never overwrite reviewed bindings on re-init.
-    guard !FileManager.default.fileExists(atPath: output.path) else { return }
+    // Existing platform sections are repository-owned; only append newly discovered platforms.
     let facts = UITestHarnessInspector().inspect(root.path)
+    let android = AndroidTestProfile.discover(at: root)
     let tests = facts.uiTestFiles
     let base = facts.baseClass?.value
     let ownsApp = facts.harnessOwnsApplication?.value ?? false
@@ -81,10 +81,10 @@ func saveInitTestProfile(at root: URL) throws {
     ## Scenario launch and calendar rules
 
     Review these rules against the existing harness; discovery does not invent launch flags.
-    - Ordinary tests: enable automation, bypass onboarding, reset state initially.
-    - Onboarding tests: disable onboarding bypass.
-    - Persistence tests: reset initially; preserve stored state using the repository relaunch helper.
-    - Label selectors: pin English and en_US through existing launch helpers before setup launches.
+    - Initial state: confirm automation flags, onboarding behavior, and reset rules from existing tests.
+    - Onboarding tests: confirm how existing tests enter onboarding.
+    - Persistence tests: confirm when state resets and which relaunch helper preserves it.
+    - Label selectors: confirm the required language/locale and existing launch helpers.
     - Calendar selectors: use the calendar identifier catalog and relative date helpers (today,
       previous month); do not substitute a recording's literal date for relative scenario intent.
     - Keep recordings, plans, and provenance outside test source directories. Create Swift files
@@ -107,7 +107,26 @@ func saveInitTestProfile(at root: URL) throws {
     ```
 
     """
-    try document.write(to: output, atomically: true, encoding: .utf8)
+    let androidDocument = android.files.isEmpty ? "" : try android.document()
+    let combined = tests.isEmpty && !android.files.isEmpty
+        ? "# Amoo repository integration\n\nDiscovered by amoo init. Review bindings before export.\n" + androidDocument
+        : document + androidDocument
+    if FileManager.default.fileExists(atPath: output.path) {
+        // Preserve prose-only or malformed reviewed profiles for the owner to resolve.
+        let ios: StudioTestContext?
+        let existingAndroid: StudioTestContext?
+        do {
+            ios = try RepositoryTestProfile.discover(from: root, platform: .ios)
+            existingAndroid = try RepositoryTestProfile.discover(from: root, platform: .android)
+        } catch { return }
+        let additions = (ios == nil && !tests.isEmpty ? "\n" + document : "")
+            + (existingAndroid == nil ? androidDocument : "")
+        guard !additions.isEmpty else { return }
+        let existing = try String(contentsOf: output, encoding: .utf8)
+        try (existing + "\n" + additions).write(to: output, atomically: true, encoding: .utf8)
+    } else {
+        try combined.write(to: output, atomically: true, encoding: .utf8)
+    }
 }
 
 // swiftlint:enable multiline_arguments

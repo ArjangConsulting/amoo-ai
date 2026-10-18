@@ -31,6 +31,29 @@ extension MCPServerTests {
         XCTAssertNil(try DriverToolExecutor.contextSnapshot([:], discoverProfile: false))
     }
 
+    func testMultiPlatformProfileSnapshotsOnlyTheRequestedPlatform() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let file = scratch.url.appendingPathComponent("amoo.md")
+        try """
+        ```amoo-context
+        {"targetPlatform":"ios","baseClass":"IosTests"}
+        ```
+        ```amoo-context
+        {"targetPlatform":"android","baseClass":"com.example.AndroidTests()"}
+        ```
+        """.write(to: file, atomically: true, encoding: .utf8)
+        let snapshot = try XCTUnwrap(DriverToolExecutor.contextSnapshot(
+            ["context_path": file.path],
+            platform: .android
+        ))
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: Data(snapshot.utf8))
+        XCTAssertEqual(context.baseClass, "com.example.AndroidTests()")
+        XCTAssertThrowsError(try DriverToolExecutor.contextSnapshot(
+            ["context_json": "{\"targetPlatform\":\"ios\"}"], platform: .android
+        ))
+    }
+
     private var contextJSON: String {
         """
         {

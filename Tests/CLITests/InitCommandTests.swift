@@ -49,10 +49,9 @@ class InitTestCase: XCTestCase {
 
     func discovery(
         devices: [InitDeviceCandidate],
-        apps: [String] = [],
         bundleID: String? = nil
     ) -> InitDiscovery {
-        InitDiscovery(devices: { _ in devices }, apps: { _ in apps }, bundleID: { _, _ in bundleID })
+        InitDiscovery(devices: { _ in devices }, bundleID: { _, _ in bundleID })
     }
 
     /// A `setup` standing in for a successful `env up`.
@@ -113,6 +112,36 @@ class InitTestCase: XCTestCase {
 }
 
 final class InitCommandTests: InitTestCase {
+    func testRepeatedSetupSharesOneFileWithoutLosingOtherPlatformCredentials() async throws {
+        let scratch = try makeScratchDirectory()
+        let path = scratch.url.appendingPathComponent(".amoo.json").path
+        let ios = EnvUpReport(ok: true, lease: "ios-lease", platform: "ios", port: 22000)
+        try InitManifest(ok: true, results: [ios]).write(path)
+        var environment = EnvUpOptions()
+        environment.platform = .android
+        let options = InitOptions(environment: environment, devices: ["emulator"], out: path)
+        let result = await runInit(options, setup: { _ in
+            CLIResult(
+                output: renderJSON(EnvUpReport(ok: true, lease: "android-lease", platform: "android", port: 22001)),
+                exitCode: 0
+            )
+        })
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        XCTAssertEqual(try Set(InitManifest.read(path).results.compactMap(\.lease)), ["ios-lease", "android-lease"])
+    }
+
+    func testMalformedConnectionFileStopsBeforeAcquiringDevices() async throws {
+        let scratch = try makeScratchDirectory()
+        let path = scratch.url.appendingPathComponent(".amoo.json").path
+        try "invalid".write(toFile: path, atomically: true, encoding: .utf8)
+        let result = await runInit(
+            InitOptions(environment: EnvUpOptions(), devices: ["phone"], out: path),
+            setup: forbidden("Existing credentials must not be overwritten")
+        )
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertEqual(try String(contentsOfFile: path, encoding: .utf8), "invalid")
+    }
+
     func testRepeatedDeviceParsingAndInvalidOptions() throws {
         let request = try parseInitRequest(flags(app: "/tmp/Jot.app"))
         XCTAssertEqual(request.devices, ["phone", "tablet"])
@@ -121,7 +150,7 @@ final class InitCommandTests: InitTestCase {
         XCTAssertEqual(request.launch, true)
         XCTAssertTrue(request.missing.isEmpty)
         XCTAssertEqual(try parseInitRequest(["--no-launch"]).launch, false)
-        XCTAssertEqual(try parseInitRequest([]).missing.count, 4)
+        XCTAssertEqual(try parseInitRequest([]).missing.count, 2)
         for bad in [
             ["--device", "phone", "--device", "phone"],
             ["--port", "22093"],
@@ -137,22 +166,89 @@ final class InitCommandTests: InitTestCase {
     }
 
     func testHeadlessRunNamesEveryMissingInputAndWhatIsAvailable() async {
-        let found = discovery(devices: [candidate("phone"), candidate("tablet", leasedBy: "x")], apps: ["/b/Jot.app"])
+        let found = discovery(devices: [candidate("phone"), candidate("tablet", leasedBy: "x")])
         let result = await runInitCommand(
             ["--platform", "ios", "--non-interactive"],
             runtime: runtime(discovery: found, setup: forbidden("must not set up"))
         )
         XCTAssertEqual(result.exitCode, 64)
-        for expected in ["--app <", "--app-id <", "--device <", "/b/Jot.app", "Phone", "amoo init"] {
+        for expected in ["--device <", "Phone", "amoo init"] {
             XCTAssertTrue(result.output.contains(expected), "\(expected) in \(result.output)")
         }
         XCTAssertFalse(result.output.contains("--platform ios|android"))
+        XCTAssertFalse(result.output.contains("--app"))
+        XCTAssertFalse(result.output.contains("Built apps"))
         let json = await runInitCommand(
             ["--json"],
             runtime: runtime(interactive: true, discovery: found) { _ in CLIResult(output: "", exitCode: 0) }
         )
         XCTAssertEqual(json.exitCode, 64, "--json never prompts even in a terminal")
         XCTAssertTrue(json.output.hasPrefix("{"), json.output)
+    }
+
+    func testSetupWithoutAnArtifactPreparesDevicesOnBothPlatforms() async throws {
+        let scratch = try makeScratchDirectory()
+        for platform in [Platform.ios, .android] {
+            let store = DeviceClaimStore(directory: scratch.url.appendingPathComponent(platform.rawValue))
+            var prepared: [String] = []
+            let dependencies = EnvUpDependencies(resolve: { options, _ in
+                try EnvDeviceReport(id: XCTUnwrap(options.deviceID), bootedByEnv: false)
+            }, start: { _, lease, store in
+                var lease = lease
+                lease.port = 22000 + prepared.count
+                return try store.renew(lease)
+            }, prepare: { options, _, app in
+                XCTAssertNil(options.appPath)
+                XCTAssertNil(options.appID)
+                XCTAssertNil(options.appSHA256)
+                XCTAssertFalse(options.launch)
+                XCTAssertNil(app)
+                try prepared.append(XCTUnwrap(options.deviceID))
+            })
+            let result = await runInitCommand(
+                ["--platform", platform.rawValue, "--device", "phone", "--device", "tablet", "--json"],
+                runtime: runtime(discovery: discovery(devices: [candidate("phone"), candidate("tablet")])) {
+                    await runEnvUp($0, store: store, dependencies: dependencies)
+                }
+            )
+            XCTAssertEqual(result.exitCode, 0, result.output)
+            let manifest = try JSONDecoder().decode(InitManifest.self, from: Data(result.output.utf8))
+            XCTAssertEqual(prepared, ["phone", "tablet"])
+            XCTAssertTrue(manifest.results.allSatisfy { $0.ok && $0.app == nil && $0.lease != nil })
+            let cleanup = await runInitDown(manifest, shutdown: false) { await runEnvDown($0, store: store) }
+            XCTAssertEqual(cleanup.exitCode, 0, cleanup.output)
+            XCTAssertTrue(store.all().isEmpty)
+        }
+    }
+
+    func testAppIdentifierIsRequiredOnlyForAnExplicitAppOrLaunch() async {
+        let found = discovery(devices: [candidate("phone")])
+        for extra in [["--app", "/tmp/Jot.app"], ["--launch"]] {
+            let result = await runInitCommand(
+                ["--platform", "ios", "--device", "phone", "--non-interactive"] + extra,
+                runtime: runtime(discovery: found, setup: forbidden("must not set up"))
+            )
+            XCTAssertEqual(result.exitCode, 64, result.output)
+            XCTAssertTrue(result.output.contains("--app-id <"), result.output)
+            XCTAssertFalse(result.output.contains("--app <"), result.output)
+        }
+    }
+
+    func testDryRunWithoutAnArtifactProducesAReproducibleCommand() async throws {
+        let found = discovery(devices: [candidate("phone")])
+        let result = await runInitCommand(
+            ["--platform", "ios", "--device", "phone", "--dry-run", "--json"],
+            runtime: runtime(discovery: found, setup: forbidden("dry run must not set up"))
+        )
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(result.output.utf8)) as? [String: Any])
+        let command = try XCTUnwrap(json["command"] as? String)
+        XCTAssertFalse(command.contains("--app"), command)
+        let request = try parseInitRequest(command.split(separator: " ").dropFirst(2).map(String.init))
+        XCTAssertTrue(request.missing.isEmpty)
+        XCTAssertNil(request.appPath)
+        XCTAssertNil(request.appID)
+        XCTAssertEqual(request.launch, false)
     }
 
     func testSharedArtifactIndependentLeasesPortsManifestAndCleanup() async throws {
@@ -263,7 +359,7 @@ final class InitCommandTests: InitTestCase {
             flags(app: scratch.url.appendingPathComponent("Nope.app").path),
             runtime: never
         )
-        XCTAssertTrue(missing.output.contains("init never builds the app"), missing.output)
+        XCTAssertTrue(missing.output.contains("explicitly supplied --app path"), missing.output)
         let relative = await runInitCommand(flags(app: "Jot.app"), runtime: never)
         XCTAssertTrue(relative.output.contains("absolute"), relative.output)
         let allLeased = discovery(devices: [candidate("phone", leasedBy: "a"), candidate("tablet", leasedBy: "b")])

@@ -288,14 +288,10 @@ private func promptToInstallCompanion(
     print(colored("✗", .red))
     print()
     print(colored("Companion app not running.", .yellow))
-    print(
-        "Install and launch companion for \(options.platform == .ios ? "iOS" : "Android")? [Y/n] ",
-        terminator: ""
-    )
-    fflush(nil)
-
-    let answer = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "y"
-    guard answer.isEmpty || answer == "y" || answer == "yes" else {
+    guard StdioPrompter().confirm(
+        "Install and launch companion for \(options.platform == .ios ? "iOS" : "Android")?",
+        default: true
+    ) == true else {
         print(colored("  Skipping companion. Some tools may fail.", .yellow))
         return nil
     }

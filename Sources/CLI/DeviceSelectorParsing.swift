@@ -221,7 +221,8 @@ func promptSelection<T>(
         print("\(prompt) [1-\(items.count)]: ", terminator: "")
         fflush(nil) // flush all open streams — avoids referencing the `stdout` global directly
 
-        guard let line = readLine(strippingNewline: true)?.trimmingCharacters(in: .whitespaces) else {
+        guard let line = readPromptAnswer(singleCharacter: items.count <= 9)?.trimmingCharacters(in: .whitespaces)
+        else {
             throw eofError
         }
         guard let index = Int(line), index >= 1, index <= items.count else {

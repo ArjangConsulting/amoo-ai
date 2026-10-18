@@ -1,4 +1,5 @@
 import AmooCore
+import CLIReadline
 import Foundation
 
 /// A terminal conversation shared by the guided commands (`init`, `agent install`). Every method
@@ -34,7 +35,29 @@ func parseSelection(_ text: String, count: Int) -> [Int]? {
     return picked.isEmpty ? nil : picked.sorted()
 }
 
+/// Reads one key for bounded choices on a terminal; redirected input stays line-based.
+func readPromptAnswer(singleCharacter: Bool) -> String? {
+    if singleCharacter {
+        let value = cli_read_character()
+        if value == -1 {
+            return nil
+        }
+        if value >= 0 {
+            if value == 10 || value == 13 {
+                return ""
+            }
+            guard (33 ... 126).contains(value) else { return "\u{1B}" }
+            return String(UnicodeScalar(UInt32(value))!)
+        }
+    }
+    return readLine()
+}
+
 struct StdioPrompter: CLIPrompting {
+    var selectionEnabled: Bool = cli_selection_available() != 0
+    var readSelectionKey: () -> Int32 = { cli_selection_key() }
+    var readAnswer: (Bool) -> String? = { readPromptAnswer(singleCharacter: $0) }
+
     private func styled(_ text: String) -> String {
         guard ProcessInfo.processInfo.environment["NO_COLOR"] == nil,
               ProcessInfo.processInfo.environment["TERM"] != "dumb" else { return text }
@@ -48,7 +71,7 @@ struct StdioPrompter: CLIPrompting {
     func ask(_ prompt: String, default defaultValue: String?) -> String? {
         print("\(prompt)\(defaultValue.map { " [\($0)]" } ?? ""): ", terminator: "")
         fflush(nil)
-        guard let line = readLine() else { return nil }
+        guard let line = readAnswer(false) else { return nil }
         let answer = line.trimmingCharacters(in: .whitespacesAndNewlines)
         return answer.isEmpty ? (defaultValue ?? "") : answer
     }
@@ -57,7 +80,7 @@ struct StdioPrompter: CLIPrompting {
         while true {
             print("\(prompt) [\(defaultAnswer ? "Y/n" : "y/N")]: ", terminator: "")
             fflush(nil)
-            guard let line = readLine() else { return nil }
+            guard let line = readAnswer(true) else { return nil }
             switch line.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
             case "": return defaultAnswer
             case "y", "yes": return true
@@ -68,14 +91,18 @@ struct StdioPrompter: CLIPrompting {
     }
 
     func choose(_ prompt: String, options: [String], default index: Int) -> Int? {
-        print(styled("\(prompt):"))
-        for (offset, option) in options.enumerated() {
-            print("  " + styled("\(offset + 1))") + " \(option)")
+        guard !options.isEmpty else { return nil }
+        if selectionEnabled {
+            return selectInteractively(prompt, options: options, defaults: [index], multiple: false)?.first
         }
         while true {
-            print("Choose [1-\(options.count)] [\(index + 1)]: ", terminator: "")
+            print(styled("\(prompt):"))
+            for (offset, option) in options.enumerated() {
+                print("  " + styled("\(offset + 1))") + " \(option)")
+            }
+            print("Choose [1-\(options.count)]: ", terminator: "")
             fflush(nil)
-            guard let line = readLine() else { return nil }
+            guard let line = readAnswer(options.count <= 9) else { return nil }
             let answer = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if answer.isEmpty {
                 return index
@@ -88,6 +115,10 @@ struct StdioPrompter: CLIPrompting {
     }
 
     func chooseMany(_ prompt: String, options: [String], defaults: [Int]) -> [Int]? {
+        guard !options.isEmpty else { return nil }
+        if selectionEnabled {
+            return selectInteractively(prompt, options: options, defaults: defaults, multiple: true)
+        }
         print(styled("\(prompt):"))
         for (offset, option) in options.enumerated() {
             print("  " + styled("\(offset + 1))") + " \(option)")
@@ -96,7 +127,7 @@ struct StdioPrompter: CLIPrompting {
         while true {
             print("Choose one or more (e.g. 1,3 or 1-2 or all) [\(fallback)]: ", terminator: "")
             fflush(nil)
-            guard let line = readLine() else { return nil }
+            guard let line = readAnswer(false) else { return nil }
             let answer = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if answer.isEmpty {
                 return defaults

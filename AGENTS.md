@@ -101,18 +101,19 @@ run `swiftformat` directly on specific files.
 
 Code: `Sources/CLI/Init*.swift` — `InitCommand.swift` (manifest, `runInit`, `init down|device`),
 `InitCommand+Run.swift` (flow: collect → validate → confirm → run), `InitWizard.swift` (flags, prompts,
-plan), `InitDiscovery.swift` (apps, simulators), `InitSavedLocations.swift` (the `AGENTS.md` block),
+plan), `InitDiscovery.swift` (devices, bundle id), `InitSavedLocations.swift` (the `AGENTS.md` block),
 `Prompting.swift` (shared `CLIPrompting`), `AgentInstallWizard.swift` (guided `amoo agent install`, also
 the AI-client step of init). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
 It reuses `runEnvUp`/`runEnvDown`; never duplicate lease, port or companion logic there.
 
-- `amoo init` in a terminal asks for whatever flags omitted; `--json`/`--non-interactive`/no TTY never
-  prompts and requires `--platform --app --app-id --device`.
+- `amoo init` never asks for an app artifact path or scans for builds. Artifacts are optional and
+  only used with explicit `--app`. `--json`/`--non-interactive`/no TTY never prompts and requires
+  `--platform --device`; `--app-id` is also required with `--app` or `--launch`.
 - The AI-client step (`amoo agent install` guided; `amoo init --client`/`--no-skills`) reuses
   `runAgentInstall`; with `--client`, `--json`, `--non-interactive` or no TTY it never prompts.
-- It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the app
-  artifact, app id and manifest directory — **locations only, never device or lease ids**. When it is
-  present below, read it instead of searching for the build.
+- It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the
+  platform, manifest directory and any explicitly supplied app artifact/id — **locations only,
+  never device or lease ids**. Saved app paths are not automatically selected on later runs.
 
 ## Recording → plan → generated-test pipeline
 

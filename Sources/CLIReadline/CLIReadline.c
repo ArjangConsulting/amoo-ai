@@ -1,6 +1,10 @@
 #include "CLIReadline.h"
 
 #include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 
 #if __has_include(<editline/readline.h>) && __has_include(<histedit.h>)
 #include <editline/readline.h>
@@ -369,4 +373,86 @@ void cli_set_command_completions(const char *command, const char *items) {
 
 void cli_line_buffer_stdout(void) {
     setvbuf(stdout, NULL, _IOLBF, 0);
+}
+
+// Keep signal handling enabled so Ctrl-C still interrupts the command.
+int cli_read_character(void) {
+    struct termios original;
+    if (!isatty(STDIN_FILENO) || tcgetattr(STDIN_FILENO, &original) != 0) {
+        return -2;
+    }
+    struct termios immediate = original;
+    immediate.c_lflag &= ~(ICANON | ECHO);
+    immediate.c_cc[VMIN] = 1;
+    immediate.c_cc[VTIME] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &immediate) != 0) {
+        return -2;
+    }
+    unsigned char byte;
+    int character = read(STDIN_FILENO, &byte, 1) == 1 ? byte : EOF;
+    // Consume escape sequences as one invalid answer (arrows, function keys).
+    if (character == 27) {
+        struct pollfd input = { .fd = STDIN_FILENO, .events = POLLIN };
+        while (poll(&input, 1, 20) > 0) {
+            if (read(STDIN_FILENO, &byte, 1) != 1) {
+                break;
+            }
+        }
+    }
+    tcsetattr(STDIN_FILENO, TCSANOW, &original);
+    if (character == EOF || character == 4) {
+        putchar('\n');
+        return -1;
+    }
+    if (character >= 32 && character < 127 && character != 27) {
+        putchar(character);
+    }
+    putchar('\n');
+    fflush(stdout);
+    return character;
+}
+
+int cli_selection_available(void) {
+    const char *term = getenv("TERM");
+    return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO) && term && strcmp(term, "dumb") != 0;
+}
+
+int cli_selection_key(void) {
+    struct termios original;
+    if (tcgetattr(STDIN_FILENO, &original) != 0) return -1;
+    struct termios immediate = original;
+    immediate.c_lflag &= ~(ICANON | ECHO | ISIG);
+    immediate.c_cc[VMIN] = 1;
+    immediate.c_cc[VTIME] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &immediate) != 0) return -1;
+    unsigned char byte;
+    int key = read(STDIN_FILENO, &byte, 1) == 1 ? byte : -1;
+    if (key == 27) {
+        unsigned char sequence[16];
+        size_t count = 0;
+        struct pollfd input = { .fd = STDIN_FILENO, .events = POLLIN };
+        while (count < sizeof(sequence) && poll(&input, 1, 40) > 0) {
+            if (read(STDIN_FILENO, &sequence[count], 1) != 1) break;
+            count++;
+            if (count >= 2 && sequence[count - 1] >= 64 && sequence[count - 1] <= 126) break;
+        }
+        key = -1;
+        if (count == 2 && (sequence[0] == '[' || sequence[0] == 'O')) {
+            key = sequence[1] == 'A' ? 1001 : sequence[1] == 'B' ? 1002 : 0;
+        } else if (count > 0) {
+            key = 0;
+        }
+    }
+    tcsetattr(STDIN_FILENO, TCSANOW, &original);
+    return key == 3 || key == 4 ? -1 : key;
+}
+
+int cli_terminal_columns(void) {
+    struct winsize size;
+    return ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0 && size.ws_col > 0 ? size.ws_col : 80;
+}
+
+int cli_terminal_rows(void) {
+    struct winsize size;
+    return ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0 && size.ws_row > 0 ? size.ws_row : 24;
 }

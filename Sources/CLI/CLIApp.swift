@@ -357,7 +357,7 @@ func renderCLIHelp() -> String {
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       env up|down|list ...         Lease a simulator/emulator with a running companion (agents)
-      init ...                    Guided setup: devices from one app build + AI client skills
+      init ...                    Guided device setup + AI client skills (app build optional)
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
       agent install|render         Install the amoo subagents/skills for AI clients (guided; Claude, Codex, …)
       flow <path.amoo.json>        Run a reusable checked-in device flow

@@ -21,20 +21,11 @@ struct InitDeviceCandidate: Equatable {
 /// Host facts the wizard and validator need; replaced wholesale in tests.
 struct InitDiscovery {
     var devices: (Platform) async -> [InitDeviceCandidate]
-    var apps: (Platform) -> [String]
     var bundleID: (_ appPath: String, _ platform: Platform) -> String?
 
     static func live(store: DeviceClaimStore = DeviceClaimStore()) -> Self {
         Self(
             devices: { await discoverInitDevices(platform: $0, store: store) },
-            apps: { platform in
-                let home = FileManager.default.homeDirectoryForCurrentUser
-                let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                let roots = platform == .ios
-                    ? [cwd, home.appendingPathComponent("Library/Developer/Xcode/DerivedData")]
-                    : [cwd]
-                return discoverAppArtifacts(platform: platform, roots: roots)
-            },
             bundleID: { path, platform in platform == .ios ? iosBundleIdentifier(ofApp: path) : nil }
         )
     }
@@ -75,47 +66,6 @@ private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) as
         return lhsRank != rhsRank ? lhsRank < rhsRank : lhs.name < rhs.name
     }
     return found
-}
-
-/// Built apps near the caller, newest first: simulator `.app` bundles (never UI-test runners) or
-/// non-test `.apk` files under a Gradle `outputs/apk` directory.
-func discoverAppArtifacts(platform: Platform, roots: [URL], maxDepth: Int = 8, limit: Int = 8) -> [String] {
-    let pruned: Set = ["node_modules", "Pods", "Index.noindex", "Intermediates.noindex", "SourcePackages", "Logs"]
-    var matches: [(path: String, modified: Date)] = []
-    for root in roots {
-        guard let walker = FileManager.default.enumerator(
-            at: root,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) else { continue }
-        for case let url as URL in walker {
-            if walker.level > maxDepth || pruned.contains(url.lastPathComponent) {
-                walker.skipDescendants()
-                continue
-            }
-            let path = url.path
-            switch platform {
-            case .ios where url.pathExtension == "app":
-                walker.skipDescendants()
-                guard path.contains("iphonesimulator"),
-                      !url.lastPathComponent.hasSuffix("-Runner.app"),
-                      url.lastPathComponent != "AmooCompanion.app" else { continue }
-            case .android where url.pathExtension == "apk":
-                guard path.contains("/outputs/apk/"), !path.contains("androidTest") else { continue }
-            default:
-                continue
-            }
-            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
-                .contentModificationDate ?? .distantPast
-            matches.append((path, modified))
-        }
-    }
-    var seen = Set<String>()
-    return matches.sorted { $0.modified > $1.modified }
-        .map(\.path)
-        .filter { seen.insert($0).inserted }
-        .prefix(limit)
-        .map(\.self)
 }
 
 func iosBundleIdentifier(ofApp path: String) -> String? {

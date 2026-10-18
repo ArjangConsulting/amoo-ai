@@ -220,7 +220,10 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
         testDescription: options.testDescription
     )
     let context = try options.contextPath.map {
-        try RepositoryTestProfile.load(URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath))
+        try RepositoryTestProfile.load(
+            URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath),
+            platform: result.studioTest.platform
+        )
     } ?? RepositoryTestProfile.discover(platform: result.studioTest.platform)
     if let context {
         result = CompileSessionToPlanResult(

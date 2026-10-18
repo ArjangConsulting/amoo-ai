@@ -31,3 +31,17 @@ int cli_completion_candidate_matches(const char *candidate, const char *text, in
 /// `setvbuf(stdout, ...)` from Swift as touching non-Sendable global state on Linux (Glibc's
 /// `stdout` isn't annotated the way Darwin's is); doing it in C sidesteps that entirely.
 void cli_line_buffer_stdout(void);
+
+/// Reads and echoes one terminal key, restoring terminal settings before returning.
+/// Returns -1 on EOF/Ctrl-D, -2 when terminal input is unavailable.
+int cli_read_character(void);
+
+/// Whether stdin/stdout support the interactive selection UI.
+int cli_selection_available(void);
+/// Reads a selection key without echo. Arrows return 1001 (up), 1002 (down).
+/// Escape, Ctrl-C, Ctrl-D and EOF return -1. Restores terminal settings on return.
+int cli_selection_key(void);
+
+/// Current terminal dimensions, with conservative defaults.
+int cli_terminal_columns(void);
+int cli_terminal_rows(void);

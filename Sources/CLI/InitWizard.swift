@@ -3,11 +3,11 @@ import Foundation
 
 // MARK: - Request
 
-/// Everything `amoo init` can be told up front. `nil`/empty means "not supplied": a terminal
-/// session is asked for it, a headless one is refused with the full list of what is missing.
+/// Setup inputs for `amoo init`. App artifacts are optional and only used when supplied explicitly.
 struct InitRequest: Equatable {
     var platform: Platform?
     var additionalRequests: [Self] = []
+    var framework: String?
     var appPath: String?
     var appID: String?
     var devices: [String] = []
@@ -33,10 +33,7 @@ struct InitRequest: Equatable {
         if platform == nil {
             flags.append("--platform ios|android")
         }
-        if appPath == nil {
-            flags.append("--app <absolute path to the prebuilt .app/.apk>")
-        }
-        if appID == nil {
+        if appID == nil, appPath != nil || launch == true {
             flags.append("--app-id <bundle id or package name>")
         }
         if devices.isEmpty {
@@ -46,6 +43,8 @@ struct InitRequest: Equatable {
     }
 }
 
+// Keep flag validation together in one linear parser.
+// swiftlint:disable:next cyclomatic_complexity function_body_length
 func parseInitRequest(_ args: [String]) throws -> InitRequest {
     var flags = EnvFlagReader(args)
     var request = InitRequest()
@@ -54,6 +53,11 @@ func parseInitRequest(_ args: [String]) throws -> InitRequest {
             throw EnvCommandParseError.usage("--platform must be ios or android, got '\(raw)'.")
         }
         request.platform = platform
+    }
+    request.framework = try flags.value("--framework")
+    if let framework = request.framework,
+       !["native", "react-native", "flutter", "kmp"].contains(framework) {
+        throw EnvCommandParseError.usage("--framework must be native, react-native, flutter or kmp.")
     }
     request.appPath = try flags.value("--app")
     request.appID = try flags.value("--app-id")
@@ -113,22 +117,11 @@ enum InitWizardError: Error, Equatable {
     case cancelled
 }
 
-/// Default manifest location: beside the leases it refers to, one file per run so a later init can
-/// never overwrite the only record of an earlier run's leases.
+/// One project-local connection file shared by both platforms and repeated setup runs.
 func defaultInitManifestPath(
-    platform: Platform,
-    now: Date,
-    directory: String? = nil,
-    home: URL = FileManager.default.homeDirectoryForCurrentUser
+    workingDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 ) -> String {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "yyyyMMdd-HHmmss"
-    let name = "\(platform.rawValue)-\(formatter.string(from: now)).json"
-    if let directory {
-        return URL(fileURLWithPath: directory).appendingPathComponent(name).path
-    }
-    return home.appendingPathComponent(".amoo/init/\(name)").path
+    workingDirectory.appendingPathComponent(".amoo.json").path
 }
 
 /// Resolves `~` and relative paths against the working directory, so the manifest and the
@@ -146,7 +139,6 @@ private struct InitWizard<Prompter: CLIPrompting> {
     let prompter: Prompter
     let saved: InitSavedLocations?
     let now: Date
-    let fileExists: (String) -> Bool
 
     func platforms() throws -> [Platform] {
         guard let index = prompter.choose(
@@ -155,38 +147,6 @@ private struct InitWizard<Prompter: CLIPrompting> {
             default: 0
         ) else { throw InitWizardError.cancelled }
         return index == 2 ? [.ios, .android] : [index == 0 ? .ios : .android]
-    }
-
-    func appPath(platform: Platform) throws -> String {
-        var found = discovery.apps(platform)
-        if let remembered = saved?.appPath, saved?.platform ?? platform == platform, fileExists(remembered) {
-            prompter.say("AGENTS.md remembers the app at \(remembered).")
-            found.removeAll { $0 == remembered }
-            found.insert(remembered, at: 0)
-        }
-        if found.isEmpty {
-            prompter.say("No built \(platform == .ios ? ".app" : ".apk") found here or in Xcode's DerivedData.")
-        } else {
-            guard let index = prompter.choose(
-                "Built app (newest first)",
-                options: found + ["Enter a different path…"],
-                default: 0
-            ) else { throw InitWizardError.cancelled }
-            if index < found.count {
-                return found[index]
-            }
-        }
-        while true {
-            guard let answer = prompter.ask(
-                "Path to the prebuilt \(platform == .ios ? ".app (simulator build)" : ".apk")",
-                default: nil
-            ) else { throw InitWizardError.cancelled }
-            let path = absoluteInitPath(answer)
-            if !answer.isEmpty, fileExists(path) {
-                return path
-            }
-            prompter.say("Not found: \(path)")
-        }
     }
 
     func appID(platform: Platform, appPath: String) throws -> String {
@@ -218,7 +178,7 @@ private struct InitWizard<Prompter: CLIPrompting> {
             throw InitWizardError.cancelled
         }
         guard let picked = prompter.chooseMany(
-            "Devices to prepare — each gets its own lease, companion and port",
+            "Select devices to prepare for testing",
             options: free.map(\.label),
             defaults: [free.firstIndex(where: \.booted) ?? 0]
         ) else { throw InitWizardError.cancelled }
@@ -231,16 +191,10 @@ private struct InitWizard<Prompter: CLIPrompting> {
         return answer
     }
 
-    func owner() throws -> String {
-        guard let answer = prompter.ask("Owner label (shown to anyone refused a leased device)", default: "amoo-init")
-        else { throw InitWizardError.cancelled }
-        return answer
-    }
-
     func manifest(platform: Platform) throws -> String {
         guard let answer = prompter.ask(
-            "Write the manifest to (holds lease credentials; kept private)",
-            default: defaultInitManifestPath(platform: platform, now: now, directory: saved?.manifestDirectory)
+            "Save device connection details to (local file; do not commit)",
+            default: defaultInitManifestPath()
         ) else { throw InitWizardError.cancelled }
         return absoluteInitPath(answer)
     }
@@ -252,56 +206,58 @@ func completeInitRequest(
     discovery: InitDiscovery,
     prompter: some CLIPrompting,
     saved: InitSavedLocations? = nil,
-    now: Date = Date(),
-    fileExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    now: Date = Date()
 ) async throws -> InitRequest {
-    let wizard = InitWizard(discovery: discovery, prompter: prompter, saved: saved, now: now, fileExists: fileExists)
+    let wizard = InitWizard(discovery: discovery, prompter: prompter, saved: saved, now: now)
     prompter.say("╭─ amoo init ─────────────────────────╮")
-    prompter.say("Prepare iOS simulators and Android emulators from prebuilt apps.")
-    prompter.say("Flags already given are kept; answer the rest. The app is never rebuilt.\n")
+    prompter.say("Prepare iOS simulators and Android emulators for testing.")
+    prompter.say("Flags already given are kept; answer the rest. No app build is required for setup.\n")
 
     var result = request
     let platforms = try request.platform.map { [$0] } ?? wizard.platforms()
-    if request.platform == nil {
+    if request.framework == nil, request.platform == nil {
         guard let framework = prompter.choose(
             "App framework",
-            options: ["Native / other", "React Native", "Flutter", "Kotlin Multiplatform (KMP)"],
+            options: ["Native", "React Native", "Flutter", "Kotlin Multiplatform (KMP)"],
             default: 0
         ) else { throw InitWizardError.cancelled }
         let guidance = [
-            "Use an iOS simulator .app and/or an Android .apk.",
-            "React Native: use a simulator .app and/or an .apk. Start Metro if your debug build needs it.",
-            "Flutter: use build/ios/iphonesimulator/*.app and/or build/app/outputs/flutter-apk/*.apk.",
-            "KMP: use the iOS host simulator .app and/or Android .apk; the shared module is not an app."
+            "Native: prepare devices now; install the app when starting a test run.",
+            "React Native: start Metro when testing if your debug build needs it.",
+            "Flutter: prepare devices now; install the app when starting a test run.",
+            "KMP: tests run against the iOS or Android host app."
         ]
+        result.framework = ["native", "react-native", "flutter", "kmp"][framework]
         prompter.say(guidance[framework])
     }
     let platform = platforms[0]
     let platformWizard = InitWizard(
-        discovery: discovery, prompter: prompter, saved: saved?.forPlatform(platform), now: now, fileExists: fileExists
+        discovery: discovery, prompter: prompter, saved: saved?.forPlatform(platform), now: now
     )
-    prompter.say("\n\(platform == .ios ? "🍎 iOS — simulator build" : "🤖 Android — emulator build")")
+    prompter.say("\n\(platform == .ios ? "🍎 iOS — simulators" : "🤖 Android — emulators")")
     result.platform = platform
-    let appPath = try request.appPath ?? platformWizard.appPath(platform: platform)
-    result.appPath = appPath
-    result.appID = try request.appID ?? platformWizard.appID(platform: platform, appPath: appPath)
+    if result.appID == nil, let appPath = request.appPath {
+        result.appID = try platformWizard.appID(platform: platform, appPath: appPath)
+    }
     if request.devices.isEmpty {
         result.devices = try await platformWizard.devices(platform: platform)
     }
-    result.launch = try request.launch ?? platformWizard.launch()
-    result.owner = try request.owner ?? platformWizard.owner()
+    result.launch = try request.launch ?? (result.appID == nil ? false : platformWizard.launch())
+    result.owner = request.owner ?? "amoo-init"
     result.out = try request.out ?? platformWizard.manifest(platform: platform)
     if platforms.count == 2 {
         var android = request
         android.platform = .android
+        android.framework = result.framework
         android.appPath = nil
         android.appID = nil
+        android.launch = false
         android.devices = []
-        android.out = nil
+        android.out = result.out
         android.skills = false
         android.clients = []
         result.additionalRequests = try await [completeInitRequest(
-            android, discovery: discovery, prompter: prompter, saved: saved, now: now, fileExists: fileExists
+            android, discovery: discovery, prompter: prompter, saved: saved, now: now
         )]
     }
     return result
@@ -342,21 +298,21 @@ struct InitPlanError: Error {
 /// reported per device, so the others still proceed; if every device is unusable nothing starts.
 func buildInitPlan(_ request: InitRequest, discovery: InitDiscovery) async -> Result<InitPlan, InitPlanError> {
     var issues = request.missing.map { "Missing \($0)." }
-    guard let platform = request.platform, let appPath = request.appPath, let appID = request.appID,
-          !request.devices.isEmpty
+    guard let platform = request.platform, issues.isEmpty
     else { return .failure(InitPlanError(issues: issues)) }
 
-    var isDirectory: ObjCBool = false
-    let expectedExtension = platform == .ios ? "app" : "apk"
-    if !appPath.hasPrefix("/") {
-        issues.append("--app must be an absolute path, got '\(appPath)'.")
-    } else if !FileManager.default.fileExists(atPath: appPath, isDirectory: &isDirectory) {
-        issues.append("No app at \(appPath). Build it first; init never builds the app.")
-    } else if URL(fileURLWithPath: appPath).pathExtension != expectedExtension {
-        issues.append("\(appPath) is not a .\(expectedExtension) for \(platform.rawValue).")
-    }
-    if issues.isEmpty, let declared = discovery.bundleID(appPath, platform), declared != appID {
-        issues.append("--app-id \(appID) does not match the app's own identifier \(declared).")
+    if let appPath = request.appPath {
+        let expectedExtension = platform == .ios ? "app" : "apk"
+        if !appPath.hasPrefix("/") {
+            issues.append("--app must be an absolute path, got '\(appPath)'.")
+        } else if !FileManager.default.fileExists(atPath: appPath) {
+            issues.append("No app at \(appPath). Check the explicitly supplied --app path.")
+        } else if URL(fileURLWithPath: appPath).pathExtension != expectedExtension {
+            issues.append("\(appPath) is not a .\(expectedExtension) for \(platform.rawValue).")
+        }
+        if issues.isEmpty, let declared = discovery.bundleID(appPath, platform), declared != request.appID {
+            issues.append("--app-id \(request.appID ?? "") does not match the app's own identifier \(declared).")
+        }
     }
 
     let candidates = await discovery.devices(platform)
@@ -386,16 +342,21 @@ func buildInitPlan(_ request: InitRequest, discovery: InitDiscovery) async -> Re
 
     var environment = EnvUpOptions()
     environment.platform = platform
-    environment.appPath = appPath
-    environment.appID = appID
-    environment.appSHA256 = sha256Hex(ofPath: appPath)
+    environment.appPath = request.appPath
+    environment.appID = request.appID
+    environment.appSHA256 = request.appPath.flatMap { sha256Hex(ofPath: $0) }
     environment.launch = request.launch ?? false
     environment.owner = request.owner
     environment.ttlMinutes = request.ttlMinutes
     environment.readyTimeoutSeconds = request.readyTimeoutSeconds
     environment.json = request.json
     return .success(InitPlan(
-        options: InitOptions(environment: environment, devices: request.devices, out: request.out),
+        options: InitOptions(
+            environment: environment,
+            devices: request.devices,
+            out: request.out,
+            framework: request.framework
+        ),
         devices: checks,
         appSHA256: environment.appSHA256
     ))
@@ -413,9 +374,17 @@ func shellQuoted(_ value: String) -> String {
 func equivalentInitCommand(_ plan: InitPlan) -> String {
     let environment = plan.options.environment
     var parts = ["amoo", "init", "--platform", environment.platform.rawValue]
-    parts += ["--app", shellQuoted(environment.appPath ?? ""), "--app-id", shellQuoted(environment.appID ?? "")]
+    if let appPath = environment.appPath {
+        parts += ["--app", shellQuoted(appPath)]
+    }
+    if let appID = environment.appID {
+        parts += ["--app-id", shellQuoted(appID)]
+    }
     for device in plan.options.devices {
         parts += ["--device", shellQuoted(device)]
+    }
+    if let framework = plan.options.framework {
+        parts += ["--framework", framework]
     }
     parts.append(environment.launch ? "--launch" : "--no-launch")
     if let owner = environment.owner {
@@ -440,13 +409,15 @@ func renderInitPlan(_ plan: InitPlan) -> String {
     var lines = [
         "Plan",
         "  Platform   \(environment.platform.rawValue)",
-        "  App        \(environment.appPath ?? "?")",
-        "  Digest     sha256 \(digest) (same artifact for every device)",
-        "  App ID     \(environment.appID ?? "?")",
+        "  App        \(environment.appPath ?? "(no artifact supplied)")",
+        "  App ID     \(environment.appID ?? "(none)")",
         "  Launch     \(environment.launch ? "yes" : "no")",
         "  Owner      \(environment.owner ?? "(default)")",
         "  Manifest   \(plan.options.out ?? "(none — results on stdout only)")"
     ]
+    if environment.appPath != nil {
+        lines.insert("  Digest     sha256 \(digest) (same artifact for every device)", at: 3)
+    }
     for (index, device) in plan.devices.enumerated() {
         lines.append("  \(index == 0 ? "Devices   " : "          ") \(device.label)")
         if let problem = device.problem {
@@ -463,6 +434,7 @@ struct InitPlanReport: Encodable {
     var schemaVersion = 1
     var ok: Bool
     var dryRun = true
+    var framework: String?
     var platform: String
     var app: EnvAppReport
     var devices: [Device]
@@ -479,6 +451,7 @@ struct InitPlanReport: Encodable {
     init(_ plan: InitPlan) {
         let environment = plan.options.environment
         platform = environment.platform.rawValue
+        framework = plan.options.framework
         app = EnvAppReport(
             id: environment.appID,
             path: environment.appPath,

@@ -185,9 +185,9 @@ actual generated source with Swift 6 and the simulator SDK.
 
 ## Repository integration profile
 
-`amoo init --save` discovers Swift UI-test harness evidence and writes `amoo.md` alongside
+`amoo init --save` discovers Swift UI-test and Kotlin/Java instrumentation harness evidence and writes `amoo.md` alongside
 `AGENTS.md`. It creates no tests, adapter class, or Generated directory and preserves an existing
-profile. Review and complete uncertain conventions using the listed source files. A fenced
+platform sections (appending newly discovered platforms). Review and complete uncertain conventions using the listed source files. A fenced
 `amoo-context` block holds the export bindings; no separate JSON file is required.
 
 Recording (`start_session`) and CLI plan/test generation discover the nearest `amoo.md` from the
@@ -239,3 +239,22 @@ configuration remain excluded for review. Authored plans may also use `relaunch_
 Export provenance is stored in a `provenance/` directory beside the input plan, outside the exported
 Swift/Kotlin directory. Keep input plans and recordings in tool storage. Compile and run generated
 source in the receiving target before treating it as validated.
+
+### Mixed-platform repositories
+
+A single amoo.md may contain two fenced amoo-context objects, one with targetPlatform ios and one
+with targetPlatform android. Multiple blocks must declare distinct platforms. CLI generation selects
+using the plan/report platform; MCP uses the session platform. Explicit Markdown paths follow the
+same selection rules. Single-block legacy JSON and Markdown contexts remain supported; an explicitly
+wrong platform is rejected, including inline MCP context and embedded export context.
+
+Android discovery reads Kotlin and Java instrumentation sources in androidTest/androidInstrumentedTest.
+It records Espresso, Compose and UI Automator usage plus source excerpts for imports, inheritance,
+rules, lifecycle, helper signatures, IDs and timeouts. A unique locally declared no-argument base
+without rule/lifecycle conflicts is recorded with qualified Kotlin constructor syntax. Other base
+classes and helper bindings remain evidence for review, avoiding an extra app launch or conflicting
+Compose rules. Unit-test sources, generated build trees, dependencies and symlinks are excluded.
+Choose --ui-toolkit compose for Compose exports. Discovery does not run Gradle or modify test targets.
+Re-running init preserves existing platform sections byte-for-byte and appends a missing discovered
+platform. Unscoped legacy contexts continue to apply to either platform; reviewed prose-only profiles
+are preserved.
