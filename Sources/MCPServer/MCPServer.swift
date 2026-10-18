@@ -87,7 +87,8 @@ extension ToolDefinition {
             "assert_visible",
             "assert_enabled",
             "assert_absent",
-            "assert_value"
+            "assert_value",
+            "assert_selected"
         ].contains(name) {
             copy.properties["parent_id"] = .init(
                 type: "string",
@@ -102,7 +103,8 @@ extension ToolDefinition {
             "assert_visible",
             "assert_enabled",
             "assert_absent",
-            "assert_value"
+            "assert_value",
+            "assert_selected"
         ].contains(name) {
             copy.properties["index"] = .init(
                 type: "string",

@@ -26,8 +26,11 @@ public struct EspressoEmitter: StudioCodeEmitting {
         let needsIndexMatcher = body.contains("withIndex(")
         let scrollImport = body
             .contains("scrollTo()") ? "\nimport androidx.test.espresso.action.ViewActions.scrollTo" : ""
+        let ancestorImport = body.contains("isDescendantOfA(")
+            ? "\nimport androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA" : ""
+        let allOfImport = body.contains("allOf(") ? "\nimport org.hamcrest.Matchers.allOf" : ""
         let needsResourceNameMatcher = operations.contains {
-            ($0.arguments["id"] != nil || $0.arguments["element_id"] != nil) && [
+            ($0.arguments["id"] != nil || $0.arguments["element_id"] != nil || $0.arguments["parent_id"] != nil) && [
                 "tap_element",
                 "set_text",
                 "wait_for_element",
@@ -68,7 +71,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         import androidx.test.espresso.matcher.ViewMatchers.hasFocus
         import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
         import androidx.test.espresso.matcher.ViewMatchers.isEnabled
-        import androidx.test.espresso.matcher.ViewMatchers.isRoot
+        import androidx.test.espresso.matcher.ViewMatchers.isRoot\(ancestorImport)
         import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
         import androidx.test.espresso.matcher.ViewMatchers.withText
         import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -78,7 +81,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         import org.hamcrest.Description
         import org.hamcrest.Matcher
         import org.hamcrest.Matchers.containsString
-        import org.hamcrest.Matchers.anyOf
+        import org.hamcrest.Matchers.anyOf\(allOfImport)
         import org.hamcrest.TypeSafeMatcher
         import org.junit.Test
         import org.junit.runner.RunWith
@@ -318,6 +321,9 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             """
 
+        case .assertSelected:
+            throw TestCodeGeneratorError.selectionUnsupportedOnAndroid(tool: operation.tool, emitter: "Espresso")
+
         case .assertEnabled:
             let target = try matcher(operation)
             return try """
@@ -354,29 +360,44 @@ public struct EspressoEmitter: StudioCodeEmitting {
         }
     }
 
+    /// Every selector field is a constraint, so the target must satisfy all of them, inside the
+    /// `parent_id` subtree when one is given. A `withIndex` pick applies to what survives.
     private static func matcher(
         _ operation: StudioToolOperation,
         idKey: String = "id",
         labelKey: String = "label",
         containsTextKey: String = "contains_text"
     ) throws -> String {
-        let base: String
+        var constraints: [String] = []
         if let id = operation.arguments[idKey] {
-            base = "anyOf(hasResourceEntryName(\(literal(id))), withContentDescription(\(literal(id))))"
-        } else if let label = operation.arguments[labelKey] {
-            base = "anyOf(withText(\(literal(label))), withContentDescription(\(literal(label))))"
-        } else if let contains = operation.arguments[containsTextKey] {
-            base = "anyOf(withText(containsString(\(literal(contains)))), "
-                + "withContentDescription(containsString(\(literal(contains)))))"
-        } else {
+            constraints.append(identityMatcher(id))
+        }
+        if let label = operation.arguments[labelKey] {
+            constraints.append("anyOf(withText(\(literal(label))), withContentDescription(\(literal(label))))")
+        }
+        if let contains = operation.arguments[containsTextKey] {
+            constraints.append(
+                "anyOf(withText(containsString(\(literal(contains)))), "
+                    + "withContentDescription(containsString(\(literal(contains)))))"
+            )
+        }
+        if let parent = operation.arguments["parent_id"], !parent.isEmpty, !constraints.isEmpty {
+            constraints.append("isDescendantOfA(\(identityMatcher(parent)))")
+        }
+        guard constraints.isEmpty == false else {
             throw TestCodeGeneratorError.missingArgument(
                 tool: operation.tool, argument: "id, label, or contains_text"
             )
         }
+        let base = constraints.count == 1 ? constraints[0] : "allOf(\(constraints.joined(separator: ", ")))"
         // A recorded `index` / `first` picks one of several identical matches; without it Espresso
         // throws AmbiguousViewMatcherException on the duplicates.
         guard let pick = try XCUITestEmitter.elementPick(operation) else { return base }
         return "withIndex(\(base), \(pick.position))"
+    }
+
+    private static func identityMatcher(_ id: String) -> String {
+        "anyOf(hasResourceEntryName(\(literal(id))), withContentDescription(\(literal(id))))"
     }
 
     private static func timeoutMilliseconds(for operation: StudioToolOperation) throws -> Int64 {

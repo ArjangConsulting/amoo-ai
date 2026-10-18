@@ -65,7 +65,9 @@ public enum SessionTools {
                 ),
                 "launch_args": .init(
                     type: "string",
-                    description: "Comma-separated arguments passed to the app at launch."
+                    description: "Comma-separated arguments passed to the app at launch. When omitted, the"
+                        + " launchArguments of the discovered amoo.md / test context (locale and text size"
+                        + " seeded by amoo init) apply; the result's launch_config_source says which."
                 ),
                 "environment": .init(
                     type: "string",
@@ -84,6 +86,11 @@ public enum SessionTools {
                     "app_id": .init(type: "string", description: "Bundle/package id"),
                     "device_id": .init(type: "string", description: "Resolved device UDID or serial"),
                     "platform": .init(type: "string", description: "ios or android"),
+                    "launch_config_source": .init(
+                        type: "string",
+                        description: "Where launch arguments/environment came from: explicit, profile,"
+                            + " explicit+profile or none"
+                    ),
                     "warnings": .init(type: "array", description: "Startup warnings", items: .scalar(type: "string"))
                 ],
                 required: ["session_id", "app_id", "device_id", "platform"]

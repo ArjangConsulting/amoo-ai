@@ -322,39 +322,6 @@ extension DriverToolExecutor {
         )
     }
 
-    func preferredSelector(
-        arguments: [String: String],
-        includeDescription: Bool = false
-    ) -> ElementSelector? {
-        if let id = arguments["id"], !id.isEmpty {
-            return ElementSelector(
-                id: id,
-                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
-            )
-        }
-        if let label = arguments["label"], !label.isEmpty {
-            return ElementSelector(
-                label: label,
-                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
-            )
-        }
-        if let text = arguments["contains_text"], !text.isEmpty {
-            return ElementSelector(
-                containsText: text,
-                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
-            )
-        }
-        if includeDescription,
-           let description = arguments["field_description"] ?? arguments["description"],
-           !description.isEmpty {
-            return ElementSelector(
-                description: description,
-                parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) }
-            )
-        }
-        return nil
-    }
-
     func resolveElement(
         selector: ElementSelector,
         driver: any PlatformDriver,
@@ -364,7 +331,7 @@ extension DriverToolExecutor {
     ) async throws -> ElementInfo? {
         if selector.description == nil {
             return try await pickElement(
-                validateGeometry(driver.findElements(selector, appID: appID)), pick: pick,
+                validateGeometry(findScopedElements(selector, driver: driver, appID: appID)), pick: pick,
                 missingIsNil: missingIsNil
             )
         }
@@ -375,8 +342,8 @@ extension DriverToolExecutor {
             )
         }
         guard let description = selector.description else { return nil }
-        let all = try await filterAppRelevantElements(driver.findElements(
-            ElementSelector(parentSelector: selector.parentSelector), appID: appID
+        let all = try await filterAppRelevantElements(findScopedElements(
+            ElementSelector(parentSelector: selector.parentSelector), driver: driver, appID: appID
         ))
         if let exactID = try uniqueElement(all.filter { $0.id.caseInsensitiveCompare(description) == .orderedSame }) {
             return exactID
@@ -457,7 +424,9 @@ extension DriverToolExecutor {
         parent: ParentSelector? = nil
     ) async throws -> ElementInfo? {
         let lowered = query.lowercased()
-        let allElements = try await driver.findElements(ElementSelector(parentSelector: parent), appID: appID)
+        let allElements = try await findScopedElements(
+            ElementSelector(parentSelector: parent), driver: driver, appID: appID
+        )
         let filtered = filterAppRelevantElements(allElements)
         if let match = try uniqueElement(filtered.filter {
             $0.label.lowercased().contains(lowered) || $0.id.lowercased().contains(lowered)

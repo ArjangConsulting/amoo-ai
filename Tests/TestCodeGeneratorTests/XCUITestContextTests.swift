@@ -147,8 +147,12 @@ final class XCUITestContextTests: XCTestCase {
             makeTest(context: .init(baseClass: "AppUITestCase"))
         )
 
-        XCTAssertTrue(result.source.contains("try super.setUpWithError()"))
-        XCTAssertTrue(result.source.contains("try super.tearDownWithError()"))
+        XCTAssertTrue(result.source.contains("try await super.setUp()"))
+        XCTAssertTrue(result.source.contains("try await super.tearDown()"))
+
+        let plain = try XCUITestEmitter().generate(makeTest(context: .init()))
+        XCTAssertTrue(plain.source.contains("try super.setUpWithError()"))
+        XCTAssertTrue(plain.source.contains("try super.tearDownWithError()"))
     }
 
     func testXCUITestEmitterStillLaunchesWhenABaseClassIsNamedButDoesNotLaunch() throws {
@@ -209,8 +213,10 @@ final class XCUITestContextTests: XCTestCase {
         // harnessLaunchesApp: true -> no duplicate launch.
         XCTAssertFalse(result.source.contains("app.launch()"))
         // super chaining preserved.
-        XCTAssertTrue(result.source.contains("try super.setUpWithError()"))
-        XCTAssertTrue(result.source.contains("try super.tearDownWithError()"))
+        // A custom base class keeps its own setUpWithError / tearDownWithError; ours are the async hooks.
+        XCTAssertTrue(result.source.contains("try await super.setUp()"))
+        XCTAssertTrue(result.source.contains("try await super.tearDown()"))
+        XCTAssertFalse(result.source.contains("override func setUpWithError"))
     }
 
     func testXCUITestEmitterRejectsAnUndeclaredContextHelper() {

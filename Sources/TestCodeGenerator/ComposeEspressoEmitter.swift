@@ -1,6 +1,7 @@
 import StudioProtocol
 
-/// Emits an instrumented Android test that queries Jetpack Compose's semantics tree.
+// Emits an instrumented Android test that queries Jetpack Compose's semantics tree.
+// swiftlint:disable:next type_body_length
 public struct ComposeEspressoEmitter: StudioCodeEmitting {
     public init() {}
 
@@ -28,6 +29,8 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             .map { "import \($0)" }
             .joined(separator: "\n")
         let baseClass = test.testContext?.baseClass.map { " : \($0)" } ?? ""
+        let ancestorImport = body.contains("hasAnyAncestor(")
+            ? "\nimport androidx.compose.ui.test.hasAnyAncestor" : ""
 
         let source = """
         import android.app.Activity
@@ -40,7 +43,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import androidx.compose.ui.test.assertIsEnabled
         import androidx.compose.ui.test.assertTextContains
         import androidx.compose.ui.test.assertTextEquals
-        import androidx.compose.ui.test.hasContentDescription
+        import androidx.compose.ui.test.hasContentDescription\(ancestorImport)
         import androidx.compose.ui.test.hasTestTag
         import androidx.compose.ui.test.hasText
         import androidx.compose.ui.test.isFocused
@@ -226,6 +229,8 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         case .scrollToElement:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).performScrollTo().assertIsDisplayed()"
+        case .assertSelected:
+            throw TestCodeGeneratorError.selectionUnsupportedOnAndroid(tool: operation.tool, emitter: "Compose")
         case .assertEnabled:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"
@@ -297,22 +302,33 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isEmpty() }"
     }
 
+    /// Every selector field is a constraint, so the node must satisfy all of them, and sit below the
+    /// `parent_id` node when one is given.
     private static func semanticsMatcher(
         _ operation: StudioToolOperation,
         idKey: String = "id",
         labelKey: String = "label",
         containsTextKey: String = "contains_text"
     ) throws -> String {
+        var constraints: [String] = []
         if let id = operation.arguments[idKey] {
-            return "hasTestTag(\(literal(id)))"
+            constraints.append("hasTestTag(\(literal(id)))")
         }
         if let label = operation.arguments[labelKey] {
-            return "hasContentDescription(\(literal(label)))"
+            constraints.append("hasContentDescription(\(literal(label)))")
         }
         if let text = operation.arguments[containsTextKey] {
-            return "hasText(\(literal(text)), substring = true)"
+            constraints.append("hasText(\(literal(text)), substring = true)")
         }
-        throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "id, label, or contains_text")
+        guard constraints.isEmpty == false else {
+            throw TestCodeGeneratorError.missingArgument(
+                tool: operation.tool, argument: "id, label, or contains_text"
+            )
+        }
+        if let parent = operation.arguments["parent_id"], !parent.isEmpty {
+            constraints.append("hasAnyAncestor(hasTestTag(\(literal(parent))))")
+        }
+        return constraints.joined(separator: " and ")
     }
 
     private static func timeoutMilliseconds(for operation: StudioToolOperation) throws -> Int64 {

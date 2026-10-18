@@ -96,8 +96,9 @@ extension DriverToolExecutor {
             parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) },
             labeledOnly: boolArgument(arguments["labeled_only"]) ?? false
         )
-        var elements = try await driver.findElements(
+        var elements = try await findScopedElements(
             selector,
+            driver: driver,
             appID: queryScopeAppID(arguments: arguments, driver: driver)
         )
         elements = try validateGeometry(elements)
@@ -138,7 +139,8 @@ extension DriverToolExecutor {
                     label: element.label.isEmpty ? nil : element.label,
                     elementType: element.type?.rawValue,
                     frame: element.frame.map { RecordedRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height) },
-                    hitPoint: element.hitPoint.map { RecordedPoint(x: $0.x, y: $0.y) }
+                    hitPoint: element.hitPoint.map { RecordedPoint(x: $0.x, y: $0.y) },
+                    isSelected: element.isSelected
                 )
             },
             // A field's current text reaches the caller but is not written to the session report.

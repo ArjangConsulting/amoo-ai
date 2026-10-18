@@ -127,6 +127,7 @@ public enum ToolProfile: String, Sendable, CaseIterable {
             "assert_visible",
             "assert_absent",
             "assert_value",
+            "assert_selected",
             "assert_enabled",
             "list_devices",
             "run_steps"

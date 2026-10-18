@@ -33,13 +33,22 @@ preview* you may run while the session is still open; it is never a required ste
 4. **Verify every mutation with an explicit semantic assertion.** After a delete,
    `assert_absent` (or `find_elements` + count) on a text/label. After an
    add, `assert_visible` the new element. An unverified mutation compiles to an
-   action with nothing asserting on it.
+   action with nothing asserting on it. A selection (a date, a row, a tab) is asserted with
+   `assert_selected expected=true|false` — it reads the selected trait, fails when the element is
+   absent even for `expected=false`, and is the only call that becomes an `.isSelected` check. Do
+   not rely on `find_elements` printing `selected`: an observation is never turned into an
+   assertion, and the plan warns `selected_state_not_asserted` when one was left unasserted.
+   Selector fields are constraints — `id`, `label` and `contains_text` must **all** match, so
+   `assert_visible id=… contains_text="Range end"` checks both.
 5. **End the session, then read the plan warnings before generating.**
    `end_session` already compiles the recorded history and writes `plan.json` —
    there is no separate `compile_session_to_plan` step in the canonical flow (it
    is an optional preview you can call earlier, while the session is still open,
    and it does not change the plan `end_session` writes). Inspect `plan.json` and
-   every `compiledPlan.warnings` entry. An `excluded` / incomplete-plan warning
+   every `compiledPlan.warnings` entry; each carries a `category` (`inspection_omitted`,
+   `observation_approximated`, `selected_state_not_asserted`, `assertion_preserved`,
+   `assertion_weakened`, `assertion_unsupported`, `action_excluded`,
+   `selector_constraint_discarded`) plus the action index, selector and state. An `excluded` / incomplete-plan warning
    means a required **app-under-test** action was dropped: treat that as a
    **failed** codegen result, not a finished test. Fix the recording (add an
    identifier, drive through an addressable ancestor, re-record) rather than

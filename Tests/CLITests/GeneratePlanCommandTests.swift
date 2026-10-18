@@ -82,7 +82,7 @@ final class GeneratePlanCommandTests: XCTestCase {
         XCTAssertTrue(plan.compiledPlan?.excludedWarnings.isEmpty ?? false)
 
         let swipe = try XCTUnwrap(ops.first { $0.tool == "swipe_in_direction" })
-        XCTAssertEqual(swipe.arguments["element_label"], "🧺 Laundry, wash and fold the whites, Sunday")
+        XCTAssertEqual(swipe.arguments["name_hint"], "🧺 Laundry, wash and fold the whites, Sunday")
         let pickerTap = try XCTUnwrap(ops.first { $0.tool == "tap_element" && $0.arguments["label"] == "Laundry" })
         XCTAssertEqual(pickerTap.arguments["name_hint"], "Laundry preset option")
     }

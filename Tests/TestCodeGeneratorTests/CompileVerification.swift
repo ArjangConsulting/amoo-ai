@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import Foundation
 import TestCommons
 import XCTest
@@ -11,12 +12,41 @@ enum CompileVerification {
         _ source: String,
         additionalImportPaths: [String] = [],
         swiftVersion: Int = 5,
+        extraArguments: [String] = [],
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws {
+        let result = try swiftTypecheck(
+            source, additionalImportPaths: additionalImportPaths,
+            swiftVersion: swiftVersion, extraArguments: extraArguments
+        )
+        if result.exitCode != 0 {
+            XCTFail("Generated Swift did not compile:\n\(result.output)", file: file, line: line)
+        }
+    }
+
+    /// Compiles `source` to SIL against the iOS Simulator SDK and returns the compiler's verdict, for
+    /// callers that expect a failure (proving a check would catch the bug it exists for).
+    ///
+    /// `-emit-sil` rather than `-typecheck`: region-isolation diagnostics ("sending 'self' risks
+    /// causing data races") come from the SIL passes, so a type-check alone passes code that a real
+    /// Swift 6 UI-test target rejects.
+    ///
+    /// `AMOO_COMPILE_DEVELOPER_DIR` runs the check with another Xcode's toolchain, so the same
+    /// generated source can be verified under each supported Swift version.
+    static func swiftTypecheck(
+        _ source: String,
+        additionalImportPaths: [String] = [],
+        swiftVersion: Int = 5,
+        extraArguments: [String] = []
+    ) throws -> (exitCode: Int32, output: String) {
+        var environment = ProcessInfo.processInfo.environment
+        if let developerDir = environment["AMOO_COMPILE_DEVELOPER_DIR"], !developerDir.isEmpty {
+            environment["DEVELOPER_DIR"] = developerDir
+        }
         guard
             let sdkPath = try? runCapturingOutput(
-                "/usr/bin/xcrun", ["--sdk", "iphonesimulator", "--show-sdk-path"]
+                "/usr/bin/xcrun", ["--sdk", "iphonesimulator", "--show-sdk-path"], environment: environment
             )
             .trimmingCharacters(in: .whitespacesAndNewlines), sdkPath.isEmpty == false
         else {
@@ -24,7 +54,8 @@ enum CompileVerification {
         }
         let platformPath = try runCapturingOutput(
             "/usr/bin/xcrun",
-            ["--sdk", "iphonesimulator", "--show-sdk-platform-path"]
+            ["--sdk", "iphonesimulator", "--show-sdk-platform-path"],
+            environment: environment
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
         let frameworksPath = "\(platformPath)/Developer/Library/Frameworks"
@@ -37,21 +68,17 @@ enum CompileVerification {
         defer { try? directory.remove() }
         let sourceFile = try directory.write(Data(source.utf8), named: "fixture.swift")
 
-        let result = run(
+        return run(
             "/usr/bin/xcrun",
             [
-                "swiftc", "-typecheck", "-swift-version", String(swiftVersion),
+                "swiftc", "-emit-sil", "-o", "/dev/null", "-swift-version", String(swiftVersion),
                 "-sdk", sdkPath,
                 "-target", "arm64-apple-ios18.0-simulator",
                 "-F", frameworksPath,
-                "-I", overlayPath,
-                sourceFile.path
-            ] + additionalImportPaths.flatMap { ["-I", $0] }
+                "-I", overlayPath
+            ] + extraArguments + [sourceFile.path] + additionalImportPaths.flatMap { ["-I", $0] },
+            environment: environment
         )
-
-        if result.exitCode != 0 {
-            XCTFail("Generated Swift did not compile:\n\(result.output)", file: file, line: line)
-        }
     }
 
     static func verifyKotlinCompiles(
@@ -60,10 +87,11 @@ enum CompileVerification {
         guard let kotlinc = commandPath("kotlinc") else {
             throw XCTSkip("kotlinc not installed — skipping Kotlin compile verification.")
         }
+        // Up from this file through TestCodeGeneratorTests/ and Tests/ to the repo root.
         let resolverScript = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // TestCodeGeneratorTests
-            .deletingLastPathComponent() // Tests
-            .deletingLastPathComponent() // repo root
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
             .appendingPathComponent("Tooling/espresso-classpath/resolve.sh")
         guard FileManager.default.isExecutableFile(atPath: resolverScript.path) else {
             throw XCTSkip(
@@ -105,9 +133,12 @@ enum CompileVerification {
     }
 
     /// For probing tool availability: throws if the command itself couldn't be found/run.
-    private static func runCapturingOutput(_ launchPath: String, _ arguments: [String]) throws
-        -> String {
-        let result = run(launchPath, arguments)
+    private static func runCapturingOutput(
+        _ launchPath: String,
+        _ arguments: [String],
+        environment: [String: String]? = nil
+    ) throws -> String {
+        let result = run(launchPath, arguments, environment: environment)
         guard result.exitCode == 0 else {
             throw CompileVerificationError.commandFailed(launchPath, result.output)
         }
@@ -116,12 +147,19 @@ enum CompileVerification {
 
     /// For invoking compilers: never throws on a nonzero exit — a compile failure is the
     /// expected way this reports "the generated code is invalid," not a harness error.
-    private static func run(_ launchPath: String, _ arguments: [String]) -> (
+    private static func run(
+        _ launchPath: String,
+        _ arguments: [String],
+        environment: [String: String]? = nil
+    ) -> (
         exitCode: Int32, output: String
     ) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launchPath)
         process.arguments = arguments
+        if let environment {
+            process.environment = environment
+        }
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
@@ -139,3 +177,5 @@ enum CompileVerification {
 enum CompileVerificationError: Error {
     case commandFailed(String, String)
 }
+
+// swiftlint:enable multiline_arguments

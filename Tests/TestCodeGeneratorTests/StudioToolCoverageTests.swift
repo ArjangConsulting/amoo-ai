@@ -22,6 +22,8 @@ final class StudioToolCoverageTests: XCTestCase {
             ["direction": "down"]
         case .assertText, .assertValue:
             ["id": "greeting", "value": "hi"]
+        case .assertSelected:
+            ["id": "day", "expected": "true"]
         case .takeScreenshot, .pressBack, .relaunchApplication:
             [:]
         }
@@ -49,6 +51,9 @@ final class StudioToolCoverageTests: XCTestCase {
                 try XCUITestEmitter().generate(makeTest(tool, platform: .ios)),
                 "XCUITestEmitter cannot emit \(tool.rawValue)"
             )
+            // The Android companion reports no selected state, so the emitters refuse the assertion
+            // outright (see `testAndroidEmittersRefuseSelectedAssertionsInsteadOfWeakeningThem`).
+            guard tool != .assertSelected else { continue }
             XCTAssertNoThrow(
                 try EspressoEmitter().generate(makeTest(tool, platform: .android)),
                 "EspressoEmitter cannot emit \(tool.rawValue)"
@@ -57,6 +62,18 @@ final class StudioToolCoverageTests: XCTestCase {
                 try ComposeEspressoEmitter().generate(makeTest(tool, platform: .android)),
                 "ComposeEspressoEmitter cannot emit \(tool.rawValue)"
             )
+        }
+    }
+
+    func testAndroidEmittersRefuseSelectedAssertionsInsteadOfWeakeningThem() {
+        let test = makeTest(.assertSelected, platform: .android)
+        for emitter: any StudioCodeEmitting in [EspressoEmitter(), ComposeEspressoEmitter()] {
+            XCTAssertThrowsError(try emitter.generate(test)) { error in
+                guard case let .unsupportedAssertion(tool, _, _)? = error as? TestCodeGeneratorError else {
+                    return XCTFail("expected unsupportedAssertion, got \(error)")
+                }
+                XCTAssertEqual(tool, "assert_selected")
+            }
         }
     }
 

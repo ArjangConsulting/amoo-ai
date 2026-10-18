@@ -41,11 +41,12 @@ public struct MCPStdioServer: Sendable {
     cannot prove absence. Prefer IDs, then exact labels/text; use parent_id, or index/first for exact
     duplicates. include_noise=true shows scroll bars/decor. tap_element refuses covered or off-screen
     targets and flags a changed foreground app; also scroll_to_element, dismiss_keyboard, port.
-    Verify mutations with assert_visible, assert_absent, assert_enabled, or assert_value: dispatch is
-    not a postcondition. After timeout, inspect state before retrying. Secure masked_change cannot prove
+    Verify mutations with assert_visible, assert_absent, assert_enabled, assert_value, or
+    assert_selected (expected=true|false; find_elements only observes):
+    dispatch is not a postcondition. After timeout, inspect state before retrying. Secure masked_change cannot prove
     exact equality. record_value=fixture is only for non-sensitive test data.
     Use run_steps for known sequences; inspect when the next step needs a decision.
-    Prefer scoped queries and artifact-only screenshots; keep semantic postconditions.
+    Prefer scoped queries; keep semantic postconditions.
 
     Screenshots are pixels; gestures are points. Read geometry and scale. A locked/off screen_state
     requires waking and unlocking before interpreting content. Save screenshots with output and

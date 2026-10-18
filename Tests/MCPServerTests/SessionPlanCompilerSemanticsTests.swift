@@ -121,7 +121,31 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
         )
         let swipe = try XCTUnwrap(operations(result).first { $0.tool == "swipe_in_direction" })
         XCTAssertEqual(swipe.arguments["element_id"], rowID, "the id stays the selector")
-        XCTAssertEqual(swipe.arguments["element_label"], "🧺 Laundry, wash and fold the whites, Sunday")
+        XCTAssertEqual(swipe.arguments["name_hint"], "🧺 Laundry, wash and fold the whites, Sunday")
+        XCTAssertNil(swipe.arguments["element_label"], "an observed label names the variable; it is not a constraint")
+    }
+
+    /// A recorded point swipe resolved back to its row: the id is the selector and the row's label only
+    /// names the variable, so the generated gesture does not also have to match that label.
+    func testCoordinateSwipeResolvedToARowKeepsItsLabelAsANamingHintOnly() throws {
+        let rowID = "app.task_list.row.1a4f72d9-2750-4c70-9eca-9bdef50ba34a"
+        let result = try SessionPlanCompiler.compile(
+            report: report([
+                action("find_elements", ["contains_text": "Laundry"], intent: .diagnostic, observed: [
+                    RecordedElement(
+                        id: rowID, label: "🧺 Laundry, wash and fold the whites, Sunday",
+                        frame: RecordedRect(x: 0, y: 100, width: 300, height: 80), hitPoint: nil
+                    )
+                ]),
+                action("swipe", ["from_x": "250", "from_y": "140", "to_x": "50", "to_y": "140"]),
+                action("tap_element", ["id": "trash"])
+            ]),
+            testName: nil, testDescription: nil
+        )
+        let swipe = try XCTUnwrap(operations(result).first { $0.tool == "swipe_in_direction" })
+        XCTAssertEqual(swipe.arguments["element_id"], rowID)
+        XCTAssertEqual(swipe.arguments["name_hint"], "🧺 Laundry, wash and fold the whites, Sunday")
+        XCTAssertNil(swipe.arguments["element_label"])
     }
 
     // MARK: - Part 2: same label, different roles
@@ -150,7 +174,7 @@ final class SessionPlanCompilerSemanticsTests: XCTestCase {
         XCTAssertEqual(pickerTap.arguments["name_hint"], "Laundry preset option")
         // The row swipe keeps its row-shaped identity separately.
         let swipe = try XCTUnwrap(ops.first { $0.tool == "swipe_in_direction" })
-        XCTAssertEqual(swipe.arguments["element_label"], "🧺 Laundry")
+        XCTAssertEqual(swipe.arguments["name_hint"], "🧺 Laundry")
     }
 
     /// Same label in the same collection with no derivable role distinction: two bare-label taps,

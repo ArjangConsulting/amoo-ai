@@ -149,6 +149,23 @@ init adds `/.amoo.json` to the project’s `.gitignore` so Git does not include 
 the location. AI-client installation during init is repository-local. Commit `amoo.md` and the
 managed `AGENTS.md` guidance after reviewing the discovered conventions; do not commit connection files.
 
+## What init captures for recording and export
+
+`--save` (or the guided save choice) writes `amoo.md` from what the repository already says, so a
+later recording does not depend on an agent re-deriving it. Besides the harness bindings (base
+class, id catalog, waits, timeouts) it records:
+
+| Captured | Where | Why it matters later |
+| --- | --- | --- |
+| **Launch configuration** — the language, locale and text-size flags (`-AppleLanguages`, `-AppleLocale`, `-UIPreferredContentSizeCategoryName`, `-AppleTextDirection`) the existing UI tests launch with, found in `launchArguments = […]`, `+= […]`, `.append(…)` and `launchEnvironment[…] =` sites | *Launch configuration (observed)* in `amoo.md`, with `file:line`; the flags every literal occurrence agrees on are seeded into the bindings' `launchArguments` | Label selectors and selected-state labels depend on them. `start_session` applies the seeded flags when the caller passes no `launch_args`, reports `launch_config_source`, and the plan's `requirements` replays them in `setUp`. |
+| Flags that disagree or are computed (`[Self.sizeFlag, size]`) and environment switches (`OS_ACTIVITY_MODE`) | Listed, **never seeded** | Scenario and CI switches are the caller's to pass. |
+| **Concurrency** — `SWIFT_VERSION`, `SWIFT_STRICT_CONCURRENCY`, `SWIFT_DEFAULT_ACTOR_ISOLATION` (Xcode project or `Package.swift`) and whether the harness base class is `@MainActor` | *Concurrency* in `amoo.md` | Generated tests are always `@MainActor`; for a base class that is not isolated the setup/teardown use the async `setUp()` / `tearDown()` hooks. This shows which case you are in. |
+| **App identifiers** — `PRODUCT_BUNDLE_IDENTIFIER` of non-test targets | *App identifiers* in `amoo.md` | The `app_id` for `start_session`. |
+
+Discovery reads checked-in sources and project files only (never build output), seeds a flag only
+when the evidence is unambiguous, and leaves everything else as reviewable evidence. Review the
+seeded `launchArguments` before relying on them; edit the `amoo-context` block to change them.
+
 ## Profile and JSON behavior
 
 The framework choice is retained in the managed AGENTS.md block. Headless callers can supply

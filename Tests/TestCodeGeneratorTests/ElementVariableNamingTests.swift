@@ -63,9 +63,12 @@ final class ElementVariableNamingTests: XCTestCase {
 
     func testElementVariableBaseTreatsUUIDsHashesAndNumericIDsAsNonSemantic() {
         XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("a40fb286-e7ca-42ad-9163-5a316ba856bd"))
-        XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("9f8c2b1a7d6e5f4c3b2a1908")) // 24 hex chars
-        XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("1048576")) // numeric record id
-        XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("aGVsbG8gd29ybGQgb3BhcXVl")) // long mixed blob
+        // 24 hex chars
+        XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("9f8c2b1a7d6e5f4c3b2a1908"))
+        // numeric record id
+        XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("1048576"))
+        // long mixed blob
+        XCTAssertTrue(TestIdentifierNaming.isOpaqueToken("aGVsbG8gd29ybGQgb3BhcXVl"))
         XCTAssertFalse(TestIdentifierNaming.isOpaqueToken("create_button"))
         XCTAssertFalse(TestIdentifierNaming.isOpaqueToken("tasks"))
 
@@ -144,7 +147,7 @@ final class ElementVariableNamingTests: XCTestCase {
             arguments: [
                 "direction": "left",
                 "element_id": "app.task_list.row.a40fb286-e7ca-42ad-9163-5a316ba856bd",
-                "element_label": "🧾 Groceries, three items to buy this week, Aisle 5"
+                "name_hint": "🧾 Groceries, three items to buy this week, Aisle 5"
             ]
         )])
 

@@ -30,6 +30,10 @@ public enum StudioTool: String, CaseIterable, Codable, Sendable, Hashable {
     /// Compares an element's editable/accessibility value, not its visible label/text.
     case assertValue = "assert_value"
     case assertEnabled = "assert_enabled"
+    /// Compares an element's selected state (`isSelected` / the selected trait) with `expected`
+    /// (`"true"` or `"false"`). Not interchangeable with visibility or `assert_value`: an unselected
+    /// element is present and visible, so neither of those can observe the state at all.
+    case assertSelected = "assert_selected"
     case takeScreenshot = "take_screenshot"
     case pressBack = "press_back"
     /// Relaunches through a repository harness without resetting persisted state.

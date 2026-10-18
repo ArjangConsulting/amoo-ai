@@ -2,8 +2,18 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    /// Scrolling and keyboard helpers. Split from `+MCP.swift` to keep that file under the length limit.
+    /// Scrolling and keyboard helpers, plus the selected-state assertion. Split from `+MCP.swift` to keep that file
+    /// under the length limit.
     static let mcpInteractionCommands: [CommandCoverage] = [
+        .init(
+            name: "assert_selected",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: [.ios],
+            fixtureScreen: .home,
+            expectedAssertion: "an existing element's selected state equals expected; an absent element fails"
+        ),
         .init(
             name: "scroll_to_element",
             channel: .mcp,
