@@ -9,6 +9,7 @@ struct InitSavedLocations: Equatable {
     var appPath: String?
     var appID: String?
     var manifestDirectory: String?
+    var framework: String?
     var additionalLocations: [Self] = []
 
     func forPlatform(_ platform: Platform) -> Self? {
@@ -35,7 +36,7 @@ func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: Stri
         blockStart,
         "## amoo init",
         "",
-        "Written by `amoo init`; re-run it to update. Build the app externally: init never rebuilds it."
+        "Written by `amoo init`; re-run it to update. App builds are optional during device setup."
     ]
     for location in [saved] + saved.additionalLocations {
         if !saved.additionalLocations.isEmpty, let platform = location.platform {
@@ -43,6 +44,9 @@ func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: Stri
         }
         if let platform = location.platform {
             lines.append("- Platform: `\(platform.rawValue)`")
+        }
+        if let framework = location.framework {
+            lines.append("- Framework: `\(framework)`")
         }
         if let app = location.appPath {
             lines.append("- App artifact: `\(portableInitPath(app, relativeTo: base))`")
@@ -57,6 +61,10 @@ func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: Stri
                 )
         }
     }
+    lines
+        .append(
+            "- Before recording or export, review `amoo.md` against existing tests and complete uncertain bindings."
+        )
     lines.append("- Prepare devices: `amoo init` (guided) or `amoo init --help`")
     lines.append(blockEnd)
     return lines.joined(separator: "\n")
@@ -74,6 +82,8 @@ func upsertInitBlock(into text: String, block: String) -> String {
     return text + separator + block + "\n"
 }
 
+// Each managed field is handled independently in the location parser.
+// swiftlint:disable:next cyclomatic_complexity
 func parseInitLocations(from text: String, relativeTo base: String) -> InitSavedLocations? {
     guard let start = text.range(of: blockStart),
           let end = text.range(of: blockEnd, range: start.upperBound ..< text.endIndex)
@@ -94,6 +104,7 @@ func parseInitLocations(from text: String, relativeTo base: String) -> InitSaved
                 saved = InitSavedLocations()
             }
             saved.platform = Platform(rawValue: value)
+        case line.hasPrefix("- Framework:"): saved.framework = value
         case line.hasPrefix("- App artifact:"): saved.appPath = resolved(value)
         case line.hasPrefix("- App ID:"): saved.appID = value
         case line.hasPrefix("- Manifests:"): saved.manifestDirectory = resolved(value)

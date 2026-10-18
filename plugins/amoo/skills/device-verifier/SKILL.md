@@ -9,6 +9,19 @@ A caller (the main session) builds the app, then hands a YAML contract to the `d
 agent, which returns only a compact versioned JSON report. The caller's context holds the verdict, not the run.
 Install both with the amoo plugin, or `amoo agent install --agent device-verifier` (see `amoo agent`).
 
+
+Read the repository's AGENTS.md managed init block and amoo.md before setup, recording,
+or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions and
+the machine-readable amoo-context JSON. CLI generation and MCP start_session discover the
+nearest amoo.md from their working directory. When running elsewhere, pass --context
+<repo>/amoo.md to CLI generation or context_path=<repo>/amoo.md to MCP start_session.
+Explicit context overrides discovery; a plan's embedded context is preserved by generate test.
+Profiles may contain separate targetPlatform blocks for iOS and Android; CLI/MCP select the matching block.
+Review discovered Kotlin/Java instrumentation evidence as well as Swift harness conventions.
+.amoo.json is private CLI lease state, not a test profile or a reusable flow. Never commit it,
+adopt its leases into MCP, or automatically install a remembered app artifact.
+
+
 ## Caller: input contract
 
 ```yaml

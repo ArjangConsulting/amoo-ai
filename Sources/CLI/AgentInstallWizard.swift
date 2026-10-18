@@ -35,15 +35,21 @@ func completeAgentInstallOptions(
     var result = options
     if !options.clientsGiven {
         let all = AgentClient.allCases
-        let labels = all.map { agentClientTitle($0) + (detected.contains($0) ? " (detected)" : "") }
-        let defaults = detected.isEmpty ? Array(all.indices) : all.indices.filter { detected.contains(all[$0]) }
+        var labels = all.map { agentClientTitle($0) + (detected.contains($0) ? " (detected)" : "") }
+        if !detected.isEmpty {
+            labels.append("All detected")
+        }
+        let defaults = detected.isEmpty ? Array(all.indices) : [all.count]
         guard let picked = prompter.chooseMany(
             "AI clients to set up the amoo subagents and skills for",
             options: labels,
             defaults: defaults
         )
         else { return nil }
-        result.clients = picked.map { all[$0] }
+        result.clients = all.enumerated().compactMap { index, client in
+            let selected = picked.contains(index) || (picked.contains(all.count) && detected.contains(client))
+            return selected ? client : nil
+        }
         result.clientsGiven = true
     }
     if !options.scopeGiven {

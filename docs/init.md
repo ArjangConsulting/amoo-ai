@@ -1,8 +1,9 @@
 # Repository and device initialization
 
-`amoo init` prepares leased simulators/emulators from **one prebuilt app**, reusing `env up` for
-device selection, leasing, free-port choice, companion lifecycle, install and launch. It never
-builds the app and is not a recording transport (see [Recording](#recording)).
+`amoo init` prepares leased simulators/emulators, reusing `env up` for device selection, leasing,
+free-port choice and companion lifecycle. **No app build is required for setup.** It never asks for
+an artifact path or scans Xcode DerivedData. Explicit `--app` input optionally installs an existing
+artifact. Init does not build the product or provide a recording transport (see [Recording](#recording)).
 
 ## Guided (a person, in a terminal)
 
@@ -13,24 +14,31 @@ amoo init
 It asks only for what you did not pass as flags, defaulting from what it can see:
 
 1. **Platform** — iOS simulator or Android emulator.
-2. **App** — built `.app`/`.apk` found under the current directory and Xcode DerivedData (newest
-   first; UI-test runners and device builds excluded), or the location remembered in `AGENTS.md`.
-3. **App ID** — read from the app's `Info.plist` (iOS); typed for Android.
-4. **Devices** — pick several (`1,3`, `1-2`, `all`). Leased devices are hidden; booted ones default.
-5. **Launch**, **owner label**, and **where the manifest is written**.
-6. **AI clients** — offers to set up the amoo subagents and skills (see below).
+2. **Framework** — native, React Native, Flutter or Kotlin Multiplatform guidance.
+3. **Devices** — use ↑/↓ to move, Space to toggle devices, and Enter to continue.
+   Press `a` to select or clear all. Redirected input uses `1,3`, `1-2`, or `all`. Leased devices are hidden; booted ones default.
+4. **Where the manifest is written**. Device reservations use the label `amoo-init`; pass
+   `--owner <label>` to customize it.
+5. **AI clients** — offers to set up the amoo subagents and skills (see below).
+
+When `--app` is explicitly supplied, it also asks for the app ID if omitted, defaulting from the
+iOS app's `Info.plist`. When an app ID is supplied or collected, it asks whether to launch the app.
+Without an app, setup skips installation and launch. Saved artifact paths are never selected
+automatically.
 
 Then it validates, prints the plan with the **equivalent non-interactive command**, asks
-about AI clients, `Record the app and manifest locations in AGENTS.md?` and `Set up N device(s) now?`,
+about AI clients, saving the setup locations in `AGENTS.md` and `Set up N device(s) now?`,
 runs, and prints the next commands. EOF at any prompt cancels without touching a device.
 
 ## Headless (agents, CI)
 
-`--json`, `--non-interactive`, or no terminal means **no prompts**. All of `--platform`, `--app`
-(absolute), `--app-id` and `--device` (repeatable) are required; every missing one is reported at once,
-with the built apps and unleased devices found, so one retry is enough:
+`--json`, `--non-interactive`, or no terminal means **no prompts**. `--platform` and `--device`
+(repeatable) are required. `--app-id` is also required when passing `--app` or `--launch`. Every
+missing input is reported at once, along with available unleased devices:
 
 ```sh
+amoo init --platform ios --device PHONE_UDID --device TABLET_UDID --json
+# Optionally install an explicitly supplied artifact during setup:
 amoo init --platform ios --app /absolute/path/Jot.app --app-id com.example.jot \
   --device PHONE_UDID --device TABLET_UDID --launch --owner agent \
   --out /tmp/jot-environments.json --json
@@ -41,18 +49,25 @@ amoo init device --manifest /tmp/jot-environments.json --device TABLET_UDID \
 amoo init down --manifest /tmp/jot-environments.json --json
 ```
 
-Android uses the same interface with an absolute APK and running emulator serials.
+Android uses the same interface with running emulator serials and an optional absolute APK path.
 
 ## Validation, leases and partial failure
 
-Before anything is leased, init checks that the app exists with the right extension, that its own
-bundle id matches `--app-id`, and that each device is an available simulator/emulator. An artifact
-problem stops the run (it would doom every device). A problem with one device — unknown, or leased by
+Starting setup reserves each selected device exclusively for amoo and starts the companion helper
+app. Other amoo sessions cannot reserve the same device and interfere with your tests. The final
+confirmation asks whether to start this setup now; reservation is a required part of setup.
+The devices stay reserved after `init` exits. Run `amoo init down` when finished to stop the
+companions and free the devices for another session.
+
+Before anything is leased, init checks that each device is an available simulator/emulator. If an
+artifact is supplied, it also checks that the app exists with the right extension and that its own
+bundle id matches `--app-id`. An artifact problem stops the run (it would doom every device).
+A problem with one device — unknown, or leased by
 another session — is recorded and reported as that device's failed result while the others proceed;
 if *every* device is unusable nothing starts. `env up` re-checks each lease atomically, so init never
 bypasses another session's lease. Setup is sequential so companion builds serialize and port
-allocation sees earlier leases. Physical devices are unsupported, as in `env up`. The app digest is
-computed once and shared with every `env up`.
+allocation sees earlier leases. Physical devices are unsupported, as in `env up`. When an artifact
+is supplied, its digest is computed once and shared with every `env up`.
 
 ## Output
 
@@ -66,29 +81,28 @@ lease ids: keep it private. Lease TTL and ownership checks still apply; neither 
 
 ## Remembered locations (`AGENTS.md`)
 
-With consent (`--save` headless, a prompt in a terminal, `--no-save` to skip), init records the **app
-artifact**, **app id**, platform and **manifest directory** in a managed block of `./AGENTS.md`
-(`--agents-file` to choose another):
+With consent (`--save` headless, a prompt in a terminal, `--no-save` to skip), init records the
+platform, **manifest directory**, and any explicitly supplied **app artifact** and **app id** in a
+managed block of `./AGENTS.md` (`--agents-file` to choose another). Without an app, the block is:
 
 ```markdown
 <!-- amoo:init:start -->
 ## amoo init
-- App artifact: `build/Build/Products/Debug-iphonesimulator/Jot.app`
-- App ID: `com.example.jot`
-- Manifests: `~/.amoo/init` (lease credentials; never commit)
+- Platform: `ios`
+- Manifests: `.` (device connection credentials; never commit `.amoo.json`)
 <!-- amoo:init:end -->
 ```
 
 Only text between the markers is rewritten. Device ids and lease ids are never saved. The block
-seeds the guided defaults and is quoted in headless "missing input" errors. Manifests default to
-`~/.amoo/init/<platform>-<timestamp>.json`, one per run, so a later run never overwrites the only
-record of earlier leases.
+records setup locations for agents; saved app artifacts are not automatically installed.
+Guided setup defaults to `.amoo.json` in the current project. Both platforms share this file.
+Repeated setup preserves existing reservation details for other devices. Successful `init down`
+clears the file after releasing its reservations. Explicit `--out` paths are still supported.
 
 ## Recording
 
 CLI leases cannot be adopted by MCP sessions. Run `init down`, then MCP `start_session` per device
-with `device_hint`, `app_id` and the same prebuilt `build_path`; only `end_session` exports the
-report/plan.
+with `device_hint`, `app_id` and the app's `build_path`; only `end_session` exports the report/plan.
 
 ## AI client setup (skills and subagents)
 
@@ -115,16 +129,45 @@ installs nothing. `--json` and skills cannot be combined in `init` (one JSON doc
 The documented `device_launch_app --arg` is accepted and covered by parser tests. The Homebrew 0.2.1
 crash is written up in [homebrew-0.2.1-crash.md](homebrew-0.2.1-crash.md).
 
-The interactive platform picker offers **iOS**, **Android**, and **Both**. Both collects a
-simulator `.app` and an Android `.apk`, validates both before setup, and writes separate
-platform manifests. The managed AGENTS.md block remembers locations for both platforms,
+The interactive platform picker offers **iOS**, **Android**, and **Both**. Both prepares
+simulators and emulators without requiring app artifacts, validates the devices before setup, and
+writes one shared connection file. The managed AGENTS.md block remembers locations for both platforms,
 and later single-platform runs preserve the other platform’s locations.
-The framework picker provides artifact guidance for native apps, React Native, Flutter,
+The framework picker provides testing guidance for native apps, React Native, Flutter,
 and Kotlin Multiplatform. React Native debug builds may require Metro to be started separately.
 Terminal prompts use icons and color; `NO_COLOR` or `TERM=dumb` disables color.
 
-With saved repository setup (`--save` or the guided save choice), init also discovers Swift UI-test
+With saved repository setup (`--save` or the guided save choice), init also discovers Swift UI-test and Kotlin/Java instrumentation
 harness evidence into `amoo.md` alongside `AGENTS.md`. It does not generate tests or alter targets.
-An existing profile is preserved, including reviewed bindings. Review uncertain target, catalog,
+Existing profile sections and reviewed bindings are preserved; newly discovered platform sections are appended. Review uncertain target, catalog,
 launch, and helper conventions before export; see [repository test context](test-context.md).
 Recording and export consume its fenced context automatically from the repository working directory.
+
+Guided setup defaults device connection files to `.amoo.json` in the current project. These
+contain reservation tokens used to access and release devices, and are private local state;
+init adds `/.amoo.json` to the project’s `.gitignore` so Git does not include them. `--out` can override
+the location. AI-client installation during init is repository-local. Commit `amoo.md` and the
+managed `AGENTS.md` guidance after reviewing the discovered conventions; do not commit connection files.
+
+## Profile and JSON behavior
+
+The framework choice is retained in the managed AGENTS.md block. Headless callers can supply
+`--framework native|react-native|flutter|kmp`; dry-run JSON and its equivalent command include it.
+This is project guidance, not permission to start Metro, build an app, or install a saved artifact.
+
+CLI generation and MCP recording share the `amoo.md` profile loader. Discovery walks upward from
+the process working directory and selects the nearest profile, respecting its target platform.
+For another repository, explicitly pass `--context /repo/amoo.md` to generation or
+`context_path=/repo/amoo.md` to MCP `start_session`. Explicit context overrides discovery;
+`generate test` retains context already embedded in a plan. Markdown profiles support LF and CRLF.
+Discovery inspects Swift UI tests and Kotlin/Java instrumentation sources under androidTest and
+androidInstrumentedTest, excluding build outputs and dependencies. Android evidence includes framework,
+base-class, rule, launch, helper, identifier and timeout declarations. A unique no-argument base without
+lifecycle/rule conflicts can be bound automatically; uncertain bindings remain for review.
+Mixed repositories get separate amoo-context blocks tagged targetPlatform ios/android. CLI and MCP
+select the matching block, including explicit profile paths, and reject ambiguous or mismatched contexts.
+
+Usage errors and manifest-read failures honor `--json` with a single version-1 error document.
+If saving repository guidance fails, setup returns nonzero and JSON retains the acquired leases
+alongside the save error. A requested manifest is checked for writability before leasing; if a later
+write fails, setup stops acquiring further devices and returns the credentials needed for cleanup.

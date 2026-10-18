@@ -33,7 +33,7 @@ private let cancelledResult = CLIResult(output: "Cancelled. No device was touche
 func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> CLIResult {
     let request: InitRequest
     do { request = try parseInitRequest(args) } catch {
-        return CLIResult(output: "\(error)\n\n" + renderInitHelp(), exitCode: 64)
+        return initFailure(error, json: args.contains("--json"))
     }
     // --json promises a single JSON document on stdout, so it can never share the terminal with prompts.
     let interactive = !request.nonInteractive && !request.json && runtime.isInteractive()
@@ -97,6 +97,9 @@ private func runCompletedInit(
         runtime.prompter.say("\n" + renderInitPlan(plan) + "\n")
     }
     let skills = chooseSkills(complete, interactive: interactive, runtime: runtime)
+    if case .cancel = skills {
+        return cancelledResult
+    }
     var saveLocations = complete.save == true
     if interactive {
         guard let save = confirmInit(plan, complete, agentsFile: agentsFile, prompter: runtime.prompter) else {
@@ -129,6 +132,7 @@ private func withSkills(_ result: CLIResult, _ skills: SkillsChoice, runtime: In
 }
 
 private enum SkillsChoice {
+    case cancel
     case skip
     case install(AgentInstallOptions)
 }
@@ -139,6 +143,7 @@ private enum SkillsChoice {
 private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: InitRuntime) -> SkillsChoice {
     guard request.skills != false else { return .skip }
     var options = AgentInstallOptions()
+    options.scopeGiven = true // Onboarding installs into this repository.
     options.clients = request.clients
     options.clientsGiven = !request.clients.isEmpty
     guard interactive else {
@@ -148,7 +153,8 @@ private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: In
     }
     if request.skills == nil, request.clients.isEmpty {
         let question = "Also set up the amoo subagents and skills for your AI clients (Claude Code, Codex, Cursor, …)?"
-        guard runtime.prompter.confirm(question, default: true) == true else { return .skip }
+        guard let answer = runtime.prompter.confirm(question, default: true) else { return .cancel }
+        guard answer else { return .skip }
     }
     guard let chosen = completeAgentInstallOptions(
         options,
@@ -156,8 +162,7 @@ private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: In
         detected: runtime.detectedClients(),
         assetsRoot: runtime.assetsRoot
     ) else {
-        runtime.prompter.say("Skipping the AI client setup.")
-        return .skip
+        return .cancel
     }
     return .install(chosen)
 }
@@ -185,7 +190,7 @@ private func collectInitRequest(
     let saved = readInitLocations(agentsFile: agentsFile)
     guard interactive else {
         guard request.missing.isEmpty else {
-            let message = await missingInputsMessage(request, discovery: runtime.discovery, saved: saved)
+            let message = await missingInputsMessage(request, discovery: runtime.discovery)
             return .failure(InitRefusal(message: message, code: 64, json: request.json))
         }
         return .success(request)
@@ -214,14 +219,15 @@ private func confirmInit(
     var save = request.save == true
     if request.save == nil {
         let shown = portableInitPath(agentsFile, relativeTo: FileManager.default.currentDirectoryPath)
-        save = prompter.confirm(
-            "Record the app and manifest locations in \(shown) so the next run (and agents) know where they are?",
+        guard let answer = prompter.confirm(
+            "Save project setup in \(shown) and discover test conventions in amoo.md (base class, IDs, helpers)?",
             default: true
-        ) ?? false
+        ) else { return nil }
+        save = answer
     }
     if !request.assumeYes {
         let proceed = prompter.confirm(
-            "Set up \(plan.devices.count) device(s) now? This leases them and starts a companion on each",
+            "Prepare \(plan.devices.count) selected device(s) for testing now?",
             default: true
         )
         guard proceed == true else { return nil }
@@ -238,6 +244,8 @@ private func finishInit(
     agentsFile: String
 ) -> CLIResult {
     var lines = [result.output]
+    var exitCode = result.exitCode
+    var jsonOutput = result.output
     if save {
         let environment = plan.options.environment
         do {
@@ -247,22 +255,34 @@ private func finishInit(
                     appPath: environment.appPath,
                     appID: environment.appID,
                     manifestDirectory: plan.options.out
-                        .map { URL(fileURLWithPath: $0).deletingLastPathComponent().path }
+                        .map { URL(fileURLWithPath: $0).deletingLastPathComponent().path },
+                    framework: plan.options.framework
                 ),
                 agentsFile: agentsFile
             )
             try saveInitTestProfile(at: URL(fileURLWithPath: agentsFile).deletingLastPathComponent())
             if interactive {
-                lines.append("Saved locations to \(agentsFile).")
+                lines.append("Saved project setup to \(agentsFile).")
+                lines
+                    .append(
+                        "Review amoo.md with your agent: confirm base class, IDs, helpers, and test target."
+                    )
             }
         } catch {
-            lines.append("Could not update \(agentsFile): \(error)")
+            let message = "Could not save repository setup at \(agentsFile): \(error)"
+            lines.append(message)
+            exitCode = max(exitCode, 1)
+            if var manifest = try? JSONDecoder().decode(InitManifest.self, from: Data(result.output.utf8)) {
+                manifest.ok = false
+                manifest.error = [manifest.error, message].compactMap(\.self).joined(separator: "\n")
+                jsonOutput = renderJSON(manifest)
+            }
         }
     }
     guard interactive else {
         return CLIResult(
-            output: plan.options.environment.json ? result.output : lines.joined(separator: "\n"),
-            exitCode: result.exitCode
+            output: plan.options.environment.json ? jsonOutput : lines.joined(separator: "\n"),
+            exitCode: exitCode
         )
     }
     if let out = plan.options.out, let first = plan.options.devices.first {
@@ -276,28 +296,17 @@ private func finishInit(
             """
         )
     }
-    return CLIResult(output: lines.joined(separator: "\n"), exitCode: result.exitCode)
+    return CLIResult(output: lines.joined(separator: "\n"), exitCode: exitCode)
 }
 
-/// Headless refusal text: every missing input at once, plus what this machine can offer so a caller
-/// can fix the whole invocation in one retry.
+/// Headless refusal text: every missing input at once, plus the available devices.
 private func missingInputsMessage(
     _ request: InitRequest,
-    discovery: InitDiscovery,
-    saved: InitSavedLocations?
+    discovery: InitDiscovery
 ) async -> String {
     var lines = ["amoo init needs these before it can run non-interactively:"]
     lines += request.missing.map { "  \($0)" }
-    let remembered = request.platform.flatMap { saved?.forPlatform($0) } ?? saved
-    if let saved = remembered, let app = saved.appPath {
-        lines.append("AGENTS.md remembers: --app \(shellQuoted(app))"
-            + (saved.appID.map { " --app-id \(shellQuoted($0))" } ?? ""))
-    }
     if let platform = request.platform {
-        if request.appPath == nil {
-            let apps = discovery.apps(platform)
-            lines.append("Built apps found: " + (apps.isEmpty ? "none" : "\n  " + apps.joined(separator: "\n  ")))
-        }
         if request.devices.isEmpty {
             let free = await discovery.devices(platform).filter { $0.leasedBy == nil }
             lines

@@ -8,6 +8,19 @@ Input: the caller's YAML contract (task, platforms, builds, device_prefs, precon
 checks, evidence_dir, budget, run_id). Output: ONLY the JSON report described at the end — no prose, no
 raw tool output. Detailed usage: the `device-verifier` skill.
 
+
+Read the repository's AGENTS.md managed init block and amoo.md before setup, recording,
+or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions and
+the machine-readable amoo-context JSON. CLI generation and MCP start_session discover the
+nearest amoo.md from their working directory. When running elsewhere, pass --context
+<repo>/amoo.md to CLI generation or context_path=<repo>/amoo.md to MCP start_session.
+Explicit context overrides discovery; a plan's embedded context is preserved by generate test.
+Profiles may contain separate targetPlatform blocks for iOS and Android; CLI/MCP select the matching block.
+Review discovered Kotlin/Java instrumentation evidence as well as Swift harness conventions.
+.amoo.json is private CLI lease state, not a test profile or a reusable flow. Never commit it,
+adopt its leases into MCP, or automatically install a remembered app artifact.
+
+
 ## Hard rules
 
 - Use the caller's absolute amoo executable path, recording build/capability provenance. Shell aliases

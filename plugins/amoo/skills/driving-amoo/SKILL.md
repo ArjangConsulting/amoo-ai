@@ -10,6 +10,12 @@ For an accessibility audit or app accessibility fix, load only the selected plat
 `ios-accessibility` or `android-accessibility` skill. Those skills apply user review policies
 and distinguish deterministic evidence from contextual LLM findings and missing coverage.
 
+
+Read AGENTS.md setup locations and amoo.md conventions first. CLI generation and MCP start_session discover amoo.md from cwd.
+Mixed profiles use separate targetPlatform blocks for Swift and Kotlin/Java. Elsewhere pass --context <repo>/amoo.md or context_path=<repo>/amoo.md; explicit context wins, and generate test preserves embedded context.
+.amoo.json is private CLI lease state: release before MCP, never commit it or automatically install remembered artifacts.
+
+
 ## Start
 
 Set up the amoo subagents and skills for an AI client with `amoo agent install` (guided in a terminal:

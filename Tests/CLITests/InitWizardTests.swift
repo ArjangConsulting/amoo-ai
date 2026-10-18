@@ -5,28 +5,48 @@ import TestCommons
 import XCTest
 
 final class InitWizardTests: InitTestCase {
-    func testBothPlatformsCollectSeparateArtifactsAndManifests() async throws {
+    func testDefaultManifestIsProjectLocalAndIgnored() throws {
         let scratch = try makeScratchDirectory()
-        let app = try makeApp(in: scratch)
-        let apk = scratch.url.appendingPathComponent("app.apk").path
-        try Data("apk".utf8).write(to: URL(fileURLWithPath: apk))
+        let path = defaultInitManifestPath(workingDirectory: scratch.url)
+        XCTAssertEqual(path, scratch.url.appendingPathComponent(".amoo.json").path)
+        try InitManifest(ok: true, results: []).write(path)
+        let ignore = scratch.url.appendingPathComponent(".gitignore")
+        XCTAssertEqual(try String(contentsOf: ignore, encoding: .utf8), "/.amoo.json\n")
+    }
+
+    func testBothPlatformsPrepareDevicesWithoutAskingForArtifacts() async throws {
         let found = InitDiscovery(
             devices: { platform in [self.candidate(platform == .ios ? "phone" : "emulator")] },
-            apps: { $0 == .ios ? [app] : [apk] },
-            bundleID: { _, _ in "com.jot" }
+            bundleID: { _, _ in XCTFail("no artifact should be inspected"); return nil }
         )
         let prompter = ScriptedPrompter()
-        prompter.choices = [2, 2, 0, 0] // both, Flutter, iOS artifact, Android artifact
+        prompter.choices = [2, 2] // both, Flutter
         let completed = try await completeInitRequest(InitRequest(), discovery: found, prompter: prompter)
         let android = try XCTUnwrap(completed.additionalRequests.first)
         XCTAssertEqual(completed.platform, .ios)
         XCTAssertEqual(android.platform, .android)
-        XCTAssertEqual(completed.appPath, app)
-        XCTAssertEqual(android.appPath, apk)
+        XCTAssertNil(completed.appPath)
+        XCTAssertNil(android.appPath)
+        XCTAssertNil(completed.appID)
+        XCTAssertNil(android.appID)
+        XCTAssertEqual(completed.launch, false)
+        XCTAssertEqual(android.launch, false)
         XCTAssertEqual(completed.devices, ["phone"])
         XCTAssertEqual(android.devices, ["emulator"])
-        XCTAssertNotEqual(completed.out, android.out)
-        XCTAssertTrue(prompter.transcript.joined().contains("flutter-apk"))
+        XCTAssertEqual(completed.out, android.out)
+        let transcript = prompter.transcript.joined()
+        XCTAssertTrue(transcript.contains("Flutter"))
+        for removed in [
+            "Built app",
+            "different path",
+            "Path to the prebuilt",
+            "App bundle identifier",
+            "App package name",
+            "Launch the app",
+            "DerivedData"
+        ] {
+            XCTAssertFalse(transcript.contains(removed), transcript)
+        }
     }
 
     func testGuidedFlowAsksOnlyForWhatIsMissingAndRecordsLocations() async throws {
@@ -36,17 +56,16 @@ final class InitWizardTests: InitTestCase {
         try "# Repo\n\nKeep me.\n".write(toFile: agents, atomically: true, encoding: .utf8)
         let out = scratch.url.appendingPathComponent("manifests/run.json").path
         let prompter = ScriptedPrompter()
-        prompter.choices = [0, 0, 0] // platform: iOS, app: first found
+        prompter.choices = [0, 0] // platform: iOS, framework: Native
         prompter.multi = [[0, 1]] // both devices
-        prompter.asks = ["", "", out] // app id (detected), owner (default), manifest path
+        prompter.asks = ["", out] // app id (detected), manifest path
         var setups: [EnvUpOptions] = []
         let found = discovery(
             devices: [candidate("phone"), candidate("tablet"), candidate("busy", leasedBy: "x")],
-            apps: [app],
             bundleID: "com.jot"
         )
         let result = await runInitCommand(
-            ["--agents-file", agents, "--no-skills"],
+            ["--agents-file", agents, "--no-skills", "--app", app],
             runtime: runtime(prompter: prompter, interactive: true, discovery: found) { options in
                 setups.append(options)
                 return CLIResult(
@@ -81,15 +100,14 @@ final class InitWizardTests: InitTestCase {
 
     func testDecliningOrWalkingAwayTouchesNothing() async throws {
         let scratch = try makeScratchDirectory()
-        let app = try makeApp(in: scratch)
         let agents = scratch.url.appendingPathComponent("AGENTS.md").path
-        let found = discovery(devices: [candidate("phone")], apps: [app], bundleID: "com.jot")
+        let found = discovery(devices: [candidate("phone")])
         let never = { (_: EnvUpOptions) async -> CLIResult in
             XCTFail("nothing may be set up")
             return CLIResult(output: "", exitCode: 0)
         }
         let declining = ScriptedPrompter()
-        declining.confirms = [true, true, false] // launch, save locations, then refuse the final question
+        declining.confirms = [true, false] // save locations, then refuse the final question
         var result = await runInitCommand(
             ["--agents-file", agents, "--no-skills"],
             runtime: runtime(prompter: declining, interactive: true, discovery: found, setup: never)
@@ -106,7 +124,7 @@ final class InitWizardTests: InitTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: agents), "nothing is saved unless the run proceeds")
     }
 
-    func testSavingBothPlatformsPreservesLocationsAndRestoresMatchingDefaults() async throws {
+    func testSavedBuildPathsAreNotSelectedAndMatchingManifestDefaultsAreRestored() async throws {
         let scratch = try makeScratchDirectory()
         let agents = scratch.url.appendingPathComponent("AGENTS.md").path
         try "# Keep this\n".write(toFile: agents, atomically: true, encoding: .utf8)
@@ -140,11 +158,13 @@ final class InitWizardTests: InitTestCase {
                 saved: saved
             )
             let expected = platform == .ios ? ios : android
-            XCTAssertEqual(restored.appPath, expected.appPath)
-            XCTAssertEqual(restored.appID, expected.appID)
+            XCTAssertNil(restored.appPath)
+            XCTAssertNil(restored.appID)
+            XCTAssertEqual(restored.launch, false)
+            XCTAssertFalse(prompter.transcript.joined().contains(expected.appPath ?? ""))
             XCTAssertEqual(
                 restored.out.map { URL(fileURLWithPath: $0).deletingLastPathComponent().path },
-                expected.manifestDirectory
+                FileManager.default.currentDirectoryPath
             )
         }
     }
@@ -171,39 +191,13 @@ final class InitWizardTests: InitTestCase {
         XCTAssertNil(parseInitLocations(from: "no block here", relativeTo: base))
     }
 
-    func testSelectionParsingAndAppDiscovery() throws {
+    func testSelectionParsing() {
         XCTAssertEqual(parseSelection("1,3", count: 3), [0, 2])
         XCTAssertEqual(parseSelection("2-3", count: 3), [1, 2])
         XCTAssertEqual(parseSelection("ALL", count: 2), [0, 1])
         for bad in ["0", "4", "3-1", "x", ""] {
             XCTAssertNil(parseSelection(bad, count: 3), bad)
         }
-        let scratch = try makeScratchDirectory()
-        let products = scratch.url.appendingPathComponent("Build/Products/Debug-iphonesimulator")
-        for name in ["Jot.app", "JotUITests-Runner.app"] {
-            try FileManager.default.createDirectory(
-                at: products.appendingPathComponent(name),
-                withIntermediateDirectories: true
-            )
-        }
-        try FileManager.default.createDirectory(
-            at: scratch.url.appendingPathComponent("Build/Products/Debug-iphoneos/Device.app"),
-            withIntermediateDirectories: true
-        )
-        XCTAssertEqual(
-            discoverAppArtifacts(platform: .ios, roots: [scratch.url])
-                .map { URL(fileURLWithPath: $0).lastPathComponent },
-            ["Jot.app"]
-        )
-        let apk = scratch.url.appendingPathComponent("app/build/outputs/apk/debug")
-        try FileManager.default.createDirectory(at: apk, withIntermediateDirectories: true)
-        try Data().write(to: apk.appendingPathComponent("app-debug.apk"))
-        try Data().write(to: apk.appendingPathComponent("app-debug-androidTest.apk"))
-        XCTAssertEqual(
-            discoverAppArtifacts(platform: .android, roots: [scratch.url])
-                .map { URL(fileURLWithPath: $0).lastPathComponent },
-            ["app-debug.apk"]
-        )
     }
 
     func testGuidedFlowOffersAIClientSetupAndInstallsTheChosenOnes() async throws {
@@ -211,13 +205,13 @@ final class InitWizardTests: InitTestCase {
         let app = try makeApp(in: scratch)
         let prompter = ScriptedPrompter()
         prompter.multi = [[0], [1, 2]] // devices: first; AI clients: Cursor + Codex
-        prompter.choices = [0, 0, 0, 1] // platform, app, scope = home directory
+        prompter.choices = [0, 0] // platform, framework; init installs locally
         prompter.confirms = [true, true, true, true, true] // launch, skills?, install files?, save, proceed
-        prompter.asks = ["", "", scratch.url.appendingPathComponent("m.json").path]
+        prompter.asks = ["", scratch.url.appendingPathComponent("m.json").path]
         var installed: [AgentInstallOptions] = []
-        let found = discovery(devices: [candidate("phone")], apps: [app], bundleID: "com.jot")
+        let found = discovery(devices: [candidate("phone")], bundleID: "com.jot")
         let result = await runInitCommand(
-            ["--agents-file", scratch.url.appendingPathComponent("AGENTS.md").path],
+            ["--agents-file", scratch.url.appendingPathComponent("AGENTS.md").path, "--app", app],
             runtime: runtime(
                 prompter: prompter,
                 interactive: true,
@@ -232,7 +226,7 @@ final class InitWizardTests: InitTestCase {
         XCTAssertEqual(result.exitCode, 0, result.output)
         XCTAssertEqual(installed.count, 1)
         XCTAssertEqual(installed.first?.clients, [.cursor, .codex])
-        XCTAssertEqual(installed.first?.scope, .user)
+        XCTAssertEqual(installed.first?.scope, .project)
         XCTAssertTrue(prompter.transcript.joined().contains("Codex (detected)"))
         XCTAssertTrue(result.output.contains("AI clients:\ninstalled"), result.output)
     }
@@ -300,6 +294,21 @@ final class InitWizardTests: InitTestCase {
         XCTAssertTrue(silent.transcript.isEmpty)
         XCTAssertTrue(FileManager.default
             .fileExists(atPath: other.url.appendingPathComponent(".claude/agents/amoo.md").path))
+    }
+
+    func testAllDetectedSelectionCanIncludeAdditionalClientsWithoutDuplicates() throws {
+        let prompter = ScriptedPrompter()
+        prompter.multi = [[AgentClient.allCases.count, 0, 1]] // detected plus Claude and Cursor
+        var options = AgentInstallOptions()
+        options.scopeGiven = true
+        let chosen = try XCTUnwrap(completeAgentInstallOptions(
+            options,
+            prompter: prompter,
+            detected: [.claude, .codex],
+            assetsRoot: pluginRoot
+        ))
+        XCTAssertEqual(chosen.clients, [.claude, .cursor, .codex])
+        XCTAssertTrue(prompter.transcript.joined().contains("All detected"))
     }
 
     func testClientDetectionUsesPerUserConfigDirectories() {

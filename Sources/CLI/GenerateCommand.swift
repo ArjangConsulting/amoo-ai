@@ -159,12 +159,20 @@ public func runGenerateTestCommand(
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
     let decodedTest = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
     var test: StudioAuthoredTest = if let contextPath = options.contextPath {
-        try decodedTest.replacingTestContext(RepositoryTestProfile.load(URL(fileURLWithPath: contextPath)))
+        try decodedTest
+            .replacingTestContext(RepositoryTestProfile
+                .load(
+                    URL(fileURLWithPath: (contextPath as NSString).expandingTildeInPath),
+                    platform: decodedTest.platform
+                ))
     } else if decodedTest.testContext == nil,
               let context = try RepositoryTestProfile.discover(platform: decodedTest.platform) {
         decodedTest.replacingTestContext(context)
     } else {
         decodedTest
+    }
+    if let context = test.testContext {
+        try RepositoryTestProfile.validate(context, platform: test.platform)
     }
     if let testName = options.testName {
         test = test.replacingName(testName)
