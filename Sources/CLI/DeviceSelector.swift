@@ -4,6 +4,7 @@ import MobileCore
 import MobileDevices
 import ProcessRunner
 import SwiftyShell
+import SwiftyTerminal
 
 // MARK: - Types
 
@@ -200,7 +201,7 @@ struct DeviceSelector {
             throw DeviceSelectionError.noBootedSimulators
         case 1:
             let device = booted[0]
-            print(colored("Auto-selected:", .cyan) + " \(device.displayName)")
+            print(styled("Auto-selected:", .cyan) + " \(device.displayName)")
             return device
         default:
             guard isInteractiveStdin() else {
@@ -326,7 +327,7 @@ struct PlatformDeviceSelector {
             )
         case 1:
             let device = all[0]
-            print(colored("Auto-selected:", .cyan) + " \(device.displayName)")
+            print(styled("Auto-selected:", .cyan) + " \(device.displayName)")
             return device
         default:
             guard interactive else {

@@ -1,5 +1,5 @@
-import CLIReadline
 import MCPServer
+import SwiftyTerminalLineEditor
 
 struct REPLCompletionCatalog {
     private static let builtins = ["?", "exit", "help", "quit", "tools"]
@@ -25,13 +25,9 @@ struct REPLCompletionCatalog {
     }
 
     func install() {
-        cli_reset_completions()
-        cli_set_root_completions(rootCandidates.joined(separator: "\n"))
-
-        for command in commandCandidates.keys.sorted() {
-            let arguments = argumentCandidates(for: command)
-            guard !arguments.isEmpty else { continue }
-            cli_set_command_completions(command, arguments.joined(separator: "\n"))
-        }
+        LineEditor().setCompletions(
+            commands: rootCandidates,
+            arguments: commandCandidates.filter { !$0.value.isEmpty }
+        )
     }
 }

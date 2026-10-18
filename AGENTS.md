@@ -102,8 +102,8 @@ run `swiftformat` directly on specific files.
 Code: `Sources/CLI/Init*.swift` — `InitCommand.swift` (manifest, `runInit`, `init down|device`),
 `InitCommand+Run.swift` (flow: collect → validate → confirm → run), `InitWizard.swift` (flags, prompts,
 plan), `InitDiscovery.swift` (devices, bundle id), `InitSavedLocations.swift` (the `AGENTS.md` block),
-`Prompting.swift` (shared `CLIPrompting`), `AgentInstallWizard.swift` (guided `amoo agent install`, also
-the AI-client step of init). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
+`AgentInstallWizard.swift` (guided `amoo agent install`, also the AI-client step of init). Prompts come
+from SwiftyTerminal's `Prompting`/`Prompter` (see "Terminal UX" below). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
 It reuses `runEnvUp`/`runEnvDown`; never duplicate lease, port or companion logic there.
 
 - `amoo init` never asks for an app artifact path or scans for builds. Artifacts are optional and
@@ -114,6 +114,15 @@ It reuses `runEnvUp`/`runEnvDown`; never duplicate lease, port or companion logi
 - It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the
   platform, manifest directory and any explicitly supplied app artifact/id — **locations only,
   never device or lease ids**. Saved app paths are not automatically selected on later runs.
+
+## Terminal UX (SwiftyTerminal)
+
+Colors, prompts (text, secret, yes/no, single key, radio/checkbox menus), spinners, progress, step
+lists, live command output, tables/alerts and the REPL line editor come from
+[SwiftyTerminal](https://github.com/maniramezan/SwiftyTerminal) (`SwiftyTerminal`,
+`SwiftyTerminalLineEditor`), shared with ShipIt. Add terminal UX there, not in `Sources/CLI`. It tracks
+`branch: "main"` until `0.1.0`; while it is unpublished, resolve it from a local checkout with
+`swift package config set-mirror --original https://github.com/maniramezan/SwiftyTerminal.git --mirror <path>`.
 
 ## Recording → plan → generated-test pipeline
 

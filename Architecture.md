@@ -512,7 +512,7 @@ lease.
 `amoo init` composes existing pieces and adds no lifecycle of its own: it validates one prebuilt app
 and the chosen devices, then calls `runEnvUp` once per device (lease, free port, companion, install,
 launch) and records the results in a `0600` manifest that `init device` / `init down` consume. In a
-terminal both commands run a prompt-driven flow (`CLIPrompting`); `--json`, `--non-interactive`, `--client`
+terminal both commands run a prompt-driven flow (SwiftyTerminal's `Prompting`); `--json`, `--non-interactive`, `--client`
 or a missing TTY make them fully flag-driven. The flow can record the app and manifest *locations* (never
 device or lease ids) in the repo's `AGENTS.md`, and install the amoo subagents and skills for the AI
 clients you pick. Details: `docs/init.md`. Init is not a recording transport: only MCP `start_session`

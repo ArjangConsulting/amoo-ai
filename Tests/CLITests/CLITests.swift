@@ -1,7 +1,6 @@
 import AmooCore
 import AuditEngine
 @testable import CLI
-import CLIReadline
 import Foundation
 import MCPServer
 import ProcessRunner

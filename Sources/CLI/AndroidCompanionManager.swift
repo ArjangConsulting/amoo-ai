@@ -4,6 +4,7 @@ import Foundation
 import GradleKit
 import ProcessRunner
 import SwiftyShell
+import SwiftyTerminal
 
 // MARK: - Configuration
 
@@ -199,19 +200,19 @@ final class AndroidCompanionManager: @unchecked Sendable {
         if needsBuild {
             await StartupProgress.report("Building Android companion")
             print("Building Android companion (this may take a moment)...")
-            try await withCLILoadingIndicator("Building Android companion") {
+            try await withSpinner("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
         } else {
-            print(colored("Android companion already built.", .green) + colored(" Use --force to rebuild.", .gray))
+            print(styled("Android companion already built.", .green) + styled(" Use --force to rebuild.", .gray))
         }
 
         await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
-        try await withCLILoadingIndicator("Installing Android companion APKs") {
+        try await withSpinner("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
         }
-        print(colored("Android companion installed successfully.", .green))
+        print(styled("Android companion installed successfully.", .green))
     }
 
     // swiftlint:disable function_body_length - linear startup lifecycle with rollback.
@@ -264,16 +265,15 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
         if needsBuild {
             await StartupProgress.report("Building Android companion")
-            print("Android companion sources changed or no build exists."
-                + " Building (this may take a moment)...")
-            try await withCLILoadingIndicator("Building Android companion") {
+            print("Android companion sources changed or no build exists. Building (this may take a moment)...")
+            try await withSpinner("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
         }
 
         await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
-        try await withCLILoadingIndicator("Installing Android companion APKs") {
+        try await withSpinner("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
         }
 
@@ -296,7 +296,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         // race is the backstop for a wedged `adb` call in between, so the command fails with a
         // recovery hint instead of hanging silently.
         try await withReadyDeadline(seconds: config.readyTimeoutSeconds, port: config.port) {
-            try await withCLILoadingIndicator("Waiting for Android companion on port \(config.port)") {
+            try await withSpinner("Waiting for Android companion on port \(config.port)") {
                 try await self.waitUntilReachable(
                     host: config.host,
                     port: config.port,
@@ -304,7 +304,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
                 )
             }
         }
-        print(colored("Android companion ready.", .bold, .green))
+        print(styled("Android companion ready.", .bold, .green))
     }
 
     // swiftlint:enable function_body_length
@@ -342,7 +342,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         }
         let output = await process.waitForExit()
         guard !Task.isCancelled else { return }
-        print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red))
+        print(styled("Companion runner exited (code \(output.exitCode)).", .bold, .red))
     }
 
     // MARK: - Private

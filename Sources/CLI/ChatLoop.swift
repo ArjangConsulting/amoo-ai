@@ -1,15 +1,9 @@
 import AmooCore
-import CLIReadline
 import Foundation
 import MCPServer
 import OllamaClient
-
-/// Convenience extension to use method syntax for coloring.
-private extension String {
-    func colored(_ color: ANSIColor) -> String {
-        AmooCore.colored(self, color)
-    }
-}
+import SwiftyTerminal
+import SwiftyTerminalLineEditor
 
 /// The `amoo chat` interactive loop: user types natural language, Ollama calls MCP tools.
 struct ChatLoop {
@@ -90,14 +84,14 @@ struct ChatLoop {
 
         while true {
             do {
-                startThinking()
+                await startThinking()
                 let response = try await ollamaClient.chat(
                     model: model,
                     messages: messages,
                     tools: tools
                 )
 
-                stopThinking()
+                await stopThinking()
 
                 if response.hasToolCalls {
                     // Execute each tool call
@@ -142,7 +136,7 @@ struct ChatLoop {
                     break
                 }
             } catch {
-                stopThinking()
+                await stopThinking()
                 printFormatted("Error: \(error)", style: .error)
                 break
             }
@@ -183,20 +177,11 @@ struct ChatLoop {
     // MARK: - Input
 
     private func readInput() -> String? {
-        let prompt = "\n" + "you".colored(.cyan) + " › "
-        guard let line = cli_readline(prompt) else { return nil }
-        defer { free(line) }
-        let input = String(cString: line)
-        cli_save_history(input)
-        return input
+        LineEditor().readLine(prompt: "\n" + "you".styled(.cyan) + " › ")
     }
 
     private func setupCompletions() {
-        let slashCommands = ["/help", "/tools", "/history", "/clear", "/model", "/quit"]
-        cli_reset_completions()
-        for cmd in slashCommands {
-            cli_set_root_completions(cmd)
-        }
+        LineEditor().setCompletions(commands: ["/help", "/tools", "/history", "/clear", "/model", "/quit"])
     }
 
     // MARK: - Output Formatting
@@ -211,48 +196,38 @@ struct ChatLoop {
         └─────────────────────────────────────────────┘
 
         """
-        print(banner.colored(.cyan))
+        print(banner.styled(.cyan))
     }
 
-    /// Animated spinner task handle — cancelled by `stopThinking()`.
-    private var thinkingTask: Task<Void, Never>?
+    /// The "thinking…" spinner shown while waiting for the model.
+    private var thinking: Spinner?
 
-    private mutating func startThinking() {
-        thinkingTask = Task { @MainActor in
-            let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-            var i = 0
-            while !Task.isCancelled {
-                let frame = frames[i % frames.count]
-                print("\r\u{1B}[K  \(frame) thinking...".colored(.gray), terminator: "")
-                fflush(nil)
-                i += 1
-                try? await Task.sleep(for: .milliseconds(80))
-            }
-        }
+    private mutating func startThinking() async {
+        let spinner = Spinner("thinking...", delay: .zero)
+        await spinner.start()
+        thinking = spinner
     }
 
-    private mutating func stopThinking() {
-        thinkingTask?.cancel()
-        thinkingTask = nil
-        print("\r\u{1B}[K", terminator: "")
-        fflush(nil)
+    private mutating func stopThinking() async {
+        await thinking?.stop()
+        thinking = nil
     }
 
     private func printToolCall(_ call: ToolCall) {
         let args = call.arguments.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
-        print("  ⚡ ".colored(.yellow) + call.name.colored(.yellow) + "(\(args))".colored(.gray))
+        print("  ⚡ ".styled(.yellow) + call.name.styled(.yellow) + "(\(args))".styled(.gray))
     }
 
     private func printToolResult(_ name: String, _ result: ToolResult) {
         let text = result.content
         let preview = text.count > 200 ? String(text.prefix(200)) + "..." : text
-        let icon = result.isError ? "  ✗ ".colored(.red) : "  ✓ ".colored(.green)
-        print(icon + preview.colored(.gray))
+        let icon = result.isError ? "  ✗ ".styled(.red) : "  ✓ ".styled(.green)
+        print(icon + preview.styled(.gray))
     }
 
     private func printAssistant(_ content: String) {
         print()
-        print("  " + "assistant".colored(.green) + " › " + content)
+        print("  " + "assistant".styled(.green) + " › " + content)
     }
 
     private func printHelp() {
@@ -263,20 +238,20 @@ struct ChatLoop {
           /model    - Show current model
           /quit     - Exit chat
         """
-        print(help.colored(.gray))
+        print(help.styled(.gray))
     }
 
     private func printTools() {
-        print("  Available tools (\(toolSchemas.count)):".colored(.cyan))
+        print("  Available tools (\(toolSchemas.count)):".styled(.cyan))
         for schema in toolSchemas.sorted(by: { $0.name < $1.name }) {
-            print("    • " + schema.name.colored(.yellow) + " - " + schema.description.colored(.gray))
+            print("    • " + schema.name.styled(.yellow) + " - " + schema.description.styled(.gray))
         }
     }
 
     private func printHistory() {
-        print("  Conversation (\(messages.count) messages):".colored(.cyan))
+        print("  Conversation (\(messages.count) messages):".styled(.cyan))
         for (i, msg) in messages.enumerated() {
-            let role = msg.role.rawValue.colored(msg.role == .user ? .cyan : msg.role == .assistant ? .green : .gray)
+            let role = msg.role.rawValue.styled(msg.role == .user ? .cyan : msg.role == .assistant ? .green : .gray)
             let preview = msg.content.prefix(80)
             print("    \(i). [\(role)] \(preview)")
         }
@@ -288,10 +263,10 @@ struct ChatLoop {
 
     private func printFormatted(_ text: String, style: Style) {
         switch style {
-        case .info: print("  ℹ ".colored(.cyan) + text)
-        case .warning: print("  ⚠ ".colored(.yellow) + text)
-        case .error: print("  ✗ ".colored(.red) + text)
-        case .dim: print("  " + text.colored(.gray))
+        case .info: print("  ℹ ".styled(.cyan) + text)
+        case .warning: print("  ⚠ ".styled(.yellow) + text)
+        case .error: print("  ✗ ".styled(.red) + text)
+        case .dim: print("  " + text.styled(.gray))
         }
     }
 }

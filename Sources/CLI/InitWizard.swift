@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import SwiftyTerminal
 
 // MARK: - Request
 
@@ -134,9 +135,9 @@ func absoluteInitPath(_ raw: String, workingDirectory: String = FileManager.defa
 
 /// One question per method, so each stays readable; every method returns only after an answer and
 /// throws `cancelled` when input ends.
-private struct InitWizard<Prompter: CLIPrompting> {
+private struct InitWizard<Asker: Prompting> {
     let discovery: InitDiscovery
-    let prompter: Prompter
+    let prompter: Asker
     let saved: InitSavedLocations?
     let now: Date
 
@@ -204,7 +205,7 @@ private struct InitWizard<Prompter: CLIPrompting> {
 func completeInitRequest(
     _ request: InitRequest,
     discovery: InitDiscovery,
-    prompter: some CLIPrompting,
+    prompter: some Prompting,
     saved: InitSavedLocations? = nil,
     now: Date = Date()
 ) async throws -> InitRequest {

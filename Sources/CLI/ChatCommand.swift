@@ -6,6 +6,7 @@ import IOSDriver
 import MCPServer
 import OllamaClient
 import ProcessRunner
+import SwiftyTerminal
 import TestSession
 
 struct ChatCommandOptions {
@@ -214,18 +215,18 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
 
 /// Confirms Ollama is reachable and the requested model is available, printing status as it goes.
 private func prepareOllamaClient(options: ChatCommandOptions) async -> ChatStepResult<OllamaClient> {
-    print(colored("Checking Ollama...", .gray), terminator: " ")
+    print(styled("Checking Ollama...", .gray), terminator: " ")
     fflush(nil)
     let ollama = OllamaClient(host: options.ollamaHost, port: options.ollamaPort)
     guard await ollama.isAvailable() else {
-        print(colored("✗", .red))
+        print(styled("✗", .red))
         return .failure(CLIResult(
             output: "Cannot connect to Ollama at \(options.ollamaHost):\(options.ollamaPort).\n"
                 + "Make sure Ollama is running: ollama serve",
             exitCode: 1
         ))
     }
-    print(colored("✓", .green) + colored(" (\(options.model))", .gray))
+    print(styled("✓", .green) + styled(" (\(options.model))", .gray))
 
     do {
         let models = try await ollama.listModels()
@@ -266,7 +267,7 @@ private func ensureChatCompanionReady(
 ) async -> CLIResult? {
     guard !options.noCompanion else { return nil }
 
-    print(colored("Checking companion on 127.0.0.1:\(companionPort)...", .gray), terminator: " ")
+    print(styled("Checking companion on 127.0.0.1:\(companionPort)...", .gray), terminator: " ")
     fflush(nil)
 
     guard await isCompanionReachable(host: "127.0.0.1", port: companionPort) else {
@@ -276,7 +277,7 @@ private func ensureChatCompanionReady(
             resolvedDeviceID: resolvedDeviceID
         )
     }
-    print(colored("✓", .green))
+    print(styled("✓", .green))
     return nil
 }
 
@@ -285,14 +286,14 @@ private func promptToInstallCompanion(
     companionPort: Int,
     resolvedDeviceID: String
 ) async -> CLIResult? {
-    print(colored("✗", .red))
+    print(styled("✗", .red))
     print()
-    print(colored("Companion app not running.", .yellow))
-    guard StdioPrompter().confirm(
+    print(styled("Companion app not running.", .yellow))
+    guard Prompter().confirm(
         "Install and launch companion for \(options.platform == .ios ? "iOS" : "Android")?",
         default: true
     ) == true else {
-        print(colored("  Skipping companion. Some tools may fail.", .yellow))
+        print(styled("  Skipping companion. Some tools may fail.", .yellow))
         return nil
     }
 
@@ -303,10 +304,10 @@ private func promptToInstallCompanion(
     )
     switch installResult {
     case .success:
-        print(colored("  ✓ Companion running on port \(companionPort)", .green))
+        print(styled("  ✓ Companion running on port \(companionPort)", .green))
         return nil
     case let .failure(error):
-        print(colored("  ✗ \(error)", .red))
+        print(styled("  ✗ \(error)", .red))
         print()
         print("Troubleshooting:")
         print("  1. Ensure a simulator is booted: xcrun simctl list devices booted")

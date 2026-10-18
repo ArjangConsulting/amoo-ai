@@ -1,4 +1,5 @@
 import Foundation
+import SwiftyTerminal
 
 /// Display names for the guided picker.
 func agentClientTitle(_ client: AgentClient) -> String {
@@ -28,7 +29,7 @@ func detectInstalledAgentClients(
 /// Returns nil when input ends or the user declines the final confirmation.
 func completeAgentInstallOptions(
     _ options: AgentInstallOptions,
-    prompter: some CLIPrompting,
+    prompter: some Prompting,
     detected: [AgentClient],
     assetsRoot: URL?
 ) -> AgentInstallOptions? {
@@ -76,7 +77,7 @@ func completeAgentInstallOptions(
 /// `amoo agent install`: guided in a terminal when `--client` is absent, otherwise exactly as before.
 func runAgentInstallCommand(
     _ args: [String],
-    prompter: any CLIPrompting = StdioPrompter(),
+    prompter: any Prompting = Prompter(),
     interactive: () -> Bool = isInteractiveStdin,
     detected: () -> [AgentClient] = { detectInstalledAgentClients() },
     assetsRoot: URL? = agentAssetsRoot()

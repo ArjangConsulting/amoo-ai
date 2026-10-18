@@ -159,7 +159,7 @@ root_cov = aggregate(
     [f"{repo_root}/Sources/"],
     # Protos/Generated is committed protoc output, not hand-written code; the plugin-generated
     # copy used to live under .build/ and so never counted.
-    ["/Sources/CLIReadline/", "/Sources/CLI/main.swift", "/Sources/Protos/Generated/"],
+    ["/Sources/CLI/main.swift", "/Sources/Protos/Generated/"],
 )
 core_cov = aggregate(["/Sources/AmooCore/"])
 cli_cov = aggregate(["/Sources/CLI/"], ["/Sources/CLI/main.swift"])

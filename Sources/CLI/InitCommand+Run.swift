@@ -1,10 +1,11 @@
 import AmooCore
 import Foundation
+import SwiftyTerminal
 
 /// Host seams for the guided flow; tests replace all of them.
 struct InitRuntime {
     var discovery: InitDiscovery
-    var prompter: any CLIPrompting
+    var prompter: any Prompting
     var isInteractive: () -> Bool
     var setup: (EnvUpOptions) async -> CLIResult
     var now: () -> Date
@@ -15,7 +16,7 @@ struct InitRuntime {
     static func live() -> Self {
         Self(
             discovery: .live(),
-            prompter: StdioPrompter(),
+            prompter: Prompter(),
             isInteractive: isInteractiveStdin,
             setup: { await runEnvUp($0) },
             now: Date.init,
@@ -214,7 +215,7 @@ private func confirmInit(
     _ plan: InitPlan,
     _ request: InitRequest,
     agentsFile: String,
-    prompter: any CLIPrompting
+    prompter: any Prompting
 ) -> Bool? {
     var save = request.save == true
     if request.save == nil {

@@ -2,11 +2,12 @@ import AmooCore
 @testable import CLI
 import Foundation
 import MobileDevices
+import SwiftyTerminal
 import TestCommons
 import XCTest
 
 /// Answers queued per call kind; `nil` in the queue means end of input.
-final class ScriptedPrompter: CLIPrompting {
+final class ScriptedPrompter: Prompting {
     var asks: [String?] = []
     var confirms: [Bool?] = []
     var choices: [Int?] = []
@@ -18,12 +19,22 @@ final class ScriptedPrompter: CLIPrompting {
         transcript.append(text)
     }
 
-    func ask(_ prompt: String, default defaultValue: String?) -> String? {
+    func ask(_ prompt: String, default defaultValue: String?, validate: ((String) -> String?)?) -> String? {
         transcript.append(prompt)
         askDefaults[prompt] = defaultValue
         guard !asks.isEmpty else { return defaultValue }
         let answer = asks.removeFirst()
         return answer.map { $0.isEmpty ? (defaultValue ?? "") : $0 }
+    }
+
+    func askSecret(_ prompt: String) -> String? {
+        transcript.append(prompt)
+        return asks.isEmpty ? nil : asks.removeFirst()
+    }
+
+    func askKey(_ prompt: String, keys: [Character], default defaultKey: Character?) -> Character? {
+        transcript.append(prompt)
+        return defaultKey
     }
 
     func confirm(_ prompt: String, default defaultAnswer: Bool) -> Bool? {

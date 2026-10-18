@@ -34,6 +34,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.2"),
         .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
+        // Prompts, progress, styling and line editing shared with ShipItSwifty. Tracks main until 0.1.0.
+        .package(url: "https://github.com/maniramezan/SwiftyTerminal.git", branch: "main"),
         // Typed tool wrappers (xcrun/simctl, Gradle, adb, …). Tracks main until it reaches 1.0.
         .package(url: "https://github.com/ShipItSwifty/cli-wrappers.git", branch: "main"),
         // Device, build, test, and inspection mechanisms shared with ShipItSwifty. Tracks main until 1.0.
@@ -45,11 +47,6 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-docc-plugin.git", from: "1.5.0")
     ],
     targets: [
-        .target(
-            name: "CLIReadline",
-            path: "Sources/CLIReadline",
-            linkerSettings: [.linkedLibrary("edit", .when(platforms: [.macOS]))]
-        ),
         .target(
             name: "AmooCore",
             dependencies: [.product(name: "Crypto", package: "swift-crypto")],
@@ -126,13 +123,13 @@ let package = Package(
                 "SessionCompiler",
                 "StudioProtocol",
                 "WebInspector",
-                .product(name: "MCP", package: "swift-sdk")
+                .product(name: "MCP", package: "swift-sdk"),
+                .product(name: "SwiftyTerminal", package: "SwiftyTerminal")
             ]
         ),
         .executableTarget(
             name: "CLI",
             dependencies: [
-                "CLIReadline",
                 "AmooCore",
                 "CompanionProtocol",
                 "IOSDriver",
@@ -154,7 +151,9 @@ let package = Package(
                 .product(name: "MobileCore", package: "mobile-kits"),
                 .product(name: "MobileDevices", package: "mobile-kits"),
                 .product(name: "MobileProject", package: "mobile-kits"),
-                .product(name: "SwiftyShell", package: "SwiftyShell")
+                .product(name: "SwiftyShell", package: "SwiftyShell"),
+                .product(name: "SwiftyTerminal", package: "SwiftyTerminal"),
+                .product(name: "SwiftyTerminalLineEditor", package: "SwiftyTerminal")
             ]
         ),
         .testTarget(

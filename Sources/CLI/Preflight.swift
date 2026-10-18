@@ -4,6 +4,7 @@ import Foundation
 import GradleKit
 import ProcessRunner
 import SwiftyShell
+import SwiftyTerminal
 
 public enum PreflightPlatform: String, Sendable {
     case iOS = "ios"
@@ -209,19 +210,19 @@ public func renderPreflightReport(_ report: PreflightReport) -> String {
     var lines: [String] = []
     let statusText =
         report.hasFailures
-            ? colored("FAIL", .bold, .red)
-            : colored("PASS", .bold, .green)
+            ? styled("FAIL", .bold, .red)
+            : styled("PASS", .bold, .green)
     lines.append("preflight \(statusText) [\(report.platform.rawValue)]")
 
     for check in report.checks {
         let badge: String = switch check.status {
-        case .pass: colored("[PASS]", .green)
-        case .warn: colored("[WARN]", .yellow)
-        case .fail: colored("[FAIL]", .red)
+        case .pass: styled("[PASS]", .green)
+        case .warn: styled("[WARN]", .yellow)
+        case .fail: styled("[FAIL]", .red)
         }
         lines.append("\(badge) \(check.id) - \(check.message)")
         if check.status != .pass {
-            lines.append("  \(colored("remediation:", .yellow)) \(check.remediation)")
+            lines.append("  \(styled("remediation:", .yellow)) \(check.remediation)")
         }
     }
 
