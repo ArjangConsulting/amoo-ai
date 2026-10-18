@@ -147,7 +147,8 @@ private final class LoopbackListener {
 
         var address = sockaddr_in()
         address.sin_family = sa_family_t(AF_INET)
-        address.sin_port = 0 // let the kernel pick a free port
+        // let the kernel pick a free port
+        address.sin_port = 0
         address.sin_addr.s_addr = INADDR_LOOPBACK.bigEndian
 
         let bound = withUnsafePointer(to: &address) { pointer in

@@ -18,7 +18,8 @@ def summarize(lines):
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
-            continue  # Other stderr diagnostics are not benchmark samples.
+            # Other stderr diagnostics are not benchmark samples.
+            continue
         if not isinstance(event, dict) or event.get("event") != "amoo.performance":
             continue
         duration = event.get("duration_ms")

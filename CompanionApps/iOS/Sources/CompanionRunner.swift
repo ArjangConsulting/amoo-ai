@@ -16,7 +16,8 @@ final class CompanionRunner: XCTestCase {
     /// Disable the default test execution time limit so the companion server
     /// stays alive indefinitely until the host explicitly terminates it.
     override var executionTimeAllowance: TimeInterval {
-        get { 86400 } // 24 hours
+        // 24 hours
+        get { 86400 }
         set { _ = newValue }
     }
 

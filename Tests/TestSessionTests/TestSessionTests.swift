@@ -80,7 +80,8 @@ final class TestSessionTests: XCTestCase {
         )
 
         await session.close()
-        await session.close() // second call is a no-op
+        // second call is a no-op
+        await session.close()
 
         let terminations = await driver.terminations
         XCTAssertEqual(terminations, ["com.example"])

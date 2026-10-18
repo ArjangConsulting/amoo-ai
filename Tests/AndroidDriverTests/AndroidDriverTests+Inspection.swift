@@ -120,8 +120,10 @@ extension AndroidDriverTests {
         XCTAssertEqual(comparison?.companionElementCount, 2)
         XCTAssertEqual(comparison?.androidCLIElementCount, 3)
         XCTAssertEqual(comparison?.matchingIdentityCount, 1)
-        XCTAssertEqual(comparison?.companionOnlyIdentityCount, 1) // companion root
-        XCTAssertEqual(comparison?.androidCLIOnlyIdentityCount, 2) // CLI root + Cancel
+        // companion root
+        XCTAssertEqual(comparison?.companionOnlyIdentityCount, 1)
+        // CLI root + Cancel
+        XCTAssertEqual(comparison?.androidCLIOnlyIdentityCount, 2)
     }
 
     func testProductionInspectionModeReadsEnvironment() {

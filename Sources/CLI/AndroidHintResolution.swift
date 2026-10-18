@@ -81,7 +81,8 @@ func resolvingAndroidCompanionDevice(
     case let .running(serial, _):
         resolved.deviceID = serial
     case .bootAVD where options.action == .status:
-        return options // `status` never boots; it reports not_started.
+        // `status` never boots; it reports not_started.
+        return options
     case let .bootAVD(avd):
         resolved.deviceID = try await selector.bootVirtualDevice(name: avd).id
     case .unmatched:

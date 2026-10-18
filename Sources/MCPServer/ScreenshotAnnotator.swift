@@ -13,11 +13,11 @@ enum ScreenshotAnnotator {
         let blue: CGFloat
     }
 
-    /// Colors keyed by issue prefix
+    /// Colors keyed by issue prefix: red, orange and yellow.
     private static let issueColors: [(prefix: String, color: RGBColor)] = [
-        ("missing_label", RGBColor(red: 1.0, green: 0.22, blue: 0.22)), // red
-        ("generic_label", RGBColor(red: 1.0, green: 0.60, blue: 0.00)), // orange
-        ("duplicate_label", RGBColor(red: 1.0, green: 0.85, blue: 0.00)) // yellow
+        ("missing_label", RGBColor(red: 1.0, green: 0.22, blue: 0.22)),
+        ("generic_label", RGBColor(red: 1.0, green: 0.60, blue: 0.00)),
+        ("duplicate_label", RGBColor(red: 1.0, green: 0.85, blue: 0.00))
     ]
 
     static func annotate(pngData: Data, issues: [ElementA11yIssue], viewportWidth: Double) -> Data? {

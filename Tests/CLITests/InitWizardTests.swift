@@ -21,7 +21,8 @@ final class InitWizardTests: InitTestCase {
             bundleID: { _, _ in XCTFail("no artifact should be inspected"); return nil }
         )
         let prompter = ScriptedPrompter()
-        prompter.choices = [2, 2] // both, Flutter
+        // both, Flutter
+        prompter.choices = [2, 2]
         let completed = try await completeInitRequest(InitRequest(), discovery: found, prompter: prompter)
         let android = try XCTUnwrap(completed.additionalRequests.first)
         XCTAssertEqual(completed.platform, .ios)
@@ -57,9 +58,12 @@ final class InitWizardTests: InitTestCase {
         try "# Repo\n\nKeep me.\n".write(toFile: agents, atomically: true, encoding: .utf8)
         let out = scratch.url.appendingPathComponent("manifests/run.json").path
         let prompter = ScriptedPrompter()
-        prompter.choices = [0, 0] // platform: iOS, framework: Native
-        prompter.multi = [[0, 1]] // both devices
-        prompter.asks = ["", out] // app id (detected), manifest path
+        // platform: iOS, framework: Native
+        prompter.choices = [0, 0]
+        // both devices
+        prompter.multi = [[0, 1]]
+        // app id (detected), manifest path
+        prompter.asks = ["", out]
         var setups: [EnvUpOptions] = []
         let found = discovery(
             devices: [candidate("phone"), candidate("tablet"), candidate("busy", leasedBy: "x")],
@@ -108,7 +112,8 @@ final class InitWizardTests: InitTestCase {
             return CLIResult(output: "", exitCode: 0)
         }
         let declining = ScriptedPrompter()
-        declining.confirms = [true, false] // save locations, then refuse the final question
+        // save locations, then refuse the final question
+        declining.confirms = [true, false]
         var result = await runInitCommand(
             ["--agents-file", agents, "--no-skills"],
             runtime: runtime(prompter: declining, interactive: true, discovery: found, setup: never)
@@ -205,9 +210,12 @@ final class InitWizardTests: InitTestCase {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
         let prompter = ScriptedPrompter()
-        prompter.multi = [[0], [1, 2]] // devices: first; AI clients: Cursor + Codex
-        prompter.choices = [0, 0] // platform, framework; init installs locally
-        prompter.confirms = [true, true, true, true, true] // launch, skills?, install files?, save, proceed
+        // devices: first; AI clients: Cursor + Codex
+        prompter.multi = [[0], [1, 2]]
+        // platform, framework; init installs locally
+        prompter.choices = [0, 0]
+        // launch, skills?, install files?, save, proceed
+        prompter.confirms = [true, true, true, true, true]
         prompter.asks = ["", scratch.url.appendingPathComponent("m.json").path]
         var installed: [AgentInstallOptions] = []
         let found = discovery(devices: [candidate("phone")], bundleID: "com.jot")
@@ -246,7 +254,8 @@ final class InitWizardTests: InitTestCase {
         ))
         XCTAssertEqual(installed.first?.clients, [.claude, .codex])
         XCTAssertEqual(installed.first?.scope, .project)
-        _ = await runInitCommand(base, runtime: runtime(discovery: found, setup: ok)) // installAgents would XCTFail
+        // installAgents would XCTFail
+        _ = await runInitCommand(base, runtime: runtime(discovery: found, setup: ok))
         XCTAssertThrowsError(try parseInitRequest(["--json", "--client", "codex"]))
         XCTAssertThrowsError(try parseInitRequest(["--no-skills", "--client", "codex"]))
     }
@@ -254,8 +263,10 @@ final class InitWizardTests: InitTestCase {
     func testStandaloneAgentInstallAsksWhichClientsAndWhere() throws {
         let scratch = try makeScratchDirectory()
         let prompter = ScriptedPrompter()
-        prompter.multi = [[2]] // Codex
-        prompter.choices = [0] // this repository
+        // Codex
+        prompter.multi = [[2]]
+        // this repository
+        prompter.choices = [0]
         let args = ["--target", scratch.url.path]
         let result = runAgentInstallCommand(
             args,
@@ -299,7 +310,8 @@ final class InitWizardTests: InitTestCase {
 
     func testAllDetectedSelectionCanIncludeAdditionalClientsWithoutDuplicates() throws {
         let prompter = ScriptedPrompter()
-        prompter.multi = [[AgentClient.allCases.count, 0, 1]] // detected plus Claude and Cursor
+        // detected plus Claude and Cursor
+        prompter.multi = [[AgentClient.allCases.count, 0, 1]]
         var options = AgentInstallOptions()
         options.scopeGiven = true
         let chosen = try XCTUnwrap(completeAgentInstallOptions(
