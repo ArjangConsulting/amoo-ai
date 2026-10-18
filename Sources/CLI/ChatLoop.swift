@@ -60,11 +60,12 @@ struct ChatLoop {
 
             // Handle slash commands
             if trimmed.hasPrefix("/") {
+                // `handleSlashCommand` returns false for /quit.
                 if handleSlashCommand(trimmed) {
                     continue
                 } else {
                     break
-                } // /quit
+                }
             }
 
             // Add user message
@@ -160,7 +161,8 @@ struct ChatLoop {
         case "/history":
             printHistory()
         case "/clear":
-            messages = [messages[0]] // keep system prompt
+            // keep system prompt
+            messages = [messages[0]]
             printFormatted("Conversation cleared.", style: .info)
         case "/model":
             if parts.count > 1 {

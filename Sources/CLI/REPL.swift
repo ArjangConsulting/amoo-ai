@@ -126,7 +126,8 @@ private func replLoop(
             editor.readLine(prompt: "> ")
         }.value
 
-        guard let line else { break } // EOF / Ctrl+D
+        // EOF / Ctrl+D
+        guard let line else { break }
 
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { continue }

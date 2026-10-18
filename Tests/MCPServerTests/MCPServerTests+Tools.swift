@@ -63,7 +63,8 @@ extension MCPServerTests {
     }
 
     func testAuditPassesCleanApp() async {
-        let driver = MockDriver() // Clean mock with no problematic elements
+        // Clean mock with no problematic elements
+        let driver = MockDriver()
         try? await driver.launchApp(appID: "com.clean", arguments: [], environment: [:])
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
@@ -127,7 +128,8 @@ extension MCPServerTests {
     }
 
     func testSuggestActionsWithInteractableElements() async {
-        let driver = AuditMockDriver() // Has interactable elements
+        // Has interactable elements
+        let driver = AuditMockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
@@ -348,7 +350,8 @@ extension MCPServerTests {
         } else {
             0
         }
-        XCTAssertGreaterThanOrEqual(driverCallCount, 3) // 2 taps + 1 terminateApp on close
+        // 2 taps + 1 terminateApp on close
+        XCTAssertGreaterThanOrEqual(driverCallCount, 3)
     }
 
     func testGetSessionReportRedactsTypeText() async throws {
@@ -476,7 +479,8 @@ extension MCPServerTests {
         let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
         let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
 
-        _ = await server.execute(toolName: "tap", arguments: ["x": "1", "y": "2"]) // no session_id
+        // no session_id
+        _ = await server.execute(toolName: "tap", arguments: ["x": "1", "y": "2"])
 
         let report = await server.execute(
             toolName: "get_session_report",

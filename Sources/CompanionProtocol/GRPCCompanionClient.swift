@@ -436,7 +436,8 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
         -> Amoo_ScreenshotResponse {
         _ = request
         var response = Amoo_ScreenshotResponse()
-        response.data = Data([0x89, 0x50, 0x4E, 0x47]) // PNG magic bytes
+        // PNG magic bytes
+        response.data = Data([0x89, 0x50, 0x4E, 0x47])
         return response
     }
 

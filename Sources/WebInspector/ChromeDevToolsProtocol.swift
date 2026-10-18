@@ -47,9 +47,10 @@ enum CDP {
         /// first. Android lists a pre-warmed, never-attached WebView (`"empty":true`) alongside
         /// the real one — often first — so picking `targets.first` evaluated against a blank page.
         var liveness: Int {
+            // No state (iOS bridges, desktop): neither preferred nor demoted.
             guard let data = description?.data(using: .utf8),
                   let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else { return 1 } // No state (iOS bridges, desktop): neither preferred nor demoted.
+            else { return 1 }
             var score = 0
             if state["attached"] as? Bool == true {
                 score += 1

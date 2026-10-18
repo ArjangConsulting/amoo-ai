@@ -12,7 +12,8 @@ public actor IOSDriver: PlatformDriver {
     let companion: any CompanionClient
     private let backend: any IOSHostBackend
     private let deviceID: String
-    private var activeRecordings: [String: ActiveRecording] = [:] // sessionID → recording
+    // sessionID → recording
+    private var activeRecordings: [String: ActiveRecording] = [:]
     private var currentAppID: String?
 
     /// Creates a driver for an iOS *simulator*.

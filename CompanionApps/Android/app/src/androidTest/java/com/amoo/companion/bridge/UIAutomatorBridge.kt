@@ -100,7 +100,8 @@ class UIAutomatorBridge {
     fun tap(x: Int, y: Int): Boolean = device.click(x, y)
 
     fun longPress(x: Int, y: Int, durationMs: Int): Boolean {
-        return device.swipe(x, y, x, y, durationMs / 5) // swipe in-place simulates long press
+        // swipe in-place simulates long press
+        return device.swipe(x, y, x, y, durationMs / 5)
     }
 
     // -- Gestures --

@@ -144,7 +144,8 @@ private enum SkillsChoice {
 private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: InitRuntime) -> SkillsChoice {
     guard request.skills != false else { return .skip }
     var options = AgentInstallOptions()
-    options.scopeGiven = true // Onboarding installs into this repository.
+    // Onboarding installs into this repository.
+    options.scopeGiven = true
     options.clients = request.clients
     options.clientsGiven = !request.clients.isEmpty
     guard interactive else {

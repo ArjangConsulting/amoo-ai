@@ -152,7 +152,8 @@ public struct PlatformWebInspecting: WebInspecting {
         var names: [String] = []
         for line in procNetUnix.split(whereSeparator: \.isNewline) {
             guard let at = line.range(of: "@webview_devtools_remote_") else { continue }
-            let rest = line[at.lowerBound...].dropFirst() // drop the leading '@'
+            // drop the leading '@'
+            let rest = line[at.lowerBound...].dropFirst()
             if let name = rest.split(whereSeparator: \.isWhitespace).first.map(String.init),
                !names.contains(name) {
                 names.append(name)

@@ -47,7 +47,8 @@ func parseREPLOptions(args: [String]) -> REPLOptions {
     } else if let platform {
         platform == .android ? 22088 : 22087
     } else {
-        22087 // will be overridden after device selection when Android is chosen
+        // will be overridden after device selection when Android is chosen
+        22087
     }
 
     return REPLOptions(port: resolvedPort, deviceHint: deviceHint, platform: platform)

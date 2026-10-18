@@ -48,9 +48,10 @@ final class AwaitInMutatingCallTests: XCTestCase {
         var depth = 1
         var index = start
         while index < text.length, depth > 0 {
+            // 40 and 41 are the UTF-16 code units for ( and ).
             switch text.character(at: index) {
-            case 40: depth += 1 // (
-            case 41: depth -= 1 // )
+            case 40: depth += 1
+            case 41: depth -= 1
             default: break
             }
             index += 1

@@ -74,3 +74,12 @@ type_body_length:
 file_length:
   warning: 500
   error: 800
+
+custom_rules:
+  no_trailing_comment:
+    name: "No Trailing Comment"
+    regex: '(?<=\S[ \t])//'
+    match_kinds:
+      - comment
+    message: "Put the comment on its own line above the code, never at the end of a line."
+    severity: error
