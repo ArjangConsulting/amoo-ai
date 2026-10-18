@@ -3,6 +3,7 @@ import AuditEngine
 import Foundation
 import MCP
 import ProcessRunner
+import SwiftyTerminal
 import TestSession
 import WebInspector
 
@@ -329,16 +330,16 @@ func renderViewNode(_ node: ViewNode, indent: Int) -> String {
     let prefix = String(repeating: "  ", count: indent)
     var parts: [String] = []
 
-    let typeStr = node.type.map { colored("[\($0.rawValue)]", .cyan) } ?? colored("[other]", .gray)
-    let labelStr = node.label.isEmpty ? "" : " \(colored("\"\(node.label)\"", .yellow))"
-    let valueStr = node.value.map { " = \(colored($0, .magenta))" } ?? ""
-    let idStr = node.id.isEmpty ? "" : " \(colored("id=\(node.id)", .blue))"
+    let typeStr = node.type.map { styled("[\($0.rawValue)]", .cyan) } ?? styled("[other]", .gray)
+    let labelStr = node.label.isEmpty ? "" : " \(styled("\"\(node.label)\"", .yellow))"
+    let valueStr = node.value.map { " = \(styled($0, .magenta))" } ?? ""
+    let idStr = node.id.isEmpty ? "" : " \(styled("id=\(node.id)", .blue))"
     let stateStr: String = {
         if !node.isEnabled {
-            return " \(colored("(disabled)", .red))"
+            return " \(styled("(disabled)", .red))"
         }
         if !node.isVisible {
-            return " \(colored("(hidden)", .gray))"
+            return " \(styled("(hidden)", .gray))"
         }
         return ""
     }()

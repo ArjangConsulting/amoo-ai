@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import SwiftyTerminal
 
 // MARK: - Parsing
 
@@ -192,8 +193,7 @@ func promptDeviceSelection(from devices: [AvailableDevice]) throws -> AvailableD
         prompt: "Select a device",
         items: devices,
         displayName: \.displayName,
-        eofError: .noDevicesAvailable,
-        colorNumbers: true
+        eofError: .noDevicesAvailable
     )
 }
 
@@ -202,8 +202,7 @@ func promptSelection<T>(
     prompt: String,
     items: [T],
     displayName: (T) -> String,
-    eofError: DeviceSelectionError = .noDevicesAvailable,
-    colorNumbers: Bool = false
+    eofError: DeviceSelectionError = .noDevicesAvailable
 ) throws -> T {
     guard isInteractiveStdin() else {
         guard let first = items.first else { throw eofError }
@@ -211,26 +210,10 @@ func promptSelection<T>(
         return first
     }
     print(title)
-    for (index, item) in items.enumerated() {
-        let number = colorNumbers ? colored("\(index + 1))", .cyan) : "\(index + 1))"
-        print("  \(number) \(displayName(item))")
+    guard let index = Prompter().choose(prompt, options: items.map(displayName), default: 0) else {
+        throw eofError
     }
-    print("")
-
-    while true {
-        print("\(prompt) [1-\(items.count)]: ", terminator: "")
-        fflush(nil) // flush all open streams — avoids referencing the `stdout` global directly
-
-        guard let line = readPromptAnswer(singleCharacter: items.count <= 9)?.trimmingCharacters(in: .whitespaces)
-        else {
-            throw eofError
-        }
-        guard let index = Int(line), index >= 1, index <= items.count else {
-            print("Invalid selection. Enter a number between 1 and \(items.count).")
-            continue
-        }
-        return items[index - 1]
-    }
+    return items[index]
 }
 
 #if DEBUG

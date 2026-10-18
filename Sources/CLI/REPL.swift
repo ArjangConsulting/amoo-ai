@@ -1,10 +1,11 @@
 import AmooCore
 import AndroidDriver
-import CLIReadline
 import CompanionProtocol
 import Foundation
 import IOSDriver
 import MCPServer
+import SwiftyTerminal
+import SwiftyTerminalLineEditor
 #if canImport(Darwin)
 import Darwin
 #else
@@ -56,8 +57,8 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
-    print(colored("Connected to \(device.displayName)", .bold, .green) + " on port \(port)")
-    print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
+    print(styled("Connected to \(device.displayName)", .bold, .green) + " on port \(port)")
+    print(styled("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
     await replLoop(executor: executor, toolDefinitions: toolDefinitions)
@@ -77,7 +78,7 @@ private func runAndroidREPL(
         companion = try GRPCCompanionClient.makeLive(connection: connection)
     } catch {
         print("Failed to connect to Android companion on port \(port): \(error)")
-        print(colored("Hint: ensure the Android companion is running and port \(port) is forwarded via adb.", .gray))
+        print(styled("Hint: ensure the Android companion is running and port \(port) is forwarded via adb.", .gray))
         return
     }
 
@@ -92,8 +93,8 @@ private func runAndroidREPL(
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
-    print(colored("Connected to \(name) (\(serial))", .bold, .green) + " on port \(port)")
-    print(colored("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
+    print(styled("Connected to \(name) (\(serial))", .bold, .green) + " on port \(port)")
+    print(styled("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 
     await replLoop(executor: executor, toolDefinitions: toolDefinitions)
@@ -116,17 +117,13 @@ private func replLoop(
     toolDefinitions: [ToolDefinition]
 ) async {
     // Load history from previous sessions
-    let historyPath = replHistoryPath()
-    if let historyPath {
-        cli_load_history(historyPath)
-    }
+    let editor = LineEditor(historyPath: replHistoryPath())
+    editor.loadHistory()
 
     while true {
-        // cli_readline blocks — run off the cooperative thread pool
+        // readLine blocks — run off the cooperative thread pool
         let line = await Task.detached(priority: .userInitiated) {
-            guard let ptr = cli_readline("> ") else { return String?.none }
-            defer { free(ptr) }
-            return String(cString: ptr)
+            editor.readLine(prompt: "> ")
         }.value
 
         guard let line else { break } // EOF / Ctrl+D
@@ -214,10 +211,8 @@ private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) as
 
     switch lower {
     case "quit", "exit":
-        if let historyPath = replHistoryPath() {
-            cli_save_history(historyPath)
-        }
-        print(colored("Goodbye.", .cyan))
+        LineEditor(historyPath: replHistoryPath()).saveHistory()
+        print(styled("Goodbye.", .cyan))
         return .quit
 
     case "help", "?":
@@ -236,23 +231,23 @@ private func handleBuiltin(_ line: String, toolDefinitions: [ToolDefinition]) as
 
 private func printHelp(definitions: [ToolDefinition]) {
     print("")
-    print(colored("Available tools", .bold, .cyan) + colored(" (use: <tool_name> [key=value ...])", .gray))
+    print(styled("Available tools", .bold, .cyan) + styled(" (use: <tool_name> [key=value ...])", .gray))
     print("")
 
     let sorted = definitions.sorted { $0.name < $1.name }
     for def in sorted {
-        let reqArgs = def.required.isEmpty ? "" : colored(" (\(def.required.joined(separator: ", ")))", .yellow)
-        print("  \(colored(def.name, .green))\(reqArgs)")
-        print("    \(colored(def.description, .gray))")
+        let reqArgs = def.required.isEmpty ? "" : styled(" (\(def.required.joined(separator: ", ")))", .yellow)
+        print("  \(styled(def.name, .green))\(reqArgs)")
+        print("    \(styled(def.description, .gray))")
     }
 
     print("")
-    print(colored("Built-in commands:", .bold, .cyan))
-    print("  \(colored("help", .green))        Show this help")
-    print("  \(colored("tools", .green))       Print available tool names only")
-    print("  \(colored("quit/exit", .green))   Exit the session")
+    print(styled("Built-in commands:", .bold, .cyan))
+    print("  \(styled("help", .green))        Show this help")
+    print("  \(styled("tools", .green))       Print available tool names only")
+    print("  \(styled("quit/exit", .green))   Exit the session")
     print("")
-    print(colored("Press Tab to complete the tool command or argument key.", .gray))
+    print(styled("Press Tab to complete the tool command or argument key.", .gray))
     print("")
 }
 
@@ -307,21 +302,21 @@ private func dispatch(
         arguments["output"] = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).\(ext)"
     }
 
-    let result = await withCLILoadingIndicator("Running \(toolName)") {
+    let result = await withSpinner("Running \(toolName)") {
         await executor.execute(toolName: toolName, arguments: arguments)
     }
     if result.isError {
-        print(colored(result.content, .red))
+        print(styled(result.content, .red))
         if result.content.hasPrefix("Unknown tool") {
             if let suggestion = closestTool(to: toolName, among: toolDefinitions.map(\.name)) {
-                print(colored("Did you mean: ", .gray) + colored(suggestion, .green) + colored("?", .gray))
+                print(styled("Did you mean: ", .gray) + styled(suggestion, .green) + styled("?", .gray))
             }
         }
     } else if result.content.contains("\u{001B}[") {
         // Already contains ANSI color codes (e.g. view hierarchy) — print as-is
         print(result.content)
     } else {
-        print(colored(result.content, .green))
+        print(styled(result.content, .green))
     }
 }
 

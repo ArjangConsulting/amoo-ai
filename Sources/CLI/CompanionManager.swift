@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import ProcessRunner
 import SwiftyShell
+import SwiftyTerminal
 import XcodeBuildKit
 import XcodeGenKit
 
@@ -155,11 +156,11 @@ final class CompanionManager: @unchecked Sendable {
             // all this proves. Reporting it as plain success is what made a dead companion look
             // like a healthy one: nothing was on the device and nothing was listening on the port.
             print(
-                colored("Companion already built.", .green)
-                    + colored(" Use --force to rebuild.", .gray)
+                styled("Companion already built.", .green)
+                    + styled(" Use --force to rebuild.", .gray)
             )
             print(
-                colored(
+                styled(
                     "This does not start it — run 'amoo companion start' to bring it up.",
                     .gray
                 )
@@ -167,17 +168,17 @@ final class CompanionManager: @unchecked Sendable {
             return
         }
         print("Building companion app (this may take a moment)...")
-        try await withCLILoadingIndicator("Building companion app") {
+        try await withSpinner("Building companion app") {
             try await buildForTesting(config: config)
         }
-        print(colored("Companion installed successfully.", .green))
+        print(styled("Companion installed successfully.", .green))
     }
 
     /// Shuts down any running companion, then installs (using pre-built if available) and starts fresh.
     func reinstallAndStart(config: CompanionConfig) async throws {
         await shutdown()
         print("Rebuilding companion app (this may take a moment)...")
-        try await withCLILoadingIndicator("Building companion app") {
+        try await withSpinner("Building companion app") {
             try await buildForTesting(config: config)
         }
 
@@ -190,14 +191,14 @@ final class CompanionManager: @unchecked Sendable {
         print("Installing and starting companion on port \(config.port)...")
         try await launchCompanion(xctestrunPath: testrun, config: config)
         await StartupProgress.report("Waiting for iOS companion API")
-        try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
+        try await withSpinner("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
                 host: config.host,
                 port: config.port,
                 timeoutSeconds: config.readyTimeoutSeconds
             )
         }
-        print(colored("Companion ready.", .bold, .green))
+        print(styled("Companion ready.", .bold, .green))
     }
 
     /// Ensures the companion is running. Builds and launches it if necessary.
@@ -243,7 +244,7 @@ final class CompanionManager: @unchecked Sendable {
         if (force && !bundled) || sourcesChanged || xctestrunPath == nil {
             await StartupProgress.report("Building iOS companion (in parallel with simulator boot)")
             print("Companion sources changed or no build exists. Building (this may take a moment)...")
-            try await withCLILoadingIndicator("Building companion app") {
+            try await withSpinner("Building companion app") {
                 try await buildForTesting(config: config)
             }
             xctestrunPath = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config)
@@ -265,14 +266,14 @@ final class CompanionManager: @unchecked Sendable {
             return
         }
 
-        try await withCLILoadingIndicator("Waiting for companion on port \(config.port)") {
+        try await withSpinner("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
                 host: config.host,
                 port: config.port,
                 timeoutSeconds: config.readyTimeoutSeconds
             )
         }
-        print(colored("Companion ready.", .bold, .green))
+        print(styled("Companion ready.", .bold, .green))
     }
 
     /// Returns once the runner this manager spawned exits, reporting its exit code and log.
@@ -288,7 +289,7 @@ final class CompanionManager: @unchecked Sendable {
         let output = await entry.process.waitForExit()
         guard !Task.isCancelled else { return }
         let log = " Log: \(Self.launchLogPath(port: entry.config.port))"
-        print(colored("Companion runner exited (code \(output.exitCode)).", .bold, .red) + log)
+        print(styled("Companion runner exited (code \(output.exitCode)).", .bold, .red) + log)
     }
 
     /// Detect a dead simulator API even when Xcode keeps its child process alive after a crash.

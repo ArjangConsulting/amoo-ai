@@ -4,6 +4,7 @@ import CompanionProtocol
 import IOSDriver
 import MCPServer
 import ProcessRunner
+import SwiftyTerminal
 
 // MARK: - DeviceCommandOptions
 
@@ -410,7 +411,7 @@ func runDeviceCommand(
         toolArguments["platform"] = options.platform.rawValue
     }
 
-    let result = await withCLILoadingIndicator("Running \(options.tool)") {
+    let result = await withSpinner("Running \(options.tool)") {
         await executor.execute(toolName: options.tool, arguments: toolArguments)
     }
     await companion.shutdown()

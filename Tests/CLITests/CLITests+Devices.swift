@@ -1,6 +1,5 @@
 import AuditEngine
 @testable import CLI
-import CLIReadline
 import Foundation
 import MCPServer
 import ProcessRunner
@@ -208,16 +207,6 @@ extension CLITests {
                 "hittable_timeout_ms=", "id=", "index=", "label=", "parent_id=", "scope=", "session_id="
             ]
         )
-    }
-
-    func testCompletionMatcherPrefersPrefixMatches() {
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "pre", 1), 1)
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "home", 1), 0)
-    }
-
-    func testCompletionMatcherFallsBackToContainsMatches() {
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "home", 0), 1)
-        XCTAssertEqual(cli_completion_candidate_matches("press_home", "xyz", 0), 0)
     }
 
     func testPreflightCommandWithFailureReturnsExitCode2() async {

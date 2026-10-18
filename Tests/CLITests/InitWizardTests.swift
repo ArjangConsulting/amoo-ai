@@ -1,6 +1,7 @@
 import AmooCore
 @testable import CLI
 import Foundation
+import SwiftyTerminal
 import TestCommons
 import XCTest
 
@@ -192,11 +193,11 @@ final class InitWizardTests: InitTestCase {
     }
 
     func testSelectionParsing() {
-        XCTAssertEqual(parseSelection("1,3", count: 3), [0, 2])
-        XCTAssertEqual(parseSelection("2-3", count: 3), [1, 2])
-        XCTAssertEqual(parseSelection("ALL", count: 2), [0, 1])
+        XCTAssertEqual(SelectionParser.parse("1,3", count: 3), [0, 2])
+        XCTAssertEqual(SelectionParser.parse("2-3", count: 3), [1, 2])
+        XCTAssertEqual(SelectionParser.parse("ALL", count: 2), [0, 1])
         for bad in ["0", "4", "3-1", "x", ""] {
-            XCTAssertNil(parseSelection(bad, count: 3), bad)
+            XCTAssertNil(SelectionParser.parse(bad, count: 3), bad)
         }
     }
 
