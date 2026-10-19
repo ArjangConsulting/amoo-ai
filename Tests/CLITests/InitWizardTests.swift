@@ -23,6 +23,7 @@ final class InitWizardTests: InitTestCase {
         let prompter = ScriptedPrompter()
         // both, Flutter
         prompter.choices = [2, 2]
+        prompter.multi = [[0], [0]]
         let completed = try await completeInitRequest(InitRequest(), discovery: found, prompter: prompter)
         let android = try XCTUnwrap(completed.additionalRequests.first)
         XCTAssertEqual(completed.platform, .ios)
@@ -35,6 +36,7 @@ final class InitWizardTests: InitTestCase {
         XCTAssertEqual(android.launch, false)
         XCTAssertEqual(completed.devices, ["phone"])
         XCTAssertEqual(android.devices, ["emulator"])
+        XCTAssertEqual(prompter.multiDefaults, [[], []])
         XCTAssertEqual(completed.out, android.out)
         let transcript = prompter.transcript.joined()
         XCTAssertTrue(transcript.contains("Flutter"))
@@ -112,6 +114,7 @@ final class InitWizardTests: InitTestCase {
             return CLIResult(output: "", exitCode: 0)
         }
         let declining = ScriptedPrompter()
+        declining.multi = [[0]]
         // save locations, then refuse the final question
         declining.confirms = [true, false]
         var result = await runInitCommand(

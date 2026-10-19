@@ -16,7 +16,8 @@ It asks only for what you did not pass as flags, defaulting from what it can see
 1. **Platform** — iOS simulator or Android emulator.
 2. **Framework** — native, React Native, Flutter or Kotlin Multiplatform guidance.
 3. **Devices** — use ↑/↓ to move, Space to toggle devices, and Enter to continue.
-   Press `a` to select or clear all. Redirected input uses `1,3`, `1-2`, or `all`. Leased devices are hidden; booted ones default.
+   No devices are selected by default; select at least one before continuing. Press `a` to select or
+   clear all. Redirected input uses `1,3`, `1-2`, or `all`. Leased devices are hidden.
 4. **Where the manifest is written**. Device reservations use the label `amoo-init`; pass
    `--owner <label>` to customize it.
 5. **AI clients** — offers to set up the amoo subagents and skills (see below).

@@ -14,6 +14,7 @@ final class ScriptedPrompter: Prompting {
     var multi: [[Int]?] = []
     private(set) var transcript: [String] = []
     private(set) var askDefaults: [String: String?] = [:]
+    private(set) var multiDefaults: [[Int]] = []
 
     func say(_ text: String) {
         transcript.append(text)
@@ -49,6 +50,7 @@ final class ScriptedPrompter: Prompting {
 
     func chooseMany(_ prompt: String, options: [String], defaults: [Int]) -> [Int]? {
         transcript.append(prompt + ": " + options.joined(separator: " | "))
+        multiDefaults.append(defaults)
         return multi.isEmpty ? defaults : multi.removeFirst()
     }
 }
