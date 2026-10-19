@@ -181,7 +181,7 @@ private struct InitWizard<Asker: Prompting> {
         guard let picked = prompter.chooseMany(
             "Select devices to prepare for testing",
             options: free.map(\.label),
-            defaults: [free.firstIndex(where: \.booted) ?? 0]
+            defaults: []
         ) else { throw InitWizardError.cancelled }
         return picked.map { free[$0].id }
     }
