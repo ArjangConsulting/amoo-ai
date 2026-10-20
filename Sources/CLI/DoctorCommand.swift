@@ -153,7 +153,10 @@ func doctorIssues(_ report: DoctorReport) -> [String] {
     var issues: [String] = []
     for server in report.mcpServers where server.stale {
         issues.append("Stale MCP server pid \(server.pid) (\(server.binary ?? "?")): its binary was rebuilt after it "
-            + "started, so it runs old code. Restart that MCP client/server.")
+            + "started, so it runs old code.")
+    }
+    if report.mcpServers.contains(where: \.stale) {
+        issues.append("Run `amoo doctor --kill-stale` to stop stale MCP servers, then restart their MCP clients.")
     }
     for lease in report.leases where lease.holderPID.map({ kill($0, 0) != 0 }) ?? false {
         issues.append("Lease \(lease.id) on \(lease.deviceID) has a dead companion holder; "
