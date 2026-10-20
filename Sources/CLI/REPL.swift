@@ -303,7 +303,7 @@ private func dispatch(
         arguments["output"] = FileManager.default.currentDirectoryPath + "/screenshot_\(timestamp).\(ext)"
     }
 
-    let result = await withCLISpinner("Running \(toolName)") {
+    let result = await withSpinner("Running \(toolName)") {
         await executor.execute(toolName: toolName, arguments: arguments)
     }
     if result.isError {

@@ -168,7 +168,7 @@ final class CompanionManager: @unchecked Sendable {
             return
         }
         print("Building companion app (this may take a moment)...")
-        try await withCLISpinner("Building companion app") {
+        try await withSpinner("Building companion app") {
             try await buildForTesting(config: config)
         }
         print(styled("Companion installed successfully.", .green))
@@ -178,7 +178,7 @@ final class CompanionManager: @unchecked Sendable {
     func reinstallAndStart(config: CompanionConfig) async throws {
         await shutdown()
         print("Rebuilding companion app (this may take a moment)...")
-        try await withCLISpinner("Building companion app") {
+        try await withSpinner("Building companion app") {
             try await buildForTesting(config: config)
         }
 
@@ -191,7 +191,7 @@ final class CompanionManager: @unchecked Sendable {
         print("Installing and starting companion on port \(config.port)...")
         try await launchCompanion(xctestrunPath: testrun, config: config)
         await StartupProgress.report("Waiting for iOS companion API")
-        try await withCLISpinner("Waiting for companion on port \(config.port)") {
+        try await withSpinner("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
                 host: config.host,
                 port: config.port,
@@ -244,7 +244,7 @@ final class CompanionManager: @unchecked Sendable {
         if (force && !bundled) || sourcesChanged || xctestrunPath == nil {
             await StartupProgress.report("Building iOS companion (in parallel with simulator boot)")
             print("Companion sources changed or no build exists. Building (this may take a moment)...")
-            try await withCLISpinner("Building companion app") {
+            try await withSpinner("Building companion app") {
                 try await buildForTesting(config: config)
             }
             xctestrunPath = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config)
@@ -266,7 +266,7 @@ final class CompanionManager: @unchecked Sendable {
             return
         }
 
-        try await withCLISpinner("Waiting for companion on port \(config.port)") {
+        try await withSpinner("Waiting for companion on port \(config.port)") {
             try await waitUntilReachable(
                 host: config.host,
                 port: config.port,

@@ -12,8 +12,7 @@ permissions:
 
 jobs:
   quality-and-tests:
-    # Xcode 27 (Swift 6.4). macos-latest still defaults to Xcode 26.6 (Swift 6.3), whose release
-    # builds aborted in SwiftyTerminal's withSpinner; see Sources/CLI/CLISpinner.swift.
+    # Xcode 27 (Swift 6.4); macos-latest still defaults to Xcode 26.6 (Swift 6.3).
     runs-on: xcode-27
     steps:
       - name: Checkout
