@@ -132,7 +132,7 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "dismiss_keyboard",
-            description: "Hide the on-screen keyboard. Tries the Return/Done key, then a keyboard Hide/Done"
+            description: "Hide the on-screen keyboard. Tries the Return/Done key, Escape, then a keyboard Hide/Done"
                 + " button, then a swipe down on the keyboard, and reports which worked. Use it when"
                 + " press_key return does nothing, as on a decimal or number pad.",
             properties: [:]

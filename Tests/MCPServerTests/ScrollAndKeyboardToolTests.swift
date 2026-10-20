@@ -110,9 +110,9 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
             visible
         }
 
-        func pressKey(_: KeyboardKey, modifiers _: Set<KeyModifier>) async throws {
-            steps.append("return")
-            if fix == .returnKey {
+        func pressKey(_ key: KeyboardKey, modifiers _: Set<KeyModifier>) async throws {
+            steps.append(key == .escape ? "escape" : "return")
+            if (fix == .returnKey && key == .returnKey) || (fix == .escapeKey && key == .escape) {
                 visible = false
             }
         }
@@ -167,12 +167,21 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
         XCTAssertEqual(steps, ["return"])
     }
 
+    func testDismissNumericKeyboardWithEscapeWithoutTappingAppButtons() async {
+        let driver = KeyboardDriver(fix: .escapeKey)
+        let result = await DriverToolExecutor(driver: driver).execute(toolName: "dismiss_keyboard", arguments: [:])
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertTrue(result.content.contains("Escape"), result.content)
+        let steps = await driver.steps
+        XCTAssertEqual(steps, ["return", "escape"])
+    }
+
     func testDismissKeyboardFallsBackToTheDoneButton() async {
         let driver = KeyboardDriver(fix: .doneButton)
         let result = await DriverToolExecutor(driver: driver).execute(toolName: "dismiss_keyboard", arguments: [:])
         XCTAssertTrue(result.content.contains("'Done' button"), result.content)
         let steps = await driver.steps
-        XCTAssertEqual(steps, ["return", "tap-done"])
+        XCTAssertEqual(steps, ["return", "escape", "tap-done"])
     }
 
     func testDismissKeyboardFallsBackToASwipeAndThenFailsLoudly() async {
@@ -187,7 +196,7 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
     }
 }
 
-private enum KeyboardFix { case returnKey, doneButton, swipe, nothing }
+private enum KeyboardFix { case returnKey, escapeKey, doneButton, swipe, nothing }
 
 // swiftlint:enable multiline_arguments
 
