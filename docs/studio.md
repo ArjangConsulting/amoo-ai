@@ -55,6 +55,13 @@ The catalog capabilities are advertised only when `amoo studio serve` is assembl
 - **Destructive commands.** A console tool marked destructive is refused with a pointer to the
   approved workflow, replacing the old word-based check that refused harmless text such as
   `type_text text="delete me"`.
+- **Screenshots.** With `captureScreenshot: true`, `repl.execute` takes a settled screenshot
+  (`settle_timeout_ms` 1500) after any tool that is not read-only, whether it succeeded or failed.
+  It returns `screenshot: {path, widthPixels, heightPixels, widthPoints, heightPoints, scale}`. A
+  failed capture is logged and leaves the command's result unchanged.
+- **Gesture points.** `gesturePoint: {x, y}`, in points, reports where a tap landed. Coordinate taps
+  take it from their arguments, and `tap_element` from the `tap_point` field its structured result
+  now carries.
 - **Platform.** `repl.execute` accepts an optional `platform` for the selected device. Older Studio
   builds omit it, and the active test's platform is used instead.
 - **Plan vocabulary.** Plan names the MCP executor does not implement run as the tools the session

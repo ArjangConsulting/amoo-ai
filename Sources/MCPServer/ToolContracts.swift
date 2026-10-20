@@ -11,6 +11,7 @@ enum ToolContracts {
             var fields = schema.properties
             switch definition.name {
             case "tap_element":
+                fields["tap_point"] = .init(type: "object", description: "Where the tap landed, {x, y} in points")
                 fields["hittability_checked"] = .init(
                     type: "boolean",
                     description: "Whether the tap point was checked against the hierarchy"

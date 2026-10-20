@@ -1,54 +1,6 @@
 import AmooLogging
 import Foundation
 
-public struct StudioReplRequest: Codable, Sendable {
-    public let command: String
-    public let activeTest: StudioAuthoredTest
-    public let selectedDeviceId: String?
-    public let selectedProviderId: String?
-    /// The selected device's platform (`ios` or `android`). Older Studio builds omit it, and the
-    /// active test's platform is used instead.
-    public let platform: String?
-    public init(
-        command: String,
-        activeTest: StudioAuthoredTest,
-        selectedDeviceId: String?,
-        selectedProviderId: String?,
-        platform: String? = nil
-    ) {
-        self.command = command; self.activeTest = activeTest; self.selectedDeviceId = selectedDeviceId; self
-            .selectedProviderId = selectedProviderId
-        self.platform = platform
-    }
-}
-
-/// A console command's outcome. Fields after `output` are omitted by older Amoo builds.
-public struct StudioReplResult: Codable, Equatable, Sendable {
-    public let output: String
-    /// True when a tool ran but reported failure; the output explains why.
-    public let isError: Bool?
-    /// The tool that ran, for tool commands.
-    public let tool: String?
-    /// The tool's structured result as JSON text, exactly as the tool produced it.
-    public let structuredContent: String?
-    /// Files the command wrote, such as screenshots.
-    public let artifacts: [String]?
-
-    public init(
-        output: String,
-        isError: Bool? = nil,
-        tool: String? = nil,
-        structuredContent: String? = nil,
-        artifacts: [String]? = nil
-    ) {
-        self.output = output
-        self.isError = isError
-        self.tool = tool
-        self.structuredContent = structuredContent
-        self.artifacts = artifacts
-    }
-}
-
 public struct StudioTestRunRequest: Codable, Sendable {
     public let test: StudioAuthoredTest
     public let deviceId: String
