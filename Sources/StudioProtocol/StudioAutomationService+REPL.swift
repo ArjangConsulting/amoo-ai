@@ -36,8 +36,16 @@ extension LiveStudioAutomationService {
     /// The unlocked command path, for callers that already hold the device's lock, such as a legacy
     /// plan run replaying REPL commands.
     func executeCommand(_ request: StudioReplRequest) async throws -> StudioReplResult {
-        let command = request.command.trimmingCharacters(in: .whitespacesAndNewlines)
-        if command.range(of: Self.destructivePattern, options: [.regularExpression, .caseInsensitive]) != nil {
+        var command = request.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let grammar {
+            // The catalog marks destructive tools, so a word like "delete" inside typed text is fine.
+            if let result = try await catalogToolResult(command, request: request, grammar: grammar) {
+                return result
+            }
+            if case let .builtin(normalized) = grammar.parse(command).command {
+                command = normalized
+            }
+        } else if command.range(of: Self.destructivePattern, options: [.regularExpression, .caseInsensitive]) != nil {
             throw StudioAutomationError.destructiveCommand
         }
 
@@ -138,9 +146,9 @@ extension LiveStudioAutomationService {
         let result = try await toolExecutor.execute(
             operation,
             deviceId: deviceID,
-            platform: request.activeTest.platform.rawValue,
+            platform: request.platform ?? request.activeTest.platform.rawValue,
             appId: request.activeTest.requirements?.appId
         )
-        return .init(output: result.output)
+        return .init(output: result.output, tool: operation.tool, artifacts: result.artifacts)
     }
 }

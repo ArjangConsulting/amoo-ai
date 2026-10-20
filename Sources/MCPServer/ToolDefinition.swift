@@ -6,11 +6,24 @@ public struct ToolInputProperty: Sendable, Equatable {
     public var type: String
     public var description: String
     public var items: ToolItemsSchema?
+    /// Known values, in canonical spelling. Exhaustive sets are published as a JSON Schema `enum`;
+    /// open sets (a key name that may also be any single character) as `examples`. Studio uses both
+    /// for completion, and only exhaustive sets for validation.
+    public var values: [String]?
+    public var valuesAreExhaustive: Bool
 
-    public init(type: String, description: String, items: ToolItemsSchema? = nil) {
+    public init(
+        type: String,
+        description: String,
+        items: ToolItemsSchema? = nil,
+        values: [String]? = nil,
+        valuesAreExhaustive: Bool = true
+    ) {
         self.type = type
         self.description = description
         self.items = items
+        self.values = values
+        self.valuesAreExhaustive = valuesAreExhaustive
     }
 }
 
@@ -36,6 +49,12 @@ public struct ToolDefinition: Sendable {
     public var properties: [String: ToolInputProperty]
     public var required: [String]
     public var outputSchema: ToolOutputSchema?
+    /// Groups the tool for catalogs such as Studio's console; set by `ToolCatalogMetadata`.
+    public var category: ToolCategory?
+    /// MCP `readOnlyHint`: the tool observes the device and app without changing them.
+    public var readOnly: Bool?
+    /// MCP `destructiveHint`: the tool may destroy app or device state irreversibly.
+    public var destructive: Bool?
 
     public init(
         name: String,
@@ -59,6 +78,11 @@ public struct ToolDefinition: Sendable {
             title: title,
             description: description,
             inputSchema: inputSchemaValue(),
+            annotations: .init(
+                readOnlyHint: readOnly,
+                // MCP defines destructiveHint only for tools that are not read-only.
+                destructiveHint: readOnly == true ? nil : destructive
+            ),
             outputSchema: outputSchemaValue()
         )
     }
@@ -97,6 +121,9 @@ private func toolPropertyValue(_ property: ToolInputProperty) -> Value {
     ]
     if let items = property.items {
         fields["items"] = itemsSchemaValue(items)
+    }
+    if let values = property.values, !values.isEmpty {
+        fields[property.valuesAreExhaustive ? "enum" : "examples"] = .array(values.map { .string($0) })
     }
     return .object(fields)
 }

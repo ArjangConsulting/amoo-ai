@@ -166,7 +166,7 @@ public struct StudioService: Sendable {
     /// Returns `nil` when no family recognizes the method, which `handle` turns into -32601.
     /// Split by family so each switch stays small enough to read in one go.
     private func route(_ request: Request) async throws -> AnyJSON? {
-        if let result = try systemResult(for: request) {
+        if let result = try await systemResult(for: request) {
             return result
         }
         if let result = try await deviceResult(for: request) {
@@ -181,14 +181,22 @@ public struct StudioService: Sendable {
         return try await automationResult(for: request)
     }
 
-    private func systemResult(for request: Request) throws -> AnyJSON? {
+    /// Capabilities that depend on how `amoo studio serve` was assembled, such as the tool catalog.
+    static let catalogCapabilities = ["tools.catalog", "repl.complete", "repl.validate", "repl.structuredResults"]
+
+    private func capabilities() async -> [String] {
+        await automation.toolCatalog() == nil ? Self.advertisedCapabilities : Self.advertisedCapabilities + Self
+            .catalogCapabilities
+    }
+
+    private func systemResult(for request: Request) async throws -> AnyJSON? {
         switch request.method {
         case "system.handshake":
-            try encodeValue(StudioHandshake(
+            try await encodeValue(StudioHandshake(
                 protocolVersion: Self.protocolVersion,
                 product: "amoo",
                 version: AmooVersion.current,
-                capabilities: Self.advertisedCapabilities
+                capabilities: capabilities()
             ))
         case "system.health":
             try encodeValue(StudioHealth(status: "ready"))
@@ -227,6 +235,13 @@ public struct StudioService: Sendable {
         }
     }
 
+    private func catalogResult() async throws -> AnyJSON {
+        guard let catalog = await automation.toolCatalog() else {
+            throw StudioAutomationError.unsupportedCommand("tools.catalog")
+        }
+        return try encodeValue(catalog)
+    }
+
     private func withDevice(
         _ deviceId: String,
         _ operation: @Sendable (String) async throws -> AnyJSON
@@ -254,10 +269,18 @@ public struct StudioService: Sendable {
         }
     }
 
+    // A flat method dispatch; splitting it would only scatter the routing table.
+    // swiftlint:disable:next cyclomatic_complexity
     private func automationResult(for request: Request) async throws -> AnyJSON? {
         switch request.method {
         case "repl.execute":
             try await encodeValue(automation.execute(request.decodeParams(StudioReplRequest.self)))
+        case "repl.complete":
+            try await encodeValue(automation.complete(request.decodeParams(StudioReplCompletionRequest.self)))
+        case "repl.validate":
+            try await encodeValue(automation.validate(request.decodeParams(StudioReplValidationRequest.self)))
+        case "tools.catalog":
+            try await catalogResult()
         case "tests.run":
             try await encodeValue(automation.run(request.decodeParams(StudioTestRunRequest.self)))
         case "tests.start":

@@ -26,6 +26,45 @@ failures keep the request `id` and use `-32602` for invalid params and `-32603` 
 | `rpc.concurrent` | Requests are handled concurrently as described above |
 | `rpc.notifications` | Amoo may push notifications on the protocol stream |
 | `tests.progress` | Asynchronous test runs push `tests.progress` with the `tests.status` shape on every change |
+| `tools.catalog` | `tools.catalog` returns the console and plan vocabulary built from the MCP registry |
+| `repl.complete` | `repl.complete` completes a console line, including elements on a connected device's screen |
+| `repl.validate` | `repl.validate` returns diagnostics for a console line |
+| `repl.structuredResults` | `repl.execute` runs any console tool and returns `isError`, `tool`, `structuredContent`, and `artifacts` |
+
+The catalog capabilities are advertised only when `amoo studio serve` is assembled with a
+`StudioToolCatalogProviding`, which the CLI builds from `MCPServer().toolDefinitions()`.
+
+- **Tool schemas.** Each `tools.catalog` entry carries:
+  - `name`, `title`, `description` and `category`;
+  - `readOnly` and `destructive`, the MCP annotations;
+  - `replSupported`, which is false for session and companion lifecycle tools, since Studio runs those itself;
+  - `planTool`, the plan vocabulary name (`assert_absent` records as `assert_not_visible`);
+  - typed `arguments` with `values` and `valuesAreExhaustive`. `session_id` is hidden because the
+    console routes by the selected device.
+- **Value hints.** `ToolCatalogMetadata` in MCPServer keeps the value hints and annotations in one
+  table. Exhaustive value sets are published in MCP schemas as `enum`, and open sets as `examples`.
+- **The console grammar.** `StudioReplGrammar` is pure and shared by completion, validation and
+  execution. Built-in commands match by words. Tool calls take `name=value` words, with quotes
+  anywhere in a word. A bare value fills the next missing required argument.
+- **Positions.** Positions are UTF-16 offsets, as Studio's editor reports them.
+- **Completion.** `repl.complete` takes `{line, cursor, selectedDeviceId?, platform?}` and returns
+  `{replaceStart, replaceEnd, items, isIncomplete}`. Element values come from `find_elements` on a
+  device whose companion is already connected; completion never starts a companion. They are
+  cached for 3 seconds and dropped after any command that is not read-only.
+- **Validation.** `repl.validate` takes `{line}` and returns `{diagnostics: [{start, end, severity, message}]}`.
+- **Destructive commands.** A console tool marked destructive is refused with a pointer to the
+  approved workflow, replacing the old word-based check that refused harmless text such as
+  `type_text text="delete me"`.
+- **Platform.** `repl.execute` accepts an optional `platform` for the selected device. Older Studio
+  builds omit it, and the active test's platform is used instead.
+- **Plan vocabulary.** Plan names the MCP executor does not implement run as the tools the session
+  compiler records them from:
+
+  | Plan tool | Runs as |
+  | --- | --- |
+  | `assert_not_visible` | `assert_absent` |
+  | `wait_for_element` | `assert_visible` |
+  | `assert_text` | `assert_visible`; the expected text constrains the element's `label`, or becomes `contains_text` without a selector |
 
 The initial methods are:
 

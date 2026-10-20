@@ -50,20 +50,21 @@ public struct MCPServer: Sendable {
         // clients that honor schema (additionalProperties: false) can route
         // calls to a specific session created by start_session.
         let driverRouted = (
-            DeviceTools.definitions
-                + ActionTools.definitions
-                + QueryTools.definitions
-                + AuditTools.definitions
-                + AssistantTools.definitions
+            DeviceTools.definitions.map { $0.categorized(.device) }
+                + ActionTools.definitions.map { $0.categorized(.action) }
+                + QueryTools.definitions.map { $0.categorized(.query) }
+                + AuditTools.definitions.map { $0.categorized(.audit) }
+                + AssistantTools.definitions.map { $0.categorized(.assistant) }
         ).map { $0.allowingSessionID() }
 
         return (driverRouted
-            + SessionTools.definitions
-            + CompanionTools.definitions
-            + WebViewTools.definitions
-            + IntentTools.definitions.map { $0.allowingSessionID() }
-            + BatchTools.definitions)
+            + SessionTools.definitions.map { $0.categorized(.session) }
+            + CompanionTools.definitions.map { $0.categorized(.companion) }
+            + WebViewTools.definitions.map { $0.categorized(.webView) }
+            + IntentTools.definitions.map { $0.categorized(.intent).allowingSessionID() }
+            + BatchTools.definitions.map { $0.categorized(.batch) })
             .map(ToolContracts.enrich)
+            .map(ToolCatalogMetadata.apply)
             .filter { profile.includes($0.name) }
     }
 }

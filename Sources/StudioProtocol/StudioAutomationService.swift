@@ -6,21 +6,46 @@ public struct StudioReplRequest: Codable, Sendable {
     public let activeTest: StudioAuthoredTest
     public let selectedDeviceId: String?
     public let selectedProviderId: String?
+    /// The selected device's platform (`ios` or `android`). Older Studio builds omit it, and the
+    /// active test's platform is used instead.
+    public let platform: String?
     public init(
         command: String,
         activeTest: StudioAuthoredTest,
         selectedDeviceId: String?,
-        selectedProviderId: String?
+        selectedProviderId: String?,
+        platform: String? = nil
     ) {
         self.command = command; self.activeTest = activeTest; self.selectedDeviceId = selectedDeviceId; self
             .selectedProviderId = selectedProviderId
+        self.platform = platform
     }
 }
 
+/// A console command's outcome. Fields after `output` are omitted by older Amoo builds.
 public struct StudioReplResult: Codable, Equatable, Sendable {
     public let output: String
-    public init(output: String) {
+    /// True when a tool ran but reported failure; the output explains why.
+    public let isError: Bool?
+    /// The tool that ran, for tool commands.
+    public let tool: String?
+    /// The tool's structured result as JSON text, exactly as the tool produced it.
+    public let structuredContent: String?
+    /// Files the command wrote, such as screenshots.
+    public let artifacts: [String]?
+
+    public init(
+        output: String,
+        isError: Bool? = nil,
+        tool: String? = nil,
+        structuredContent: String? = nil,
+        artifacts: [String]? = nil
+    ) {
         self.output = output
+        self.isError = isError
+        self.tool = tool
+        self.structuredContent = structuredContent
+        self.artifacts = artifacts
     }
 }
 
@@ -104,19 +129,37 @@ public protocol StudioAutomationServing: Sendable {
     func status(runId: String) async throws -> StudioTestRunStatus
     func cancel(runId: String) async throws -> StudioTestRunStatus
     func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult
+    /// The tool catalog, or nil when this build has none, which also disables completion.
+    func toolCatalog() async -> StudioToolCatalog?
+    func complete(_ request: StudioReplCompletionRequest) async throws -> StudioReplCompletionResult
+    func validate(_ request: StudioReplValidationRequest) async throws -> StudioReplValidationResult
 }
 
 public extension StudioAutomationServing {
     func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
         throw StudioAutomationError.invalidTest("Code export is unavailable in this Amoo build.")
     }
+
+    func toolCatalog() async -> StudioToolCatalog? {
+        nil
+    }
+
+    func complete(_ request: StudioReplCompletionRequest) async throws -> StudioReplCompletionResult {
+        .empty(at: request.cursor)
+    }
+
+    func validate(_: StudioReplValidationRequest) async throws -> StudioReplValidationResult {
+        .init(diagnostics: [])
+    }
 }
 
 public struct StudioToolExecutionResult: Equatable, Sendable {
     public let output: String
     public let artifacts: [String]
-    public init(output: String, artifacts: [String] = []) {
-        self.output = output; self.artifacts = artifacts
+    /// The tool's structured result as JSON text, when it has one.
+    public let structuredContent: String?
+    public init(output: String, artifacts: [String] = [], structuredContent: String? = nil) {
+        self.output = output; self.artifacts = artifacts; self.structuredContent = structuredContent
     }
 }
 
@@ -130,9 +173,11 @@ public protocol StudioToolExecuting: Sendable {
 }
 
 public enum StudioAutomationError: Error, CustomStringConvertible {
-    case unsupportedCommand(String), destructiveCommand, invalidTest(String), runNotFound(String)
+    case unsupportedCommand(String), destructiveCommand, invalidTest(String), runNotFound(String),
+         invalidCommand(String)
     public var description: String {
         switch self {
+        case let .invalidCommand(message): message
         case let .unsupportedCommand(command): "Unsupported Studio command: \(command). Run 'help' to list commands."
         case .destructiveCommand: "Destructive commands must use a confirmed Studio workflow."
         case let .invalidTest(reason): "Test validation failed: \(reason)"
@@ -154,6 +199,10 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     let progressFeed: AsyncStream<StudioTestRunStatus>.Continuation
     let deviceLocks: StudioDeviceLocks
     let logger = AmooLogger.forType(LiveStudioAutomationService.self)
+    let toolCatalogProvider: (any StudioToolCatalogProviding)?
+    let elementSuggester: (any StudioElementSuggesting)?
+    /// Built on first use from `toolCatalogProvider`; the catalog is fixed for the process.
+    var cachedGrammar: StudioReplGrammar?
 
     /// `notifications` receives a `tests.progress` notification whenever an asynchronous run's
     /// status changes. `deviceLocks` orders this service's device work with the rest of Studio's.
@@ -163,8 +212,12 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         toolExecutor: (any StudioToolExecuting)? = nil,
         codeEmitters: StudioCodeEmitters = .init(),
         notifications: StudioNotificationCenter? = nil,
-        deviceLocks: StudioDeviceLocks = .init()
+        deviceLocks: StudioDeviceLocks = .init(),
+        toolCatalogProvider: (any StudioToolCatalogProviding)? = nil,
+        elementSuggester: (any StudioElementSuggesting)? = nil
     ) {
+        self.toolCatalogProvider = toolCatalogProvider
+        self.elementSuggester = elementSuggester
         self.workspace = workspace
         self.reportsURL = reportsURL
         self.toolExecutor = toolExecutor
