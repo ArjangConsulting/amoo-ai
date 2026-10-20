@@ -241,7 +241,12 @@ public struct CLIApp {
             }
             if options.action != .status {
                 do {
-                    try enforceDeviceAccess(deviceID: options.deviceID, runtime: presentedRuntime(flag: nil))
+                    let store = DeviceRuntimeStore()
+                    try enforceDeviceAccess(
+                        deviceID: options.deviceID,
+                        runtime: presentedRuntime(flag: nil, store: store),
+                        store: store
+                    )
                 } catch {
                     return CLIResult(output: "\(error)", exitCode: 3)
                 }

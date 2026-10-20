@@ -197,8 +197,11 @@ plugin (AGP 9's new DSL is incompatible with it). Before editing `CompanionApps/
 - gRPC proto files define the shared companion interface contract.
 - Keep platform-specific code isolated behind the shared protocols (`Architecture.md`).
 - Document public APIs.
-- Structured logging: `Logger.forType(subsystem:…, …Type.self)` from SwiftCommons; log before and
-  after async operations and on every error with feature/action/state context; never log user data.
+- Structured logging: `AmooLogger.forType(Type.self)` from the `AmooLogging` target (OSLog on Apple
+  platforms, swift-log on Linux; the API mirrors SwiftCommons' `Logger.forType`, which is not used
+  here because it is OSLog-only and its `StringParsable` conformances make `Int.init` ambiguous);
+  log before and after async operations and on every error with feature/action/state context via
+  `error(_:error:context:)`; never log user data.
 
 ## Versioning
 

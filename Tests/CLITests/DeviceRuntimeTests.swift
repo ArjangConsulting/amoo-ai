@@ -271,6 +271,19 @@ final class DeviceRuntimeEndpointTests: XCTestCase {
         }
     }
 
+    func testStaleEnvironmentRuntimeIsIgnoredButStaleFlagIsRefused() throws {
+        let store = DeviceRuntimeStore.temporary()
+        let parsed = try options(args: ["--platform", "ios", "current_app"])
+
+        let adopted = try parsed.applyingRuntime(store: store, environment: ["AMOO_RUNTIME_ID": "runtime-gone"]).get()
+        XCTAssertEqual(adopted.port, parsed.port)
+        XCTAssertNil(presentedRuntime(flag: nil, environment: ["AMOO_RUNTIME_ID": "runtime-gone"], store: store))
+        XCTAssertEqual(
+            presentedRuntime(flag: "runtime-typo", environment: ["AMOO_RUNTIME_ID": "runtime-gone"], store: store),
+            "runtime-typo"
+        )
+    }
+
     func testRuntimeForAnotherPlatformIsRefused() throws {
         let (store, runtime) = try controlled(port: 22093)
         let parsed = try options(args: ["--platform", "android", "--runtime-id", runtime.id, "current_app"])

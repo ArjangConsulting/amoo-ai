@@ -1,6 +1,6 @@
 import AmooCore
+import AmooLogging
 import Foundation
-import Logging
 import MobileCore
 import MobileDevices
 import Synchronization
@@ -26,7 +26,7 @@ struct DeviceRuntimeStore: Sendable {
     /// Stops what an expired runtime's process left running, before the runtime file is removed.
     /// Only the consumer knows what that is; `nil` leaves nothing to stop.
     let reaper: (@Sendable (DeviceRuntime) -> Bool)?
-    let logger = Logger(label: "amoo.cli.DeviceRuntimeStore")
+    let logger = AmooLogger.forType(Self.self)
 
     init(
         directory: URL,
@@ -116,7 +116,7 @@ struct DeviceRuntimeStore: Sendable {
             expiresAt: Self.storedPrecision(now.addingTimeInterval(ttl))
         )
         try publish(runtime)
-        logger.info("Started runtime", metadata: ["device": "\(deviceID)", "runtime": "\(runtime.id)"])
+        logger.info("Started runtime", context: "device=\(deviceID) runtime=\(runtime.id)")
         return runtime
     }
 
@@ -142,22 +142,16 @@ struct DeviceRuntimeStore: Sendable {
         do {
             mutation = try DeviceAccessLock(deviceID: runtime.deviceID, store: self, runtimeRecord: true)
         } catch {
-            logger.error(
-                "Could not lock runtime record",
-                metadata: ["runtime": "\(runtime.id)", "action": "stop", "error": "\(error)"]
-            )
+            logger.error("Could not lock runtime record", error: error, context: "action=stop runtime=\(runtime.id)")
             return false
         }
         defer { mutation.release() }
         guard read(fileURL(deviceID: runtime.deviceID))?.id == runtime.id else { return false }
         do { try FileManager.default.removeItem(at: fileURL(deviceID: runtime.deviceID)) } catch {
-            logger.error(
-                "Could not remove runtime record",
-                metadata: ["runtime": "\(runtime.id)", "action": "stop", "error": "\(error)"]
-            )
+            logger.error("Could not remove runtime record", error: error, context: "action=stop runtime=\(runtime.id)")
             return false
         }
-        logger.info("Stopped runtime", metadata: ["device": "\(runtime.deviceID)", "runtime": "\(runtime.id)"])
+        logger.info("Stopped runtime", context: "device=\(runtime.deviceID) runtime=\(runtime.id)")
         return true
     }
 
@@ -181,15 +175,16 @@ struct DeviceRuntimeStore: Sendable {
         defer { mutation.release() }
         let url = fileURL(deviceID: deviceID)
         guard let runtime = read(url), runtime.isExpired(at: now) else { return nil }
-        logger.info("Reaping expired runtime", metadata: ["device": "\(deviceID)", "runtime": "\(runtime.id)"])
+        logger.info("Reaping expired runtime", context: "device=\(deviceID) runtime=\(runtime.id)")
         if let reaper, !reaper(runtime) {
-            logger.error("Runtime cleanup failed; retaining record", metadata: ["runtime": "\(runtime.id)"])
+            logger.error("Runtime cleanup failed; retaining record", context: "action=reap runtime=\(runtime.id)")
             return nil
         }
         do { try FileManager.default.removeItem(at: url) } catch {
             logger.error(
                 "Could not remove expired runtime record",
-                metadata: ["runtime": "\(runtime.id)", "action": "reap", "error": "\(error)"]
+                error: error,
+                context: "action=reap runtime=\(runtime.id)"
             )
             return nil
         }

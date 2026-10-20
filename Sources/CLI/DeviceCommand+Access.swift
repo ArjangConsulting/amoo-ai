@@ -29,7 +29,7 @@ func acquireRuntimeDeviceAccess(
     runtimeID: String?,
     store: DeviceRuntimeStore = DeviceRuntimeStore()
 ) throws -> DeviceAccessLock? {
-    let presented = presentedRuntime(flag: runtimeID)
+    let presented = presentedRuntime(flag: runtimeID, store: store)
     try enforceDeviceAccess(deviceID: deviceID, runtime: presented, store: store)
     guard let deviceID, deviceID != "booted" else { return nil }
     if case .owned = store.access(deviceID: deviceID, presenting: presented) {

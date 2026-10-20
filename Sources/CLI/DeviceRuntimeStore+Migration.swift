@@ -1,4 +1,5 @@
 import AmooCore
+import AmooLogging
 import Foundation
 import MobileDevices
 
@@ -25,7 +26,7 @@ extension DeviceRuntimeStore {
             } catch {
                 logger.info(
                     "Deferring runtime migration while the device is in use",
-                    metadata: ["runtime": "\(record.id)", "action": "migrate", "error": "\(error)"]
+                    context: "action=migrate runtime=\(record.id) reason=\(error)"
                 )
                 continue
             }
@@ -50,12 +51,9 @@ extension DeviceRuntimeStore {
                 if legacyDirectory != directory {
                     try FileManager.default.removeItem(at: legacy.fileURL(deviceID: record.deviceID))
                 }
-                logger.info("Migrated device runtime", metadata: ["runtime": "\(runtime.id)"])
+                logger.info("Migrated device runtime", context: "runtime=\(runtime.id)")
             } catch {
-                logger.error(
-                    "Device runtime migration failed",
-                    metadata: ["runtime": "\(runtime.id)", "error": "\(error)"]
-                )
+                logger.error("Device runtime migration failed", error: error, context: "runtime=\(runtime.id)")
             }
         }
     }

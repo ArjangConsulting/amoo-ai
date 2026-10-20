@@ -1,4 +1,5 @@
 import AmooCore
+import AmooLogging
 import Foundation
 import MobileCore
 import MobileDevices
@@ -62,12 +63,26 @@ enum DeviceAccessError: Error, CustomStringConvertible, Equatable {
 }
 
 /// The runtime a CLI call presents: `--runtime-id`, else `AMOO_RUNTIME_ID`.
-func presentedRuntime(flag: String?, environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+///
+/// An explicit flag is always returned, so a mistyped id is reported. An id that only came from the
+/// environment is a standing default that outlives its runtime (runtimes expire after an idle hour);
+/// when a `store` is given and no longer knows it, it is dropped instead of failing every call.
+func presentedRuntime(
+    flag: String?,
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    store: DeviceRuntimeStore? = nil
+) -> String? {
     if let flag, !flag.isEmpty {
         return flag
     }
-    return environment["AMOO_RUNTIME_ID"].flatMap { $0.isEmpty ? nil : $0 }
+    guard let ambient = environment["AMOO_RUNTIME_ID"], !ambient.isEmpty else { return nil }
+    if let store, store.runtime(id: ambient) == nil {
+        return nil
+    }
+    return ambient
 }
+
+private let accessLogger = AmooLogger.forType(DeviceAccessError.self)
 
 /// Refuses a call against a device another session has controlled; renews the caller's own runtime.
 func enforceDeviceAccess(
@@ -85,6 +100,10 @@ func enforceDeviceAccess(
     case let .owned(runtime):
         _ = try? store.refresh(runtime)
     case let .claimedByOther(runtime):
+        accessLogger.info(
+            "Refused device access",
+            context: "action=enforce device=\(deviceID) runtime=\(runtime.id) presented=\(runtimeID ?? "-")"
+        )
         throw DeviceAccessError.controlledByOther(runtime)
     }
 }

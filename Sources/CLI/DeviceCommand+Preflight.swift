@@ -22,7 +22,12 @@ func devicePreflight(
         return await runDeviceBootHint(options: options, hint: hint)
     }
     do {
-        try enforceDeviceAccess(deviceID: options.deviceID, runtime: presentedRuntime(flag: options.runtimeID))
+        let store = DeviceRuntimeStore()
+        try enforceDeviceAccess(
+            deviceID: options.deviceID,
+            runtime: presentedRuntime(flag: options.runtimeID, store: store),
+            store: store
+        )
     } catch {
         return deviceAccessRefusal(options: options, error: error)
     }
@@ -80,19 +85,17 @@ private func runDeviceBootHint(options: DeviceCommandOptions, hint: String) asyn
 extension DeviceCommandOptions {
     /// Fills the port and device from the presented runtime (`--runtime-id` / `AMOO_RUNTIME_ID`), so a runtime id
     /// alone reaches the companion `amoo env up` started. An explicit `--port` / `--device` wins.
-    /// An unknown, expired or mismatched runtime is an error, and
-    /// `enforceDeviceAccess` still refuses a device another session holds.
+    /// An unknown, expired or mismatched runtime passed with the flag is an error; a stale
+    /// `AMOO_RUNTIME_ID` is ignored. `enforceDeviceAccess` still refuses a device another session holds.
     func applyingRuntime(
         store: DeviceRuntimeStore = DeviceRuntimeStore(),
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Result<Self, DeviceAccessError> {
-        guard let runtimeID = presentedRuntime(flag: runtimeID, environment: environment),
-              let held = store.runtime(id: runtimeID)
-        else {
-            if let id = presentedRuntime(flag: runtimeID, environment: environment) {
-                return .failure(.unknownRuntime(id))
-            }
+        guard let presented = presentedRuntime(flag: runtimeID, environment: environment, store: store) else {
             return .success(self)
+        }
+        guard let held = store.runtime(id: presented) else {
+            return .failure(.unknownRuntime(presented))
         }
         guard held.amooPlatform == platform else { return .failure(.wrongPlatform(held, requested: platform)) }
         var adopted = self

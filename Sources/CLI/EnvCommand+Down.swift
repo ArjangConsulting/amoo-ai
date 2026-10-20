@@ -1,4 +1,5 @@
 import AmooCore
+import AmooLogging
 import Foundation
 import MobileDevices
 import ProcessRunner
@@ -34,13 +35,17 @@ struct EnvDownDependencies {
     var shutdown: (DeviceRuntime) async -> Bool = shutDownDevice
 }
 
+private let envDownLogger = AmooLogger.forType(EnvDownDependencies.self)
+
 func runEnvDown(
     _ options: EnvDownOptions,
     store: DeviceRuntimeStore = DeviceRuntimeStore(),
     dependencies: EnvDownDependencies = EnvDownDependencies()
 ) async -> CLIResult {
     var report = EnvDownReport(ok: false, companionStopped: false, shutdown: false)
+    logEnvDownStart(options)
     let finish: (Int32) -> CLIResult = { code in
+        logEnvDownFinish(report, exitCode: code)
         let human = envDownSummary(report)
         return CLIResult(output: options.json ? renderJSON(report) : human, exitCode: code)
     }
@@ -92,6 +97,23 @@ func runEnvDown(
         report.error = "Could not remove the runtime record."
     }
     return finish(report.ok ? 0 : 1)
+}
+
+private func logEnvDownStart(_ options: EnvDownOptions) {
+    envDownLogger.info(
+        "Stopping runtime",
+        context: "action=env-down runtime=\(options.runtimeID ?? "-") device=\(options.deviceID ?? "-")"
+            + " force=\(options.force)"
+    )
+}
+
+private func logEnvDownFinish(_ report: EnvDownReport, exitCode: Int32) {
+    let context = "action=env-down exit=\(exitCode) runtime=\(report.runtimeID ?? "-")"
+    if let error = report.error {
+        envDownLogger.error("Runtime stop failed", context: context + " reason=\(error)")
+    } else {
+        envDownLogger.info("Runtime stopped", context: context + " shutdown=\(report.shutdown)")
+    }
 }
 
 /// Why the caller may not stop `runtime`, nil when it may. Stopping someone else's live runtime

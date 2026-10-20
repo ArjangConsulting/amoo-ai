@@ -65,7 +65,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         try Task.checkCancellation()
         let accessLock = try DeviceAccessLock(deviceID: available.deviceID, store: runtimeStore)
         runtimeStore.reapIfExpired(deviceID: available.deviceID)
-        try enforceDeviceAccess(deviceID: available.deviceID, runtime: presentedRuntime(flag: nil), store: runtimeStore)
+        try enforceDeviceAccess(
+            deviceID: available.deviceID,
+            runtime: presentedRuntime(flag: nil, store: runtimeStore),
+            store: runtimeStore
+        )
         let installAndroidBuild = try await androidBuild
         let owner = try await Self.deviceAccess.acquire(deviceKey)
         do {
