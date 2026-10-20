@@ -31,7 +31,7 @@ final class AmooPluginTests: XCTestCase {
             XCTAssertEqual(try json(path, in: pluginRoot)["name"] as? String, "amoo", path)
         }
         for path in versioned {
-            XCTAssertEqual(try json(path, in: pluginRoot)["version"] as? String, AmooVersion.current, path)
+            XCTAssertEqual(try json(path, in: pluginRoot)["version"] as? String, AmooVersion.releaseVersion, path)
         }
         XCTAssertEqual(
             try json("plugin.json", in: pluginRoot)["$schema"] as? String,
