@@ -322,6 +322,10 @@ extension DriverToolExecutor {
             "element_id": .string(matched.id),
             "element_label": .string(matched.label)
         ]
+        // Where the gesture landed, in points, for clients that overlay it on a screenshot.
+        if let point = matched.hitPoint ?? matched.frame?.centre {
+            fields["tap_point"] = .object(["x": .double(point.x), "y": .double(point.y)])
+        }
         if !context.hittabilityChecked {
             notes.append("Hittability was not checked.")
         }
