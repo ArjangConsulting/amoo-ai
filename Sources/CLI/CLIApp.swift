@@ -23,14 +23,13 @@ public struct CLIResult: Sendable, Equatable {
 public struct CLIApp {
     /// The version reported by `amoo --version`.
     ///
-    /// `AmooVersion.current` is stamped from the git tag by the release workflow. Keeping the
+    /// `AmooVersion.current` comes from Git locally and is stamped by release CI. Keeping the
     /// CLI on that shared value ensures every public protocol reports the same version.
     public static var versionString: String {
         AmooVersion.current
     }
 
-    /// `amoo version`: the version plus what identifies *this build* — local builds all report the last
-    /// release-stamped version, so only the source commit and build time say whether a binary is stale.
+    /// `amoo version`: the source version, commit, and build time identifying this binary.
     static func verboseVersion(_ info: AmooBuildInfo) -> String {
         let format = ISO8601DateFormatter()
         var lines = ["amoo \(info.version)"]
