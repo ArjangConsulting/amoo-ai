@@ -193,12 +193,15 @@ public struct CLIApp {
         emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
         let notifications = StudioNotificationCenter()
         let deviceLocks = StudioDeviceLocks()
+        let toolExecutor = CLIStudioToolExecutor()
         let automation = LiveStudioAutomationService(
             workspace: workspace,
-            toolExecutor: CLIStudioToolExecutor(),
+            toolExecutor: toolExecutor,
             codeEmitters: emitters,
             notifications: notifications,
-            deviceLocks: deviceLocks
+            deviceLocks: deviceLocks,
+            toolCatalogProvider: MCPStudioToolCatalog(),
+            elementSuggester: toolExecutor
         )
         await StudioService(
             workspace: workspace,
