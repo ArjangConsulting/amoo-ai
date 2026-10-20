@@ -65,7 +65,7 @@ jobs:
 
   verify:
     needs: preflight
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,7 +134,7 @@ jobs:
   build-macos:
     name: Build macOS Universal Binary
     needs: [preflight, verify]
-    runs-on: macos-latest
+    runs-on: xcode-27
 
     steps:
       - name: Checkout
@@ -262,7 +262,7 @@ jobs:
     # they shell out to tools that don't exist on Linux and fail gracefully via `preflight`,
     # the same pattern ShipItSwifty itself uses for its own XcodeBuildKit/XcodeGenKit targets.
     container:
-      image: swift:6.3-noble
+      image: swift:6.4-noble
 
     steps:
       - name: Checkout

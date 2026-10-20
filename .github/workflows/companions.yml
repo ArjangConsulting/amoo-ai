@@ -25,7 +25,7 @@ env:
   AMOO_E2E_FILTER: 'IntegrationTests.CommandContractE2ETests'
 jobs:
   ios:
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -120,8 +120,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/swiftly
-          key: swiftly-${{ runner.os }}-6.3
-      - name: Install Swift 6.3 via Swiftly
+          key: swiftly-${{ runner.os }}-6.4
+      - name: Install Swift 6.4 via Swiftly
         shell: bash
         run: |
           set -euo pipefail
@@ -136,7 +136,7 @@ jobs:
             ./swiftly init --assume-yes --skip-install --quiet-shell-followup --no-modify-profile
           fi
           . "$HOME/.local/share/swiftly/env.sh"
-          swiftly install --use --assume-yes 6.3
+          swiftly install --use --assume-yes 6.4
           echo "$HOME/.local/share/swiftly/bin" >> "$GITHUB_PATH"
           swift --version
       - uses: android-actions/setup-android@v4

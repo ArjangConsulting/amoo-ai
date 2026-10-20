@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   quality-and-tests:
-    runs-on: macos-latest
+    # Xcode 27 (Swift 6.4). macos-latest still defaults to Xcode 26.6 (Swift 6.3), whose release
+    # builds aborted in SwiftyTerminal's withSpinner; see Sources/CLI/CLISpinner.swift.
+    runs-on: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,7 +77,7 @@ jobs:
     # No lint here: swiftformat/swiftlint aren't installed in this container, and
     # scripts/ci/test_coverage.sh depends on `xcrun llvm-cov`, which is Darwin-only.
     container:
-      image: swift:6.3-noble
+      image: swift:6.4-noble
 
     steps:
       - name: Checkout

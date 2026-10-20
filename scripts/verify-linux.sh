@@ -10,11 +10,11 @@
 #   scripts/verify-linux.sh                # build + test run
 #   scripts/verify-linux.sh build          # build only
 #   scripts/verify-linux.sh shell          # interactive shell in the container
-#   scripts/verify-linux.sh --image swift:6.3-noble <subcommand>
+#   scripts/verify-linux.sh --image swift:6.4-noble <subcommand>
 
 set -euo pipefail
 
-IMAGE="swift:6.3-noble"
+IMAGE="swift:6.4-noble"
 SUBCOMMAND="ci"
 
 while [[ $# -gt 0 ]]; do

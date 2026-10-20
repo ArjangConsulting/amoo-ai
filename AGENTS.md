@@ -40,7 +40,7 @@ make companion-android-build   # gradle assembleDebug assembleAndroidTest
 
 ### Verifying the Linux build locally
 
-CI's `Build & Test (Linux)` job (`.github/workflows/ci.yml`) runs in the `swift:6.3-noble`
+CI's `Build & Test (Linux)` job (`.github/workflows/ci.yml`) runs in the `swift:6.4-noble`
 container. Reproduce it locally with Docker instead of guessing at platform gating — a
 `#if canImport(Darwin)` / `#if os(Linux)` split that looks right can still leave a symbol
 undefined or a test asserting on an empty result:
