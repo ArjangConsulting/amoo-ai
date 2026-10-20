@@ -198,16 +198,35 @@ private func collectInitRequest(
         return .success(request)
     }
     do {
-        return try await .success(completeInitRequest(
+        let initialManifest = request.out ?? defaultInitManifestPath()
+        try confirmExistingInitManifest(initialManifest, request: request, prompter: runtime.prompter)
+        let completed = try await completeInitRequest(
             request,
             discovery: runtime.discovery,
             prompter: runtime.prompter,
             saved: saved,
             now: runtime.now()
-        ))
+        )
+        if let manifest = completed.out, manifest != initialManifest {
+            try confirmExistingInitManifest(manifest, request: request, prompter: runtime.prompter)
+        }
+        return .success(completed)
     } catch {
         return .failure(InitRefusal(message: cancelledResult.output, code: 1, json: false))
     }
+}
+
+private func confirmExistingInitManifest(
+    _ path: String,
+    request: InitRequest,
+    prompter: any Prompting
+) throws {
+    guard !request.dryRun, FileManager.default.fileExists(atPath: path) else { return }
+    let shown = portableInitPath(path, relativeTo: FileManager.default.currentDirectoryPath)
+    guard prompter.confirm(
+        "\(shown) already exists. Update it with this setup (existing device reservations are preserved)?",
+        default: false
+    ) == true else { throw InitWizardError.cancelled }
 }
 
 /// The two questions before leasing: record locations, and go ahead. Returns whether to record
@@ -287,18 +306,34 @@ private func finishInit(
             exitCode: exitCode
         )
     }
-    if let out = plan.options.out, let first = plan.options.devices.first {
-        lines.append(
-            """
-
-            Next
-              amoo init device --manifest \(shellQuoted(out)) --device \(first) --json current_app
-              amoo init down --manifest \(shellQuoted(out))
-            To record a session, run `init down` first, then MCP start_session on the same device.
-            """
-        )
-    }
+    lines.append(renderInitNextSteps(plan))
     return CLIResult(output: lines.joined(separator: "\n"), exitCode: exitCode)
+}
+
+private func renderInitNextSteps(_ plan: InitPlan) -> String {
+    let platform = plan.options.environment.platform.rawValue
+    let commands = plan.options.devices.map { device in
+        "  amoo companion warm --platform \(platform) --device \(shellQuoted(device))"
+    }
+    return """
+
+    Prepare companions for faster test startup
+    `companion warm` builds and installs the companion on each selected device.
+    Run it ahead of time to move this work out of your next test session:
+    \(commands.joined(separator: "\n"))
+    It does not launch your app or keep a companion process running.
+
+    Start using amoo
+    Ask your AI agent: "Use amoo to inspect my app and verify [describe a flow]."
+    Build your app with its normal Xcode or Gradle workflow, then give the agent
+    the app identifier and build path so it can install and launch the right app.
+    For reusable tests, ask the agent to record the flow and generate a test.
+
+    Useful commands
+      amoo device --help   Browse inspection, gestures, screenshots and assertions.
+      amoo doctor          Check your local setup and diagnose connection problems.
+    Review amoo.md with your agent to confirm test targets, base classes and helpers.
+    """
 }
 
 /// Headless refusal text: every missing input at once, plus the available devices.

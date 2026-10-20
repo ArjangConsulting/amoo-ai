@@ -32,7 +32,7 @@ struct InitDiscovery {
 }
 
 private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) async -> [InitDeviceCandidate] {
-    var found: [InitDeviceCandidate]
+    let found: [InitDeviceCandidate]
     switch platform {
     case .ios:
         let selector = DeviceSelector()
@@ -59,13 +59,22 @@ private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) as
             )
         }
     }
-    // Free and already-booted first: reuse is cheaper than a boot, and a leased row is not selectable.
-    found.sort { lhs, rhs in
-        let lhsRank = (lhs.leasedBy == nil ? 0 : 2) + (lhs.booted ? 0 : 1)
-        let rhsRank = (rhs.leasedBy == nil ? 0 : 2) + (rhs.booted ? 0 : 1)
-        return lhsRank != rhsRank ? lhsRank < rhsRank : lhs.name < rhs.name
-    }
+
     return found
+}
+
+func sortedInitDevices(_ devices: [InitDeviceCandidate]) -> [InitDeviceCandidate] {
+    devices.sorted { lhs, rhs in
+        let nameOrder = lhs.name.localizedStandardCompare(rhs.name)
+        if nameOrder != .orderedSame {
+            return nameOrder == .orderedAscending
+        }
+        let detailOrder = lhs.detail.localizedStandardCompare(rhs.detail)
+        if detailOrder != .orderedSame {
+            return detailOrder == .orderedAscending
+        }
+        return lhs.id < rhs.id
+    }
 }
 
 func iosBundleIdentifier(ofApp path: String) -> String? {
