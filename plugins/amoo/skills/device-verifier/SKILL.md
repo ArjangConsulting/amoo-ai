@@ -11,10 +11,12 @@ Install both with the amoo plugin, or `amoo agent install --agent device-verifie
 
 
 Read the repository's AGENTS.md managed init block and amoo.md before setup, recording,
-or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions and
-the machine-readable amoo-context JSON. CLI generation and MCP start_session discover the
-nearest amoo.md from their working directory. When running elsewhere, pass --context
-<repo>/amoo.md to CLI generation or context_path=<repo>/amoo.md to MCP start_session.
+or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions.
+Current CLI generation and MCP start_session discover the nearest amoo.md from their working
+directory and read its fenced amoo-context JSON. A prose-only Markdown file is not a test context.
+When running elsewhere, pass --context <repo>/amoo.md or context_path=<repo>/amoo.md only if
+that file has a valid amoo-context block and the pinned binary supports Markdown profiles.
+Otherwise pass an existing test-context JSON file; never invent a path to a missing context.
 Explicit context overrides discovery; a plan's embedded context is preserved by generate test.
 Profiles may contain separate targetPlatform blocks for iOS and Android; CLI/MCP select the matching block.
 Review discovered Kotlin/Java instrumentation evidence as well as Swift harness conventions.
@@ -34,8 +36,9 @@ builds:
 device_prefs:
   android: { avd: Medium_Phone_API_35 }       # reused if running, else booted
   ios:     { runtime: iOS-27.0, model: "iPhone 17e" }
+launch_env: { UI_TEST_SKIP_ONBOARDING: "1" }
 preconditions:
-  - "launch env UI_TEST_SKIP_ONBOARDING=1"    # becomes --env; Android gets an Intent extra
+  - "Use the existing store; reset only when a clean store is requested"
 navigate:
   flow: flows/open-first-video.amoo.json      # checked-in amoo flow
 checks:
@@ -45,6 +48,10 @@ checks:
 evidence_dir: <scratch>/verify-<timestamp>/
 budget: { setup_minutes: 5, total_minutes: 20 }
 ```
+
+Supply the exact launch_env and resolved build/app identity and device hint from the app's
+contract so the verifier can start without rediscovering setup. Forward launch_env as MCP
+environment or CLI launch --env values. Reset flags require a requested clean store.
 
 Probes are JavaScript expressions (sync or async IIFEs) run in the app's inspectable WebView,
 returning `{probe, pass, details}` as an object or JSON string. Checked-in probes and flows
@@ -56,8 +63,11 @@ Read the `driving-amoo` skill's mode-selection table before setup. Subagents del
 MCP/CLI execute it; device ownership prevents concurrent runs from interfering.
 Prefer controlled CLI for checked-in flows and probes. MCP managed sessions are recommended for
 interactive checks and can handle supported checks when the installed CLI lacks `env`.
-Check the pinned binary's `--version`, `--help`, and required subcommand help first; call
-`doctor` only when listed. Never invoke unlisted commands or silently change the binary.
+Check the pinned binary's `--version`, `--help`, and required subcommand help first, then run
+`doctor --json` before either transport. Missing/failing doctor blocks setup. Resolve stale MCP
+servers by reconnecting affected clients to the pinned build and rerun doctor before trusting
+results; report blocked if you cannot reconnect. `--kill-stale` requires authorization to stop
+stale servers across clients. Never invoke unlisted commands or silently change the binary.
 
 With MCP, `start_session` owns the device; pass session_id on each call and always end_session.
 No separate CLI runtime token is needed. Preserve required flow/probe execution and report/evidence

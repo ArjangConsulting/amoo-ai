@@ -191,7 +191,10 @@ For an app with established test helpers, pass an app-owned context file:
 amoo generate test --plan path/to/test.amootest --context amoo.test-context.json
 ```
 
-The context is JSON and should be checked in with the test target. A planner can
+Check in the context with the test target. Current binaries also accept amoo.md with a
+fenced amoo-context JSON block and discover the nearest profile from cwd. A prose-only
+Markdown file is guidance and cannot be passed as context. Check the pinned binary's help
+for profile support, and pass an existing JSON file for versions without it. A planner can
 bind a helper to an operation explicitly. Failing that, `generate test` binds one
 itself only when the match is unambiguous:
 

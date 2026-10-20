@@ -119,6 +119,21 @@ alone. Your main session then never loads amoo's tool catalog, and the subagent 
 tools through `amoo device … --json` when MCP is unavailable. Existing files that differ are
 kept unless you pass `--force`.
 
+For repositories checking in installed agents and skills, pin the Amoo version in CI and check
+for drift without writing files:
+
+```bash
+python3 .agents/skills/driving-amoo/scripts/check-install.py --client opencode --target .
+```
+
+The helper runs `amoo agent install --dry-run --json` and fails for any action other than
+`unchanged`, including missing files and preserved local edits. Use `--amoo /absolute/path/to/amoo`
+to select the pinned CLI and `--binary /absolute/path/to/amoo` when the installed MCP config pins
+a different executable. For Claude installs the helper lives under `.claude/skills/` instead.
+Refresh intentionally with `amoo agent install --target . --client opencode --force`, then rerun
+the check. Upstream CI verifies a fresh installation round trip for all clients; consumer repos
+must run this check against their own checked-in copies to detect drift.
+
 ## Build from Source (Contributors)
 
 From an amoo checkout, use Swift 6.2 or newer (see `Package.swift`):

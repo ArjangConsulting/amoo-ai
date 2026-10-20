@@ -53,7 +53,8 @@ public enum SessionTools {
                 ),
                 "context_path": .init(
                     type: "string",
-                    description: "Optional path to an app-owned test-context JSON (imports, baseClass,"
+                    description: "Optional path to test-context JSON or amoo.md with a fenced amoo-context"
+                        + " JSON block (imports, baseClass,"
                         + " appFactory, harnessLaunchesApp, helpers, selectorExpressions). Persisted with"
                         + " the session so end_session and compile_session_to_plan fold it into the plan"
                         + " — the generated test then fits the host test target with no hand-editing."
@@ -210,7 +211,8 @@ public enum SessionTools {
                 ),
                 "context_path": .init(
                     type: "string",
-                    description: "Optional path to an app-owned test-context JSON (imports, baseClass,"
+                    description: "Optional path to test-context JSON or amoo.md with a fenced amoo-context"
+                        + " JSON block (imports, baseClass,"
                         + " appFactory, harnessLaunchesApp, helpers, selectorExpressions). Folded into"
                         + " the plan's testContext and persisted with the session, so a later"
                         + " end_session recompile and `amoo generate test` reuse it without a"

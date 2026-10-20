@@ -58,6 +58,14 @@ jobs:
       - name: Test + Coverage Gate
         run: ./scripts/ci/test_coverage.sh
 
+      - name: Check agent install round trip
+        run: |
+          agent_target="$(mktemp -d)"
+          trap 'rm -rf "$agent_target"' EXIT
+          .build/release/amoo agent install --target "$agent_target" --client all --json
+          python3 plugins/amoo/skills/driving-amoo/scripts/check-install.py \
+            --amoo "$PWD/.build/release/amoo" --target "$agent_target" --client all
+
   build-and-test-linux:
     name: Build & Test (Linux)
     runs-on: ubuntu-latest

@@ -17,7 +17,7 @@ func renderGeneratePlanHelp() -> String {
     """
     Usage: amoo generate plan (--report <path-to-report.json> | --from-flow <path.amoo.json>)
                               [--out <directory>]
-                              [--context <path-to-test-context.json>]
+                              [--context <amoo.md|test-context.json>]
                               [--test-name <name>] [--test-description <text>]
 
       Compiles a session into plan.json / flow.json using the same compiler as the MCP
@@ -35,7 +35,8 @@ func renderGeneratePlanHelp() -> String {
                           environment — put fixture values in the flow, or bind a helper through
                           --context. Give exactly one of --report and --from-flow.
       --out               Directory to write plan.json and flow.json into.
-      --context           App-owned test-context JSON to fold into the plan's testContext.
+      --context           App-owned JSON or Markdown profile with a fenced amoo-context JSON block
+                          to fold into testContext. Prose-only Markdown is invalid.
       --test-name         Descriptive test name. Falls back to the recorded name, then a
                           semantic name inferred from the flow.
       --test-description  One-line description for the generated test.
