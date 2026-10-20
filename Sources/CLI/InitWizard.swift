@@ -165,7 +165,7 @@ private struct InitWizard<Asker: Prompting> {
 
     func devices(platform: Platform) async throws -> [String] {
         let candidates =
-            await withSpinner(platform == .ios ? "Loading iOS simulators…" : "Loading Android emulators…") {
+            await withCLISpinner(platform == .ios ? "Loading iOS simulators…" : "Loading Android emulators…") {
                 await discovery.devices(platform)
             }
         let sorted = sortedInitDevices(candidates)
