@@ -10,10 +10,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  quality-and-tests:
+  macos-quality:
+    name: macOS Lint & Coverage
     # Xcode 27 (Swift 6.4); macos-latest still defaults to Xcode 26.6 (Swift 6.3).
     runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,25 +36,20 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Cache Homebrew packages
+      - name: Cache Homebrew downloads
         uses: actions/cache@v4
         with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/swiftformat
-            /usr/local/Cellar/swiftlint
-          key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: brew-${{ runner.os }}-
+          path: ~/Library/Caches/Homebrew
+          key: brew-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: brew-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install tooling
-        run: |
-          brew install swiftformat swiftlint
+        run: brew install swiftformat swiftlint
 
-      - name: Cache SPM dependencies
-        uses: actions/cache@v4
+      - name: Cache Swift coverage build
+        uses: ./.github/actions/swift-cache
         with:
-          path: .build
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          variant: coverage
 
       - name: Lint
         run: ./scripts/ci/lint.sh
@@ -49,17 +57,38 @@ jobs:
       - name: Test orchestration scripts
         run: python3 -m unittest discover -s scripts/tests -v
 
-      - name: Release MCP and subprocess regression gate
-        run: |
-          swift build -c release --product amoo
-          python3 scripts/ci/mcp-smoke.py .build/release/amoo
-          # CLI test helpers require DEBUG; optimization remains enabled.
-          swift test -c release -Xswiftc -DDEBUG --filter ProcessRunnerTests
-
       - name: Test + Coverage Gate
+        timeout-minutes: 20
         run: ./scripts/ci/test_coverage.sh
 
+  macos-release:
+    name: macOS Release Smoke
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Cache Swift release build
+        uses: ./.github/actions/swift-cache
+        with:
+          variant: release
+
+      - name: Build release executable
+        timeout-minutes: 20
+        run: swift build -c release --product amoo --disable-index-store
+
+      - name: Release MCP regression gate
+        timeout-minutes: 5
+        run: python3 scripts/ci/mcp-smoke.py .build/release/amoo
+
       - name: Check agent install round trip
+        timeout-minutes: 5
         run: |
           agent_target="$(mktemp -d)"
           trap 'rm -rf "$agent_target"' EXIT
@@ -67,9 +96,52 @@ jobs:
           python3 plugins/amoo/skills/driving-amoo/scripts/check-install.py \
             --amoo "$PWD/.build/release/amoo" --target "$agent_target" --client all
 
+  macos-optimized-tests:
+    name: macOS Optimized Subprocess Tests
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Cache Swift optimized test build
+        uses: ./.github/actions/swift-cache
+        with:
+          variant: release-debug-tests
+
+      - name: Build optimized tests
+        timeout-minutes: 20
+        run: swift build -c release -Xswiftc -DDEBUG --disable-index-store --build-tests
+
+      - name: Optimized subprocess regression gate
+        timeout-minutes: 5
+        run: swift test -c release -Xswiftc -DDEBUG --disable-index-store --skip-build --filter ProcessRunnerTests
+
+  quality-and-tests:
+    needs: [macos-quality, macos-release, macos-optimized-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all macOS quality checks
+        env:
+          QUALITY_RESULT: ${{ needs.macos-quality.result }}
+          RELEASE_RESULT: ${{ needs.macos-release.result }}
+          OPTIMIZED_TEST_RESULT: ${{ needs.macos-optimized-tests.result }}
+        run: |
+          printf 'Coverage: %s\nRelease: %s\nOptimized tests: %s\n' \
+            "$QUALITY_RESULT" "$RELEASE_RESULT" "$OPTIMIZED_TEST_RESULT"
+          [[ "$QUALITY_RESULT" == success && "$RELEASE_RESULT" == success && "$OPTIMIZED_TEST_RESULT" == success ]]
+
   build-and-test-linux:
     name: Build & Test (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     # amoo's Swift code compiles on Linux even though iOS-simulator/Xcode-project features
     # (XcodeBuildKit, XcodeGenKit, XCUITest bridge) are functionally macOS-only at runtime —
     # they shell out to tools that don't exist on Linux and fail gracefully via `preflight`.
@@ -88,33 +160,32 @@ jobs:
           apt-get install -y -qq protobuf-compiler python3
           echo "PROTOC_PATH=$(which protoc)" >> "$GITHUB_ENV"
 
-      - name: Swift version
-        run: swift --version
-
-      - name: Cache SPM dependencies
-        uses: actions/cache@v4
+      - name: Cache Swift Linux build
+        uses: ./.github/actions/swift-cache
         with:
-          path: .build
-          key: spm-linux-${{ hashFiles('Package.resolved') }}
+          variant: linux-debug
 
-      - name: Build
-        run: swift build --product amoo
+      - name: Build executable and tests
+        timeout-minutes: 10
+        run: swift build --build-tests --disable-index-store
 
       - name: Test orchestration scripts
         run: python3 -m unittest discover -s scripts/tests -v
 
       - name: Test
+        timeout-minutes: 5
         # CLIQualityCoverageTests' Android preflight checks scan the real host for a JDK
         # (AndroidJDK.discover()) rather than going through the injected process runner, so on a
         # bare Linux runner without JDK 17-21 installed they fail regardless of platform-gating —
         # not a Linux-compatibility issue, just a host tooling gap. Skipped here the same way
         # ShipItSwifty skips its own macOS-only test targets on Linux.
-        run: swift test --skip IntegrationTests --skip CLIQualityCoverageTests
+        run: swift test --disable-index-store --skip-build --skip IntegrationTests --skip CLIQualityCoverageTests
 
       # Host builds no longer run the protobuf plugin (it compiled protoc from C++ source on every
       # clean build), so this is the one place that proves Sources/Protos/Generated matches
       # Protos/*.proto. Fix a failure with `make protos` and commit the result.
       - name: Check generated protos are current
+        timeout-minutes: 10
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           ./scripts/regenerate-protos.sh --check
