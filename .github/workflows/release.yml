@@ -363,6 +363,14 @@ jobs:
         with:
           name: linux-static
 
+      - name: Write checksums
+        # Consumers that embed amoo, such as Amoo Studio's release, verify the tarball against
+        # these before unpacking it. The format matches `shasum -a 256` / `sha256sum` output.
+        run: |
+          for tarball in amoo-*-macos-universal.tar.gz amoo-*-linux-static.tar.gz; do
+            sha256sum "$tarball" > "$tarball.sha256"
+          done
+
       - name: Generate release notes
         env:
           RELEASE_HIGHLIGHTS: ${{ inputs.highlights }}
@@ -384,7 +392,9 @@ jobs:
           body_path: release-notes.md
           files: |
             amoo-*-macos-universal.tar.gz
+            amoo-*-macos-universal.tar.gz.sha256
             amoo-*-linux-static.tar.gz
+            amoo-*-linux-static.tar.gz.sha256
 
       - name: Update Homebrew tap
         env:
