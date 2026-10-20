@@ -1,0 +1,52 @@
+name: Cache Swift build
+description: Reuse compatible Swift builds and refresh the cache for each successful commit.
+
+inputs:
+  variant:
+    description: Build configuration and purpose, isolated from other compiler flags.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Identify Swift toolchain and SDK
+      id: toolchain
+      shell: bash
+      run: |
+        python3 - <<'PY'
+        import hashlib
+        import os
+        from pathlib import Path
+        import subprocess
+
+        commands = [["swift", "--version"]]
+        if os.environ["RUNNER_OS"] == "macOS":
+            commands.extend([["xcodebuild", "-version"], ["xcrun", "--show-sdk-version"]])
+
+        identity = [os.environ["GITHUB_WORKSPACE"]]
+        if os.environ["RUNNER_OS"] == "Linux":
+            identity.append(Path("/etc/os-release").read_text())
+        for command in commands:
+            version = subprocess.check_output(command, text=True)
+            print(version, end="")
+            identity.append(version)
+
+        digest = hashlib.sha256("\n".join(identity).encode()).hexdigest()
+        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+            output.write(f"digest={digest}\n")
+        PY
+
+    - name: Restore Swift build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+          !.build/**/index/**
+          !.build/**/Index.noindex/**
+          !.build/**/codecov/**
+          !.build/**/*.profraw
+          !.build/**/*.profdata
+        key: swift-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.variant }}-${{ steps.toolchain.outputs.digest }}-${{ hashFiles('Package.swift', 'Package.resolved', '.github/actions/swift-cache/action.yml') }}-${{ github.sha }}
+        restore-keys: |
+          swift-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.variant }}-${{ steps.toolchain.outputs.digest }}-${{ hashFiles('Package.swift', 'Package.resolved', '.github/actions/swift-cache/action.yml') }}-
+          swift-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.variant }}-${{ steps.toolchain.outputs.digest }}-

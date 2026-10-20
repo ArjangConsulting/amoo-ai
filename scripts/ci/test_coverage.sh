@@ -46,7 +46,7 @@ CODECOV_PATH=$(
   HOME="$WORKSPACE_HOME" \
   CLANG_MODULE_CACHE_PATH="$WORKSPACE_CLANG_CACHE" \
   SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
-  swift test --disable-sandbox --show-codecov-path
+  swift test --disable-index-store --disable-sandbox --show-codecov-path
 )
 CODECOV_DIR=$(dirname "$CODECOV_PATH")
 PRODUCTS_DIR=$(dirname "$CODECOV_DIR")
@@ -81,7 +81,7 @@ echo "Running tests with code coverage enabled..."
 HOME="$WORKSPACE_HOME" \
 CLANG_MODULE_CACHE_PATH="$WORKSPACE_CLANG_CACHE" \
 SWIFTPM_MODULECACHE_OVERRIDE="$WORKSPACE_SWIFT_CACHE" \
-swift test --enable-code-coverage --disable-sandbox
+swift test --enable-code-coverage --disable-index-store --disable-sandbox
 
 RAW_PROFILES=("$CODECOV_DIR"/*.profraw)
 ALL_MACOS_ENTRIES=("$PRODUCTS_DIR"/*.xctest/Contents/MacOS/*)
