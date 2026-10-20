@@ -13,6 +13,20 @@ Content-Length-framed standard input and output. Standard output is reserved for
 diagnostics belong on standard error. Protocol changes are additive within a protocol version and
 are negotiated through `system.handshake`.
 
+`StudioService` reads frames on a dedicated thread and handles each request concurrently, writing
+responses and notifications through one serialized writer. Responses can therefore arrive out of
+order; Studio correlates them by `id`. `StudioDeviceLocks` keeps work on one device in arrival order
+(`devices.start`, `apps.*`, `repl.execute` with a selected device, and `tests.run`/`tests.start`),
+while different devices proceed in parallel. Services push JSON-RPC notifications through
+`StudioNotificationCenter`. A notification from Studio (no `id`) runs without a response. Handler
+failures keep the request `id` and use `-32602` for invalid params and `-32603` otherwise.
+
+| Capability | Meaning |
+| --- | --- |
+| `rpc.concurrent` | Requests are handled concurrently as described above |
+| `rpc.notifications` | Amoo may push notifications on the protocol stream |
+| `tests.progress` | Asynchronous test runs push `tests.progress` with the `tests.status` shape on every change |
+
 The initial methods are:
 
 | Method | Result |

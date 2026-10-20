@@ -1,3 +1,4 @@
+import AmooLogging
 import Foundation
 
 public struct StudioReplRequest: Codable, Sendable {
@@ -148,20 +149,44 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     private let codeEmitters: StudioCodeEmitters
     private let reportsURL: URL?
     var storedReports: [StudioTestReport]
-    private var runTasks: [String: Task<Void, Never>] = [:]
-    private var runStatuses: [String: StudioTestRunStatus] = [:]
+    var runTasks: [String: Task<Void, Never>] = [:]
+    var runStatuses: [String: StudioTestRunStatus] = [:]
+    let progressFeed: AsyncStream<StudioTestRunStatus>.Continuation
+    let deviceLocks: StudioDeviceLocks
+    let logger = AmooLogger.forType(LiveStudioAutomationService.self)
 
+    /// `notifications` receives a `tests.progress` notification whenever an asynchronous run's
+    /// status changes. `deviceLocks` orders this service's device work with the rest of Studio's.
     public init(
         workspace: any StudioDeviceWorkspace,
         reportsURL: URL? = LiveStudioAutomationService.defaultReportsURL(),
         toolExecutor: (any StudioToolExecuting)? = nil,
-        codeEmitters: StudioCodeEmitters = .init()
+        codeEmitters: StudioCodeEmitters = .init(),
+        notifications: StudioNotificationCenter? = nil,
+        deviceLocks: StudioDeviceLocks = .init()
     ) {
         self.workspace = workspace
         self.reportsURL = reportsURL
         self.toolExecutor = toolExecutor
         self.codeEmitters = codeEmitters
+        self.deviceLocks = deviceLocks
         storedReports = Self.loadReports(from: reportsURL)
+        let (progress, feed) = AsyncStream.makeStream(of: StudioTestRunStatus.self)
+        progressFeed = feed
+        if let notifications {
+            // One consumer keeps notifications in the order the statuses changed.
+            Task {
+                for await status in progress {
+                    await notifications.post(method: "tests.progress", params: status)
+                }
+            }
+        } else {
+            feed.finish()
+        }
+    }
+
+    deinit {
+        progressFeed.finish()
     }
 
     /// Missing or unreadable report files are treated as "no reports yet" rather than a failure:
@@ -190,14 +215,16 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     }
 
     public func run(_ request: StudioTestRunRequest) async throws -> StudioTestRunResult {
-        try await run(request, tracking: nil)
+        try await deviceLocks.withDevice(request.deviceId) {
+            try await self.run(request, tracking: nil)
+        }
     }
 
     public func start(_ request: StudioTestRunRequest) -> StudioTestStartResult {
         let runID = UUID().uuidString
         let total = request.test.compiledPlan?.toolOperations?.count ?? request.test.compiledPlan?.operations?
             .count ?? 0
-        runStatuses[runID] = .init(
+        setStatus(.init(
             runId: runID,
             state: .running,
             currentOperation: 0,
@@ -205,11 +232,14 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
             message: "Preparing test…",
             sessionId: nil,
             reportId: nil
-        )
+        ))
+        logger.info("Test run started", context: "runId=\(runID) operations=\(total)")
         runTasks[runID] = Task { [weak self] in
             guard let self else { return }
             do {
-                let result = try await run(request, tracking: runID)
+                let result = try await deviceLocks.withDevice(request.deviceId) {
+                    try await self.run(request, tracking: runID)
+                }
                 await finish(runId: runID, result: result)
             } catch is CancellationError {
                 await markCancelled(runId: runID)
@@ -228,6 +258,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     public func cancel(runId: String) throws -> StudioTestRunStatus {
         guard let status = runStatuses[runId] else { throw StudioAutomationError.runNotFound(runId) }
         runTasks[runId]?.cancel()
+        logger.info("Test run cancel requested", context: "runId=\(runId)")
         let cancelled = StudioTestRunStatus(
             runId: runId,
             state: .cancelled,
@@ -237,7 +268,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
             sessionId: status.sessionId,
             reportId: status.reportId
         )
-        runStatuses[runId] = cancelled
+        setStatus(cancelled)
         return cancelled
     }
 
@@ -293,7 +324,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
                 continue
             }
             do {
-                _ = try await execute(.init(
+                _ = try await executeCommand(.init(
                     command: operation,
                     activeTest: request.test,
                     selectedDeviceId: request.deviceId,
@@ -306,7 +337,8 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         return failures
     }
 
-    private func run(_ request: StudioTestRunRequest, tracking runID: String?) async throws -> StudioTestRunResult {
+    /// The unlocked run path. Callers must already hold the device's lock in `deviceLocks`.
+    func run(_ request: StudioTestRunRequest, tracking runID: String?) async throws -> StudioTestRunResult {
         try Self.validate(request.test)
         let started = Date()
         let reportID = UUID().uuidString
@@ -338,62 +370,6 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         storedReports.insert(report, at: 0)
         persistReports()
         return .init(message: report.summary, sessionId: sessionID, reportId: reportID)
-    }
-
-    private func updateProgress(runId: String?, operation: StudioToolOperation, current: Int, total: Int) {
-        guard let runId else { return }
-        runStatuses[runId] = .init(
-            runId: runId,
-            state: .running,
-            currentOperation: current,
-            totalOperations: total,
-            message: "Running \(operation.tool)…",
-            sessionId: nil,
-            reportId: nil
-        )
-    }
-
-    private func finish(runId: String, result: StudioTestRunResult) {
-        let reportStatus = storedReports.first { $0.id == result.reportId }?.status
-        runStatuses[runId] = .init(
-            runId: runId,
-            state: reportStatus == .passed ? .passed : .failed,
-            currentOperation: runStatuses[runId]?.totalOperations ?? 0,
-            totalOperations: runStatuses[runId]?.totalOperations ?? 0,
-            message: result.message,
-            sessionId: result.sessionId,
-            reportId: result.reportId
-        )
-        runTasks[runId] = nil
-    }
-
-    private func markCancelled(runId: String) {
-        guard runStatuses[runId]?.state == .running else { return }
-        let previous = runStatuses[runId]!
-        runStatuses[runId] = .init(
-            runId: runId,
-            state: .cancelled,
-            currentOperation: previous.currentOperation,
-            totalOperations: previous.totalOperations,
-            message: "Test run cancelled.",
-            sessionId: nil,
-            reportId: nil
-        )
-        runTasks[runId] = nil
-    }
-
-    private func markFailed(runId: String, message: String) {
-        let previous = runStatuses[runId]
-        runStatuses[runId] = .init(
-            runId: runId,
-            state: .failed,
-            currentOperation: previous?.currentOperation ?? 0,
-            totalOperations: previous?.totalOperations ?? 0,
-            message: message,
-            sessionId: nil,
-            reportId: nil
-        )
-        runTasks[runId] = nil
     }
 
     public func reports() -> StudioReportListResult {

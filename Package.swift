@@ -107,7 +107,7 @@ let package = Package(
         .target(name: "TestSession", dependencies: ["AmooCore"]),
         .target(name: "SessionCompiler", dependencies: ["AmooCore", "StudioProtocol", "TestSession"]),
         .target(name: "OllamaClient"),
-        .target(name: "StudioProtocol", dependencies: ["AmooCore", "ProcessRunner"]),
+        .target(name: "StudioProtocol", dependencies: ["AmooCore", "AmooLogging", "ProcessRunner"]),
         .target(name: "TestCodeGenerator", dependencies: ["StudioProtocol"]),
         .target(
             name: "GRPCService",
