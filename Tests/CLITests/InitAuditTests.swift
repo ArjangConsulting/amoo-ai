@@ -83,6 +83,48 @@ final class InitAuditTests: InitTestCase {
         XCTAssertTrue(result.output.contains("Cancelled"))
     }
 
+    func testExistingManifestRequiresConfirmationBeforeDiscovery() async throws {
+        for answer: Bool? in [false, nil, true] {
+            let scratch = try makeScratchDirectory()
+            let manifest = scratch.url.appendingPathComponent(".amoo.json")
+            try InitManifest(ok: true, results: []).write(manifest.path)
+            let original = try Data(contentsOf: manifest)
+            let prompter = ScriptedPrompter()
+            prompter.confirms = [answer]
+            var discovered = false
+            let found = InitDiscovery(
+                devices: { _ in
+                    discovered = true
+                    return [self.candidate("phone")]
+                },
+                bundleID: { _, _ in nil }
+            )
+            let result = await runInitCommand(
+                [
+                    "--platform",
+                    "ios",
+                    "--device",
+                    "phone",
+                    "--out",
+                    manifest.path,
+                    "--no-skills",
+                    "--no-save",
+                    "--yes"
+                ],
+                runtime: runtime(
+                    prompter: prompter, interactive: true, discovery: found,
+                    setup: answer == true ? succeedingSetup : forbidden("Declining must not lease")
+                )
+            )
+            XCTAssertEqual(result.exitCode, answer == true ? 0 : 1, result.output)
+            XCTAssertEqual(discovered, answer == true)
+            XCTAssertTrue(prompter.transcript.first?.contains("already exists") == true)
+            if answer != true {
+                XCTAssertEqual(try Data(contentsOf: manifest), original)
+            }
+        }
+    }
+
     func testFrameworkRoundTripsThroughSavedLocations() throws {
         let request = try parseInitRequest(["--framework", "react-native"])
         let saved = InitSavedLocations(platform: .ios, framework: request.framework)

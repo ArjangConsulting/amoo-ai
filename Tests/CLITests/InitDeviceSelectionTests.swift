@@ -14,8 +14,8 @@ final class InitDeviceSelectionTests: InitTestCase {
                 let completed = try await completeInitRequest(
                     request,
                     discovery: discovery(devices: [
-                        candidate("first", booted: booted),
-                        candidate("second", booted: booted)
+                        candidate("second", booted: booted),
+                        candidate("first", booted: booted)
                     ]),
                     prompter: prompter
                 )
@@ -39,6 +39,17 @@ final class InitDeviceSelectionTests: InitTestCase {
                 XCTAssertEqual(menu.handle(.enter), .submitted([1]))
             }
         }
+    }
+
+    func testDevicesSortNaturallyByNameThenOSVersionThenID() {
+        let devices = [
+            InitDeviceCandidate(id: "z", name: "iPhone 18 Pro", detail: "iOS 27.2", booted: true),
+            InitDeviceCandidate(id: "a", name: "iPhone 18 Pro", detail: "iOS 27.2", booted: false),
+            InitDeviceCandidate(id: "older", name: "iPhone 18 Pro", detail: "iOS 27.1", booted: false),
+            InitDeviceCandidate(id: "ten", name: "Pixel 10", detail: "Android emulator", booted: true),
+            InitDeviceCandidate(id: "nine", name: "Pixel 9", detail: "Android emulator", booted: false)
+        ]
+        XCTAssertEqual(sortedInitDevices(devices).map(\.id), ["older", "a", "z", "nine", "ten"])
     }
 
     func testCancellingDeviceSelectionDoesNotAdvanceOrPrepareDevices() async {

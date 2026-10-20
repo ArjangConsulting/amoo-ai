@@ -164,10 +164,18 @@ private struct InitWizard<Asker: Prompting> {
     }
 
     func devices(platform: Platform) async throws -> [String] {
-        let candidates = await discovery.devices(platform)
-        let free = candidates.filter { $0.leasedBy == nil }
-        if candidates.count > free.count {
-            prompter.say("\(candidates.count - free.count) device(s) are leased by other sessions and are not offered.")
+        let candidates =
+            await withSpinner(platform == .ios ? "Loading iOS simulators…" : "Loading Android emulators…") {
+                await discovery.devices(platform)
+            }
+        let sorted = sortedInitDevices(candidates)
+        let free = sorted.filter { $0.leasedBy == nil }
+        let unavailable = sorted.filter { $0.leasedBy != nil }
+        if !unavailable.isEmpty {
+            prompter.say("Devices excluded from selection because they already have a reservation:")
+            for device in unavailable {
+                prompter.say("  \(device.label)")
+            }
         }
         guard !free.isEmpty else {
             prompter.say(
@@ -195,7 +203,7 @@ private struct InitWizard<Asker: Prompting> {
     func manifest(platform: Platform) throws -> String {
         guard let answer = prompter.ask(
             "Save device connection details to (local file; do not commit)",
-            default: defaultInitManifestPath()
+            default: ".amoo.json"
         ) else { throw InitWizardError.cancelled }
         return absoluteInitPath(answer)
     }

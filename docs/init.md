@@ -97,6 +97,9 @@ managed block of `./AGENTS.md` (`--agents-file` to choose another). Without an a
 Only text between the markers is rewritten. Device ids and lease ids are never saved. The block
 records setup locations for agents; saved app artifacts are not automatically installed.
 Guided setup defaults to `.amoo.json` in the current project. Both platforms share this file.
+If the manifest already exists, guided setup asks for confirmation before collecting setup inputs.
+Declining or pressing Enter cancels without changing the file or touching devices. Selecting a
+different existing manifest also requires confirmation before setup.
 Repeated setup preserves existing reservation details for other devices. Successful `init down`
 clears the file after releasing its reservations. Explicit `--out` paths are still supported.
 

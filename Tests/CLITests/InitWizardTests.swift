@@ -91,9 +91,9 @@ final class InitWizardTests: InitTestCase {
         XCTAssertTrue(setups
             .allSatisfy { $0.appPath == app && $0.appID == "com.jot" && $0.launch && $0.owner == "amoo-init" })
         XCTAssertEqual(prompter.askDefaults["App bundle identifier"], .some("com.jot"))
-        XCTAssertFalse(prompter.transcript.joined().contains("Busy"), "leased devices are not offered")
+        XCTAssertTrue(prompter.transcript.joined().contains("Busy"), "excluded devices explain their reservation")
         XCTAssertTrue(prompter.transcript.joined().contains("Equivalent command"))
-        XCTAssertTrue(result.output.contains("amoo init down --manifest"))
+        XCTAssertTrue(result.output.contains("amoo companion warm --platform ios --device phone"))
         let saved = try String(contentsOfFile: agents, encoding: .utf8)
         XCTAssertTrue(saved.hasPrefix("# Repo\n\nKeep me.\n"))
         XCTAssertTrue(saved.contains("<!-- amoo:init:start -->"))
