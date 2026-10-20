@@ -10,11 +10,10 @@ For an accessibility audit or app accessibility fix, load only the selected plat
 `ios-accessibility` or `android-accessibility` skill. Those skills apply user review policies
 and distinguish deterministic evidence from contextual LLM findings and missing coverage.
 
-
-Read AGENTS.md setup locations and amoo.md conventions first. CLI generation and MCP start_session discover amoo.md from cwd.
-Mixed profiles use separate targetPlatform blocks for Swift and Kotlin/Java. Elsewhere pass --context <repo>/amoo.md or context_path=<repo>/amoo.md; explicit context wins, and generate test preserves embedded context.
+Read AGENTS.md setup locations and amoo.md conventions first. Current CLI generation and MCP start_session discover amoo.md from cwd and read its fenced amoo-context JSON.
+A prose-only amoo.md is not a test context. Elsewhere pass --context <repo>/amoo.md or context_path=<repo>/amoo.md only with a valid block and a binary supporting Markdown profiles; otherwise use an existing test-context JSON file.
+Mixed profiles use separate targetPlatform blocks for Swift and Kotlin/Java. Explicit context wins; generate test preserves embedded context. Never invent a missing context path.
 .amoo.json is private CLI runtime state: release before MCP, never commit it or automatically install remembered artifacts.
-
 
 ## Start
 
@@ -28,6 +27,13 @@ with that same `--binary` path so CLI calls and their MCP server use the same bu
 Shell aliases such as amoo-debug do not select spawned MCP processes. Reconnect a running
 MCP server after rebuilding to load the new executable. Release builds are for release verification.
 
+Before any device work, check that binary's --version and --help, then run `amoo doctor --json`.
+Doctor is mandatory preflight for both MCP and CLI. If unavailable or failing, report the setup
+blocker. Inspect issues and mcp_servers for stale processes, rebuilt executables, or old checkout
+paths, including Trash. Reconnect the affected MCP client to the selected build before trusting
+its results, then rerun doctor. `doctor --kill-stale` stops stale servers across clients; use it
+only when stopping those clients is authorized.
+
 For MCP, call `start_session` with app_id, platform, and a device_hint when multiple devices
 are available. It ensures the device/companion is ready, installs build_path if supplied,
 and launches the app. Pass the returned session_id on every later device call. An invalid or
@@ -40,8 +46,9 @@ app interaction. Do useful independent work between status checks.
 
 Use MCP for interactive inspection and managed recordings; use controlled CLI for checked-in flows
 and probes. Subagents acquire their own device ownership and use their available transport.
-Before CLI interaction or delegation, read [execution modes](references/execution-modes.md)
-for version checks, runtime acquisition and cleanup, and transport limitations.
+For who should drive and how to delegate, read [execution modes](references/execution-modes.md)
+before CLI interaction or delegation. It covers version checks, runtime acquisition, cleanup,
+and transport limitations.
 MCP `start_session` owns the device until `end_session`; it needs no separate CLI runtime.
 Never use a second transport to bypass an ownership conflict.
 
@@ -103,65 +110,13 @@ An unlabeled control can still be located by an unfiltered find_elements query.
 Use record_value=fixture only for explicitly non-sensitive test data that belongs in generated
 code. The default records typed values as redacted. Never mark credentials as fixtures.
 
-## Recover
+For connection errors, stale targets, timeouts, or transport closure, read the
+[recovery guidance](references/execution-modes.md#recover) before retrying a mutation.
 
-For client-level `Transport closed`, capture MCP stderr with AMOO_MCP_DIAGNOSTICS=1 and compare
-amoo doctor --json before/after. A missing session is a tool error, not proof the transport closed.
-
-A connection error may mean a stopped companion, disconnected device, or wedged test runtime.
-Read the returned error code and device/session state. Follow the reported companion-start
-command when applicable; preserve session_id and target identity. Do not blindly repeat a
-mutation after timeout: inspect the postcondition first, because it may already have executed.
-
-Once a session is live, launch/terminate/reinstall the app-under-test only through amoo tools
-(`device_install_app`, `device_launch_app`) — never raw `simctl`/`adb`. The companion survives a
-reinstall; the app is left not running, so launch it before querying it again. If a device tool
-fails with a connection error, read `$TMPDIR/companion-launch-<port>.log`, then restart the
-companion; `companion_status` can briefly still report ready, so it is not proof the channel works.
-
-`device_launch_app` binds the launched app as the target. To drive an app that is already running,
-call `set_target_app` first: with no target bound, the iOS companion reports `com.apple.springboard`
-as frontmost even while another app is on screen.
-
-Use the documented system scope for permission prompts. Do not guess that an app's controls
-are system UI merely because their labels contain words such as time or settings.
-For WebViews, read [the transport prerequisites](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/webview-introspection.md).
-
-## Iterate without rebuilding
-
-Every device call should answer in about a second; a slower one is an amoo bug worth reporting,
-not something to wait out. Most of a slow loop is rebuilding what has not changed:
-
-- **Reuse pre-booted devices.** Start from a simulator/emulator that is already booted with the
-  app installed; relaunch with `device_launch_app` rather than rebooting, reinstalling or
-  rebuilding. `amoo env up` (below) reuses a running AVD/simulator and its installed app.
-- Keep one companion running per device across app rebuilds. `companion start` rebuilds it only
-  when companion sources change.
-- Rebuild the app only after its source changes. A hang, crash, or flaky result is re-run on the
-  existing build: `device_launch_app` always starts a fresh process. A reinstall keeps the app's
-  data and restored state; uninstall first when a run must start clean.
-- For XCTest suites, `xcodebuild build-for-testing` once, then run each attempt with
-  `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
-
-## Shared machines and agents
-
-For several devices, build the app once externally, then `amoo init` (guided in a terminal; agents pass
-`--platform --app --app-id --device ... --out <manifest> --json`, validate with `--dry-run`). Each device gets
-its own runtime, companion and port from that one artifact; never rebuild per device. `AGENTS.md` may record
-the app and manifest locations under `## amoo init`. Commands, manifest use, cleanup and the recording
-hand-off (stop CLI runtimes, then MCP `start_session`) are in `references/execution-modes.md`.
-
-Live session IDs are local to one MCP server process; a separate agent server cannot attach.
-Delegate app/build/device requirements, then start_session in the receiving context on an available
-device. The owner must end_session before its device is reused. To preserve the exact current
-screen, keep driving in the owning context. Never drop session_id after an attachment error.
-
-Other sessions may be driving devices on the same Mac. `amoo env up --platform <p> [--avd|--runtime
---model] --app <build> --app-id <id> --json` starts a runtime on a simulator/emulator (never a physical one),
-starts its companion on a free port in the background, and returns `runtime`, `device`, `port`;
-pass `--runtime-id` (or `AMOO_RUNTIME_ID`) to `amoo device`/`flow`/`probe run`, and `amoo env down --runtime-id`
-when done. `amoo doctor --json` flags stale MCP servers and physical devices. To delegate a whole
-verification run, see the `device-verifier` skill.
+For build reuse, shared devices, and delegation inputs, read
+[execution modes](references/execution-modes.md). For repositories with checked-in agent copies,
+run `python3 <installed-driving-amoo>/scripts/check-install.py --client <client> --target <repo>`
+in CI with a pinned binary; any missing or differing file fails the check.
 
 ## Finish the requested task
 

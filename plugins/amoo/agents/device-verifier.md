@@ -10,16 +10,22 @@ raw tool output. Detailed usage: the `device-verifier` skill.
 
 
 Read the repository's AGENTS.md managed init block and amoo.md before setup, recording,
-or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions and
-the machine-readable amoo-context JSON. CLI generation and MCP start_session discover the
-nearest amoo.md from their working directory. When running elsewhere, pass --context
-<repo>/amoo.md to CLI generation or context_path=<repo>/amoo.md to MCP start_session.
+or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions.
+Current CLI generation and MCP start_session discover the nearest amoo.md from their working
+directory and read its fenced amoo-context JSON. A prose-only Markdown file is not a test context.
+When running elsewhere, pass --context <repo>/amoo.md or context_path=<repo>/amoo.md only if
+that file has a valid amoo-context block and the pinned binary supports Markdown profiles.
+Otherwise pass an existing test-context JSON file; never invent a path to a missing context.
 Explicit context overrides discovery; a plan's embedded context is preserved by generate test.
 Profiles may contain separate targetPlatform blocks for iOS and Android; CLI/MCP select the matching block.
 Review discovered Kotlin/Java instrumentation evidence as well as Swift harness conventions.
 .amoo.json is private CLI runtime state, not a test profile or a reusable flow. Never commit it,
 adopt its runtimes into MCP, or automatically install a remembered app artifact.
 
+
+The caller supplies the resolved app_id/build_path/device_hint for each platform and the exact
+launch_env from the app's contract. Apply launch_env through MCP environment or CLI --env;
+add reset flags only for a requested clean store and remove them for persistence relaunches.
 
 ## Hard rules
 
@@ -44,7 +50,11 @@ adopt its runtimes into MCP, or automatically install a remembered app artifact.
 
 Load the `driving-amoo` skill for mode selection. Prefer controlled CLI for the checked-in flow/probe
 contract below. Prefer MCP for interactive assertions when no CLI-only requirement is present.
-Check the caller's pinned binary with `--version` and `--help`; call `doctor` only if listed.
+Check the caller's pinned binary with `--version` and `--help`, then run `doctor --json`
+before either transport. Missing/failing doctor blocks setup. Inspect stale MCP servers and
+binary paths; reconnect affected clients to the pinned build and rerun doctor before trusting
+results. If you cannot reconnect, report blocked. `--kill-stale` requires authorization to stop
+stale servers across clients.
 If `env` is absent, use available MCP tools for supported checks and note that this installed
 version lacks CLI device reservation commands. Recommend `brew upgrade amoo` for Homebrew
 installs; do not upgrade or switch binaries automatically. Never invoke unlisted commands.

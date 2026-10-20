@@ -141,6 +141,11 @@ final class AndroidTestProfileTests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains(": ReviewedIosTests"))
         XCTAssertFalse(result.output.contains("ReviewedAndroidTests"))
+        try "This Markdown file is guidance, not a test context.".write(to: profile, atomically: true, encoding: .utf8)
+        XCTAssertThrowsError(try runGenerateTestCommand(
+            options: GenerateTestOptions(planPath: plan.path, outputDirectory: nil, contextPath: profile.path),
+            emitters: emitters
+        ))
         try JSONEncoder().encode(test.replacingTestContext(.init(targetPlatform: .android))).write(to: plan)
         XCTAssertThrowsError(try runGenerateTestCommand(
             options: GenerateTestOptions(planPath: plan.path, outputDirectory: nil), emitters: emitters

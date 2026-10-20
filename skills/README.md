@@ -9,11 +9,15 @@ selection, inspection, mutation, assertions and completion. Load its coordinate 
 references only for those tasks. Detailed code-generation guidance is unnecessary for a simple
 inspection. `AMOO_TOOL_PROFILE=drive|record|audit` can also reduce MCP discovery context.
 
-To hand a whole device task to a subagent that returns only a short YAML report, delegate to the
-[`amoo`](../plugins/amoo/agents/amoo.md) agent (inspect, verify, debug, record, audit). For a
+For a bounded check with an explicit expected result and a compact JSON verdict plus evidence paths,
+delegate to the [`amoo`](../plugins/amoo/agents/amoo.md) subagent. Some consuming repositories name
+it `amoo-debug`; this is not a skill name. Keep visual discovery, flows requiring user judgment
+between steps, and source edits in the main context with `driving-amoo`. For a
 contract-driven verification run (runtime a device, install, navigate, run checked-in probes), use
 [`device-verifier`](../plugins/amoo/skills/device-verifier/SKILL.md) and its agent. Install either
 through the plugin or with `amoo agent install` (guided in a terminal; see the README).
+Pass the exact launch_env plus app_id, build_path, and device_hint to avoid repeated setup
+discovery; supply a reset flag only when the task calls for a clean store.
 
 For app accessibility review or fixes, load the selected platform's
 [`ios-accessibility`](../plugins/amoo/skills/ios-accessibility/SKILL.md) or

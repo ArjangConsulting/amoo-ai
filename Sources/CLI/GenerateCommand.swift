@@ -26,7 +26,7 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
 func renderGenerateHelp() -> String {
     """
     Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>]
-                             [--context <path-to-test-context.json>]
+                             [--context <amoo.md|test-context.json>]
                              [--ui-toolkit <view|compose>] [--test-name <name>] [--allow-incomplete]
 
       Emits a skeleton test. Review the compiled-plan warnings and finalize it against your
@@ -35,7 +35,8 @@ func renderGenerateHelp() -> String {
 
       --plan              Path to the authored/compiled test JSON.
       --out               Directory to write the generated file into. Prints to stdout if omitted.
-      --context           App-owned test context JSON. Overrides testContext embedded in the plan.
+      --context           App-owned JSON or Markdown profile with a fenced amoo-context JSON block.
+                          Overrides testContext embedded in the plan. Prose-only Markdown is invalid.
       --ui-toolkit        Override the plan's UI toolkit (defaults to its requirement, then view).
       --test-name         Override the recorded/semantic test name; sanitized for generated code.
       --allow-incomplete  Generate even though the plan records steps that could not be compiled.
