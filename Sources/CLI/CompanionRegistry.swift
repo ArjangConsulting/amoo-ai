@@ -5,7 +5,7 @@ import Darwin
 import Glibc
 #endif
 
-/// One running `amoo companion start` holder, as recorded for `companion list` / `companion stop`.
+/// One running `amoo companion start` process, as recorded for `companion list` / `companion stop`.
 struct CompanionRegistration: Codable, Equatable, Sendable {
     var pid: Int32
     var platform: String
@@ -16,7 +16,7 @@ struct CompanionRegistration: Codable, Equatable, Sendable {
 }
 
 /// Files under `~/Library/Application Support/Amoo/companions` (or `AMOO_COMPANIONS_DIR`), one per
-/// holder. A companion is just a process on a port, so without a record of which holder serves which
+/// process. A companion is just a process on a port, so without a record of which process serves which
 /// device the only way to stop one was `pkill -f "amoo companion"` — which stops every companion on
 /// the machine, other sessions' included.
 struct CompanionRegistry: Sendable {
@@ -49,7 +49,7 @@ struct CompanionRegistry: Sendable {
         try? data.write(to: fileURL(platform: registration.platform, port: registration.port), options: .atomic)
     }
 
-    /// Removes the record, but only when `pid` still owns it, so a late exit of an old holder cannot
+    /// Removes the record, but only when `pid` still owns it, so a late exit of an old process cannot
     /// delete its replacement's record.
     func unregister(platform: String, port: Int, pid: Int32) {
         let url = fileURL(platform: platform, port: port)
@@ -57,7 +57,7 @@ struct CompanionRegistry: Sendable {
         try? FileManager.default.removeItem(at: url)
     }
 
-    /// Live registrations, sorted by port. Records whose holder is gone are deleted as they are found.
+    /// Live registrations, sorted by port. Records whose process is gone are deleted as they are found.
     func entries(isAlive: (Int32) -> Bool = { kill($0, 0) == 0 || errno == EPERM }) -> [CompanionRegistration] {
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: nil

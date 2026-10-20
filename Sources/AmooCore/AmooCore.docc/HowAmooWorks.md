@@ -67,7 +67,7 @@ successful Swift package build does not validate either companion app.
 
 MCP bounds in-flight request tasks and serializes complete response writes. Device queues serialize
 operations for a device while allowing independent device keys to progress concurrently. Device
-leases are process-local; use one server per device and dedicated hardware runners.
+runtimes are process-local; use one server per device and dedicated hardware runners.
 
 TestSession persists reports atomically and redacts known secrets. Pending history is periodically
 flushed, and shutdown drains writes. Reports are rewritten in batches rather than appended to a

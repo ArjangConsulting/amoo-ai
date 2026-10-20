@@ -273,18 +273,18 @@ struct PlatformDeviceSelector {
     private let processRunner: any ProcessRunner
     private let prompter: any DeviceSelectionPrompting
     private let interactive: Bool
-    private let leaseStore: DeviceClaimStore
+    private let runtimeStore: DeviceRuntimeStore
 
     init(
         processRunner: any ProcessRunner = SystemProcessRunner(),
         prompter: any DeviceSelectionPrompting = ConsoleDeviceSelectionPrompter(),
         interactive: Bool = isInteractiveStdin(),
-        leaseStore: DeviceClaimStore = DeviceClaimStore()
+        runtimeStore: DeviceRuntimeStore = DeviceRuntimeStore()
     ) {
         self.processRunner = processRunner
         self.prompter = prompter
         self.interactive = interactive
-        self.leaseStore = leaseStore
+        self.runtimeStore = runtimeStore
     }
 
     /// Lists all available iOS simulators and Android devices/emulators concurrently,
@@ -337,20 +337,20 @@ struct PlatformDeviceSelector {
         }
     }
 
-    /// Candidates a hint-less pick may land on: never a device another session leased, and —
+    /// Candidates a hint-less pick may land on: never a device another session controlled, and —
     /// with nobody at the keyboard to confirm — never a physical device.
     private func autoSelectable(_ candidates: [AvailableDevice]) throws -> [AvailableDevice] {
         var all = candidates
-        // Without a hint, never auto-pick a device another session holds a lease on.
-        let presented = presentedLease(flag: nil)
-        let unleased = all.filter {
-            if case .claimedByOther = leaseStore.access(deviceID: $0.deviceID, presenting: presented) {
+        // Without a hint, never auto-pick a device another session holds a runtime on.
+        let presented = presentedRuntime(flag: nil)
+        let available = all.filter {
+            if case .claimedByOther = runtimeStore.access(deviceID: $0.deviceID, presenting: presented) {
                 return false
             }
             return true
         }
-        if !unleased.isEmpty {
-            all = unleased
+        if !available.isEmpty {
+            all = available
         }
         // Nor, without someone at the keyboard to confirm, a physical device.
         if !interactive, !all.isEmpty {

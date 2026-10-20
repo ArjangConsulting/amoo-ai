@@ -4,7 +4,7 @@ import Foundation
 import TestCommons
 import XCTest
 
-/// `companion list` / `companion stop` act on exactly the holders they are asked about.
+/// `companion list` / `companion stop` act on exactly the processes they are asked about.
 final class CompanionListStopTests: XCTestCase {
     private final class FakeProcesses: @unchecked Sendable {
         private let lock = NSLock()
@@ -66,18 +66,18 @@ final class CompanionListStopTests: XCTestCase {
         let result = await runCompanionList(hooks: hooks)
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertTrue(result.output.contains("101\tios\t22111\tready\tAAA\tcom.example"), result.output)
+        XCTAssertTrue(result.output.contains("101\tios\t22111\trunning\tAAA\tcom.example"), result.output)
         XCTAssertTrue(result.output.contains("102\tios\t22112\tstarting\tBBB\t-"), result.output)
     }
 
-    func testListPrunesRecordsOfDeadHolders() async throws {
+    func testListPrunesRecordsOfDeadProcesses() async throws {
         let registry = try CompanionRegistry(directory: makeScratchDirectory().url)
         register(registry, pid: 101, port: 22111, device: "AAA")
         let hooks = makeHooks(registry: registry, processes: FakeProcesses(alive: []))
 
         let result = await runCompanionList(hooks: hooks)
 
-        XCTAssertTrue(result.output.contains("No companions running"), result.output)
+        XCTAssertTrue(result.output.contains("No companion processes recorded"), result.output)
         XCTAssertTrue(registry.entries(isAlive: { _ in true }).isEmpty, "the stale record is deleted")
     }
 
@@ -126,7 +126,7 @@ final class CompanionListStopTests: XCTestCase {
         XCTAssertTrue(processes.terminated.isEmpty)
     }
 
-    func testStopAllStopsEveryHolder() async throws {
+    func testStopAllStopsEveryProcess() async throws {
         let registry = try CompanionRegistry(directory: makeScratchDirectory().url)
         register(registry, pid: 101, port: 22111, device: "AAA")
         register(registry, pid: 102, port: 22112, device: "BBB")
@@ -165,7 +165,7 @@ final class CompanionListStopTests: XCTestCase {
         XCTAssertEqual(result.exitCode, 1)
     }
 
-    func testUnregisterIgnoresARecordOwnedByANewerHolder() throws {
+    func testUnregisterIgnoresARecordOwnedByANewerProcess() throws {
         let registry = try CompanionRegistry(directory: makeScratchDirectory().url)
         register(registry, pid: 202, port: 22111, device: "AAA")
 

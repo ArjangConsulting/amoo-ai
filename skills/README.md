@@ -11,7 +11,7 @@ inspection. `AMOO_TOOL_PROFILE=drive|record|audit` can also reduce MCP discovery
 
 To hand a whole device task to a subagent that returns only a short YAML report, delegate to the
 [`amoo`](../plugins/amoo/agents/amoo.md) agent (inspect, verify, debug, record, audit). For a
-contract-driven verification run (lease a device, install, navigate, run checked-in probes), use
+contract-driven verification run (runtime a device, install, navigate, run checked-in probes), use
 [`device-verifier`](../plugins/amoo/skills/device-verifier/SKILL.md) and its agent. Install either
 through the plugin or with `amoo agent install` (guided in a terminal; see the README).
 

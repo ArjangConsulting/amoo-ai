@@ -104,7 +104,7 @@ final class CompanionStaleAndDetachTests: XCTestCase {
         XCTAssertTrue(renderCompanionHelp().contains("--detach"))
     }
 
-    func testDetachedHolderRunsTheSameStartWithoutDetachAndWithExplicitPortAndTimeout() {
+    func testDetachedProcessRunsTheSameStartWithoutDetachAndWithExplicitPortAndTimeout() {
         var options = parsedStart(["start", "--device", "UDID-1", "--app", "com.example", "--force"])
         options.companionDir = "/companion"
         let arguments = detachedCompanionStartArguments(
@@ -115,7 +115,7 @@ final class CompanionStaleAndDetachTests: XCTestCase {
             "--port", "23001", "--ready-timeout", "300", "--app", "com.example",
             "--companion-dir", "/companion", "--force"
         ])
-        XCTAssertFalse(arguments.contains("--detach"), "the holder must stay in the foreground of its own session")
+        XCTAssertFalse(arguments.contains("--detach"), "the process must stay in the foreground of its own session")
     }
 
     func testDetachReturnsPidPortAndStopHintOnceReady() async {
@@ -139,7 +139,7 @@ final class CompanionStaleAndDetachTests: XCTestCase {
         XCTAssertEqual(polls.get(), 3)
     }
 
-    func testDetachFailsWithTheLogTailWhenTheHolderDiesBeforeReady() async throws {
+    func testDetachFailsWithTheLogTailWhenTheProcessDiesBeforeReady() async throws {
         let log = NSTemporaryDirectory() + "amoo-companion-ios-23002.log"
         try Data("boom: build failed".utf8).write(to: URL(fileURLWithPath: log))
         defer { try? FileManager.default.removeItem(atPath: log) }
@@ -152,7 +152,7 @@ final class CompanionStaleAndDetachTests: XCTestCase {
         XCTAssertTrue(result.output.contains("boom: build failed"), result.output)
     }
 
-    func testDetachStopsTheHolderAndFailsWhenItNeverBecomesReady() async {
+    func testDetachStopsTheProcessAndFailsWhenItNeverBecomesReady() async {
         let stopped = Locked<Int32?>(nil)
         let hooks = hooks(
             spawn: { _, _ in 4244 }, isReady: { _ in false }, stop: { stopped.set($0) }, buildSlackSeconds: 0

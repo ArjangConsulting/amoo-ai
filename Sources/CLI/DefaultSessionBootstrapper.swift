@@ -11,7 +11,7 @@ import TestSession
 /// running on that device, opens a gRPC connection, installs + launches the
 /// app under test, and waits for the first stable screen.
 struct DefaultSessionBootstrapper: SessionBootstrapper {
-    static let leases = DeviceLeaseRegistry()
+    static let deviceAccess = DeviceAccessRegistry()
     let iOSCompanionManager: any IOSCompanionManaging
     let androidCompanionManager: any AndroidCompanionManaging
     let processRunner: any ProcessRunner
@@ -20,8 +20,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     /// How many seconds to wait for `getScreenContext` to succeed after launch
     /// before giving up on screen stabilization.
     let screenStabilizationTimeoutSeconds: Double
-    /// Cross-process device leases (`amoo env up`); injectable so tests never read `~/.amoo`.
-    let leaseStore: DeviceClaimStore
+    /// Cross-process device runtimes (`amoo env up`); injectable so tests never read `~/.amoo`.
+    let runtimeStore: DeviceRuntimeStore
     /// The `--port` an MCP server was started with, used for iOS sessions that name no port of
     /// their own. `nil` derives a stable per-simulator port instead (see `IOSCompanionPort`).
     let serverPort: Int?
@@ -32,11 +32,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         processRunner: any ProcessRunner = SystemProcessRunner(),
         usbTunnel: any USBTunneling = IProxyTunnel(),
         screenStabilizationTimeoutSeconds: Double = 10,
-        leaseStore: DeviceClaimStore = DeviceClaimStore(),
+        runtimeStore: DeviceRuntimeStore = DeviceRuntimeStore(),
         serverPort: Int? = nil
     ) {
         self.serverPort = serverPort
-        self.leaseStore = leaseStore
+        self.runtimeStore = runtimeStore
         self.iOSCompanionManager = iOSCompanionManager
         self.androidCompanionManager = androidCompanionManager
         self.processRunner = processRunner
@@ -48,7 +48,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let clock = ContinuousClock()
         let bootstrapStart = clock.now
         await StartupProgress.report("Selecting device")
-        let selector = PlatformDeviceSelector(processRunner: processRunner, leaseStore: leaseStore)
+        let selector = PlatformDeviceSelector(processRunner: processRunner, runtimeStore: runtimeStore)
         async let androidBuild: Bool = prepareAndroidBuild(request)
         let available = try await selector.selectDevice(
             hint: request.deviceHint,
@@ -60,24 +60,24 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         case let .ios(device): "ios:\(device.udid)"
         case let .android(serial, _): "android:\(serial)"
         }
-        // Cross-process: a device another session leased via `amoo env up` is off limits unless
-        // this server was started with that lease in AMOO_LEASE.
+        // Cross-process: a device another session controlled via `amoo env up` is off limits unless
+        // this server was started with that runtime in AMOO_RUNTIME_ID.
         try Task.checkCancellation()
-        let claim = try DeviceSessionLock(deviceID: available.deviceID, store: leaseStore)
-        leaseStore.reapIfExpired(deviceID: available.deviceID)
-        try enforceLease(deviceID: available.deviceID, lease: presentedLease(flag: nil), store: leaseStore)
+        let accessLock = try DeviceAccessLock(deviceID: available.deviceID, store: runtimeStore)
+        runtimeStore.reapIfExpired(deviceID: available.deviceID)
+        try enforceDeviceAccess(deviceID: available.deviceID, runtime: presentedRuntime(flag: nil), store: runtimeStore)
         let installAndroidBuild = try await androidBuild
-        let owner = try await Self.leases.acquire(deviceKey)
+        let owner = try await Self.deviceAccess.acquire(deviceKey)
         do {
             return try await bootstrap(
                 request,
                 available: available,
                 start: bootstrapStart,
-                lease: SessionOwnership(deviceKey: deviceKey, owner: owner, claim: claim),
+                ownership: SessionOwnership(deviceKey: deviceKey, owner: owner, accessLock: accessLock),
                 installAndroidBuild: installAndroidBuild
             )
         } catch {
-            await Self.leases.release(deviceKey, owner: owner)
+            await Self.deviceAccess.release(deviceKey, owner: owner)
             throw error
         }
     }
@@ -88,7 +88,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         _ request: SessionBootstrapRequest,
         available: AvailableDevice,
         start bootstrapStart: ContinuousClock.Instant,
-        lease: SessionOwnership,
+        ownership: SessionOwnership,
         installAndroidBuild: Bool
     ) async throws -> BootstrapResult {
         let clock = ContinuousClock()
@@ -145,7 +145,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         }
 
         let cleanup = makeSessionCleanup(
-            companion: companion, tunnelHandle: tunnelHandle, lease: lease, device: available
+            companion: companion, tunnelHandle: tunnelHandle, ownership: ownership, device: available
         )
 
         let platformDriver: any PlatformDriver

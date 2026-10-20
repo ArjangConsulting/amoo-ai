@@ -6,7 +6,7 @@ the original state; this document records the patch and its remaining boundaries
 
 | Review area | Change |
 | --- | --- |
-| Session/device routing | Only omitted session IDs use the default driver. Missing/closed IDs fail explicitly. Production bootstrapping leases devices within a server process. |
+| Session/device routing | Only omitted session IDs use the default driver. Missing/closed IDs fail explicitly. Production bootstrapping runtimes devices within a server process. |
 | Companion exposure | Android now binds IPv4 loopback, matching iOS. Remote deployment is unsupported. |
 | Text verification | Ordinary fields require exact equality with bounded polling. Secure-entry metadata crosses the proto boundary; masked changes never claim exact verification. |
 | Ambiguous targets | Host mutation/assertion paths require unique matches. Direct companion tap/text paths also refuse ambiguity. Parent constraints survive text re-resolution. |
@@ -55,7 +55,7 @@ also retroactively scrub earlier observations when a secret becomes known, recov
 and preserve offline `report.json` compatibility. Disk artifacts are never automatically deleted.
 
 Screen tokens are hierarchy change hints, not server-owned snapshot references. Atomic
-snapshot-handle gestures, cross-process device leases, remote authentication/TLS, a separate
+snapshot-handle gestures, cross-process device runtimes, remote authentication/TLS, a separate
 portable plan-domain package and a generated operation registry remain architectural extensions.
 Existing schemas and validators are improved incrementally, not replaced by a generated registry.
 Security rules that need manifests, signing or attack-scenario evidence report limited coverage;

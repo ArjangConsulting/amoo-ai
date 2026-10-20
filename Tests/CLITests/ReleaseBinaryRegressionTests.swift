@@ -21,8 +21,8 @@ final class ReleaseBinaryRegressionTests: XCTestCase {
                 tool
             ]
             var environment = ProcessInfo.processInfo.environment
-            environment["AMOO_LEASE_DIR"] = scratch.url.path
-            environment.removeValue(forKey: "AMOO_LEASE")
+            environment["AMOO_RUNTIME_DIR"] = scratch.url.path
+            environment.removeValue(forKey: "AMOO_RUNTIME_ID")
             process.environment = environment
             let output = Pipe()
             process.standardOutput = output

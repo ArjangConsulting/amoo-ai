@@ -12,7 +12,7 @@ struct ProbeRunOptions: Equatable {
     var files: [String] = []
     var platform: Platform = .ios
     var deviceID: String?
-    var lease: String?
+    var runtimeID: String?
     var bundleID: String?
     var timeoutMilliseconds = 30000
     /// Exit 1 when any probe reports `pass: false`.
@@ -26,7 +26,7 @@ struct ProbeRunOptions: Equatable {
 func renderProbeHelp() -> String {
     """
     Usage: amoo probe run <probe.js>... --platform ios|android --device <id>
-                          [--lease <id>] [--bundle-id <id>] [--timeout-ms <n>]
+                          [--runtime-id <id>] [--bundle-id <id>] [--timeout-ms <n>]
                           [--expect-pass] [--bail] [--evidence-dir <dir>] [--json]
 
     Each probe is a JavaScript expression (typically an IIFE, sync or async) that returns
@@ -38,7 +38,7 @@ func renderProbeHelp() -> String {
       --evidence-dir  write <dir>/<probe-file>.json per probe (raw value, parsed result, timing)
 
     Exit codes: 0 ok, 1 a probe failed (--expect-pass), 2 a probe could not run (tooling),
-    3 device leased by another session.
+    3 device controlled by another session.
     """
 }
 
@@ -51,7 +51,7 @@ func parseProbeRunOptions(args: [String]) -> Result<ProbeRunOptions, EnvCommandP
         }
         options.platform = platform
         options.deviceID = try flags.value("--device")
-        options.lease = try flags.value("--lease")
+        options.runtimeID = try flags.value("--runtime-id")
         options.bundleID = try flags.value("--bundle-id")
         options.timeoutMilliseconds = try flags.int("--timeout-ms") ?? options.timeoutMilliseconds
         options.expectPass = flags.take("--expect-pass")
@@ -153,11 +153,13 @@ func runProbeCommand(
     _ options: ProbeRunOptions,
     inspector: any WebInspecting = makeWebInspecting(processRunner: SystemProcessRunner())
 ) async -> CLIResult {
+    let access: DeviceAccessLock?
     do {
-        try enforceLease(deviceID: options.deviceID, lease: presentedLease(flag: options.lease))
+        access = try acquireRuntimeDeviceAccess(deviceID: options.deviceID, runtimeID: options.runtimeID)
     } catch {
         return CLIResult(output: "\(error)", exitCode: 3)
     }
+    defer { access?.release() }
     var report = ProbeRunReport(
         ok: false,
         platform: options.platform.rawValue,

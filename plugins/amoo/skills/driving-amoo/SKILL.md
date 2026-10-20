@@ -13,7 +13,7 @@ and distinguish deterministic evidence from contextual LLM findings and missing 
 
 Read AGENTS.md setup locations and amoo.md conventions first. CLI generation and MCP start_session discover amoo.md from cwd.
 Mixed profiles use separate targetPlatform blocks for Swift and Kotlin/Java. Elsewhere pass --context <repo>/amoo.md or context_path=<repo>/amoo.md; explicit context wins, and generate test preserves embedded context.
-.amoo.json is private CLI lease state: release before MCP, never commit it or automatically install remembered artifacts.
+.amoo.json is private CLI runtime state: release before MCP, never commit it or automatically install remembered artifacts.
 
 
 ## Start
@@ -38,11 +38,11 @@ app interaction. Do useful independent work between status checks.
 
 ## Choose an execution mode
 
-Use MCP for interactive inspection and managed recordings; use leased CLI for checked-in flows
+Use MCP for interactive inspection and managed recordings; use controlled CLI for checked-in flows
 and probes. Subagents acquire their own device ownership and use their available transport.
 Before CLI interaction or delegation, read [execution modes](references/execution-modes.md)
-for version checks, lease acquisition and cleanup, and transport limitations.
-MCP `start_session` owns the device until `end_session`; it needs no separate CLI lease.
+for version checks, runtime acquisition and cleanup, and transport limitations.
+MCP `start_session` owns the device until `end_session`; it needs no separate CLI runtime.
 Never use a second transport to bypass an ownership conflict.
 
 One companion serves one device. With several simulators booted, give each its own port and pass
@@ -147,9 +147,9 @@ not something to wait out. Most of a slow loop is rebuilding what has not change
 
 For several devices, build the app once externally, then `amoo init` (guided in a terminal; agents pass
 `--platform --app --app-id --device ... --out <manifest> --json`, validate with `--dry-run`). Each device gets
-its own lease, companion and port from that one artifact; never rebuild per device. `AGENTS.md` may record
+its own runtime, companion and port from that one artifact; never rebuild per device. `AGENTS.md` may record
 the app and manifest locations under `## amoo init`. Commands, manifest use, cleanup and the recording
-hand-off (release CLI leases, then MCP `start_session`) are in `references/execution-modes.md`.
+hand-off (stop CLI runtimes, then MCP `start_session`) are in `references/execution-modes.md`.
 
 Live session IDs are local to one MCP server process; a separate agent server cannot attach.
 Delegate app/build/device requirements, then start_session in the receiving context on an available
@@ -157,9 +157,9 @@ device. The owner must end_session before its device is reused. To preserve the 
 screen, keep driving in the owning context. Never drop session_id after an attachment error.
 
 Other sessions may be driving devices on the same Mac. `amoo env up --platform <p> [--avd|--runtime
---model] --app <build> --app-id <id> --json` leases a simulator/emulator (never a physical one),
-starts its companion on a free port in the background, and returns `lease`, `device`, `port`;
-pass `--lease` (or `AMOO_LEASE`) to `amoo device`/`flow`/`probe run`, and `amoo env down --lease`
+--model] --app <build> --app-id <id> --json` starts a runtime on a simulator/emulator (never a physical one),
+starts its companion on a free port in the background, and returns `runtime`, `device`, `port`;
+pass `--runtime-id` (or `AMOO_RUNTIME_ID`) to `amoo device`/`flow`/`probe run`, and `amoo env down --runtime-id`
 when done. `amoo doctor --json` flags stale MCP servers and physical devices. To delegate a whole
 verification run, see the `device-verifier` skill.
 

@@ -14,11 +14,11 @@ struct DeviceCommandOptions {
     var deviceID: String?
     var tool: String
     var arguments: [String: String]
-    /// `--lease <id>`: proves this caller owns the device's lease (`amoo env up`).
-    var lease: String?
+    /// `--runtime-id <id>`: proves this caller owns the device's runtime (`amoo env up`).
+    var runtimeID: String?
     /// `--json`: print one JSON object instead of the human-readable result.
     var json = false
-    /// `port` is the platform default, not a `--port` the caller chose, so a lease may supply it.
+    /// `port` is the platform default, not a `--port` the caller chose, so a runtime may supply it.
     var portIsDefault = false
 }
 
@@ -45,16 +45,17 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
             "Unknown flag '\(flag)'. Several flags arrived as one argument — pass each flag and "
                 + "value separately (zsh does not word-split an unquoted $VAR; use ${=VAR} or an array)."
         case let .unknownFlag(flag):
-            "Unknown flag '\(flag)'. Expected --platform, --port, --device, --lease or --json before the tool name."
+            "Unknown flag '\(flag)'. Expected --platform, --port, --device, --runtime-id or --json "
+                + "before the tool name."
         }
     }
 }
 
 private let deviceHelpUsageAndTools = """
-Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] [--lease <id>] [--json]
+Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] [--runtime-id <id>] [--json]
                    <tool> [key=value ...] [--env KEY=VALUE ...] [--arg VALUE ...]
 
-  --lease <id>   Lease from `amoo env up` (or AMOO_LEASE). Devices leased by another
+  --runtime-id <id>   Runtime from `amoo env up` (or AMOO_RUNTIME_ID). Devices controlled by another
                  session are refused.
   --json         Print {"tool","ok","content","structured"} as one JSON object.
 
@@ -193,7 +194,7 @@ private struct DeviceCommandFlags {
     var platform: Platform = .ios
     var port: Int?
     var deviceID: String?
-    var lease: String?
+    var runtimeID: String?
     var json = false
 }
 
@@ -235,12 +236,12 @@ private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommand
             flags.deviceID = udid
             remaining.removeFirst()
 
-        case "--lease":
+        case "--runtime-id":
             remaining.removeFirst()
-            guard let lease = remaining.first else {
-                return .failure(.malformedArgument("--lease (missing value)"))
+            guard let runtime = remaining.first, !runtime.hasPrefix("--") else {
+                return .failure(.malformedArgument("--runtime-id (missing value)"))
             }
-            flags.lease = lease
+            flags.runtimeID = runtime
             remaining.removeFirst()
 
         case "--json":
@@ -341,7 +342,7 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
         deviceID: normalizedDeviceID(flags.deviceID, for: flags.platform),
         tool: tool,
         arguments: arguments,
-        lease: flags.lease,
+        runtimeID: flags.runtimeID,
         json: flags.json,
         portIsDefault: flags.port == nil
     ))
@@ -380,6 +381,14 @@ func runDeviceCommand(
         }
     }
 
+    let access: DeviceAccessLock?
+    do {
+        access = try options.acquireDeviceAccess()
+    } catch {
+        return deviceAccessRefusal(options: options, error: error)
+    }
+    defer { access?.release() }
+
     let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
 
     let companion: GRPCCompanionClient
@@ -389,16 +398,7 @@ func runDeviceCommand(
         return CLIResult(output: "Failed to connect to companion on port \(options.port): \(error)", exitCode: 1)
     }
 
-    let driver: any PlatformDriver = switch options.platform {
-    case .ios:
-        await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
-    case .android:
-        AndroidDriver(
-            companion: companion,
-            inspectionMode: .productionDefault(),
-            serial: options.deviceID
-        )
-    }
+    let driver = await makeDeviceCommandDriver(options, companion: companion)
     let executor = DriverToolExecutor(
         driver: driver,
         foreignBuildDetector: ForeignBuildDetector(),

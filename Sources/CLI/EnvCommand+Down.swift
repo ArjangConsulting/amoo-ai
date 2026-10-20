@@ -11,81 +11,127 @@ import Glibc
 
 struct EnvDownReport: Codable {
     var ok: Bool
-    var lease: String?
+    var runtimeID: String?
     var device: String?
-    var holderStopped: Bool
+    var companionStopped: Bool
     var shutdown: Bool
     var error: String?
-    /// Holders found running with no lease (`env down --device`), all stopped when `ok`.
+    /// Processes found running with no runtime (`env down --device`), all stopped when `ok`.
     var orphansStopped: [Int32]?
+    var state: DeviceRuntimeState?
 
     enum CodingKeys: String, CodingKey {
-        case ok, lease, device, shutdown, error
+        case ok, device, shutdown, error, state
+        case runtimeID = "runtime_id"
         case orphansStopped = "orphans_stopped"
-        case holderStopped = "holder_stopped"
+        case companionStopped = "companion_stopped"
     }
 }
 
-func runEnvDown(_ options: EnvDownOptions, store: DeviceClaimStore = DeviceClaimStore()) async -> CLIResult {
-    var report = EnvDownReport(ok: false, holderStopped: false, shutdown: false)
+struct EnvDownDependencies {
+    var stop: (DeviceRuntime) -> Bool = stopRuntimeCompanion
+    var stopAndroid: (String) async -> Bool = forceStopAndroidCompanion
+    var shutdown: (DeviceRuntime) async -> Bool = shutDownDevice
+}
+
+func runEnvDown(
+    _ options: EnvDownOptions,
+    store: DeviceRuntimeStore = DeviceRuntimeStore(),
+    dependencies: EnvDownDependencies = EnvDownDependencies()
+) async -> CLIResult {
+    var report = EnvDownReport(ok: false, companionStopped: false, shutdown: false)
     let finish: (Int32) -> CLIResult = { code in
         let human = envDownSummary(report)
         return CLIResult(output: options.json ? renderJSON(report) : human, exitCode: code)
     }
 
-    let lease: DeviceClaim? = if let id = options.lease {
-        store.claim(id: id)
+    let runtime: DeviceRuntime? = if let id = options.runtimeID {
+        store.runtime(id: id, includingExpired: true)
     } else {
-        options.deviceID.flatMap { store.claim(forDevice: $0) }
+        store.allIncludingExpired().first { $0.deviceID == options.deviceID }
     }
-    guard let lease else {
-        // No claim, but a holder may have outlived it (the lease expired, or the file was lost).
-        // `env down --device` is the way to stop such an orphan.
-        if options.lease == nil, let deviceID = options.deviceID {
-            let orphans = await orphanedCompanionHolders(deviceID: deviceID)
-            let onDevice = deviceID.hasPrefix("emulator-")
-            if !orphans.isEmpty || onDevice {
-                orphans.forEach { stopHolder(pid: $0) }
-                if onDevice {
-                    await forceStopAndroidCompanion(serial: deviceID)
-                }
-                report.device = deviceID
-                report.orphansStopped = orphans
-                report.holderStopped = orphans.allSatisfy { kill($0, 0) != 0 }
-                report.ok = report.holderStopped
-                report.error = report.ok ? nil : "Could not stop orphaned holder(s) \(orphans)."
-                return finish(report.ok ? 0 : 1)
-            }
-        }
-        report.error = options.lease.map { DeviceLeaseError.unknownLease($0).description }
-            ?? "No active lease on \(options.deviceID ?? "?")."
-        return finish(1)
+    guard let runtime else {
+        let orphan = await stopOrphanedRuntime(options, store: store, dependencies: dependencies)
+        report = orphan.report
+        return finish(orphan.exitCode)
     }
-    report.lease = lease.id
-    report.device = lease.deviceID
+    report.runtimeID = runtime.id
+    report.device = runtime.deviceID
 
-    let presented = options.lease ?? presentedLease(flag: nil)
-    guard presented == lease.id || options.force else {
-        report.error = DeviceLeaseError.leasedByOther(lease).description + " Use --force to release it anyway."
+    if let deviceID = options.deviceID, deviceID != runtime.deviceID {
+        report.error = "The runtime belongs to a different device."
         return finish(3)
     }
-
-    stopHolder(pid: lease.holderPID)
-    report.holderStopped = lease.holderPID.map { kill($0, 0) != 0 } ?? true
-    if options.shutdown, lease.bootedByLease || options.force {
-        report.shutdown = await shutDownDevice(lease)
+    if let refusal = envDownRefusal(options, runtime: runtime) {
+        report.error = refusal
+        return finish(3)
     }
-    store.release(lease)
-    report.ok = true
-    return finish(0)
+    let access: DeviceAccessLock
+    do {
+        access = try DeviceAccessLock(deviceID: runtime.deviceID, store: store)
+    } catch {
+        report.error = "Device is being controlled by another session: \(runtime.deviceID)."
+        return finish(3)
+    }
+    defer { access.release() }
+
+    if let failure = await stopCompanions(runtime, options: options, dependencies: dependencies, report: &report) {
+        report.error = failure
+        return finish(1)
+    }
+    if options.shutdown, runtime.bootedByRuntime || options.force {
+        report.shutdown = await dependencies.shutdown(runtime)
+        if !report.shutdown {
+            report.error = "Companion stopped, but device shutdown failed."
+        }
+    }
+    report.state = .stopped
+    let removed = store.stop(runtime)
+    report.ok = removed && report.error == nil
+    if !removed {
+        report.error = "Could not remove the runtime record."
+    }
+    return finish(report.ok ? 0 : 1)
 }
 
-private func shutDownDevice(_ lease: DeviceClaim) async -> Bool {
+/// Why the caller may not stop `runtime`, nil when it may. Stopping someone else's live runtime
+/// needs `--force`; an expired runtime reads as free, so anyone may clean it up.
+private func envDownRefusal(_ options: EnvDownOptions, runtime: DeviceRuntime) -> String? {
+    let presented = (options.runtimeID ?? presentedRuntime(flag: nil)).map(DeviceRuntimeStore.normalizedID)
+    guard presented == runtime.id || options.force || runtime.isExpired() else {
+        return DeviceAccessError.controlledByOther(runtime).description + " Use --force to stop it anyway."
+    }
+    return nil
+}
+
+/// Stops the host companion process and, on Android, the on-device runner. Returns the failure to
+/// report, nil on success. `--force` carries on past a failed stop so the record can still be cleared.
+private func stopCompanions(
+    _ runtime: DeviceRuntime,
+    options: EnvDownOptions,
+    dependencies: EnvDownDependencies,
+    report: inout EnvDownReport
+) async -> String? {
+    let retry = " Retry with --force to remove the record anyway."
+    report.companionStopped = dependencies.stop(runtime)
+    guard report.companionStopped || options.force else {
+        return "Could not stop the companion process." + retry
+    }
+    if runtime.platform == .android, await !dependencies.stopAndroid(runtime.deviceID) {
+        report.companionStopped = false
+        if !options.force {
+            return "Could not stop the on-device companion; runtime record retained for cleanup." + retry
+        }
+    }
+    return nil
+}
+
+private func shutDownDevice(_ runtime: DeviceRuntime) async -> Bool {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
     do {
-        switch lease.platform {
-        case .android: try await AndroidDeviceManager(shell: context).killEmulator(lease.deviceID)
-        case .ios: try await SimulatorManager(shell: context).shutdown(lease.deviceID)
+        switch runtime.platform {
+        case .android: try await AndroidDeviceManager(shell: context).killEmulator(runtime.deviceID)
+        case .ios: try await SimulatorManager(shell: context).shutdown(runtime.deviceID)
         }
         return true
     } catch { return false }
@@ -94,47 +140,53 @@ private func shutDownDevice(_ lease: DeviceClaim) async -> Bool {
 // MARK: - env list
 
 private struct EnvListEntry: Encodable {
-    var lease: String
+    var runtimeID: String
     var platform: String
     var device: String
     var name: String?
     var port: Int?
-    var holderPID: Int32?
-    var holderAlive: Bool
+    var companionPID: Int32?
+    var state: DeviceRuntimeState
     var owner: String?
     var expiresAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case lease, platform, device, name, port, owner
-        case holderPID = "holder_pid"
-        case holderAlive = "holder_alive"
+        case platform, device, name, port, owner
+        case runtimeID = "runtime_id"
+        case companionPID = "companion_pid"
+        case state
         case expiresAt = "expires_at"
     }
 }
 
-func runEnvList(json: Bool, store: DeviceClaimStore = DeviceClaimStore()) -> CLIResult {
-    let entries = store.all().map { lease in
+func runEnvList(
+    json: Bool,
+    store: DeviceRuntimeStore = DeviceRuntimeStore(),
+    health: DeviceRuntimeHealth = DeviceRuntimeHealth()
+) async -> CLIResult {
+    let observations = await health.observe(store.allIncludingExpired())
+    let entries = observations.map { runtime in
         EnvListEntry(
-            lease: lease.id,
-            platform: lease.platform.rawValue,
-            device: lease.deviceID,
-            name: lease.deviceName,
-            port: lease.port,
-            holderPID: lease.holderPID,
-            holderAlive: lease.holderPID.map { kill($0, 0) == 0 } ?? false,
-            owner: lease.owner,
-            expiresAt: lease.expiresAt
+            runtimeID: runtime.id,
+            platform: runtime.platform.rawValue,
+            device: runtime.deviceID,
+            name: runtime.deviceName,
+            port: runtime.port,
+            companionPID: runtime.companionPID,
+            state: runtime.state,
+            owner: runtime.owner,
+            expiresAt: runtime.expiresAt
         )
     }
     if json {
-        return CLIResult(output: renderJSON(["leases": entries]), exitCode: 0)
+        return CLIResult(output: renderJSON(["runtimes": entries]), exitCode: 0)
     }
-    guard !entries.isEmpty else { return CLIResult(output: "No active leases.", exitCode: 0) }
+    guard !entries.isEmpty else { return CLIResult(output: "No active runtimes.", exitCode: 0) }
     let format = ISO8601DateFormatter()
     let lines = entries.map { entry in
-        "\(entry.lease)  \(entry.platform)  \(entry.device)  \(entry.name ?? "-")"
+        "\(entry.runtimeID)  \(entry.platform)  \(entry.device)  \(entry.name ?? "-")"
             + "  port=\(entry.port.map(String.init) ?? "-")"
-            + "  holder=\(entry.holderAlive ? "alive" : "dead")  owner=\(entry.owner ?? "-")"
+            + "  state=\(entry.state.rawValue)  owner=\(entry.owner ?? "-")"
             + "  expires=\(format.string(from: entry.expiresAt))"
     }
     return CLIResult(output: lines.joined(separator: "\n"), exitCode: 0)
@@ -152,16 +204,16 @@ func handleEnvCommand(remaining: [String]) async -> CLIResult {
     case let .success(.down(options)):
         return await runEnvDown(options)
     case let .success(.list(json)):
-        return runEnvList(json: json)
+        return await runEnvList(json: json)
     }
 }
 
 private func envDownSummary(_ report: EnvDownReport) -> String {
     guard report.ok else { return "env down failed: \(report.error ?? "unknown error")" }
-    if report.lease == nil {
-        let holders = report.orphansStopped?.map { String($0) }.joined(separator: ", ") ?? "none"
-        return "No lease on \(report.device ?? "?"); stopped orphaned companion holder(s): \(holders)."
+    if report.runtimeID == nil {
+        let processes = report.orphansStopped?.map { String($0) }.joined(separator: ", ") ?? "none"
+        return "No runtime on \(report.device ?? "?"); stopped orphaned companion process(s): \(processes)."
     }
-    return "Released \(report.lease ?? "?") on \(report.device ?? "?")"
+    return "Stopped amoo on \(report.device ?? "?")"
         + (report.shutdown ? "; device shut down." : ".")
 }

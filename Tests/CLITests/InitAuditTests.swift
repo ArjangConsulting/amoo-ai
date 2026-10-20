@@ -31,12 +31,12 @@ final class InitAuditTests: InitTestCase {
                 devices: ["phone"],
                 out: parent.appendingPathComponent("state.json").path
             ),
-            setup: forbidden("Cannot lease without a writable manifest")
+            setup: forbidden("Cannot runtime without a writable manifest")
         )
         XCTAssertEqual(result.exitCode, 1)
     }
 
-    func testSaveFailureIsReportedInJSONWithLeasesPreserved() async throws {
+    func testSaveFailureIsReportedInJSONWithRuntimesPreserved() async throws {
         let scratch = try makeScratchDirectory()
         let result = await runInitCommand(
             [
@@ -54,7 +54,7 @@ final class InitAuditTests: InitTestCase {
         XCTAssertEqual(result.exitCode, 1)
         let manifest = try JSONDecoder().decode(InitManifest.self, from: Data(result.output.utf8))
         XCTAssertFalse(manifest.ok)
-        XCTAssertEqual(manifest.results.first?.lease, "L")
+        XCTAssertEqual(manifest.results.first?.runtimeID, "L")
         XCTAssertTrue(manifest.error?.contains("Could not save") == true)
     }
 
@@ -76,7 +76,7 @@ final class InitAuditTests: InitTestCase {
             runtime: runtime(
                 prompter: prompter, interactive: true,
                 discovery: discovery(devices: [candidate("phone")]),
-                setup: forbidden("EOF must cancel before leasing")
+                setup: forbidden("EOF must cancel before starting runtimes")
             )
         )
         XCTAssertEqual(result.exitCode, 1)
@@ -113,7 +113,7 @@ final class InitAuditTests: InitTestCase {
                 ],
                 runtime: runtime(
                     prompter: prompter, interactive: true, discovery: found,
-                    setup: answer == true ? succeedingSetup : forbidden("Declining must not lease")
+                    setup: answer == true ? succeedingSetup : forbidden("Declining must not runtime")
                 )
             )
             XCTAssertEqual(result.exitCode, answer == true ? 0 : 1, result.output)

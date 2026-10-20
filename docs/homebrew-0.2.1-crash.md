@@ -47,6 +47,6 @@ AMOO_RELEASE_REGRESSION_BINARY=/opt/homebrew/bin/amoo \
 
 The checkout already accepts the documented post-tool `--arg` flags, and both the
 0.2.1 source tag and current parser contain that support. Focused parser/schema coverage
-protects the full leased invocation. An unknown-argument report cannot yet be reproduced
+protects the full controlled invocation. An unknown-argument report cannot yet be reproduced
 with the working checkout binary; retain the exact failing argv and executable identity
 when investigating it further.

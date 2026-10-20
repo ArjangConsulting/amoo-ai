@@ -15,7 +15,7 @@ struct CompanionListStopHooks: Sendable {
     var isAlive: @Sendable (_ pid: Int32) -> Bool
     var terminate: @Sendable (_ pid: Int32) -> Void
     var forceKill: @Sendable (_ pid: Int32) -> Void
-    /// How long a holder gets to exit after SIGTERM before SIGKILL.
+    /// How long a process gets to exit after SIGTERM before SIGKILL.
     var graceSeconds: Double
 
     static let live = Self(
@@ -28,15 +28,16 @@ struct CompanionListStopHooks: Sendable {
     )
 }
 
-/// Prints one row per live holder: pid, platform, port, device, app and whether it answers.
+/// Prints one row per live process: pid, platform, port, device, app and whether it answers.
 func runCompanionList(hooks: CompanionListStopHooks = .live) async -> CLIResult {
     let entries = hooks.registry.entries(isAlive: hooks.isAlive)
     guard !entries.isEmpty else {
-        return CLIResult(output: "No companions running (started with `amoo companion start`).", exitCode: 0)
+        return CLIResult(output: "No companion processes recorded (started with `amoo companion start`).", exitCode: 0)
     }
     var lines = ["PID\tPLATFORM\tPORT\tSTATE\tDEVICE\tAPP"]
     for entry in entries {
-        let state = await hooks.isReady(entry.port) ? "ready" : "starting"
+        let state = await hooks.isReady(entry.port) ? "running"
+            : (Date().timeIntervalSince(entry.startedAt) < 600 ? "starting" : "unresponsive")
         lines.append(
             "\(entry.pid)\t\(entry.platform)\t\(entry.port)\t\(state)\t\(entry.deviceID)\t\(entry.appID ?? "-")"
         )
@@ -44,7 +45,7 @@ func runCompanionList(hooks: CompanionListStopHooks = .live) async -> CLIResult 
     return CLIResult(output: lines.joined(separator: "\n"), exitCode: 0)
 }
 
-/// Stops the holders matching `--port` / `--device` (or every one with `--all`), leaving all other
+/// Stops the processes matching `--port` / `--device` (or every one with `--all`), leaving all other
 /// companions — including other sessions' — running.
 func runCompanionStop(
     options: CompanionCommandOptions,
@@ -76,7 +77,7 @@ func runCompanionStop(
     var lines: [String] = []
     var failed = false
     for entry in matches {
-        if await stopHolder(entry, hooks: hooks) {
+        if await stopProcess(entry, hooks: hooks) {
             lines.append("Stopped companion on port \(entry.port) (pid \(entry.pid)).")
         } else {
             failed = true
@@ -86,8 +87,8 @@ func runCompanionStop(
     return CLIResult(output: lines.joined(separator: "\n"), exitCode: failed ? 1 : 0)
 }
 
-/// SIGTERM lets the holder tear its runner down cleanly; SIGKILL only after the grace period.
-private func stopHolder(_ entry: CompanionRegistration, hooks: CompanionListStopHooks) async -> Bool {
+/// SIGTERM lets the process tear its runner down cleanly; SIGKILL only after the grace period.
+private func stopProcess(_ entry: CompanionRegistration, hooks: CompanionListStopHooks) async -> Bool {
     hooks.terminate(entry.pid)
     if await waitForExit(entry.pid, seconds: hooks.graceSeconds, hooks: hooks) {
         return true
@@ -111,8 +112,8 @@ private func waitForExit(_ pid: Int32, seconds: Double, hooks: CompanionListStop
     return !hooks.isAlive(pid)
 }
 
-/// Records this process as the holder of a companion until the returned closure runs.
-func registerCompanionHolder(
+/// Records this process as the process of a companion until the returned closure runs.
+func registerCompanionProcess(
     platform: CompanionPlatform,
     deviceID: String,
     port: Int,

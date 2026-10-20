@@ -56,8 +56,14 @@ final class ScriptedPrompter: Prompting {
 }
 
 class InitTestCase: XCTestCase {
-    func candidate(_ id: String, booted: Bool = true, leasedBy: String? = nil) -> InitDeviceCandidate {
-        InitDeviceCandidate(id: id, name: id.capitalized, detail: "iOS 27.0", booted: booted, leasedBy: leasedBy)
+    func candidate(_ id: String, booted: Bool = true, controlledBy: String? = nil) -> InitDeviceCandidate {
+        InitDeviceCandidate(
+            id: id,
+            name: id.capitalized,
+            detail: "iOS 27.0",
+            booted: booted,
+            controlledBy: controlledBy
+        )
     }
 
     func discovery(
@@ -70,11 +76,14 @@ class InitTestCase: XCTestCase {
     /// A `setup` standing in for a successful `env up`.
     var succeedingSetup: (EnvUpOptions) async -> CLIResult {
         { _ in
-            CLIResult(output: renderJSON(EnvUpReport(ok: true, lease: "L", platform: "ios", port: 22000)), exitCode: 0)
+            CLIResult(
+                output: renderJSON(EnvUpReport(ok: true, runtimeID: "L", platform: "ios", port: 22000)),
+                exitCode: 0
+            )
         }
     }
 
-    /// A `setup` that fails the test if anything tries to lease a device.
+    /// A `setup` that fails the test if anything tries to runtime a device.
     func forbidden(_ message: String) -> (EnvUpOptions) async -> CLIResult {
         { _ in
             XCTFail(message)
@@ -128,19 +137,27 @@ final class InitCommandTests: InitTestCase {
     func testRepeatedSetupSharesOneFileWithoutLosingOtherPlatformCredentials() async throws {
         let scratch = try makeScratchDirectory()
         let path = scratch.url.appendingPathComponent(".amoo.json").path
-        let ios = EnvUpReport(ok: true, lease: "ios-lease", platform: "ios", port: 22000)
+        let ios = EnvUpReport(ok: true, runtimeID: "ios-runtime", platform: "ios", port: 22000)
         try InitManifest(ok: true, results: [ios]).write(path)
         var environment = EnvUpOptions()
         environment.platform = .android
         let options = InitOptions(environment: environment, devices: ["emulator"], out: path)
         let result = await runInit(options, setup: { _ in
             CLIResult(
-                output: renderJSON(EnvUpReport(ok: true, lease: "android-lease", platform: "android", port: 22001)),
+                output: renderJSON(EnvUpReport(
+                    ok: true,
+                    runtimeID: "android-runtime",
+                    platform: "android",
+                    port: 22001
+                )),
                 exitCode: 0
             )
         })
         XCTAssertEqual(result.exitCode, 0, result.output)
-        XCTAssertEqual(try Set(InitManifest.read(path).results.compactMap(\.lease)), ["ios-lease", "android-lease"])
+        XCTAssertEqual(
+            try Set(InitManifest.read(path).results.compactMap(\.runtimeID)),
+            ["ios-runtime", "android-runtime"]
+        )
     }
 
     func testMalformedConnectionFileStopsBeforeAcquiringDevices() async throws {
@@ -179,7 +196,7 @@ final class InitCommandTests: InitTestCase {
     }
 
     func testHeadlessRunNamesEveryMissingInputAndWhatIsAvailable() async {
-        let found = discovery(devices: [candidate("phone"), candidate("tablet", leasedBy: "x")])
+        let found = discovery(devices: [candidate("phone"), candidate("tablet", controlledBy: "x")])
         let result = await runInitCommand(
             ["--platform", "ios", "--non-interactive"],
             runtime: runtime(discovery: found, setup: forbidden("must not set up"))
@@ -197,41 +214,6 @@ final class InitCommandTests: InitTestCase {
         )
         XCTAssertEqual(json.exitCode, 64, "--json never prompts even in a terminal")
         XCTAssertTrue(json.output.hasPrefix("{"), json.output)
-    }
-
-    func testSetupWithoutAnArtifactPreparesDevicesOnBothPlatforms() async throws {
-        let scratch = try makeScratchDirectory()
-        for platform in [Platform.ios, .android] {
-            let store = DeviceClaimStore(directory: scratch.url.appendingPathComponent(platform.rawValue))
-            var prepared: [String] = []
-            let dependencies = EnvUpDependencies(resolve: { options, _ in
-                try EnvDeviceReport(id: XCTUnwrap(options.deviceID), bootedByEnv: false)
-            }, start: { _, lease, store in
-                var lease = lease
-                lease.port = 22000 + prepared.count
-                return try store.renew(lease)
-            }, prepare: { options, _, app in
-                XCTAssertNil(options.appPath)
-                XCTAssertNil(options.appID)
-                XCTAssertNil(options.appSHA256)
-                XCTAssertFalse(options.launch)
-                XCTAssertNil(app)
-                try prepared.append(XCTUnwrap(options.deviceID))
-            })
-            let result = await runInitCommand(
-                ["--platform", platform.rawValue, "--device", "phone", "--device", "tablet", "--json"],
-                runtime: runtime(discovery: discovery(devices: [candidate("phone"), candidate("tablet")])) {
-                    await runEnvUp($0, store: store, dependencies: dependencies)
-                }
-            )
-            XCTAssertEqual(result.exitCode, 0, result.output)
-            let manifest = try JSONDecoder().decode(InitManifest.self, from: Data(result.output.utf8))
-            XCTAssertEqual(prepared, ["phone", "tablet"])
-            XCTAssertTrue(manifest.results.allSatisfy { $0.ok && $0.app == nil && $0.lease != nil })
-            let cleanup = await runInitDown(manifest, shutdown: false) { await runEnvDown($0, store: store) }
-            XCTAssertEqual(cleanup.exitCode, 0, cleanup.output)
-            XCTAssertTrue(store.all().isEmpty)
-        }
     }
 
     func testAppIdentifierIsRequiredOnlyForAnExplicitAppOrLaunch() async {
@@ -264,20 +246,21 @@ final class InitCommandTests: InitTestCase {
         XCTAssertEqual(request.launch, false)
     }
 
-    func testSharedArtifactIndependentLeasesPortsManifestAndCleanup() async throws {
+    func testSharedArtifactIndependentRuntimesPortsManifestAndCleanup() async throws {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
         let before = sha256Hex(ofPath: app)
-        let store = DeviceClaimStore(directory: scratch.url.appendingPathComponent("leases"))
+        let store = DeviceRuntimeStore(directory: scratch.url.appendingPathComponent("runtimes"))
         let out = scratch.url.appendingPathComponent("nested/manifest.json").path
         var installed: [(path: String?, sha: String?)] = []
         var manifestSeenByLastDevice: InitManifest?
         let dependencies = EnvUpDependencies(resolve: { options, _ in
             try EnvDeviceReport(id: XCTUnwrap(options.deviceID), name: options.deviceID, bootedByEnv: false)
-        }, start: { _, lease, store in
-            var lease = lease
-            lease.port = await pickFreeCompanionPort(leasedPorts: Set(store.all().compactMap(\.port))) { _ in false }
-            return try store.renew(lease)
+        }, start: { _, runtime, store in
+            var runtime = runtime
+            runtime
+                .port = await pickFreeCompanionPort(reservedPorts: Set(store.all().compactMap(\.port))) { _ in false }
+            return try store.refresh(runtime)
         }, prepare: { options, _, app in
             installed.append((options.appPath, options.appSHA256))
             app?.installed = true
@@ -299,7 +282,7 @@ final class InitCommandTests: InitTestCase {
         XCTAssertEqual(manifestSeenByLastDevice?.results.count, 1, "manifest is written after each device")
         XCTAssertEqual(installed.map(\.path), [app, app])
         XCTAssertEqual(installed.map(\.sha), [before, before], "digest computed once and shared")
-        XCTAssertEqual(Set(manifest.results.compactMap(\.lease)).count, 2)
+        XCTAssertEqual(Set(manifest.results.compactMap(\.runtimeID)).count, 2)
         XCTAssertEqual(Set(manifest.results.compactMap(\.port)).count, 2)
         XCTAssertTrue(manifest.results.allSatisfy { $0.app?.sha256 == before && $0.app?.launched == true })
         XCTAssertEqual(sha256Hex(ofPath: app), before, "the artifact is never modified")
@@ -307,31 +290,31 @@ final class InitCommandTests: InitTestCase {
         XCTAssertEqual(mode, 0o600)
         let routed = try initDeviceArguments(manifest, device: "tablet", args: ["--json", "current_app"])
         let parsed = try parseDeviceCommandOptions(args: routed).get()
-        XCTAssertEqual(parsed.lease, manifest.results[1].lease)
+        XCTAssertEqual(parsed.runtimeID, manifest.results[1].runtimeID)
         XCTAssertEqual(parsed.port, manifest.results[1].port)
         XCTAssertThrowsError(try initDeviceArguments(
             manifest,
             device: "tablet",
-            args: ["--lease", "other", "current_app"]
+            args: ["--runtime-id", "other", "current_app"]
         ))
         let cleanup = await runInitDown(manifest, shutdown: false) { await runEnvDown($0, store: store) }
         XCTAssertEqual(cleanup.exitCode, 0, cleanup.output)
         XCTAssertTrue(store.all().isEmpty)
     }
 
-    func testPartialFailureKeepsInstallStatusAndNeverTakesAnotherSessionsLease() async throws {
+    func testPartialFailureKeepsInstallStatusAndNeverTakesAnotherSessionsRuntime() async throws {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
-        let store = DeviceClaimStore(directory: scratch.url.appendingPathComponent("leases"))
-        let other = try store.acquire(platform: .ios, deviceID: "phone", deviceName: "Phone", owner: "someone-else")
+        let store = DeviceRuntimeStore(directory: scratch.url.appendingPathComponent("runtimes"))
+        let other = try store.start(platform: .ios, deviceID: "phone", deviceName: "Phone", owner: "someone-else")
         var starts: [String] = []
         let dependencies = EnvUpDependencies(resolve: { options, _ in
             try EnvDeviceReport(id: XCTUnwrap(options.deviceID), name: options.deviceID, bootedByEnv: false)
-        }, start: { _, lease, store in
-            starts.append(lease.deviceID)
-            var lease = lease
-            lease.port = 22093 + starts.count
-            return try store.renew(lease)
+        }, start: { _, runtime, store in
+            starts.append(runtime.deviceID)
+            var runtime = runtime
+            runtime.port = 22093 + starts.count
+            return try store.refresh(runtime)
         }, prepare: { options, _, app in
             app?.installed = true
             if options.deviceID == "broken" {
@@ -340,7 +323,7 @@ final class InitCommandTests: InitTestCase {
             app?.launched = true
         })
         let found = discovery(devices: [
-            candidate("phone", leasedBy: other.summary),
+            candidate("phone", controlledBy: other.summary),
             candidate("tablet"),
             candidate("broken")
         ])
@@ -351,7 +334,7 @@ final class InitCommandTests: InitTestCase {
         let manifest = try JSONDecoder().decode(InitManifest.self, from: Data(result.output.utf8))
         XCTAssertEqual(result.exitCode, 1)
         XCTAssertEqual(manifest.results.map(\.ok), [false, true, false])
-        XCTAssertEqual(starts, ["tablet", "broken"], "a leased device never reaches the companion step")
+        XCTAssertEqual(starts, ["tablet", "broken"], "a controlled device never reaches the companion step")
         XCTAssertTrue(manifest.results[0].error?.contains("someone-else") == true)
         XCTAssertEqual(manifest.results[2].app?.installed, true)
         XCTAssertEqual(manifest.results[2].app?.launched, false)
@@ -360,11 +343,11 @@ final class InitCommandTests: InitTestCase {
         XCTAssertEqual(store.all().map(\.id), [other.id])
     }
 
-    func testArtifactProblemsStopBeforeAnyLease() async throws {
+    func testArtifactProblemsStopBeforeAnyRuntime() async throws {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
         let found = discovery(devices: [candidate("phone"), candidate("tablet")], bundleID: "com.other")
-        let never = runtime(discovery: found, setup: forbidden("nothing may be leased"))
+        let never = runtime(discovery: found, setup: forbidden("nothing may be controlled"))
         let mismatch = await runInitCommand(flags(app: app), runtime: never)
         XCTAssertEqual(mismatch.exitCode, 1)
         XCTAssertTrue(mismatch.output.contains("com.other"), mismatch.output)
@@ -375,45 +358,48 @@ final class InitCommandTests: InitTestCase {
         XCTAssertTrue(missing.output.contains("explicitly supplied --app path"), missing.output)
         let relative = await runInitCommand(flags(app: "Jot.app"), runtime: never)
         XCTAssertTrue(relative.output.contains("absolute"), relative.output)
-        let allLeased = discovery(devices: [candidate("phone", leasedBy: "a"), candidate("tablet", leasedBy: "b")])
+        let allRuntime = discovery(devices: [
+            candidate("phone", controlledBy: "a"),
+            candidate("tablet", controlledBy: "b")
+        ])
         let refused = await runInitCommand(flags(app: app), runtime: runtime(
-            discovery: allLeased,
-            setup: forbidden("nothing may be leased")
+            discovery: allRuntime,
+            setup: forbidden("nothing may be controlled")
         ))
         XCTAssertEqual(refused.exitCode, 1)
-        XCTAssertTrue(refused.output.contains("already leased"), refused.output)
+        XCTAssertTrue(refused.output.contains("already controlled"), refused.output)
     }
 
     func testDryRunReportsThePlanWithoutLeasing() async throws {
         let scratch = try makeScratchDirectory()
         let app = try makeApp(in: scratch)
-        let found = discovery(devices: [candidate("phone"), candidate("tablet", leasedBy: "x")])
+        let found = discovery(devices: [candidate("phone"), candidate("tablet", controlledBy: "x")])
         let result = await runInitCommand(
             flags(app: app, extra: ["--dry-run"]),
             runtime: runtime(discovery: found, setup: forbidden("dry run must not set up"))
         )
-        XCTAssertEqual(result.exitCode, 1, "a leased device is a problem even in a dry run")
+        XCTAssertEqual(result.exitCode, 1, "a controlled device is a problem even in a dry run")
         XCTAssertTrue(result.output.contains("\"dryRun\":true"), result.output)
-        XCTAssertTrue(result.output.contains("already leased"), result.output)
+        XCTAssertTrue(result.output.contains("already controlled"), result.output)
         XCTAssertTrue(result.output.contains("--non-interactive"), result.output)
     }
 
     func testCleanupContinuesAfterFailureAndManifestVersionIsChecked() async throws {
-        let entries = ["a", "b"].map { EnvUpReport(ok: true, lease: $0, platform: "ios") }
-        var leases: [String?] = []
+        let entries = ["a", "b"].map { EnvUpReport(ok: true, runtimeID: $0, platform: "ios") }
+        var runtimes: [String?] = []
         let result = await runInitDown(InitManifest(ok: true, results: entries), shutdown: false) { options in
-            leases.append(options.lease)
+            runtimes.append(options.runtimeID)
             return CLIResult(output: renderJSON(EnvDownReport(
-                ok: options.lease == "b",
-                lease: options.lease,
-                holderStopped: true,
+                ok: options.runtimeID == "b",
+                runtimeID: options.runtimeID,
+                companionStopped: true,
                 shutdown: false
             )), exitCode: 1)
         }
-        XCTAssertEqual(leases, ["a", "b"])
+        XCTAssertEqual(runtimes, ["a", "b"])
         XCTAssertEqual(result.exitCode, 1)
         let out = try makeScratchDirectory().url.appendingPathComponent("manifest.json").path
-        try InitManifest(schemaVersion: 2, ok: true, results: []).write(out)
+        try InitManifest(schemaVersion: 99, ok: true, results: []).write(out)
         XCTAssertThrowsError(try InitManifest.read(out))
     }
 

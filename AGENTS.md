@@ -105,7 +105,7 @@ Code: `Sources/CLI/Init*.swift` — `InitCommand.swift` (manifest, `runInit`, `i
 plan), `InitDiscovery.swift` (devices, bundle id), `InitSavedLocations.swift` (the `AGENTS.md` block),
 `AgentInstallWizard.swift` (guided `amoo agent install`, also the AI-client step of init). Prompts come
 from SwiftyTerminal's `Prompting`/`Prompter` (see "Terminal UX" below). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
-It reuses `runEnvUp`/`runEnvDown`; never duplicate lease, port or companion logic there.
+It reuses `runEnvUp`/`runEnvDown`; never duplicate runtime, port or companion logic there.
 
 - `amoo init` never asks for an app artifact path or scans for builds. Artifacts are optional and
   only used with explicit `--app`. `--json`/`--non-interactive`/no TTY never prompts and requires
@@ -114,7 +114,7 @@ It reuses `runEnvUp`/`runEnvDown`; never duplicate lease, port or companion logi
   `runAgentInstall`; with `--client`, `--json`, `--non-interactive` or no TTY it never prompts.
 - It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the
   platform, manifest directory and any explicitly supplied app artifact/id — **locations only,
-  never device or lease ids**. Saved app paths are not automatically selected on later runs.
+  never device or runtime ids**. Saved app paths are not automatically selected on later runs.
 
 ## Terminal UX (SwiftyTerminal)
 

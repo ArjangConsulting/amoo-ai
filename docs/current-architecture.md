@@ -32,8 +32,9 @@ extracting a separate plan model would be a later public API migration.
 The MCP reader accepts bounded newline-delimited frames. `MCPRequestRuntime` tracks at most 64
 request tasks, accepts cancellation and serializes complete response writes. A device queue
 serializes device operations; independent device keys can execute concurrently. Lifecycle setup
-uses process-local device leases. These guarantees do not coordinate separate Amoo processes;
-use one server per device and dedicated hardware runners.
+uses `DeviceAccessRegistry` for process-local ownership and kernel-backed `DeviceAccessLock`
+for exclusive control across Amoo processes. `DeviceRuntimeStore` separately tracks companion
+lifecycle and saved runtime credentials. See [Device runtimes](device-runtimes.md).
 
 A screen observation derives its context, element list and change token from one scoped hierarchy
 RPC. Subsequent calls observe fresh state. Tokens are not snapshot handles: UI changes can still

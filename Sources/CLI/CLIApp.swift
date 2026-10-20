@@ -241,7 +241,7 @@ public struct CLIApp {
             }
             if options.action != .status {
                 do {
-                    try enforceLease(deviceID: options.deviceID, lease: presentedLease(flag: nil))
+                    try enforceDeviceAccess(deviceID: options.deviceID, runtime: presentedRuntime(flag: nil))
                 } catch {
                     return CLIResult(output: "\(error)", exitCode: 3)
                 }
@@ -259,7 +259,7 @@ public struct CLIApp {
             var overrides = try FlowOverrides(
                 deviceID: flags.value("--device"),
                 port: flags.int("--port"),
-                lease: flags.value("--lease")
+                runtimeID: flags.value("--runtime-id")
             )
             overrides.outputDirectory = try flags.value("--output-dir")
             overrides.continueOnError = flags.take("--continue-on-error")
@@ -352,10 +352,10 @@ func renderCLIHelp() -> String {
       shots montage|diff ...       Contact sheet / baseline diff of a screenshot folder
       version                      Show the version, source commit and build time of this binary
       preflight [--platform ...]   Check local tooling and environment
-      doctor [--json] [--kill-stale]  Health check: build, stale MCP servers, devices, runtimes, companions, leases
+      doctor [--json] [--kill-stale]  Health check: build, stale MCP servers, devices, companions, runtimes
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
-      env up|down|list ...         Lease a simulator/emulator with a running companion (agents)
+      env up|down|list ...         Start or stop amoo on a simulator/emulator
       init ...                    Guided device setup + AI client skills (app build optional)
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
       agent install|render         Install the amoo subagents/skills for AI clients (guided; Claude, Codex, …)

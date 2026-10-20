@@ -18,8 +18,8 @@ nearest amoo.md from their working directory. When running elsewhere, pass --con
 Explicit context overrides discovery; a plan's embedded context is preserved by generate test.
 Profiles may contain separate targetPlatform blocks for iOS and Android; CLI/MCP select the matching block.
 Review discovered Kotlin/Java instrumentation evidence as well as Swift harness conventions.
-.amoo.json is private CLI lease state, not a test profile or a reusable flow. Never commit it,
-adopt its leases into MCP, or automatically install a remembered app artifact.
+.amoo.json is private CLI runtime state, not a test profile or a reusable flow. Never commit it,
+adopt its runtimes into MCP, or automatically install a remembered app artifact.
 
 
 ## Caller: input contract
@@ -54,32 +54,32 @@ beat improvised steps: they are what makes two runs comparable.
 
 Read the `driving-amoo` skill's mode-selection table before setup. Subagents delegate the run;
 MCP/CLI execute it; device ownership prevents concurrent runs from interfering.
-Prefer leased CLI for checked-in flows and probes. MCP managed sessions are recommended for
+Prefer controlled CLI for checked-in flows and probes. MCP managed sessions are recommended for
 interactive checks and can handle supported checks when the installed CLI lacks `env`.
 Check the pinned binary's `--version`, `--help`, and required subcommand help first; call
 `doctor` only when listed. Never invoke unlisted commands or silently change the binary.
 
 With MCP, `start_session` owns the device; pass session_id on each call and always end_session.
-No separate CLI lease token is needed. Preserve required flow/probe execution and report/evidence
+No separate CLI runtime token is needed. Preserve required flow/probe execution and report/evidence
 validation: if available tools cannot fulfill a requirement, mark it not evaluated and report
 blocked. Missing `env` means "this installed version lacks CLI device reservation commands";
-recommend `brew upgrade amoo` for Homebrew installs, rather than marking all leases unsupported.
+recommend `brew upgrade amoo` for Homebrew installs, rather than marking all runtimes unsupported.
 
-## Agent: leased CLI commands
+## Agent: controlled CLI commands
 
 ```sh
-amoo doctor --json                                  # build, stale MCP servers, devices, leases
+amoo doctor --json
 amoo env up --platform android --avd <avd> --app <apk> --app-id <id> --owner device-verifier --json
 amoo env up --platform ios --runtime iOS-27.0 --model "iPhone 17e" --app <App.app> --app-id <id> --json
-amoo device --platform <p> --device <id> --port <port> --lease <lease> device_launch_app app_id=<id> --env K=V
-amoo flow <flow.json> --device <id> --port <port> --lease <lease>
-amoo probe run <probes…> --platform <p> --device <id> --lease <lease> --bundle-id <id> \
+amoo device --platform <p> --device <id> --port <port> --runtime-id <runtime> device_launch_app app_id=<id> --env K=V
+amoo flow <flow.json> --device <id> --port <port> --runtime-id <runtime>
+amoo probe run <probes…> --platform <p> --device <id> --runtime-id <runtime> --bundle-id <id> \
   --expect-pass --bail --evidence-dir <dir>/<p> --json
-amoo env down --lease <lease> --json
+amoo env down --runtime-id <runtime> --json
 ```
 
 Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not run (tooling) ·
-3 device leased by another session. `--json` prints one compact object; parse it, don't echo it.
+3 device controlled by another session. `--json` prints one compact object; parse it, don't echo it.
 
 ## Rules that keep runs fast and honest
 
@@ -87,7 +87,7 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
 - Reuse what exists: `env up` reuses a running emulator/simulator and its installed app;
   relaunch with `device_launch_app` instead of reinstalling or rebuilding. Rebuild only when
   the source changed.
-- A lease (`--lease` / `AMOO_LEASE`) is renewed on use and expires after 60 min idle.
+- A runtime (`--runtime-id` / `AMOO_RUNTIME_ID`) is renewed on use and expires after 60 min idle.
 - Blocked beats a workaround: two identical tooling failures or 5 minutes of setup → report
   `blocked` with command, error and repro. The caller fixes; the verifier verifies.
 - iOS WebViews are reached through the simulator's own Web Inspector (no proxy); Android

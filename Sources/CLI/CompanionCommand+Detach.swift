@@ -9,7 +9,7 @@ import Glibc
 
 // MARK: - `amoo companion start --detach`
 
-/// The `companion start` command line a detached holder runs: this invocation minus `--detach`, with
+/// The `companion start` command line a detached process runs: this invocation minus `--detach`, with
 /// the port and ready timeout made explicit so the parent polls exactly what the child listens on.
 func detachedCompanionStartArguments(
     options: CompanionCommandOptions,
@@ -39,11 +39,11 @@ func detachedCompanionStartArguments(
 /// How `--detach` reaches the outside world, so a test can drive every outcome without a device.
 struct DetachedCompanionHooks: Sendable {
     var executablePath: @Sendable () -> String?
-    /// Starts the holder in its own session and returns its pid.
+    /// Starts the process in its own session and returns its pid.
     var spawn: @Sendable (_ arguments: [String], _ logPath: String) async throws -> Int32
     var isReady: @Sendable (_ port: Int) async -> Bool
     var isAlive: @Sendable (_ pid: Int32) -> Bool
-    /// Stops a holder that never became ready.
+    /// Stops a process that never became ready.
     var stop: @Sendable (_ pid: Int32) -> Void
     var pollInterval: Swift.Duration
     /// Extra time allowed on top of the ready timeout for a cold build.
@@ -57,17 +57,17 @@ struct DetachedCompanionHooks: Sendable {
         },
         isReady: { await isCompanionReady(host: "127.0.0.1", port: $0) },
         isAlive: { kill($0, 0) == 0 },
-        stop: { stopHolder(pid: $0) },
+        stop: { stopProcess(pid: $0) },
         pollInterval: .seconds(2),
         buildSlackSeconds: 600
     )
 }
 
-/// Starts the companion in a background holder and returns once it answers, leaving it running.
+/// Starts the companion in a background process and returns once it answers, leaving it running.
 ///
 /// The foreground `start` owns the runner and tears it down on Ctrl-C, so a script or agent that
 /// wanted a companion left behind had to background it with `&` and poll for readiness itself.
-/// This does that with the same detached-holder mechanism `amoo env up` uses: the holder is this
+/// This does that with the same detached-process mechanism `amoo env up` uses: the process is this
 /// command re-run without `--detach`, in its own session, so it outlives this process and still
 /// restarts a runner that dies. `kill <pid>` shuts it down cleanly.
 func runDetachedCompanionStart(
@@ -94,7 +94,7 @@ func runDetachedCompanionStart(
         return CLIResult(output: "Companion start failed: \(error)", exitCode: 1)
     }
 
-    // The holder builds (iOS: minutes on a cold cache) and then waits `readyTimeout` itself.
+    // The process builds (iOS: minutes on a cold cache) and then waits `readyTimeout` itself.
     let deadline = ContinuousClock.now.advanced(by: .seconds(readyTimeout + hooks.buildSlackSeconds))
     while ContinuousClock.now < deadline {
         if await hooks.isReady(port) {
@@ -106,7 +106,7 @@ func runDetachedCompanionStart(
         }
         guard hooks.isAlive(pid) else {
             return CLIResult(
-                output: "The companion holder exited before becoming ready:\n" + logTail(log),
+                output: "The companion process exited before becoming ready:\n" + logTail(log),
                 exitCode: 1
             )
         }

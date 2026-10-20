@@ -37,7 +37,7 @@ func holdCompanion(
     }
     announce()
 
-    // Hold until a signal, restarting a runner that dies underneath. Without this the holder kept
+    // Hold until a signal, restarting a runner that dies underneath. Without this the process kept
     // announcing "holding it open" over a dead port — a runner killed mid-session (or one XCTest
     // relaunched into running zero tests) looked alive until the next command failed.
     let (events, eventSink) = AsyncStream.makeStream(of: HoldEvent.self)
@@ -123,7 +123,7 @@ enum CompanionHoldError: Error, CustomStringConvertible {
 
 /// Resolves every `wait()` — past or future — once SIGINT or SIGTERM arrives. Armed on creation.
 final class CompanionSignalWaiter: @unchecked Sendable {
-    /// Suspends until cancelled — the runner watch for a holder that owns no runner.
+    /// Suspends until cancelled — the runner watch for a process that owns no runner.
     static func never() async {
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(3600))

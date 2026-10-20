@@ -47,7 +47,7 @@ def receive(child, timeout=15):
 
 
 def start(binary, directory, architecture=None):
-    env = dict(os.environ, AMOO_SESSIONS_DIR=directory, AMOO_LEASE_DIR=directory,
+    env = dict(os.environ, AMOO_SESSIONS_DIR=directory, AMOO_RUNTIME_DIR=directory,
                AMOO_CRASH_LOG=str(Path(directory) / "crash.log"))
     command = [binary, "mcp", "serve"]
     if architecture:
@@ -69,8 +69,8 @@ def smoke(binary, fatal_signal=False, architecture=None):
         with socket.socket() as reserved:
             reserved.bind(("127.0.0.1", 0))
             port = str(reserved.getsockname()[1])
-            env = dict(os.environ, AMOO_LEASE_DIR=directory)
-            env.pop("AMOO_LEASE", None)
+            env = dict(os.environ, AMOO_RUNTIME_DIR=directory)
+            env.pop("AMOO_RUNTIME_ID", None)
             for tool in ("current_app", "describe_screen"):
                 command = [binary, "device", "--platform", "ios", "--device",
                            "amoo-regression-nonexistent-device", "--port", port, "--json", tool]

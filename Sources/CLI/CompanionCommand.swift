@@ -29,7 +29,7 @@ struct CompanionCommandOptions {
     /// Port the companion listens on. `nil` uses the platform default. A second simulator needs its
     /// own port: one companion per port, and each serves exactly one device.
     var port: Int?
-    /// `start` only: hand the holder to a background process and return once the companion is ready.
+    /// `start` only: hand the process to a background process and return once the companion is ready.
     var detach = false
     /// `stop` only: stop every registered companion instead of one matched by `--port` / `--device`.
     var all = false
@@ -118,7 +118,7 @@ func renderCompanionHelp() -> String {
                  Same --platform / --device / --port / --companion-dir options.
 
       list       Show the companions started with `start` (pid, platform, port, state,
-                 device, app). Reads a per-holder record, so it only lists companions
+                 device, app). Reads a per-process record, so it only lists companions
                  started through `amoo companion start` / `--detach`.
 
       stop       Stop one companion without touching the others (other sessions' included).
@@ -358,7 +358,7 @@ func runIOSCompanionStart(
         targetAppID: options.appID
     )
     let manager = CompanionManager(processRunner: processRunner)
-    let unregister = registerCompanionHolder(
+    let unregister = registerCompanionProcess(
         platform: .ios, deviceID: options.deviceID, port: config.port, appID: options.appID
     )
     defer { unregister() }
@@ -401,7 +401,7 @@ func runAndroidCompanionStart(
             ?? AndroidCompanionConfig.readyTimeoutFromEnvironment()
     )
     let manager = AndroidCompanionManager(processRunner: processRunner)
-    let unregister = registerCompanionHolder(
+    let unregister = registerCompanionProcess(
         platform: .android, deviceID: options.deviceID, port: config.port, appID: options.appID
     )
     defer { unregister() }

@@ -39,7 +39,7 @@ final class EnvCommandParsingTests: XCTestCase {
         XCTAssertEqual(normalizedIOSRuntime("27"), "27.0")
     }
 
-    func testPickIOSSimulatorPrefersBootedAndSkipsLeased() {
+    func testPickIOSSimulatorPrefersBootedAndSkipsRuntime() {
         let sims = [
             IOSSimulatorDevice(udid: "A", name: "iPhone 17e", osVersion: "27.0"),
             IOSSimulatorDevice(udid: "B", name: "iPhone 17e", osVersion: "27.0"),
@@ -51,7 +51,7 @@ final class EnvCommandParsingTests: XCTestCase {
             model: "iphone 17e",
             available: sims,
             bootedUDIDs: ["C", "B"],
-            isLeased: { $0 == "B" }
+            isControlled: { $0 == "B" }
         )
         XCTAssertEqual(picked?.udid, "C")
         XCTAssertNil(pickIOSSimulator(
@@ -59,12 +59,12 @@ final class EnvCommandParsingTests: XCTestCase {
             model: nil,
             available: sims,
             bootedUDIDs: [],
-            isLeased: { _ in false }
+            isControlled: { _ in false }
         ))
     }
 
-    func testFreePortSkipsListeningAndLeasedPorts() async {
-        let port = await pickFreeCompanionPort(candidates: 22093 ... 22099, leasedPorts: [22094]) { $0 == 22093 }
+    func testFreePortSkipsListeningAndRuntimePorts() async {
+        let port = await pickFreeCompanionPort(candidates: 22093 ... 22099, reservedPorts: [22094]) { $0 == 22093 }
         XCTAssertEqual(port, 22095)
     }
 }
