@@ -92,6 +92,10 @@ public enum SessionTools {
                         description: "Where launch arguments/environment came from: explicit, profile,"
                             + " explicit+profile or none"
                     ),
+                    "recording_health": .init(
+                        type: "string",
+                        description: "saved, failed, pending, unknown, or disabled"
+                    ),
                     "warnings": .init(type: "array", description: "Startup warnings", items: .scalar(type: "string"))
                 ],
                 required: ["session_id", "app_id", "device_id", "platform"]
