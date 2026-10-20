@@ -413,7 +413,7 @@ func runDeviceCommand(
         toolArguments["platform"] = options.platform.rawValue
     }
 
-    let result = await withSpinner("Running \(options.tool)") {
+    let result = await withCLISpinner("Running \(options.tool)") {
         await executor.execute(toolName: options.tool, arguments: toolArguments)
     }
     await companion.shutdown()

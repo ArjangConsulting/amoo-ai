@@ -12,6 +12,10 @@ import tempfile
 import time
 
 
+# A release abort otherwise reports only its message; name the crashing frames in CI logs.
+BACKTRACE = {"SWIFT_BACKTRACE": "enable=yes,interactive=no,color=no"}
+
+
 def request(identifier, method, params=None):
     result = {"jsonrpc": "2.0", "id": identifier, "method": method}
     if params is not None:
@@ -69,7 +73,7 @@ def smoke(binary, fatal_signal=False, architecture=None):
         with socket.socket() as reserved:
             reserved.bind(("127.0.0.1", 0))
             port = str(reserved.getsockname()[1])
-            env = dict(os.environ, AMOO_RUNTIME_DIR=directory)
+            env = dict(os.environ, **BACKTRACE, AMOO_RUNTIME_DIR=directory)
             env.pop("AMOO_RUNTIME_ID", None)
             for tool in ("current_app", "describe_screen"):
                 command = [binary, "device", "--platform", "ios", "--device",

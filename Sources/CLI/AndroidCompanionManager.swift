@@ -200,7 +200,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         if needsBuild {
             await StartupProgress.report("Building Android companion")
             print("Building Android companion (this may take a moment)...")
-            try await withSpinner("Building Android companion") {
+            try await withCLISpinner("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
         } else {
@@ -209,7 +209,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
         await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
-        try await withSpinner("Installing Android companion APKs") {
+        try await withCLISpinner("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
         }
         print(styled("Android companion installed successfully.", .green))
@@ -266,14 +266,14 @@ final class AndroidCompanionManager: @unchecked Sendable {
         if needsBuild {
             await StartupProgress.report("Building Android companion")
             print("Android companion sources changed or no build exists. Building (this may take a moment)...")
-            try await withSpinner("Building Android companion") {
+            try await withCLISpinner("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
         }
 
         await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
-        try await withSpinner("Installing Android companion APKs") {
+        try await withCLISpinner("Installing Android companion APKs") {
             try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
         }
 
@@ -296,7 +296,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         // race is the backstop for a wedged `adb` call in between, so the command fails with a
         // recovery hint instead of hanging silently.
         try await withReadyDeadline(seconds: config.readyTimeoutSeconds, port: config.port) {
-            try await withSpinner("Waiting for Android companion on port \(config.port)") {
+            try await withCLISpinner("Waiting for Android companion on port \(config.port)") {
                 try await self.waitUntilReachable(
                     host: config.host,
                     port: config.port,
