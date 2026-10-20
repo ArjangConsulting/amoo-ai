@@ -115,7 +115,7 @@ extension DriverToolExecutor {
     /// Hides the keyboard by the gentlest means that works and says which one did.
     ///
     /// `press_key return` reports success on a decimal or number pad, which has no Return key, and
-    /// leaves the keyboard up. This tries Return, then a Hide/Done button, then a swipe down.
+    /// leaves the keyboard up. This tries Return, Escape, a Hide/Done button, then a swipe down.
     func executeDismissKeyboard(arguments: [String: String], driver: any PlatformDriver) async throws -> ToolResult {
         guard try await driver.isKeyboardVisible() else {
             return .success("Keyboard was not visible")
@@ -126,6 +126,10 @@ extension DriverToolExecutor {
             if await keyboardIsGone(driver) {
                 return .success("Keyboard dismissed with Return")
             }
+        }
+        try? await driver.pressKey(.escape, modifiers: [])
+        if await keyboardIsGone(driver) {
+            return .success("Keyboard dismissed with Escape")
         }
         for label in ["Hide keyboard", "Done", "Dismiss keyboard"] {
             let buttons = await (try? driver.findElements(ElementSelector(label: label), appID: appID)) ?? []
@@ -142,7 +146,8 @@ extension DriverToolExecutor {
             return .success("Keyboard dismissed by swiping down")
         }
         return .error(
-            "dismiss_keyboard failed: the keyboard is still visible after Return, a Hide/Done button and a swipe."
+            "dismiss_keyboard failed: the keyboard is still visible after Return, Escape,"
+                + " a Hide/Done button and a swipe."
         )
     }
 
