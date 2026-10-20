@@ -1,9 +1,9 @@
 import Foundation
+@testable import OllamaClient
+import Testing
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-@testable import OllamaClient
-import Testing
 
 struct OllamaClientTests {
     @Test("Chat sends Ollama JSON and parses tool calls")

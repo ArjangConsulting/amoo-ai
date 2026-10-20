@@ -67,7 +67,7 @@ enum NativeAccessibilityInspector {
             }
             guard (1 ... 6).contains(phases.count),
                   phases
-                  .allSatisfy({ (1 ... 30).contains($0.steps) && ["forward", "backward"].contains($0.direction) }),
+                      .allSatisfy({ (1 ... 30).contains($0.steps) && ["forward", "backward"].contains($0.direction) }),
                   phases.reduce(UInt64(0), { $0 + UInt64($1.steps) }) <= 30 else {
                 result.error = "Requires 1...6 forward/backward phases and at most 30 total moves."
                 return result

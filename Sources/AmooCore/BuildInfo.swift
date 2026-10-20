@@ -67,7 +67,7 @@ public struct AmooBuildInfo: Sendable, Codable, Equatable {
         guard let executablePath, let launched = binaryModifiedAt,
               let onDisk = Self.modificationDate(path: executablePath),
               onDisk != launched || binarySHA256
-              .map({ BinaryFingerprintCache.shared.hash(path: executablePath) != $0 }) == true
+                  .map({ BinaryFingerprintCache.shared.hash(path: executablePath) != $0 }) == true
         else { return nil }
         return onDisk
     }

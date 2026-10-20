@@ -2,13 +2,13 @@ import AmooCore
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
-#if canImport(Darwin)
-import Darwin.C
-#endif
 import IOSDriver
 import MCPServer
 import TestCommons
 import XCTest
+#if canImport(Darwin)
+import Darwin.C
+#endif
 
 extension CommandContractE2ETests {
     func resetFixtureApp(on server: MCPServer) async -> ToolResult {

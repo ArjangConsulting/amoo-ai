@@ -2,12 +2,12 @@ import AmooCore
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
-#if canImport(Darwin)
-import Darwin.C
-#endif
 import IOSDriver
 import MCPServer
 import XCTest
+#if canImport(Darwin)
+import Darwin.C
+#endif
 
 final class CommandContractE2ETests: XCTestCase {
     enum E2EPlatform: String {

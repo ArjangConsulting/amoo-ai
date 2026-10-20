@@ -47,9 +47,9 @@ extension CompanionManager {
         if config.buildMode == .auto,
            let local = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config),
            let localDate = try? URL(fileURLWithPath: local).resourceValues(forKeys: [.contentModificationDateKey])
-           .contentModificationDate,
+               .contentModificationDate,
            let bundledDate = try? URL(fileURLWithPath: bundled).resourceValues(forKeys: [.contentModificationDateKey])
-           .contentModificationDate,
+               .contentModificationDate,
            localDate > bundledDate {
             return false
         }

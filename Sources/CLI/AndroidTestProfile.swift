@@ -94,7 +94,7 @@ struct AndroidTestProfile {
         let definitions = sources.filter { $0.range(of: declaration, options: .regularExpression) != nil }
         guard definitions.count == 1, let source = definitions.first,
               !["@Before", "@After", "@Rule", "@get:Rule", "launch(", "launchActivity", "createCompose"]
-              .contains(where: source.contains),
+                  .contains(where: source.contains),
               let regex = try? NSRegularExpression(pattern: #"(?m)^\s*package\s+([\w.]+)"#),
               let match = regex.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
               let range = Range(match.range(at: 1), in: source)

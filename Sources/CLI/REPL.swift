@@ -308,10 +308,11 @@ private func dispatch(
     }
     if result.isError {
         print(styled(result.content, .red))
-        if result.content.hasPrefix("Unknown tool") {
-            if let suggestion = closestTool(to: toolName, among: toolDefinitions.map(\.name)) {
-                print(styled("Did you mean: ", .gray) + styled(suggestion, .green) + styled("?", .gray))
-            }
+        if result.content.hasPrefix("Unknown tool"), let suggestion = closestTool(
+            to: toolName,
+            among: toolDefinitions.map(\.name)
+        ) {
+            print(styled("Did you mean: ", .gray) + styled(suggestion, .green) + styled("?", .gray))
         }
     } else if result.content.contains("\u{001B}[") {
         // Already contains ANSI color codes (e.g. view hierarchy) — print as-is

@@ -66,11 +66,7 @@ public struct ForeignBuildDetector: Sendable {
             .filter { line in
                 guard
                     let pidToken = line.split(separator: " ", maxSplits: 1).first,
-                    let pid = Int32(pidToken)
-                else {
-                    return false
-                }
-                guard !ownProcessIDs.contains(pid) else { return false }
+                    let pid = Int32(pidToken), !ownProcessIDs.contains(pid) else { return false }
                 // A companion is amoo's own long-running `xcodebuild test-without-building`, held
                 // by a separate `amoo companion start` process and so outside this ancestry. It is
                 // running for the whole session, so counting it warned on every install.

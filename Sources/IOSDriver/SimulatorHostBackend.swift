@@ -214,14 +214,13 @@ extension SimulatorHostBackend {
                 currentName = value
             } else if let value = extractOldPlistValue(trimmed, key: "CFBundleShortVersionString") {
                 currentVersion = value
-            } else if trimmed == "};" || trimmed == "}" {
-                // End of an app entry
-                if let bundleID = currentBundleID {
-                    apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
-                    currentBundleID = nil
-                    currentName = nil
-                    currentVersion = nil
-                }
+            } else if trimmed == "};" || trimmed == "}",
+                      // End of an app entry
+                      let bundleID = currentBundleID {
+                apps.append(AppInfo(appID: bundleID, name: currentName, version: currentVersion))
+                currentBundleID = nil
+                currentName = nil
+                currentVersion = nil
             }
         }
         // Capture last entry if not terminated by };

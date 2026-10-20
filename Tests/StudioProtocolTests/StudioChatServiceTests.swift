@@ -1,10 +1,10 @@
 import AmooCore
 import Foundation
+import StudioProtocol
+import Testing
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import StudioProtocol
-import Testing
 
 struct StudioChatServiceTests {
     @Test("OpenAI-compatible requests use environment credentials")
