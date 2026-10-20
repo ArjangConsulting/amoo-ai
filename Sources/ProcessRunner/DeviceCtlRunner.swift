@@ -233,10 +233,11 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
             // `executable` looks like file:///.../Foo.app/Foo — the bundle ID's last
             // component is conventionally the executable name.
             let executable = process["executable"] as? String ?? ""
-            if executable.contains("/\(appID)/") || executable.contains(".app") {
-                if matchesBundle(executable: executable, appID: appID) {
-                    return Int32(pid)
-                }
+            if executable.contains("/\(appID)/") || executable.contains(".app"), matchesBundle(
+                executable: executable,
+                appID: appID
+            ) {
+                return Int32(pid)
             }
         }
         return nil

@@ -24,9 +24,7 @@ enum ScreenshotScaler {
 
         let width = Int((Double(image.width) * scale).rounded())
         let height = Int((Double(image.height) * scale).rounded())
-        guard width > 0, height > 0 else { return nil }
-
-        guard let colorSpace = image.colorSpace,
+        guard width > 0, height > 0, let colorSpace = image.colorSpace,
               let context = CGContext(
                   data: nil,
                   width: width,

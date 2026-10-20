@@ -310,7 +310,7 @@ extension DriverToolExecutor {
         if let textTitle = elements
             .first(where: { $0.type == .staticText && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             })?.label,
-            !textTitle.isEmpty {
+           !textTitle.isEmpty {
             return textTitle
         }
 

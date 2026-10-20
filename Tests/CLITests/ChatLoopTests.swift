@@ -1,11 +1,11 @@
 @testable import CLI
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 import MCPServer
 @testable import OllamaClient
 import Testing
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 private let baseURL = URL(string: "http://localhost:11434")!
 

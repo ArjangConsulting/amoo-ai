@@ -127,9 +127,8 @@ public extension ElementType {
     private init?(xcuiElementTypeDescription description: String) {
         let prefix = "xcuielementtype(rawvalue:"
         guard description.hasPrefix(prefix), description.hasSuffix(")"),
-              let raw = Int(description.dropFirst(prefix.count).dropLast().trimmingCharacters(in: .whitespaces))
-        else { return nil }
-        guard let type = Self.xcuiRawValueTypes[raw] else { return nil }
+              let raw = Int(description.dropFirst(prefix.count).dropLast().trimmingCharacters(in: .whitespaces)),
+              let type = Self.xcuiRawValueTypes[raw] else { return nil }
         self = type
     }
 }

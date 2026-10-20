@@ -11,8 +11,8 @@ extension AndroidDeviceSelector {
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
         guard serial.hasPrefix("emulator-"),
               let result = try? await Adb(context: context).serial(serial).getprop("ro.boot.qemu.avd_name")
-              .timeout(.seconds(5))
-              .run()
+                  .timeout(.seconds(5))
+                  .run()
         else { return nil }
         let name = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         return name.isEmpty ? nil : name

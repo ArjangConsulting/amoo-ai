@@ -153,8 +153,8 @@ public actor DriverToolExecutor: ToolExecutor {
         arguments: [String: String],
         result: ToolResult
     ) async {
-        guard toolName != "run_steps", Self.controlPlaneTools.contains(toolName) == false else { return }
-        guard let sessionID = arguments["session_id"],
+        guard toolName != "run_steps", Self.controlPlaneTools.contains(toolName) == false,
+              let sessionID = arguments["session_id"],
               let manager = sessionManager,
               let session = await manager.session(sessionID),
               await session.isActive
