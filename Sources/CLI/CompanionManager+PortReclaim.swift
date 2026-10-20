@@ -32,7 +32,7 @@ extension CompanionManager {
     /// `teardownAndWait` ends the `xcodebuild` the manager spawned, but the runner app inside the
     /// simulator is a separate process that can outlive it and keep the port bound. The relaunch
     /// then saw its own old runner and refused with "owned by another companion process" — which
-    /// killed every restart of a detached holder. A listener inside this device's own simulator
+    /// killed every restart of a detached process. A listener inside this device's own simulator
     /// container is by construction ours to retire; anything else is left alone.
     ///
     /// - Parameter mayTakeOver: whether a same-device listener may be killed: the caller just

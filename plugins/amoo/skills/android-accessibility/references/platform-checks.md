@@ -69,7 +69,7 @@ useful child controls. Do not hide controls just to reduce the number of stops.
 
 Espresso accessibility checks and Compose accessibility integration run in app tests.
 ATF also accepts accessibility nodes/windows, so a cross-app companion route is plausible but
-needs per-check qualification with a pinned released library. View-based rendering data and
+needs per-check qualification with a pinned stopped library. View-based rendering data and
 node-based coverage can differ; inability to run a check is not a clean result.
 [Espresso checks](https://developer.android.com/training/testing/espresso/accessibility-checking),
 [Compose checks](https://developer.android.com/develop/ui/compose/accessibility/testing),

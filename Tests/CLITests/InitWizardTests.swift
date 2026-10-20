@@ -68,7 +68,7 @@ final class InitWizardTests: InitTestCase {
         prompter.asks = ["", out]
         var setups: [EnvUpOptions] = []
         let found = discovery(
-            devices: [candidate("phone"), candidate("tablet"), candidate("busy", leasedBy: "x")],
+            devices: [candidate("phone"), candidate("tablet"), candidate("busy", controlledBy: "x")],
             bundleID: "com.jot"
         )
         let result = await runInitCommand(
@@ -78,7 +78,7 @@ final class InitWizardTests: InitTestCase {
                 return CLIResult(
                     output: renderJSON(EnvUpReport(
                         ok: true,
-                        lease: "L-\(setups.count)",
+                        runtimeID: "L-\(setups.count)",
                         platform: "ios",
                         port: 22000 + setups.count
                     )),
@@ -97,7 +97,7 @@ final class InitWizardTests: InitTestCase {
         let saved = try String(contentsOfFile: agents, encoding: .utf8)
         XCTAssertTrue(saved.hasPrefix("# Repo\n\nKeep me.\n"))
         XCTAssertTrue(saved.contains("<!-- amoo:init:start -->"))
-        XCTAssertFalse(saved.contains("L-1"), "lease ids are never written to AGENTS.md")
+        XCTAssertFalse(saved.contains("L-1"), "runtime ids are never written to AGENTS.md")
         XCTAssertFalse(saved.contains("phone"), "device ids are never written to AGENTS.md")
         let locations = try XCTUnwrap(readInitLocations(agentsFile: agents))
         XCTAssertEqual(locations.appPath, URL(fileURLWithPath: app).standardizedFileURL.path)

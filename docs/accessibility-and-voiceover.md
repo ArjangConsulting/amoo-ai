@@ -121,7 +121,7 @@ and Compose test integration. Those integrations run inside app tests. However, 
 builders accepting `AccessibilityNodeInfo` and `AccessibilityWindowInfo` inputs, so an
 external-companion provider deserves a spike before requiring app instrumentation. Its
 available checks and rendering evidence may differ from View/Compose integration. Pin a
-released library version and qualify per-check coverage; source on `master` is feasibility
+stopped library version and qualify per-check coverage; source on `master` is feasibility
 evidence, not a shipping compatibility guarantee.
 [ATF hierarchy builders](https://github.com/google/Accessibility-Test-Framework-for-Android/blob/master/src/main/java/com/google/android/apps/common/testing/accessibility/framework/uielement/AccessibilityHierarchyAndroid.java).
 
@@ -159,7 +159,7 @@ inside the same ordering boundary, including `run_steps`, flow replay and sessio
 
 ## Auditing while moving between screens
 
-The primary product should be a **journey audit** attached to a leased test session. Users
+The primary product should be a **journey audit** attached to a controlled test session. Users
 follow their normal checked flow and receive one report covering visited states and transitions.
 An automatic crawler can follow later; authored navigation already gives useful, bounded
 coverage without guessing which controls are safe to activate.
@@ -272,7 +272,7 @@ Names below are proposals, not existing commands:
 - `audit_accessibility`: explicit native/heuristic provider and selected categories, bounded
   execution, and a structured report; retain compatibility with the existing command.
 - `voiceover_state`, `voiceover_set_enabled`, `voiceover_move`, `voiceover_current_speech`:
-  lease/session scoped, serialized through the device executor, bounded responses.
+  runtime/session scoped, serialized through the device executor, bounded responses.
 - Checked flow assertions for accessible name, selected/enabled state, spoken semantic content,
   focus sequence, picker dismissal, and focus recovery. Avoid exact whole-utterance snapshots
   across different OSes/languages unless intentionally version-pinned.
@@ -283,14 +283,14 @@ unknown/unsupported from false/empty. Negotiate old companion compatibility. Inc
 confidence, coverage, platform units, app/build, locale, OS, and capture state.
 
 Restore the original assistive-technology state after success, timeout, cancellation, transport
-failure, and lease release. Preserve pre-existing VoiceOver rather than always disabling it.
+failure, and runtime release. Preserve pre-existing VoiceOver rather than always disabling it.
 Use bounded cleanup and report cleanup failure prominently. Serialize operations so audit,
 navigation, and app-switch commands cannot race. Set step/time/output budgets; no unbounded
 screen crawl or activation of purchases, deletions, or external messaging. Screenshots, text,
 and spoken output may contain private data: redact logs and make exports explicit.
 
 Process death and device disconnection can prevent immediate restoration. Persist original
-state and pending cleanup before mutation, attempt recovery when the owning lease reconnects,
+state and pending cleanup before mutation, attempt recovery when the owning runtime reconnects,
 and block further settings mutation if restoration is unresolved. Do not overwrite changes
 made by a human or another owner. Apply this lifecycle to text size, appearance and other
 accessibility settings as well as screen-reader enablement.
@@ -447,7 +447,7 @@ The original recommendations motivating this slice were:
 6. Preserve traversal within a bounded multi-phase speech command when testing forward/backward
    order. Separate calls that restore disabled VoiceOver cannot establish continuous focus
    recovery. Do not bypass process-owned MCP sessions; delegate requirements or introduce an
-   explicit lease-transfer protocol if exact-state handoff is needed.
+   explicit runtime-transfer protocol if exact-state handoff is needed.
 
 ## Primary references
 
@@ -482,8 +482,8 @@ The original recommendations motivating this slice were:
   traversal recover pending restoration; startup recovery state is exposed in inspection provenance.
   Cleanup errors retain the marker and block new traversal. Unavailable recovery storage is a refused
   capability, never a fallback to volatile storage. Keep the host installed until cleanup completes.
-- The owning simulator holder watches both its Xcode process and bounded capability RPCs. Three
-  consecutive failed probes trigger a restart within the same lease, up to three restarts. Successful
+- The owning simulator process watches both its Xcode process and bounded capability RPCs. Three
+  consecutive failed probes trigger a restart within the same runtime, up to three restarts. Successful
   probes reset the count. Notifications carry runner generations so a duplicate crash event cannot
   restart the replacement. Attached companions and physical-device tunnels are excluded from this
   automatic restart path; their owner must reconnect explicitly.
@@ -497,7 +497,7 @@ Use `audit_app` with the testability pack for those automation checks.
 
 ## Crash and transport recovery qualification
 
-Use a dedicated simulator lease and the companion fixture, preserving the originally enabled state.
+Use a dedicated simulator runtime and the companion fixture, preserving the originally enabled state.
 Install the host and runner built together. `make companion-ios-build`, source builds through amoo,
 and release simulator packaging apply the same ad-hoc signing step to the generated executable runner
 and host. Declaring an entitlement on only the test bundle does not authorize the generated runner.
@@ -506,14 +506,14 @@ The shared container's lifetime depends on retaining at least one group member. 
 [app-group storage lifecycle](https://support.apple.com/guide/security/sec1a976c067/web).
 
 For crash injection, observe a fresh journal with at least one completed move, then SIGKILL only the
-runner whose PID, port and simulator container match the owned holder. Verify that the holder and
-lease remain the same, the shared container survives runner recreation, startup provenance reports
+runner whose PID, port and simulator container match the owned process. Verify that the process and
+runtime remain the same, the shared container survives runner recreation, startup provenance reports
 restoration, and public Settings independently matches the original state before another traversal.
 Marker disappearance alone is not proof of recovery. Repeat with VoiceOver originally off and on.
 
 The checked-in `VoiceOverRecoveryQualificationTests` exercise the actual gRPC deadline and client
-task cancellation. They are opt-in and do not lease, launch, restart or release someone else's device.
-The verifier supplies `AMOO_LEASE`, sets `AMOO_VOICEOVER_FAULT_QUALIFICATION=1`, and supplies:
+task cancellation. They are opt-in and do not runtime, launch, restart or release someone else's device.
+The verifier supplies `AMOO_RUNTIME_ID`, sets `AMOO_VOICEOVER_FAULT_QUALIFICATION=1`, and supplies:
 
 - `AMOO_VOICEOVER_FAULT_PORT`: port of its owned companion.
 - `AMOO_VOICEOVER_FAULT_APP`: foreground fixture bundle ID.
@@ -531,16 +531,16 @@ Both require a fresh progress checkpoint; the deadline test uses a real five-sec
 Their JSON artifacts intentionally report cleanup unknown. After each test, independently observe
 journal clearance and verify public Settings before another traversal, which could itself recover
 pending cleanup and hide a cancellation failure. If the API stops responding, observe the owning
-holder's bounded restart and verified startup recovery. Restore the original setting and release the
-lease after all cases. Device disconnects, physical devices, older OS versions, and indefinitely
+process's bounded restart and verified startup recovery. Restore the original setting and release the
+runtime after all cases. Device disconnects, physical devices, older OS versions, and indefinitely
 blocked platform calls need separate qualification.
 
 On the iOS 27.0 iPhone 17 simulator, the crash/deadline/cancellation matrix passed with VoiceOver
 originally off and on. Crashes recreated the runner's data container but preserved the shared journal;
-the same holder/lease restarted automatically and exposed verified startup restoration. All four
+the same process/runtime restarted automatically and exposed verified startup restoration. All four
 transport faults retained failed execution, no accessibility verdict and unknown caller cleanup.
 Independent Settings checks confirmed restoration before another traversal, with no false health
-restart. The original off state was restored and the owned lease/holder released. The automatic
+restart. The original off state was restored and the owned runtime/process stopped. The automatic
 build signing path also passed build and signature/entitlement verification.
 
 Authored accessibility journey assertions are now available through

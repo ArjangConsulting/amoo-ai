@@ -32,7 +32,7 @@ extension CompanionManager {
         stateLock.withLock { running[deviceUDID] }
     }
 
-    func trackedHolder(ofPort port: Int) -> RunningCompanion? {
+    func trackedProcess(ofPort port: Int) -> RunningCompanion? {
         stateLock.withLock { running.values.first { $0.config.port == port } }
     }
 
@@ -49,11 +49,11 @@ extension CompanionManager {
     /// A companion this manager launched for another device already owns the port: reusing it would
     /// drive that device, and relaunching would collide with it.
     func refusePortHeldByAnotherDevice(config: CompanionConfig) throws {
-        guard let holder = trackedHolder(ofPort: config.port), holder.config.deviceUDID != config.deviceUDID else {
+        guard let process = trackedProcess(ofPort: config.port), process.config.deviceUDID != config.deviceUDID else {
             return
         }
         throw CompanionError.launchFailed(
-            "Port \(config.port) is already used by the companion for \(holder.config.deviceUDID), "
+            "Port \(config.port) is already used by the companion for \(process.config.deviceUDID), "
                 + "so it cannot also serve \(config.deviceUDID). \(companionPortAdvice)"
         )
     }

@@ -90,7 +90,7 @@ final class ForeignBuildWarningTests: XCTestCase {
         XCTAssertEqual(result.content, "App installed from \(path)")
     }
 
-    /// Regression: another test runner hijacking the leased device surfaced only as an opaque
+    /// Regression: another test runner hijacking the controlled device surfaced only as an opaque
     /// "RPC timed out before completing".
     func testTimeoutOnAHijackedDeviceNamesTheOtherRunner() async {
         let runner = StubRunner(
@@ -108,7 +108,7 @@ final class ForeignBuildWarningTests: XCTestCase {
         )
         XCTAssertTrue(message.contains("device hijacked"), message)
         XCTAssertTrue(message.contains("xcodebuild test -destination id=mock"), message)
-        XCTAssertTrue(message.contains("Leases only coordinate amoo users"), message)
+        XCTAssertTrue(message.contains("Runtimes only coordinate amoo users"), message)
     }
 
     func testTimeoutWithoutAHijackerKeepsTheOriginalError() async {

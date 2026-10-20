@@ -6,7 +6,7 @@ import Foundation
 import TestCommons
 import XCTest
 
-/// Opt-in transport fault tests. The verifier owns the lease, app, journal path and subsequent cleanup.
+/// Opt-in transport fault tests. The verifier owns the runtime, app, journal path and subsequent cleanup.
 /// These tests deliberately return before restoration is known; they never claim a cleanup pass.
 final class VoiceOverRecoveryQualificationTests: XCTestCase {
     private struct Configuration: Sendable {
@@ -19,17 +19,17 @@ final class VoiceOverRecoveryQualificationTests: XCTestCase {
     private func configuration() throws -> Configuration {
         let environment = ProcessInfo.processInfo.environment
         guard environment["AMOO_VOICEOVER_FAULT_QUALIFICATION"] == "1" else {
-            throw XCTSkip("Live recovery qualification requires an explicitly owned simulator lease.")
+            throw XCTSkip("Live recovery qualification requires an explicitly owned simulator runtime.")
         }
         guard let port = environment["AMOO_VOICEOVER_FAULT_PORT"].flatMap(Int.init),
               (1 ... 65535).contains(port),
               let appID = environment["AMOO_VOICEOVER_FAULT_APP"], !appID.isEmpty,
               let path = environment["AMOO_VOICEOVER_FAULT_JOURNAL"], path.hasPrefix("/"),
               let evidence = environment["AMOO_VOICEOVER_FAULT_EVIDENCE"], evidence.hasPrefix("/"),
-              environment["AMOO_LEASE"]?.isEmpty == false else {
+              environment["AMOO_RUNTIME_ID"]?.isEmpty == false else {
             throw AmooError.commandFailed(
                 command: "VoiceOver recovery qualification",
-                output: "Requires AMOO_LEASE and explicit port, app, absolute journal and evidence paths"
+                output: "Requires AMOO_RUNTIME_ID and explicit port, app, absolute journal and evidence paths"
             )
         }
         return Configuration(

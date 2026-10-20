@@ -1,7 +1,7 @@
 import AmooCore
 import Foundation
 
-/// Independent leased environments, an optional explicit artifact, and no recording transport.
+/// Independent controlled environments, an optional explicit artifact, and no recording transport.
 struct InitOptions {
     var environment: EnvUpOptions
     var devices: [String]
@@ -9,22 +9,18 @@ struct InitOptions {
     var framework: String?
 }
 
-/// Versioned CLI setup manifest. Lease tokens are ownership credentials; keep this file private.
+/// Versioned CLI setup manifest. Runtime tokens are ownership credentials; keep this file private.
 struct InitManifest: Codable {
-    var schemaVersion = 1
+    var schemaVersion = 2
     var ok: Bool
     var results: [EnvUpReport]
     var error: String?
 
     static func read(_ path: String) throws -> Self {
-        let manifest = try JSONDecoder().decode(Self.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
-        guard manifest.schemaVersion == 1 else {
-            throw EnvCommandParseError.usage("Unsupported init manifest version \(manifest.schemaVersion).")
-        }
-        return manifest
+        try decodeMigrating(Data(contentsOf: URL(fileURLWithPath: path)))
     }
 
-    /// Atomic replace, created 0600 from the start: the file holds lease ids, so there is no
+    /// Atomic replace, created 0600 from the start: the file holds runtime ids, so there is no
     /// window in which it is readable by anyone else.
     func write(_ path: String) throws {
         let url = URL(fileURLWithPath: path)
@@ -73,43 +69,43 @@ func renderInitHelp() -> String {
            amoo init down --manifest <path> [--shutdown] [--json]
            amoo init repo [--target <repo>] [--client <name> ...] [--dry-run] [--json]
 
-    Prepare devices without supplying an app build. Each gets its own lease, companion and port
+    Prepare devices without supplying an app build. Each gets its own runtime and companion port
     through the same code as `env up`. To also install an app, explicitly pass --app and --app-id.
 
     In a terminal, `amoo init` walks you through device selection, shows the plan with the equivalent
-    command, and asks before leasing anything. It never asks for a build path or searches for builds.
+    command, and asks before starting anything. It never asks for a build path or searches for builds.
     Flags you pass are kept and not asked again. With --json, --non-interactive or no terminal it
     never prompts: --platform and --device are required; --app-id is also required when supplying
-    --app or --launch. Every missing input is reported at once. --dry-run validates without leasing.
+    --app or --launch. Every missing input is reported at once. --dry-run validates without starting runtimes.
 
     The platform, manifest directory and any explicitly supplied app are recorded in ./AGENTS.md
     (asked in a terminal; --save to do it headless). Guided setup defaults to ./.amoo.json;
-    saved app paths are never selected automatically. Device and lease ids are never saved in AGENTS.md.
+    saved app paths are never selected automatically. Device and runtime ids are never saved in AGENTS.md.
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.
     Headless, pass --client to do so; --no-skills skips it.
 
-    Validation runs first (app exists and matches --app-id, every device exists and is unleased);
-    nothing is leased if it fails. All results are returned, including failures; exit 1 means at
+    Validation runs first (app exists and matches --app-id, every device exists and is available);
+    no runtime starts if it fails. All results are returned, including failures; exit 1 means at
     least one failed. --out writes the same JSON incrementally, so an interrupted run still
-    records the leases it took. Companion products may be built when missing or changed; the
+    records the runtimes it started. Companion products may be built when missing or changed; the
     supplied app is never built.
-    device selects one successful manifest entry and proves ownership with its lease.
-    down releases every successful entry through env down, without forcing another lease.
+    device selects one successful manifest entry and proves ownership with its runtime.
+    down stops every successful entry through env down, respecting active device access locks.
     repo is `amoo agent install` (guided in a terminal) for when you only want the AI client setup.
-    Treat manifests as private credentials. For recording, release CLI leases first, then
+    Treat manifests as private credentials. For recording, stop CLI runtimes first, then
     use MCP start_session with device_hint and the app's build_path; end_session exports the plan.
     """
 }
 
 private func previousInitConnections(at path: String?) throws -> [EnvUpReport] {
     guard let path, FileManager.default.fileExists(atPath: path) else { return [] }
-    return try InitManifest.read(path).results.filter { $0.lease != nil }
+    return try InitManifest.read(path).results.filter { $0.runtimeID != nil }
 }
 
 // Runs each device through `env up` in turn. `onProgress` narrates for a terminal; the manifest is
-// rewritten after every device so a killed run never leaves leases that nothing records.
+// rewritten after every device so a killed run never leaves runtimes that nothing records.
 // swiftlint:disable:next function_body_length
 func runInit(
     _ options: InitOptions,
@@ -137,7 +133,7 @@ func runInit(
     func persist() {
         guard let out = options.out else { return }
         do { try manifest.write(out) } catch {
-            manifest.error = "Cannot write manifest: \(error). Use the returned leases for cleanup."
+            manifest.error = "Cannot write manifest: \(error). Use the returned runtimes for cleanup."
         }
     }
     // Verify persistence before taking ownership of any device.
@@ -146,7 +142,7 @@ func runInit(
         manifest.ok = false
         return CLIResult(output: options.environment.json ? renderJSON(manifest) : error, exitCode: 1)
     }
-    // Sequential setup lets env up see each preceding lease/port and keeps companion builds serialized.
+    // Sequential setup lets env up see each preceding runtime/port and keeps companion builds serialized.
     for (index, device) in options.devices.enumerated() {
         let step = "[\(index + 1)/\(options.devices.count)]"
         onProgress?("\(step) Preparing \(device)…")
@@ -167,7 +163,8 @@ func runInit(
         // Retain credentials for other devices/platforms and failed attempts to replace a device.
         manifest.results = results + previous.filter { old in
             !results.contains { new in
-                new.lease == old.lease || (new.ok && new.platform == old.platform && new.device?.id == old.device?.id)
+                new.runtimeID == old
+                    .runtimeID || (new.ok && new.platform == old.platform && new.device?.id == old.device?.id)
             }
         }
         manifest.ok = results.allSatisfy(\.ok)
@@ -176,7 +173,7 @@ func runInit(
             break
         }
         onProgress?(report.ok
-            ? "\(step) Ready: lease \(report.lease ?? "?"), port \(report.port.map(String.init) ?? "?")"
+            ? "\(step) Ready: runtime \(report.runtimeID ?? "?"), port \(report.port.map(String.init) ?? "?")"
             : "\(step) Failed: \(report.error ?? "unknown error")")
     }
     manifest.ok = results.allSatisfy(\.ok) && manifest.error == nil
@@ -193,19 +190,25 @@ func runInitDown(
 ) async -> CLIResult {
     var results: [EnvDownReport] = []
     for entry in manifest.results where entry.ok {
-        guard let lease = entry.lease else {
+        guard let runtime = entry.runtimeID else {
             results.append(EnvDownReport(
                 ok: false,
                 device: entry.device?.id,
-                holderStopped: false,
+                companionStopped: false,
                 shutdown: false,
-                error: "Successful manifest entry has no lease."
+                error: "Successful manifest entry has no runtime."
             ))
             continue
         }
-        let result = await cleanup(EnvDownOptions(lease: lease, shutdown: shutdown, json: true))
+        let result = await cleanup(EnvDownOptions(runtimeID: runtime, shutdown: shutdown, json: true))
         results.append((try? JSONDecoder().decode(EnvDownReport.self, from: Data(result.output.utf8)))
-            ?? EnvDownReport(ok: false, lease: lease, holderStopped: false, shutdown: false, error: result.output))
+            ?? EnvDownReport(
+                ok: false,
+                runtimeID: runtime,
+                companionStopped: false,
+                shutdown: false,
+                error: result.output
+            ))
     }
     let ok = results.allSatisfy(\.ok)
     return CLIResult(output: renderJSON(InitDownReport(ok: ok, results: results)), exitCode: ok ? 0 : 1)
@@ -218,13 +221,13 @@ private struct InitDownReport: Encodable {
 
 func initDeviceArguments(_ manifest: InitManifest, device: String, args: [String]) throws -> [String] {
     guard let entry = manifest.results.first(where: { $0.ok && $0.device?.id == device }),
-          let lease = entry.lease, let port = entry.port
+          let runtime = entry.runtimeID, let port = entry.port
     else { throw EnvCommandParseError.usage("No successful init entry for device \(device).") }
     // Leading routing flags cannot override the entry's ownership or transport.
-    guard !args.contains(where: { ["--lease", "--port", "--platform", "--device"].contains($0) }) else {
-        throw EnvCommandParseError.usage("Manifest supplies platform, device, port and lease.")
+    guard !args.contains(where: { ["--runtime-id", "--port", "--platform", "--device"].contains($0) }) else {
+        throw EnvCommandParseError.usage("Manifest supplies platform, device, port and runtime.")
     }
-    return ["--platform", entry.platform, "--device", device, "--port", String(port), "--lease", lease] + args
+    return ["--platform", entry.platform, "--device", device, "--port", String(port), "--runtime-id", runtime] + args
 }
 
 func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) async -> CLIResult {
@@ -255,7 +258,7 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
                 try InitManifest(ok: true, results: []).write(manifestPath)
             }
             return json ? result : CLIResult(
-                output: result.exitCode == 0 ? "Released initialized environments." : result.output,
+                output: result.exitCode == 0 ? "Stopped initialized runtimes." : result.output,
                 exitCode: result.exitCode
             )
         }

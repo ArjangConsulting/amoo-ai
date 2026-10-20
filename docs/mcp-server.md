@@ -33,7 +33,7 @@ own companion port per device, so sessions on different simulators or emulators 
 the `port` argument of `start_session` wins, then an explicit `--port` of `amoo mcp serve`, then a
 companion already listening on `22087` for that same simulator, and otherwise a stable port derived
 from the simulator's UDID (`23000-23999`; Android emulators keep their `22088+` block). If something
-else holds the port, `start_session` fails naming the holder; pass a free `port` to move off it.
+else holds the port, `start_session` fails naming the process; pass a free `port` to move off it.
 
 The server speaks JSON-RPC over `stdio` and exits cleanly when the client closes
 stdin. It supports both stateless MCP `2026-07-28` requests and the legacy
@@ -196,9 +196,9 @@ element, turned into `assert_visible`) by `generate plan --from-flow`.
 
 ### Running several companions
 
-`amoo companion start --detach` registers each holder, so `amoo companion list` shows pid, platform,
+`amoo companion start --detach` registers each process, so `amoo companion list` shows pid, platform,
 port, state, device and app, and `amoo companion stop --port N` / `--device UDID` / `--all` stops
-exactly those (never `pkill`, which also stops other sessions' companions). A holder that restarts
+exactly those (never `pkill`, which also stops other sessions' companions). A process that restarts
 its runner now reclaims the port the old runner app left bound instead of failing with "owned by
 another companion process".
 
@@ -373,7 +373,7 @@ Requests execute independently across devices and serialize per device within on
 Cancellation notifications propagate to outstanding request tasks. RPC deadlines and bounded input
 frames prevent indefinite client work; device-side cancellation may finish later. Production
 session bootstrap holds an OS file lock until session cleanup, rejecting a second MCP process on
-the same device as well as conflicting environment leases. Queued calls cancel promptly; an active
+the same device as well as conflicting environment runtimes. Queued calls cancel promptly; an active
 mutation keeps its place until its backend stops. Recovery calls have reserved request capacity.
 
 Output runs on a separate worker with a 16 MiB queue limit and a five-second write deadline.

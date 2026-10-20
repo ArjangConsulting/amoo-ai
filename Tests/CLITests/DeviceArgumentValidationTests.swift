@@ -18,7 +18,7 @@ final class DeviceArgumentValidationTests: XCTestCase {
 
     func testDocumentedLaunchFlagsPassParsingAndSchemaValidation() throws {
         let options = try parseDeviceCommandOptions(args: [
-            "--platform", "ios", "--device", "phone", "--port", "22093", "--lease", "owned",
+            "--platform", "ios", "--device", "phone", "--port", "22093", "--runtime-id", "owned",
             "device_launch_app", "app_id=com.example.app", "--arg", "-UITest", "--arg", "fast",
             "--env", "UITEST=1"
         ]).get()

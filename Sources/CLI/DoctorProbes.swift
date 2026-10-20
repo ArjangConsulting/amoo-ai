@@ -77,7 +77,7 @@ func isADBServerRunning(processRunner: any ProcessRunner) async -> Bool {
     await (try? processRunner.run(["/usr/bin/pgrep", "-f", "adb.*fork-server"]))?.exitCode == 0
 }
 
-func androidDoctorDevices(leaseByDevice: [String: String]) async -> [DoctorReport.Device] {
+func androidDoctorDevices(runtimeByDevice: [String: String]) async -> [DoctorReport.Device] {
     let selector = AndroidDeviceSelector()
     var devices: [DoctorReport.Device] = []
     for device in await selector.listOnlineDevices() {
@@ -93,13 +93,13 @@ func androidDoctorDevices(leaseByDevice: [String: String]) async -> [DoctorRepor
             os: nil,
             avd: avd,
             physical: !emulator,
-            lease: leaseByDevice[device.serial]
+            runtimeID: runtimeByDevice[device.serial]
         ))
     }
     return devices
 }
 
-func iosDoctorDevices(leaseByDevice: [String: String]) async -> [DoctorReport.Device] {
+func iosDoctorDevices(runtimeByDevice: [String: String]) async -> [DoctorReport.Device] {
     #if os(macOS)
     await DeviceSelector().listBootedDevices().map { device in
         .init(
@@ -109,7 +109,7 @@ func iosDoctorDevices(leaseByDevice: [String: String]) async -> [DoctorReport.De
             os: "iOS \(device.osVersion)",
             avd: nil,
             physical: device.isPhysicalDevice,
-            lease: leaseByDevice[device.udid]
+            runtimeID: runtimeByDevice[device.udid]
         )
     }
     #else
@@ -147,6 +147,7 @@ func companionListeners(processRunner: any ProcessRunner) async -> [DoctorReport
     let forwards = await (try? Adb(context: context).listForwards().run())?.stdout ?? ""
     for index in listeners.indices {
         let port = listeners[index].port
+        listeners[index].state = await isCompanionReady(host: "127.0.0.1", port: port) ? .running : .unresponsive
         if let serial = forwards.split(whereSeparator: \.isNewline)
             .map({ $0.split(separator: " ").map(String.init) })
             .first(where: { $0.count == 3 && $0[1] == "tcp:\(port)" })?[0] {

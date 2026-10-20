@@ -166,7 +166,7 @@ pass their complete authored checks. Identical inputs against each seed isolate 
 
 All runs retain execution success separately from these expected assertion failures, with
 untruncated evidence and verified restoration of the original OFF state, independently confirmed
-in public Settings after the run. The owning session and processes are released. The clean order checks
+in public Settings after the run. The owning session and processes are stopped. The clean order checks
 forward and backward traversal in one call. The dialog checks opening context, seeking Dismiss,
 dismissal readiness and return focus in one call. Paging and dialog use the default two-second
 recovery bound. These results qualify the fixture and provider path, not arbitrary apps or

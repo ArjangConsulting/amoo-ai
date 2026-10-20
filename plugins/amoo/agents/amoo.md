@@ -17,8 +17,8 @@ nearest amoo.md from their working directory. When running elsewhere, pass --con
 Explicit context overrides discovery; a plan's embedded context is preserved by generate test.
 Profiles may contain separate targetPlatform blocks for iOS and Android; CLI/MCP select the matching block.
 Review discovered Kotlin/Java instrumentation evidence as well as Swift harness conventions.
-.amoo.json is private CLI lease state, not a test profile or a reusable flow. Never commit it,
-adopt its leases into MCP, or automatically install a remembered app artifact.
+.amoo.json is private CLI runtime state, not a test profile or a reusable flow. Never commit it,
+adopt its runtimes into MCP, or automatically install a remembered app artifact.
 
 
 ## Input
@@ -55,13 +55,13 @@ accessibility_policy: path/to/amoo.accessibility.json  # optional skill review p
   block the affected requirements; do not claim that unsupported checks passed.
 - Load the `driving-amoo` skill (it may be listed as `amoo:driving-amoo`) before driving; it holds
   the tool-selection, recovery and recording rules this file only summarizes.
-- `amoo doctor --json`, when listed, if anything looks off (stale MCP server, leases, companion state).
+- `amoo doctor --json`, when listed, if anything looks off (stale MCP server, runtimes, companion state).
 
 ## 2. Pick a transport — same tool names on both
 
-Subagents delegate work; MCP/CLI execute it; leases coordinate device ownership. MCP
+Subagents delegate work; MCP/CLI execute it; runtimes track companions; device access locks coordinate control. MCP
 `start_session` acquires ownership and `end_session` releases it automatically. CLI commands
-use the explicit lease returned by `env up`. A missing CLI lease command is a version-specific
+use the explicit runtime returned by `env up`. A missing CLI runtime command is a version-specific
 limitation, not a separate integration mode. Follow the driving-amoo mode-selection table.
 
 **MCP (recommended for interactive work)** — when amoo tools are available to you
@@ -76,27 +76,27 @@ requirements on an available device; ask the caller to end its session before re
 If the caller needs the exact current screen preserved, return blocked and have the owning
 context perform the remaining interactions. Never drop session_id to bypass an attachment error.
 
-**Leased CLI (recommended for checked-in flows/probes)** — otherwise use it for inspect/verify/debug:
+**CLI runtime (recommended for checked-in flows/probes)** — otherwise use it for inspect/verify/debug:
 Check that the required subcommands and flags appear in the pinned binary's help first.
 
 For multi-device setup, prefer `amoo init`. A person runs it bare in a terminal for the guided flow;
 an agent has no terminal, so pass every required input: `amoo init --platform <p> --app <absolute-build-path>
 --app-id <id> --device <id> --device <id> --launch --out <manifest.json> --json`. App artifacts are optional. Omitting either
 `--platform/--device` (or `--app-id` with `--app` or `--launch`) fails with the full list of what is missing and what is available.
-Add `--dry-run` first to validate the app and devices without leasing. Reuse the same externally built
+Add `--dry-run` first to validate the app and devices without starting runtimes. Reuse the same externally built
 artifact for every device; never rebuild per device. Inspect all `results` for partial failures. Use
 `amoo init device --manifest <path> --device <id> --json <tool>` and clean up every success with
-`amoo init down --manifest <path> --json`. Release CLI leases before MCP start_session for recording;
+`amoo init down --manifest <path> --json`. Stop CLI runtimes before MCP start_session for recording;
 init does not record. `AGENTS.md` may hold an `amoo init` block with the app artifact and manifest
 locations; read it before asking. `amoo agent install --client <name>` installs bundled skills and
 client configuration (a person gets a guided picker; `amoo init --client <name>` does it headless).
 
 ```sh
 amoo env up --platform <p> [--device <id> | --avd <name> | --runtime <iOS-x> --model <name>] \
-  [--app <build>] --app-id <id> --owner amoo-agent --json     # → lease, device, port
-amoo device --platform <p> --device <id> --port <port> --lease <lease> --json <tool> key=value ...
-amoo flow <file.amoo.json> --device <id> --port <port> --lease <lease>
-amoo env down --lease <lease> --json                          # always, also on failure
+  [--app <build>] --app-id <id> --owner amoo-agent --json
+amoo device --platform <p> --device <id> --port <port> --runtime-id <runtime> --json <tool> key=value ...
+amoo flow <file.amoo.json> --device <id> --port <port> --runtime-id <runtime>
+amoo env down --runtime-id <runtime> --json
 ```
 
 `amoo device` with no tool prints every tool and its arguments — read it instead of guessing.
@@ -140,7 +140,7 @@ app, use the CLI path.
 
 - Simulators and emulators only, unless the caller explicitly names a physical device.
 - Shared machine: take devices through `amoo env up` / `start_session`; never drive a device
-  leased by someone else (`amoo env list`; exit code 3). Never pass `--force` to take a lease.
+  controlled by someone else (`amoo env list`; exit code 3). Never pass `--force` to take a runtime.
 - Install, launch, terminate and reinstall the app only through amoo (`device_install_app`,
   `device_launch_app`, `device_terminate_app`) — raw `simctl`/`adb` app lifecycle desyncs the
   companion. Read-only diagnostics (logcat, crash logs, `simctl list`) are fine.
@@ -152,7 +152,7 @@ app, use the CLI path.
   `end_session force=true` and start a new session rather than dropping the `session_id`.
 - Budget: two identical failures, or `budget.setup_minutes` (default 5) of setup trouble →
   stop and report `blocked`. Never spend the caller's time working around amoo itself.
-- Always clean up: `end_session`, or `amoo env down --lease <lease>`.
+- Always clean up: `end_session`, or `amoo env down --runtime-id <runtime>`.
 - A caller-supplied probe contract (builds + checked-in WebView probes + flow) belongs to the
   `device-verifier` agent; follow its skill if you receive one.
 
@@ -172,7 +172,7 @@ An unsupported capability requires an appropriate companion rebuild/OS, never a 
   "status": "pass",
   "execution": "succeeded",
   "verdict": "pass",
-  "cleanup": "released",
+  "cleanup": "stopped",
   "summary": "At most three lines answering the caller's question.",
   "provenance": {
     "app_id": "com.example.app", "app_build": "<path/fingerprint or unknown>",
@@ -198,7 +198,7 @@ accepting a pass; structural validation does not independently verify the eviden
 Use `status=done`, `execution=succeeded`, `verdict=notAssessed` for completed observations without
 assertions. Use `blocked` when requirements cannot be evaluated, preserving each missing check and
 its reason in `coverage.notEvaluated`. Failed checks have `outcome=fail` and `verdict=fail`.
-Cleanup is `released`, `restored`, `notRequired`, `failed`, or `unknown`; unresolved cleanup prevents
+Cleanup is `stopped`, `restored`, `notRequired`, `failed`, or `unknown`; unresolved cleanup prevents
 pass. Pass requires successful execution, every requested check evaluated and passed, complete
 untruncated coverage, evidence references and resolved cleanup. Captured speech alone cannot pass.
 

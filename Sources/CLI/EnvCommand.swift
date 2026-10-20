@@ -11,6 +11,7 @@ enum EnvAction: Equatable {
 }
 
 struct EnvUpOptions: Equatable {
+    var runtimeID: String?
     var platform: Platform = .android
     /// Simulator UDID / emulator serial. Must be a simulator or emulator.
     var deviceID: String?
@@ -36,11 +37,11 @@ struct EnvUpOptions: Equatable {
 }
 
 struct EnvDownOptions: Equatable {
-    var lease: String?
+    var runtimeID: String?
     var deviceID: String?
     /// Also shut the device down (only when `env up` booted it, unless `force`).
     var shutdown = false
-    /// Release a lease this caller does not hold (cleanup after a crashed session).
+    /// Allow shutting down a device that this runtime did not boot.
     var force = false
     var json = false
 }
@@ -59,26 +60,28 @@ func renderEnvHelp() -> String {
     """
     Usage: amoo env <up|down|list> [options]
 
-    Deterministic test-environment setup for agents: boot or reuse a simulator/emulator
-    (never a physical device), start its companion on a free port in the background, install
-    the app, and lease the device so other sessions leave it alone.
+    Start or stop amoo on simulators and emulators. A runtime tracks the companion process;
+    device access coordination prevents simultaneous control by different sessions.
 
       up     --platform ios|android
-             [--device <udid|emulator-serial>]        exact simulator/emulator
-             [--avd <name>]                           android: reuse or boot this AVD
-             [--runtime <iOS-27.0>] [--model <name>]  ios: pick (and boot) a simulator
-             [--port <n>]                             companion port (default: first free 22093+)
+             [--device <udid|emulator-serial>]
+             [--avd <name>]
+             [--runtime <iOS-27.0>] [--model <name>]
+             [--runtime-id <id>]                      reuse an owned, running runtime
+             [--port <n>]                             default: first free 22093+
              [--app <path.apk|path.app>] [--app-id <id>] [--launch]
              [--owner <label>] [--ttl <minutes>] [--ready-timeout <secs>] [--json]
-             Prints the lease id; pass it to later calls as --lease <id> or AMOO_LEASE.
+             Later calls can use --runtime-id <id> or AMOO_RUNTIME_ID.
 
-      down   --lease <id> | --device <id> [--shutdown] [--force] [--json]
-             Stops the companion holder and releases the lease. --shutdown also stops the
-             device if `env up` booted it. --force releases a lease you do not hold.
+      down   --device <id> | --runtime-id <id> [--shutdown] [--force] [--json]
+             Stops the companion and removes its runtime record, including stale records.
+             --shutdown also stops a device booted by env up; --force permits shutting down
+             an already booted device. An active session always prevents stopping its device.
 
-      list   [--json]   Active leases.
+      list   [--json]   Runtime records with observed starting, running, unresponsive or stale state.
 
-    Exit codes: 0 ok, 1 failed, 3 device leased by another session.
+    Installed means the companion app is installed. Running means its API is reachable.
+    Exit codes: 0 ok, 1 failed, 3 device is being controlled by another session.
     """
 }
 
@@ -110,6 +113,7 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
     }
     options.platform = platform
     options.deviceID = try flags.value("--device")
+    options.runtimeID = try flags.value("--runtime-id")
     options.avd = try flags.value("--avd")
     options.runtime = try flags.value("--runtime")
     options.model = try flags.value("--model")
@@ -133,14 +137,14 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
 
 private func parseEnvDown(_ flags: inout EnvFlagReader) throws -> EnvDownOptions {
     var options = EnvDownOptions()
-    options.lease = try flags.value("--lease")
+    options.runtimeID = try flags.value("--runtime-id")
     options.deviceID = try flags.value("--device")
     options.shutdown = flags.take("--shutdown")
     options.force = flags.take("--force")
     options.json = flags.take("--json")
     try flags.finish()
-    guard options.lease != nil || options.deviceID != nil else {
-        throw EnvCommandParseError.usage("env down needs --lease <id> or --device <id>.")
+    guard options.runtimeID != nil || options.deviceID != nil else {
+        throw EnvCommandParseError.usage("env down needs --runtime-id <id> or --device <id>.")
     }
     return options
 }
@@ -204,31 +208,31 @@ func normalizedIOSRuntime(_ raw: String) -> String {
     return digits.contains(".") ? digits : digits + ".0"
 }
 
-/// Picks a simulator for `env up`: matching runtime/model, not leased by anyone else, booted ones
+/// Picks a simulator for `env up`: matching runtime/model, not controlled by anyone else, booted ones
 /// first (reuse is cheaper than a boot).
 func pickIOSSimulator(
     runtime: String?,
     model: String?,
     available: [IOSSimulatorDevice],
     bootedUDIDs: Set<String>,
-    isLeased: (String) -> Bool
+    isControlled: (String) -> Bool
 ) -> IOSSimulatorDevice? {
     let wantedRuntime = runtime.map(normalizedIOSRuntime)
     let candidates = available.filter { simulator in
         (wantedRuntime == nil || simulator.osVersion == wantedRuntime)
             && (model == nil || simulator.name.lowercased() == model?.lowercased())
-            && !isLeased(simulator.udid)
+            && !isControlled(simulator.udid)
     }
     return candidates.first { bootedUDIDs.contains($0.udid) } ?? candidates.first
 }
 
-/// The first port in `candidates` that is neither listening nor claimed by a lease.
+/// The first port in `candidates` that is neither listening nor claimed by a runtime.
 func pickFreeCompanionPort(
     candidates: ClosedRange<Int> = 22093 ... 22199,
-    leasedPorts: Set<Int>,
+    reservedPorts: Set<Int>,
     isListening: (Int) async -> Bool
 ) async -> Int? {
-    for port in candidates where !leasedPorts.contains(port) {
+    for port in candidates where !reservedPorts.contains(port) {
         if await !isListening(port) {
             return port
         }

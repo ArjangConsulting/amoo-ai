@@ -9,11 +9,11 @@ struct InitDeviceCandidate: Equatable {
     var name: String
     var detail: String
     var booted: Bool
-    /// Lease summary when another session holds the device; nil when it is free to take.
-    var leasedBy: String?
+    /// Runtime summary when another session holds the device; nil when it is free to take.
+    var controlledBy: String?
 
     var label: String {
-        let state = leasedBy.map { "leased: \($0)" } ?? (booted ? "booted" : "shutdown")
+        let state = controlledBy.map { "controlled: \($0)" } ?? (booted ? "booted" : "shutdown")
         return "\(name) — \(detail), \(state) (\(id))"
     }
 }
@@ -23,7 +23,7 @@ struct InitDiscovery {
     var devices: (Platform) async -> [InitDeviceCandidate]
     var bundleID: (_ appPath: String, _ platform: Platform) -> String?
 
-    static func live(store: DeviceClaimStore = DeviceClaimStore()) -> Self {
+    static func live(store: DeviceRuntimeStore = DeviceRuntimeStore()) -> Self {
         Self(
             devices: { await discoverInitDevices(platform: $0, store: store) },
             bundleID: { path, platform in platform == .ios ? iosBundleIdentifier(ofApp: path) : nil }
@@ -31,7 +31,7 @@ struct InitDiscovery {
     }
 }
 
-private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) async -> [InitDeviceCandidate] {
+private func discoverInitDevices(platform: Platform, store: DeviceRuntimeStore) async -> [InitDeviceCandidate] {
     let found: [InitDeviceCandidate]
     switch platform {
     case .ios:
@@ -44,7 +44,7 @@ private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) as
                 name: $0.name,
                 detail: "iOS \($0.osVersion)",
                 booted: booted.contains($0.udid),
-                leasedBy: store.claim(forDevice: $0.udid)?.summary
+                controlledBy: store.runtime(forDevice: $0.udid)?.summary
             )
         }
     case .android:
@@ -55,7 +55,7 @@ private func discoverInitDevices(platform: Platform, store: DeviceClaimStore) as
                 name: $0.name,
                 detail: "Android emulator",
                 booted: true,
-                leasedBy: store.claim(forDevice: $0.serial)?.summary
+                controlledBy: store.runtime(forDevice: $0.serial)?.summary
             )
         }
     }

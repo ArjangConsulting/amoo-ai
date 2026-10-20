@@ -30,27 +30,28 @@ enum EnvError: Error, CustomStringConvertible {
 
 // MARK: - env up
 
-/// Injectable lifecycle boundaries; init and env share the same lease orchestration.
+/// Injectable lifecycle boundaries; init and env share the same runtime orchestration.
 struct EnvUpDependencies {
-    var resolve: (EnvUpOptions, DeviceClaimStore) async throws -> EnvDeviceReport = { options, store in
+    var health = DeviceRuntimeHealth()
+    var resolve: (EnvUpOptions, DeviceRuntimeStore) async throws -> EnvDeviceReport = { options, store in
         switch options.platform {
         case .android: try await resolveEnvAndroidDevice(options, store: store)
         case .ios: try await resolveEnvIOSDevice(options, store: store)
         }
     }
 
-    var start: (EnvUpOptions, DeviceClaim, DeviceClaimStore) async throws -> DeviceClaim = {
-        try await startLeasedCompanion($0, lease: $1, store: $2)
+    var start: (EnvUpOptions, DeviceRuntime, DeviceRuntimeStore) async throws -> DeviceRuntime = {
+        try await startRuntimeCompanion($0, runtime: $1, store: $2)
     }
 
-    var prepare: (EnvUpOptions, DeviceClaim, inout EnvAppReport?) async throws -> Void = {
-        try await prepareEnvApp($0, lease: $1, app: &$2)
+    var prepare: (EnvUpOptions, DeviceRuntime, inout EnvAppReport?) async throws -> Void = {
+        try await prepareEnvApp($0, runtime: $1, app: &$2)
     }
 }
 
 func runEnvUp(
     _ options: EnvUpOptions,
-    store: DeviceClaimStore = DeviceClaimStore(),
+    store: DeviceRuntimeStore = DeviceRuntimeStore(),
     dependencies: EnvUpDependencies = EnvUpDependencies()
 ) async -> CLIResult {
     var report = EnvUpReport(ok: false, platform: options.platform.rawValue)
@@ -58,9 +59,17 @@ func runEnvUp(
         CLIResult(output: options.json ? renderJSON(report) : report.humanSummary, exitCode: code)
     }
     let store = options.ttlMinutes.map {
-        DeviceClaimStore(directory: store.directory, ttl: Double($0) * 60, reaper: store.reaper)
+        DeviceRuntimeStore(
+            directory: store.directory,
+            legacyDirectory: store.legacyDirectory,
+            ttl: Double($0) * 60,
+            reaper: store.reaper
+        )
     } ?? store
-    // `env up` takes devices, so it clears what expired leases left running; listing never does.
+    // `env up` takes devices, so it clears what expired runtimes left running; listing never does.
+    if let reused = await reuseDeviceRuntime(options, store: store, dependencies: dependencies) {
+        return CLIResult(output: options.json ? renderJSON(reused) : reused.humanSummary, exitCode: reused.ok ? 0 : 1)
+    }
     store.reapExpired()
 
     let device: EnvDeviceReport
@@ -71,55 +80,52 @@ func runEnvUp(
         return finish(1)
     }
     report.device = device
-    if options.appID != nil || options.appPath != nil {
-        report.app = EnvAppReport(
-            id: options.appID,
-            path: options.appPath,
-            sha256: options.appSHA256 ?? options.appPath.flatMap { sha256Hex(ofPath: $0) },
-            installed: false,
-            launched: false
-        )
-    }
+    report.prepareApp(options)
 
-    var lease: DeviceClaim
+    var runtime: DeviceRuntime
     do {
-        lease = try store.acquire(
+        runtime = try store.start(
             platform: options.platform,
             deviceID: device.id,
             deviceName: device.avd ?? device.name,
-            owner: options.owner ?? ProcessInfo.processInfo.environment["AMOO_LEASE_OWNER"]
+            owner: options.owner ?? ProcessInfo.processInfo.environment["AMOO_RUNTIME_OWNER"]
         )
     } catch {
         report.error = "\(error)"
         return finish(3)
     }
-    lease.bootedByLease = device.bootedByEnv
-    lease.appID = options.appID
-    report.lease = lease.id
+    runtime.bootedByRuntime = device.bootedByEnv
+    runtime.appID = options.appID
+    report.runtimeID = runtime.id
 
     do {
-        lease = try await dependencies.start(options, lease, store)
-        report.port = lease.port
-        report.holderPID = lease.holderPID
-        report.log = store.logURL(claimID: lease.id).path
-        try await dependencies.prepare(options, lease, &report.app)
+        runtime = try await dependencies.start(options, runtime, store)
+        report.port = runtime.port
+        report.companionPID = runtime.companionPID
+        report.log = store.logURL(runtimeID: runtime.id).path
+        try await dependencies.prepare(options, runtime, &report.app)
     } catch {
         report.error = "\(error)"
-        report.log = store.logURL(claimID: lease.id).path
-        let storedLease = store.claim(id: lease.id) ?? lease
-        report.port = storedLease.port
-        report.holderPID = storedLease.holderPID
-        stopHolder(pid: storedLease.holderPID)
-        store.release(lease)
+        report.log = store.logURL(runtimeID: runtime.id).path
+        let storedRuntime = store.runtime(id: runtime.id) ?? runtime
+        report.port = storedRuntime.port
+        report.companionPID = storedRuntime.companionPID
+        if stopRuntimeCompanion(storedRuntime) {
+            store.stop(runtime)
+        }
         return finish(1)
     }
     report.ok = true
+    report.state = .running
     return finish(0)
 }
 
 // MARK: - Device resolution
 
-private func resolveEnvAndroidDevice(_ options: EnvUpOptions, store: DeviceClaimStore) async throws -> EnvDeviceReport {
+private func resolveEnvAndroidDevice(
+    _ options: EnvUpOptions,
+    store: DeviceRuntimeStore
+) async throws -> EnvDeviceReport {
     let selector = AndroidDeviceSelector()
     let online = await selector.listOnlineDevices()
     if let serial = options.deviceID {
@@ -147,24 +153,24 @@ private func resolveEnvAndroidDevice(_ options: EnvUpOptions, store: DeviceClaim
                 + (selector.listAvailableVirtualDevices().map(\.name).joined(separator: ", ")))
         }
     }
-    // Nothing named: the first running emulator nobody has leased.
-    for device in online where device.serial.hasPrefix("emulator-") && store.claim(forDevice: device.serial) == nil {
+    // Nothing named: the first running emulator nobody has controlled.
+    for device in online where device.serial.hasPrefix("emulator-") && store.runtime(forDevice: device.serial) == nil {
         let avd = await selector.runningAVDName(serial: device.serial)
         return EnvDeviceReport(id: device.serial, name: nil, os: nil, avd: avd, bootedByEnv: false)
     }
-    throw await EnvError.noDevice("No unleased Android emulator is running. Pass --avd <name> to boot one: "
+    throw await EnvError.noDevice("No available Android emulator is running. Pass --avd <name> to boot one: "
         + (selector.listAvailableVirtualDevices().map(\.name).joined(separator: ", ")))
 }
 
-private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceClaimStore) async throws -> EnvDeviceReport {
+private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceRuntimeStore) async throws -> EnvDeviceReport {
     let selector = DeviceSelector()
     let available = await selector.listAvailableSimulators()
     let booted = await Set(selector.listBootedDevices().filter { !$0.isPhysicalDevice }.map(\.udid))
 
     let simulator: IOSSimulatorDevice
     if let udid = options.deviceID {
-        if let existing = store.claim(forDevice: udid) {
-            throw DeviceLeaseError.leasedByOther(existing)
+        if let existing = store.runtime(forDevice: udid) {
+            throw DeviceAccessError.controlledByOther(existing)
         }
         guard let match = available.first(where: { $0.udid == udid }) else {
             if await selector.isPhysicalDevice(deviceID: udid) {
@@ -179,9 +185,9 @@ private func resolveEnvIOSDevice(_ options: EnvUpOptions, store: DeviceClaimStor
             model: options.model,
             available: available,
             bootedUDIDs: booted,
-            isLeased: { store.claim(forDevice: $0) != nil }
+            isControlled: { store.runtime(forDevice: $0) != nil }
         ) else {
-            throw EnvError.noDevice("No unleased simulator matches runtime=\(options.runtime ?? "any")"
+            throw EnvError.noDevice("No available simulator matches runtime=\(options.runtime ?? "any")"
                 + " model=\(options.model ?? "any"). `xcrun simctl list devices available` shows the options.")
         }
         simulator = picked
@@ -234,20 +240,20 @@ private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws
     }
 }
 
-// MARK: - Companion holder
+// MARK: - Companion process
 
 /// Starts `amoo companion start` detached (own session, survives this process), records it in
-/// the lease, and waits until the companion answers gRPC.
-private func startLeasedCompanion(
+/// the runtime, and waits until the companion answers gRPC.
+private func startRuntimeCompanion(
     _ options: EnvUpOptions,
-    lease: DeviceClaim,
-    store: DeviceClaimStore
-) async throws -> DeviceClaim {
-    var lease = lease
-    let leasedPorts = Set(store.all().compactMap(\.port))
+    runtime: DeviceRuntime,
+    store: DeviceRuntimeStore
+) async throws -> DeviceRuntime {
+    var runtime = runtime
+    let reservedPorts = Set(store.all().compactMap(\.port))
     var chosenPort = options.port
     if chosenPort == nil {
-        chosenPort = await pickFreeCompanionPort(leasedPorts: leasedPorts) {
+        chosenPort = await pickFreeCompanionPort(reservedPorts: reservedPorts) {
             await isTCPPortReachable(host: "127.0.0.1", port: $0, timeoutSeconds: 0.3)
         }
     }
@@ -265,31 +271,37 @@ private func startLeasedCompanion(
     var arguments = [
         executable, "companion", "start",
         "--platform", options.platform.rawValue,
-        "--device", lease.deviceID,
+        "--device", runtime.deviceID,
         "--port", String(port),
         "--ready-timeout", String(readyTimeout)
     ]
     if let appID = options.appID {
         arguments += ["--app", appID]
     }
-    let log = store.logURL(claimID: lease.id).path
+    let log = store.logURL(runtimeID: runtime.id).path
     FileManager.default.createFile(atPath: log, contents: nil)
-    let pid = try await DetachedProcess.spawn(arguments, logPath: log, environment: ["AMOO_LEASE": lease.id])
+    let pid = try await DetachedProcess.spawn(arguments, logPath: log, environment: ["AMOO_RUNTIME_ID": runtime.id])
 
-    lease.port = port
-    lease.holderPID = pid
-    lease = try store.renew(lease)
+    runtime.port = port
+    runtime.companionPID = pid
+    do {
+        runtime = try store.refresh(runtime)
+    } catch {
+        stopProcess(pid: pid)
+        throw error
+    }
 
-    // The holder builds (iOS: minutes on a cold cache) and then waits `readyTimeout` itself; give
+    // The process builds (iOS: minutes on a cold cache) and then waits `readyTimeout` itself; give
     // it that plus build slack, and stop early if it dies.
     let deadline = Date().addingTimeInterval(Double(readyTimeout + 600))
     while Date() < deadline {
         if await isCompanionReady(host: "127.0.0.1", port: port) {
-            try await verifyCompanionOwner(platform: options.platform, port: port, deviceID: lease.deviceID)
-            return try store.renew(lease)
+            try await verifyCompanionOwner(platform: options.platform, port: port, deviceID: runtime.deviceID)
+            runtime.state = .running
+            return try store.refresh(runtime)
         }
         guard kill(pid, 0) == 0 else {
-            throw EnvError.companionFailed("The companion holder exited before becoming ready:\n" + logTail(log))
+            throw EnvError.companionFailed("The companion process exited before becoming ready:\n" + logTail(log))
         }
         try await Task.sleep(for: .seconds(2))
     }
@@ -306,8 +318,8 @@ private func verifyCompanionOwner(platform: Platform, port: Int, deviceID: Strin
     }
 }
 
-/// SIGTERM the holder's process group (it tears its runner down), SIGKILL if it lingers.
-func stopHolder(pid: Int32?, graceSeconds: Double = 20) {
+/// SIGTERM the process's process group (it tears its runner down), SIGKILL if it lingers.
+func stopProcess(pid: Int32?, graceSeconds: Double = 20) {
     guard let pid, pid > 0, kill(pid, 0) == 0 else { return }
     kill(-pid, SIGTERM)
     let deadline = Date().addingTimeInterval(graceSeconds)
@@ -319,7 +331,7 @@ func stopHolder(pid: Int32?, graceSeconds: Double = 20) {
     }
 }
 
-// MARK: - Orphaned holders
+// MARK: - Orphaned processes
 
 /// Command line of `pid` (`ps -o command=`), nil when it is gone.
 func processCommandLine(pid: Int32) -> String? {
@@ -336,72 +348,77 @@ func processCommandLine(pid: Int32) -> String? {
     return text?.isEmpty == false ? text : nil
 }
 
-/// Whether `command` is an `amoo companion start` holder for `deviceID`. Guards against PID reuse:
-/// a lease can outlive its holder by an hour, and the pid may by then belong to anything.
-func isCompanionHolderCommand(_ command: String, deviceID: String) -> Bool {
+/// Whether `command` is an `amoo companion start` process for `deviceID`. Guards against PID reuse:
+/// a runtime can outlive its process by an hour, and the pid may by then belong to anything.
+func isCompanionProcessCommand(_ command: String, deviceID: String) -> Bool {
     let words = command.split(whereSeparator: \.isWhitespace).map(String.init)
-    guard let start = words.firstIndex(of: "companion"), words.dropFirst(start + 1).first == "start",
+    // `ps` does not quote, so an executable path containing spaces splits into several words;
+    // the word before `companion` still ends with the executable's name.
+    guard let start = words.firstIndex(of: "companion"), start > 0,
+          URL(fileURLWithPath: words[start - 1]).lastPathComponent == "amoo",
+          words.dropFirst(start + 1).first == "start",
           let device = words.firstIndex(of: "--device"), words.indices.contains(device + 1)
     else { return false }
     return words[device + 1] == deviceID
 }
 
 /// `amoo companion start … --device <id>` processes in `ps -axo pid=,args=` output.
-func parseCompanionHolderPIDs(_ psOutput: String, deviceID: String) -> [Int32] {
+func parseCompanionProcessPIDs(_ psOutput: String, deviceID: String) -> [Int32] {
     psOutput.split(whereSeparator: \.isNewline).compactMap { line in
         let trimmed = line.drop(while: { $0 == " " })
         guard let space = trimmed.firstIndex(of: " "), let pid = Int32(trimmed[..<space]) else { return nil }
-        return isCompanionHolderCommand(String(trimmed[space...]), deviceID: deviceID) ? pid : nil
+        return isCompanionProcessCommand(String(trimmed[space...]), deviceID: deviceID) ? pid : nil
     }
 }
 
-func orphanedCompanionHolders(deviceID: String) async -> [Int32] {
+func orphanedCompanionProcesses(deviceID: String) async -> [Int32] {
     guard let ps = try? await SystemProcessRunner().run(["/bin/ps", "-axo", "pid=,args="]) else { return [] }
-    return parseCompanionHolderPIDs(ps.stdout, deviceID: deviceID).filter { $0 != getpid() }
+    return parseCompanionProcessPIDs(ps.stdout, deviceID: deviceID).filter { $0 != getpid() }
 }
 
 /// Packages the Android companion runs as; `am instrument` alone only force-stops the `.test` one.
 let androidCompanionPackages = ["com.amoo.companion.test", "com.amoo.companion"]
 
-func forceStopAndroidCompanion(serial: String) async {
+@discardableResult
+func forceStopAndroidCompanion(serial: String) async -> Bool {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
+    var stopped = true
     for package in androidCompanionPackages {
-        try? await AndroidDeviceManager(shell: context).terminate(package: package, on: serial)
+        do { try await AndroidDeviceManager(shell: context).terminate(package: package, on: serial) } catch {
+            stopped = false
+        }
     }
+    return stopped
 }
 
-/// Default `DeviceClaimStore.reaper`: stop the holder of an expired lease, and for Android
+/// Default `DeviceRuntimeStore.reaper`: stop the process of an expired runtime, and for Android
 /// force-stop the on-device runner too (killing the host side does not reliably end it).
 @Sendable
-func reapExpiredLease(_ lease: DeviceClaim) {
-    if let pid = lease.holderPID, pid > 0, kill(pid, 0) == 0,
-       let command = processCommandLine(pid: pid), isCompanionHolderCommand(command, deviceID: lease.deviceID) {
-        kill(-pid, SIGTERM)
-        // Give the holder's own shutdown a moment, then make sure.
-        for _ in 0 ..< 20 where kill(pid, 0) == 0 {
-            Thread.sleep(forTimeInterval: 0.25)
-        }
-        if kill(pid, 0) == 0 {
-            kill(-pid, SIGKILL)
-        }
+func reapExpiredRuntime(_ runtime: DeviceRuntime) -> Bool {
+    guard stopRuntimeCompanion(runtime) else { return false }
+    if runtime.platform == .android, runtime.deviceID.hasPrefix("emulator-") {
+        return reapAndroidRemainder(runtime)
     }
-    if lease.platform == .android, lease.deviceID.hasPrefix("emulator-") {
-        reapAndroidRemainder(lease)
-    }
+    return true
 }
 
-private func reapAndroidRemainder(_ lease: DeviceClaim) {
+private func reapAndroidRemainder(_ runtime: DeviceRuntime) -> Bool {
+    var stopped = true
     for package in androidCompanionPackages {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        let command = Adb().serial(lease.deviceID).amForceStop(package: package).command()
+        let command = Adb().serial(runtime.deviceID).amForceStop(package: package).command()
         process.arguments = [command.executableName] + command.arguments
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         if (try? process.run()) != nil {
             process.waitUntilExit()
+            stopped = stopped && process.terminationStatus == 0
+        } else {
+            stopped = false
         }
     }
+    return stopped
 }
 
 func logTail(_ path: String, characters: Int = 2000) -> String {
@@ -411,17 +428,17 @@ func logTail(_ path: String, characters: Int = 2000) -> String {
 
 // MARK: - App
 
-private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceClaim, app: inout EnvAppReport?) async throws {
-    guard options.appPath != nil || options.appID != nil, let port = lease.port else { return }
+private func prepareEnvApp(_ options: EnvUpOptions, runtime: DeviceRuntime, app: inout EnvAppReport?) async throws {
+    guard options.appPath != nil || options.appID != nil, let port = runtime.port else { return }
 
     func run(_ tool: String, _ arguments: [String: String]) async throws {
         let result = await runDeviceCommand(options: DeviceCommandOptions(
             platform: options.platform,
             port: port,
-            deviceID: lease.deviceID,
+            deviceID: runtime.deviceID,
             tool: tool,
             arguments: arguments,
-            lease: lease.id
+            runtimeID: runtime.id
         ))
         guard result.exitCode == 0 else { throw EnvError.appFailed("\(tool) failed: \(result.output)") }
     }
@@ -432,9 +449,9 @@ private func prepareEnvApp(_ options: EnvUpOptions, lease: DeviceClaim, app: ino
         app?.installed = true
     }
     if let appID = options.appID {
-        app?.installed = await isAppInstalled(platform: options.platform, deviceID: lease.deviceID, appID: appID)
+        app?.installed = await isAppInstalled(platform: options.platform, deviceID: runtime.deviceID, appID: appID)
         guard app?.installed == true
-        else { throw EnvError.appFailed("\(appID) is not installed on \(lease.deviceID).") }
+        else { throw EnvError.appFailed("\(appID) is not installed on \(runtime.deviceID).") }
         if options.launch {
             try await run("device_launch_app", ["app_id": appID])
             app?.launched = true

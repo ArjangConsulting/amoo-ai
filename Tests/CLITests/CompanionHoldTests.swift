@@ -20,7 +20,7 @@ final class CompanionHoldTests: XCTestCase {
         }
     }
 
-    /// A runner that dies is restarted, and the holder keeps holding until the signal.
+    /// A runner that dies is restarted, and the process keeps holding until the signal.
     func testRestartsARunnerThatExits() async throws {
         let counter = Counter()
         let signals = CompanionSignalWaiter(signals: [])
@@ -56,7 +56,7 @@ final class CompanionHoldTests: XCTestCase {
                 maxRestarts: 2,
                 signals: CompanionSignalWaiter(signals: [])
             )
-            XCTFail("expected the holder to give up")
+            XCTFail("expected the process to give up")
         } catch let CompanionHoldError.runnerKeepsExiting(restarts) {
             XCTAssertEqual(restarts, 2)
         } catch {

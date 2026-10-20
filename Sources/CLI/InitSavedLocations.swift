@@ -3,7 +3,7 @@ import Foundation
 
 /// Where `amoo init` last found things, recorded in the repo's `AGENTS.md` so the next run (and any
 /// agent reading the file) starts from the same places. Only locations are stored: never device ids
-/// or lease ids, which are per-machine and per-run.
+/// or runtime ids, which are per-machine and per-run.
 struct InitSavedLocations: Equatable {
     var platform: Platform?
     var appPath: String?
@@ -57,7 +57,8 @@ func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: Stri
         if let directory = location.manifestDirectory {
             lines
                 .append(
-                    "- Manifests: `\(portableInitPath(directory, relativeTo: base))` (lease credentials; never commit)"
+                    "- Manifests: `\(portableInitPath(directory, relativeTo: base))`"
+                        + " (runtime credentials; never commit)"
                 )
         }
     }

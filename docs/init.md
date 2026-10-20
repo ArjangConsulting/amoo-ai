@@ -1,6 +1,6 @@
 # Repository and device initialization
 
-`amoo init` prepares leased simulators/emulators, reusing `env up` for device selection, leasing,
+`amoo init` prepares controlled simulators/emulators, reusing `env up` for device selection and runtime startup,
 free-port choice and companion lifecycle. **No app build is required for setup.** It never asks for
 an artifact path or scans Xcode DerivedData. Explicit `--app` input optionally installs an existing
 artifact. Init does not build the product or provide a recording transport (see [Recording](#recording)).
@@ -17,7 +17,7 @@ It asks only for what you did not pass as flags, defaulting from what it can see
 2. **Framework** — native, React Native, Flutter or Kotlin Multiplatform guidance.
 3. **Devices** — use ↑/↓ to move, Space to toggle devices, and Enter to continue.
    No devices are selected by default; select at least one before continuing. Press `a` to select or
-   clear all. Redirected input uses `1,3`, `1-2`, or `all`. Leased devices are hidden.
+   clear all. Redirected input uses `1,3`, `1-2`, or `all`. Devices reserved by other sessions are hidden.
 4. **Where the manifest is written**. Device reservations use the label `amoo-init`; pass
    `--owner <label>` to customize it.
 5. **AI clients** — offers to set up the amoo subagents and skills (see below).
@@ -35,7 +35,7 @@ runs, and prints the next commands. EOF at any prompt cancels without touching a
 
 `--json`, `--non-interactive`, or no terminal means **no prompts**. `--platform` and `--device`
 (repeatable) are required. `--app-id` is also required when passing `--app` or `--launch`. Every
-missing input is reported at once, along with available unleased devices:
+missing input is reported at once, along with available devices:
 
 ```sh
 amoo init --platform ios --device PHONE_UDID --device TABLET_UDID --json
@@ -52,7 +52,7 @@ amoo init down --manifest /tmp/jot-environments.json --json
 
 Android uses the same interface with running emulator serials and an optional absolute APK path.
 
-## Validation, leases and partial failure
+## Validation, runtimes and partial failure
 
 Starting setup reserves each selected device exclusively for amoo and starts the companion helper
 app. Other amoo sessions cannot reserve the same device and interfere with your tests. The final
@@ -60,25 +60,25 @@ confirmation asks whether to start this setup now; reservation is a required par
 The devices stay reserved after `init` exits. Run `amoo init down` when finished to stop the
 companions and free the devices for another session.
 
-Before anything is leased, init checks that each device is an available simulator/emulator. If an
+Before anything is controlled, init checks that each device is an available simulator/emulator. If an
 artifact is supplied, it also checks that the app exists with the right extension and that its own
 bundle id matches `--app-id`. An artifact problem stops the run (it would doom every device).
-A problem with one device — unknown, or leased by
+A problem with one device — unknown, or controlled by
 another session — is recorded and reported as that device's failed result while the others proceed;
-if *every* device is unusable nothing starts. `env up` re-checks each lease atomically, so init never
-bypasses another session's lease. Setup is sequential so companion builds serialize and port
-allocation sees earlier leases. Physical devices are unsupported, as in `env up`. When an artifact
+if *every* device is unusable nothing starts. `env up` re-checks each runtime atomically, so init never
+bypasses another session's runtime. Setup is sequential so companion builds serialize and port
+allocation sees earlier runtimes. Physical devices are unsupported, as in `env up`. When an artifact
 is supplied, its digest is computed once and shared with every `env up`.
 
 ## Output
 
 Version-1 JSON: `ok`, `results[]`, optional `error`. Each result uses the env schema: `device`
-(id/name/os), `lease`, `platform`, `port`, `holder_pid`, `log`, `app`
+(id/name/os), `runtime_id`, `platform`, `port`, `companion_pid`, `log`, `app`
 (id/path/sha256/installed/launched), version/commit and `error`. Exit 1 means at least one device
-failed; successes stay leased until `init down`. `--out` rewrites the file **after every device**, so
-an interrupted run still records the leases it took. The file is created `0600` (atomically) and holds
-lease ids: keep it private. Lease TTL and ownership checks still apply; neither `init device` nor
-`init down` forces another session's lease.
+failed; successes stay controlled until `init down`. `--out` rewrites the file **after every device**, so
+an interrupted run still records the runtimes it started. The file is created `0600` (atomically) and holds
+runtime ids: keep it private. Runtime TTL and ownership checks still apply; neither `init device` nor
+`init down` forces another session's runtime.
 
 ## Remembered locations (`AGENTS.md`)
 
@@ -94,7 +94,7 @@ managed block of `./AGENTS.md` (`--agents-file` to choose another). Without an a
 <!-- amoo:init:end -->
 ```
 
-Only text between the markers is rewritten. Device ids and lease ids are never saved. The block
+Only text between the markers is rewritten. Device ids and runtime ids are never saved. The block
 records setup locations for agents; saved app artifacts are not automatically installed.
 Guided setup defaults to `.amoo.json` in the current project. Both platforms share this file.
 If the manifest already exists, guided setup asks for confirmation before collecting setup inputs.
@@ -105,7 +105,7 @@ clears the file after releasing its reservations. Explicit `--out` paths are sti
 
 ## Recording
 
-CLI leases cannot be adopted by MCP sessions. Run `init down`, then MCP `start_session` per device
+CLI runtimes cannot be adopted by MCP sessions. Run `init down`, then MCP `start_session` per device
 with `device_hint`, `app_id` and the app's `build_path`; only `end_session` exports the report/plan.
 
 ## AI client setup (skills and subagents)
@@ -189,6 +189,8 @@ Mixed repositories get separate amoo-context blocks tagged targetPlatform ios/an
 select the matching block, including explicit profile paths, and reject ambiguous or mismatched contexts.
 
 Usage errors and manifest-read failures honor `--json` with a single version-1 error document.
-If saving repository guidance fails, setup returns nonzero and JSON retains the acquired leases
-alongside the save error. A requested manifest is checked for writability before leasing; if a later
+If saving repository guidance fails, setup returns nonzero and JSON retains the started runtimes
+alongside the save error. A requested manifest is checked for writability before starting runtimes; if a later
 write fails, setup stops acquiring further devices and returns the credentials needed for cleanup.
+
+See [Device runtimes](device-runtimes.md) for lifecycle states, device access coordination and saved-state migration.

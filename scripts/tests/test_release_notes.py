@@ -21,8 +21,8 @@ class ClassificationTests(unittest.TestCase):
                          ('Performance', 'core', 'cache element lookups'))
         self.assertEqual(notes.classify('refactor: split the tool executor', ''),
                          ('Changed', None, 'split the tool executor'))
-        self.assertEqual(notes.classify('docs: document lease ports', ''),
-                         ('Documentation', None, 'document lease ports'))
+        self.assertEqual(notes.classify('docs: document runtime ports', ''),
+                         ('Documentation', None, 'document runtime ports'))
         self.assertEqual(notes.classify('ci(release): install protoc', ''),
                          ('Maintenance', 'release', 'install protoc'))
 

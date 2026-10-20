@@ -90,7 +90,7 @@ public struct ForeignBuildDetector: Sendable {
 public extension ForeignBuildDetector {
     /// Runner processes that amoo did not start and that target `deviceID` — raw `xcodebuild test
     /// -destination id=<udid>` on iOS, a `am instrument` session (Gradle `connectedAndroidTest`)
-    /// on Android. Leases only coordinate amoo users, so such a runner can take the foreground or
+    /// on Android. Runtimes only coordinate amoo users, so such a runner can take the foreground or
     /// reinstall the app under test while amoo's RPCs wait on a screen that no longer exists.
     func hijackingProcesses(platform: Platform, deviceID: String) async -> [String] {
         guard !deviceID.isEmpty, deviceID != "booted" else { return [] }
@@ -122,7 +122,7 @@ public extension ForeignBuildDetector {
         return "device hijacked: \(deviceID) is being driven by a test runner amoo did not start — "
             + processes.prefix(3).map { "[\($0)]" }.joined(separator: " ")
             + ". It can take the foreground or reinstall the app under test, so amoo's calls time out. "
-            + "Leases only coordinate amoo users: stop that process or use another device."
+            + "Runtimes only coordinate amoo users: stop that process or use another device."
     }
 
     static func parseIOSHijackers(_ psOutput: String, udid: String, ownProcessIDs: Set<Int32>) -> [String] {

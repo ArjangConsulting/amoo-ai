@@ -1,7 +1,7 @@
 import AmooCore
 import MCP
 
-/// Host-side discovery must not require a running companion or a device lease.
+/// Host-side discovery must not require a running companion or a device runtime.
 func discoverCommandDevices(platform: Platform?, includeOffline: Bool) async throws -> [DeviceInfo] {
     let bootstrapper = DefaultSessionBootstrapper(
         iOSCompanionManager: CompanionManager(),

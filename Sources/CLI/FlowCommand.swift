@@ -133,7 +133,7 @@ struct FlowScalar: Codable, Equatable {
 
 func renderFlowHelp() -> String {
     """
-    Usage: amoo flow <path.amoo.json> [--device <id>] [--port <n>] [--lease <id>]
+    Usage: amoo flow <path.amoo.json> [--device <id>] [--port <n>] [--runtime-id <id>]
                      [--devices <id[:port],...>] [--output-dir <dir>] [--var name=value]...
                      [--continue-on-error]
 
@@ -151,7 +151,7 @@ func renderFlowHelp() -> String {
     A step may also set "repeat": N to run N times.
 
     --device / --port override the file's device_id / port, so one checked-in flow runs against
-    whatever `amoo env up` leased; --lease (or AMOO_LEASE) proves the lease is yours.
+    whatever `amoo env up` controlled; --runtime-id (or AMOO_RUNTIME_ID) proves the runtime is yours.
 
     --devices runs the flow on every listed device in parallel and prints a pass/fail line per
     device. Each entry is a device id with an optional :port; an iOS entry without one uses the
@@ -164,7 +164,7 @@ func renderFlowHelp() -> String {
 struct FlowOverrides: Equatable {
     var deviceID: String?
     var port: Int?
-    var lease: String?
+    var runtimeID: String?
     var outputDirectory: String?
     var variables: [String: String] = [:]
     var continueOnError = false
@@ -255,7 +255,8 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         var flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: fileURL))
         flow.deviceID = overrides.deviceID ?? flow.deviceID
         flow.port = overrides.port ?? flow.port
-        try enforceLease(deviceID: flow.deviceID, lease: presentedLease(flag: overrides.lease))
+        let access = try acquireRuntimeDeviceAccess(deviceID: flow.deviceID, runtimeID: overrides.runtimeID)
+        defer { access?.release() }
         guard let platform = Platform(rawValue: flow.platform.lowercased()) else {
             return FlowOutcome(output: "Unknown flow platform '\(flow.platform)'.", exitCode: 64)
         }

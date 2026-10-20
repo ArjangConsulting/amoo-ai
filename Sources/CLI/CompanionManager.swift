@@ -277,7 +277,7 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     /// Returns once the runner this manager spawned exits, reporting its exit code and log.
-    /// Never returns when this process spawned none — it is only attached to another holder's
+    /// Never returns when this process spawned none — it is only attached to another process's
     /// companion, whose lifetime is not its to manage.
     func waitForRunnerExit() async {
         guard let entry = soleTracked() else {

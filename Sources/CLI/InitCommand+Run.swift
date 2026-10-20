@@ -29,7 +29,7 @@ struct InitRuntime {
 
 private let cancelledResult = CLIResult(output: "Cancelled. No device was touched.", exitCode: 1)
 
-/// `amoo init [flags]`: collect (or require) the inputs, validate before leasing anything, confirm,
+/// `amoo init [flags]`: collect (or require) the inputs, validate before starting anything, confirm,
 /// then reuse `env up` per device.
 func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> CLIResult {
     let request: InitRequest
@@ -47,7 +47,7 @@ func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> C
     case let .failure(refusal): return refusal.result
     }
     let requests = [complete] + complete.additionalRequests
-    // Validate every platform before any lease is acquired.
+    // Validate every platform before any runtime is acquired.
     for item in requests {
         if case let .failure(failure) = await buildInitPlan(item, discovery: runtime.discovery) {
             return InitRefusal(
@@ -229,7 +229,7 @@ private func confirmExistingInitManifest(
     ) == true else { throw InitWizardError.cancelled }
 }
 
-/// The two questions before leasing: record locations, and go ahead. Returns whether to record
+/// The two questions before starting runtimes: record locations, and go ahead. Returns whether to record
 /// locations, or nil when the user declined to proceed.
 private func confirmInit(
     _ plan: InitPlan,
@@ -256,7 +256,7 @@ private func confirmInit(
     return save
 }
 
-/// Records locations (never device or lease ids) and, in a terminal, points at the next commands.
+/// Records locations (never device or runtime ids) and, in a terminal, points at the next commands.
 private func finishInit(
     _ result: CLIResult,
     plan: InitPlan,
@@ -345,9 +345,9 @@ private func missingInputsMessage(
     lines += request.missing.map { "  \($0)" }
     if let platform = request.platform {
         if request.devices.isEmpty {
-            let free = await discovery.devices(platform).filter { $0.leasedBy == nil }
+            let free = await discovery.devices(platform).filter { $0.controlledBy == nil }
             lines
-                .append("Unleased devices: " +
+                .append("Available devices: " +
                     (free.isEmpty ? "none" : "\n  " + free.map(\.label).joined(separator: "\n  ")))
         }
     }

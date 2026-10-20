@@ -39,7 +39,7 @@ background/foreground transitions, offline recovery and WebViews in a broader ma
 ## Current boundaries
 
 Companions bind IPv4 loopback. Remote network service, authentication and TLS are not implemented.
-Process-local leases prevent overlapping managed sessions in one server, not separate clients or
+Process-local runtimes prevent overlapping managed sessions in one server, not separate clients or
 server processes. Recorded artifacts redact known textual secrets; screenshots are raw visual
 evidence. Audits inspect current-screen evidence and do not certify manifests, signing, production
 build settings or URL validation. See [MCP usage](mcp-server.md) for failure recovery and token costs.

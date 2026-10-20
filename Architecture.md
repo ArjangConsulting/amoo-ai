@@ -495,26 +495,27 @@ PlatformDriver (IOSDriver or AndroidDriver)
 
 ---
 
-## Device Leases
+## Device Runtimes
 
-`amoo env up` takes a lease on one simulator/emulator (`~/.amoo/leases/`); later calls prove
-ownership with `--lease` / `AMOO_LEASE`. **Leases only coordinate amoo users.** A raw
+`amoo env up` starts a device runtime on one simulator/emulator (`~/.amoo/runtimes/`); later calls
+identify their runtime with `--runtime-id` / `AMOO_RUNTIME_ID`. Device access locks coordinate
+control between amoo sessions. A raw
 `xcodebuild test -destination id=<udid>`, Gradle `connectedAndroidTest` or `am instrument` on the
 same device is not blocked by one, and can take the foreground or reinstall the app under test.
 When a call times out, amoo looks for such a runner targeting the device and reports
 `device hijacked: <device> is being driven by a test runner amoo did not start — [<cmdline>]`
-instead of the bare RPC timeout. An expired lease stops its companion holder (and force-stops the
+instead of the bare RPC timeout. An expired runtime stops its companion process (and force-stops the
 Android companion packages); `amoo env down --device <id>` does the same for an orphan with no
-lease.
+runtime.
 
 ## Guided Setup (`amoo init`, `amoo agent install`)
 
 `amoo init` composes existing pieces and adds no lifecycle of its own: it validates one prebuilt app
-and the chosen devices, then calls `runEnvUp` once per device (lease, free port, companion, install,
+and the chosen devices, then calls `runEnvUp` once per device (runtime, free port, companion, install,
 launch) and records the results in a `0600` manifest that `init device` / `init down` consume. In a
 terminal both commands run a prompt-driven flow (SwiftyTerminal's `Prompting`); `--json`, `--non-interactive`, `--client`
 or a missing TTY make them fully flag-driven. The flow can record the app and manifest *locations* (never
-device or lease ids) in the repo's `AGENTS.md`, and install the amoo subagents and skills for the AI
+device or runtime ids) in the repo's `AGENTS.md`, and install the amoo subagents and skills for the AI
 clients you pick. Details: `docs/init.md`. Init is not a recording transport: only MCP `start_session`
 records.
 

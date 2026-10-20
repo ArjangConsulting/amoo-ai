@@ -87,7 +87,7 @@ Every route below needs the `amoo` CLI itself, installed with Homebrew (see [Ins
 The plugin registers its own amoo MCP server. If you previously registered amoo with
 `install-mcp.sh` or `claude mcp add`, remove that entry so the tools are not listed twice.
 
-Run `amoo init` in a terminal for guided device setup. It prepares independent leased simulators
+Run `amoo init` in a terminal for guided device setup. It prepares independent controlled simulators
 and emulators without asking for an app build, and offers to set up the amoo subagents and skills
 for your AI clients (Claude Code, Cursor, Codex, Copilot, Gemini, OpenCode). Agents and CI pass flags
 instead, for example `amoo init --platform ios --device <phone> --device <tablet> --out <manifest>

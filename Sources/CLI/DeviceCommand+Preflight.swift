@@ -3,7 +3,7 @@ import Foundation
 import MCP
 import MobileDevices
 
-/// Checks that answer without a companion: argument names, `device_boot device_hint=…`, and leases.
+/// Checks that answer without a companion: argument names, `device_boot device_hint=…`, and runtimes.
 /// `nil` means proceed.
 func devicePreflight(
     _ options: DeviceCommandOptions,
@@ -22,19 +22,19 @@ func devicePreflight(
         return await runDeviceBootHint(options: options, hint: hint)
     }
     do {
-        try enforceLease(deviceID: options.deviceID, lease: presentedLease(flag: options.lease))
+        try enforceDeviceAccess(deviceID: options.deviceID, runtime: presentedRuntime(flag: options.runtimeID))
     } catch {
-        return leaseRefusal(options: options, error: error)
+        return deviceAccessRefusal(options: options, error: error)
     }
     return nil
 }
 
-/// Resolves the lease's endpoint into `options`, then runs the preflight checks; a failure is the
+/// Resolves the runtime's endpoint into `options`, then runs the preflight checks; a failure is the
 /// finished result to print.
 func prepareDeviceCommand(_ options: DeviceCommandOptions) async -> DeviceCommandPreparation {
-    switch options.applyingLease() {
+    switch options.applyingRuntime() {
     case let .failure(error):
-        return .finished(leaseRefusal(options: options, error: error))
+        return .finished(deviceAccessRefusal(options: options, error: error))
     case let .success(adopted):
         if let early = await devicePreflight(adopted) {
             return .finished(early)
@@ -48,7 +48,7 @@ enum DeviceCommandPreparation {
     case finished(CLIResult)
 }
 
-func leaseRefusal(options: DeviceCommandOptions, error: Error) -> CLIResult {
+func deviceAccessRefusal(options: DeviceCommandOptions, error: Error) -> CLIResult {
     var refused = deviceCommandResult(options: options, content: "\(error)", isError: true, structured: nil)
     refused.exitCode = 3
     return refused
@@ -78,17 +78,22 @@ private func runDeviceBootHint(options: DeviceCommandOptions, hint: String) asyn
 }
 
 extension DeviceCommandOptions {
-    /// Fills the port and device from the presented lease (`--lease` / `AMOO_LEASE`), so a lease id
+    /// Fills the port and device from the presented runtime (`--runtime-id` / `AMOO_RUNTIME_ID`), so a runtime id
     /// alone reaches the companion `amoo env up` started. An explicit `--port` / `--device` wins.
-    /// A lease for another platform is an error; an unknown or expired lease changes nothing, and
-    /// `enforceLease` still refuses a device another session holds.
-    func applyingLease(
-        store: DeviceClaimStore = DeviceClaimStore(),
+    /// An unknown, expired or mismatched runtime is an error, and
+    /// `enforceDeviceAccess` still refuses a device another session holds.
+    func applyingRuntime(
+        store: DeviceRuntimeStore = DeviceRuntimeStore(),
         environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> Result<Self, DeviceLeaseError> {
-        guard let leaseID = presentedLease(flag: lease, environment: environment),
-              let held = store.claim(id: leaseID)
-        else { return .success(self) }
+    ) -> Result<Self, DeviceAccessError> {
+        guard let runtimeID = presentedRuntime(flag: runtimeID, environment: environment),
+              let held = store.runtime(id: runtimeID)
+        else {
+            if let id = presentedRuntime(flag: runtimeID, environment: environment) {
+                return .failure(.unknownRuntime(id))
+            }
+            return .success(self)
+        }
         guard held.amooPlatform == platform else { return .failure(.wrongPlatform(held, requested: platform)) }
         var adopted = self
         if portIsDefault, let port = held.port {

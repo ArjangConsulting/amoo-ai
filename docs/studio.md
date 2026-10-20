@@ -52,6 +52,6 @@ Studio and moqserver Studio can therefore use the same release without source ch
 
 ## Distribution
 
-Compose Desktop packages the matching released Swift executable as an OS/architecture-specific
+Compose Desktop packages the matching stopped Swift executable as an OS/architecture-specific
 resource. During development, set `AMOO_BINARY` to a local Amoo build. Studio always invokes the
 resolved absolute path; installing a PATH link is optional and is not required for the GUI.

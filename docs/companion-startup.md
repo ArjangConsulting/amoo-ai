@@ -1,6 +1,6 @@
 # Companion startup
 
-Released amoo archives include prebuilt iOS simulator and unsigned physical-device test products,
+Stopped amoo archives include prebuilt iOS simulator and unsigned physical-device test products,
 and both Android companion APKs. `start_session` selects a device, prepares the companion, launches
 the installed app under test (or installs `build_path` first), and returns a session ID.
 

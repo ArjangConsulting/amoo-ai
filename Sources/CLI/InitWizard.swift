@@ -169,8 +169,8 @@ private struct InitWizard<Asker: Prompting> {
                 await discovery.devices(platform)
             }
         let sorted = sortedInitDevices(candidates)
-        let free = sorted.filter { $0.leasedBy == nil }
-        let unavailable = sorted.filter { $0.leasedBy != nil }
+        let free = sorted.filter { $0.controlledBy == nil }
+        let unavailable = sorted.filter { $0.controlledBy != nil }
         if !unavailable.isEmpty {
             prompter.say("Devices excluded from selection because they already have a reservation:")
             for device in unavailable {
@@ -179,9 +179,9 @@ private struct InitWizard<Asker: Prompting> {
         }
         guard !free.isEmpty else {
             prompter.say(
-                "No unleased \(platform == .ios ? "simulator" : "running emulator") is available. "
+                "No \(platform == .ios ? "simulator" : "running emulator") is available. "
                     + (platform == .ios
-                        ? "Create one in Xcode, or release a lease (`amoo env list`)."
+                        ? "Create one in Xcode, or stop a runtime (`amoo env list`)."
                         : "Start an emulator, then re-run `amoo init`.")
             )
             throw InitWizardError.cancelled
@@ -302,7 +302,7 @@ struct InitPlanError: Error {
     var issues: [String]
 }
 
-/// Checks what can be known without leasing. Problems with the artifact doom every device, so they
+/// Checks what can be known without starting runtimes. Problems with the artifact doom every device, so they
 /// stop the run here (seconds, not a companion build). Problems with one device are recorded and
 /// reported per device, so the others still proceed; if every device is unusable nothing starts.
 func buildInitPlan(_ request: InitRequest, discovery: InitDiscovery) async -> Result<InitPlan, InitPlanError> {
@@ -339,8 +339,8 @@ func buildInitPlan(_ request: InitRequest, discovery: InitDiscovery) async -> Re
         return InitDeviceCheck(
             id: id,
             candidate: match,
-            problem: match.leasedBy.map {
-                "Device \(id) is already leased (\($0)). Init never takes another session's device."
+            problem: match.controlledBy.map {
+                "Device \(id) is already controlled (\($0)). Init never takes another session's device."
             }
         )
     }

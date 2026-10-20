@@ -13,7 +13,7 @@ final class DeviceRecoveryTests: XCTestCase {
         let selected = try await PlatformDeviceSelector(
             processRunner: runner,
             interactive: false,
-            leaseStore: .temporary()
+            runtimeStore: .temporary()
         )
         .selectDevice(platform: .android)
         guard case let .android(serial, _) = selected else { return XCTFail("Expected Android") }
