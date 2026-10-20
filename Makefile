@@ -52,7 +52,7 @@ protos:
 protos-check:
 	./scripts/regenerate-protos.sh --check
 
-# Reproduce the CI "Build & Test (Linux)" job locally inside the swift:6.3-noble container.
+# Reproduce the CI "Build & Test (Linux)" job locally inside the swift:6.4-noble container.
 # Needs Docker. Builds/tests into .build-linux/ so the host .build/ is untouched.
 #   make verify-linux            # build + test (mirrors ci.yml)
 #   ./scripts/verify-linux.sh build | test | shell

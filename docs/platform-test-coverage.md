@@ -11,7 +11,7 @@ case does not establish that a simulator, emulator, or physical device works.
 | Android emulator and device | `AndroidDriverTests`, ADB/process-runner tests, shared MCP tests | Companion workflow runs the command-contract suite on an emulator; `scripts/run-e2e-android.sh --device <serial>` also selects connected hardware |
 | Compose fixture | `FixtureContractTest` and `ComposeFixtureFlowTest` instrumentation tests | `make sample-app-compose-test`, also run by the Android companion workflow |
 | macOS host | XCTest/Swift Testing suite and LLVM coverage gate | `.github/workflows/ci.yml` |
-| Linux host | Swift build and tests in `swift:6.3-noble`; orchestration tests | `make verify-linux`; CI excludes `IntegrationTests` and `CLIQualityCoverageTests` as documented in the workflow |
+| Linux host | Swift build and tests in `swift:6.4-noble`; orchestration tests | `make verify-linux`; CI excludes `IntegrationTests` and `CLIQualityCoverageTests` as documented in the workflow |
 
 ## Regression checks
 

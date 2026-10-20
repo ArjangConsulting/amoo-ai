@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       swift_tag:
-        description: Upstream swift Docker Hub tag to mirror (e.g. 6.3-noble)
+        description: Upstream swift Docker Hub tag to mirror (e.g. 6.4-noble)
         required: true
-        default: 6.3-noble
+        default: 6.4-noble
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
 
       - name: Copy multi-platform image from Docker Hub to GHCR
         env:
-          SWIFT_TAG: ${{ inputs.swift_tag || '6.3-noble' }}
+          SWIFT_TAG: ${{ inputs.swift_tag || '6.4-noble' }}
         run: |
           set -euo pipefail
           SOURCE="docker.io/library/swift:${SWIFT_TAG}"
