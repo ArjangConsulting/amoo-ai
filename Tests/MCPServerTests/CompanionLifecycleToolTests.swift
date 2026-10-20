@@ -45,6 +45,25 @@ final class CompanionLifecycleToolTests: XCTestCase {
         XCTAssertEqual(stopped, ["ios:mock-ios"])
     }
 
+    /// Claude Code rejects a result whose structured content has a field the tool's output schema
+    /// does not declare (`additionalProperties: false`), reporting a successful call as failed.
+    func testSessionResultsMatchTheAdvertisedOutputSchemas() async throws {
+        let (server, _) = makeServer()
+        let schemas = Dictionary(uniqueKeysWithValues: server.toolDefinitions().map { ($0.name, $0.outputSchema) })
+        let started = await server.execute(toolName: "start_session", arguments: ["app_id": "com.example"])
+        let sessionID = try XCTUnwrap(started.structuredContent?.objectValue?["session_id"]?.stringValue)
+        let ended = await server.execute(
+            toolName: "end_session", arguments: ["session_id": sessionID, "stop_companion": "true"]
+        )
+        for (name, result) in [("start_session", started), ("end_session", ended)] {
+            XCTAssertFalse(result.isError, result.content)
+            let schema = try XCTUnwrap(schemas[name].flatMap(\.self), name)
+            let fields = try XCTUnwrap(result.structuredContent?.objectValue, name)
+            XCTAssertEqual(Set(fields.keys).subtracting(schema.properties.keys), [], "\(name) has undeclared fields")
+            XCTAssertEqual(Set(schema.required).subtracting(fields.keys), [], "\(name) misses required fields")
+        }
+    }
+
     func testResetCompanionForwardsTheDeviceAndReportsWhatHappened() async {
         let (server, bootstrapper) = makeServer()
 

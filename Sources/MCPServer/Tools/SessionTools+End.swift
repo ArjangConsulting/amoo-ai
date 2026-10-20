@@ -28,6 +28,10 @@ extension SessionTools {
                     "session_id": .init(type: "string", description: "The closed session id"),
                     "artifact_error": .init(type: "string", description: "Artifact generation failure"),
                     "forced": .init(type: "boolean", description: "Closed without waiting for app termination"),
+                    "companion_stopped": .init(
+                        type: "boolean",
+                        description: "Whether stop_companion stopped the device's companion"
+                    ),
                     "ended_at": .init(type: "string", description: "ISO-8601 close timestamp"),
                     "action_count": .init(type: "integer", description: "Number of recorded actions"),
                     "plan_path": .init(
