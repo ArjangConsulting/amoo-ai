@@ -191,12 +191,21 @@ public struct CLIApp {
         emitters.register(XCUITestEmitter(), for: .init(platform: .ios))
         emitters.register(EspressoEmitter(), for: .init(platform: .android))
         emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
+        let notifications = StudioNotificationCenter()
+        let deviceLocks = StudioDeviceLocks()
         let automation = LiveStudioAutomationService(
             workspace: workspace,
             toolExecutor: CLIStudioToolExecutor(),
-            codeEmitters: emitters
+            codeEmitters: emitters,
+            notifications: notifications,
+            deviceLocks: deviceLocks
         )
-        await StudioService(workspace: workspace, automation: automation).run(output: studioProtocolOutput())
+        await StudioService(
+            workspace: workspace,
+            automation: automation,
+            notifications: notifications,
+            deviceLocks: deviceLocks
+        ).run(output: studioProtocolOutput())
         return CLIResult(output: "", exitCode: 0)
     }
 

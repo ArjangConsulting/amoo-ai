@@ -18,7 +18,7 @@ struct StudioProtocolTests {
             "apps.buildInstallRun", "apps.reinstallRun", "apps.resetData", "chat.send", "providers.check",
             "providers.apiKey", "repl.execute", "tests.run", "tests.start", "tests.status", "tests.cancel",
             "tests.export",
-            "reports.list", "mcp.status"
+            "reports.list", "mcp.status", "rpc.concurrent", "rpc.notifications", "tests.progress"
         ])
     }
 

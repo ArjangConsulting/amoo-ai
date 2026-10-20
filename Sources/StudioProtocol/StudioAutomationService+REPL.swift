@@ -28,6 +28,14 @@ extension LiveStudioAutomationService {
     ].joined(separator: "\n")
 
     public func execute(_ request: StudioReplRequest) async throws -> StudioReplResult {
+        try await deviceLocks.withDevice(request.selectedDeviceId) {
+            try await self.executeCommand(request)
+        }
+    }
+
+    /// The unlocked command path, for callers that already hold the device's lock, such as a legacy
+    /// plan run replaying REPL commands.
+    func executeCommand(_ request: StudioReplRequest) async throws -> StudioReplResult {
         let command = request.command.trimmingCharacters(in: .whitespacesAndNewlines)
         if command.range(of: Self.destructivePattern, options: [.regularExpression, .caseInsensitive]) != nil {
             throw StudioAutomationError.destructiveCommand
@@ -80,11 +88,11 @@ extension LiveStudioAutomationService {
         guard let deviceID = request.selectedDeviceId else {
             throw StudioAutomationError.invalidTest("Choose a device before running the test.")
         }
-        let result = try await run(.init(
-            test: request.activeTest,
-            deviceId: deviceID,
-            providerId: request.selectedProviderId
-        ))
+        // `execute` already holds this device's lock, so the public `run` would wait on itself.
+        let result = try await run(
+            .init(test: request.activeTest, deviceId: deviceID, providerId: request.selectedProviderId),
+            tracking: nil
+        )
         return .init(output: result.message)
     }
 
