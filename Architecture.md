@@ -68,6 +68,7 @@ amoo/
 │   │   ├── Errors.swift                 #   Shared error types
 │   │   └── Types.swift                  #   Point, Size, Rect, Duration, etc.
 │   │
+│   ├── AmooLogging/            # AmooLogger: OSLog (Apple) / swift-log (Linux) wrapper
 │   ├── CompanionProtocol/               # Module 2: Companion app contract
 │   │   ├── CompanionClient.swift        #   Protocol for talking to companion
 │   │   ├── CompanionConnection.swift    #   Connection lifecycle (connect, health, disconnect)

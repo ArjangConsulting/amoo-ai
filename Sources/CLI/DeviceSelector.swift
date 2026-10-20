@@ -342,7 +342,7 @@ struct PlatformDeviceSelector {
     private func autoSelectable(_ candidates: [AvailableDevice]) throws -> [AvailableDevice] {
         var all = candidates
         // Without a hint, never auto-pick a device another session holds a runtime on.
-        let presented = presentedRuntime(flag: nil)
+        let presented = presentedRuntime(flag: nil, store: runtimeStore)
         let available = all.filter {
             if case .claimedByOther = runtimeStore.access(deviceID: $0.deviceID, presenting: presented) {
                 return false

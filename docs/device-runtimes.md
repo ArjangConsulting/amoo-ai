@@ -2,7 +2,9 @@
 
 `amoo env up` starts amoo on a simulator or emulator and returns its `runtime_id`, device and
 companion port. `amoo env down --runtime-id <id>` stops it. Runtime IDs are optional routing and ownership
-credentials for later commands, supplied through `--runtime-id` or `AMOO_RUNTIME_ID`.
+credentials for later commands, supplied through `--runtime-id` or `AMOO_RUNTIME_ID`. An id given with
+`--runtime-id` that is unknown or expired is an error; a stale `AMOO_RUNTIME_ID` from the environment
+is ignored, since it outlives its runtime.
 
 A runtime record tracks a companion's lifecycle. Device access coordination is separate: a kernel
 lock prevents simultaneous sessions from controlling the same device and is released automatically

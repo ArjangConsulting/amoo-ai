@@ -1,3 +1,4 @@
+import AmooLogging
 import Foundation
 #if canImport(Darwin)
 import Darwin
@@ -5,13 +6,24 @@ import Darwin
 import Glibc
 #endif
 
+private let lifecycleLogger = AmooLogger.forType(DeviceRuntimeStore.self)
+
 /// Stops only a verified companion process. A reused PID is unrelated to the stale runtime.
 func stopRuntimeCompanion(_ runtime: DeviceRuntime) -> Bool {
     guard let pid = runtime.companionPID, pid > 0, kill(pid, 0) == 0, let command = processCommandLine(pid: pid),
           isCompanionProcessCommand(command, deviceID: runtime.deviceID)
     else { return true }
+    lifecycleLogger.info(
+        "Stopping companion process",
+        context: "action=stop-companion runtime=\(runtime.id) pid=\(pid)"
+    )
     stopProcess(pid: pid)
-    return kill(pid, 0) != 0
+    let stopped = kill(pid, 0) != 0
+    lifecycleLogger.info(
+        "Companion process stop finished",
+        context: "action=stop-companion runtime=\(runtime.id) pid=\(pid) stopped=\(stopped)"
+    )
+    return stopped
 }
 
 /// Reuses an owned, reachable runtime without starting a second companion.
@@ -29,6 +41,7 @@ func reuseDeviceRuntime(
         return report
     }
     report.runtimeID = runtime.id
+    lifecycleLogger.info("Reusing runtime", context: "action=reuse runtime=\(runtime.id) device=\(runtime.deviceID)")
     guard runtime.amooPlatform == options.platform,
           options.deviceID == nil || options.deviceID == runtime.deviceID,
           options.port == nil || options.port == runtime.port,
@@ -61,6 +74,11 @@ func reuseDeviceRuntime(
         report.ok = true
         report.state = .running
     } catch {
+        lifecycleLogger.error(
+            "Runtime reuse failed",
+            error: error,
+            context: "action=reuse runtime=\(runtime.id) device=\(runtime.deviceID)"
+        )
         report.error = "\(error)"
     }
     return report

@@ -33,6 +33,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.2"),
         .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
+        // AmooLogging's Linux backend; Apple platforms log through OSLog.
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.16.1"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
         // Prompts, progress, styling and line editing shared with ShipItSwifty. Tracks main until 0.1.0.
         .package(url: "https://github.com/maniramezan/SwiftyTerminal.git", branch: "main"),
@@ -53,6 +55,12 @@ let package = Package(
             plugins: [.plugin(name: "BuildProvenancePlugin")]
         ),
         .plugin(name: "BuildProvenancePlugin", capability: .buildTool(), path: "BuildPlugins/BuildProvenancePlugin"),
+        .target(
+            name: "AmooLogging",
+            dependencies: [
+                .product(name: "Logging", package: "swift-log", condition: .when(platforms: [.linux]))
+            ]
+        ),
         .target(
             name: "Protos",
             dependencies: [
@@ -153,7 +161,8 @@ let package = Package(
                 .product(name: "MobileProject", package: "mobile-kits"),
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "SwiftyTerminal", package: "SwiftyTerminal"),
-                .product(name: "SwiftyTerminalLineEditor", package: "SwiftyTerminal")
+                .product(name: "SwiftyTerminalLineEditor", package: "SwiftyTerminal"),
+                "AmooLogging"
             ]
         ),
         .testTarget(
