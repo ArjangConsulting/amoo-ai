@@ -9,31 +9,33 @@ import ProcessRunner
 import StudioProtocol
 import TestSession
 
-/// Drives Studio agent runs through the same session-backed executor `amoo mcp serve` uses, so a
-/// run records a real session: `end_session` writes `plan.json` and `flow.json`, and the recording
-/// feeds test generation exactly like an MCP client's session.
-actor CLIStudioAgentSession: StudioAgentSessionDriving {
+/// Records Studio's sessions (agent runs and console recordings) through the same session-backed
+/// executor `amoo mcp serve` uses: `end_session` writes `plan.json` and `flow.json`, and the
+/// recording feeds test generation exactly like an MCP client's session.
+actor CLIStudioSessions: StudioSessionDriving {
     private let iOSCompanionManager = CompanionManager()
     private let androidCompanionManager = AndroidCompanionManager()
     private var sessionManager: SessionManager?
     private var executor: DriverToolExecutor?
 
-    func startSession(_ request: StudioAgentStartRequest) async throws -> String {
-        let executor = try await executor(for: request)
+    func startSession(_ spec: StudioSessionSpec) async throws -> String {
+        let executor = try await executor(for: spec)
         var arguments = [
-            "app_id": request.appId,
-            "platform": request.platform.lowercased(),
-            "device_hint": request.deviceId,
-            "test_name": request.activeTest.name
+            "app_id": spec.appId,
+            "platform": spec.platform.lowercased(),
+            "device_hint": spec.deviceId
         ]
-        if let buildPath = request.buildPath, !buildPath.isEmpty {
+        if let testName = spec.testName, !testName.isEmpty {
+            arguments["test_name"] = testName
+        }
+        if let buildPath = spec.buildPath, !buildPath.isEmpty {
             arguments["build_path"] = buildPath
         }
-        if let launchArguments = request.launchArguments, !launchArguments.isEmpty {
+        if let launchArguments = spec.launchArguments, !launchArguments.isEmpty {
             arguments["launch_args"] = launchArguments.joined(separator: ",")
         }
-        if !request.activeTest.description.isEmpty {
-            arguments["test_description"] = request.activeTest.description
+        if let description = spec.testDescription, !description.isEmpty {
+            arguments["test_description"] = description
         }
         let result = await executor.execute(toolName: "start_session", arguments: arguments)
         guard !result.isError, let id = Self.string("session_id", in: result.structuredContent) else {
@@ -76,6 +78,17 @@ actor CLIStudioAgentSession: StudioAgentSessionDriving {
         )
     }
 
+    func observeElements(sessionId: String) async -> [StudioElementSuggestion] {
+        guard let executor else { return [] }
+        let result = await executor.observeElements(arguments: [
+            "session_id": sessionId,
+            "labeled_only": "true",
+            "limit": "500"
+        ])
+        guard !result.isError else { return [] }
+        return result.observedElements.map { StudioElementSuggestion(id: $0.id, label: $0.label, type: $0.elementType) }
+    }
+
     func endSession(sessionId: String) async -> StudioAgentSessionEnd {
         guard let executor else { return .init(planPath: nil, flowPath: nil) }
         let result = await executor.execute(toolName: "end_session", arguments: ["session_id": sessionId])
@@ -98,7 +111,7 @@ actor CLIStudioAgentSession: StudioAgentSessionDriving {
 
     /// Built on first use. Its default driver is never used for agent calls, which always carry a
     /// `session_id`, but the executor needs one, so it targets the run's device like MCP serve does.
-    private func executor(for request: StudioAgentStartRequest) async throws -> DriverToolExecutor {
+    private func executor(for request: StudioSessionSpec) async throws -> DriverToolExecutor {
         if let executor {
             return executor
         }

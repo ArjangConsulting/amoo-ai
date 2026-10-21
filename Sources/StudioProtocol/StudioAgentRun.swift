@@ -12,7 +12,10 @@ actor StudioAgentRun {
     nonisolated let deviceId: String
     private let request: StudioAgentStartRequest
     private let model: any StudioAgentModel
-    private let session: any StudioAgentSessionDriving
+    private let session: any StudioSessionDriving
+    private let deviceSessions: StudioDeviceSessions
+    /// How this run appears when another workflow finds the device busy.
+    nonisolated let owner: String
     private let tools: [String: StudioToolSchema]
     private let notifications: StudioNotificationCenter?
     private let deviceLocks: StudioDeviceLocks
@@ -43,11 +46,14 @@ actor StudioAgentRun {
         id: String,
         request: StudioAgentStartRequest,
         model: any StudioAgentModel,
-        session: any StudioAgentSessionDriving,
+        session: any StudioSessionDriving,
         tools: [StudioToolSchema],
         notifications: StudioNotificationCenter?,
-        deviceLocks: StudioDeviceLocks
+        deviceLocks: StudioDeviceLocks,
+        deviceSessions: StudioDeviceSessions
     ) {
+        self.deviceSessions = deviceSessions
+        owner = "agent run \(id)"
         self.id = id
         deviceId = request.deviceId
         self.request = request
@@ -101,7 +107,7 @@ actor StudioAgentRun {
         logger.info("Agent run started", context: "runId=\(id) provider=\(request.provider.kind.rawValue)")
         do {
             let started = try await deviceLocks.withDevice(deviceId) { [session, request] in
-                try await session.startSession(request)
+                try await session.startSession(request.sessionSpec)
             }
             sessionId = started
             logURL = await session.sessionDirectory(sessionId: started)?.appending(path: "studio-agent-events.jsonl")
@@ -242,6 +248,7 @@ actor StudioAgentRun {
             let session = session
             end = await Task { await session.endSession(sessionId: sessionId) }.value
         }
+        await deviceSessions.release(deviceId, from: owner)
         state = final
         emit(.finished) {
             $0.state = final

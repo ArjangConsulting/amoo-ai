@@ -73,49 +73,6 @@ public struct StudioReportListResult: Codable, Equatable, Sendable {
     }
 }
 
-public protocol StudioAutomationServing: Sendable {
-    func execute(_ request: StudioReplRequest) async throws -> StudioReplResult
-    func run(_ request: StudioTestRunRequest) async throws -> StudioTestRunResult
-    func reports() async -> StudioReportListResult
-    func start(_ request: StudioTestRunRequest) async -> StudioTestStartResult
-    func status(runId: String) async throws -> StudioTestRunStatus
-    func cancel(runId: String) async throws -> StudioTestRunStatus
-    func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult
-    /// The tool catalog, or nil when this build has none, which also disables completion.
-    func toolCatalog() async -> StudioToolCatalog?
-    func complete(_ request: StudioReplCompletionRequest) async throws -> StudioReplCompletionResult
-    func validate(_ request: StudioReplValidationRequest) async throws -> StudioReplValidationResult
-    /// Whether `generate` is available, which decides the `tests.generate` capability.
-    func canGenerateTests() async -> Bool
-    func generate(_ request: StudioTestGenerateRequest) async throws -> StudioTestGenerateResult
-}
-
-public extension StudioAutomationServing {
-    func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
-        throw StudioAutomationError.invalidTest("Code export is unavailable in this Amoo build.")
-    }
-
-    func toolCatalog() async -> StudioToolCatalog? {
-        nil
-    }
-
-    func complete(_ request: StudioReplCompletionRequest) async throws -> StudioReplCompletionResult {
-        .empty(at: request.cursor)
-    }
-
-    func validate(_: StudioReplValidationRequest) async throws -> StudioReplValidationResult {
-        .init(diagnostics: [])
-    }
-
-    func canGenerateTests() async -> Bool {
-        false
-    }
-
-    func generate(_: StudioTestGenerateRequest) async throws -> StudioTestGenerateResult {
-        throw StudioAutomationError.invalidTest("Test generation is unavailable in this Amoo build.")
-    }
-}
-
 public struct StudioToolExecutionResult: Equatable, Sendable {
     public let output: String
     public let artifacts: [String]
@@ -154,7 +111,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     // StudioAutomationService+REPL.swift, and Swift has no cross-file private.
     let workspace: any StudioDeviceWorkspace
     let toolExecutor: (any StudioToolExecuting)?
-    private let codeEmitters: StudioCodeEmitters
+    let codeEmitters: StudioCodeEmitters
     private let reportsURL: URL?
     var storedReports: [StudioTestReport]
     var runTasks: [String: Task<Void, Never>] = [:]
@@ -165,6 +122,13 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     let toolCatalogProvider: (any StudioToolCatalogProviding)?
     let elementSuggester: (any StudioElementSuggesting)?
     let testGenerator: (any StudioTestGenerating)?
+    let sessionDriver: (any StudioSessionDriving)?
+    let deviceSessions: StudioDeviceSessions
+    /// Console recordings by device.
+    var recordings: [String: ConsoleRecording] = [:]
+    /// Devices whose recording is starting, so a second start does not open a second session.
+    var startingRecordings: Set<String> = []
+    var recordedElements: [String: (capturedAt: ContinuousClock.Instant, elements: [StudioElementSuggestion])] = [:]
     /// Built on first use from `toolCatalogProvider`; the catalog is fixed for the process.
     var cachedGrammar: StudioReplGrammar?
 
@@ -179,8 +143,12 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         deviceLocks: StudioDeviceLocks = .init(),
         toolCatalogProvider: (any StudioToolCatalogProviding)? = nil,
         elementSuggester: (any StudioElementSuggesting)? = nil,
-        testGenerator: (any StudioTestGenerating)? = nil
+        testGenerator: (any StudioTestGenerating)? = nil,
+        sessionDriver: (any StudioSessionDriving)? = nil,
+        deviceSessions: StudioDeviceSessions = .init()
     ) {
+        self.sessionDriver = sessionDriver
+        self.deviceSessions = deviceSessions
         self.testGenerator = testGenerator
         self.toolCatalogProvider = toolCatalogProvider
         self.elementSuggester = elementSuggester
@@ -214,46 +182,6 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     private static func loadReports(from url: URL?) -> [StudioTestReport] {
         guard let url, let data = try? Data(contentsOf: url) else { return [] }
         return (try? JSONDecoder().decode([StudioTestReport].self, from: data)) ?? []
-    }
-
-    public func canGenerateTests() -> Bool {
-        testGenerator != nil
-    }
-
-    public func generate(_ request: StudioTestGenerateRequest) async throws -> StudioTestGenerateResult {
-        guard let testGenerator else {
-            throw StudioAutomationError.invalidTest("Test generation is unavailable in this Amoo build.")
-        }
-        return try await testGenerator.generate(request)
-    }
-
-    /// With a generator, export runs the shared pipeline, so it applies the same app context and
-    /// completeness checks as `amoo generate test`.
-    public func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
-        if let testGenerator {
-            let test = request.testContext.map(request.test.replacingTestContext) ?? request.test
-            let result = try await testGenerator.generate(.init(test: test))
-            if let problem = result.problem {
-                throw StudioAutomationError.invalidTest(problem.message)
-            }
-            guard let generated = result.generated
-            else { throw StudioAutomationError.invalidTest("Code export failed.") }
-            return .init(fileName: generated.fileName, source: generated.source)
-        }
-        let test = request.testContext.map(request.test.replacingTestContext) ?? request.test
-        let toolkit = test.requirements?.uiToolkit ?? .view
-        let emitter = codeEmitters.emitter(for: test.platform, toolkit: toolkit)
-        guard let emitter else {
-            throw StudioAutomationError.invalidTest(
-                "Code export is unavailable for platform '\(test.platform.rawValue)'"
-                    + " and toolkit '\(toolkit.rawValue)'."
-            )
-        }
-        do {
-            return try emitter.generate(test)
-        } catch {
-            throw StudioAutomationError.invalidTest("Code export failed: \(error)")
-        }
     }
 
     public func run(_ request: StudioTestRunRequest) async throws -> StudioTestRunResult {

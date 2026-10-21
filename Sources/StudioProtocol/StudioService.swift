@@ -203,6 +203,9 @@ public struct StudioService: Sendable {
         if await automation.canGenerateTests() {
             capabilities.append("tests.generate")
         }
+        if await automation.canRecord() {
+            capabilities.append("repl.recording")
+        }
         return capabilities
     }
 
@@ -309,6 +312,10 @@ public struct StudioService: Sendable {
             try await encodeValue(automation.execute(request.decodeParams(StudioReplRequest.self)))
         case "repl.complete":
             try await encodeValue(automation.complete(request.decodeParams(StudioReplCompletionRequest.self)))
+        case "repl.startRecording":
+            try await encodeValue(automation.startRecording(request.decodeParams(StudioReplRecordingStartRequest.self)))
+        case "repl.stopRecording":
+            try await encodeValue(automation.stopRecording(request.decodeParams(StudioReplRecordingStopRequest.self)))
         case "repl.validate":
             try await encodeValue(automation.validate(request.decodeParams(StudioReplValidationRequest.self)))
         case "tools.catalog":
