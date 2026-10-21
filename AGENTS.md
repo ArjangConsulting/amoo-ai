@@ -165,6 +165,12 @@ app_id, build_path, device_hint, and exact launch_env when delegating; enable re
 requested clean store. Consumer CI can check installed copies with the bundled
 `driving-amoo/scripts/check-install.py` helper described in README.md.
 
+`plugins/amoo-live` is a separate, Claude Code-only **mod** (a TypeScript hooks module:
+`hooks/register.tsx`, state contract `types/index.d.ts`). It mirrors the driven device in a pane via
+`amoo device stream` (`Sources/CLI/DeviceStreamCommand.swift`), and it is listed only in
+`.claude-plugin/marketplace.json`. Never add a `hooks/` folder to `plugins/amoo`, because Gemini
+reads `hooks/hooks.json` there. After editing the mod, run `make mod-check`. See `docs/amoo-live.md`.
+
 ## External Dependencies
 
 `amoo preflight --platform ios|android` checks these; device-only tooling reports `WARN`

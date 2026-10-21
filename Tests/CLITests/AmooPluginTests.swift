@@ -59,9 +59,30 @@ final class AmooPluginTests: XCTestCase {
         let source = try XCTUnwrap(codex.first?["source"] as? [String: Any])
         XCTAssertEqual(source["path"] as? String, "./plugins/amoo")
 
-        for entries in [claude, cursor, codex] {
+        // amoo-live is a Claude Code mod: no other client can load its hooks module.
+        XCTAssertEqual(claude.compactMap { $0["name"] as? String }, ["amoo", "amoo-live"])
+        XCTAssertEqual(claude.last?["source"] as? String, "./plugins/amoo-live")
+        for entries in [cursor, codex] {
             XCTAssertEqual(entries.compactMap { $0["name"] as? String }, ["amoo"])
         }
+    }
+
+    func testLivePluginIsAClaudeOnlyModVersionedWithAmoo() throws {
+        let liveRoot = repoRoot.appendingPathComponent("plugins/amoo-live")
+        let manifest = try json(".claude-plugin/plugin.json", in: liveRoot)
+        XCTAssertEqual(manifest["name"] as? String, "amoo-live")
+        XCTAssertEqual(manifest["version"] as? String, AmooVersion.releaseVersion)
+        XCTAssertEqual(manifest["types"] as? String, "./types/index.d.ts")
+        XCTAssertEqual(try json("hooks/hooks.json", in: liveRoot)["modules"] as? [String], ["./register.tsx"])
+        for clientManifest in ["plugin.json", ".cursor-plugin/plugin.json", "gemini-extension.json"] {
+            XCTAssertFalse(
+                FileManager.default.fileExists(atPath: liveRoot.appendingPathComponent(clientManifest).path),
+                "\(clientManifest) would offer the Claude-only mod to another client"
+            )
+        }
+        // Gemini reads hooks/hooks.json from the extension root, so a mod's modules file in
+        // plugins/amoo would reach Gemini too.
+        XCTAssertFalse(FileManager.default.fileExists(atPath: pluginRoot.appendingPathComponent("hooks").path))
     }
 
     func testCommittedGeneratedAgentFilesAreCurrent() throws {

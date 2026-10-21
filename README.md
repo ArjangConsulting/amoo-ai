@@ -87,6 +87,11 @@ Every route below needs the `amoo` CLI itself, installed with Homebrew (see [Ins
 The plugin registers its own amoo MCP server. If you previously registered amoo with
 `install-mcp.sh` or `claude mcp add`, remove that entry so the tools are not listed twice.
 
+In Claude Code, the optional **`amoo-live`** mod (`claude plugin install amoo-live@amoo`) adds a
+live pane while an agent drives a device. It shows a mirror of the device (in Ghostty and kitty),
+the session's recent actions, a status line, and toasts on failed assertions. It is experimental
+and Claude-only; see [amoo-live](docs/amoo-live.md).
+
 Run `amoo init` in a terminal for guided device setup. It prepares independent controlled simulators
 and emulators without asking for an app build, and offers to set up the amoo subagents and skills
 for your AI clients (Claude Code, Cursor, Codex, Copilot, Gemini, OpenCode). Agents and CI pass flags

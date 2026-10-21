@@ -8,6 +8,12 @@
       "source": "./plugins/amoo",
       "description": "Drive and verify iOS simulators and Android emulators from any AI agent: the amoo subagent, the driving-amoo and device-verifier skills, and the amoo MCP server. Requires the amoo CLI (brew install arjangconsulting/tap/amoo).",
       "category": "testing"
+    },
+    {
+      "name": "amoo-live",
+      "source": "./plugins/amoo-live",
+      "description": "Claude Code only, experimental: a live pane mirroring the device amoo drives, with the session's recent actions, a status line and toasts on failed assertions. Requires the amoo CLI and MCP server.",
+      "category": "testing"
     }
   ]
 }
