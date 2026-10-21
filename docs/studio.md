@@ -115,3 +115,49 @@ Studio and moqserver Studio can therefore use the same release without source ch
 Compose Desktop packages the matching stopped Swift executable as an OS/architecture-specific
 resource. During development, set `AMOO_BINARY` to a local Amoo build. Studio always invokes the
 resolved absolute path; installing a PATH link is optional and is not required for the GUI.
+
+## Agent runs
+
+`agent.start` takes `{provider, messages, activeTest, deviceId, platform, appId, buildPath?,
+launchArguments?, maxSteps?}` and returns `{runId}`. `StudioAgentRun` then runs in this order:
+
+1. **Start a session.** It calls `start_session` on the session-backed `DriverToolExecutor` that
+   `amoo mcp serve` uses (`CLIStudioAgentSession`), so the run records a real session.
+2. **Loop over model turns.** It streams turns from the provider through `StudioAgentModels`, which
+   covers OpenAI and OpenAI-compatible Chat Completions, Anthropic Messages, and Ollama
+   `/api/chat`, all with native tool calling. Each tool call runs in the session under the
+   device's lock and goes back to the model as a tool result.
+3. **End the session.** `end_session` writes `plan.json` and `flow.json`, even when the run is
+   cancelled.
+
+How the loop behaves:
+
+- **Tools.** The model is offered the console's tool catalog. Session and companion lifecycle
+  tools are excluded.
+- **Approvals.** A destructive tool pauses the run (`approvalRequired`) until `agent.approve`
+  answers. A declined call is reported to the model and never runs.
+- **Screenshots.** After every tool that is not read-only, the run captures a settled screenshot
+  with `DriverToolExecutor.observeScreenshot`. It is saved under the session's `studio-screens`
+  directory and is not recorded, so it never becomes a step in a generated test.
+- **Redaction.** Typed text in `type_text`, `set_text`, and `fill_field` arguments appears in
+  events only as its length.
+- **Steering.** `agent.continue {runId, message}` adds a user message before the next turn.
+- **Cancelling.** `agent.cancel` stops the run, resolves pending approvals as declined, and still
+  ends the session.
+- **One run per device.** Starting a second run on a device that already has a running one is
+  refused.
+
+### Events
+
+Each event is pushed as an `agent.event` notification with `{runId, seq, kind, …}`. The kinds are
+`sessionStarted`, `assistantDelta`, `assistantMessage`, `toolCall`, `toolResult` (with
+`screenshot` and `gesturePoint`), `approvalRequired`, `approvalResolved`, `usage`, `error`, and
+`finished` (with `state`, `planPath`, and `flowPath`).
+
+`seq` increases by one per event, so a client that sees a gap replays with `agent.events {runId,
+after}`. That returns `{state, events, nextSeq}` from the last 5,000 events. Events are also
+appended to `studio-agent-events.jsonl` in the session directory.
+
+`assistantDelta` events stream model text. They repeat the `seq` of the next numbered event, and
+they are neither kept nor logged, because `assistantMessage` carries the full text.
+

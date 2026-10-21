@@ -44,6 +44,25 @@ public struct StudioProviderProfile: Codable, Sendable, CustomStringConvertible 
     }
 }
 
+public extension StudioProviderProfile {
+    /// Adds provider credentials, preferring Studio's inline key over the named environment variable.
+    func authorize(_ request: inout URLRequest, environment: (String) -> String?) throws {
+        guard kind != .ollama else { return }
+        let variable = apiKeyEnvironmentVariable
+        let inlineKey = apiKey.flatMap { $0.isEmpty ? nil : $0 }
+        let environmentKey = variable.isEmpty ? nil : environment(variable).flatMap { $0.isEmpty ? nil : $0 }
+        guard let secret = inlineKey ?? environmentKey else {
+            throw StudioChatError.missingSecret(variable.isEmpty ? "provider API key" : variable)
+        }
+        if kind == .anthropic {
+            request.setValue(secret, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        } else {
+            request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
+        }
+    }
+}
+
 public struct StudioChatMessage: Codable, Sendable {
     public enum Role: String, Codable, Sendable { case user = "User"; case assistant = "Assistant" }
     public let id: String
@@ -520,17 +539,62 @@ public struct StudioProviderCheckResult: Codable, Equatable, Sendable {
 
 public protocol StudioHTTPTransport: Sendable {
     func data(for request: URLRequest) async throws -> (Data, URLResponse)
+    /// The response body as lines while it arrives, for streamed model output.
+    func lines(for request: URLRequest) async throws -> (URLResponse, AsyncThrowingStream<String, Error>)
+}
+
+public extension StudioHTTPTransport {
+    /// Buffers the whole body and then yields its lines; transports that can stream override this.
+    func lines(for request: URLRequest) async throws -> (URLResponse, AsyncThrowingStream<String, Error>) {
+        let (data, response) = try await data(for: request)
+        let text = String(bytes: data, encoding: .utf8) ?? ""
+        let stream = AsyncThrowingStream<String, Error> { continuation in
+            for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+                continuation.yield(String(line))
+            }
+            continuation.finish()
+        }
+        return (response, stream)
+    }
+}
+
+/// The production HTTP transport, shared by chat, provider checks, and agent runs.
+public enum StudioHTTP {
+    public static func live() -> any StudioHTTPTransport {
+        URLSessionTransport(session: URLSession(configuration: .default))
+    }
 }
 
 /// swift-corelibs-foundation's `URLSession.data(for:)` takes an extra `delegate` parameter on
 /// Linux, so it can't satisfy `StudioHTTPTransport` via a direct `extension URLSession` the way
 /// it can on Darwin. Route through a thin wrapper instead so both platforms compile identically.
-private struct URLSessionTransport: StudioHTTPTransport {
+struct URLSessionTransport: StudioHTTPTransport {
     let session: URLSession
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         try await session.data(for: request)
     }
+
+    #if canImport(Darwin)
+    /// Streams lines as they arrive, so model text reaches Studio token by token.
+    func lines(for request: URLRequest) async throws -> (URLResponse, AsyncThrowingStream<String, Error>) {
+        let (bytes, response) = try await session.bytes(for: request)
+        let stream = AsyncThrowingStream<String, Error> { continuation in
+            let reader = Task {
+                do {
+                    for try await line in bytes.lines {
+                        continuation.yield(line)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in reader.cancel() }
+        }
+        return (response, stream)
+    }
+    #endif
 }
 
 public enum StudioChatError: Error, CustomStringConvertible {
@@ -551,7 +615,7 @@ public struct LiveStudioChatService: StudioChatServing {
     private let environment: @Sendable (String) -> String?
 
     public init() {
-        transport = URLSessionTransport(session: URLSession(configuration: .default))
+        transport = StudioHTTP.live()
         environment = { ProcessInfo.processInfo.environment[$0] }
     }
 
@@ -605,21 +669,8 @@ public struct LiveStudioChatService: StudioChatServing {
         return StudioChatResult(message: proposal?.message ?? content, proposedPlan: proposal?.plan)
     }
 
-    /// Adds provider credentials, preferring Studio's inline key over the named environment variable.
     private func authorize(_ request: inout URLRequest, for provider: StudioProviderProfile) throws {
-        guard provider.kind != .ollama else { return }
-        let variable = provider.apiKeyEnvironmentVariable
-        let inlineKey = provider.apiKey.flatMap { $0.isEmpty ? nil : $0 }
-        let environmentKey = variable.isEmpty ? nil : environment(variable).flatMap { $0.isEmpty ? nil : $0 }
-        guard let secret = inlineKey ?? environmentKey else {
-            throw StudioChatError.missingSecret(variable.isEmpty ? "provider API key" : variable)
-        }
-        if provider.kind == .anthropic {
-            request.setValue(secret, forHTTPHeaderField: "x-api-key")
-            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        } else {
-            request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-        }
+        try provider.authorize(&request, environment: environment)
     }
 
     public func check(_ provider: StudioProviderProfile) async throws -> StudioProviderCheckResult {

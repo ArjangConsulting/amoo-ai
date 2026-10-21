@@ -203,12 +203,23 @@ public struct CLIApp {
             toolCatalogProvider: MCPStudioToolCatalog(),
             elementSuggester: toolExecutor
         )
+        let agentSession = CLIStudioAgentSession()
+        let agents = StudioAgentService(
+            session: agentSession,
+            catalog: MCPStudioToolCatalog(),
+            notifications: notifications,
+            deviceLocks: deviceLocks
+        )
         await StudioService(
             workspace: workspace,
             automation: automation,
             notifications: notifications,
-            deviceLocks: deviceLocks
+            deviceLocks: deviceLocks,
+            agents: agents
         ).run(output: studioProtocolOutput())
+        // Input closed: end running agent sessions so their recordings are written.
+        await agents.cancelAll()
+        await agentSession.shutdown()
         return CLIResult(output: "", exitCode: 0)
     }
 
