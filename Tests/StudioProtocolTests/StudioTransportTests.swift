@@ -151,6 +151,7 @@ private final class TransportHarness: Sendable {
     private let input = Pipe()
     private let output = Pipe()
     private let serving: Task<Void, Never>
+    private let frames: FrameInbox
 
     init(
         workspace: any StudioDeviceWorkspace,
@@ -168,6 +169,7 @@ private final class TransportHarness: Sendable {
         let reading = input.fileHandleForReading
         let writing = output.fileHandleForWriting
         serving = Task { await service.run(input: reading, output: writing) }
+        frames = FrameInbox(reading: output.fileHandleForReading)
     }
 
     func send(_ json: String) throws {
@@ -175,14 +177,43 @@ private final class TransportHarness: Sendable {
     }
 
     func nextFrame() async throws -> [String: Any] {
-        let handle = output.fileHandleForReading
-        let data = try await Task.detached { try ContentLengthFraming.readMessage(from: handle) }.value
+        let data = await frames.next()
         return try object(#require(data))
     }
 
     func finish() async {
         try? input.fileHandleForWriting.close()
         await serving.value
+        try? output.fileHandleForWriting.close()
+    }
+}
+
+/// Reads the service's frames on a dedicated thread, as `StudioService` reads its input.
+///
+/// A blocking read inside a task parks a Swift concurrency thread. Swift Testing runs these tests in
+/// parallel, so on a CI runner with few cores every pool thread ends up waiting for a response and
+/// none is left to run the service that would write it.
+private actor FrameInbox {
+    private var iterator: AsyncStream<Data>.Iterator
+
+    init(reading handle: FileHandle) {
+        let (stream, continuation) = AsyncStream.makeStream(of: Data.self)
+        let reader = Thread {
+            while let frame = try? ContentLengthFraming.readMessage(from: handle) {
+                continuation.yield(frame)
+            }
+            continuation.finish()
+        }
+        reader.name = "amoo.studio.test-reader"
+        reader.start()
+        iterator = stream.makeAsyncIterator()
+    }
+
+    func next() async -> Data? {
+        var reading = iterator
+        let frame = await reading.next(isolation: self)
+        iterator = reading
+        return frame
     }
 }
 
