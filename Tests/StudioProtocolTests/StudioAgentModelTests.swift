@@ -1,6 +1,9 @@
 import Foundation
 @testable import StudioProtocol
 import Testing
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 // Streamed provider responses are fixtures that must stay byte-for-byte on one line each.
 // swiftlint:disable line_length
@@ -228,7 +231,7 @@ actor CannedTransport: StudioHTTPTransport {
         lastRequest = request
         let url = request.url ?? URL(fileURLWithPath: "/")
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil) ??
-            URLResponse()
+            URLResponse(url: url, mimeType: nil, expectedContentLength: 0, textEncodingName: nil)
         return (Data(body.utf8), response)
     }
 }
