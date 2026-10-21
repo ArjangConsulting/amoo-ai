@@ -29,6 +29,7 @@ public struct StudioService: Sendable {
     private let chat: any StudioChatServing
     private let automation: any StudioAutomationServing
     private let deviceLocks: StudioDeviceLocks
+    private let agents: StudioAgentService?
     private let logger = AmooLogger.forType(Self.self)
 
     /// Pass the same `notifications` and `deviceLocks` to an injected `automation` so its pushed
@@ -38,8 +39,10 @@ public struct StudioService: Sendable {
         chat: any StudioChatServing = LiveStudioChatService(),
         automation: (any StudioAutomationServing)? = nil,
         notifications: StudioNotificationCenter = .init(),
-        deviceLocks: StudioDeviceLocks = .init()
+        deviceLocks: StudioDeviceLocks = .init(),
+        agents: StudioAgentService? = nil
     ) {
+        self.agents = agents
         self.workspace = workspace
         self.chat = chat
         self.notifications = notifications
@@ -156,7 +159,8 @@ public struct StudioService: Sendable {
     /// The message is shown to the Studio user, so it stays the error's own description.
     private static func rpcError(for error: any Error) -> RPCError {
         switch error {
-        case is DecodingError, StudioWorkspaceError.invalidParameter:
+        case is DecodingError, StudioWorkspaceError.invalidParameter, StudioAgentError.invalidRequest,
+             StudioAgentError.runNotFound, StudioAgentError.approvalNotPending:
             .init(code: -32602, message: "Invalid params: \(error)")
         default:
             .init(code: -32603, message: String(describing: error))
@@ -178,6 +182,9 @@ public struct StudioService: Sendable {
         if let result = try await chatResult(for: request) {
             return result
         }
+        if let result = try await agentResult(for: request) {
+            return result
+        }
         return try await automationResult(for: request)
     }
 
@@ -185,8 +192,14 @@ public struct StudioService: Sendable {
     static let catalogCapabilities = ["tools.catalog", "repl.complete", "repl.validate", "repl.structuredResults"]
 
     private func capabilities() async -> [String] {
-        await automation.toolCatalog() == nil ? Self.advertisedCapabilities : Self.advertisedCapabilities + Self
-            .catalogCapabilities
+        var capabilities = Self.advertisedCapabilities
+        if await automation.toolCatalog() != nil {
+            capabilities += Self.catalogCapabilities
+        }
+        if agents != nil {
+            capabilities.append("agent.runs")
+        }
+        return capabilities
     }
 
     private func systemResult(for request: Request) async throws -> AnyJSON? {
@@ -256,6 +269,21 @@ public struct StudioService: Sendable {
         let app = try request.appRequest()
         let result = try await deviceLocks.withDevice(app.deviceId) { try await operation(app) }
         return try encodeValue(result)
+    }
+
+    private func agentResult(for request: Request) async throws -> AnyJSON? {
+        guard request.method.hasPrefix("agent.") else { return nil }
+        guard let agents
+        else { throw StudioAgentError.invalidRequest("Agent runs are unavailable in this Amoo build.") }
+        return switch request.method {
+        case "agent.start": try await encodeValue(agents.start(request.decodeParams(StudioAgentStartRequest.self)))
+        case "agent.events": try await encodeValue(agents.events(request.decodeParams(StudioAgentEventsRequest.self)))
+        case "agent.approve": try await encodeValue(agents
+                .approve(request.decodeParams(StudioAgentApprovalRequest.self)))
+        case "agent.continue": try await encodeValue(agents.steer(request.decodeParams(StudioAgentSteerRequest.self)))
+        case "agent.cancel": try await encodeValue(agents.cancel(request.decodeParams(StudioAgentRunRequest.self)))
+        default: nil
+        }
     }
 
     private func chatResult(for request: Request) async throws -> AnyJSON? {
