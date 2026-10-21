@@ -26,6 +26,7 @@ failures keep the request `id` and use `-32602` for invalid params and `-32603` 
 | `rpc.concurrent` | Requests are handled concurrently as described above |
 | `rpc.notifications` | Amoo may push notifications on the protocol stream |
 | `tests.progress` | Asynchronous test runs push `tests.progress` with the `tests.status` shape on every change |
+| `device.stream` | `amoo device stream` is available for live device views; its `started` event carries `schema` |
 | `tools.catalog` | `tools.catalog` returns the console and plan vocabulary built from the MCP registry |
 | `repl.complete` | `repl.complete` completes a console line, including elements on a connected device's screen |
 | `repl.validate` | `repl.validate` returns diagnostics for a console line |

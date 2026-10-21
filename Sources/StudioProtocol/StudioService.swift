@@ -115,7 +115,8 @@ public struct StudioService: Sendable {
         "mcp.status",
         "rpc.concurrent",
         "rpc.notifications",
-        "tests.progress"
+        "tests.progress",
+        "device.stream"
     ]
 
     /// Handles one request and returns its response. A notification (no `id`) is still executed,
