@@ -37,7 +37,7 @@ jobs:
       sha: ${{ steps.resolve.outputs.sha }}
     steps:
       - name: Checkout selected commit and tags
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -68,7 +68,7 @@ jobs:
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.preflight.outputs.sha }}
 
@@ -78,7 +78,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Cache Homebrew packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/Library/Caches/Homebrew
@@ -93,7 +93,7 @@ jobs:
           brew install protobuf swift-protobuf protoc-gen-grpc-swift swiftformat swiftlint xcodegen kotlin
 
       - name: Cache SPM dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .build
           key: release-verify-spm-${{ hashFiles('Package.resolved') }}
@@ -101,7 +101,7 @@ jobs:
             release-verify-spm-
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -125,7 +125,7 @@ jobs:
           tar -czf prebuilt-companions.tar.gz CompanionApps/iOS/prebuilt CompanionApps/Android/prebuilt
 
       - name: Upload prebuilt companions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilt-companions
           path: prebuilt-companions.tar.gz
@@ -138,7 +138,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.preflight.outputs.sha }}
 
@@ -148,7 +148,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Cache Homebrew packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/Library/Caches/Homebrew
@@ -177,7 +177,7 @@ jobs:
           done
 
       - name: Cache SPM dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .build
           key: release-macos-spm-${{ hashFiles('Package.resolved') }}
@@ -208,7 +208,7 @@ jobs:
           cp Package.resolved release-dependencies.json
 
       - name: Download prebuilt companions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: prebuilt-companions
 
@@ -238,7 +238,7 @@ jobs:
           echo "TARBALL=amoo-${VERSION}-macos-universal.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-universal
           path: ${{ env.TARBALL }}
@@ -257,7 +257,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.preflight.outputs.sha }}
 
@@ -283,7 +283,7 @@ jobs:
         run: swift --version
 
       - name: Cache SPM dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .build
           key: release-linux-spm-${{ hashFiles('Package.resolved') }}
@@ -306,7 +306,7 @@ jobs:
           cp Package.resolved release-dependencies.json
 
       - name: Download prebuilt companions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: prebuilt-companions
 
@@ -332,7 +332,7 @@ jobs:
           echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-static
           path: ${{ env.TARBALL }}
@@ -345,7 +345,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.preflight.outputs.sha }}
           # Full history and tags: the release notes are generated from the commits in the range
@@ -354,12 +354,12 @@ jobs:
           fetch-tags: true
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-universal
 
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-static
 
@@ -383,7 +383,7 @@ jobs:
             --output release-notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
           # Only consulted when the tag doesn't exist yet (a bootstrapping dispatch), where it pins
