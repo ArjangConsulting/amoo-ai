@@ -60,8 +60,10 @@ public actor StudioAgentService {
                 throw StudioAgentError.deviceBusy(request.deviceId)
             }
         }
-        // Lifecycle tools are Studio's job; everything the console can run, the agent can run too.
-        let tools = catalog.tools().filter(\.replSupported)
+        // The agent gets the console's tools: lifecycle tools are Studio's job. `run_steps` is left
+        // out because it records one action per inner step, which would break the link between
+        // timeline events and compiled plan steps.
+        let tools = catalog.tools().filter { $0.replSupported && $0.name != "run_steps" }
         let run = StudioAgentRun(
             id: UUID().uuidString,
             request: request,

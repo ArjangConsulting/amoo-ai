@@ -85,6 +85,9 @@ public protocol StudioAutomationServing: Sendable {
     func toolCatalog() async -> StudioToolCatalog?
     func complete(_ request: StudioReplCompletionRequest) async throws -> StudioReplCompletionResult
     func validate(_ request: StudioReplValidationRequest) async throws -> StudioReplValidationResult
+    /// Whether `generate` is available, which decides the `tests.generate` capability.
+    func canGenerateTests() async -> Bool
+    func generate(_ request: StudioTestGenerateRequest) async throws -> StudioTestGenerateResult
 }
 
 public extension StudioAutomationServing {
@@ -102,6 +105,14 @@ public extension StudioAutomationServing {
 
     func validate(_: StudioReplValidationRequest) async throws -> StudioReplValidationResult {
         .init(diagnostics: [])
+    }
+
+    func canGenerateTests() async -> Bool {
+        false
+    }
+
+    func generate(_: StudioTestGenerateRequest) async throws -> StudioTestGenerateResult {
+        throw StudioAutomationError.invalidTest("Test generation is unavailable in this Amoo build.")
     }
 }
 
@@ -153,6 +164,7 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
     let logger = AmooLogger.forType(LiveStudioAutomationService.self)
     let toolCatalogProvider: (any StudioToolCatalogProviding)?
     let elementSuggester: (any StudioElementSuggesting)?
+    let testGenerator: (any StudioTestGenerating)?
     /// Built on first use from `toolCatalogProvider`; the catalog is fixed for the process.
     var cachedGrammar: StudioReplGrammar?
 
@@ -166,8 +178,10 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         notifications: StudioNotificationCenter? = nil,
         deviceLocks: StudioDeviceLocks = .init(),
         toolCatalogProvider: (any StudioToolCatalogProviding)? = nil,
-        elementSuggester: (any StudioElementSuggesting)? = nil
+        elementSuggester: (any StudioElementSuggesting)? = nil,
+        testGenerator: (any StudioTestGenerating)? = nil
     ) {
+        self.testGenerator = testGenerator
         self.toolCatalogProvider = toolCatalogProvider
         self.elementSuggester = elementSuggester
         self.workspace = workspace
@@ -202,7 +216,30 @@ public actor LiveStudioAutomationService: StudioAutomationServing {
         return (try? JSONDecoder().decode([StudioTestReport].self, from: data)) ?? []
     }
 
+    public func canGenerateTests() -> Bool {
+        testGenerator != nil
+    }
+
+    public func generate(_ request: StudioTestGenerateRequest) async throws -> StudioTestGenerateResult {
+        guard let testGenerator else {
+            throw StudioAutomationError.invalidTest("Test generation is unavailable in this Amoo build.")
+        }
+        return try await testGenerator.generate(request)
+    }
+
+    /// With a generator, export runs the shared pipeline, so it applies the same app context and
+    /// completeness checks as `amoo generate test`.
     public func export(_ request: StudioTestExportRequest) async throws -> StudioTestExportResult {
+        if let testGenerator {
+            let test = request.testContext.map(request.test.replacingTestContext) ?? request.test
+            let result = try await testGenerator.generate(.init(test: test))
+            if let problem = result.problem {
+                throw StudioAutomationError.invalidTest(problem.message)
+            }
+            guard let generated = result.generated
+            else { throw StudioAutomationError.invalidTest("Code export failed.") }
+            return .init(fileName: generated.fileName, source: generated.source)
+        }
         let test = request.testContext.map(request.test.replacingTestContext) ?? request.test
         let toolkit = test.requirements?.uiToolkit ?? .view
         let emitter = codeEmitters.emitter(for: test.platform, toolkit: toolkit)

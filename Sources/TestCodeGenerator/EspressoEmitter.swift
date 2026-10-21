@@ -216,7 +216,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
 
     // A direct switch keeps the supported Studio-tool-to-Espresso mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private static func statement(for operation: StudioToolOperation, context: StudioTestContext?) throws -> String {
+    static func statement(for operation: StudioToolOperation, context: StudioTestContext?) throws -> String {
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
         }

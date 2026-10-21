@@ -26,6 +26,8 @@ actor StudioAgentRun {
     private var task: Task<Void, Never>?
     private var sessionId: String?
     private var logURL: URL?
+    /// Session-routed calls so far; each records exactly one session action.
+    private var recordedActions = 0
 
     static let retainedEvents = 5000
     static let defaultMaxSteps = 40
@@ -187,6 +189,8 @@ actor StudioAgentRun {
         let outcome = await (try? deviceLocks.withDevice(deviceId) { [session, routed] in
             await session.execute(sessionId: sessionId, tool: call.name, arguments: routed)
         }) ?? StudioAgentToolOutcome(output: "The tool did not run.", isError: true)
+        let actionIndex = recordedActions
+        recordedActions += 1
         let screenshot = schema.readOnly ? nil : await session.observeScreen(sessionId: sessionId)
         let point = LiveStudioAutomationService.gesturePoint(
             tool: call.name,
@@ -201,6 +205,7 @@ actor StudioAgentRun {
             $0.structuredContent = outcome.structuredContent
             $0.screenshot = screenshot
             $0.gesturePoint = point
+            $0.actionIndex = actionIndex
         }
         return (String(outcome.output.prefix(Self.maxToolOutputCharacters)), outcome.isError)
     }

@@ -40,6 +40,21 @@ struct StudioAgentRunTests {
         #expect(result.events.last?.state == .completed)
     }
 
+    @Test("each tool result names the session action it recorded, and run_steps is not offered")
+    func actionIndexes() async throws {
+        let model = ScriptedModel([
+            .init(text: "", toolCalls: [call("find_elements", [:]), call("tap_element", ["id": .string("a")])]),
+            .init(text: "", toolCalls: [call("swipe_in_direction", ["direction": .string("up")])]),
+            .init(text: "ok", toolCalls: [])
+        ])
+        let (service, runId) = try await start(model: model, session: FakeAgentSession())
+        await service.waitForRun(runId)
+
+        let results = try await service.events(.init(runId: runId)).events.filter { $0.kind == .toolResult }
+        #expect(results.map(\.actionIndex) == [0, 1, 2])
+        #expect(await !model.toolNames.contains("run_steps"))
+    }
+
     @Test("the model sees the user's request, then each tool result")
     func conversation() async throws {
         let model = ScriptedModel([
@@ -310,6 +325,17 @@ func call(_ name: String, _ arguments: [String: StudioJSON]) -> StudioAgentToolC
 struct AgentCatalog: StudioToolCatalogProviding {
     func tools() -> [StudioToolSchema] {
         grammarTestCatalog.tools + [
+            .init(
+                name: "run_steps",
+                title: nil,
+                description: "Batch",
+                category: "batch",
+                readOnly: false,
+                destructive: false,
+                replSupported: true,
+                planTool: nil,
+                arguments: []
+            ),
             .init(
                 name: "type_text",
                 title: nil,

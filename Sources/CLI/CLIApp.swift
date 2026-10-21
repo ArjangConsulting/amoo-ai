@@ -201,7 +201,8 @@ public struct CLIApp {
             notifications: notifications,
             deviceLocks: deviceLocks,
             toolCatalogProvider: MCPStudioToolCatalog(),
-            elementSuggester: toolExecutor
+            elementSuggester: toolExecutor,
+            testGenerator: CLIStudioTestGenerator(pipeline: StudioTestGenerationPipeline(emitters: emitters))
         )
         let agentSession = CLIStudioAgentSession()
         let agents = StudioAgentService(
