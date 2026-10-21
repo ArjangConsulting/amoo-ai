@@ -161,3 +161,47 @@ appended to `studio-agent-events.jsonl` in the session directory.
 `assistantDelta` events stream model text. They repeat the `seq` of the next numbered event, and
 they are neither kept nor logged, because `assistantMessage` carries the full text.
 
+## Test generation
+
+`tests.generate` and `amoo generate test` share one pipeline, `StudioTestGenerationPipeline` in
+TestCodeGenerator:
+
+1. Apply app context: an explicit `contextPath`, or `amoo.md` discovered upward from `projectPath`.
+   Beside an `.xcodeproj` or `.xcworkspace`, discovery starts from the folder that contains it.
+2. Validate the context, rename the test, and bind context helpers.
+3. Refuse incomplete plans unless `allowIncomplete` is set, and always refuse redacted values.
+4. Emit the source.
+
+`tests.export` runs the same pipeline when the generator is configured.
+
+### Request
+
+`tests.generate` takes:
+
+- `sessionId`: the source is the session's `plan.json`. A session that ended without one is
+  compiled from its report.
+- `test`: an authored test, used instead of a session.
+- `uiToolkit`, `testName`, `allowIncomplete`, `projectPath`, `contextPath`.
+
+### Result
+
+The result is `{generated?, problem?, test}`:
+
+- **`generated`:** `{fileName, source, language, sourceMap}`. Each source-map entry is
+  `{operationIndex, operationId, startLine, endLine}`, with lines 1-based and inclusive.
+- **`problem`:** `{kind: incomplete | redacted | noEmitter, message, warnings}`. It is returned
+  instead of a protocol error, so Studio can show the reasons and offer `allowIncomplete`.
+- **`test`:** the plan exactly as generated, including all of its warnings.
+
+### Source maps
+
+Emitters implement `generateMapped`. It re-renders each operation's deterministic statements, then
+`StudioSourceMapper` aligns them with the finished source, comparing lines without surrounding
+whitespace. Post-processing only reindents lines, inserts `XCTFail` lines, or drops a wait that
+repeats the line before it, so the alignment is exact and the generated code is unchanged.
+
+A compiled session names each operation `step-<n>`, where `n` is the index of the recorded action.
+Agent `toolResult` events carry that `actionIndex`, so a step in generated code links back to its
+screenshot. For this reason the agent is not offered `run_steps`, which records several actions per
+call.
+

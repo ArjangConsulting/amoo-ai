@@ -151,84 +151,31 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
     )
 }
 
-// Validation and emission intentionally remain one linear, fail-fast pipeline.
-// swiftlint:disable:next function_body_length
 public func runGenerateTestCommand(
     options: GenerateTestOptions,
     emitters: StudioCodeEmitters
 ) throws -> CLIResult {
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
     let decodedTest = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
-    var test: StudioAuthoredTest = if let contextPath = options.contextPath {
-        try decodedTest
-            .replacingTestContext(RepositoryTestProfile
-                .load(
-                    URL(fileURLWithPath: (contextPath as NSString).expandingTildeInPath),
-                    platform: decodedTest.platform
-                ))
-    } else if decodedTest.testContext == nil,
-              let context = try RepositoryTestProfile.discover(platform: decodedTest.platform) {
-        decodedTest.replacingTestContext(context)
-    } else {
-        decodedTest
-    }
-    if let context = test.testContext {
-        try RepositoryTestProfile.validate(context, platform: test.platform)
-    }
-    if let testName = options.testName {
-        test = test.replacingName(testName)
-    }
-    // Bind operations to declared helpers whose call shape matches. The session compiler never sets
-    // `helper`, so without this a context file's helpers only ever applied to hand-authored plans.
-    test = HelperBinder.bindingContextHelpers(test)
-    let toolkit = options.uiToolkit ?? test.requirements?.uiToolkit ?? .view
-    let emitter = emitters.emitter(for: test.platform, toolkit: toolkit)
-    guard let emitter else {
-        return CLIResult(
-            output: "No code generator available for platform '\(test.platform.rawValue)'"
-                + " and toolkit '\(toolkit.rawValue)'.",
-            exitCode: 64
-        )
-    }
-
-    // A plan can record steps that never made it into toolOperations. Generating anyway would
-    // produce a test that is silently missing actions and then fails for reasons that point
-    // nowhere near the real cause, so stop unless the caller explicitly accepts a partial test.
-    let excluded = test.compiledPlan?.excludedWarnings ?? []
-    if !excluded.isEmpty, options.allowIncomplete == false {
-        let details = excluded
-            .map { "  - step \($0.actionIndex) (\($0.toolName)): \($0.reason)" }
-            .joined(separator: "\n")
-        return CLIResult(
-            output: """
-            This plan has \(excluded.count) step(s) that could not be compiled, so generating from it \
-            would produce an incomplete test:
-            \(details)
-
-            Re-record without those steps, or pass --allow-incomplete to generate anyway.
-            """,
-            exitCode: 65
-        )
-    }
-
-    // Redaction deliberately removes the original value from the session artifact. Emitting the
-    // marker as text would create a test that compiles but exercises a fictitious user flow.
-    // Context helpers may still be used after a caller replaces the value in the plan/fixture.
-    let redacted = (test.compiledPlan?.warnings ?? []).filter { $0.kind == .redacted }
-    if !redacted.isEmpty {
-        let details = redacted
-            .map { "  - step \($0.actionIndex) (\($0.toolName)): \($0.reason)" }
-            .joined(separator: "\n")
-        return CLIResult(
-            output: """
-            This plan contains \(redacted.count) redacted value(s), so generation would emit
-            placeholders as executable input:
-            \(details)
-
-            Replace each value with an approved fixture or a named context helper, then generate again.
-            """,
-            exitCode: 65
-        )
+    let pipeline = StudioTestGenerationPipeline(emitters: emitters)
+    let test = try pipeline.prepare(
+        decodedTest,
+        contextPath: options.contextPath,
+        discoveryDirectory: URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        testName: options.testName
+    )
+    let emitter: any StudioCodeEmitting
+    do {
+        emitter = try pipeline.emitter(for: test, toolkit: options.uiToolkit)
+        // A plan can record steps that never made it into toolOperations, or carry redacted values.
+        // Generating anyway would produce a test that fails for reasons that point nowhere near the
+        // real cause, so stop unless the caller explicitly accepts a partial test.
+        try pipeline.checkCompleteness(test, allowIncomplete: options.allowIncomplete)
+    } catch let error as StudioGenerationError {
+        if case .noEmitter = error {
+            return CLIResult(output: error.description, exitCode: 64)
+        }
+        return CLIResult(output: error.description, exitCode: 65)
     }
 
     var exportedTest = test

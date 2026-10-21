@@ -221,7 +221,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
     // A direct switch keeps the supported Studio-tool-to-XCUITest mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private static func statement(
+    static func statement(
         for operation: StudioToolOperation,
         context: StudioTestContext?,
         localNames: inout LocalNameAllocator,

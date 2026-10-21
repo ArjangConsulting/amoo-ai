@@ -199,6 +199,9 @@ public struct StudioService: Sendable {
         if agents != nil {
             capabilities.append("agent.runs")
         }
+        if await automation.canGenerateTests() {
+            capabilities.append("tests.generate")
+        }
         return capabilities
     }
 
@@ -321,6 +324,8 @@ public struct StudioService: Sendable {
             try await encodeValue(automation.reports())
         case "tests.export":
             try await encodeValue(automation.export(request.decodeParams(StudioTestExportRequest.self)))
+        case "tests.generate":
+            try await encodeValue(automation.generate(request.decodeParams(StudioTestGenerateRequest.self)))
         default:
             nil
         }

@@ -91,6 +91,9 @@ public struct StudioAgentEvent: Codable, Equatable, Sendable {
     public var structuredContent: String?
     public var screenshot: StudioScreenshot?
     public var gesturePoint: StudioPoint?
+    /// For `toolResult`: the session action this call recorded, which a compiled plan names
+    /// `step-<actionIndex>`, so generated code can be linked back to this step's screenshot.
+    public var actionIndex: Int?
     public var inputTokens: Int?
     public var outputTokens: Int?
     public var state: StudioAgentRunState?

@@ -24,6 +24,8 @@ public struct StudioTestExportResult: Codable, Equatable, Sendable {
 /// depending on the concrete emitters, which themselves depend on this module's types.
 public protocol StudioCodeEmitting: Sendable {
     func generate(_ test: StudioAuthoredTest) throws -> StudioTestExportResult
+    /// The same source as `generate`, with where each operation landed in it.
+    func generateMapped(_ test: StudioAuthoredTest) throws -> StudioGeneratedSource
 }
 
 public struct StudioCodeEmitters: Sendable {

@@ -149,7 +149,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     // A direct switch keeps the supported Studio-tool-to-Compose mapping auditable in one place.
     // Exhaustive tool rendering is clearer as one switch than as disconnected partial mappings.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private static func statement(
+    static func statement(
         for operation: StudioToolOperation,
         next: StudioToolOperation?,
         context: StudioTestContext?
