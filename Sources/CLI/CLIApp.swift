@@ -239,6 +239,18 @@ public struct CLIApp {
     }
 
     private func handleDeviceCommand(remaining: [String]) async -> CLIResult {
+        if remaining.first == "stream" {
+            let streamArgs = Array(remaining.dropFirst())
+            if isHelpRequest(streamArgs) {
+                return CLIResult(output: renderDeviceStreamHelp(), exitCode: 0)
+            }
+            switch parseDeviceStreamOptions(args: streamArgs) {
+            case let .failure(error):
+                return CLIResult(output: error.description, exitCode: 64)
+            case let .success(options):
+                return await runDeviceStream(options: options)
+            }
+        }
         if isHelpRequest(remaining) {
             return CLIResult(output: renderDeviceHelp(), exitCode: 0)
         }

@@ -180,6 +180,11 @@ Environment variables:
 Launch arguments:
   Repeat --arg once per argument, or pass launch_args=<a,b,c>.
 
+Live frames:
+  amoo device stream [--platform ios|android] [--device <id>] [--fps <n>] streams screenshots as
+  PNG files plus one JSON line per frame, without a companion or session. See
+  `amoo device stream --help`.
+
 Defaults:
   platform=ios
   ios port=22087

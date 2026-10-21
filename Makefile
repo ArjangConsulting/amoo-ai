@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: format lint check test coverage ci build swift-build plugin verify-linux protos protos-check companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build plugin mod-check amoo-live amoo-live-debug verify-linux protos protos-check companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -41,6 +41,20 @@ release-local:
 # agents/*.md. AmooPluginTests fails when they are stale.
 plugin:
 	swift run amoo agent render --out plugins/amoo
+
+# Validate and test the Claude Code mod in plugins/amoo-live (its hooks module, state contract and
+# pane). Needs the `claude` CLI; not part of `check`, since the Swift gate must not require it.
+mod-check:
+	@if ! command -v claude >/dev/null 2>&1; then echo "claude CLI not found; skipping mod-check."; exit 0; fi; \
+	claude plugin validate plugins/amoo-live && claude plugin test plugins/amoo-live
+
+# Start Claude Code with the amoo-live mod. `amoo-live` mirrors with the amoo on PATH (Homebrew);
+# `amoo-live-debug` builds this checkout and mirrors with .build/debug/amoo. Pass claude flags in ARGS.
+amoo-live:
+	./scripts/amoo-live.sh $(ARGS)
+
+amoo-live-debug:
+	./scripts/amoo-live.sh --debug $(ARGS)
 
 # Regenerate the committed host protobuf/gRPC Swift (Sources/Protos/Generated) from Protos/*.proto.
 # Needed only after editing a .proto. Normal builds skip the generator plugin because it makes

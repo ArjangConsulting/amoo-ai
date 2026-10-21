@@ -1,0 +1,25 @@
+{
+  "name": "amoo-live",
+  "version": "0.2.0",
+  "description": "Claude Code only, experimental: a live pane mirroring the device amoo drives, with the session's recent actions, a status line and toasts on failed assertions. Requires the amoo CLI and MCP server.",
+  "author": { "name": "Arjang Consulting" },
+  "homepage": "https://github.com/ArjangConsulting/amoo-ai",
+  "repository": "https://github.com/ArjangConsulting/amoo-ai",
+  "license": "MIT",
+  "keywords": ["mobile", "ios", "android", "simulator", "emulator", "mirror", "mod"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "amooPath": {
+      "type": "string",
+      "title": "amoo executable",
+      "description": "Name or absolute path of the amoo CLI that runs `amoo device stream` for the mirror.",
+      "default": "amoo"
+    },
+    "fps": {
+      "type": "number",
+      "title": "Mirror frames per second",
+      "description": "Frames per second to aim for, 0.1 to 30. Capture speed caps it at about 3 on simulators and emulators.",
+      "default": 6
+    }
+  }
+}
