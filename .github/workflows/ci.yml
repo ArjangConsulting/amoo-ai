@@ -114,13 +114,15 @@ jobs:
         with:
           variant: release-debug-tests
 
+      # `swift build` has no --enable-testable-imports, so testability is passed to the compiler;
+      # the --skip-build test step repeats the same flags.
       - name: Build optimized tests
         timeout-minutes: 20
-        run: swift build -c release -Xswiftc -DDEBUG --disable-index-store --build-tests
+        run: swift build -c release -Xswiftc -DDEBUG -Xswiftc -enable-testing --disable-index-store --build-tests
 
       - name: Optimized subprocess regression gate
         timeout-minutes: 5
-        run: swift test -c release -Xswiftc -DDEBUG --disable-index-store --skip-build --filter ProcessRunnerTests
+        run: swift test -c release -Xswiftc -DDEBUG -Xswiftc -enable-testing --disable-index-store --skip-build --filter ProcessRunnerTests
 
   quality-and-tests:
     needs: [macos-quality, macos-release, macos-optimized-tests]
