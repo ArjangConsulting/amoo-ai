@@ -4,6 +4,19 @@ import Foundation
 
 /// Starts a provider-backed agent run that drives one device through a recorded amoo session.
 public struct StudioAgentStartRequest: Codable, Sendable {
+    /// The session this run records.
+    var sessionSpec: StudioSessionSpec {
+        .init(
+            deviceId: deviceId,
+            platform: platform,
+            appId: appId,
+            buildPath: buildPath,
+            launchArguments: launchArguments,
+            testName: activeTest.name,
+            testDescription: activeTest.description.isEmpty ? nil : activeTest.description
+        )
+    }
+
     public let provider: StudioProviderProfile
     /// The conversation so far; the last message is the user's request.
     public let messages: [StudioChatMessage]
@@ -248,20 +261,6 @@ public protocol StudioAgentModel: Sendable {
         tools: [StudioAgentToolSpec],
         onText: @escaping @Sendable (String) async -> Void
     ) async throws -> StudioAgentTurn
-}
-
-/// The device side of an agent run: a recorded amoo session. Implemented by the CLI with the same
-/// session-backed executor `amoo mcp serve` uses.
-public protocol StudioAgentSessionDriving: Sendable {
-    func startSession(_ request: StudioAgentStartRequest) async throws -> String
-    /// Runs a tool in the session; the call is recorded like an MCP call.
-    func execute(sessionId: String, tool: String, arguments: [String: String]) async -> StudioAgentToolOutcome
-    /// A settled screenshot that is not recorded, so it never becomes a step in a generated test.
-    func observeScreen(sessionId: String) async -> StudioScreenshot?
-    /// Ends the session, writing `plan.json` and `flow.json` when the session recorded actions.
-    func endSession(sessionId: String) async -> StudioAgentSessionEnd
-    /// Where the session's files live, for the run's event log.
-    func sessionDirectory(sessionId: String) async -> URL?
 }
 
 public struct StudioAgentToolOutcome: Sendable, Equatable {

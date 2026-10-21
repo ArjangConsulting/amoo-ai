@@ -4,14 +4,12 @@ import Foundation
 public enum StudioAgentError: Error, CustomStringConvertible {
     case runNotFound(String)
     case invalidRequest(String)
-    case deviceBusy(String)
     case approvalNotPending(String)
 
     public var description: String {
         switch self {
         case let .runNotFound(id): "Agent run not found: \(id)"
         case let .invalidRequest(reason): "Invalid agent request: \(reason)"
-        case let .deviceBusy(id): "An agent run is already driving device \(id). Cancel it before starting another."
         case let .approvalNotPending(id): "No approval is waiting for call \(id)."
         }
     }
@@ -20,7 +18,8 @@ public enum StudioAgentError: Error, CustomStringConvertible {
 /// Starts and tracks agent runs for `amoo studio serve`. One run at a time drives a device; finished
 /// runs stay available for `agent.events` replay until the service has kept `retainedRuns` of them.
 public actor StudioAgentService {
-    private let session: any StudioAgentSessionDriving
+    private let session: any StudioSessionDriving
+    private let deviceSessions: StudioDeviceSessions
     private let catalog: any StudioToolCatalogProviding
     private let notifications: StudioNotificationCenter?
     private let deviceLocks: StudioDeviceLocks
@@ -31,10 +30,11 @@ public actor StudioAgentService {
     private static let retainedRuns = 20
 
     public init(
-        session: any StudioAgentSessionDriving,
+        session: any StudioSessionDriving,
         catalog: any StudioToolCatalogProviding,
         notifications: StudioNotificationCenter? = nil,
         deviceLocks: StudioDeviceLocks = .init(),
+        deviceSessions: StudioDeviceSessions = .init(),
         modelFactory: @escaping @Sendable (StudioProviderProfile)
             -> any StudioAgentModel = { StudioAgentModels.model(for: $0) }
     ) {
@@ -42,6 +42,7 @@ public actor StudioAgentService {
         self.catalog = catalog
         self.notifications = notifications
         self.deviceLocks = deviceLocks
+        self.deviceSessions = deviceSessions
         self.modelFactory = modelFactory
     }
 
@@ -55,11 +56,6 @@ public actor StudioAgentService {
         guard ["ios", "android"].contains(request.platform.lowercased()) else {
             throw StudioAgentError.invalidRequest("Platform must be ios or android.")
         }
-        for run in runs.values where run.deviceId == request.deviceId {
-            if await !run.state.isTerminal {
-                throw StudioAgentError.deviceBusy(request.deviceId)
-            }
-        }
         // The agent gets the console's tools: lifecycle tools are Studio's job. `run_steps` is left
         // out because it records one action per inner step, which would break the link between
         // timeline events and compiled plan steps.
@@ -71,8 +67,11 @@ public actor StudioAgentService {
             session: session,
             tools: tools,
             notifications: notifications,
-            deviceLocks: deviceLocks
+            deviceLocks: deviceLocks,
+            deviceSessions: deviceSessions
         )
+        // One recorded session per device: a console recording or another run must finish first.
+        try await deviceSessions.claim(request.deviceId, for: run.owner)
         runs[run.id] = run
         order.append(run.id)
         await pruneFinishedRuns()

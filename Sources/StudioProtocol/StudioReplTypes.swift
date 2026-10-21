@@ -40,6 +40,11 @@ public struct StudioReplResult: Codable, Equatable, Sendable {
     public let screenshot: StudioScreenshot?
     /// Where a tap landed, in points, for overlaying on `screenshot`.
     public let gesturePoint: StudioPoint?
+    /// While the console records, the session action this command recorded; a compiled plan names it
+    /// `step-<actionIndex>`.
+    public let actionIndex: Int?
+    /// The recording session this command was recorded into.
+    public let sessionId: String?
 
     public init(
         output: String,
@@ -48,8 +53,12 @@ public struct StudioReplResult: Codable, Equatable, Sendable {
         structuredContent: String? = nil,
         artifacts: [String]? = nil,
         screenshot: StudioScreenshot? = nil,
-        gesturePoint: StudioPoint? = nil
+        gesturePoint: StudioPoint? = nil,
+        actionIndex: Int? = nil,
+        sessionId: String? = nil
     ) {
+        self.actionIndex = actionIndex
+        self.sessionId = sessionId
         self.output = output
         self.isError = isError
         self.tool = tool
@@ -93,5 +102,65 @@ public struct StudioPoint: Codable, Equatable, Sendable {
     public init(x: Double, y: Double) {
         self.x = x
         self.y = y
+    }
+}
+
+/// Starts recording the console's commands on a device into a session, which launches the app fresh.
+public struct StudioReplRecordingStartRequest: Codable, Sendable {
+    public let deviceId: String
+    public let platform: String
+    public let appId: String
+    public let buildPath: String?
+    public let launchArguments: [String]?
+    public let testName: String?
+
+    public init(
+        deviceId: String,
+        platform: String,
+        appId: String,
+        buildPath: String? = nil,
+        launchArguments: [String]? = nil,
+        testName: String? = nil
+    ) {
+        self.deviceId = deviceId
+        self.platform = platform
+        self.appId = appId
+        self.buildPath = buildPath
+        self.launchArguments = launchArguments
+        self.testName = testName
+    }
+}
+
+public struct StudioReplRecordingStopRequest: Codable, Sendable {
+    public let deviceId: String
+
+    public init(deviceId: String) {
+        self.deviceId = deviceId
+    }
+}
+
+/// A console recording; after stopping, where its plan and flow were written.
+public struct StudioReplRecording: Codable, Equatable, Sendable {
+    public let sessionId: String
+    public let deviceId: String
+    public let actionCount: Int
+    public let planPath: String?
+    public let flowPath: String?
+    public let message: String?
+
+    public init(
+        sessionId: String,
+        deviceId: String,
+        actionCount: Int,
+        planPath: String? = nil,
+        flowPath: String? = nil,
+        message: String? = nil
+    ) {
+        self.sessionId = sessionId
+        self.deviceId = deviceId
+        self.actionCount = actionCount
+        self.planPath = planPath
+        self.flowPath = flowPath
+        self.message = message
     }
 }

@@ -32,6 +32,7 @@ failures keep the request `id` and use `-32602` for invalid params and `-32603` 
 | `repl.validate` | `repl.validate` returns diagnostics for a console line |
 | `agent.runs` | `agent.start`, `agent.events`, `agent.approve`, `agent.continue`, and `agent.cancel` run provider-backed agents, pushing `agent.event` |
 | `tests.generate` | `tests.generate` returns generated source with a source map, or the problem that stopped generation |
+| `repl.recording` | `repl.startRecording` and `repl.stopRecording` record console commands into a session |
 | `repl.structuredResults` | `repl.execute` runs any console tool and returns `isError`, `tool`, `structuredContent`, and `artifacts` |
 
 The catalog capabilities are advertised only when `amoo studio serve` is assembled with a
@@ -93,6 +94,7 @@ Methods, with the capability that enables each one when it differs from the meth
 | `providers.check` | Verify a provider profile can connect |
 | `repl.execute` | Execute a console command; with `repl.structuredResults`, any console tool with structured output and screenshots |
 | `repl.complete` / `repl.validate` | Complete or validate a console line |
+| `repl.startRecording` / `repl.stopRecording` | Record console commands on a device into a session, then end it and write its plan |
 | `tools.catalog` | The console and plan vocabulary |
 | `tests.run` | Validate and execute a compiled `.amootest` plan and wait for it |
 | `tests.start` / `tests.status` / `tests.cancel` | Run a plan asynchronously; with `tests.progress`, status is also pushed |
@@ -217,4 +219,30 @@ A compiled session names each operation `step-<n>`, where `n` is the index of th
 Agent `toolResult` events carry that `actionIndex`, so a step in generated code links back to its
 screenshot. For this reason the agent is not offered `run_steps`, which records several actions per
 call.
+
+## Console recording
+
+Console commands are not recorded by default: they run through `CLIStudioToolExecutor`, which has no
+session. Recording routes them through a session so they can be generated into a test.
+
+1. **Start.** `repl.startRecording {deviceId, platform, appId, buildPath?, launchArguments?,
+   testName?}` starts a session on the device, which launches the app fresh, and returns
+   `{sessionId, deviceId, actionCount}`. Starting again while recording returns the current
+   recording.
+2. **Record.** While a device records, `repl.execute` runs console tools in that session through
+   `CLIStudioSessions`, the same session-backed executor agent runs use. Each result carries the
+   `actionIndex` it recorded and the `sessionId`, and a compiled plan names that step
+   `step-<actionIndex>`.
+   - Built-in commands and test runs are not recorded.
+   - Screenshots come from `DriverToolExecutor.observeScreenshot`, and completion's elements from
+     `observeElements`. Neither records anything, so neither becomes a step.
+3. **Stop.** `repl.stopRecording {deviceId}` ends the session, which writes `plan.json` and
+   `flow.json`, and returns their paths with the action count. `tests.generate {sessionId}` then
+   generates the test.
+
+**One session per device.** `StudioDeviceSessions` lets a device record one session at a time, so a
+console recording and an agent run refuse each other's device with `StudioSessionError.deviceBusy`.
+
+**Shutdown.** When Studio's input closes, `amoo studio serve` cancels agent runs and stops
+recordings, so their sessions are written.
 

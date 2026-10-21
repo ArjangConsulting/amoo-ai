@@ -229,7 +229,7 @@ struct StudioAgentRunTests {
         let (service, runId) = try await start(model: model, session: FakeAgentSession())
         _ = try await waitForEvent(.approvalRequired, service: service, runId: runId)
 
-        await #expect(throws: StudioAgentError.self) { _ = try await service.start(startRequest()) }
+        await #expect(throws: StudioSessionError.self) { _ = try await service.start(startRequest()) }
         let tail = try await service.events(.init(runId: runId, after: 1))
         #expect(tail.events.allSatisfy { $0.seq > 1 })
         await service.cancelAll()
@@ -382,7 +382,7 @@ actor ScriptedModel: StudioAgentModel {
     }
 }
 
-actor FakeAgentSession: StudioAgentSessionDriving {
+actor FakeAgentSession: StudioSessionDriving {
     struct Execution: Equatable {
         let tool: String
         let arguments: [String: String]
@@ -399,7 +399,11 @@ actor FakeAgentSession: StudioAgentSessionDriving {
         self.startFails = startFails
     }
 
-    func startSession(_: StudioAgentStartRequest) throws -> String {
+    private(set) var specs: [StudioSessionSpec] = []
+    var elements: [StudioElementSuggestion] = []
+
+    func startSession(_ spec: StudioSessionSpec) throws -> String {
+        specs.append(spec)
         if startFails {
             throw StartFailure()
         }
@@ -415,6 +419,14 @@ actor FakeAgentSession: StudioAgentSessionDriving {
     func observeScreen(sessionId _: String) -> StudioScreenshot? {
         screens += 1
         return .init(path: "/tmp/screen.png", widthPixels: 10, heightPixels: 20)
+    }
+
+    func observeElements(sessionId _: String) -> [StudioElementSuggestion] {
+        elements
+    }
+
+    func setElements(_ elements: [StudioElementSuggestion]) {
+        self.elements = elements
     }
 
     func endSession(sessionId: String) -> StudioAgentSessionEnd {

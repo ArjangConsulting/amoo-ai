@@ -12,4 +12,15 @@ public extension DriverToolExecutor {
             return .error("Screenshot failed: \(error)")
         }
     }
+
+    /// Lists elements like `find_elements`, routed by `session_id`, without recording the query.
+    /// Studio's console completion uses it while a session records, so suggestions never become steps.
+    func observeElements(arguments: [String: String]) async -> ToolResult {
+        do {
+            let driver = try await resolveDriver(arguments: arguments)
+            return try await executeFindElements(arguments: arguments, driver: driver)
+        } catch {
+            return .error("Element query failed: \(error)")
+        }
+    }
 }

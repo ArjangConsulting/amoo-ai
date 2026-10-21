@@ -194,6 +194,8 @@ public struct CLIApp {
         let notifications = StudioNotificationCenter()
         let deviceLocks = StudioDeviceLocks()
         let toolExecutor = CLIStudioToolExecutor()
+        let sessions = CLIStudioSessions()
+        let deviceSessions = StudioDeviceSessions()
         let automation = LiveStudioAutomationService(
             workspace: workspace,
             toolExecutor: toolExecutor,
@@ -202,14 +204,16 @@ public struct CLIApp {
             deviceLocks: deviceLocks,
             toolCatalogProvider: MCPStudioToolCatalog(),
             elementSuggester: toolExecutor,
-            testGenerator: CLIStudioTestGenerator(pipeline: StudioTestGenerationPipeline(emitters: emitters))
+            testGenerator: CLIStudioTestGenerator(pipeline: StudioTestGenerationPipeline(emitters: emitters)),
+            sessionDriver: sessions,
+            deviceSessions: deviceSessions
         )
-        let agentSession = CLIStudioAgentSession()
         let agents = StudioAgentService(
-            session: agentSession,
+            session: sessions,
             catalog: MCPStudioToolCatalog(),
             notifications: notifications,
-            deviceLocks: deviceLocks
+            deviceLocks: deviceLocks,
+            deviceSessions: deviceSessions
         )
         await StudioService(
             workspace: workspace,
@@ -218,9 +222,10 @@ public struct CLIApp {
             deviceLocks: deviceLocks,
             agents: agents
         ).run(output: studioProtocolOutput())
-        // Input closed: end running agent sessions so their recordings are written.
+        // Input closed: end agent runs and console recordings so their sessions are written.
         await agents.cancelAll()
-        await agentSession.shutdown()
+        await automation.stopAllRecordings()
+        await sessions.shutdown()
         return CLIResult(output: "", exitCode: 0)
     }
 

@@ -26,9 +26,9 @@ public extension LiveStudioAutomationService {
         guard let grammar else { return .empty(at: request.cursor) }
         var elements: [StudioElementSuggestion] = []
         if grammar.needsElements(line: request.line, cursor: request.cursor),
-           let deviceId = request.selectedDeviceId, let platform = request.platform, let elementSuggester {
+           let deviceId = request.selectedDeviceId, let platform = request.platform {
             do {
-                elements = try await elementSuggester.elements(deviceId: deviceId, platform: platform)
+                elements = try await suggestedElements(deviceId: deviceId, platform: platform)
             } catch {
                 // Completion still offers enum values and names; element values are a bonus.
                 logger.debug(
@@ -67,10 +67,19 @@ public extension LiveStudioAutomationService {
         guard let deviceID = request.selectedDeviceId else {
             throw StudioAutomationError.invalidTest("Choose a device before running mobile commands.")
         }
+        let readOnly = grammar.tools[name]?.readOnly ?? false
+        if let recorded = await recordedToolResult(
+            tool: name,
+            arguments: arguments,
+            readOnly: readOnly,
+            deviceId: deviceID,
+            request: request
+        ) {
+            return recorded
+        }
         guard let toolExecutor else {
             throw StudioAutomationError.invalidTest("Real device tool execution is unavailable in this Amoo build.")
         }
-        let readOnly = grammar.tools[name]?.readOnly ?? false
         let operation = StudioToolOperation(id: "repl-\(UUID().uuidString)", tool: name, arguments: arguments)
         let target = ConsoleTarget(
             deviceId: deviceID,
