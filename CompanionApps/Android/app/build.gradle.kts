@@ -48,14 +48,14 @@ kotlin {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.25.3"
+        artifact = "com.google.protobuf:protoc:4.36.2"
     }
     plugins {
         create("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.62.2"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.85.0"
         }
         create("grpckt") {
-            artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.1:jdk8@jar"
+            artifact = "io.grpc:protoc-gen-grpc-kotlin:1.5.0:jdk8@jar"
         }
     }
     generateProtoTasks {
@@ -74,22 +74,22 @@ protobuf {
 
 dependencies {
     // gRPC
-    implementation("io.grpc:grpc-netty:1.62.2")
-    implementation("io.grpc:grpc-protobuf:1.62.2")
-    implementation("io.grpc:grpc-stub:1.62.2")
-    implementation("io.grpc:grpc-kotlin-stub:1.4.1")
-    implementation("com.google.protobuf:protobuf-kotlin:3.25.3")
+    implementation("io.grpc:grpc-netty:1.85.0")
+    implementation("io.grpc:grpc-protobuf:1.85.0")
+    implementation("io.grpc:grpc-stub:1.85.0")
+    implementation("io.grpc:grpc-kotlin-stub:1.5.0")
+    implementation("com.google.protobuf:protobuf-kotlin:4.36.2")
     implementation("javax.annotation:javax.annotation-api:1.3.2")
 
     // AndroidX Test + UIAutomator
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test:runner:1.5.2")
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.0")
 
     // gRPC for instrumentation tests
-    androidTestImplementation("io.grpc:grpc-netty:1.62.2")
-    androidTestImplementation("io.grpc:grpc-protobuf:1.62.2")
-    androidTestImplementation("io.grpc:grpc-stub:1.62.2")
-    androidTestImplementation("io.grpc:grpc-kotlin-stub:1.4.1")
+    androidTestImplementation("io.grpc:grpc-netty:1.85.0")
+    androidTestImplementation("io.grpc:grpc-protobuf:1.85.0")
+    androidTestImplementation("io.grpc:grpc-stub:1.85.0")
+    androidTestImplementation("io.grpc:grpc-kotlin-stub:1.5.0")
     androidTestImplementation("javax.annotation:javax.annotation-api:1.3.2")
 }

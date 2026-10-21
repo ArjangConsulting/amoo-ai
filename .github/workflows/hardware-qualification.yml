@@ -24,7 +24,7 @@ jobs:
       E2E_APP_ID: com.amoo.companion
       AMOO_E2E_STRICT: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: swift build -c release
       - name: Start companion and qualify dedicated hardware
         shell: bash
@@ -54,7 +54,7 @@ jobs:
           done
           [ "$ready" = true ] || { cat companion.log; exit 1; }
           swift test --filter 'IntegrationTests.CommandContractE2ETests/test(StartAndEndSession|FixtureHomeQueries|NavigateToDetailsAndScroll|TextEntryAndClearing)' 2>&1 | tee hardware.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: hardware-${{ matrix.platform }}

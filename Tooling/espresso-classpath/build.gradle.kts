@@ -13,7 +13,7 @@ val espressoClasspath: Configuration by configurations.creating
 val composeAndroidArtifacts: Configuration by configurations.creating
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     espressoClasspath(composeBom)
     espressoClasspath("androidx.test.espresso:espresso-core:3.7.0")
     espressoClasspath("androidx.test.ext:junit:1.3.0")
