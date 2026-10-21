@@ -30,6 +30,8 @@ failures keep the request `id` and use `-32602` for invalid params and `-32603` 
 | `tools.catalog` | `tools.catalog` returns the console and plan vocabulary built from the MCP registry |
 | `repl.complete` | `repl.complete` completes a console line, including elements on a connected device's screen |
 | `repl.validate` | `repl.validate` returns diagnostics for a console line |
+| `agent.runs` | `agent.start`, `agent.events`, `agent.approve`, `agent.continue`, and `agent.cancel` run provider-backed agents, pushing `agent.event` |
+| `tests.generate` | `tests.generate` returns generated source with a source map, or the problem that stopped generation |
 | `repl.structuredResults` | `repl.execute` runs any console tool and returns `isError`, `tool`, `structuredContent`, and `artifacts` |
 
 The catalog capabilities are advertised only when `amoo studio serve` is assembled with a
@@ -74,12 +76,13 @@ The catalog capabilities are advertised only when `amoo studio serve` is assembl
   | `wait_for_element` | `assert_visible` |
   | `assert_text` | `assert_visible`; the expected text constrains the element's `label`, or becomes `contains_text` without a selector |
 
-The initial methods are:
+Methods, with the capability that enables each one when it differs from the method name:
 
 | Method | Result |
 | --- | --- |
 | `system.handshake` | Product version, protocol version, and capability identifiers |
-| `system.health` | Current service status |
+| `system.health` | Current service status (capability `health`) |
+| `mcp.status` | MCP readiness, transport, and launch arguments |
 | `devices.list` | Running and available simulators, emulators, and devices |
 | `devices.start` | Boot a selected simulator or emulator |
 | `devices.create` | Create a simulator or emulator through the typed process layer |
@@ -87,11 +90,20 @@ The initial methods are:
 | `apps.reinstallRun` | Reinstall the last artifact without rebuilding |
 | `apps.resetData` | Remove app-local data after explicit approval |
 | `chat.send` | Send provider-neutral conversation state through the configured AI provider |
-| `repl.execute` | Execute a safe structured Studio console command |
-| `tests.run` | Validate and execute a compiled `.amootest` plan |
+| `providers.check` | Verify a provider profile can connect |
+| `repl.execute` | Execute a console command; with `repl.structuredResults`, any console tool with structured output and screenshots |
+| `repl.complete` / `repl.validate` | Complete or validate a console line |
+| `tools.catalog` | The console and plan vocabulary |
+| `tests.run` | Validate and execute a compiled `.amootest` plan and wait for it |
+| `tests.start` / `tests.status` / `tests.cancel` | Run a plan asynchronously; with `tests.progress`, status is also pushed |
+| `tests.export` | Generate native test source (save-only flow) |
+| `tests.generate` | Generate native test source with a source map, or the problem that stopped it |
+| `agent.start` / `agent.events` / `agent.approve` / `agent.continue` / `agent.cancel` | Provider-backed agent runs (capability `agent.runs`) |
 | `reports.list` | Return persisted Studio test reports and artifacts |
 
-Provider secrets are resolved only from the environment-variable name in the profile. Studio test
+Notifications pushed by Amoo are `tests.progress` and `agent.event`.
+
+Provider secrets come from the profile's inline `apiKey`, which Studio sends only when Amoo advertises `providers.apiKey`, or else from the named environment variable; neither is persisted or logged. Studio test
 execution requires a compiled plan; authored intent without executable operations fails explicitly.
 Reports are owned and persisted by Amoo. REPL commands reject destructive operations so those actions
 continue to require an explicit approval event in Studio.
