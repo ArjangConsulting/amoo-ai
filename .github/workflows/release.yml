@@ -186,6 +186,8 @@ jobs:
 
       # Swift 6.4's build system writes every architecture to one products directory, so a
       # per-architecture build would overwrite the other; one multi-arch build emits the fat binary.
+      # The runner's lipo rejects -verify_arch with several architectures, so the slices are
+      # checked from -archs.
       - name: Build universal binary
         run: |
           swift build \
@@ -195,7 +197,13 @@ jobs:
             --arch x86_64 \
             --disable-sandbox
           cp "$(swift build --configuration release --arch arm64 --arch x86_64 --show-bin-path)/amoo" amoo
-          lipo amoo -verify_arch arm64 x86_64
+          archs="$(lipo -archs amoo)"
+          for arch in arm64 x86_64; do
+            case " ${archs} " in
+              *" ${arch} "*) ;;
+              *) echo "::error::amoo is missing ${arch} (has: ${archs})"; exit 1 ;;
+            esac
+          done
           lipo -info amoo
 
       - name: Smoke test stamped binary
