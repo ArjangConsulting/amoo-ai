@@ -67,19 +67,27 @@ jobs:
           # Already-booted is fine; the wait step below fails if the device never becomes ready.
           xcrun simctl boot "$simulator_id" || true
           echo "udid=$simulator_id" >> "$GITHUB_OUTPUT"
+      # hashFiles walks the whole workspace and has timed out (120 s) while the simulator boot above
+      # loads the disk; hashing the two key files directly does not.
+      - name: Compute cache keys
+        id: keys
+        shell: bash
+        run: |
+          echo "package=$(shasum -a 256 Package.resolved | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "project=$(shasum -a 256 CompanionApps/iOS/project.yml | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Restore host SPM dependencies
         id: host-spm
         uses: actions/cache/restore@v6
         with:
           path: .build
-          key: spm-companion-ios-${{ hashFiles('Package.resolved') }}
+          key: spm-companion-ios-${{ steps.keys.outputs.package }}
       # xcodebuild otherwise re-clones ~20 packages (~2.5 min) on every run. Only the fetched
       # sources are cached; compiled products are rebuilt (project.yml pins exact versions).
       - name: Restore companion SPM checkouts
         uses: actions/cache@v6
         with:
           path: CompanionApps/iOS/build/SourcePackages
-          key: spm-companion-xcode-${{ hashFiles('CompanionApps/iOS/project.yml') }}
+          key: spm-companion-xcode-${{ steps.keys.outputs.project }}
       - run: make companion-ios-build
       - name: Build host integration tests
         run: swift build --build-tests
