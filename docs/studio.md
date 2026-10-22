@@ -122,7 +122,7 @@ moqserver Studio. It owns Content-Length framing, JSON-RPC request correlation, 
 lifecycle and stderr draining, bundled binary discovery, and observable connection state.
 
 It is published under the MIT license at `https://github.com/maniramezan/process-rpc-kotlin` and
-consumed as the versioned `com.github.maniramezan:process-rpc-kotlin:0.1.0` dependency. Both Amoo
+consumed as the versioned `com.github.maniramezan:process-rpc-kotlin:0.2.0` dependency. Both Amoo
 Studio and moqserver Studio can therefore use the same release without source checkouts.
 
 ## Distribution
