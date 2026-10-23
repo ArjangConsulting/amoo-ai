@@ -228,8 +228,11 @@ moved nothing says "No observable change" (`observable_change=false`) instead of
 `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
 names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen, and exports
 (a swipe-until-hittable loop in XCUITest, `scrollTo()` in Espresso, `performScrollTo()` in Compose);
-`dismiss_keyboard` tries Return, a Hide/Done button, then a swipe — `press_key return` does nothing
-on a number pad. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
+`dismiss_keyboard` only taps an unambiguous, visible, enabled button labeled `Hide keyboard` or
+`Dismiss keyboard`, then verifies that the keyboard disappeared. Without a dedicated dismissal
+control it fails without acting. It never sends Return or Escape, taps a generic Done button, or
+swipes, since those can submit a form or close a sheet. Use `tap_element` with an explicit app
+control when you intend that action. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
 large accessibility tree needs longer.
 
 ## Reviewing screenshots

@@ -4,8 +4,7 @@ import Foundation
 @testable import MCPServer
 import XCTest
 
-/// `scroll_to_element` and `dismiss_keyboard` replace guesswork: a hand-tuned `scroll` distance, and
-/// `press_key return`, which "succeeds" on a decimal pad without hiding anything.
+/// Scrolling helpers bring elements into view without guessing a distance.
 final class ScrollAndKeyboardToolTests: XCTestCase {
     private actor ScrollingDriver: PlatformDriver {
         /// Scrolls (in the requested direction) before the element becomes visible.
@@ -93,110 +92,7 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
         )
         XCTAssertTrue(result.isError)
     }
-
-    // MARK: - dismiss_keyboard
-
-    private actor KeyboardDriver: PlatformDriver {
-        private let fix: KeyboardFix
-        private var visible = true
-        private(set) var steps: [String] = []
-
-        init(fix: KeyboardFix, visible: Bool = true) {
-            self.fix = fix
-            self.visible = visible
-        }
-
-        func isKeyboardVisible() async throws -> Bool {
-            visible
-        }
-
-        func pressKey(_ key: KeyboardKey, modifiers _: Set<KeyModifier>) async throws {
-            steps.append(key == .escape ? "escape" : "return")
-            if (fix == .returnKey && key == .returnKey) || (fix == .escapeKey && key == .escape) {
-                visible = false
-            }
-        }
-
-        func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
-            try await findElements(selector, appID: nil)
-        }
-
-        func findElements(_ selector: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
-            guard selector.label == "Done" else { return [] }
-            return [ElementInfo(
-                id: "done",
-                label: "Done",
-                type: .button,
-                frame: Rect(x: 300, y: 500, width: 60, height: 40)
-            )]
-        }
-
-        func tap(at _: Point) async throws {
-            steps.append("tap-done")
-            if fix == .doneButton {
-                visible = false
-            }
-        }
-
-        func swipe(
-            direction _: Direction,
-            distance _: Double,
-            duration _: Duration,
-            element _: ElementSelector?
-        ) async throws {
-            steps.append("swipe")
-            if fix == .swipe {
-                visible = false
-            }
-        }
-    }
-
-    func testDismissKeyboardIsANoOpWhenHidden() async {
-        let driver = KeyboardDriver(fix: .nothing, visible: false)
-        let result = await DriverToolExecutor(driver: driver).execute(toolName: "dismiss_keyboard", arguments: [:])
-        XCTAssertFalse(result.isError)
-        let steps = await driver.steps
-        XCTAssertTrue(steps.isEmpty)
-    }
-
-    func testDismissKeyboardStopsAtReturnWhenThatWorks() async {
-        let driver = KeyboardDriver(fix: .returnKey)
-        let result = await DriverToolExecutor(driver: driver).execute(toolName: "dismiss_keyboard", arguments: [:])
-        XCTAssertTrue(result.content.contains("Return"), result.content)
-        let steps = await driver.steps
-        XCTAssertEqual(steps, ["return"])
-    }
-
-    func testDismissNumericKeyboardWithEscapeWithoutTappingAppButtons() async {
-        let driver = KeyboardDriver(fix: .escapeKey)
-        let result = await DriverToolExecutor(driver: driver).execute(toolName: "dismiss_keyboard", arguments: [:])
-        XCTAssertFalse(result.isError, result.content)
-        XCTAssertTrue(result.content.contains("Escape"), result.content)
-        let steps = await driver.steps
-        XCTAssertEqual(steps, ["return", "escape"])
-    }
-
-    func testDismissKeyboardFallsBackToTheDoneButton() async {
-        let driver = KeyboardDriver(fix: .doneButton)
-        let result = await DriverToolExecutor(driver: driver).execute(toolName: "dismiss_keyboard", arguments: [:])
-        XCTAssertTrue(result.content.contains("'Done' button"), result.content)
-        let steps = await driver.steps
-        XCTAssertEqual(steps, ["return", "escape", "tap-done"])
-    }
-
-    func testDismissKeyboardFallsBackToASwipeAndThenFailsLoudly() async {
-        let swipe = KeyboardDriver(fix: .swipe)
-        let swiped = await DriverToolExecutor(driver: swipe).execute(toolName: "dismiss_keyboard", arguments: [:])
-        XCTAssertTrue(swiped.content.contains("swiping down"), swiped.content)
-
-        let stuck = KeyboardDriver(fix: .nothing)
-        let failed = await DriverToolExecutor(driver: stuck).execute(toolName: "dismiss_keyboard", arguments: [:])
-        XCTAssertTrue(failed.isError)
-        XCTAssertTrue(failed.content.contains("still visible"), failed.content)
-    }
 }
-
-private enum KeyboardFix { case returnKey, escapeKey, doneButton, swipe, nothing }
 
 // swiftlint:enable multiline_arguments
 

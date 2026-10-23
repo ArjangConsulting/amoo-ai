@@ -132,9 +132,10 @@ public enum ActionTools {
         ),
         ToolDefinition(
             name: "dismiss_keyboard",
-            description: "Hide the on-screen keyboard. Tries the Return/Done key, Escape, then a keyboard Hide/Done"
-                + " button, then a swipe down on the keyboard, and reports which worked. Use it when"
-                + " press_key return does nothing, as on a decimal or number pad.",
+            description: "Hide the on-screen keyboard using an unambiguous button labeled Hide keyboard or"
+                + " Dismiss keyboard. Fails without acting when no dedicated dismissal control is available."
+                + " Never sends Return/Escape, taps Done, or swipes: those can submit forms or close sheets."
+                + " Use tap_element with an explicit app control when that action is intended.",
             properties: [:]
         ),
         ToolDefinition(
