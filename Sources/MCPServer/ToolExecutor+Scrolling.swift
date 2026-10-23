@@ -112,42 +112,38 @@ extension DriverToolExecutor {
             .joined(separator: "\n")
     }
 
-    /// Hides the keyboard by the gentlest means that works and says which one did.
+    /// Hides the keyboard using one unambiguous, explicitly named dismissal button.
     ///
-    /// `press_key return` reports success on a decimal or number pad, which has no Return key, and
-    /// leaves the keyboard up. This tries Return, Escape, a Hide/Done button, then a swipe down.
+    /// Return can submit a form, Escape can close a sheet, and a generic Done button can save it.
+    /// Swiping can dismiss the sheet too, so none of those are keyboard-dismissal fallbacks.
     func executeDismissKeyboard(arguments: [String: String], driver: any PlatformDriver) async throws -> ToolResult {
         guard try await driver.isKeyboardVisible() else {
             return .success("Keyboard was not visible")
         }
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
-        if let key = KeyboardKey(name: "return") {
-            try? await driver.pressKey(key, modifiers: [])
-            if await keyboardIsGone(driver) {
-                return .success("Keyboard dismissed with Return")
+        var candidates: [ElementInfo] = []
+        for label in ["Hide keyboard", "Dismiss keyboard"] {
+            let elements = try await driver.findElements(ElementSelector(label: label), appID: appID)
+            candidates += elements.filter {
+                $0.label == label && $0.type == .button && $0.isVisible && $0.isEnabled
+                    && ($0.hitPoint ?? $0.frame?.centre) != nil
             }
         }
-        try? await driver.pressKey(.escape, modifiers: [])
-        if await keyboardIsGone(driver) {
-            return .success("Keyboard dismissed with Escape")
+        guard candidates.count == 1, let button = candidates.first,
+              let point = button.hitPoint ?? button.frame?.centre else {
+            return .error(
+                "dismiss_keyboard failed: no unambiguous keyboard-dismiss control was found."
+                    + " No action was taken. Use tap_element with an explicit app control if you intend"
+                    + " to submit or close the form."
+            )
         }
-        for label in ["Hide keyboard", "Done", "Dismiss keyboard"] {
-            let buttons = await (try? driver.findElements(ElementSelector(label: label), appID: appID)) ?? []
-            if let button = buttons.first(where: { $0.isVisible && $0.isEnabled }),
-               let point = button.hitPoint ?? button.frame?.centre {
-                try await driver.tap(at: point)
-                if await keyboardIsGone(driver) {
-                    return .success("Keyboard dismissed with the '\(label)' button")
-                }
-            }
-        }
-        try await driver.swipe(direction: .down, distance: 200, duration: Duration(milliseconds: 300), element: nil)
+        try await driver.tap(at: point)
         if await keyboardIsGone(driver) {
-            return .success("Keyboard dismissed by swiping down")
+            return .success("Keyboard dismissed with the '\(button.label)' button")
         }
         return .error(
-            "dismiss_keyboard failed: the keyboard is still visible after Return, Escape,"
-                + " a Hide/Done button and a swipe."
+            "dismiss_keyboard failed: the keyboard is still visible after tapping '\(button.label)'."
+                + " No further action was taken. Inspect the screen and use an explicit app control."
         )
     }
 

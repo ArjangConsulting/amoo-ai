@@ -74,7 +74,7 @@ needed rather than guessing its arguments.
 | Inspect WebView-only state | webview_dom or webview_eval |
 | Test landscape or rotation | set_orientation, then re-query — every coordinate moves |
 | Keyboard navigation or shortcuts | press_key with key= and optional modifiers= |
-| Hide the keyboard (press_key return does nothing on a number pad) | dismiss_keyboard |
+| Hide the keyboard through a dedicated Hide keyboard / Dismiss keyboard button | dismiss_keyboard; fails without acting if no unambiguous control exists. Use tap_element for an intended app action such as Done; Return, Escape, and swipes can submit forms or close sheets. |
 | Reach a row below the fold | scroll_to_element; `scroll` direction names where to scroll (down reveals below) |
 
 Prefer stable IDs, then exact labels, then scoped text queries. `tap_element` resolves its own
