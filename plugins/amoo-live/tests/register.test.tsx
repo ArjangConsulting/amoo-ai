@@ -1,22 +1,8 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { amooToolName, describeAction, fitImage, startedSession } from '../hooks/register'
 
-const PANE = {
-  plugin: 'amoo-live',
-  component: 'Pane',
-  requestId: 'amoo-live',
-  props: {
-    title: 'amoo live',
-    isFocused: false,
-    bodyColumns: 40,
-    placement: 'dock',
-    scroll: { offset: 0, bodyRows: 30 },
-    view: {},
-  },
-} as const
-
-const STARTED_TEXT = 'Started session s-1 for com.example.app on ios device SIM-1.'
+import { mockUI, PANE, STARTED_TEXT } from './fixtures'
 
 test('recognises amoo tools from a configured server and from the amoo plugin', () => {
   expect(amooToolName('mcp__amoo__tap_element')).toBe('tap_element')
@@ -27,7 +13,9 @@ test('recognises amoo tools from a configured server and from the amoo plugin', 
 
 test('never shows typed text, only its length', () => {
   expect(describeAction('type_text', { text: 'hunter2' })).toBe('type_text (7 chars)')
-  expect(describeAction('set_text', { label: 'Password', value: 'secret' })).toBe("set_text 'Password' (6 chars)")
+  expect(describeAction('set_text', { label: 'Password', value: 'secret' })).toBe(
+    "set_text 'Password' (6 chars)",
+  )
   expect(describeAction('tap_element', { label: 'Sign in' })).toBe("tap_element 'Sign in'")
   expect(describeAction('tap', { x: 10, y: 20 })).toBe('tap 10,20')
   expect(describeAction('open_url', { url: 'https://example.com/?token=abc' })).toBe('open_url')
@@ -67,7 +55,7 @@ test('fits a portrait frame into the pane without stretching it', () => {
   expect(fitImage(368, 800, 20, 30)).toEqual({ columns: 20, rows: 22 })
 })
 
-test('the pane waits for a session, on every surface', async $ => {
+test('the pane waits for a session, on every surface', async ($) => {
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await ui.find({ type: 'Text', text: /No amoo session yet/ })).toBeDefined()
@@ -76,10 +64,12 @@ test('the pane waits for a session, on every surface', async $ => {
 })
 
 test('the pane follows a session and lists its actions, on every surface', async ($, on) => {
+  const clock = mockUI(on)
   on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow' } }))
   on('tool.call', (_, e) => {
     if (e.tool === 'mcp__amoo__start_session') return { result: {}, text: STARTED_TEXT }
-    if (e.tool === 'mcp__amoo__assert_visible') return { isError: true, result: undefined, text: 'Assertion failed after 2000ms.' }
+    if (e.tool === 'mcp__amoo__assert_visible')
+      return { isError: true, result: undefined, text: 'Assertion failed after 2000ms.' }
     return { result: {}, text: 'ok' }
   })
 
@@ -90,14 +80,22 @@ test('the pane follows a session and lists its actions, on every surface', async
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect((await ui.find({ type: 'Text', text: /com\.example\.app/ }))?.text).toBe('ios · com.example.app')
-    expect((await ui.find({ type: 'Text', text: /type_text/ }))?.text).toBe('✓ type_text (7 chars)')
-    expect((await ui.find({ type: 'Text', text: /assert_visible/ }))?.text).toBe("✗ assert_visible 'Welcome'")
+    expect((await ui.find({ type: 'Text', text: /type_text/ }))?.text).toStartWith('✓ type_text (7 chars) · ')
+    expect((await ui.find({ type: 'Text', text: /assert_visible/ }))?.text).toStartWith(
+      "✗ assert_visible 'Welcome' · ",
+    )
     expect(await ui.find({ type: 'Text', text: /hunter2/ })).toBeUndefined()
     await ui.unmount()
   }
+  await clock.advance(0)
 })
 
 test('a pane hidden by a narrow terminal says so and starts the mirror once it is drawn', async ($, on) => {
+  const clock = mock.clock(on)
+  on('ui.panes', () => ({
+    value: [{ id: 'amoo-live', title: 'amoo live', isShown: true, isFocused: false, isPlaced: true }],
+  }))
+  on('ui.log', () => ({ value: undefined }))
   const spawned: string[][] = []
   const toasts: string[] = []
   on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow: 100 < 144 columns' } }))
@@ -114,18 +112,19 @@ test('a pane hidden by a narrow terminal says so and starts the mirror once it i
 
   await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
   expect(spawned).toHaveLength(0)
-  expect(toasts.some(text => text.includes('/amoo-live'))).toBe(true)
+  expect(toasts.some((text) => text.includes('/amoo-live'))).toBe(true)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await clock.advance(0)
   expect(spawned).toHaveLength(1)
   expect(spawned[0]).toContain('stream')
   await ui.unmount()
 })
 
 test('the pane says why the mirror stopped when the stream exits on its own', async ($, on) => {
+  const clock = mockUI(on)
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
-  on('ui.status', () => ({ value: undefined }))
   on('process.spawn', async function* () {
     yield { stream: 'stdout' as const, text: "Unknown tool 'stream'.\n" }
     return { value: { code: 64, signal: null } }
@@ -135,6 +134,7 @@ test('the pane says why the mirror stopped when the stream exits on its own', as
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
+    await clock.advance(0)
     expect((await ui.find({ type: 'Text', text: /^mirror:/ }))?.text).toBe(
       "mirror: amoo device stream exited with 64: Unknown tool 'stream'.",
     )

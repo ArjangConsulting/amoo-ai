@@ -1,7 +1,7 @@
 {
   "name": "amoo-live",
   "version": "0.2.0",
-  "description": "Claude Code only, experimental: a live pane mirroring the device amoo drives, with the session's recent actions, a status line and toasts on failed assertions. Requires the amoo CLI and MCP server.",
+  "description": "Claude Code only, experimental: a live device pane with per-session progress, pause/resume/retry controls, recording health, artifacts and failed-assertion toasts. Requires the amoo CLI and MCP server.",
   "author": { "name": "Arjang Consulting" },
   "homepage": "https://github.com/ArjangConsulting/amoo-ai",
   "repository": "https://github.com/ArjangConsulting/amoo-ai",
@@ -18,7 +18,7 @@
     "fps": {
       "type": "number",
       "title": "Mirror frames per second",
-      "description": "Frames per second to aim for, 0.1 to 30. Capture speed caps it at about 3 on simulators and emulators.",
+      "description": "Frames per second to aim for, 0.1 to 30. Capture speed caps it at about 2 on simulators and about 1 on physical iOS devices.",
       "default": 6
     }
   }
