@@ -117,6 +117,34 @@ final class CompanionBuildReuseTests: XCTestCase {
         XCTAssertTrue(commands.isEmpty)
     }
 
+    func testAndroidAutoPrefersNewerCheckoutAPKsAndReuseRetainsPackagedProducts() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        var config = AndroidCompanionConfig(companionDir: scratch.url.path, serial: nil)
+        let manager = AndroidCompanionManager()
+        for (path, timestamp) in [
+            ("prebuilt/app-debug.apk", 1.0), ("prebuilt/app-debug-androidTest.apk", 1.0),
+            ("app/build/outputs/apk/debug/app-debug.apk", 2.0),
+            ("app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk", 2.0)
+        ] {
+            let file = scratch.url.appending(path: path)
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data().write(to: file)
+            try FileManager.default.setAttributes(
+                [.modificationDate: Date(timeIntervalSince1970: timestamp)],
+                ofItemAtPath: file.path
+            )
+        }
+        XCTAssertFalse(manager.usesBundledAPKs(config: config))
+        config.buildMode = .reuse
+        XCTAssertTrue(manager.usesBundledAPKs(config: config))
+        config.buildMode = .rebuild
+        XCTAssertFalse(manager.usesBundledAPKs(config: config))
+    }
+
     func testBundledAndroidProductsAreReusedWithoutSourceFingerprint() async throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }

@@ -187,9 +187,9 @@ final class AndroidCompanionManager: @unchecked Sendable {
         // `--force` reinstalls bundled APKs; it only recompiles when there are none to install.
         let (appApk, testApk) = apkPaths(
             companionDir: config.companionDir,
-            useBundled: config.buildMode != .rebuild
+            useBundled: usesBundledAPKs(config: config)
         )
-        let needsBuild = (force && !appApk.contains("/prebuilt/"))
+        let needsBuild = config.buildMode == .rebuild || (force && !appApk.contains("/prebuilt/"))
             || !FileManager.default.fileExists(atPath: appApk)
             || !FileManager.default.fileExists(atPath: testApk)
 
@@ -220,7 +220,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// the instrumentation runner, and waits for the gRPC port — only as needed.
     func ensureRunning(config: AndroidCompanionConfig, force: Bool = false) async throws {
         await StartupProgress.report("Checking Android companion")
-        let bundled = hasBundledAPKs(companionDir: config.companionDir)
+        let bundled = usesBundledAPKs(config: config)
         let sourcesChanged = !config.buildPrepared &&
             (config.buildMode == .rebuild ||
                 (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
@@ -252,7 +252,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
         let (appApk, testApk) = apkPaths(
             companionDir: config.companionDir,
-            useBundled: config.buildMode != .rebuild
+            useBundled: usesBundledAPKs(config: config)
         )
         let needsBuild = (force && !bundled)
             || sourcesChanged
