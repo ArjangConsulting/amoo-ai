@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 #if canImport(CoreGraphics)
 import AmooCore
 import CoreGraphics
@@ -98,6 +99,55 @@ final class ScreenshotAnnotatorTests: XCTestCase {
         XCTAssertEqual(image.height, 100)
     }
 
+    func testAnnotationPreservesImageOrientationAndUsesTopLeftScreenGeometry() throws {
+        let width = 100
+        let height = 100
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: 30))
+        let image = try XCTUnwrap(context.makeImage())
+        let original = NSMutableData()
+        let encoder = try XCTUnwrap(CGImageDestinationCreateWithData(
+            original,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ))
+        CGImageDestinationAddImage(encoder, image, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(encoder))
+        let issue = ElementA11yIssue(
+            id: "target", label: "", type: "button", issue: "missing_label",
+            frame: Rect(x: 40, y: 10, width: 20, height: 20)
+        )
+        let annotated = try XCTUnwrap(ScreenshotAnnotator.annotate(
+            pngData: original as Data, issues: [issue], viewportWidth: 100
+        ))
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(annotated as CFData, nil))
+        let result = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        let rendered = try XCTUnwrap(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        rendered.draw(result, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let before = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
+        let after = try XCTUnwrap(rendered.data).assumingMemoryBound(to: UInt8.self)
+        for y in [5, 90] {
+            let offset = (y * width + 5) * 4
+            XCTAssertEqual(after[offset], before[offset])
+            XCTAssertEqual(after[offset + 2], before[offset + 2])
+        }
+        let topBorder = (10 * width + 50) * 4
+        let mirroredBorder = (89 * width + 50) * 4
+        XCTAssertGreaterThan(after[topBorder], 100)
+        XCTAssertEqual(after[mirroredBorder], before[mirroredBorder])
+        XCTAssertEqual(after[mirroredBorder + 2], before[mirroredBorder + 2])
+    }
+
     func testAnnotateHandlesZeroViewportWidth() throws {
         let png = makePNG(width: 30, height: 30)
         let issue = ElementA11yIssue(
@@ -112,3 +162,5 @@ final class ScreenshotAnnotatorTests: XCTestCase {
     }
 }
 #endif
+
+// swiftlint:enable multiline_arguments

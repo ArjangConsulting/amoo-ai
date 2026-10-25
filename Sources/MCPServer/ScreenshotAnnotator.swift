@@ -42,12 +42,7 @@ enum ScreenshotAnnotator {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
 
-        // CGContext origin is bottom-left; iOS screenshots are top-left, so flip.
-        context.saveGState()
-        context.translateBy(x: 0, y: CGFloat(pixelHeight))
-        context.scaleBy(x: 1, y: -1)
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight)))
-        context.restoreGState()
 
         let lineWidth = max(2.0, CGFloat(scale) * 1.5)
         let badgeSide = max(6.0, CGFloat(scale) * 5)
@@ -58,7 +53,7 @@ enum ScreenshotAnnotator {
 
             let rect = CGRect(
                 x: frame.x * scale,
-                y: frame.y * scale,
+                y: Double(pixelHeight) - (frame.y + frame.height) * scale,
                 width: frame.width * scale,
                 height: frame.height * scale
             )
@@ -68,7 +63,7 @@ enum ScreenshotAnnotator {
             context.stroke(rect)
 
             // Small filled corner badge so the issue is visible even on small elements
-            let badge = CGRect(x: rect.minX, y: rect.minY, width: badgeSide, height: badgeSide)
+            let badge = CGRect(x: rect.minX, y: rect.maxY - badgeSide, width: badgeSide, height: badgeSide)
             context.setFillColor(color)
             context.fill(badge)
         }
