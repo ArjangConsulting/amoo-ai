@@ -61,6 +61,18 @@ message ElementSelector {
   bool labeled_only = 9;
 }
 
+message ElementSemantics {
+  string reference = 1;
+  string parent_reference = 2;
+  string hierarchy_path = 3;
+  Rect full_frame = 4;
+  Rect visible_frame = 5;
+  map<string, string> attributes = 6;
+  optional bool is_checkable = 7;
+  optional bool is_checked = 8;
+  optional string state_description = 9;
+}
+
 message ElementInfo {
   string id = 1;
   string label = 2;
@@ -78,6 +90,7 @@ message ElementInfo {
   // Placeholder (iOS) or hint (Android) text a screen reader announces for an empty input.
   // Presence distinguishes companions that report it from an input that has none.
   optional string placeholder = 11;
+  ElementSemantics semantics = 12;
 }
 
 message ViewNode {
@@ -93,6 +106,8 @@ message ViewNode {
   bool is_secure_text_entry = 10;
   // Placeholder (iOS) or hint (Android) text; see ElementInfo.placeholder.
   optional string placeholder = 11;
+  ElementSemantics semantics = 12;
+  optional bool is_selected = 13;
 }
 
 message ActionResponse {

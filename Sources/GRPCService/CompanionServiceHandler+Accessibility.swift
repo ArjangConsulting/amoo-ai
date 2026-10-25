@@ -15,7 +15,17 @@ package extension CompanionServiceHandler {
         guard request.phases.isEmpty || request.operation == "voiceOver" else {
             throw RPCError(code: .invalidArgument, message: "Phases require the voiceOver operation")
         }
-        let inspection = if request.operation == "journey" {
+        let inspection = if request.operation == "talkBack" {
+            try await companion.inspectTalkBack(
+                appID: request.appID, steps: Int(request.steps), direction: request.direction,
+                activate: request.activate,
+                speechExpectations: request.speechExpectationsJson.isEmpty ? []
+                    : JSONDecoder().decode(
+                        [AccessibilitySpeechExpectation].self,
+                        from: Data(request.speechExpectationsJson.utf8)
+                    )
+            )
+        } else if request.operation == "journey" {
             try await companion.inspectAccessibilityJourney(
                 appID: request.appID,
                 journey: AccessibilityJourney.decodeJSON(request.journeyJson)
@@ -65,10 +75,23 @@ package extension CompanionServiceHandler {
             issue.category = $0.category
             issue.description_p = $0.description
             issue.details = $0.details
-            if $0.elementID != nil || $0.label != nil {
+            if $0.elementID != nil || $0.label != nil || $0.semantics != nil {
                 var element = Amoo_ElementInfo()
                 element.id = $0.elementID ?? ""
                 element.label = $0.label ?? ""
+                element.value = $0.value ?? ""
+                element.type = $0.elementType ?? ""
+                if let frame = $0.frame {
+                    var rect = Amoo_Rect()
+                    rect.x = frame.x
+                    rect.y = frame.y
+                    rect.width = frame.width
+                    rect.height = frame.height
+                    element.frame = rect
+                }
+                if let semantics = $0.semantics {
+                    element.semantics = semantics.protoSemantics
+                }
                 issue.element = element
             }
             return issue

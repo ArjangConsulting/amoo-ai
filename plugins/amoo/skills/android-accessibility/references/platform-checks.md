@@ -68,17 +68,16 @@ useful child controls. Do not hide controls just to reduce the number of stops.
 ## Providers and service coexistence
 
 Espresso accessibility checks and Compose accessibility integration run in app tests.
-ATF also accepts accessibility nodes/windows, so a cross-app companion route is plausible but
-needs per-check qualification with a pinned stopped library. View-based rendering data and
+ATF also accepts accessibility nodes/windows, and the native companion provider now uses that route, while
+per-check coverage remains explicit with the pinned ATF version. View-based rendering data and
 node-based coverage can differ; inability to run a check is not a clean result.
 [Espresso checks](https://developer.android.com/training/testing/espresso/accessibility-checking),
 [Compose checks](https://developer.android.com/develop/ui/compose/accessibility/testing),
 [ATF node/window builders](https://github.com/google/Accessibility-Test-Framework-for-Android/blob/master/src/main/java/com/google/android/apps/common/testing/accessibility/framework/uielement/AccessibilityHierarchyAndroid.java).
 
 Before UiAutomation/UiAutomator connects, qualify
-`FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES` consistently. Existing amoo bridge code uses the
-default acquisition; do not claim TalkBack remains active without checking during inspection
-and actions. Don't open a second UI-automation owner to work around an empty hierarchy.
+`FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES` consistently. The companion uses non-suppressing acquisition consistently; still require actual focus and
+synthesis evidence during traversal. Don't open a second UI-automation owner to work around an empty hierarchy.
 [UiAutomation](https://developer.android.com/reference/android/app/UiAutomation#FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES),
 [UiAutomator flags](https://developer.android.com/reference/androidx/test/uiautomator/Configurator#setUiAutomationFlags(int)).
 

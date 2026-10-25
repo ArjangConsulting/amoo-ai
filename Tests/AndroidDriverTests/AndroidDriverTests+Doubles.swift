@@ -44,6 +44,9 @@ actor MockADBRunner: ADBRunning {
             let serial = arguments.firstIndex(of: "-s").map { arguments[$0 + 1] } ?? ""
             return ProcessResult(exitCode: 0, stdout: (_avdNames[serial] ?? "") + "\n", stderr: "")
         }
+        if arguments.last == "get-state" {
+            return ProcessResult(exitCode: 0, stdout: "device\n", stderr: "")
+        }
         let isBootProperty = Array(arguments.suffix(3)) == ["shell", "getprop", "sys.boot_completed"]
         if let subject = arguments.last, arguments.dropLast().last == "dumpsys", let output = _dumpsysOutputs[subject] {
             return ProcessResult(exitCode: 0, stdout: output, stderr: "")

@@ -175,6 +175,21 @@ extension DriverToolExecutor {
             "type": .string(element.type?.rawValue ?? "other"),
             "visible": .bool(element.isVisible), "enabled": .bool(element.isEnabled)
         ]
+        if let semantics = element.semantics {
+            fields["semantics"] = try? Value(semantics)
+        }
+        if let frame = element.frame {
+            fields["bounds"] = try? Value(frame)
+        }
+        if let checked = element.semantics?.isChecked {
+            fields["checked"] = .bool(checked)
+        }
+        if let checkable = element.semantics?.isCheckable {
+            fields["checkable"] = .bool(checkable)
+        }
+        if let state = element.semantics?.stateDescription {
+            fields["state_description"] = .string(state)
+        }
         if let selected = element.isSelected {
             fields["selected"] = .bool(selected)
         }

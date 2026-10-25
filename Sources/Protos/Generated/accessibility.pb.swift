@@ -162,45 +162,40 @@ public nonisolated struct Amoo_AccessibilityInspectionRequest: Sendable {
   /// Versioned, bounded AccessibilityJourney JSON. Requires accessibility.authoredJourney.v1.
   public var journeyJson: String = String()
 
+  public var activate: Bool = false
+
+  public var speechExpectationsJson: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public nonisolated struct Amoo_AccessibilityInspectionIssue: @unchecked Sendable {
+public nonisolated struct Amoo_AccessibilityInspectionIssue: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var category: String {
-    get {_storage._category}
-    set {_uniqueStorage()._category = newValue}
-  }
+  public var category: String = String()
 
-  public var description_p: String {
-    get {_storage._description_p}
-    set {_uniqueStorage()._description_p = newValue}
-  }
+  public var description_p: String = String()
 
-  public var details: String {
-    get {_storage._details}
-    set {_uniqueStorage()._details = newValue}
-  }
+  public var details: String = String()
 
   public var element: Amoo_ElementInfo {
-    get {_storage._element ?? Amoo_ElementInfo()}
-    set {_uniqueStorage()._element = newValue}
+    get {_element ?? Amoo_ElementInfo()}
+    set {_element = newValue}
   }
   /// Returns true if `element` has been explicitly set.
-  public var hasElement: Bool {_storage._element != nil}
+  public var hasElement: Bool {self._element != nil}
   /// Clears the value of `element`. Subsequent reads from it will return its default value.
-  public mutating func clearElement() {_uniqueStorage()._element = nil}
+  public mutating func clearElement() {self._element = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _storage = _StorageClass.defaultInstance
+  fileprivate var _element: Amoo_ElementInfo? = nil
 }
 
 public nonisolated struct Amoo_AccessibilityInspectionResponse: Sendable {
@@ -524,7 +519,7 @@ nonisolated extension Amoo_WaitForElementResponse: SwiftProtobuf.Message, SwiftP
 
 nonisolated extension Amoo_AccessibilityInspectionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AccessibilityInspectionRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}app_id\0\u{1}operation\0\u{1}categories\0\u{1}steps\0\u{1}direction\0\u{1}phases\0\u{3}journey_json\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}app_id\0\u{1}operation\0\u{1}categories\0\u{1}steps\0\u{1}direction\0\u{1}phases\0\u{3}journey_json\0\u{1}activate\0\u{3}speech_expectations_json\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -539,6 +534,8 @@ nonisolated extension Amoo_AccessibilityInspectionRequest: SwiftProtobuf.Message
       case 5: try { try decoder.decodeSingularStringField(value: &self.direction) }()
       case 6: try { try decoder.decodeRepeatedMessageField(value: &self.phases) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.journeyJson) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.activate) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.speechExpectationsJson) }()
       default: break
       }
     }
@@ -566,6 +563,12 @@ nonisolated extension Amoo_AccessibilityInspectionRequest: SwiftProtobuf.Message
     if !self.journeyJson.isEmpty {
       try visitor.visitSingularStringField(value: self.journeyJson, fieldNumber: 7)
     }
+    if self.activate != false {
+      try visitor.visitSingularBoolField(value: self.activate, fieldNumber: 8)
+    }
+    if !self.speechExpectationsJson.isEmpty {
+      try visitor.visitSingularStringField(value: self.speechExpectationsJson, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -577,6 +580,8 @@ nonisolated extension Amoo_AccessibilityInspectionRequest: SwiftProtobuf.Message
     if lhs.direction != rhs.direction {return false}
     if lhs.phases != rhs.phases {return false}
     if lhs.journeyJson != rhs.journeyJson {return false}
+    if lhs.activate != rhs.activate {return false}
+    if lhs.speechExpectationsJson != rhs.speechExpectationsJson {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -586,88 +591,46 @@ nonisolated extension Amoo_AccessibilityInspectionIssue: SwiftProtobuf.Message, 
   public static let protoMessageName: String = _protobuf_package + ".AccessibilityInspectionIssue"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}category\0\u{1}description\0\u{1}details\0\u{1}element\0")
 
-  fileprivate class _StorageClass {
-    var _category: String = String()
-    var _description_p: String = String()
-    var _details: String = String()
-    var _element: Amoo_ElementInfo? = nil
-
-      // This property is used as the initial default value for new instances of the type.
-      // The type itself is protecting the reference to its storage via CoW semantics.
-      // This will force a copy to be made of this reference when the first mutation occurs;
-      // hence, it is safe to mark this as `nonisolated(unsafe)`.
-      static nonisolated(unsafe) let defaultInstance = _StorageClass()
-
-    private init() {}
-
-    init(copying source: _StorageClass) {
-      _category = source._category
-      _description_p = source._description_p
-      _details = source._details
-      _element = source._element
-    }
-  }
-
-  fileprivate mutating func _uniqueStorage() -> _StorageClass {
-    if !isKnownUniquelyReferenced(&_storage) {
-      _storage = _StorageClass(copying: _storage)
-    }
-    return _storage
-  }
-
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    _ = _uniqueStorage()
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      while let fieldNumber = try decoder.nextFieldNumber() {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch fieldNumber {
-        case 1: try { try decoder.decodeSingularStringField(value: &_storage._category) }()
-        case 2: try { try decoder.decodeSingularStringField(value: &_storage._description_p) }()
-        case 3: try { try decoder.decodeSingularStringField(value: &_storage._details) }()
-        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._element) }()
-        default: break
-        }
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.category) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.description_p) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.details) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._element) }()
+      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every if/case branch local when no optimizations
-      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-      // https://github.com/apple/swift-protobuf/issues/1182
-      if !_storage._category.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._category, fieldNumber: 1)
-      }
-      if !_storage._description_p.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._description_p, fieldNumber: 2)
-      }
-      if !_storage._details.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._details, fieldNumber: 3)
-      }
-      try { if let v = _storage._element {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-      } }()
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.category.isEmpty {
+      try visitor.visitSingularStringField(value: self.category, fieldNumber: 1)
     }
+    if !self.description_p.isEmpty {
+      try visitor.visitSingularStringField(value: self.description_p, fieldNumber: 2)
+    }
+    if !self.details.isEmpty {
+      try visitor.visitSingularStringField(value: self.details, fieldNumber: 3)
+    }
+    try { if let v = self._element {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_AccessibilityInspectionIssue, rhs: Amoo_AccessibilityInspectionIssue) -> Bool {
-    if lhs._storage !== rhs._storage {
-      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
-        let _storage = _args.0
-        let rhs_storage = _args.1
-        if _storage._category != rhs_storage._category {return false}
-        if _storage._description_p != rhs_storage._description_p {return false}
-        if _storage._details != rhs_storage._details {return false}
-        if _storage._element != rhs_storage._element {return false}
-        return true
-      }
-      if !storagesAreEqual {return false}
-    }
+    if lhs.category != rhs.category {return false}
+    if lhs.description_p != rhs.description_p {return false}
+    if lhs.details != rhs.details {return false}
+    if lhs._element != rhs._element {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -20,9 +20,9 @@ final class StudioToolCoverageTests: XCTestCase {
             ["text": "hello"]
         case .swipeInDirection, .scroll:
             ["direction": "down"]
-        case .assertText, .assertValue:
+        case .assertText, .assertValue, .assertStateDescription:
             ["id": "greeting", "value": "hi"]
-        case .assertSelected:
+        case .assertSelected, .assertChecked:
             ["id": "day", "expected": "true"]
         case .takeScreenshot, .pressBack, .relaunchApplication:
             [:]
@@ -47,13 +47,14 @@ final class StudioToolCoverageTests: XCTestCase {
 
     func testEveryEmitterHandlesEveryStudioTool() throws {
         for tool in StudioTool.allCases {
-            XCTAssertNoThrow(
-                try XCUITestEmitter().generate(makeTest(tool, platform: .ios)),
-                "XCUITestEmitter cannot emit \(tool.rawValue)"
-            )
-            // The Android companion reports no selected state, so the emitters refuse the assertion
-            // outright (see `testAndroidEmittersRefuseSelectedAssertionsInsteadOfWeakeningThem`).
-            guard tool != .assertSelected else { continue }
+            if [.assertChecked, .assertStateDescription].contains(tool) {
+                XCTAssertThrowsError(try XCUITestEmitter().generate(makeTest(tool, platform: .ios)))
+            } else {
+                XCTAssertNoThrow(
+                    try XCUITestEmitter().generate(makeTest(tool, platform: .ios)),
+                    "XCUITestEmitter cannot emit \(tool.rawValue)"
+                )
+            }
             XCTAssertNoThrow(
                 try EspressoEmitter().generate(makeTest(tool, platform: .android)),
                 "EspressoEmitter cannot emit \(tool.rawValue)"
@@ -65,16 +66,12 @@ final class StudioToolCoverageTests: XCTestCase {
         }
     }
 
-    func testAndroidEmittersRefuseSelectedAssertionsInsteadOfWeakeningThem() {
+    func testAndroidEmittersPreserveSelectedAssertions() throws {
         let test = makeTest(.assertSelected, platform: .android)
-        for emitter: any StudioCodeEmitting in [EspressoEmitter(), ComposeEspressoEmitter()] {
-            XCTAssertThrowsError(try emitter.generate(test)) { error in
-                guard case let .unsupportedAssertion(tool, _, _)? = error as? TestCodeGeneratorError else {
-                    return XCTFail("expected unsupportedAssertion, got \(error)")
-                }
-                XCTAssertEqual(tool, "assert_selected")
-            }
-        }
+        let espresso = try EspressoEmitter().generate(test).source
+        let compose = try ComposeEspressoEmitter().generate(test).source
+        XCTAssertTrue(espresso.contains("isSelected()"))
+        XCTAssertTrue(compose.contains("SemanticsProperties.Selected, true"))
     }
 
     func testUnknownToolIsRejectedRatherThanEmittedBlank() {

@@ -11,7 +11,9 @@ import TestSession
 extension SessionPlanCompiler {
     /// Tools that author an expectation about the app, as opposed to observing or driving it.
     static let assertionTools: Set<String> = [
-        "assert_visible", "assert_absent", "assert_enabled", "assert_value", "assert_selected",
+        "assert_talkback_speech", "assert_visible", "assert_absent", "assert_enabled", "assert_value",
+        "assert_selected",
+        "assert_checked", "assert_state_description",
         "assert_screen_changed", "assert_accessibility_journey"
     ]
 
@@ -85,8 +87,15 @@ extension SessionPlanCompiler {
                 selector: selector
             ))
         }
-        if translated.studioTool == .assertSelected || (isAssertion && exactConstraintCount(action.arguments) > 1) {
-            let state = translated.studioArguments["expected"].map { "expected selected=\($0)" }
+        if [.assertSelected, .assertChecked, .assertStateDescription]
+            .contains(translated.studioTool) || (isAssertion && exactConstraintCount(action.arguments) > 1) {
+            let properties: [StudioTool: String] = [
+                .assertSelected: "selected", .assertChecked: "checked", .assertStateDescription: "state_description"
+            ]
+            let property = properties[translated.studioTool] ?? "value"
+            let expected = translated.studioArguments["expected"] ?? translated.studioArguments["value"]
+            let state = expected.map { "expected \(property)=\($0)" }
+                ?? translated.studioArguments["contains"].map { "\(property) contains=\($0)" }
             warnings.append(SessionPlanWarning(
                 kind: .preserved,
                 actionIndex: index,

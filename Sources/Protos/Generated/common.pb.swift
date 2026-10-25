@@ -249,132 +249,268 @@ public nonisolated struct Amoo_ElementSelector: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public nonisolated struct Amoo_ElementInfo: Sendable {
+public nonisolated struct Amoo_ElementSemantics: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: String = String()
+  public var reference: String = String()
 
-  public var label: String = String()
+  public var parentReference: String = String()
 
-  public var value: String = String()
+  public var hierarchyPath: String = String()
 
-  public var type: String = String()
+  public var fullFrame: Amoo_Rect {
+    get {_fullFrame ?? Amoo_Rect()}
+    set {_fullFrame = newValue}
+  }
+  /// Returns true if `fullFrame` has been explicitly set.
+  public var hasFullFrame: Bool {self._fullFrame != nil}
+  /// Clears the value of `fullFrame`. Subsequent reads from it will return its default value.
+  public mutating func clearFullFrame() {self._fullFrame = nil}
+
+  public var visibleFrame: Amoo_Rect {
+    get {_visibleFrame ?? Amoo_Rect()}
+    set {_visibleFrame = newValue}
+  }
+  /// Returns true if `visibleFrame` has been explicitly set.
+  public var hasVisibleFrame: Bool {self._visibleFrame != nil}
+  /// Clears the value of `visibleFrame`. Subsequent reads from it will return its default value.
+  public mutating func clearVisibleFrame() {self._visibleFrame = nil}
+
+  public var attributes: Dictionary<String,String> = [:]
+
+  public var isCheckable: Bool {
+    get {_isCheckable ?? false}
+    set {_isCheckable = newValue}
+  }
+  /// Returns true if `isCheckable` has been explicitly set.
+  public var hasIsCheckable: Bool {self._isCheckable != nil}
+  /// Clears the value of `isCheckable`. Subsequent reads from it will return its default value.
+  public mutating func clearIsCheckable() {self._isCheckable = nil}
+
+  public var isChecked: Bool {
+    get {_isChecked ?? false}
+    set {_isChecked = newValue}
+  }
+  /// Returns true if `isChecked` has been explicitly set.
+  public var hasIsChecked: Bool {self._isChecked != nil}
+  /// Clears the value of `isChecked`. Subsequent reads from it will return its default value.
+  public mutating func clearIsChecked() {self._isChecked = nil}
+
+  public var stateDescription: String {
+    get {_stateDescription ?? String()}
+    set {_stateDescription = newValue}
+  }
+  /// Returns true if `stateDescription` has been explicitly set.
+  public var hasStateDescription: Bool {self._stateDescription != nil}
+  /// Clears the value of `stateDescription`. Subsequent reads from it will return its default value.
+  public mutating func clearStateDescription() {self._stateDescription = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _fullFrame: Amoo_Rect? = nil
+  fileprivate var _visibleFrame: Amoo_Rect? = nil
+  fileprivate var _isCheckable: Bool? = nil
+  fileprivate var _isChecked: Bool? = nil
+  fileprivate var _stateDescription: String? = nil
+}
+
+public nonisolated struct Amoo_ElementInfo: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String {
+    get {_storage._id}
+    set {_uniqueStorage()._id = newValue}
+  }
+
+  public var label: String {
+    get {_storage._label}
+    set {_uniqueStorage()._label = newValue}
+  }
+
+  public var value: String {
+    get {_storage._value}
+    set {_uniqueStorage()._value = newValue}
+  }
+
+  public var type: String {
+    get {_storage._type}
+    set {_uniqueStorage()._type = newValue}
+  }
 
   public var frame: Amoo_Rect {
-    get {_frame ?? Amoo_Rect()}
-    set {_frame = newValue}
+    get {_storage._frame ?? Amoo_Rect()}
+    set {_uniqueStorage()._frame = newValue}
   }
   /// Returns true if `frame` has been explicitly set.
-  public var hasFrame: Bool {self._frame != nil}
+  public var hasFrame: Bool {_storage._frame != nil}
   /// Clears the value of `frame`. Subsequent reads from it will return its default value.
-  public mutating func clearFrame() {self._frame = nil}
+  public mutating func clearFrame() {_uniqueStorage()._frame = nil}
 
-  public var isEnabled: Bool = false
+  public var isEnabled: Bool {
+    get {_storage._isEnabled}
+    set {_uniqueStorage()._isEnabled = newValue}
+  }
 
-  public var isVisible: Bool = false
+  public var isVisible: Bool {
+    get {_storage._isVisible}
+    set {_uniqueStorage()._isVisible = newValue}
+  }
 
   /// Preferred interaction coordinate in screen points. Unlike frame center, this is
   /// constrained to the portion of the element visible inside the current viewport.
   public var hitPoint: Amoo_Point {
-    get {_hitPoint ?? Amoo_Point()}
-    set {_hitPoint = newValue}
+    get {_storage._hitPoint ?? Amoo_Point()}
+    set {_uniqueStorage()._hitPoint = newValue}
   }
   /// Returns true if `hitPoint` has been explicitly set.
-  public var hasHitPoint: Bool {self._hitPoint != nil}
+  public var hasHitPoint: Bool {_storage._hitPoint != nil}
   /// Clears the value of `hitPoint`. Subsequent reads from it will return its default value.
-  public mutating func clearHitPoint() {self._hitPoint = nil}
+  public mutating func clearHitPoint() {_uniqueStorage()._hitPoint = nil}
 
-  public var isSecureTextEntry: Bool = false
+  public var isSecureTextEntry: Bool {
+    get {_storage._isSecureTextEntry}
+    set {_uniqueStorage()._isSecureTextEntry = newValue}
+  }
 
   /// Presence distinguishes unsupported/older companions from a known false state.
   public var isSelected: Bool {
-    get {_isSelected ?? false}
-    set {_isSelected = newValue}
+    get {_storage._isSelected ?? false}
+    set {_uniqueStorage()._isSelected = newValue}
   }
   /// Returns true if `isSelected` has been explicitly set.
-  public var hasIsSelected: Bool {self._isSelected != nil}
+  public var hasIsSelected: Bool {_storage._isSelected != nil}
   /// Clears the value of `isSelected`. Subsequent reads from it will return its default value.
-  public mutating func clearIsSelected() {self._isSelected = nil}
+  public mutating func clearIsSelected() {_uniqueStorage()._isSelected = nil}
 
   /// Placeholder (iOS) or hint (Android) text a screen reader announces for an empty input.
   /// Presence distinguishes companions that report it from an input that has none.
   public var placeholder: String {
-    get {_placeholder ?? String()}
-    set {_placeholder = newValue}
+    get {_storage._placeholder ?? String()}
+    set {_uniqueStorage()._placeholder = newValue}
   }
   /// Returns true if `placeholder` has been explicitly set.
-  public var hasPlaceholder: Bool {self._placeholder != nil}
+  public var hasPlaceholder: Bool {_storage._placeholder != nil}
   /// Clears the value of `placeholder`. Subsequent reads from it will return its default value.
-  public mutating func clearPlaceholder() {self._placeholder = nil}
+  public mutating func clearPlaceholder() {_uniqueStorage()._placeholder = nil}
+
+  public var semantics: Amoo_ElementSemantics {
+    get {_storage._semantics ?? Amoo_ElementSemantics()}
+    set {_uniqueStorage()._semantics = newValue}
+  }
+  /// Returns true if `semantics` has been explicitly set.
+  public var hasSemantics: Bool {_storage._semantics != nil}
+  /// Clears the value of `semantics`. Subsequent reads from it will return its default value.
+  public mutating func clearSemantics() {_uniqueStorage()._semantics = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _frame: Amoo_Rect? = nil
-  fileprivate var _hitPoint: Amoo_Point? = nil
-  fileprivate var _isSelected: Bool? = nil
-  fileprivate var _placeholder: String? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public nonisolated struct Amoo_ViewNode: Sendable {
+public nonisolated struct Amoo_ViewNode: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var id: String = String()
+  public var id: String {
+    get {_storage._id}
+    set {_uniqueStorage()._id = newValue}
+  }
 
-  public var label: String = String()
+  public var label: String {
+    get {_storage._label}
+    set {_uniqueStorage()._label = newValue}
+  }
 
-  public var children: [Amoo_ViewNode] = []
+  public var children: [Amoo_ViewNode] {
+    get {_storage._children}
+    set {_uniqueStorage()._children = newValue}
+  }
 
-  public var type: String = String()
+  public var type: String {
+    get {_storage._type}
+    set {_uniqueStorage()._type = newValue}
+  }
 
-  public var value: String = String()
+  public var value: String {
+    get {_storage._value}
+    set {_uniqueStorage()._value = newValue}
+  }
 
   public var frame: Amoo_Rect {
-    get {_frame ?? Amoo_Rect()}
-    set {_frame = newValue}
+    get {_storage._frame ?? Amoo_Rect()}
+    set {_uniqueStorage()._frame = newValue}
   }
   /// Returns true if `frame` has been explicitly set.
-  public var hasFrame: Bool {self._frame != nil}
+  public var hasFrame: Bool {_storage._frame != nil}
   /// Clears the value of `frame`. Subsequent reads from it will return its default value.
-  public mutating func clearFrame() {self._frame = nil}
+  public mutating func clearFrame() {_uniqueStorage()._frame = nil}
 
-  public var isEnabled: Bool = false
+  public var isEnabled: Bool {
+    get {_storage._isEnabled}
+    set {_uniqueStorage()._isEnabled = newValue}
+  }
 
-  public var isVisible: Bool = false
+  public var isVisible: Bool {
+    get {_storage._isVisible}
+    set {_uniqueStorage()._isVisible = newValue}
+  }
 
   public var hitPoint: Amoo_Point {
-    get {_hitPoint ?? Amoo_Point()}
-    set {_hitPoint = newValue}
+    get {_storage._hitPoint ?? Amoo_Point()}
+    set {_uniqueStorage()._hitPoint = newValue}
   }
   /// Returns true if `hitPoint` has been explicitly set.
-  public var hasHitPoint: Bool {self._hitPoint != nil}
+  public var hasHitPoint: Bool {_storage._hitPoint != nil}
   /// Clears the value of `hitPoint`. Subsequent reads from it will return its default value.
-  public mutating func clearHitPoint() {self._hitPoint = nil}
+  public mutating func clearHitPoint() {_uniqueStorage()._hitPoint = nil}
 
-  public var isSecureTextEntry: Bool = false
+  public var isSecureTextEntry: Bool {
+    get {_storage._isSecureTextEntry}
+    set {_uniqueStorage()._isSecureTextEntry = newValue}
+  }
 
   /// Placeholder (iOS) or hint (Android) text; see ElementInfo.placeholder.
   public var placeholder: String {
-    get {_placeholder ?? String()}
-    set {_placeholder = newValue}
+    get {_storage._placeholder ?? String()}
+    set {_uniqueStorage()._placeholder = newValue}
   }
   /// Returns true if `placeholder` has been explicitly set.
-  public var hasPlaceholder: Bool {self._placeholder != nil}
+  public var hasPlaceholder: Bool {_storage._placeholder != nil}
   /// Clears the value of `placeholder`. Subsequent reads from it will return its default value.
-  public mutating func clearPlaceholder() {self._placeholder = nil}
+  public mutating func clearPlaceholder() {_uniqueStorage()._placeholder = nil}
+
+  public var semantics: Amoo_ElementSemantics {
+    get {_storage._semantics ?? Amoo_ElementSemantics()}
+    set {_uniqueStorage()._semantics = newValue}
+  }
+  /// Returns true if `semantics` has been explicitly set.
+  public var hasSemantics: Bool {_storage._semantics != nil}
+  /// Clears the value of `semantics`. Subsequent reads from it will return its default value.
+  public mutating func clearSemantics() {_uniqueStorage()._semantics = nil}
+
+  public var isSelected: Bool {
+    get {_storage._isSelected ?? false}
+    set {_uniqueStorage()._isSelected = newValue}
+  }
+  /// Returns true if `isSelected` has been explicitly set.
+  public var hasIsSelected: Bool {_storage._isSelected != nil}
+  /// Clears the value of `isSelected`. Subsequent reads from it will return its default value.
+  public mutating func clearIsSelected() {_uniqueStorage()._isSelected = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _frame: Amoo_Rect? = nil
-  fileprivate var _hitPoint: Amoo_Point? = nil
-  fileprivate var _placeholder: String? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public nonisolated struct Amoo_ActionResponse: Sendable {
@@ -703,9 +839,9 @@ nonisolated extension Amoo_ElementSelector: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ElementInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}value\0\u{1}type\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0\u{3}is_selected\0\u{1}placeholder\0")
+nonisolated extension Amoo_ElementSemantics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ElementSemantics"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reference\0\u{3}parent_reference\0\u{3}hierarchy_path\0\u{3}full_frame\0\u{3}visible_frame\0\u{1}attributes\0\u{3}is_checkable\0\u{3}is_checked\0\u{3}state_description\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -713,17 +849,15 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.label) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.value) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.type) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._frame) }()
-      case 6: try { try decoder.decodeSingularBoolField(value: &self.isEnabled) }()
-      case 7: try { try decoder.decodeSingularBoolField(value: &self.isVisible) }()
-      case 8: try { try decoder.decodeSingularMessageField(value: &self._hitPoint) }()
-      case 9: try { try decoder.decodeSingularBoolField(value: &self.isSecureTextEntry) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self._isSelected) }()
-      case 11: try { try decoder.decodeSingularStringField(value: &self._placeholder) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.reference) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.parentReference) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.hierarchyPath) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._fullFrame) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._visibleFrame) }()
+      case 6: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.attributes) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self._isCheckable) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self._isChecked) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self._stateDescription) }()
       default: break
       }
     }
@@ -734,54 +868,193 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.id.isEmpty {
-      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    if !self.reference.isEmpty {
+      try visitor.visitSingularStringField(value: self.reference, fieldNumber: 1)
     }
-    if !self.label.isEmpty {
-      try visitor.visitSingularStringField(value: self.label, fieldNumber: 2)
+    if !self.parentReference.isEmpty {
+      try visitor.visitSingularStringField(value: self.parentReference, fieldNumber: 2)
     }
-    if !self.value.isEmpty {
-      try visitor.visitSingularStringField(value: self.value, fieldNumber: 3)
+    if !self.hierarchyPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.hierarchyPath, fieldNumber: 3)
     }
-    if !self.type.isEmpty {
-      try visitor.visitSingularStringField(value: self.type, fieldNumber: 4)
-    }
-    try { if let v = self._frame {
+    try { if let v = self._fullFrame {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._visibleFrame {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
-    if self.isEnabled != false {
-      try visitor.visitSingularBoolField(value: self.isEnabled, fieldNumber: 6)
+    if !self.attributes.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.attributes, fieldNumber: 6)
     }
-    if self.isVisible != false {
-      try visitor.visitSingularBoolField(value: self.isVisible, fieldNumber: 7)
-    }
-    try { if let v = self._hitPoint {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    try { if let v = self._isCheckable {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 7)
     } }()
-    if self.isSecureTextEntry != false {
-      try visitor.visitSingularBoolField(value: self.isSecureTextEntry, fieldNumber: 9)
-    }
-    try { if let v = self._isSelected {
-      try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
+    try { if let v = self._isChecked {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 8)
     } }()
-    try { if let v = self._placeholder {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 11)
+    try { if let v = self._stateDescription {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 9)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
+  public static func ==(lhs: Amoo_ElementSemantics, rhs: Amoo_ElementSemantics) -> Bool {
+    if lhs.reference != rhs.reference {return false}
+    if lhs.parentReference != rhs.parentReference {return false}
+    if lhs.hierarchyPath != rhs.hierarchyPath {return false}
+    if lhs._fullFrame != rhs._fullFrame {return false}
+    if lhs._visibleFrame != rhs._visibleFrame {return false}
+    if lhs.attributes != rhs.attributes {return false}
+    if lhs._isCheckable != rhs._isCheckable {return false}
+    if lhs._isChecked != rhs._isChecked {return false}
+    if lhs._stateDescription != rhs._stateDescription {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ElementInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}value\0\u{1}type\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0\u{3}is_selected\0\u{1}placeholder\0\u{1}semantics\0")
+
+  fileprivate class _StorageClass {
+    var _id: String = String()
+    var _label: String = String()
+    var _value: String = String()
+    var _type: String = String()
+    var _frame: Amoo_Rect? = nil
+    var _isEnabled: Bool = false
+    var _isVisible: Bool = false
+    var _hitPoint: Amoo_Point? = nil
+    var _isSecureTextEntry: Bool = false
+    var _isSelected: Bool? = nil
+    var _placeholder: String? = nil
+    var _semantics: Amoo_ElementSemantics? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _label = source._label
+      _value = source._value
+      _type = source._type
+      _frame = source._frame
+      _isEnabled = source._isEnabled
+      _isVisible = source._isVisible
+      _hitPoint = source._hitPoint
+      _isSecureTextEntry = source._isSecureTextEntry
+      _isSelected = source._isSelected
+      _placeholder = source._placeholder
+      _semantics = source._semantics
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._label) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._value) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._type) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._frame) }()
+        case 6: try { try decoder.decodeSingularBoolField(value: &_storage._isEnabled) }()
+        case 7: try { try decoder.decodeSingularBoolField(value: &_storage._isVisible) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._hitPoint) }()
+        case 9: try { try decoder.decodeSingularBoolField(value: &_storage._isSecureTextEntry) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._isSelected) }()
+        case 11: try { try decoder.decodeSingularStringField(value: &_storage._placeholder) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._semantics) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._id.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._id, fieldNumber: 1)
+      }
+      if !_storage._label.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._label, fieldNumber: 2)
+      }
+      if !_storage._value.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._value, fieldNumber: 3)
+      }
+      if !_storage._type.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._type, fieldNumber: 4)
+      }
+      try { if let v = _storage._frame {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      if _storage._isEnabled != false {
+        try visitor.visitSingularBoolField(value: _storage._isEnabled, fieldNumber: 6)
+      }
+      if _storage._isVisible != false {
+        try visitor.visitSingularBoolField(value: _storage._isVisible, fieldNumber: 7)
+      }
+      try { if let v = _storage._hitPoint {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
+      if _storage._isSecureTextEntry != false {
+        try visitor.visitSingularBoolField(value: _storage._isSecureTextEntry, fieldNumber: 9)
+      }
+      try { if let v = _storage._isSelected {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
+      } }()
+      try { if let v = _storage._placeholder {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._semantics {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
   public static func ==(lhs: Amoo_ElementInfo, rhs: Amoo_ElementInfo) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.label != rhs.label {return false}
-    if lhs.value != rhs.value {return false}
-    if lhs.type != rhs.type {return false}
-    if lhs._frame != rhs._frame {return false}
-    if lhs.isEnabled != rhs.isEnabled {return false}
-    if lhs.isVisible != rhs.isVisible {return false}
-    if lhs._hitPoint != rhs._hitPoint {return false}
-    if lhs.isSecureTextEntry != rhs.isSecureTextEntry {return false}
-    if lhs._isSelected != rhs._isSelected {return false}
-    if lhs._placeholder != rhs._placeholder {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._label != rhs_storage._label {return false}
+        if _storage._value != rhs_storage._value {return false}
+        if _storage._type != rhs_storage._type {return false}
+        if _storage._frame != rhs_storage._frame {return false}
+        if _storage._isEnabled != rhs_storage._isEnabled {return false}
+        if _storage._isVisible != rhs_storage._isVisible {return false}
+        if _storage._hitPoint != rhs_storage._hitPoint {return false}
+        if _storage._isSecureTextEntry != rhs_storage._isSecureTextEntry {return false}
+        if _storage._isSelected != rhs_storage._isSelected {return false}
+        if _storage._placeholder != rhs_storage._placeholder {return false}
+        if _storage._semantics != rhs_storage._semantics {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -789,83 +1062,153 @@ nonisolated extension Amoo_ElementInfo: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Amoo_ViewNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ViewNode"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}children\0\u{1}type\0\u{1}value\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0\u{1}placeholder\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}children\0\u{1}type\0\u{1}value\0\u{1}frame\0\u{3}is_enabled\0\u{3}is_visible\0\u{3}hit_point\0\u{3}is_secure_text_entry\0\u{1}placeholder\0\u{1}semantics\0\u{3}is_selected\0")
+
+  fileprivate class _StorageClass {
+    var _id: String = String()
+    var _label: String = String()
+    var _children: [Amoo_ViewNode] = []
+    var _type: String = String()
+    var _value: String = String()
+    var _frame: Amoo_Rect? = nil
+    var _isEnabled: Bool = false
+    var _isVisible: Bool = false
+    var _hitPoint: Amoo_Point? = nil
+    var _isSecureTextEntry: Bool = false
+    var _placeholder: String? = nil
+    var _semantics: Amoo_ElementSemantics? = nil
+    var _isSelected: Bool? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _label = source._label
+      _children = source._children
+      _type = source._type
+      _value = source._value
+      _frame = source._frame
+      _isEnabled = source._isEnabled
+      _isVisible = source._isVisible
+      _hitPoint = source._hitPoint
+      _isSecureTextEntry = source._isSecureTextEntry
+      _placeholder = source._placeholder
+      _semantics = source._semantics
+      _isSelected = source._isSelected
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.label) }()
-      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.children) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.type) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.value) }()
-      case 6: try { try decoder.decodeSingularMessageField(value: &self._frame) }()
-      case 7: try { try decoder.decodeSingularBoolField(value: &self.isEnabled) }()
-      case 8: try { try decoder.decodeSingularBoolField(value: &self.isVisible) }()
-      case 9: try { try decoder.decodeSingularMessageField(value: &self._hitPoint) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self.isSecureTextEntry) }()
-      case 11: try { try decoder.decodeSingularStringField(value: &self._placeholder) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._label) }()
+        case 3: try { try decoder.decodeRepeatedMessageField(value: &_storage._children) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._type) }()
+        case 5: try { try decoder.decodeSingularStringField(value: &_storage._value) }()
+        case 6: try { try decoder.decodeSingularMessageField(value: &_storage._frame) }()
+        case 7: try { try decoder.decodeSingularBoolField(value: &_storage._isEnabled) }()
+        case 8: try { try decoder.decodeSingularBoolField(value: &_storage._isVisible) }()
+        case 9: try { try decoder.decodeSingularMessageField(value: &_storage._hitPoint) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._isSecureTextEntry) }()
+        case 11: try { try decoder.decodeSingularStringField(value: &_storage._placeholder) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._semantics) }()
+        case 13: try { try decoder.decodeSingularBoolField(value: &_storage._isSelected) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.id.isEmpty {
-      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._id.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._id, fieldNumber: 1)
+      }
+      if !_storage._label.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._label, fieldNumber: 2)
+      }
+      if !_storage._children.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._children, fieldNumber: 3)
+      }
+      if !_storage._type.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._type, fieldNumber: 4)
+      }
+      if !_storage._value.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._value, fieldNumber: 5)
+      }
+      try { if let v = _storage._frame {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      } }()
+      if _storage._isEnabled != false {
+        try visitor.visitSingularBoolField(value: _storage._isEnabled, fieldNumber: 7)
+      }
+      if _storage._isVisible != false {
+        try visitor.visitSingularBoolField(value: _storage._isVisible, fieldNumber: 8)
+      }
+      try { if let v = _storage._hitPoint {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      } }()
+      if _storage._isSecureTextEntry != false {
+        try visitor.visitSingularBoolField(value: _storage._isSecureTextEntry, fieldNumber: 10)
+      }
+      try { if let v = _storage._placeholder {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._semantics {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._isSelected {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 13)
+      } }()
     }
-    if !self.label.isEmpty {
-      try visitor.visitSingularStringField(value: self.label, fieldNumber: 2)
-    }
-    if !self.children.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.children, fieldNumber: 3)
-    }
-    if !self.type.isEmpty {
-      try visitor.visitSingularStringField(value: self.type, fieldNumber: 4)
-    }
-    if !self.value.isEmpty {
-      try visitor.visitSingularStringField(value: self.value, fieldNumber: 5)
-    }
-    try { if let v = self._frame {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    } }()
-    if self.isEnabled != false {
-      try visitor.visitSingularBoolField(value: self.isEnabled, fieldNumber: 7)
-    }
-    if self.isVisible != false {
-      try visitor.visitSingularBoolField(value: self.isVisible, fieldNumber: 8)
-    }
-    try { if let v = self._hitPoint {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
-    } }()
-    if self.isSecureTextEntry != false {
-      try visitor.visitSingularBoolField(value: self.isSecureTextEntry, fieldNumber: 10)
-    }
-    try { if let v = self._placeholder {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 11)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_ViewNode, rhs: Amoo_ViewNode) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.label != rhs.label {return false}
-    if lhs.children != rhs.children {return false}
-    if lhs.type != rhs.type {return false}
-    if lhs.value != rhs.value {return false}
-    if lhs._frame != rhs._frame {return false}
-    if lhs.isEnabled != rhs.isEnabled {return false}
-    if lhs.isVisible != rhs.isVisible {return false}
-    if lhs._hitPoint != rhs._hitPoint {return false}
-    if lhs.isSecureTextEntry != rhs.isSecureTextEntry {return false}
-    if lhs._placeholder != rhs._placeholder {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._label != rhs_storage._label {return false}
+        if _storage._children != rhs_storage._children {return false}
+        if _storage._type != rhs_storage._type {return false}
+        if _storage._value != rhs_storage._value {return false}
+        if _storage._frame != rhs_storage._frame {return false}
+        if _storage._isEnabled != rhs_storage._isEnabled {return false}
+        if _storage._isVisible != rhs_storage._isVisible {return false}
+        if _storage._hitPoint != rhs_storage._hitPoint {return false}
+        if _storage._isSecureTextEntry != rhs_storage._isSecureTextEntry {return false}
+        if _storage._placeholder != rhs_storage._placeholder {return false}
+        if _storage._semantics != rhs_storage._semantics {return false}
+        if _storage._isSelected != rhs_storage._isSelected {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

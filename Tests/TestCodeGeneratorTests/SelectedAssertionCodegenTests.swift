@@ -106,12 +106,37 @@ final class SelectedAssertionCodegenTests: XCTestCase {
         XCTAssertNil(bound.compiledPlan?.toolOperations?.first?.helper)
     }
 
-    func testAndroidEmittersRefuseSelectionInsteadOfEmittingVisibility() {
+    func testAndroidEmittersAssertActualSelection() throws {
         let plan = test([operation("assert_selected", ["id": "day.10", "expected": "true"])], platform: .android)
-        for emitter: any StudioCodeEmitting in [EspressoEmitter(), ComposeEspressoEmitter()] {
-            XCTAssertThrowsError(try emitter.generate(plan)) {
-                guard case .unsupportedAssertion? = $0 as? TestCodeGeneratorError else { return XCTFail("\($0)") }
-            }
+        let espresso = try EspressoEmitter().generate(plan).source
+        let compose = try ComposeEspressoEmitter().generate(plan).source
+        XCTAssertTrue(espresso.contains("isSelected()"))
+        XCTAssertTrue(compose.contains("SemanticsProperties.Selected, true"))
+    }
+
+    func testAndroidNativeStateAssertionsCompileAndPreserveTheirProperties() throws {
+        let plan = test([
+            operation("assert_selected", ["id": "option", "expected": "false"]),
+            operation("assert_checked", ["id": "checkbox", "expected": "false"]),
+            operation("assert_state_description", ["id": "copy", "expected": "Copied"]),
+            operation("assert_state_description", ["id": "copy", "contains": "Copy"]),
+            operation("assert_state_description", ["id": "copy", "expected": ""])
+        ], platform: .android)
+        let espresso = try EspressoEmitter().generate(plan).source
+        XCTAssertTrue(espresso.contains("not(isSelected())"), espresso)
+        XCTAssertTrue(espresso.contains("not(isChecked())"), espresso)
+        XCTAssertTrue(espresso.contains("view.stateDescription"), espresso)
+        XCTAssertFalse(espresso.contains("withText("), espresso)
+        try CompileVerification.verifyKotlinCompiles(espresso)
+        let compose = try ComposeEspressoEmitter().generate(plan).source
+        XCTAssertTrue(compose.contains("SemanticsProperties.ToggleableState"), compose)
+        XCTAssertTrue(compose.contains("SemanticsProperties.StateDescription"), compose)
+        try CompileVerification.verifyKotlinCompiles(compose)
+    }
+
+    func testXCUITestRejectsUnsupportedNativeStateAssertions() {
+        for tool in ["assert_checked", "assert_state_description"] {
+            XCTAssertThrowsError(try xcui([operation(tool, ["id": "option", "expected": "false"])]))
         }
     }
 

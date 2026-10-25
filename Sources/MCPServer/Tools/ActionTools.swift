@@ -222,7 +222,7 @@ public enum ActionTools {
                     description: "Before tapping, read the hierarchy and refuse a target another control"
                         + " (keyboard, sheet) covers, a clipping container cuts off, or that is off-screen."
                         + " Runs by default, giving up after hittable_timeout_ms; 'true' makes it required,"
-                        + " 'false' skips it. Android flat inspection cannot establish occlusion: the default"
+                        + " 'false' skips it. Android accessibility inspection cannot establish occlusion: the default"
                         + " proceeds unchecked, while 'true' returns an unsupported-check error."
                 ),
                 "hittable_timeout_ms": .init(
@@ -232,8 +232,8 @@ public enum ActionTools {
                 ),
                 "check_effect": .init(
                     type: "string",
-                    description: "Compare the screen before and after the tap and report observable_change=false"
-                        + " ('No observable change') when nothing moved. Runs by default within"
+                    description: "Compare semantic snapshots before and after the tap. An unchanged tree reports"
+                        + " semantic_change=false and observable_change=false; visual effect is unverified. Runs within"
                         + " effect_timeout_ms; 'true' makes it required, 'false' skips it."
                 ),
                 "effect_timeout_ms": .init(

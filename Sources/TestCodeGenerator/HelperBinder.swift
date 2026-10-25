@@ -69,7 +69,7 @@ public enum HelperBinder {
     /// else (`timeout_ms`, `session_id`, …) is incidental and may go unused.
     private static let semanticArgumentKeys: Set<String> = [
         "id", "element_id", "label", "element_label", "contains_text", "element_contains_text",
-        "text", "value", "expected", "direction"
+        "text", "value", "expected", "contains", "direction"
     ]
 
     private static func keywords(for tool: String) -> [[String]] {

@@ -24,7 +24,7 @@ extension SessionPlanCompiler {
     static let idSelectorTools: Set<String> = [
         "tap_element", "double_tap", "long_press", "set_text", "type_text", "fill_field",
         "assert_visible", "assert_absent", "wait_for_element", "assert_enabled",
-        "assert_text", "assert_value", "assert_selected"
+        "assert_text", "assert_value", "assert_selected", "assert_checked", "assert_state_description"
     ]
 
     /// Copies the label/type from the `find_elements` observation of this action's target onto the

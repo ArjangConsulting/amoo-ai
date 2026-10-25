@@ -144,6 +144,10 @@ public enum SessionPlanCompiler {
             return translateAssertValue(arguments)
         case "assert_enabled":
             return translateAssertEnabled(arguments)
+        case "assert_checked":
+            return translateAssertChecked(arguments)
+        case "assert_state_description":
+            return translateAssertStateDescription(arguments)
         case "assert_selected":
             return translateAssertSelected(arguments)
         default:

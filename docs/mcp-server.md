@@ -224,7 +224,8 @@ off, or whose tap point is off-screen. The check is on by default but best effor
 `check_hittable=true` makes it required; `false` skips it. It always reports
 `foreground_changed` when the tap left the app (Siri, a system sheet), and compares the screen before
 and after the tap — within `effect_timeout_ms` (1500), `check_effect=false` to skip — so a tap that
-moved nothing says "No observable change" (`observable_change=false`) instead of reading as success.
+left the semantic snapshot unchanged reports `semantic_change=false` and `observable_change=false`.
+Pixel changes and app postconditions remain unverified; unchanged semantics do not prove identical screenshots.
 `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
 names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen, and exports
 (a swipe-until-hittable loop in XCUITest, `scrollTo()` in Espresso, `performScrollTo()` in Compose);
@@ -414,3 +415,22 @@ initialization, device discovery, request IDs, recovery after a tool error, EOF,
 and SIGTERM without booting or driving a device. `--fatal-signal` also validates the preallocated
 fatal-signal diagnostic in a child process. Release artifacts include the compiler version and
 dependency lockfile; use initialization's `dev.amoo/build` metadata to identify the running binary.
+
+
+### Android accessibility state and diagnostics
+
+`assert_checked` reads native checkable/checked state. `assert_state_description` compares native
+stateDescription with exactly one of `expected` or `contains`; empty expected text remains valid.
+These properties are independent of selected state and editable value. Missing provider support
+returns `state_property_unsupported`.
+
+`audit_accessibility_native` supports Google ATF on Android and Apple native audits on iOS, with
+explicit per-category coverage and optional `output` PNG highlights. `test_talkback` observes
+keyboard focus traversal and actual synthesis requests; `assert_talkback_speech` additionally requires
+one JSON speech expectation per move. Both restore original service/TTS settings. TalkBack capture
+is silent and does not verify audible output or touch gestures. See
+[provider requirements and limits](accessibility-and-voiceover.md#android-native-and-talkback-providers).
+
+`device_health [app_id=...]` independently probes device transport and companion RPC under bounded
+deadlines. Optional app checks report foreground identity and semantic readiness separately from
+render readiness. Transport failures remain environment failures, not app assertion failures.

@@ -41,11 +41,10 @@ enum TapHittability {
         .tabBar, .scrollView, .table, .collectionView, .navigationBar, .sheet, .alert
     ]
 
-    /// Android inspection returns a flat query result, not parentage or paint order. Compose
-    /// exposes a label and its clickable owner as separate entries; treating the owner as a
-    /// later sibling incorrectly reports that the button covers its own label.
+    /// Android accessibility ancestry does not establish paint order or occlusion. Compose labels
+    /// and clickable owners can overlap without either covering the other.
     static func supportsChecks(in root: ViewNode) -> Bool {
-        !(["android-root", "android-cli-root"].contains(root.id) && root.children.allSatisfy(\.children.isEmpty))
+        !["android-root", "android-cli-root"].contains(root.id)
     }
 
     static func block(for target: ElementInfo, at point: Point, in root: ViewNode) -> TapBlock? {
@@ -278,6 +277,10 @@ extension DriverToolExecutor {
                     [$0.x, $0.y, $0.width, $0.height].map(geometryNumber).joined(separator: ",")
                 } ?? "-"
             parts.append("\(node.id)|\(node.label)|\(node.value ?? "")|\(frame)|\(node.isEnabled)|\(node.isVisible)")
+            let checked = node.semantics?.isChecked.map(String.init)
+                ?? node.semantics?.attributes["checked"] ?? "unknown"
+            let state = node.semantics?.stateDescription ?? node.semantics?.attributes["stateDescription"] ?? "unknown"
+            parts.append("selected=\(String(describing: node.isSelected))|checked=\(checked)|stateDescription=\(state)")
             node.children.forEach(walk)
         }
         walk(root)
@@ -310,14 +313,16 @@ extension DriverToolExecutor {
     ///
     /// `verified` still means the target was resolved, visible and enabled before the tap. What
     /// the tap did is reported separately: `foreground_changed` when another app (Siri, a system
-    /// sheet) took over, and `observable_change` — "No observable change" in the text — when the
-    /// screen is identical before and after.
+    /// sheet) took over, and `semantic_change` when exported semantic state changed. Pixel changes
+    /// and app postconditions remain unverified.
     func tapElementResult(_ context: TapOutcomeContext, driver: any PlatformDriver) async throws -> ToolResult {
         let matched = context.matched
         let name = "[\(matched.id)] \(matched.label)"
         var notes: [String] = []
         var fields: [String: Value] = [
             "verified": .bool(true),
+            "dispatch_status": .string("completed"),
+            "postcondition_verified": .bool(false),
             "hittability_checked": .bool(context.hittabilityChecked),
             "element_id": .string(matched.id),
             "element_label": .string(matched.label)
@@ -337,13 +342,24 @@ extension DriverToolExecutor {
                 notes.append("Foreground app changed from \(foregroundBefore) to \(foregroundAfter) after the tap.")
             }
         }
-        if let before = context.hierarchyBefore,
-           let changed = try await screenChanged(
-               since: before, check: context.effect, driver: driver, appID: context.appID
-           ) {
-            fields["observable_change"] = .bool(changed)
-            if !changed {
-                notes.append("No observable change: the screen is identical before and after the tap.")
+        if let before = context.hierarchyBefore {
+            do {
+                if let changed = try await screenChanged(
+                    since: before, check: context.effect, driver: driver, appID: context.appID
+                ) {
+                    fields["observable_change"] = .bool(changed)
+                    fields["semantic_change"] = .bool(changed)
+                    fields["visual_change"] = .string("unverified")
+                    if !changed {
+                        notes.append("Semantic snapshot unchanged; visual effect and app postcondition unverified.")
+                    }
+                }
+            } catch {
+                fields["semantic_change"] = .string("unverified")
+                fields["observation_error"] = .string(String(describing: error))
+                fields["companion_health"] = .string("unconfirmed")
+                fields["device_health"] = .string("unconfirmed")
+                notes.append("Tap dispatch completed; outcome observation failed. App postcondition unverified.")
             }
         }
         let message = (["Tapped verified element \(name)"] + notes).joined(separator: "\n")

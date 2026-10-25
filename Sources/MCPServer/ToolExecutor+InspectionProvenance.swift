@@ -9,6 +9,18 @@ extension DriverToolExecutor {
         appID: String
     ) async throws -> AccessibilityInspection {
         var report = incoming
+        let capture = report.provenance["capture_reference"] ?? UUID().uuidString
+        report.provenance["capture_reference"] = capture
+        for index in report.issues.indices {
+            var semantics = report.issues[index].semantics ?? ElementSemantics()
+            if semantics.reference.isEmpty {
+                semantics.reference = "\(capture):issue[\(index)]"
+            }
+            if report.issues[index].frame == nil {
+                semantics.attributes["boundsAvailability"] = "unavailable from provider"
+            }
+            report.issues[index].semantics = semantics
+        }
         report.provenance["app_id"] = appID
         report.provenance["host_binary"] = AmooBuildInfo.current.executablePath
         report.provenance["host_version"] = AmooBuildInfo.current.version
@@ -41,7 +53,9 @@ extension DriverToolExecutor {
         }
         if let device = try? await driver.deviceInfo() {
             report.provenance["device_id"] = device.id
-            report.provenance["device_os"] = device.osVersion
+            if device.osVersion != "unknown" {
+                report.provenance["device_os"] = device.osVersion
+            }
         }
         return report
     }

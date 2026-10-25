@@ -58,9 +58,17 @@ IDs, evidence paths and required checks that could not run. Truncated, stale or 
 are incomplete evidence. Backend-visible, clickable and actually reachable are different.
 
 The current `audit_accessibility` is a label/frame/testability heuristic, not ATF or TalkBack
-certification. amoo's Android label currently collapses text and content description; its ID
-may also be synthesized from content description. Do not treat either as proof of raw naming
-properties or stable resource IDs. Use richer public nodes/app-owned semantics when available.
+certification. Android node captures retain raw naming properties and label relationships under `semantics`,
+while the interaction label remains normalized. Capture references expire with each capture.
+Use `audit_accessibility_native` for ATF coverage and retain unevaluated categories. Use
+`assert_selected`, `assert_checked`, and `assert_state_description` for explicit native state checks.
+Neither normalized labels nor resource IDs prove computed spoken output.
+
+`test_talkback` and `assert_talkback_speech` use actual TalkBack focus and TTS synthesis input
+with a temporary silent engine and uinput keyboard. Require Android 12+, available shell uinput,
+and the default TalkBack keyboard mapping. Resolve first-run prompts before traversal. Touch gestures,
+audible output and rotor actions remain unqualified. Raw speech is persisted only with explicit
+`record_speech=true`. Verify `cleanupStatus` and retained restoration evidence.
 
 Qualify TalkBack coexistence first: UiAutomation suppresses accessibility services by default.
 Use consistent non-suppressing flags before instrumentation/UiAutomator connects when supported;

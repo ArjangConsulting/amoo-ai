@@ -21,7 +21,8 @@ iOS-specific inspections. Older companions may require rebuilding before the RPC
 Identifier-as-name and numerical 44-unit boundary heuristic bugs are fixed. Frame-size reports
 retain every occurrence and explicitly describe unverified hit regions. The broader roadmap
 below remains proposed: interactive VoiceOver state/move commands, policy-engine enforcement,
-app-owned adapters, Android ATF and licensed providers are not implemented by this slice.
+app-owned adapters and licensed providers remain proposed. Android ATF and bounded TalkBack
+inspection are implemented as described below.
 
 The review prioritizes text scaling, accessible names, useful hints, roles/states, reading
 order/focus recovery and grouping. Rule selection, severity and provider categories must be
@@ -551,3 +552,86 @@ Associate failures with a specific element and transition, preserve raw evidence
 unsupported or untested semantics from failed expectations. Keep qualification scoped to seeded concerns
 and clean controls before adding automatic violation rules. This provides actionable findings
 beyond observational speech without importing a commercial scanner's assumptions.
+
+## Target evidence and observation limits
+
+Native iOS issues retain snapshot geometry in screen points, native type, value, selected state,
+and an audit-scoped reference under `issues[].semantics`. Empty identifiers remain empty; the reference
+identifies an occurrence in this capture and cannot be reused as a persistent selector. Missing native
+targets, snapshot failures, unavailable hierarchy paths, and unavailable traits have explicit reasons.
+For audits without `dynamicType`, a bounded post-audit screenshot can highlight available target rectangles
+when the foreground app and semantic snapshot still match the pre-audit capture. Screenshot hashes and
+capture status are in provenance. A missing highlight is not evidence that the finding has no target.
+
+Android hierarchy export retains actual ancestry and capture-scoped references. `semantics.attributes`
+preserves raw text, content description, label associations reported by the provider, selected, checked,
+checkable, state description (API 30+), class, role description, range, and action IDs. A raw exported label
+is not a computed TalkBack utterance. Missing computed-name coverage yields a low-confidence review
+finding rather than a confirmed missing spoken name. `assert_selected` reads actual selected state;
+`assert_checked` requires an applicable native checkable/checked property; `assert_state_description`
+compares the native state description independently of editable text. Unsupported properties remain
+explicitly unsupported. Android Espresso and Compose exports preserve these assertions; XCUITest
+rejects properties its public API cannot express.
+
+`frame` remains provider-reported geometry used by existing interactions. `semantics.fullFrame` and
+`semantics.visibleFrame` distinguish known full bounds from visible bounds when supplied. Android's
+external node provider does not establish unclipped layout bounds, so it explicitly leaves full bounds
+unavailable. Nodes touching screen or scroll-container edges are marked possibly clipped and excluded
+from intrinsic target-size warnings unless full bounds are known. Reveal such controls before measuring.
+Even fully visible bounds do not prove the effective touch region.
+
+The heuristic audit reports rule names, capture-scoped occurrence references and geometry, and explicitly
+lists its coverage limits. It does not run Android native/ATF checks, TalkBack traversal, bitmap contrast,
+text wrapping, or system-bar checks. Continue visual review and retain unsupported results as coverage gaps.
+
+Tap outcomes distinguish completed dispatch from semantic change and an unverified app postcondition.
+An unchanged semantic tree says nothing about pixel equality. Selected, checked and state-description
+changes participate in change detection; capture references do not. Assertion diagnostics distinguish a
+completed mismatch from failed observation and retain the last completed value, selector, expectation,
+elapsed time, and unknown tree completeness. Transport errors report unconfirmed companion/device
+health rather than an app defect. `device_health` probes ADB transport and companion RPC separately,
+then optionally checks foreground identity and semantic readiness. A responding channel does not
+establish rendering readiness. A failed gesture transport reports unknown dispatch/application;
+inspect current state before retrying. These diagnostics do not establish the cause of an IME stall or
+an ADB failure and do not automatically restart devices or change accessibility-service settings.
+
+
+## Android native and TalkBack providers
+
+`audit_accessibility_native` now uses Google ATF 4.1.1 against the foreground app's native
+accessibility hierarchy. Android defaults are `sufficientElementDescription`, `hitRegion`,
+`contrast`, `duplicateSpeakableText`, and `editableContentDescription`. iOS-only categories
+remain unevaluated on Android. Provider ERROR, WARNING and insufficient-data results stay
+separate; warnings or incomplete coverage cannot produce a clean pass. Contrast uses the
+captured bitmap where available and retains ATF's missing-rendering-data limitations.
+
+ATF findings include capture references, hierarchy paths, pixel bounds and provider result
+IDs/types. Touch-target metadata retains clipping, clickable-ancestor, touch-delegate and
+nonclipped-size evidence where ATF supplies it. Targets at scroll edges that ATF cannot measure
+remain unevaluated. Never treat visible clipped dimensions as the intrinsic target size.
+`output=/path/finding.png` saves a highlight only when the screenshot is correlated with the
+captured native presentation. Visual review remains necessary for bitmap content, wrapping and
+system bars.
+
+`test_talkback` observes actual accessibility focus and synthesis requests from the installed
+TalkBack UID. It temporarily selects Amoo's silent capture TTS engine and uses a temporary
+uinput keyboard with TalkBack's default Alt+Ctrl+Left first-item command, followed by the requested
+Alt+Left/Right navigation and optional Alt+Enter activation. Initial observed focus is retained in provenance.
+This route requires Android 12+ and a device that permits the shell uinput command. Missing input
+support, a custom keymap, first-run permission prompts, or absent focus/speech evidence remain
+unsupported or unevaluated. Ordinary UiAutomator-injected swipes bypass the accessibility input
+filter and are not a TalkBack traversal provider. Touch gestures remain unqualified.
+
+`assert_talkback_speech` takes a JSON `speech` array with one `equals` or `contains` expectation per
+move. A move is evaluated only when app-owned accessibility focus changes and real TalkBack TTS
+requests arrive. No utterance is manufactured from node labels. This verifies synthesis input,
+not audible speech, rotor actions or whole-app conformance. Activation dispatch needs a separate
+app postcondition. Standalone generated export rejects the speech assertion instead of weakening it.
+Raw speech is excluded from session persistence unless `record_speech=true` is explicit.
+
+A durable journal preserves exact original accessibility-service, accessibility-enabled and
+TTS-engine settings. Restoration runs after success and failure, and pending recovery runs before
+a restarted companion accepts requests. The temporary keyboard disappears when its pipe closes.
+An interrupted client cannot infer restoration from its own timeout; reconnect and inspect recovery
+evidence. First-run TalkBack permissions must be resolved before traversal; the provider does not
+grant permissions or dismiss system prompts automatically.

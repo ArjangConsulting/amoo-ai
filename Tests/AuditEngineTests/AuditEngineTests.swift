@@ -226,7 +226,7 @@ final class AuditEngineTests: XCTestCase {
         )
         let findings = try await rule.evaluate(input)
         XCTAssertEqual(findings.count, 1)
-        XCTAssertEqual(findings.first?.evidence.first?.sourceRef, "undersized")
+        XCTAssertEqual(findings.first?.evidence.first?.attributes["elementID"], "undersized")
     }
 
     func testSmallTapTargetDetectsSmallElements() async throws {

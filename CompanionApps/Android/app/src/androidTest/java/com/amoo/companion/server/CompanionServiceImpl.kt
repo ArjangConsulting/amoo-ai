@@ -77,6 +77,11 @@ class CompanionServiceImpl(
     override suspend fun getCapabilities(request: CapabilitiesRequest): CapabilitiesResponse {
         request
         val capabilities = listOf(
+            capability("accessibility.nativeAudit", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
+            capability("accessibility.provider.androidATF.v1", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
+            capability("accessibility.talkBackTraversal", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
+            capability("accessibility.talkBackRecovery", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
+            capability("accessibility.talkBackSpeech", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
             capability("protocol.amoo.v1", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.tap", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.doubleTap", CapabilityTier.CAPABILITY_TIER_REQUIRED),
@@ -232,9 +237,24 @@ class CompanionServiceImpl(
         return actionResponse(pressHomeInternal(), "home navigation failed")
     }
 
+    override suspend fun inspectAccessibility(
+        request: amoo.v1.AccessibilityInspectionRequest
+    ): amoo.v1.AccessibilityInspectionResponse {
+        val grpcContext = io.grpc.Context.current()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            accessibility.inspectAccessibility(request) { grpcContext.isCancelled }
+        }
+    }
+
     override suspend fun getViewHierarchy(request: ViewHierarchyRequest): ViewHierarchyResponse {
         val appId = request.appId.takeUnless { it.isBlank() }
-        val children = accessibility.getAllElements(appId).map { it.toViewNode() }
+        val elements = accessibility.getAllElements(appId)
+        val references = elements.map { it.reference }.toSet()
+        val childrenByParent = elements.groupBy { it.parentReference }
+        fun subtree(element: ElementSnapshot): ViewNode = element.toViewNode().toBuilder()
+            .addAllChildren(childrenByParent[element.reference].orEmpty().map { subtree(it) })
+            .build()
+        val children = elements.filter { it.parentReference !in references }.map { subtree(it) }
         val root = ViewNode.newBuilder()
             .setId("android-root")
             .setLabel(bridge.currentPackageName())
@@ -405,7 +425,24 @@ private fun ElementSnapshot.toElementInfo(): ElementInfo {
         .setIsEnabled(isEnabled)
         .setIsVisible(isVisible)
         .setIsSecureTextEntry(isSecureTextEntry)
-        .apply { placeholder?.let { setPlaceholder(it) } }
+        .setIsSelected(isSelected)
+        .setSemantics(amoo.v1.ElementSemantics.newBuilder()
+            .setReference(reference)
+            .setParentReference(parentReference)
+            .setHierarchyPath(hierarchyPath)
+            .apply { this@toElementInfo.visibleFrame?.let {
+                setVisibleFrame(Rect.newBuilder()
+                    .setX(it.x.toDouble()).setY(it.y.toDouble())
+                    .setWidth(it.width.toDouble()).setHeight(it.height.toDouble()).build())
+            } }
+            .putAllAttributes(attributes)
+            .apply {
+                attributes["checkable"]?.let { setIsCheckable(it.toBoolean()) }
+                attributes["checked"]?.let { setIsChecked(it.toBoolean()) }
+                attributes["stateDescription"]?.let { setStateDescription(it) }
+            }
+            .build())
+        .apply { this@toElementInfo.placeholder?.let { setPlaceholder(it) } }
         .build()
 }
 
@@ -426,6 +463,23 @@ private fun ElementSnapshot.toViewNode(): ViewNode {
         .setIsEnabled(isEnabled)
         .setIsVisible(isVisible)
         .setIsSecureTextEntry(isSecureTextEntry)
-        .apply { placeholder?.let { setPlaceholder(it) } }
+        .setIsSelected(isSelected)
+        .setSemantics(amoo.v1.ElementSemantics.newBuilder()
+            .setReference(reference)
+            .setParentReference(parentReference)
+            .setHierarchyPath(hierarchyPath)
+            .apply { this@toViewNode.visibleFrame?.let {
+                setVisibleFrame(Rect.newBuilder()
+                    .setX(it.x.toDouble()).setY(it.y.toDouble())
+                    .setWidth(it.width.toDouble()).setHeight(it.height.toDouble()).build())
+            } }
+            .putAllAttributes(attributes)
+            .apply {
+                attributes["checkable"]?.let { setIsCheckable(it.toBoolean()) }
+                attributes["checked"]?.let { setIsChecked(it.toBoolean()) }
+                attributes["stateDescription"]?.let { setStateDescription(it) }
+            }
+            .build())
+        .apply { this@toViewNode.placeholder?.let { setPlaceholder(it) } }
         .build()
 }

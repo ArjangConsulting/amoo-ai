@@ -13,15 +13,18 @@ enum NativeAccessibilityInspector {
     ) -> Amoo_AccessibilityInspectionResponse {
         var result = perform(request, isCancelled: isCancelled)
         let bundle = Bundle(for: CompanionRunner.self)
-        result.provenance = [
-            "companion_bundle": bundle.bundleIdentifier ?? "unknown",
-            "companion_build": bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
-            "companion_fingerprint": buildFingerprint,
-            "device_os": ProcessInfo.processInfo.operatingSystemVersionString,
-            "companion_locale": Locale.current.identifier,
-            "app_build": "unavailable from external inspection",
-            "app_locale": "unavailable from external inspection"
-        ].merging(startupVoiceOverRecovery, uniquingKeysWith: { existing, _ in existing })
+        result.provenance.merge(
+            [
+                "companion_bundle": bundle.bundleIdentifier ?? "unknown",
+                "companion_build": bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
+                "companion_fingerprint": buildFingerprint,
+                "device_os": ProcessInfo.processInfo.operatingSystemVersionString,
+                "companion_locale": Locale.current.identifier,
+                "app_build": "unavailable from external inspection",
+                "app_locale": "unavailable from external inspection"
+            ].merging(startupVoiceOverRecovery, uniquingKeysWith: { existing, _ in existing }),
+            uniquingKeysWith: { existing, _ in existing }
+        )
         return result
     }
 
@@ -109,6 +112,8 @@ enum NativeAccessibilityInspector {
             result.error = "Native audit requires supported, nonempty categories."
             return result
         }
+        let capture = UUID().uuidString
+        result.provenance["capture_reference"] = capture
         let selected = categories.compactMap { types[$0] }.reduce(XCUIAccessibilityAuditType()) { $0.union($1) }
         do {
             try app.performAccessibilityAudit(for: selected) { issue in
@@ -121,13 +126,7 @@ enum NativeAccessibilityInspector {
                 captured.details = String(issue.detailedDescription.prefix(8192))
                 result.truncated = result.truncated || issue.compactDescription.count > 8192
                     || issue.detailedDescription.count > 8192
-                if let element = issue.element {
-                    var info = Amoo_ElementInfo()
-                    info.id = element.identifier
-                    info.label = element.label
-                    info.value = element.value as? String ?? ""
-                    captured.element = info
-                }
+                captured.element = auditTarget(issue.element, reference: "\(capture):issue[\(result.issues.count)]")
                 if result.issues.count < 512 {
                     result.issues.append(captured)
                 } else {
@@ -148,6 +147,44 @@ enum NativeAccessibilityInspector {
             result.error = String(describing: error)
         }
         return result
+    }
+
+    private static func auditTarget(_ element: XCUIElement?, reference: String) -> Amoo_ElementInfo {
+        var info = Amoo_ElementInfo()
+        var semantics = Amoo_ElementSemantics()
+        semantics.reference = reference
+        semantics.attributes = [
+            "provider": "XCUIAccessibilityAuditIssue.element",
+            "coordinateUnit": "points",
+            "coordinateSpace": "screen",
+            "hierarchyPathAvailability": "unavailable: native audit does not supply a hierarchy path",
+            "traitsAvailability": "unavailable: public XCTest snapshot exposes element type and state",
+            "referenceScope": "audit capture only; not a persistent selector"
+        ]
+        if let element, let snapshot = try? element.snapshot() {
+            info.id = snapshot.identifier
+            info.label = snapshot.label
+            info.value = snapshot.value as? String ?? ""
+            info.type = String(describing: snapshot.elementType)
+            info.isEnabled = snapshot.isEnabled
+            info.isSelected = snapshot.isSelected
+            let frame = snapshot.frame
+            if !frame.isNull, !frame.isInfinite, frame.width > 0, frame.height > 0 {
+                var rect = Amoo_Rect()
+                rect.x = frame.origin.x
+                rect.y = frame.origin.y
+                rect.width = frame.width
+                rect.height = frame.height
+                info.frame = rect
+                semantics.fullFrame = rect
+            } else {
+                semantics.attributes["boundsAvailability"] = "unavailable: native target has empty geometry"
+            }
+        } else {
+            semantics.attributes["targetAvailability"] = "unavailable: native target absent or snapshot failed"
+        }
+        info.semantics = semantics
+        return info
     }
 
     #if compiler(>=6.4)

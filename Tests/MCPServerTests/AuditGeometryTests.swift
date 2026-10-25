@@ -32,7 +32,7 @@ final class AuditGeometryTests: XCTestCase {
         let driver = AuditMockDriver(platform: .android, hierarchy: androidScreen)
         let (notEvaluated, content) = try await tapTargetCoverage(driver)
         XCTAssertNotNil(notEvaluated)
-        XCTAssertFalse(content.contains("heuristic"), content)
+        XCTAssertFalse(content.contains("bounds below"), content)
     }
 
     func testNativeAuditCategoriesTolerateSpacesAfterCommas() async {

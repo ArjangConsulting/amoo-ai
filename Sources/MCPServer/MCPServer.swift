@@ -89,7 +89,7 @@ extension ToolDefinition {
             "assert_enabled",
             "assert_absent",
             "assert_value",
-            "assert_selected"
+            "assert_selected", "assert_checked", "assert_state_description"
         ].contains(name) {
             copy.properties["parent_id"] = .init(
                 type: "string",
@@ -105,7 +105,7 @@ extension ToolDefinition {
             "assert_enabled",
             "assert_absent",
             "assert_value",
-            "assert_selected"
+            "assert_selected", "assert_checked", "assert_state_description"
         ].contains(name) {
             copy.properties["index"] = .init(
                 type: "string",
@@ -120,7 +120,8 @@ extension ToolDefinition {
                     + " uses .firstMatch. Not combinable with index."
             )
         }
-        if ["type_text", "set_text", "fill_field", "assert_value"].contains(name) {
+        if ["type_text", "set_text", "fill_field", "assert_value", "assert_state_description", "assert_talkback_speech"]
+            .contains(name) {
             copy.properties["record_value"] = .init(
                 type: "string", description: "fixture records non-sensitive test data; default secret redacts it"
             )

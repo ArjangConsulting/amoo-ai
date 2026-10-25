@@ -34,6 +34,10 @@ public enum StudioTool: String, CaseIterable, Codable, Sendable, Hashable {
     /// (`"true"` or `"false"`). Not interchangeable with visibility or `assert_value`: an unselected
     /// element is present and visible, so neither of those can observe the state at all.
     case assertSelected = "assert_selected"
+    /// Checks the native checked property of a checkable control.
+    case assertChecked = "assert_checked"
+    /// Checks native stateDescription independently of editable text/value.
+    case assertStateDescription = "assert_state_description"
     case takeScreenshot = "take_screenshot"
     case pressBack = "press_back"
     /// Relaunches through a repository harness without resetting persisted state.

@@ -29,6 +29,19 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             .map { "import \($0)" }
             .joined(separator: "\n")
         let baseClass = test.testContext?.baseClass.map { " : \($0)" } ?? ""
+        let nativeStateImports = operations.contains { [
+            StudioTool.assertSelected,
+            .assertChecked,
+            .assertStateDescription
+        ]
+        .map(\.rawValue).contains($0.tool)
+        }
+            ? "\nimport androidx.compose.ui.semantics.getOrNull"
+            + "\nimport androidx.compose.ui.state.ToggleableState"
+            + "\nimport androidx.compose.ui.test.assert" : ""
+        let stateImport = operations
+            .contains { ["assert_selected", "assert_checked", "assert_state_description"].contains($0.tool) }
+            ? "\nimport androidx.compose.ui.test.assert" : ""
         let ancestorImport = body.contains("hasAnyAncestor(")
             ? "\nimport androidx.compose.ui.test.hasAnyAncestor" : ""
 
@@ -36,7 +49,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import android.app.Activity
         import android.content.Intent
         import androidx.compose.ui.semantics.SemanticsActions
-        import androidx.compose.ui.semantics.SemanticsProperties
+        import androidx.compose.ui.semantics.SemanticsProperties\(nativeStateImports)
         import androidx.compose.ui.test.SemanticsMatcher
         import androidx.compose.ui.test.SemanticsNodeInteraction
         import androidx.compose.ui.test.assertIsDisplayed
@@ -229,8 +242,38 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         case .scrollToElement:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).performScrollTo().assertIsDisplayed()"
-        case .assertSelected:
-            throw TestCodeGeneratorError.selectionUnsupportedOnAndroid(tool: operation.tool, emitter: "Compose")
+        case .assertSelected, .assertChecked, .assertStateDescription:
+            let target = try guardedNode(operation)
+            let state: String
+            if tool == .assertStateDescription {
+                let exact = operation.arguments["value"] ?? operation.arguments["expected"]
+                guard let expected = exact ?? operation.arguments["contains"] else {
+                    throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "expected")
+                }
+                if exact != nil {
+                    state = "SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, \(literal(expected)))"
+                } else {
+                    state = "SemanticsMatcher(\(literal("stateDescription contains " + expected))) { "
+                        + "it.config.getOrNull(SemanticsProperties.StateDescription)"
+                        + "?.contains(\(literal(expected))) == true }"
+                }
+            } else {
+                let expected = try SelectedAssertion.expectation(operation)
+                if tool == .assertSelected {
+                    state = "SemanticsMatcher.expectValue(SemanticsProperties.Selected, \(expected))"
+                } else {
+                    state = "SemanticsMatcher(\(literal("native checked=" + String(expected)))) { "
+                        + "it.config.getOrNull(SemanticsProperties.ToggleableState)?.let { state -> "
+                        + "(state == ToggleableState.On) == \(expected) } == true }"
+                }
+            }
+            return try """
+            \(target.wait)
+            \(indent)composeTestRule.waitUntil(timeoutMillis = \(timeoutMilliseconds(for: operation))L) {
+            \(indent)    runCatching { \(target.node).assert(\(state)) }.isSuccess
+            \(indent)}
+            \(indent)\(target.node).assert(\(state))
+            """
         case .assertEnabled:
             let target = try guardedNode(operation)
             return "\(target.wait)\n\(indent)\(target.node).assertIsEnabled()"

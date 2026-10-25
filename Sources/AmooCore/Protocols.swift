@@ -87,6 +87,15 @@ public protocol AccessibilityProvider: Sendable {
         journey: AccessibilityJourney
     ) async throws -> AccessibilityInspection
     /// Executes bounded phases within one service lifetime; never simulates phases with separate calls.
+    /// Observes actual TalkBack focus and synthesis requests within one restorable service lifetime.
+    func inspectTalkBack(
+        appID: String,
+        steps: Int,
+        direction: String,
+        activate: Bool,
+        speechExpectations: [AccessibilitySpeechExpectation]
+    ) async throws
+        -> AccessibilityInspection
     func inspectVoiceOver(appID: String, phases: [VoiceOverPhase]) async throws -> AccessibilityInspection
     func inspectAccessibility(
         appID: String, operation: String, categories: [String], steps: Int, direction: String
@@ -210,7 +219,10 @@ public protocol PlatformDriver:
     AccessibilityProvider,
     DeviceConfigurator,
     AIContextProvider,
-    Sendable {}
+    Sendable {
+    /// Probes device transport and companion connectivity separately without mutating app state.
+    func connectivityHealth() async -> ConnectivityHealth
+}
 
 // MARK: - Default Implementations (throw notImplemented)
 

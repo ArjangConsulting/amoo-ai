@@ -1,15 +1,5 @@
 import Foundation
 
-public struct Point: Sendable, Equatable {
-    public var x: Double
-    public var y: Double
-
-    public init(x: Double, y: Double) {
-        self.x = x
-        self.y = y
-    }
-}
-
 public struct Duration: Sendable, Equatable {
     public var milliseconds: Int
 
@@ -26,25 +16,6 @@ public enum Direction: String, Sendable, Equatable {
     case down
     case left
     case right
-}
-
-public struct Rect: Sendable, Equatable, Codable {
-    public var x: Double
-    public var y: Double
-    public var width: Double
-    public var height: Double
-
-    public init(x: Double, y: Double, width: Double, height: Double) {
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-    }
-
-    /// Centre of the rect — the point a tap on this element should use.
-    public var centre: Point {
-        Point(x: x + width / 2, y: y + height / 2)
-    }
 }
 
 public enum ImageFormat: String, Sendable, Equatable {
@@ -118,6 +89,8 @@ public enum ElementType: String, Sendable, Equatable, CaseIterable {
 }
 
 public struct ViewNode: Sendable, Equatable {
+    public var isSelected: Bool?
+    public var semantics: ElementSemantics?
     public var id: String
     public var label: String
     public var value: String?
@@ -143,7 +116,9 @@ public struct ViewNode: Sendable, Equatable {
         isVisible: Bool = true,
         children: [Self] = [],
         isSecureTextEntry: Bool = false,
-        placeholder: String? = nil
+        placeholder: String? = nil,
+        semantics: ElementSemantics? = nil,
+        isSelected: Bool? = nil
     ) {
         self.id = id
         self.label = label
@@ -156,10 +131,13 @@ public struct ViewNode: Sendable, Equatable {
         self.isSecureTextEntry = isSecureTextEntry
         self.children = children
         self.placeholder = placeholder
+        self.semantics = semantics
+        self.isSelected = isSelected
     }
 }
 
 public struct ElementInfo: Sendable, Equatable {
+    public var semantics: ElementSemantics?
     public var isSelected: Bool?
     public var id: String
     public var label: String
@@ -186,7 +164,8 @@ public struct ElementInfo: Sendable, Equatable {
         isVisible: Bool = true,
         isSecureTextEntry: Bool = false,
         isSelected: Bool? = nil,
-        placeholder: String? = nil
+        placeholder: String? = nil,
+        semantics: ElementSemantics? = nil
     ) {
         self.id = id
         self.label = label
@@ -199,6 +178,7 @@ public struct ElementInfo: Sendable, Equatable {
         self.isSecureTextEntry = isSecureTextEntry
         self.isSelected = isSelected
         self.placeholder = placeholder
+        self.semantics = semantics
     }
 }
 

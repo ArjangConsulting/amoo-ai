@@ -126,6 +126,25 @@ public enum IntentTools {
             required: []
         ),
         ToolDefinition(
+            name: "assert_checked",
+            title: "Assert Checked",
+            description: "Poll the actual checked property of an existing checkable control."
+                + " expected defaults to true. Selected state, visibility and value are never substitutes.",
+            properties: assertionSelectorProperties.merging([
+                "expected": .init(type: "string", description: "true (default) or false")
+            ]) { current, _ in current }
+        ),
+        ToolDefinition(
+            name: "assert_state_description",
+            title: "Assert State Description",
+            description: "Poll native stateDescription independently of editable text/value."
+                + " Unavailable provider data returns unsupported; an explicit empty expectation is supported.",
+            properties: assertionSelectorProperties.merging([
+                "expected": .init(type: "string", description: "Exact expected state description"),
+                "contains": .init(type: "string", description: "Expected state-description substring")
+            ]) { current, _ in current }
+        ),
+        ToolDefinition(
             name: "assert_selected",
             title: "Assert Selected",
             description: "Assert that a matching element exists and is (or is not) selected. Polls until the"

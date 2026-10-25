@@ -196,7 +196,7 @@ final class TapChecksTests: XCTestCase {
             toolName: "tap_element", arguments: ["id": "add"]
         )
         XCTAssertFalse(result.isError)
-        XCTAssertTrue(result.content.contains("No observable change"), result.content)
+        XCTAssertTrue(result.content.contains("Semantic snapshot unchanged"), result.content)
         XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, false)
     }
 
@@ -208,7 +208,7 @@ final class TapChecksTests: XCTestCase {
         let result = await DriverToolExecutor(driver: driver).execute(
             toolName: "tap_element", arguments: ["id": "add"]
         )
-        XCTAssertFalse(result.content.contains("No observable change"), result.content)
+        XCTAssertFalse(result.content.contains("Semantic snapshot unchanged"), result.content)
         XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, true)
     }
 
@@ -231,7 +231,7 @@ final class TapChecksTests: XCTestCase {
         let result = await DriverToolExecutor(driver: driver).execute(
             toolName: "tap_element", arguments: ["id": "add", "check_effect": "false"]
         )
-        XCTAssertFalse(result.content.contains("No observable change"), result.content)
+        XCTAssertFalse(result.content.contains("Semantic snapshot unchanged"), result.content)
         XCTAssertNil(result.structuredContent?.objectValue?["observable_change"])
     }
 }

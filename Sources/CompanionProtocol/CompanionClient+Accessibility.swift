@@ -17,6 +17,20 @@ public extension CompanionClient {
         )
     }
 
+    func inspectTalkBack(
+        appID _: String,
+        steps _: Int,
+        direction _: String,
+        activate _: Bool,
+        speechExpectations _: [AccessibilitySpeechExpectation]
+    ) async throws
+        -> AccessibilityInspection {
+        AccessibilityInspection(
+            status: "unsupported", provider: "androidTalkBack",
+            error: "This provider does not support qualified TalkBack traversal and speech capture."
+        )
+    }
+
     func inspectVoiceOver(appID _: String, phases: [VoiceOverPhase]) async throws -> AccessibilityInspection {
         try VoiceOverPhase.validate(phases)
         return AccessibilityInspection(

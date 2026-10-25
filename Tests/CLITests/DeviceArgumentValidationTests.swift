@@ -11,6 +11,15 @@ final class DeviceArgumentValidationTests: XCTestCase {
         XCTAssertFalse(message.contains("session_id"), message)
     }
 
+    func testEmptyExpectedValueAndEqualsInValueSurviveParsing() throws {
+        let options = try parseDeviceCommandOptions(args: [
+            "assert_value", "id=message", "expected=", "contains=a=b"
+        ]).get()
+        XCTAssertEqual(options.arguments["expected"], "")
+        XCTAssertEqual(options.arguments["contains"], "a=b")
+        XCTAssertThrowsError(try parseDeviceCommandOptions(args: ["assert_value", "=value"]).get())
+    }
+
     func testDeclaredKeysPass() {
         XCTAssertNil(unknownArgumentMessage(tool: "find_elements", arguments: ["label": "Today", "limit": "5"]))
         XCTAssertNil(unknownArgumentMessage(tool: "device_launch_app", arguments: ["app_id": "com.example.app"]))

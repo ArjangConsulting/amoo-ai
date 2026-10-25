@@ -713,7 +713,8 @@ final class XCUITestBridge: @unchecked Sendable {
             isEnabled: snapshot.isEnabled,
             isVisible: isVisible,
             children: children,
-            placeholder: snapshot.placeholderValue
+            placeholder: snapshot.placeholderValue,
+            isSelected: snapshot.isSelected
         )
     }
 
@@ -747,7 +748,8 @@ final class XCUITestBridge: @unchecked Sendable {
             isEnabled: element.isEnabled,
             isVisible: isVisible,
             children: children,
-            placeholder: element.placeholderValue
+            placeholder: element.placeholderValue,
+            isSelected: element.isSelected
         )
     }
 

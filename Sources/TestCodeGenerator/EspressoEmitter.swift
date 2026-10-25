@@ -26,6 +26,17 @@ public struct EspressoEmitter: StudioCodeEmitting {
         let needsIndexMatcher = body.contains("withIndex(")
         let scrollImport = body
             .contains("scrollTo()") ? "\nimport androidx.test.espresso.action.ViewActions.scrollTo" : ""
+        let nativeStateImports = operations.contains { [
+            StudioTool.assertSelected,
+            .assertChecked,
+            .assertStateDescription
+        ]
+        .map(\.rawValue).contains($0.tool)
+        }
+            ? "\nimport androidx.test.espresso.matcher.ViewMatchers.isSelected"
+            + "\nimport androidx.test.espresso.matcher.ViewMatchers.isChecked\nimport org.hamcrest.Matchers.not" : ""
+        let stateDescriptionHelper = operations.contains { $0.tool == StudioTool.assertStateDescription.rawValue }
+            ? Self.stateDescriptionMatcher : ""
         let ancestorImport = body.contains("isDescendantOfA(")
             ? "\nimport androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA" : ""
         let allOfImport = body.contains("allOf(") ? "\nimport org.hamcrest.Matchers.allOf" : ""
@@ -38,7 +49,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 "assert_not_visible",
                 "assert_text",
                 "assert_value",
-                "assert_enabled"
+                "assert_enabled", "assert_selected", "assert_checked", "assert_state_description"
             ].contains($0.tool)
         }
         let matcherHelpers = [
@@ -71,7 +82,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         import androidx.test.espresso.matcher.ViewMatchers.hasFocus
         import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
         import androidx.test.espresso.matcher.ViewMatchers.isEnabled
-        import androidx.test.espresso.matcher.ViewMatchers.isRoot\(ancestorImport)
+        import androidx.test.espresso.matcher.ViewMatchers.isRoot\(ancestorImport)\(nativeStateImports)
         import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
         import androidx.test.espresso.matcher.ViewMatchers.withText
         import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -94,7 +105,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         @RunWith(AndroidJUnit4::class)
         class \(className)\(baseClass) {
         \(matcherHelpers)
-        \(Self.waitHelpers)
+        \(Self.waitHelpers)\(stateDescriptionHelper.isEmpty ? "" : "\n" + stateDescriptionHelper)
 
             @Test
             fun \(methodName)() {
@@ -321,8 +332,31 @@ public struct EspressoEmitter: StudioCodeEmitting {
             \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
             """
 
-        case .assertSelected:
-            throw TestCodeGeneratorError.selectionUnsupportedOnAndroid(tool: operation.tool, emitter: "Espresso")
+        case .assertSelected, .assertChecked:
+            let expected = try SelectedAssertion.expectation(operation)
+            let property = tool == .assertChecked ? "isChecked()" : "isSelected()"
+            let state = expected ? property : "not(\(property))"
+            let target = try matcher(operation)
+            return try """
+            \(indent)onView(isRoot()).perform(waitUntilDisplayed(
+            \(indent)    allOf(\(target), \(state)), \(timeoutMilliseconds(for: operation))L
+            \(indent)))
+            \(indent)onView(\(target)).check(matches(\(state)))
+            """
+
+        case .assertStateDescription:
+            let exact = operation.arguments["value"] ?? operation.arguments["expected"]
+            guard let expected = exact ?? operation.arguments["contains"] else {
+                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "expected")
+            }
+            let target = try matcher(operation)
+            let state = "hasNativeStateDescription(\(literal(expected)), \(exact == nil))"
+            return try """
+            \(indent)onView(isRoot()).perform(waitUntilDisplayed(
+            \(indent)    allOf(\(target), \(state)), \(timeoutMilliseconds(for: operation))L
+            \(indent)))
+            \(indent)onView(\(target)).check(matches(\(state)))
+            """
 
         case .assertEnabled:
             let target = try matcher(operation)

@@ -5,6 +5,15 @@ public protocol CompanionClient: Sendable {
     /// Runs authored checkpoints and transitions within one bounded service lifetime.
     func inspectAccessibilityJourney(appID: String, journey: AccessibilityJourney) async throws
         -> AccessibilityInspection
+    /// Observes actual TalkBack focus and synthesis requests within one restorable service lifetime.
+    func inspectTalkBack(
+        appID: String,
+        steps: Int,
+        direction: String,
+        activate: Bool,
+        speechExpectations: [AccessibilitySpeechExpectation]
+    ) async throws
+        -> AccessibilityInspection
     func inspectVoiceOver(appID: String, phases: [VoiceOverPhase]) async throws -> AccessibilityInspection
     func inspectAccessibility(
         appID: String, operation: String, categories: [String], steps: Int, direction: String

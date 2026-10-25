@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import StudioProtocol
 
 // Emits an XCTestCase driving `XCUIApplication` directly — no amoo companion app involved at run time.
@@ -327,6 +328,12 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             \(indent)XCTAssertTrue(\(variable).isEnabled)
             """
 
+        case .assertChecked, .assertStateDescription:
+            throw TestCodeGeneratorError.unsupportedAssertion(
+                tool: operation.tool, emitter: "XCUITest",
+                reason: "XCTest does not expose this Android native property; value/selection are not substitutes."
+            )
+
         case .assertSelected:
             let expected = try SelectedAssertion.expectation(operation)
             let (_, variable, declaration) = try lookup(
@@ -485,3 +492,5 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         return "\"\(escaped)\""
     }
 }
+
+// swiftlint:enable multiline_arguments

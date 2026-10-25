@@ -13,4 +13,5 @@ struct ViewNodeSnapshot {
     var children: [ViewNodeSnapshot]
     /// Text-input placeholder; `nil` for other controls.
     var placeholder: String?
+    var isSelected: Bool?
 }

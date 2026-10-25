@@ -113,7 +113,13 @@ extension DriverToolExecutor {
             if frontmost == appID {
                 return .success(
                     "App launched: \(appID) (verified=true)",
-                    structuredContent: .object(["app_id": .string(appID), "verified": .bool(true)])
+                    structuredContent: .object([
+                        "app_id": .string(appID),
+                        "verified": .bool(true),
+                        "foreground_verified": .bool(true),
+                        "semantic_readiness": .string("unverified"),
+                        "render_readiness": .string("unverified")
+                    ])
                 )
             }
             // `appState`'s `.running` was tried here as a second, faster success signal, and
@@ -199,7 +205,7 @@ extension DriverToolExecutor {
         )
     }
 
-    enum ElementAssertionKind: Sendable {
+    enum ElementAssertionKind: String, Sendable {
         /// On screen. Deliberately weaker than `.enabled`: a disabled-but-present control is
         /// visible, and asserting otherwise would make `assert_visible` silently mean
         /// "visible and interactive".
@@ -217,6 +223,7 @@ extension DriverToolExecutor {
         case value
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func executeElementAssertion(
         kind: ElementAssertionKind,
         selector: ElementSelector,
@@ -227,15 +234,32 @@ extension DriverToolExecutor {
         let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
         let pick = try ElementPick.parse(arguments)
+        let started = ContinuousClock.now
+        var lastMatch: ElementInfo?
+        var reads = 0
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
             }
-            let match = try await OperationDeadline.read(until: deadline) {
-                try await self.resolveElement(
-                    selector: selector, driver: driver, appID: appID, pick: pick, missingIsNil: kind == .absent
+            let match: ElementInfo?
+            do {
+                match = try await OperationDeadline.read(until: deadline) {
+                    try await self.resolveElement(
+                        selector: selector, driver: driver, appID: appID, pick: pick, missingIsNil: kind == .absent
+                    )
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as ToolExecutionError {
+                throw error
+            } catch {
+                return assertionFailure(
+                    kind: kind, arguments: arguments, lastMatch: lastMatch, reads: reads,
+                    started: started, observationError: String(describing: error)
                 )
             }
+            lastMatch = match
+            reads += 1
             switch kind {
             case .absent where match == nil:
                 return assertionSuccess("Element is absent", element: nil)
@@ -257,10 +281,9 @@ extension DriverToolExecutor {
             try? await Task.sleep(until: min(deadline, .now + .milliseconds(200)), clock: .continuous)
         } while ContinuousClock.now < deadline
 
-        return ToolResult(
-            content: "Assertion failed after \(timeoutMS)ms.",
-            isError: true,
-            structuredContent: .object(["passed": .bool(false)])
+        return assertionFailure(
+            kind: kind, arguments: arguments, lastMatch: lastMatch, reads: reads,
+            started: started, observationError: nil
         )
     }
 
