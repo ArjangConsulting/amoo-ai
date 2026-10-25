@@ -7,7 +7,7 @@ extension AndroidCompanionManager {
     /// True when `start_session` would reuse the existing APKs as is. `prepareBuild` reuses under
     /// this rule and `companion status` reports `stale` under it, so the two cannot disagree.
     func isBuildCurrent(config: AndroidCompanionConfig) -> Bool {
-        let paths = apkPaths(companionDir: config.companionDir, useBundled: config.buildMode != .rebuild)
+        let paths = apkPaths(companionDir: config.companionDir, useBundled: usesBundledAPKs(config: config))
         guard config.buildMode != .rebuild,
               FileManager.default.fileExists(atPath: paths.app),
               FileManager.default.fileExists(atPath: paths.test)
@@ -20,7 +20,7 @@ extension AndroidCompanionManager {
     /// Builds APKs independently of emulator boot; returns whether the products need reinstalling.
     @discardableResult
     func prepareBuild(config: AndroidCompanionConfig) async throws -> Bool {
-        let paths = apkPaths(companionDir: config.companionDir, useBundled: config.buildMode != .rebuild)
+        let paths = apkPaths(companionDir: config.companionDir, useBundled: usesBundledAPKs(config: config))
         let exists = FileManager.default.fileExists(atPath: paths.app)
             && FileManager.default.fileExists(atPath: paths.test)
         if config.buildMode == .reuse {
