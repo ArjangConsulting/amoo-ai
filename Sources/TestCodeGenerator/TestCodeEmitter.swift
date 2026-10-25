@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import StudioProtocol
 
 public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
@@ -50,18 +51,6 @@ enum SelectedAssertion {
     }
 }
 
-extension TestCodeGeneratorError {
-    /// The Android companion reports no selected state, so no Android emitter can express the assertion.
-    static func selectionUnsupportedOnAndroid(tool: String, emitter: String) -> Self {
-        .unsupportedAssertion(
-            tool: tool,
-            emitter: emitter,
-            reason: "the Android companion does not report a selected state, so the assertion can be neither"
-                + " recorded nor verified there."
-        )
-    }
-}
-
 enum TestHelperRendering {
     /// Renders only helpers explicitly chosen by the planner. This prevents a helper with a
     /// plausible name from silently changing a recorded test's behavior.
@@ -76,10 +65,21 @@ enum TestHelperRendering {
         }
 
         // A helper that does not take the expectation cannot tell selected from unselected.
-        if operation.tool == StudioTool.assertSelected.rawValue, !helper.callTemplate.contains("{{expected}}") {
+        if [StudioTool.assertSelected, .assertChecked].map(\.rawValue).contains(operation.tool),
+           !helper.callTemplate.contains("{{expected}}") {
             throw TestCodeGeneratorError.invalidArgument(
                 tool: operation.tool, argument: "helper", value: "\(helperName) drops the recorded expectation"
             )
+        }
+        if operation.tool == StudioTool.assertStateDescription.rawValue {
+            let key = operation.arguments["value"] != nil ? "value"
+                : operation.arguments["expected"] != nil ? "expected" : "contains"
+            guard operation.arguments[key] != nil, helper.callTemplate.contains("{{\(key)}}") else {
+                throw TestCodeGeneratorError.invalidArgument(
+                    tool: operation.tool, argument: "helper",
+                    value: "\(helperName) drops the state-description expectation"
+                )
+            }
         }
         var call = helper.callTemplate
         while let start = call.range(of: "{{"), let end = call.range(
@@ -429,3 +429,5 @@ struct LocalNameAllocator {
         }
     }
 }
+
+// swiftlint:enable multiline_arguments

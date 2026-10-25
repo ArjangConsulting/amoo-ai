@@ -10,5 +10,11 @@ data class ElementSnapshot(
     val isVisible: Boolean,
     val isSecureTextEntry: Boolean = false,
     /** Input hint TalkBack announces for an empty field; null when the node has none. */
-    val placeholder: String? = null
+    val placeholder: String? = null,
+    val visibleFrame: FrameRect? = null,
+    val isSelected: Boolean = false,
+    val reference: String = "",
+    val parentReference: String = "",
+    val hierarchyPath: String = "",
+    val attributes: Map<String, String> = emptyMap()
 )

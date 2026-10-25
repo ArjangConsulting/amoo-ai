@@ -39,6 +39,8 @@ extension DriverToolExecutor {
             return elements.map { element in
                 var copy = element
                 copy.frame = element.frame.map(geometry.normalized)
+                copy.semantics?.fullFrame = element.semantics?.fullFrame.map(geometry.normalized)
+                copy.semantics?.visibleFrame = element.semantics?.visibleFrame.map(geometry.normalized)
                 return copy
             }
         }
@@ -76,13 +78,14 @@ extension DriverToolExecutor {
     func formatAuditReport(_ report: AuditReport, failOn: String?) -> ToolResult {
         if report.findings.isEmpty {
             return ToolResult(
-                content: "No findings in the inspected screen for \(report.appID). See evidence coverage.",
+                content: "No findings in the inspected screen for \(report.appID). See evidence coverage.\n"
+                    + auditCoverageSummary,
                 isError: report.executionFailed,
                 structuredContent: auditStructuredContent(report, failOn: failOn, failed: false)
             )
         }
 
-        var lines = ["Audit report for \(report.appID): \(report.findings.count) finding(s)\n"]
+        var lines = ["Audit report for \(report.appID): \(report.findings.count) finding(s)\n", auditCoverageSummary]
 
         let sorted = report.findings.sorted { severityOrder($0.severity) < severityOrder($1.severity) }
         for finding in sorted {
@@ -111,12 +114,21 @@ extension DriverToolExecutor {
         )
     }
 
+    private var auditCoverageSummary: String {
+        "Current-screen heuristics only. Native/ATF auditing and VoiceOver/TalkBack traversal are not performed."
+            + " Image contrast, text wrapping, system bars, and whole-app conformance remain unassessed."
+    }
+
     private func auditStructuredContent(_ report: AuditReport, failOn: String?, failed: Bool) -> Value {
         var fields = (try? Value(report))?.objectValue ?? [:]
         let complete = !report.evaluations.isEmpty && report.evaluations.allSatisfy { $0.status == .evaluated }
         fields["executionStatus"] = .string(report.executionFailed ? "failed" : "succeeded")
         fields["verdict"] = .string(failed ? "fail" : failOn != nil && complete ? "pass" : "notAssessed")
         fields["cleanupStatus"] = .string("notRequired")
+        fields["limitations"] = .array([.string(auditCoverageSummary)])
+        fields["ruleNames"] = .object(Dictionary(uniqueKeysWithValues: RulePacks.all.map {
+            ($0.metadata.id, Value.string($0.metadata.title))
+        }))
         fields["coverage"] = .object([
             "requested": .array(report.evaluations.map { .string($0.ruleID) }),
             "evaluated": .array(report.evaluations.filter { $0.status == .evaluated }.map { .string($0.ruleID) }),

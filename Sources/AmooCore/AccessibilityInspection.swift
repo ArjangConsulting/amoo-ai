@@ -11,13 +11,25 @@ public struct AccessibilityInspection: Codable, Sendable, Equatable {
         public var details: String
         public var elementID: String?
         public var label: String?
+        public var frame: Rect?
+        public var value: String?
+        public var elementType: String?
+        public var semantics: ElementSemantics?
 
-        public init(category: String, description: String, details: String, elementID: String?, label: String?) {
+        public init(
+            category: String, description: String, details: String, elementID: String?, label: String?,
+            frame: Rect? = nil, value: String? = nil, elementType: String? = nil,
+            semantics: ElementSemantics? = nil
+        ) {
             self.category = category
             self.description = description
             self.details = details
             self.elementID = elementID
             self.label = label
+            self.frame = frame
+            self.value = value
+            self.elementType = elementType
+            self.semantics = semantics
         }
     }
 
@@ -33,6 +45,26 @@ public struct AccessibilityInspection: Codable, Sendable, Equatable {
 
     /// Observing speech never evaluates a semantic accessibility assertion.
     public var verdict: String {
+        if provider == "androidTalkBack", let raw = provenance["speech_expectations_json"],
+           let expected = try? JSONDecoder().decode([AccessibilitySpeechExpectation].self, from: Data(raw.utf8)),
+           (1 ... 30).contains(expected.count), expected.allSatisfy({
+               ($0.equals != nil) != ($0.contains != nil) && $0.elementID == nil
+           }) {
+            let mismatched = phases.contains { phase in
+                expected.indices.contains(phase.phaseIndex)
+                    && evaluatedChecks.contains("talkBack.move.\(phase.phaseIndex)") && !phase.utterances.isEmpty
+                    && !expected[phase.phaseIndex].matches(phase.utterances.joined(separator: " "))
+            }
+            if mismatched {
+                return "fail"
+            }
+            guard status == "pass", !truncated, phases.count == expected.count,
+                  Set(phases.map(\.phaseIndex)) == Set(expected.indices),
+                  phases.allSatisfy({ $0.requestedSteps == 1 && !$0.utterances.isEmpty }),
+                  evaluatedChecks.count == expected.count, Set(requestedChecks) == Set(evaluatedChecks),
+                  notEvaluatedReasons.isEmpty else { return "notAssessed" }
+            return "pass"
+        }
         if provider == "authoredAccessibilityJourney" {
             guard let journey, journey.schemaVersion == 1,
                   let specification = journey.specification, (try? specification.validate()) != nil,
@@ -50,7 +82,13 @@ public struct AccessibilityInspection: Codable, Sendable, Equatable {
                   journey.checks.allSatisfy({ $0.outcome == .pass }) else { return "notAssessed" }
             return "pass"
         }
-        guard provider == "appleNativeAudit" else { return "notAssessed" }
+        guard ["appleNativeAudit", "androidNativeATF"].contains(provider) else { return "notAssessed" }
+        if provider == "androidNativeATF" {
+            if issues.contains(where: { $0.semantics?.attributes["resultType"] == "ERROR" }) {
+                return "fail"
+            }
+            guard issues.isEmpty else { return "notAssessed" }
+        }
         if !issues.isEmpty {
             return "fail"
         }
@@ -60,6 +98,15 @@ public struct AccessibilityInspection: Codable, Sendable, Equatable {
     }
 
     public var cleanupStatus: String {
+        if provider == "androidTalkBack" {
+            if cleanupError != nil {
+                return "failed"
+            }
+            if status == "unsupported" {
+                return "notRequired"
+            }
+            return provenance["restoration_status"] ?? "unknown"
+        }
         if cleanupError != nil {
             return "failed"
         }

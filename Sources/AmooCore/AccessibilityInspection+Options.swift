@@ -1,13 +1,30 @@
 // swiftlint:disable multiline_arguments
 /// Validation is shared by CLI/MCP and drivers so invalid requests cannot change settings.
 public enum AccessibilityInspectionOptions {
-    public static let auditCategories: Set<String> = [
+    public static let androidAuditCategories: Set<String> = [
+        "contrast", "hitRegion", "sufficientElementDescription", "duplicateSpeakableText", "editableContentDescription"
+    ]
+    public static let iosAuditCategories: Set<String> = [
         "contrast", "elementDetection", "hitRegion", "sufficientElementDescription",
         "dynamicType", "textClipped", "trait"
     ]
 
+    public static let auditCategories = iosAuditCategories.union(androidAuditCategories)
+
+    public static func validateSpeech(_ expectations: [AccessibilitySpeechExpectation], steps: Int) throws {
+        guard expectations.count == steps, (1 ... 30).contains(steps), expectations.allSatisfy({
+            ($0.equals != nil) != ($0.contains != nil) && $0.elementID == nil
+                && ($0.equals ?? $0.contains ?? "").utf8.count <= 8192
+        }) else {
+            throw AmooError.commandFailed(
+                command: "speech assertions",
+                output: "Provide one equals/contains expectation per move, with no elementID"
+            )
+        }
+    }
+
     public static func validate(operation: String, categories: [String], steps: Int, direction: String) throws {
-        guard ["nativeAudit", "voiceOver"].contains(operation) else {
+        guard ["nativeAudit", "voiceOver", "talkBack"].contains(operation) else {
             throw AmooError.commandFailed(command: "accessibility inspection", output: "Unknown operation")
         }
         guard (1 ... 30).contains(steps), ["forward", "backward"].contains(direction) else {
@@ -38,6 +55,20 @@ public extension AccessibilityProvider {
             error: "Authored journeys require a capable iOS 27 companion.",
             requestedChecks: journey.requestedChecks,
             notEvaluatedReasons: reasons
+        )
+    }
+
+    func inspectTalkBack(
+        appID _: String,
+        steps _: Int,
+        direction _: String,
+        activate _: Bool,
+        speechExpectations _: [AccessibilitySpeechExpectation]
+    ) async throws
+        -> AccessibilityInspection {
+        AccessibilityInspection(
+            status: "unsupported", provider: "androidTalkBack",
+            error: "This provider does not support qualified TalkBack traversal and speech capture."
         )
     }
 

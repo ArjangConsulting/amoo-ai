@@ -97,7 +97,7 @@ struct ToolRequest: Sendable {
         }
         let booleanKeys = [
             "record_speech", "return_image", "labeled_only", "include_offline", "all_frames", "force",
-            "check_hittable", "check_effect"
+            "check_hittable", "check_effect", "activate"
         ]
         for key in booleanKeys {
             if let raw = arguments[key], boolArgument(raw) == nil {
@@ -114,6 +114,7 @@ public enum ToolProfile: String, Sendable, CaseIterable {
     func includes(_ name: String) -> Bool {
         let lifecycle = Set(SessionTools.names + CompanionTools.names)
         let driving = Set([
+            "device_health",
             "find_elements",
             "describe_screen",
             "get_screen_context",
@@ -128,7 +129,7 @@ public enum ToolProfile: String, Sendable, CaseIterable {
             "assert_visible",
             "assert_absent",
             "assert_value",
-            "assert_selected",
+            "assert_selected", "assert_checked", "assert_state_description",
             "assert_enabled",
             "list_devices",
             "run_steps"

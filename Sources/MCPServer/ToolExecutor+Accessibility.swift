@@ -1,8 +1,10 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
 import MCP
 
 extension DriverToolExecutor {
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func executeAccessibilityInspection(
         driver: any PlatformDriver, arguments: [String: String], toolName: String
     ) async throws -> ToolResult {
@@ -19,13 +21,28 @@ extension DriverToolExecutor {
         guard current.bundleID == appID else {
             throw ToolExecutionError(code: "wrong_app", message: "Inspection target is not the frontmost app")
         }
-        let operation = toolName == "test_voiceover" ? "voiceOver" : "nativeAudit"
+        let operation = ["test_talkback", "assert_talkback_speech"]
+            .contains(toolName) ? "talkBack" : toolName == "test_voiceover" ? "voiceOver" : "nativeAudit"
+        let platform = try? await driver.deviceInfo().platform
+        let defaults = platform == .android ? AccessibilityInspectionOptions.androidAuditCategories
+            : AccessibilityInspectionOptions.iosAuditCategories
         let categories = arguments["categories"]
             .map {
                 $0.split(separator: ",", omittingEmptySubsequences: false)
                     .map { $0.trimmingCharacters(in: .whitespaces) }
             }
-            ?? AccessibilityInspectionOptions.auditCategories.sorted()
+            ?? defaults.sorted()
+        let speech: [AccessibilitySpeechExpectation]
+        if toolName == "assert_talkback_speech" {
+            guard let raw = arguments["speech"],
+                  let decoded = try? JSONDecoder().decode([AccessibilitySpeechExpectation].self, from: Data(raw.utf8))
+            else {
+                throw ToolExecutionError(code: "invalid_argument", message: "speech requires a JSON expectation array")
+            }
+            speech = decoded
+        } else {
+            speech = []
+        }
         let steps: Int
         if let value = arguments["steps"] {
             guard let count = Int(value) else {
@@ -33,14 +50,25 @@ extension DriverToolExecutor {
             }
             steps = count
         } else {
-            steps = 5
+            steps = speech.isEmpty ? 5 : speech.count
+        }
+        if toolName == "assert_talkback_speech" {
+            try AccessibilityInspectionOptions.validateSpeech(speech, steps: steps)
         }
         let direction = arguments["direction"] ?? "forward"
         try AccessibilityInspectionOptions.validate(
             operation: operation, categories: categories, steps: steps, direction: direction
         )
         let phases = try inspectionPhases(arguments: arguments, operation: operation)
-        var report = if phases.isEmpty {
+        let baseline = operation == "nativeAudit" ? await Self.withinBudget(milliseconds: 1500) {
+            try? await driver.observeScreen(appID: appID)
+        } : nil
+        var report = if operation == "talkBack" {
+            try await driver.inspectTalkBack(
+                appID: appID, steps: steps, direction: direction, activate: boolArgument(arguments["activate"]) == true,
+                speechExpectations: speech
+            )
+        } else if phases.isEmpty {
             try await driver.inspectAccessibility(
                 appID: appID, operation: operation, categories: categories, steps: steps, direction: direction
             )
@@ -57,12 +85,28 @@ extension DriverToolExecutor {
             }, uniquingKeysWith: { first, _ in first })
         }
         report = try await inspectionProvenance(report, driver: driver, arguments: arguments, appID: appID)
+        let highlight = await inspectionHighlight(report: &report, baseline: baseline, driver: driver, appID: appID)
+        if let path = arguments["output"] {
+            if let highlight {
+                let output = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+                try FileManager.default.createDirectory(
+                    at: output.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try highlight.data.write(to: output, options: .atomic)
+                report.provenance["annotated_screenshot_path"] = output.path
+            } else {
+                report.provenance["annotation_output_status"] = "unavailable: no correlated highlight was produced"
+            }
+        }
         return try ToolResult(
             content: "\(report.provider): execution=\(report.executionStatus), verdict=\(report.verdict),"
                 + " cleanup=\(report.cleanupStatus). \(report.issues.count) issue(s),"
                 + " \(report.utterances.count) observed utterance(s). \(report.error ?? "")",
-            isError: report.executionStatus != "succeeded" || ["failed", "unknown"].contains(report.cleanupStatus),
-            structuredContent: Value(report)
+            isError: report.executionStatus != "succeeded" || ["failed", "unknown"].contains(report.cleanupStatus)
+                || (toolName == "assert_talkback_speech" && report.verdict != "pass"),
+            structuredContent: Value(report),
+            image: highlight
         )
     }
 
@@ -82,3 +126,5 @@ extension DriverToolExecutor {
         return []
     }
 }
+
+// swiftlint:enable multiline_arguments

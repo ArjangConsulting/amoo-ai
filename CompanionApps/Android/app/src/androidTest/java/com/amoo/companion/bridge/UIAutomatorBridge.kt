@@ -11,6 +11,9 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.Configurator
+import android.app.UiAutomation
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
@@ -53,6 +56,9 @@ class UIAutomatorBridge {
         InstrumentationRegistry.getInstrumentation()
     }
     private val device by lazy {
+        Configurator.getInstance().uiAutomationFlags = UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
+        Configurator.getInstance().toolType = MotionEvent.TOOL_TYPE_FINGER
+        Configurator.getInstance().waitForIdleTimeout = 200
         UiDevice.getInstance(instrumentation).also { enableInteractiveWindowRetrieval() }
     }
     private val targetPackageName by lazy {
@@ -88,11 +94,27 @@ class UIAutomatorBridge {
      */
     private fun enableInteractiveWindowRetrieval() {
         runCatching {
-            val automation = instrumentation.uiAutomation
+            val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
             val info = automation.serviceInfo ?: return
-            info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
             automation.serviceInfo = info
         }.onFailure { Log.w(LOG_TAG, "Could not enable interactive-window retrieval", it) }
+    }
+
+    fun <T> withAppAccessibilityRoot(appId: String, operation: (AccessibilityNodeInfo) -> T): T {
+        device
+        val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        if (Build.VERSION.SDK_INT >= 34) automation.clearCache()
+        val windows = automation.windows.orEmpty()
+        val roots = windows.mapNotNull { it.root }
+        try {
+            val root = roots.firstOrNull { it.packageName?.toString() == appId }
+                ?: error("Target app accessibility root unavailable; IME/system windows are excluded")
+            return operation(root)
+        } finally {
+            roots.forEach { it.recycleQuietly() }
+            windows.forEach { runCatching { it.recycle() } }
+        }
     }
 
     // -- Touch --
@@ -173,7 +195,7 @@ class UIAutomatorBridge {
         // Injection is rejected unless the event claims a touchscreen source.
         event.source = InputDevice.SOURCE_TOUCHSCREEN
         return try {
-            instrumentation.uiAutomation.injectInputEvent(event, true)
+            instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).injectInputEvent(event, true)
         } finally {
             event.recycle()
         }
@@ -279,7 +301,7 @@ class UIAutomatorBridge {
         // `performGlobalAction` dispatches the same Back and reports only whether the action was
         // accepted, which is the signal the caller actually wants. Key injection is the fallback.
         val dispatched = runCatching {
-            instrumentation.uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         }.getOrDefault(false)
         if (dispatched) {
             device.waitForIdle(WAIT_FOR_IDLE_MS)
@@ -308,7 +330,7 @@ class UIAutomatorBridge {
         appId: String? = null,
         labeledOnly: Boolean = false
     ): List<ElementSnapshot> {
-        return withCurrentElements { elements ->
+        return withCurrentElements(appId) { elements ->
             scopedElements(elements, appId)
                 .filter { element ->
                     matches(element, resourceId, text, containsText)
@@ -319,7 +341,7 @@ class UIAutomatorBridge {
     }
 
     fun getAllElements(appId: String? = null): List<ElementSnapshot> {
-        return withCurrentElements { elements ->
+        return withCurrentElements(appId) { elements ->
             scopedElements(elements, appId).map { it.toSnapshot() }
         }
     }
@@ -344,7 +366,7 @@ class UIAutomatorBridge {
         containsText: String?,
         appId: String? = null
     ): ElementSnapshot? {
-        return withCurrentElements { elements ->
+        return withCurrentElements(appId) { elements ->
             val matches = scopedElements(elements, appId)
                 .filter { matches(it, resourceId, text, containsText) }
             if (matches.size != 1) return@withCurrentElements null
@@ -428,8 +450,21 @@ class UIAutomatorBridge {
         isEnabled = isEnabled,
         isVisible = isVisible,
         isSecureTextEntry = isSecureTextEntry,
-        placeholder = placeholder
+        placeholder = placeholder,
+        visibleFrame = visibleBounds(),
+        isSelected = isSelected,
+        reference = reference,
+        parentReference = parentReference,
+        hierarchyPath = hierarchyPath,
+        attributes = attributes
     )
+
+    private fun NodeRecord.visibleBounds(): FrameRect {
+        val visible = Rect(bounds)
+        val viewport = scrollBounds ?: Rect(0, 0, device.displayWidth, device.displayHeight)
+        if (!isVisible || !visible.intersect(viewport)) visible.setEmpty()
+        return FrameRect(visible.left, visible.top, visible.width(), visible.height())
+    }
 
     private fun matches(
         element: NodeRecord,
@@ -477,11 +512,11 @@ class UIAutomatorBridge {
      * recycled. Retry the whole operation once with a fresh tree; partial results would make a
      * selector appear absent merely because its node changed during the walk.
      */
-    private inline fun <T> withCurrentElements(operation: (List<NodeRecord>) -> T): T {
+    private inline fun <T> withCurrentElements(appId: String? = null, operation: (List<NodeRecord>) -> T): T {
         try {
-            return operation(currentElements())
+            return operation(currentElements(appId))
         } catch (_: StaleObjectException) {
-            return operation(currentElements())
+            return operation(currentElements(appId))
         }
     }
 
@@ -499,6 +534,13 @@ class UIAutomatorBridge {
      * needs one fetch per node instead of nine.
      */
     private class NodeRecord(
+        val reference: String,
+        val parentReference: String,
+        val hierarchyPath: String,
+        val isSelected: Boolean,
+        val attributes: Map<String, String>,
+        val scrollBounds: Rect?,
+        val scrollReference: String,
         val id: String,
         val label: String,
         val value: String,
@@ -524,9 +566,11 @@ class UIAutomatorBridge {
         val clickableAncestor: NodeRecord? = null
     )
 
-    private fun currentElements(): List<NodeRecord> {
-        device.waitForIdle(WAIT_FOR_IDLE_MS)
-        val automation = instrumentation.uiAutomation
+    private fun currentElements(appId: String? = null): List<NodeRecord> {
+        val started = SystemClock.elapsedRealtime()
+        Log.i(LOG_TAG, "hierarchy_start scope=${if (appId == null) "all" else "app"}")
+        device.waitForIdle(200)
+        val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
         // Drop the process-wide `AccessibilityCache` before every read. Without this, after a
         // navigation `automation.windows` keeps returning a stale `AccessibilityWindowInfo` whose
         // `.root` is the *previous* screen's tree — nothing here invalidates it, so `find_elements`
@@ -559,31 +603,44 @@ class UIAutomatorBridge {
         }
 
         val out = ArrayList<NodeRecord>()
+        val deadline = SystemClock.uptimeMillis() + 8_000
         try {
-            for (root in roots) {
-                collectRecords(root, nearestClickable = null, depth = 0, into = out)
+            val capture = java.util.UUID.randomUUID().toString()
+            for ((index, root) in roots.withIndex()) {
+                if (appId != null && root.packageName?.toString() != appId) continue
+                collectRecords(root, nearestClickable = null, parent = null,
+                    path = "window[$index]", capture = capture, deadline = deadline,
+                    depth = 0, into = out)
             }
         } finally {
             for (root in roots) root.recycleQuietly()
             for (window in windows) runCatching { window.recycle() }
         }
+        Log.i(LOG_TAG, "hierarchy_complete roots=${roots.size} nodes=${out.size} elapsed_ms=${SystemClock.elapsedRealtime() - started}")
         return out
     }
 
     private fun collectRecords(
         node: AccessibilityNodeInfo,
         nearestClickable: NodeRecord?,
+        parent: NodeRecord?,
+        path: String,
+        capture: String,
+        deadline: Long,
         depth: Int,
         into: MutableList<NodeRecord>
     ) {
-        if (depth > MAX_TREE_DEPTH) return
-        val record = runCatching { node.toRecord(nearestClickable) }.getOrNull() ?: return
+        check(!io.grpc.Context.current().isCancelled) { "Hierarchy capture cancelled before completion" }
+        check(depth <= MAX_TREE_DEPTH && into.size < 10_000 && SystemClock.uptimeMillis() < deadline) {
+            "Hierarchy capture incomplete: traversal depth, node count, or time limit exceeded"
+        }
+        val record = node.toRecord(nearestClickable, parent, path, capture)
         into.add(record)
         val ancestorForChildren = if (record.isClickable) record else nearestClickable
         for (index in 0 until node.childCount) {
-            val child = runCatching { node.getChild(index) }.getOrNull() ?: continue
+            val child = node.getChild(index) ?: error("Hierarchy capture incomplete: a child became unavailable")
             try {
-                collectRecords(child, ancestorForChildren, depth + 1, into)
+                collectRecords(child, ancestorForChildren, record, "$path/$index", capture, deadline, depth + 1, into)
             } finally {
                 child.recycleQuietly()
             }
@@ -596,15 +653,74 @@ class UIAutomatorBridge {
         runCatching { recycle() }
     }
 
-    private fun AccessibilityNodeInfo.toRecord(nearestClickable: NodeRecord?): NodeRecord {
+    private fun AccessibilityNodeInfo.toRecord(
+        nearestClickable: NodeRecord?, parent: NodeRecord?, path: String, capture: String
+    ): NodeRecord {
         val rect = Rect().also { getBoundsInScreen(it) }
         val contentDescription = contentDescription?.toString().orEmpty()
         val resourceName = viewIdResourceName.orEmpty()
         val textValue = text?.toString().orEmpty()
+        val viewport = Rect(0, 0, device.displayWidth, device.displayHeight)
+        val scrollParent = parent?.attributes?.get("scrollable") == "true"
+        val scrollBounds = if (scrollParent) parent?.bounds else parent?.scrollBounds
+        val scrollReference = if (scrollParent) parent?.reference.orEmpty() else parent?.scrollReference.orEmpty()
+        val clippingBounds = scrollBounds ?: viewport
+        val touchesEdge = rect.left <= clippingBounds.left || rect.top <= clippingBounds.top ||
+            rect.right >= clippingBounds.right || rect.bottom >= clippingBounds.bottom
+        val properties = mutableMapOf(
+            "provider" to "AccessibilityNodeInfo",
+            "coordinateUnit" to "pixels",
+            "boundsKind" to "providerReported",
+            "fullBoundsAvailability" to "unavailable: exporter cannot establish unclipped layout bounds",
+            "clipping" to if (touchesEdge) "possible" else "unknown",
+            "rawResourceId" to resourceName,
+            "showingHintText" to isShowingHintText.toString(),
+            "rawText" to if (isPassword) "[redacted]" else textValue,
+            "contentDescription" to contentDescription,
+            "className" to className?.toString().orEmpty(),
+            "selected" to isSelected.toString(),
+            "checkable" to isCheckable.toString(),
+            "checked" to isChecked.toString(),
+            "clickable" to isClickable.toString(),
+            "focusable" to isFocusable.toString(),
+            "scrollable" to isScrollable.toString(),
+            "computedNameAvailability" to "unavailable: screen-reader name computation not observed",
+            "actions" to actionList.joinToString(",") { it.id.toString() },
+            "scrollContainerReference" to scrollReference,
+            "roleDescription" to extras.getCharSequence("AccessibilityNodeInfo.roleDescription")?.toString().orEmpty()
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            properties["stateDescription"] = stateDescription?.toString().orEmpty()
+        } else {
+            properties["stateDescriptionAvailability"] = "unsupported before API 30"
+        }
+        val labelingNode = labeledBy
+        try {
+            properties["labelAssociationAvailability"] = if (labelingNode == null) "noneReported" else "reported"
+            labelingNode?.let {
+                properties["labeledByResourceId"] = it.viewIdResourceName.orEmpty()
+                properties["labeledByText"] = it.text?.toString().orEmpty()
+                properties["labeledByContentDescription"] = it.contentDescription?.toString().orEmpty()
+            }
+        } finally {
+            labelingNode?.recycleQuietly()
+        }
+        rangeInfo?.let {
+            properties["rangeMin"] = it.min.toString()
+            properties["rangeMax"] = it.max.toString()
+            properties["rangeCurrent"] = it.current.toString()
+        }
         return NodeRecord(
+            reference = "$capture:$path",
+            parentReference = parent?.reference.orEmpty(),
+            hierarchyPath = path,
+            isSelected = isSelected,
+            attributes = properties,
+            scrollBounds = scrollBounds,
+            scrollReference = scrollReference,
             id = normalizedElementID(resourceName, contentDescription),
             label = textValue.ifBlank { contentDescription },
-            value = textValue,
+            value = if (isEditable && isShowingHintText) "" else textValue,
             type = className?.toString().orEmpty(),
             contentDescription = contentDescription,
             resourceName = resourceName,
@@ -659,7 +775,7 @@ class UIAutomatorBridge {
         }
 
         if (roots.isEmpty()) {
-            val automation = instrumentation.uiAutomation
+            val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
             Log.w(
                 LOG_TAG,
                 "currentElements found no window roots. " +

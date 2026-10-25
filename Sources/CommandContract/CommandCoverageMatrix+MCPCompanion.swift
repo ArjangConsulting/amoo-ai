@@ -21,6 +21,17 @@ public extension CommandCoverageMatrix {
     /// file under the length limit.
     static let mcpCompanionCommands: [CommandCoverage] = [
         .init(
+            name: "assert_talkback_speech", channel: .mcp, kind: .deterministic,
+            releaseTier: .informational, platforms: [.android], fixtureScreen: .audit,
+            expectedAssertion: "explicit speech expectations compare to actual synthesis input"
+                + " with restoration verified"
+        ),
+        .init(
+            name: "test_talkback", channel: .mcp, kind: .deterministic,
+            releaseTier: .informational, platforms: [.android], fixtureScreen: .audit,
+            expectedAssertion: "actual TalkBack focus and synthesis requests are observed with settings restored"
+        ),
+        .init(
             name: "assert_accessibility_journey", channel: .mcp, kind: .deterministic,
             releaseTier: .informational, platforms: [.ios], fixtureScreen: .audit,
             expectedAssertion: "authored failures retain target/transition evidence and evaluated coverage"
@@ -30,7 +41,7 @@ public extension CommandCoverageMatrix {
             channel: .mcp,
             kind: .deterministic,
             releaseTier: .informational,
-            platforms: [.ios],
+            platforms: allPlatforms,
             fixtureScreen: .audit,
             expectedAssertion: "native issues are captured without failing the companion test"
         ),

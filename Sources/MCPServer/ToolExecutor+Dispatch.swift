@@ -12,6 +12,9 @@ extension DriverToolExecutor {
         let driver = try await Self.controlPlaneTools.contains(toolName)
             ? defaultDriver : resolveDriver(arguments: arguments)
         switch toolName {
+        case "device_health":
+            return try await executeDeviceHealth(driver: driver, arguments: arguments)
+
         case "run_steps":
             return try await executeBatch(arguments: arguments)
 
@@ -431,7 +434,7 @@ extension DriverToolExecutor {
         case "assert_accessibility_journey":
             return try await executeAccessibilityJourney(driver: driver, arguments: arguments)
 
-        case "audit_accessibility_native", "test_voiceover":
+        case "audit_accessibility_native", "test_voiceover", "test_talkback", "assert_talkback_speech":
             return try await executeAccessibilityInspection(driver: driver, arguments: arguments, toolName: toolName)
 
         case "audit_app":
@@ -585,6 +588,9 @@ extension DriverToolExecutor {
                 arguments: arguments,
                 driver: driver
             )
+
+        case "assert_checked", "assert_state_description":
+            return try await executeStateAssertion(tool: toolName, arguments: arguments, driver: driver)
 
         case "assert_selected":
             return try await executeAssertSelected(arguments: arguments, driver: driver)

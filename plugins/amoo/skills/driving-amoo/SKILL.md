@@ -68,7 +68,7 @@ needed rather than guessing its arguments.
 | Confirm app identity | current_app |
 | Orient on an unfamiliar screen | describe_screen |
 | Locate a specific target | find_elements with id, label, or contains_text |
-| Wait for a postcondition | assert_visible, assert_absent, assert_enabled, assert_value, assert_selected (expected=true or false: the selected trait) |
+| Wait for a postcondition | assert_visible, assert_absent, assert_enabled, assert_value, assert_selected (selected trait), assert_checked (native checkable state), assert_state_description (native description) |
 | Compare screen state | get_screen_context then assert_screen_changed with from_token |
 | Inspect layout or an image | take_screenshot |
 | Inspect WebView-only state | webview_dom or webview_eval |

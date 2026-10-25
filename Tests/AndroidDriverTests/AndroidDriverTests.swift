@@ -6,6 +6,21 @@ import ProcessRunner
 import XCTest
 
 final class AndroidDriverTests: XCTestCase {
+    func testHealthChecksDeviceAndCompanionIndependently() async {
+        let adb = MockADBRunner()
+        let driver = AndroidDriver(
+            companion: GRPCCompanionClient.makeFixture(connection: .init(host: "localhost", port: 22088)),
+            adb: adb
+        )
+        let connected = await driver.connectivityHealth()
+        XCTAssertEqual(connected.deviceTransport.status, "responded")
+        XCTAssertEqual(connected.companionRPC.status, "responded")
+        await adb.setFailingRawCommandSuffix(["get-state"])
+        let disconnected = await driver.connectivityHealth()
+        XCTAssertEqual(disconnected.failureScope, "device_transport")
+        XCTAssertEqual(disconnected.companionRPC.status, "responded")
+    }
+
     func testTapDelegatesToCompanion() async throws {
         let driver = AndroidDriver(companion: GRPCCompanionClient.makeFixture(connection: .init(
             host: "127.0.0.1",

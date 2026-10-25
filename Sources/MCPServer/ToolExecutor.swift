@@ -74,12 +74,14 @@ public actor DriverToolExecutor: ToolExecutor {
         }
     }
 
+    // swiftlint:disable multiline_arguments
     func executeOrdered(toolName: String, arguments: [String: String]) async -> ToolResult {
         let clock = ContinuousClock()
         let start = clock.now
         let result: ToolResult
         var executionTool = toolName
         var executionArguments = arguments
+        var dispatchStarted = false
         do {
             try Task.checkCancellation()
             _ = try ToolRequest(name: toolName, arguments: arguments)
@@ -93,16 +95,22 @@ public actor DriverToolExecutor: ToolExecutor {
             }
             (executionTool, executionArguments) = try await canonicalGesture(tool: toolName, arguments: arguments)
             executionArguments = try await normalizedCoordinates(tool: executionTool, arguments: executionArguments)
+            dispatchStarted = true
             result = try await dispatch(toolName: executionTool, arguments: executionArguments)
         } catch let error as ToolExecutionError {
             result = error.result
         } catch is OperationDeadline.DeadlineExceeded {
-            result = ToolExecutionError(code: "deadline_exceeded", message: "Operation exceeded its time budget.")
-                .result
+            result = executionFailureDiagnostics(
+                ToolExecutionError(code: "deadline_exceeded", message: "Operation exceeded its time budget.").result,
+                tool: executionTool, started: start, dispatchStarted: dispatchStarted
+            )
         } catch is CancellationError {
             result = ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
         } catch {
-            result = await .error(failureMessage(toolName: toolName, error: error, arguments: arguments))
+            let failure = await ToolResult.error(failureMessage(toolName: toolName, error: error, arguments: arguments))
+            result = executionFailureDiagnostics(
+                failure, tool: executionTool, started: start, dispatchStarted: dispatchStarted
+            )
         }
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
@@ -119,6 +127,8 @@ public actor DriverToolExecutor: ToolExecutor {
         )
         return result
     }
+
+    // swiftlint:enable multiline_arguments
 
     /// A supplied session ID must resolve to an active session; omission alone uses the default.
     func resolveDriver(arguments: [String: String]) async throws -> any PlatformDriver {
@@ -182,14 +192,22 @@ public actor DriverToolExecutor: ToolExecutor {
             return .diagnostic
         }
         // Even a failed journey stays an assertion, so plan compilation reports the blocked export.
-        if toolName == "assert_accessibility_journey" {
+        if ["assert_accessibility_journey", "assert_talkback_speech"].contains(toolName) {
             return .assertion
         }
         if isError {
             return .failedProbe
         }
-        if ["assert_visible", "assert_absent", "assert_value", "assert_enabled", "assert_selected"]
-            .contains(toolName) {
+        if [
+            "assert_visible",
+            "assert_absent",
+            "assert_value",
+            "assert_enabled",
+            "assert_selected",
+            "assert_checked",
+            "assert_state_description"
+        ]
+        .contains(toolName) {
             return .assertion
         }
         if [
@@ -205,7 +223,8 @@ public actor DriverToolExecutor: ToolExecutor {
         switch tool {
         case "type_text": ["text"]
         case "set_text", "fill_field": ["value"]
-        case "assert_value": ["expected", "contains"]
+        case "assert_value", "assert_state_description": ["expected", "contains"]
+        case "assert_talkback_speech": ["speech"]
         default: []
         }
     }
@@ -224,12 +243,14 @@ public actor DriverToolExecutor: ToolExecutor {
             if let value = copy["value"] {
                 copy["value"] = "<redacted, \(value.count) chars>"
             }
-        case "assert_value":
+        case "assert_value", "assert_state_description":
             copy["expected"] = copy["expected"].map { "<redacted, \($0.count) chars>" }
             copy["contains"] = copy["contains"].map { "<redacted, \($0.count) chars>" }
+        case "assert_talkback_speech":
+            copy["speech"] = "<speech expectations not retained>"
         case "open_url":
             copy["url"] = copy["url"].map(ArtifactRedactor.redactedURL)
-        case "assert_selected":
+        case "assert_selected", "assert_checked":
             // Recorded explicitly, so a defaulted expectation is never read back as an absent one.
             copy["expected"] = (try? Self.parseExpectedSelection(copy["expected"])).map(String.init) ?? copy["expected"]
         default:
@@ -350,6 +371,9 @@ func renderViewNode(_ node: ViewNode, indent: Int) -> String {
 
     parts.append("\(prefix)\(typeStr)\(labelStr)\(valueStr)\(idStr)\(stateStr)")
 
+    if let semantics = node.semantics {
+        parts.append("\(prefix)  ref=\(semantics.reference) path=\(semantics.hierarchyPath)")
+    }
     for child in node.children {
         parts.append(renderViewNode(child, indent: indent + 1))
     }

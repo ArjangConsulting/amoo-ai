@@ -15,6 +15,21 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
         return bridge.findElements(resourceId, text, containsText, appId, labeledOnly)
     }
 
+    fun inspectAccessibility(
+        request: amoo.v1.AccessibilityInspectionRequest, isCancelled: () -> Boolean = { false }
+    ): amoo.v1.AccessibilityInspectionResponse {
+        val result = when (request.operation) {
+            "nativeAudit" -> com.amoo.companion.bridge.NativeAccessibilityInspector(bridge).audit(request, isCancelled)
+            "talkBack" -> com.amoo.companion.bridge.TalkBackInspector(bridge).inspect(request, isCancelled)
+            else -> amoo.v1.AccessibilityInspectionResponse.newBuilder()
+                .setProvider("android").setStatus("unsupported")
+                .setError("Requested accessibility provider is unavailable on Android").build()
+        }
+        return result.toBuilder().putAllProvenance(
+            com.amoo.companion.bridge.AccessibilityProvenance.capture(request.appId)
+        ).build()
+    }
+
     fun isKeyboardVisible(): Boolean = bridge.isKeyboardVisible()
 
     fun currentPackageName(): String = bridge.currentPackageName()

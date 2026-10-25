@@ -60,6 +60,7 @@ Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] [--r
   --json         Print {"tool","ok","content","structured"} as one JSON object.
 
 Common tools:
+  device_health [app_id=<id>]
   run_steps session_id=<id> steps=<JSON-array>
   tap x=<n> y=<n> [unit=<points|pixels|normalized>]
   double_tap x=<n> y=<n> [unit=<points|pixels|normalized>]
@@ -100,7 +101,7 @@ Common tools:
   analyze_ai_testability
   highlight_a11y_issues
   assert_accessibility_journey app_id=<bundle-id> journey=<JSON> [record_speech=true]
-  audit_accessibility_native app_id=<bundle-id> [categories=<comma-separated>]
+  audit_accessibility_native app_id=<bundle-id> [categories=<comma-separated>] [output=<path.png>]
   test_voiceover app_id=<bundle-id> [steps=<1...30>] [direction=<forward|backward>]
     [phases=<json>] [record_speech=<bool>]  (phases replaces steps/direction; max 6 phases, 30 moves)
   find_element_by_description description=<text>
@@ -115,6 +116,15 @@ Common tools:
   assert_value [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [timeout_ms=<n>] [expected=<text>] [contains=<text>] [parent_id=<id>] [index=<n>] [first=<true>]
       [record_value=<fixture>]
+  assert_checked [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [expected=<true|false>] [timeout_ms=<n>] [parent_id=<id>] [index=<n>] [first=<true>]
+  assert_state_description [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
+      [expected=<text>] [contains=<text>] [timeout_ms=<n>] [parent_id=<id>] [index=<n>] [first=<true>]
+      [record_value=<fixture>]
+  test_talkback app_id=<id> [steps=<n>] [direction=<forward|backward>] [activate=<true|false>]
+      [record_speech=<true|false>]
+  assert_talkback_speech app_id=<id> speech=<JSON-array> [steps=<n>] [direction=<forward|backward>]
+      [record_speech=<true|false>] [record_value=<fixture>]
   assert_selected [id=<id>] [label=<label>] [contains_text=<text>] [description=<text>]
       [timeout_ms=<n>] [expected=<true|false>] [parent_id=<id>] [index=<n>] [first=<true>]
   assert_screen_changed from_token=<token> [timeout_ms=<n>]
@@ -298,8 +308,8 @@ private func parseDeviceToolArguments(_ remaining: [String]) -> Result<[String: 
             continue
         }
 
-        let parts = arg.split(separator: "=", maxSplits: 1)
-        guard parts.count == 2 else {
+        let parts = arg.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty else {
             return .failure(.malformedArgument(arg))
         }
         arguments[String(parts[0])] = String(parts[1])

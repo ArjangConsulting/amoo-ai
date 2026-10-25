@@ -215,6 +215,7 @@ public struct MissingAccessibilityLabelRule: AuditRule {
 
     public init() {}
 
+    // swiftlint:disable function_body_length
     /// Depends on `getInteractableElements` reporting elements that carry neither an identifier
     /// nor a label. A companion that filters those out before answering leaves this rule unable
     /// to fire at all — it will find nothing and report a clean screen, which is the one outcome
@@ -232,6 +233,10 @@ public struct MissingAccessibilityLabelRule: AuditRule {
         var placeholderOnly: [ElementInfo] = []
         var unconfirmed: [ElementInfo] = []
         for element in unlabeled {
+            if element.semantics?.attributes["computedNameAvailability"]?.hasPrefix("unavailable") == true {
+                unconfirmed.append(element)
+                continue
+            }
             guard element.type == .textField else {
                 missing.append(element)
                 continue
@@ -280,14 +285,15 @@ public struct MissingAccessibilityLabelRule: AuditRule {
                 severity: .low,
                 confidence: 0.4,
                 elements: unconfirmed,
-                summary: "\(unconfirmed.count) text input(s) have no label; the capture did not report placeholder"
-                    + " text, so their spoken name could not be confirmed.",
-                remediation: "Rebuild the companion to report placeholders, or verify the announced name natively."
+                summary: "\(unconfirmed.count) interactable element(s) have no exported label; their spoken name"
+                    + " could not be confirmed from the captured naming relationships.",
+                remediation: "Inspect descendant text and label associations, then verify the announced name natively."
             ))
         }
         return findings
     }
 
+    // swiftlint:enable function_body_length
     // swiftlint:disable:next function_parameter_count
     private func finding(
         _ input: AuditInput,
@@ -305,13 +311,8 @@ public struct MissingAccessibilityLabelRule: AuditRule {
             confidence: confidence,
             summary: summary,
             remediation: remediation,
-            evidence: elements.prefix(maxEvidenceItems).map { el in
-                AuditEvidence(
-                    kind: .selector,
-                    summary: "type=\(el.type?.rawValue ?? "unknown")",
-                    sourceRef: el.id.isEmpty ? "anonymous-\(el.type?.rawValue ?? "element")" : el.id,
-                    attributes: ["type": el.type?.rawValue ?? ""]
-                )
+            evidence: elements.prefix(maxEvidenceItems).enumerated().map { index, element in
+                input.evidence(for: element, index: index)
             },
             tags: ["ux", "accessibility", "a11y"]
         )
@@ -336,7 +337,8 @@ public struct SmallTapTargetRule: AuditRule {
         guard ["points", "dp"].contains(input.geometryUnit) else { return [] }
         let minimumSize = input.geometryUnit == "dp" ? 48.0 : 44.0
         let tooSmall = input.interactableElements.filter { el in
-            guard let frame = el.frame else { return false }
+            guard el.semantics?.fullFrame != nil || el.semantics?.attributes["clipping"] != "possible",
+                  let frame = el.semantics?.fullFrame ?? el.frame else { return false }
             return frame.width < minimumSize - comparisonTolerance
                 || frame.height < minimumSize - comparisonTolerance
         }
@@ -351,15 +353,8 @@ public struct SmallTapTargetRule: AuditRule {
             summary: "\(tooSmall.count) element(s) have bounds below the \(Int(minimumSize))-\(input.geometryUnit)"
                 + " heuristic; hit regions unverified.",
             remediation: "Inspect actual hit regions and platform units; prefer the native hit-region audit on iOS.",
-            evidence: tooSmall.prefix(maxEvidenceItems).compactMap { el -> AuditEvidence? in
-                guard let frame = el.frame else { return nil }
-                return AuditEvidence(
-                    kind: .selector,
-                    summary: "\(el.label.isEmpty ? el.id : el.label): "
-                        + "\(frame.width)x\(frame.height) \(input.geometryUnit)",
-                    sourceRef: el.id,
-                    attributes: ["width": "\(frame.width)", "height": "\(frame.height)"]
-                )
+            evidence: tooSmall.prefix(maxEvidenceItems).enumerated().map { index, element in
+                input.evidence(for: element, index: index)
             },
             tags: ["ux", "accessibility", "tap-target"]
         )]

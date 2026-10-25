@@ -72,10 +72,12 @@ enum ToolCatalogMetadata {
     /// Tools that observe without changing the device, the app, or server routing state that a
     /// later action depends on.
     private static let readOnlyTools: Set<String> = [
-        "find_elements", "get_view_hierarchy", "get_screen_context", "take_screenshot",
+        "device_health", "find_elements", "get_view_hierarchy", "get_screen_context", "take_screenshot",
         "is_keyboard_visible", "current_app", "describe_screen", "suggest_test_actions",
         "analyze_ai_testability", "find_element_by_description", "assert_visible", "assert_enabled",
-        "assert_absent", "assert_value", "assert_selected", "assert_screen_changed", "audit_app",
+        "assert_absent", "assert_value", "assert_selected", "assert_checked", "assert_state_description",
+        "assert_screen_changed",
+        "audit_app",
         "audit_accessibility", "audit_security", "audit_accessibility_native", "list_devices",
         "list_apps", "companion_status", "session_startup_status", "list_sessions",
         "get_session_report", "compile_session_to_plan", "webview_dom"
@@ -83,6 +85,10 @@ enum ToolCatalogMetadata {
 
     /// Tools that can destroy app or device state a user cannot get back by retrying.
     private static let destructiveTools: Set<String> = ["device_uninstall_app", "device_shutdown"]
+
+    static func isReadOnly(_ tool: String) -> Bool {
+        readOnlyTools.contains(tool)
+    }
 
     static func apply(_ definition: ToolDefinition) -> ToolDefinition {
         var definition = definition

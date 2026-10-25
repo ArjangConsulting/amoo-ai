@@ -8,4 +8,13 @@
     <item name="fixture_details_tail" type="id" />
     <item name="fixture_text_input" type="id" />
     <item name="fixture_gesture_pad" type="id" />
+    <item name="fixture_audit_title" type="id" />
+    <item name="fixture_audit_checked" type="id" />
+    <item name="fixture_audit_selected" type="id" />
+    <item name="fixture_audit_copy" type="id" />
+    <item name="fixture_audit_status" type="id" />
+    <item name="fixture_audit_message" type="id" />
+    <item name="fixture_audit_send" type="id" />
+    <item name="fixture_audit_target" type="id" />
+    <item name="fixture_audit_contrast" type="id" />
 </resources>
