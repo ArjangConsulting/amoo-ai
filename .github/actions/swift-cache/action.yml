@@ -21,7 +21,16 @@ runs:
 
         commands = [["swift", "--version"]]
         if os.environ["RUNNER_OS"] == "macOS":
-            commands.extend([["xcodebuild", "-version"], ["xcrun", "--show-sdk-version"]])
+            sdk = subprocess.check_output(
+                ["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True
+            ).strip()
+            os.environ["SDKROOT"] = sdk
+            with open(os.environ["GITHUB_ENV"], "a") as environment:
+                environment.write(f"SDKROOT={sdk}\n")
+            commands.extend([
+                ["xcodebuild", "-version"],
+                ["xcrun", "--sdk", "macosx", "--show-sdk-version"],
+            ])
 
         identity = [os.environ["GITHUB_WORKSPACE"]]
         if os.environ["RUNNER_OS"] == "Linux":
