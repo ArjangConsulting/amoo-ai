@@ -30,8 +30,10 @@ extension DriverToolExecutor {
     ///
     /// Without it, reaching a below-the-fold row meant guessing a `scroll` distance and re-querying
     /// by hand. "On screen" is the companion's own visibility verdict for the element, so a row
-    /// clipped by the viewport counts as not yet there. An attempt that leaves the screen unchanged
-    /// means the content ended in that direction.
+    /// clipped by the viewport counts as not yet there. So does a row under a bottom bar or
+    /// other overlay, which the companion still reports as visible but a tap would miss. If scrolling
+    /// never frees it, the covered row is still returned, as it was before that check. An attempt
+    /// that leaves the screen unchanged means the content ended in that direction.
     func executeScrollToElement(arguments: [String: String], driver: any PlatformDriver) async throws -> ToolResult {
         guard let selector = try preferredSelector(arguments: arguments) else {
             return .error("At least one of id, label, or contains_text is required")
@@ -48,14 +50,16 @@ extension DriverToolExecutor {
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
 
         var reversed = false
+        var coveredMatch: (element: ElementInfo, scrolls: Int)?
         for attempt in 0 ... maxAttempts {
             if let found = try await resolveElement(
                 selector: selector, driver: driver, appID: appID, pick: .first, missingIsNil: true
             ), found.isVisible, found.isEnabled {
-                return .success(
-                    "Element [\(found.id)] \(found.label) is on screen after \(attempt) scroll(s)",
-                    structuredContent: .object(["scrolls": .int(attempt), "element_id": .string(found.id)])
-                )
+                if await isCoveredOnScreen(found, driver: driver, appID: appID) {
+                    coveredMatch = (found, attempt)
+                } else {
+                    return scrollToElementSuccess(found, scrolls: attempt)
+                }
             }
             guard attempt < maxAttempts else { break }
             let before = await screenFingerprint(driver: driver, appID: appID)
@@ -63,13 +67,46 @@ extension DriverToolExecutor {
             let after = await screenFingerprint(driver: driver, appID: appID)
             if let before, before == after {
                 guard !reversed else {
-                    return .error("scroll_to_element failed: reached both ends without finding the element.")
+                    return scrollToElementGaveUp(
+                        "reached both ends without finding the element.", coveredMatch: coveredMatch
+                    )
                 }
                 reversed = true
                 direction = direction.opposite
             }
         }
-        return .error("scroll_to_element failed: element not on screen after \(maxAttempts) scroll(s).")
+        return scrollToElementGaveUp(
+            "element not on screen after \(maxAttempts) scroll(s).", coveredMatch: coveredMatch
+        )
+    }
+
+    /// The result when scrolling cannot do better: a row that was visible but covered is still
+    /// returned, anything else is the failure `reason`.
+    private func scrollToElementGaveUp(
+        _ reason: String,
+        coveredMatch: (element: ElementInfo, scrolls: Int)?
+    ) -> ToolResult {
+        guard let coveredMatch else { return .error("scroll_to_element failed: \(reason)") }
+        return scrollToElementSuccess(coveredMatch.element, scrolls: coveredMatch.scrolls)
+    }
+
+    private func scrollToElementSuccess(_ element: ElementInfo, scrolls: Int) -> ToolResult {
+        .success(
+            "Element [\(element.id)] \(element.label) is on screen after \(scrolls) scroll(s)",
+            structuredContent: .object(["scrolls": .int(scrolls), "element_id": .string(element.id)])
+        )
+    }
+
+    /// Whether the hierarchy shows another control painted over the element's tap point or a
+    /// container clipping it. Best effort: a platform without hierarchy checks, or a read that does not
+    /// finish in time, reports it uncovered.
+    private func isCoveredOnScreen(_ element: ElementInfo, driver: any PlatformDriver, appID: String?) async -> Bool {
+        guard let point = element.hitPoint ?? element.frame?.centre,
+              let hierarchy = await Self.withinBudget(milliseconds: 1500, {
+                  try? await driver.getViewHierarchy(appID: appID)
+              })
+        else { return false }
+        return TapHittability.block(for: element, at: point, in: hierarchy) != nil
     }
 
     /// Swipes from the centre of the match `pick` names, for elements the device cannot tell apart by
