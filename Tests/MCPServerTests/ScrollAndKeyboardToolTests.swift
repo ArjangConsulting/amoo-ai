@@ -86,6 +86,67 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
         XCTAssertTrue(scrolls.contains(.up), "it reversed after the content ended: \(scrolls)")
     }
 
+    /// A bottom bar floats over the list: the companion calls the row visible, a tap would hit the bar.
+    private actor ToolbarCoveredDriver: PlatformDriver {
+        private let scrollsUntilClear: Int
+        private(set) var scrolls = 0
+
+        init(scrollsUntilClear: Int) {
+            self.scrollsUntilClear = scrollsUntilClear
+        }
+
+        private var rowFrame: Rect {
+            Rect(x: 0, y: scrolls >= scrollsUntilClear ? 400 : 780, width: 300, height: 44)
+        }
+
+        func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+            try await findElements(selector, appID: nil)
+        }
+
+        func findElements(_: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+            [ElementInfo(id: "row", label: "Row", type: .cell, frame: rowFrame)]
+        }
+
+        func scroll(direction _: Direction, distance _: Double) async throws {
+            scrolls += 1
+        }
+
+        func getScreenContext() async throws -> ScreenContext {
+            ScreenContext(summary: "scrolled \(scrolls)")
+        }
+
+        func getViewHierarchy(appID _: String?) async throws -> ViewNode {
+            let row = ViewNode(id: "row", label: "Row", type: .cell, frame: rowFrame)
+            let toolbar = ViewNode(
+                id: "toolbar-text", label: "Text", type: .button,
+                frame: Rect(x: 0, y: 760, width: 300, height: 80)
+            )
+            return ViewNode(
+                id: "root", label: "", type: .other,
+                frame: Rect(x: 0, y: 0, width: 300, height: 852),
+                children: [row, toolbar]
+            )
+        }
+    }
+
+    func testKeepsScrollingWhileABarCoversTheVisibleElement() async {
+        let driver = ToolbarCoveredDriver(scrollsUntilClear: 2)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element", arguments: ["id": "row"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertTrue(result.content.contains("after 2 scroll(s)"), result.content)
+    }
+
+    func testReturnsTheCoveredElementWhenNoScrollFreesIt() async {
+        let driver = ToolbarCoveredDriver(scrollsUntilClear: 99)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element", arguments: ["id": "row", "max_attempts": "2"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertTrue(result.content.contains("is on screen"), result.content)
+    }
+
     func testRequiresASelector() async {
         let result = await DriverToolExecutor(driver: ScrollingDriver(scrollsNeeded: 0)).execute(
             toolName: "scroll_to_element", arguments: [:]
