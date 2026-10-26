@@ -14,6 +14,7 @@
 		20560643730738B878A95121 /* VoiceOverPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2FBCA0D578060494989B26 /* VoiceOverPhase.swift */; };
 		32B0682FF21997215E093E62 /* TouchHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D4A7475E32DD66B2F9F07F /* TouchHandler.swift */; };
 		414E3316FE1E6247B9FEA31A /* AccessibilityJourneyRunner+Transition.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF496450692A1DC45AC1DC3E /* AccessibilityJourneyRunner+Transition.swift */; };
+		42B7C48B20D14F8003E0DD7C /* Geometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40E11D83B00BF2E6CEED8BB6 /* Geometry.swift */; };
 		4530F40C11901A41A6FEF24A /* AccessibilityJourney.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832FB073E39843DB48622303 /* AccessibilityJourney.swift */; };
 		45C8894B3FDB0B038ED63391 /* ai.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB1758DAB4D25453D047AFE /* ai.grpc.swift */; };
 		4755379A3C6A0E6C7FBFA55F /* FastTapSynthesizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012370845E5450FB1A67FEDF /* FastTapSynthesizer.swift */; };
@@ -44,6 +45,7 @@
 		B83D9F2EA10EFA830B431421 /* actions.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1EAB0469F724F93EED28D7 /* actions.pb.swift */; };
 		BC65B361D511ACE8905AAEF8 /* ViewNodeSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BAB2764C1BE905427CB1E01 /* ViewNodeSnapshot.swift */; };
 		C4371F0F325FF4715E264E7D /* AccessibilityJourneyRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1E9DA91D9EC8DF0BDEC7D /* AccessibilityJourneyRunner.swift */; };
+		CB515B07A842384588F0C31D /* ElementSemantics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DE24E54E4489608DB09382 /* ElementSemantics.swift */; };
 		CDBAC70C4DCB93CCA73A8E88 /* XCUITestBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */; };
 		CE3B9E02E03B14134B8BB9D6 /* AccessibilityInspection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E81CB8391B3CDCF74786BA /* AccessibilityInspection.swift */; };
 		DB391C92C3387EAC874FDA78 /* GestureHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34BE11D1662A376B05DF84D /* GestureHandler.swift */; };
@@ -74,8 +76,10 @@
 		2F97EC9A9BFE577726A4637C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		32FFA7943F2FB2B136E9039E /* FixtureAccessibilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureAccessibilityView.swift; sourceTree = "<group>"; };
 		3A2FBCA0D578060494989B26 /* VoiceOverPhase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverPhase.swift; sourceTree = "<group>"; };
+		40E11D83B00BF2E6CEED8BB6 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
 		45AD2153457130C91BDE23A1 /* NativeAccessibilityInspector+VoiceOver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NativeAccessibilityInspector+VoiceOver.swift"; sourceTree = "<group>"; };
 		46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCUITestBridge.swift; sourceTree = "<group>"; };
+		48DE24E54E4489608DB09382 /* ElementSemantics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementSemantics.swift; sourceTree = "<group>"; };
 		4E4F85A6257986D577DBC35A /* common.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = common.pb.swift; sourceTree = "<group>"; };
 		5BAB2764C1BE905427CB1E01 /* ViewNodeSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewNodeSnapshot.swift; sourceTree = "<group>"; };
 		5C9BEA261A1C3EA50072602C /* VoiceOverTraversal+Lifetime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VoiceOverTraversal+Lifetime.swift"; sourceTree = "<group>"; };
@@ -217,6 +221,8 @@
 				D4C1E9DA91D9EC8DF0BDEC7D /* AccessibilityJourneyRunner.swift */,
 				E8A8099B628604A9EF0873B5 /* AccessibilityJourneyRunner+Evidence.swift */,
 				FF496450692A1DC45AC1DC3E /* AccessibilityJourneyRunner+Transition.swift */,
+				48DE24E54E4489608DB09382 /* ElementSemantics.swift */,
+				40E11D83B00BF2E6CEED8BB6 /* Geometry.swift */,
 				3A2FBCA0D578060494989B26 /* VoiceOverPhase.swift */,
 				E8A8D2763A7F95D43CBB9190 /* VoiceOverRecoveryJournal.swift */,
 				01569413A4F179D9C0EC0834 /* VoiceOverTraversal.swift */,
@@ -348,8 +354,10 @@
 				8E742D41F4CF3C2E123C62FD /* CompanionRunner.swift in Sources */,
 				4B2F6117FEBB289FB5F6313B /* CompanionServer.swift in Sources */,
 				032B5480207F2BBE0EFE428E /* CompanionServiceProvider.swift in Sources */,
+				CB515B07A842384588F0C31D /* ElementSemantics.swift in Sources */,
 				E51D3855CD2E98F1C523B19E /* ElementSnapshot.swift in Sources */,
 				4755379A3C6A0E6C7FBFA55F /* FastTapSynthesizer.swift in Sources */,
+				42B7C48B20D14F8003E0DD7C /* Geometry.swift in Sources */,
 				DB391C92C3387EAC874FDA78 /* GestureHandler.swift in Sources */,
 				1A19B74E7622DC2CF20CC583 /* NativeAccessibilityInspector+Journey.swift in Sources */,
 				4BCB282ACC8930490DFF50F9 /* NativeAccessibilityInspector+VoiceOver.swift in Sources */,

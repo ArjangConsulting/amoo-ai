@@ -27,6 +27,8 @@ class CompanionRunner {
 
     @Test
     fun runCompanion() {
+        val recovery = com.amoo.companion.bridge.TalkBackRecovery()
+        recovery.recoverPending()
         val bridge = UIAutomatorBridge()
         val server = CompanionServer(bridge, port = requestedPort())
 

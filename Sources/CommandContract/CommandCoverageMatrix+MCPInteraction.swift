@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
 
@@ -6,11 +7,26 @@ public extension CommandCoverageMatrix {
     /// under the length limit.
     static let mcpInteractionCommands: [CommandCoverage] = [
         .init(
+            name: "device_health", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .home,
+            expectedAssertion: "independent transport probes distinguish connectivity from app semantic readiness"
+        ),
+        .init(
+            name: "assert_checked", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            platforms: [.android], fixtureScreen: .home,
+            expectedAssertion: "an existing checkable control's checked property equals expected"
+        ),
+        .init(
+            name: "assert_state_description", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            platforms: [.android], fixtureScreen: .home,
+            expectedAssertion: "native state description matches independently of text/value"
+        ),
+        .init(
             name: "assert_selected",
             channel: .mcp,
             kind: .deterministic,
             releaseTier: .informational,
-            platforms: [.ios],
+            platforms: allPlatforms,
             fixtureScreen: .home,
             expectedAssertion: "an existing element's selected state equals expected; an absent element fails"
         ),
@@ -34,3 +50,5 @@ public extension CommandCoverageMatrix {
         )
     ]
 }
+
+// swiftlint:enable multiline_arguments

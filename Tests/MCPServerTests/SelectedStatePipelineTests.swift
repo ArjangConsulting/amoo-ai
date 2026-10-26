@@ -159,6 +159,30 @@ final class SelectedStatePipelineTests: XCTestCase {
 
     // MARK: - Explicit assertions never weaken silently
 
+    func testCheckedAndDescriptionAssertionsKeepTheirOwnPropertiesAndEmptyExpectation() throws {
+        let actions = [
+            SessionAction(
+                timestamp: Date(), toolName: "assert_checked", arguments: ["id": "checkbox", "expected": "false"],
+                result: "ok", isError: false, intent: .assertion
+            ),
+            SessionAction(
+                timestamp: Date(), toolName: "assert_state_description", arguments: ["id": "copy", "expected": ""],
+                result: "ok", isError: false, intent: .assertion
+            )
+        ]
+        let report = SessionReport(
+            sessionID: "s", appID: "com.example", deviceID: "d", platform: "android",
+            startedAt: Date(), endedAt: Date(), durationSeconds: 1, actionCount: 2, errorCount: 0,
+            isActive: false, actions: actions
+        )
+        let compiled = try plan(report)
+        XCTAssertEqual(operations(compiled).map(\.tool), ["assert_checked", "assert_state_description"])
+        XCTAssertEqual(operations(compiled).first?.arguments["expected"], "false")
+        XCTAssertEqual(operations(compiled).last?.arguments["value"], "")
+        let preserved = compiled.warnings.filter { $0.category == .assertionPreserved }
+        XCTAssertEqual(preserved.map(\.state), ["expected checked=false", "expected state_description="])
+    }
+
     func testAnExplicitSelectedAssertionThatCannotBePreservedIsUnsupportedNotVisibility() throws {
         let action = SessionAction(
             timestamp: Date(), toolName: "assert_selected",

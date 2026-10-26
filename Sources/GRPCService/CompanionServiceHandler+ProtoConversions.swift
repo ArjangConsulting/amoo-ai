@@ -44,6 +44,9 @@ extension ElementInfo {
     var protoElementInfo: Amoo_ElementInfo {
         var element = Amoo_ElementInfo()
         element.id = id
+        if let semantics {
+            element.semantics = semantics.protoSemantics
+        }
         element.label = label
         element.value = value ?? ""
         element.type = type?.rawValue ?? ""
@@ -78,6 +81,12 @@ extension ViewNode {
     var protoViewNode: Amoo_ViewNode {
         var node = Amoo_ViewNode()
         node.id = id
+        if let semantics {
+            node.semantics = semantics.protoSemantics
+        }
+        if let isSelected {
+            node.isSelected = isSelected
+        }
         node.label = label
         node.isSecureTextEntry = isSecureTextEntry
         if let value {
@@ -122,5 +131,40 @@ extension Amoo_ElementSelector {
 extension String {
     var nonEmpty: String? {
         isEmpty ? nil : self
+    }
+}
+
+extension ElementSemantics {
+    var protoSemantics: Amoo_ElementSemantics {
+        var result = Amoo_ElementSemantics()
+        result.reference = reference
+        result.parentReference = parentReference
+        result.hierarchyPath = hierarchyPath
+        result.attributes = attributes
+        if let isCheckable {
+            result.isCheckable = isCheckable
+        }
+        if let isChecked {
+            result.isChecked = isChecked
+        }
+        if let stateDescription {
+            result.stateDescription = stateDescription
+        }
+        if let fullFrame {
+            result.fullFrame = Self.rect(fullFrame)
+        }
+        if let visibleFrame {
+            result.visibleFrame = Self.rect(visibleFrame)
+        }
+        return result
+    }
+
+    private static func rect(_ frame: Rect) -> Amoo_Rect {
+        var result = Amoo_Rect()
+        result.x = frame.x
+        result.y = frame.y
+        result.width = frame.width
+        result.height = frame.height
+        return result
     }
 }

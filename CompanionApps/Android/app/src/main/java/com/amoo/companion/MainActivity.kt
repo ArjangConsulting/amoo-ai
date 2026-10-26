@@ -25,7 +25,9 @@ private enum class FixtureScreen {
     PERMISSIONS,
     APPEARANCE,
     DEEP_LINK,
-    CONFIRMATION
+    CONFIRMATION,
+    AUDIT,
+    AUDIT_CLEAN
 }
 
 class MainActivity : Activity() {
@@ -74,6 +76,8 @@ class MainActivity : Activity() {
         }
 
         when (routeFor(data)) {
+            "audit" -> navigateTo(FixtureScreen.AUDIT, replaceStack = true)
+            "audit-clean" -> navigateTo(FixtureScreen.AUDIT_CLEAN, replaceStack = true)
             "home", "reset" -> {
                 resetFixtureState()
                 navigateTo(FixtureScreen.HOME, replaceStack = true)
@@ -147,6 +151,8 @@ class MainActivity : Activity() {
         }
 
         when (screenStack.last()) {
+            FixtureScreen.AUDIT -> AccessibilityFixture.addTo(this, content, defects = true)
+            FixtureScreen.AUDIT_CLEAN -> AccessibilityFixture.addTo(this, content, defects = false)
             FixtureScreen.HOME -> renderHome(content)
             FixtureScreen.DETAILS -> renderDetails(content)
             FixtureScreen.TEXT -> renderText(content)

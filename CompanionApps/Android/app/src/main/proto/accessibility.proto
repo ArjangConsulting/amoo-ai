@@ -50,6 +50,8 @@ message AccessibilityInspectionRequest {
   repeated VoiceOverPhase phases = 6;
   // Versioned, bounded AccessibilityJourney JSON. Requires accessibility.authoredJourney.v1.
   string journey_json = 7;
+  bool activate = 8;
+  string speech_expectations_json = 9;
 }
 
 message AccessibilityInspectionIssue {

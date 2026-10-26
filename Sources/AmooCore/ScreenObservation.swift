@@ -25,6 +25,10 @@ public struct ScreenObservation: Sendable {
                 String(describing: node.frame),
                 String(node.isVisible),
                 String(node.isEnabled),
+                String(describing: node.isSelected),
+                String(describing: node.semantics?.isChecked),
+                node.semantics?.attributes["checked"] ?? "unknown",
+                node.semantics?.stateDescription ?? node.semantics?.attributes["stateDescription"] ?? "unknown",
                 String(node.children.count)
             ]
             for field in fields {
@@ -36,7 +40,8 @@ public struct ScreenObservation: Sendable {
             elements.append(ElementInfo(
                 id: node.id, label: node.label, value: node.value, type: node.type, frame: node.frame,
                 hitPoint: node.hitPoint, isEnabled: node.isEnabled, isVisible: node.isVisible,
-                isSecureTextEntry: node.isSecureTextEntry, placeholder: node.placeholder
+                isSecureTextEntry: node.isSecureTextEntry, isSelected: node.isSelected,
+                placeholder: node.placeholder, semantics: node.semantics
             ))
             nodes.append(contentsOf: node.children.reversed())
         }
@@ -57,7 +62,8 @@ public struct ScreenObservation: Sendable {
 
     private static func isInteractable(_ element: ElementInfo) -> Bool {
         element.isVisible && element.isEnabled
-            && [.button, .textField, .cell, .switchControl, .slider, .picker].contains(element.type)
+            && ([.button, .textField, .cell, .switchControl, .slider, .picker].contains(element.type)
+                || element.semantics?.attributes["clickable"] == "true")
     }
 }
 

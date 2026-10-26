@@ -47,15 +47,53 @@ public enum AuditTools {
         ),
         ToolDefinition(
             name: "audit_accessibility_native",
-            description: "Run Apple's native current-screen accessibility audit on iOS."
+            description: "Run Apple native auditing on iOS or Google ATF auditing on Android."
                 + " Returns findings and coverage, not whole-app conformance.",
             properties: [
+                "output": .init(
+                    type: "string",
+                    description: "Optional output PNG path for a correlated native finding highlight"
+                ),
                 "app_id": .init(type: "string", description: "Foreground app bundle ID"),
                 "categories": .init(
                     type: "string",
                     description: "Comma-separated contrast,elementDetection,hitRegion,sufficientElementDescription,"
-                        + "dynamicType,textClipped,trait. Defaults to all supported iOS categories."
+                        + "dynamicType,textClipped,trait,duplicateSpeakableText,editableContentDescription."
+                        + " Defaults to platform categories."
                 )
+            ],
+            required: ["app_id"]
+        ),
+        ToolDefinition(
+            name: "assert_talkback_speech",
+            description: "Assert one explicit equals/contains expectation per TalkBack move against captured"
+                + " TTS synthesis requests. Restores service/TTS settings; generated export is explicitly unsupported.",
+            properties: [
+                "app_id": .init(type: "string", description: "Foreground app package"),
+                "speech": .init(
+                    type: "string",
+                    description: "JSON array of {equals:string} or {contains:string}; 1...30 entries"
+                ),
+                "steps": .init(type: "integer", description: "Must equal expectation count; defaults to that count"),
+                "direction": .init(type: "string", description: "forward (default) or backward"),
+                "record_speech": .init(type: "boolean", description: "Persist raw captured speech; default false")
+            ], required: ["app_id", "speech"]
+        ),
+        ToolDefinition(
+            name: "test_talkback",
+            description: "Observe bounded Android TalkBack keyboard focus and actual TTS synthesis requests."
+                + " Starts with the default first-item keyboard shortcut; uses a silent capture engine"
+                + " and restores service/TTS settings."
+                + " Not an audible-output or conformance verdict. TalkBack must already be installed.",
+            properties: [
+                "app_id": .init(type: "string", description: "Foreground app package"),
+                "steps": .init(type: "integer", description: "1...30 focus moves; default 5"),
+                "direction": .init(type: "string", description: "forward (default) or backward"),
+                "activate": .init(
+                    type: "boolean",
+                    description: "Send TalkBack Alt+Enter to the final app-owned focus target; app outcome unverified"
+                ),
+                "record_speech": .init(type: "boolean", description: "Persist captured speech; default false")
             ],
             required: ["app_id"]
         ),

@@ -1123,7 +1123,7 @@ private extension Amoo_ElementInfo {
         ElementInfo(
             id: id.nonEmpty ?? "",
             label: label.nonEmpty ?? "",
-            value: value.nonEmpty,
+            value: ElementType(nativeName: type) == .textField ? value : value.nonEmpty,
             type: ElementType(nativeName: type),
             frame: hasFrame ? frame.coreRect : nil,
             hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
@@ -1131,7 +1131,8 @@ private extension Amoo_ElementInfo {
             isVisible: isVisible,
             isSecureTextEntry: isSecureTextEntry,
             isSelected: hasIsSelected ? isSelected : nil,
-            placeholder: hasPlaceholder ? placeholder : nil
+            placeholder: hasPlaceholder ? placeholder : nil,
+            semantics: hasSemantics ? semantics.coreSemantics : nil
         )
     }
 }
@@ -1141,7 +1142,7 @@ private extension Amoo_ViewNode {
         ViewNode(
             id: id.nonEmpty ?? "",
             label: label.nonEmpty ?? "",
-            value: value.nonEmpty,
+            value: ElementType(nativeName: type) == .textField ? value : value.nonEmpty,
             type: ElementType(nativeName: type),
             frame: hasFrame ? frame.coreRect : nil,
             hitPoint: hasHitPoint ? hitPoint.corePoint : nil,
@@ -1149,7 +1150,9 @@ private extension Amoo_ViewNode {
             isVisible: isVisible,
             children: children.map(\.coreViewNode),
             isSecureTextEntry: isSecureTextEntry,
-            placeholder: hasPlaceholder ? placeholder : nil
+            placeholder: hasPlaceholder ? placeholder : nil,
+            semantics: hasSemantics ? semantics.coreSemantics : nil,
+            isSelected: hasIsSelected ? isSelected : nil
         )
     }
 }
@@ -1206,3 +1209,19 @@ private extension String {
 }
 
 // swiftformat:enable wrapMultilineStatementBraces
+
+// swiftlint:disable multiline_arguments
+extension Amoo_ElementSemantics {
+    var coreSemantics: ElementSemantics {
+        ElementSemantics(
+            reference: reference, parentReference: parentReference, hierarchyPath: hierarchyPath,
+            fullFrame: hasFullFrame ? fullFrame.coreRect : nil,
+            visibleFrame: hasVisibleFrame ? visibleFrame.coreRect : nil, attributes: attributes,
+            isCheckable: hasIsCheckable ? isCheckable : nil,
+            isChecked: hasIsChecked ? isChecked : nil,
+            stateDescription: hasStateDescription ? stateDescription : nil
+        )
+    }
+}
+
+// swiftlint:enable multiline_arguments

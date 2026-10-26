@@ -3,6 +3,14 @@ public enum DeviceTools {
 
     public static let definitions: [ToolDefinition] = [
         ToolDefinition(
+            name: "device_health",
+            description: "Run independent bounded device-transport and companion RPC probes without changing app state."
+                +
+                " Optional app_id checks foreground identity and semantic readiness;"
+                + " render readiness stays unverified.",
+            properties: ["app_id": .init(type: "string", description: "Optional expected foreground app identity")]
+        ),
+        ToolDefinition(
             name: "device_boot",
             description: "Boot the simulator/emulator device. With no device_hint this boots the"
                 + " server's bound device; pass device_hint to choose one when several are"

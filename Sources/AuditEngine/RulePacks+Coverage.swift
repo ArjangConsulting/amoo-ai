@@ -63,7 +63,16 @@ public extension NavigationDeadEndRule {
 
 public extension MissingAccessibilityLabelRule {
     func evidenceCoverage(_ input: AuditInput) -> AuditRuleEvaluation {
-        elementCoverage(input.interactableElements)
+        guard !input.interactableElements.contains(where: {
+            $0.semantics?.attributes["computedNameAvailability"]?.hasPrefix("unavailable") == true
+        }) else {
+            return coverage(
+                false,
+                missing: "Raw node naming heuristic only; computed spoken names and label"
+                    + " relationships require native or screen-reader verification."
+            )
+        }
+        return elementCoverage(input.interactableElements)
     }
 }
 
@@ -72,11 +81,12 @@ public extension SmallTapTargetRule {
         coverage(
             ["points", "dp"].contains(input.geometryUnit)
                 && !input.interactableElements.isEmpty && input.interactableElements.allSatisfy {
-                    guard let frame = $0.frame else { return false }
+                    guard $0.semantics?.fullFrame != nil || $0.semantics?.attributes["clipping"] != "possible",
+                          let frame = $0.semantics?.fullFrame ?? $0.frame else { return false }
                     return frame.width.isFinite && frame.height.isFinite && frame.width > 0 && frame.height > 0
                 },
             missing: "Requires normalized points/dp and finite positive bounds for all interactables;"
-                + " hit regions unverified."
+                + " hit regions unverified. Possibly clipped nodes are excluded; reveal them before measuring."
         )
     }
 }

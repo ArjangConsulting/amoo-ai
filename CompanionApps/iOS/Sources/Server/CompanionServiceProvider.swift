@@ -738,6 +738,9 @@ extension ViewNodeSnapshot {
         node.isSecureTextEntry = isSecureTextEntry
         node.type = type
         node.isEnabled = isEnabled
+        if let isSelected {
+            node.isSelected = isSelected
+        }
         node.isVisible = isVisible
         if let placeholder {
             node.placeholder = placeholder

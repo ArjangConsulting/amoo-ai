@@ -3,11 +3,13 @@ import Foundation
 /// Versioned structured evidence from observations and explicitly authored journey assertions.
 public struct DiagnosticEvidence: Codable, Sendable, Equatable {
     public static let toolNames: Set<String> = [
-        "audit_app", "audit_security", "audit_accessibility", "audit_accessibility_native", "test_voiceover",
+        "device_health", "audit_app", "audit_security", "audit_accessibility", "audit_accessibility_native",
+        "test_voiceover",
+        "test_talkback",
         "analyze_ai_testability", "highlight_a11y_issues", "suggest_test_actions"
     ]
 
-    public static let structuredToolNames = toolNames.union(["assert_accessibility_journey"])
+    public static let structuredToolNames = toolNames.union(["assert_accessibility_journey", "assert_talkback_speech"])
 
     public let schemaVersion: Int
     public let speechRetained: Bool

@@ -1,6 +1,16 @@
 import AmooCore
 
 public extension IOSDriver {
+    func connectivityHealth() async -> ConnectivityHealth {
+        let companion = companion
+        let rpc = await ConnectivityHealth.probe(source: "companion capabilities RPC") {
+            _ = try await companion.getCapabilities()
+        }
+        return ConnectivityHealth(
+            deviceTransport: .init(source: "Independent iOS transport probe unavailable"), companionRPC: rpc
+        )
+    }
+
     func inspectAccessibilityJourney(
         appID: String,
         journey: AccessibilityJourney

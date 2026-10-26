@@ -33,7 +33,7 @@ extension DriverToolExecutor {
     /// Parses `expected`, which defaults to `true`. Anything but `true`/`false` is rejected rather
     /// than guessed at, because a misread negative expectation would assert the opposite.
     static func parseExpectedSelection(_ raw: String?) throws -> Bool {
-        guard let raw, !raw.isEmpty else { return true }
+        guard let raw else { return true }
         switch raw.lowercased() {
         case "true": return true
         case "false": return false

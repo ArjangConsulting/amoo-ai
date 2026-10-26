@@ -1,4 +1,5 @@
 import AmooCore
+import Foundation
 
 public enum AuditDomain: String, Sendable, Codable {
     case security
@@ -86,6 +87,7 @@ public struct AuditFinding: Sendable, Codable {
 }
 
 public struct AuditInput: Sendable {
+    public let captureReference: String
     public var appID: String
     public var screenContext: ScreenContext
     public var hierarchy: ViewNode
@@ -105,11 +107,21 @@ public struct AuditInput: Sendable {
         evidenceProblems: [String] = [],
         geometryUnit: String = "unknown"
     ) {
+        let capture = UUID().uuidString
+        captureReference = capture
         self.appID = appID
         self.screenContext = screenContext
         self.hierarchy = hierarchy
         self.elements = elements
-        self.interactableElements = interactableElements
+        self.interactableElements = interactableElements.enumerated().map { index, element in
+            var copy = element
+            if copy.semantics?.reference.isEmpty != false {
+                var semantics = copy.semantics ?? ElementSemantics()
+                semantics.reference = "\(capture):element[\(index)]"
+                copy.semantics = semantics
+            }
+            return copy
+        }
         self.evidenceProblems = evidenceProblems
         self.geometryUnit = geometryUnit
     }

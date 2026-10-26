@@ -85,6 +85,21 @@ extension SessionPlanCompiler {
         )
     }
 
+    static func translateAssertChecked(_ arguments: [String: String]) -> TranslatedAction? {
+        guard let selected = translateAssertSelected(arguments) else { return nil }
+        return TranslatedAction(
+            studioTool: .assertChecked, studioArguments: selected.studioArguments, approximate: selected.approximate
+        )
+    }
+
+    static func translateAssertStateDescription(_ arguments: [String: String]) -> TranslatedAction? {
+        guard (arguments["expected"] != nil) != (arguments["contains"] != nil),
+              let value = translateAssertValue(arguments) else { return nil }
+        return TranslatedAction(
+            studioTool: .assertStateDescription, studioArguments: value.studioArguments, approximate: value.approximate
+        )
+    }
+
     static func translateAssertValue(_ arguments: [String: String]) -> TranslatedAction? {
         // `expected` is exact equality; `contains` is a substring check. Studio carries both, so
         // neither is left out of the plan.
@@ -141,6 +156,10 @@ extension SessionPlanCompiler {
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is not visible.", "Element is not visible.")
         case .assertEnabled:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is enabled.", "Element is enabled.")
+        case .assertChecked:
+            return ("Assert native checked state.", "Checked state matches the explicit expectation.")
+        case .assertStateDescription:
+            return ("Assert native state description.", "State description matches the explicit expectation.")
         case .assertSelected:
             let state = arguments[.expected]?.lowercased() == "false" ? "not selected" : "selected"
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is \(state).", "Element is \(state).")

@@ -19,7 +19,7 @@ final class AccessibilityLabelRuleTests: XCTestCase {
         XCTAssertEqual(results.count, 1)
         XCTAssertEqual(results[0].severity, .low)
         XCTAssertTrue(results[0].summary.contains("named only by placeholder"))
-        XCTAssertEqual(results[0].evidence.first?.sourceRef, "email")
+        XCTAssertEqual(results[0].evidence.first?.attributes["elementID"], "email")
     }
 
     func testInputWithoutPlaceholderReportIsUnconfirmedRatherThanMissing() async throws {
