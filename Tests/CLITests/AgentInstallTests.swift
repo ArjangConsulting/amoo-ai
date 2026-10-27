@@ -168,6 +168,31 @@ final class AgentInstallTests: XCTestCase {
         XCTAssertTrue(runAgentInstall(options, assetsRoot: pluginRoot).output.contains("updated"))
     }
 
+    func testStampRecordsIdenticalFilesAndMergesClientsWithoutChangingReportShape() throws {
+        let target = try temporaryDirectory()
+        var options = AgentInstallOptions(target: target.path)
+        options.clients = [.claude]
+        let files = try agentInstallPlan(options, assetsRoot: pluginRoot)
+        for file in files {
+            try FileManager.default.createDirectory(
+                at: file.destination.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try file.contents.write(to: file.destination)
+        }
+        options.json = true
+        let result = runAgentInstall(options, assetsRoot: pluginRoot)
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        let stamp = try XCTUnwrap(AgentInstallStamp.read(in: target))
+        XCTAssertEqual(stamp.files.count, files.count)
+        XCTAssertEqual(stamp.clients, ["claude"])
+        XCTAssertFalse(result.output.contains(".amoo-install.json"))
+        options.clients = [.codex]
+        XCTAssertEqual(runAgentInstall(options, assetsRoot: pluginRoot).exitCode, 0)
+        let merged = try XCTUnwrap(AgentInstallStamp.read(in: target))
+        XCTAssertEqual(merged.clients, ["claude", "codex"])
+        XCTAssertTrue(Set(stamp.files.keys).isSubset(of: Set(merged.files.keys)))
+    }
+
     func testMissingAssetsFailClearly() {
         let result = runAgentInstall(AgentInstallOptions(target: "/tmp"), assetsRoot: nil)
         XCTAssertEqual(result.exitCode, 1)
