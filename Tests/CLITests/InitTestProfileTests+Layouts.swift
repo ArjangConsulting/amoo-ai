@@ -41,6 +41,16 @@ extension InitTestProfileTests {
         XCTAssertEqual(try RepositoryTestProfile.load(profile).targetPlatform, .ios)
     }
 
+    func testLinkedWorktreeIsItsOwnRepositoryBoundary() throws {
+        let scratch = try makeScratchDirectory()
+        let worktree = scratch.url.appendingPathComponent("worktree")
+        try FileManager.default.createDirectory(at: worktree, withIntermediateDirectories: true)
+        try Data("gitdir: /repo/.git/worktrees/worktree".utf8).write(to: worktree.appendingPathComponent(".git"))
+        try "```amoo-context\n{\"targetPlatform\":\"ios\",\"baseClass\":\"Parent\"}\n```\n"
+            .write(to: scratch.url.appendingPathComponent("amoo.md"), atomically: true, encoding: .utf8)
+        XCTAssertNil(try RepositoryTestProfile.discover(from: worktree, platform: .ios))
+    }
+
     func testUndiscoveredProfileUsesRequestedPlatformAndUnspecifiedProfileStaysUnscoped() throws {
         let android = try makeScratchDirectory().url
         try saveInitTestProfile(at: android, platform: .android)

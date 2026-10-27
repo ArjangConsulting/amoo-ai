@@ -17,10 +17,7 @@ public enum RepositoryTestProfile {
             if FileManager.default.fileExists(atPath: file.path) {
                 return try select(contexts(in: file), platform: platform)
             }
-            var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(
-                atPath: root.appendingPathComponent(".git").path, isDirectory: &isDirectory
-            ), isDirectory.boolValue {
+            if isRepositoryBoundary(root) {
                 return nil
             }
             let parent = root.deletingLastPathComponent()
@@ -29,6 +26,19 @@ public enum RepositoryTestProfile {
             }
             root = parent
         }
+    }
+
+    /// A repository root ends the upward search. A submodule's `.git` file keeps it going to the
+    /// orchestrator; a linked worktree's `.git` file is still its own repository.
+    private static func isRepositoryBoundary(_ directory: URL) -> Bool {
+        let git = directory.appendingPathComponent(".git")
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: git.path, isDirectory: &isDirectory) else { return false }
+        if isDirectory.boolValue {
+            return true
+        }
+        let pointer = (try? String(contentsOf: git, encoding: .utf8)) ?? ""
+        return pointer.contains("/worktrees/")
     }
 
     /// Reads Markdown or legacy JSON, rejecting ambiguous or wrong-platform explicit contexts.

@@ -17,6 +17,7 @@ func runAgentUpdate(
     var selected = options
     selected.clients = status.clients
     selected.agents = status.agents
+    selected.executablePath = status.binary ?? options.executablePath
     let states = Dictionary(uniqueKeysWithValues: status.files.map { ($0.path, $0.state) })
     do {
         let report = try writeAgentFiles(
@@ -29,10 +30,7 @@ func runAgentUpdate(
             },
             skippedAction: { "skipped (\(states[$0.destination.path]?.rawValue ?? "edited"); use --force)" }
         )
-        let blocked = report.files.contains { $0.action.hasPrefix("skipped") }
-        var result = report
-        result.ok = !blocked
-        return agentInstallResult(result, json: options.json)
+        return agentInstallResult(report, json: options.json)
     } catch {
         return agentInstallResult(.init(ok: false, files: [], error: "\(error)"), json: options.json)
     }

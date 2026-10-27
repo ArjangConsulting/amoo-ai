@@ -15,6 +15,7 @@ struct AgentStatusReport: Encodable {
 
     var root: String
     var installedVersion: String?
+    var binary: String?
     var availableVersion = AmooVersion.current
     var clients: [AgentClient] = []
     var agents: [String] = []
@@ -44,12 +45,14 @@ func probeAgentStatus(
     let logger = AmooLogger.forType(AgentStatusReport.self)
     logger.info("Inspecting AI client files", context: "root=\(options.root.path)")
     var report = AgentStatusReport(root: options.root.path)
+    report.installationFound = AgentInstallStamp.exists(in: options.root)
     do {
         guard let assetsRoot else {
             throw CocoaError(.fileReadNoSuchFile)
         }
-        let stamp = try AgentInstallStamp.read(in: options.root)
+        let stamp = try AgentInstallStamp.read(in: options.root, discardUnreadable: options.force)
         var selected = options
+        selected.executablePath = AgentInstallStamp.resolvedBinary(options, stamp: stamp)
         let installedClients = try AgentClient.allCases.filter { client in
             if stamp?.clients.contains(client.rawValue) == true {
                 return true
@@ -69,8 +72,9 @@ func probeAgentStatus(
             }
         }
         selected.clients = options.clientsGiven ? options.clients : installedClients
-        selected.agents = stamp?.agents ?? AgentDefinition.all.map(\.name)
-        report.installationFound = stamp != nil || !installedClients.isEmpty
+        selected.agents = options.agentsGiven ? options.agents : stamp?.agents ?? AgentDefinition.all.map(\.name)
+        report.installationFound = report.installationFound || !installedClients.isEmpty
+        report.binary = selected.executablePath
         report.clients = selected.clients
         report.agents = selected.agents
         report.installedVersion = stamp?.amooVersion

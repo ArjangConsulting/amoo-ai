@@ -25,6 +25,7 @@ func saveInitTestProfile(at root: URL, platform: Platform? = nil) throws {
         .filter { ["waitForExistence", "waitForHittability", "waitForAbsence"].contains($0.key) }
         .mapValues(\.template)
     let targets = facts.testDirectories
+    // A mixed repository gets a separate Android block below, so the Swift block stays iOS.
     let targetPlatform: Platform? = tests.isEmpty ? (android.files.isEmpty ? platform : .android) : .ios
     let snippets = tests.flatMap { path -> [String] in
         guard let text = try? String(contentsOf: root.appendingPathComponent(path), encoding: .utf8) else { return [] }

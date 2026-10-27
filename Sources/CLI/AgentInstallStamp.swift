@@ -20,14 +20,37 @@ struct AgentInstallStamp: Codable {
         root.appendingPathComponent(".amoo-install.json")
     }
 
-    static func read(in root: URL) throws -> Self? {
+    static func exists(in root: URL) -> Bool {
+        FileManager.default.fileExists(atPath: url(in: root).path)
+    }
+
+    /// Reads the record. The file is committed, so a merge conflict or a newer schema can make it
+    /// unreadable; `discardUnreadable` (`--force`) then treats the install as unrecorded instead of failing.
+    static func read(in root: URL, discardUnreadable: Bool = false) throws -> Self? {
         let url = url(in: root)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let stamp = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
-        guard stamp.schema == 1 else {
-            throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path])
+        guard exists(in: root) else { return nil }
+        do {
+            let stamp = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+            guard stamp.schema == 1 else {
+                throw AgentInstallStampError(path: url.path, reason: "unsupported schema \(stamp.schema)")
+            }
+            return stamp
+        } catch {
+            let wrapped = error as? AgentInstallStampError
+                ?? AgentInstallStampError(path: url.path, reason: "\(error)")
+            guard discardUnreadable else { throw wrapped }
+            AmooLogger.forType(Self.self).info("Discarding unreadable install record", context: "path=\(url.path)")
+            return nil
         }
-        return stamp
+    }
+
+    /// The executable `status` and `update` render with. A different build of the same release keeps the
+    /// recorded one, so running a debug build does not repoint a Homebrew install; an upgrade or a missing
+    /// recorded binary uses the running one. `--binary` always wins.
+    static func resolvedBinary(_ options: AgentInstallOptions, stamp: Self?) -> String {
+        guard !options.binaryGiven, let stamp, stamp.amooVersion == AmooVersion.current,
+              FileManager.default.isExecutableFile(atPath: stamp.binary) else { return options.executablePath }
+        return stamp.binary
     }
 
     static func relativePath(_ file: URL, root: URL) -> String {
@@ -47,6 +70,15 @@ struct AgentInstallStamp: Codable {
     }
 }
 
+struct AgentInstallStampError: Error, CustomStringConvertible {
+    var path: String
+    var reason: String
+
+    var description: String {
+        "\(path) is unreadable (\(reason)). Delete it, or run `amoo agent update --force` to rewrite it."
+    }
+}
+
 /// Applies a caller's overwrite policy through the same atomic installer for install and update.
 func writeAgentFiles(
     _ files: [AgentInstallFile],
@@ -57,7 +89,8 @@ func writeAgentFiles(
     let logger = AmooLogger.forType(AgentInstallStamp.self)
     logger.info("Installing AI client files", context: "root=\(options.root.path) files=\(files.count)")
     do {
-        var stamp = try AgentInstallStamp.read(in: options.root) ?? AgentInstallStamp(binary: options.executablePath)
+        var stamp = try AgentInstallStamp.read(in: options.root, discardUnreadable: options.force)
+            ?? AgentInstallStamp(binary: options.executablePath)
         var hashes: [String: String] = [:]
         var report = AgentInstallReport(ok: true, files: [])
         for file in files {
