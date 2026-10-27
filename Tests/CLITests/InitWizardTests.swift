@@ -253,6 +253,7 @@ final class InitWizardTests: InitTestCase {
         _ = await runInitCommand(base + ["--client", "claude,codex"], runtime: runtime(
             discovery: found,
             setup: ok,
+            agentStatus: { _ in XCTFail("explicit clients must not probe"); return AgentStatusReport(root: "/repo") },
             installAgents: { installed.append($0); return CLIResult(output: "", exitCode: 0) }
         ))
         XCTAssertEqual(installed.first?.clients, [.claude, .codex])

@@ -10,6 +10,8 @@ struct InitRuntime {
     var setup: (EnvUpOptions) async -> CLIResult
     var now: () -> Date
     var detectedClients: () -> [AgentClient]
+    var agentStatus: (URL) -> AgentStatusReport
+    var updateAgents: (AgentInstallOptions) -> CLIResult
     var installAgents: (AgentInstallOptions) -> CLIResult
     var assetsRoot: URL?
 
@@ -21,6 +23,8 @@ struct InitRuntime {
             setup: { await runEnvUp($0) },
             now: Date.init,
             detectedClients: { detectInstalledAgentClients() },
+            agentStatus: { probeAgentStatus(AgentInstallOptions(target: $0.path)) },
+            updateAgents: { runAgentUpdate($0) },
             installAgents: { runAgentInstall($0) },
             assetsRoot: agentAssetsRoot()
         )
@@ -124,8 +128,14 @@ private func runCompletedInit(
 
 /// Installs the AI client files after the devices are ready, folding the outcome into the result.
 private func withSkills(_ result: CLIResult, _ skills: SkillsChoice, runtime: InitRuntime) -> CLIResult {
-    guard case let .install(options) = skills else { return result }
-    let installed = runtime.installAgents(options)
+    let installed: CLIResult
+    switch skills {
+    case let .install(options): installed = runtime.installAgents(options)
+    case let .update(options): installed = runtime.updateAgents(options)
+    case let .message(message):
+        return CLIResult(output: result.output + "\n\n" + message, exitCode: result.exitCode)
+    case .cancel, .skip: return result
+    }
     return CLIResult(
         output: result.output + "\n\nAI clients:\n" + installed.output,
         exitCode: max(result.exitCode, installed.exitCode)
@@ -136,6 +146,8 @@ private enum SkillsChoice {
     case cancel
     case skip
     case install(AgentInstallOptions)
+    case update(AgentInstallOptions)
+    case message(String)
 }
 
 /// Whether to also install the amoo subagents and skills. In a terminal: asked (unless `--client`
@@ -148,12 +160,18 @@ private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: In
     options.scopeGiven = true
     options.clients = request.clients
     options.clientsGiven = !request.clients.isEmpty
+    if request.skills == nil, request.clients.isEmpty, !request.json {
+        let status = runtime.agentStatus(options.root)
+        if status.found || status.error != nil {
+            return existingSkillsChoice(status, options: options, interactive: interactive, runtime: runtime)
+        }
+    }
     guard interactive else {
         guard options.clientsGiven else { return .skip }
         options.scopeGiven = true
         return .install(options)
     }
-    if request.skills == nil, request.clients.isEmpty {
+    if request.skills == nil, request.clients.isEmpty, !request.json {
         let question = "Also set up the amoo subagents and skills for your AI clients (Claude Code, Codex, Cursor, …)?"
         guard let answer = runtime.prompter.confirm(question, default: true) else { return .cancel }
         guard answer else { return .skip }
@@ -167,6 +185,28 @@ private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: In
         return .cancel
     }
     return .install(chosen)
+}
+
+private func existingSkillsChoice(
+    _ status: AgentStatusReport,
+    options: AgentInstallOptions,
+    interactive: Bool,
+    runtime: InitRuntime
+) -> SkillsChoice {
+    if status.current {
+        return .message("AI clients: already up to date (amoo \(status.availableVersion)).")
+    }
+    let hint = "AI clients: run amoo agent update to review and update installed files."
+    guard interactive, status.error == nil, status.updateCount > 0 else { return .message(hint) }
+    runtime.prompter.say("AI clients: \(status.updateCount) files are outdated or missing.")
+    guard let answer = runtime.prompter.confirm("Update \(status.updateCount) files?", default: true) else {
+        return .cancel
+    }
+    guard answer else { return .message(hint) }
+    var selected = options
+    selected.clients = status.clients
+    selected.agents = status.agents
+    return .update(selected)
 }
 
 private struct InitRefusal: Error {

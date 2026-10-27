@@ -34,6 +34,8 @@ func completeAgentInstallOptions(
     assetsRoot: URL?
 ) -> AgentInstallOptions? {
     var result = options
+    guard let scoped = chooseAgentInstallScope(result, prompter: prompter) else { return nil }
+    result = scoped
     if !options.clientsGiven {
         let all = AgentClient.allCases
         var labels = all.map { agentClientTitle($0) + (detected.contains($0) ? " (detected)" : "") }
@@ -53,6 +55,20 @@ func completeAgentInstallOptions(
         }
         result.clientsGiven = true
     }
+    // Show exactly what would change before writing anything.
+    var preview = result
+    preview.dryRun = true
+    preview.json = false
+    prompter.say("\n" + runAgentInstall(preview, assetsRoot: assetsRoot).output + "\n")
+    guard prompter.confirm("Install these files?", default: true) == true else { return nil }
+    return result
+}
+
+func chooseAgentInstallScope(
+    _ options: AgentInstallOptions,
+    prompter: some Prompting
+) -> AgentInstallOptions? {
+    var result = options
     if !options.scopeGiven {
         guard let index = prompter.choose(
             "Install for",
@@ -65,12 +81,6 @@ func completeAgentInstallOptions(
         result.scope = index == 0 ? .project : .user
         result.scopeGiven = true
     }
-    // Show exactly what would change before writing anything.
-    var preview = result
-    preview.dryRun = true
-    preview.json = false
-    prompter.say("\n" + runAgentInstall(preview, assetsRoot: assetsRoot).output + "\n")
-    guard prompter.confirm("Install these files?", default: true) == true else { return nil }
     return result
 }
 
@@ -93,8 +103,21 @@ func runAgentInstallCommand(
         return runAgentInstall(options, assetsRoot: assetsRoot)
     }
     prompter.say("amoo agent install — add the amoo subagents and skills to your AI clients.\n")
+    guard let scoped = chooseAgentInstallScope(options, prompter: prompter) else {
+        return CLIResult(output: "Cancelled. No files were written.", exitCode: 1)
+    }
+    let status = probeAgentStatus(scoped, assetsRoot: assetsRoot)
+    if status.found {
+        let message = status.current
+            ? "AI clients: already up to date (amoo \(status.availableVersion))."
+            : "AI clients: installed files need review. Run amoo agent update."
+        return CLIResult(output: message, exitCode: 0)
+    }
+    if let error = status.error {
+        return CLIResult(output: error, exitCode: 1)
+    }
     guard let chosen = completeAgentInstallOptions(
-        options,
+        scoped,
         prompter: prompter,
         detected: detected(),
         assetsRoot: assetsRoot
