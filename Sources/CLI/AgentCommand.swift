@@ -44,6 +44,9 @@ func renderAgentHelp() -> String {
     """
     Usage: amoo agent install [--target <repo> | --user] [--client <name>]... [--agent <name>]...
                               [--dry-run] [--force] [--json] [--non-interactive] [--binary <absolute-path>]
+           amoo agent status [--target <repo> | --user] [--client <name>]... [--json]
+           amoo agent update [--target <repo> | --user] [--client <name>]...
+                             [--force] [--dry-run] [--json] [--non-interactive]
            amoo agent render --out <plugin-dir>
            amoo agent validate-report --report <report.json> --run-id <uuid> --checks <ids> [--json]
            amoo agent evidence --path <absolute-file> --run-id <uuid> --checks <ids>
@@ -70,6 +73,13 @@ func renderAgentHelp() -> String {
 
              Where the client allows it, the amoo agent starts its own `amoo mcp serve`, so the
              main session never loads amoo's tools. Plugin installs (see README) need none of this.
+
+    status   Compares installed files with the bundled version; exits 1 for any drift.
+             By default inspects installed clients in this directory and your home directory.
+             States: current, missing, outdated, edited, unrecorded (legacy files without a hash).
+    update   Refreshes outdated and missing files. Keeps edits and unrecorded files unless --force;
+             in a terminal, asks once before overwriting unrecorded files. --dry-run writes nothing.
+             Installs record hashes in .amoo-install.json; commit this file with project installs.
 
     render   Regenerates the client-specific agent files committed in the plugin directory.
     """
@@ -290,6 +300,8 @@ func handleAgentCommand(remaining: [String]) -> CLIResult {
         return runAgentEvidenceCapture(args)
     case "install":
         return runAgentInstallCommand(args)
+    case "status", "update":
+        return handleAgentMaintenanceCommand(subcommand, args: args)
     case "render":
         var flags = EnvFlagReader(args)
         do {
