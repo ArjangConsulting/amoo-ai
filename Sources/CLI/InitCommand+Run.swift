@@ -321,7 +321,10 @@ private func finishInit(
                 ),
                 agentsFile: agentsFile
             )
-            try saveInitTestProfile(at: URL(fileURLWithPath: agentsFile).deletingLastPathComponent())
+            try saveInitTestProfile(
+                at: URL(fileURLWithPath: agentsFile).deletingLastPathComponent(),
+                platform: environment.platform
+            )
             if interactive {
                 lines.append("Saved project setup to \(agentsFile).")
                 lines
