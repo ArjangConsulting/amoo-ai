@@ -15,6 +15,9 @@ struct AgentInstallOptions: Equatable {
     var clientsGiven = false
     var scopeGiven = false
     var nonInteractive = false
+    /// Whether `--agent` / `--binary` were passed; `status` and `update` keep the recorded values otherwise.
+    var agentsGiven = false
+    var binaryGiven = false
     var executablePath: String = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? ""
 
     /// The directory agent paths are relative to.
@@ -77,8 +80,10 @@ func renderAgentHelp() -> String {
     status   Compares installed files with the bundled version; exits 1 for any drift.
              By default inspects installed clients in this directory and your home directory.
              States: current, missing, outdated, edited, unrecorded (legacy files without a hash).
-    update   Refreshes outdated and missing files. Keeps edits and unrecorded files unless --force;
-             in a terminal, asks once before overwriting unrecorded files. --dry-run writes nothing.
+    update   Refreshes outdated and missing files. Keeps edits and unrecorded files unless --force
+             (still exit 0; `status` shows what remains); in a terminal, asks once before
+             overwriting unrecorded files. Keeps the recorded binary for the same release unless
+             --binary is given. --dry-run writes nothing.
              Installs record hashes in .amoo-install.json; commit this file with project installs.
 
     render   Regenerates the client-specific agent files committed in the plugin directory.
@@ -254,6 +259,7 @@ func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
     }
     if !agents.isEmpty {
         options.agents = agents
+        options.agentsGiven = true
     }
     if let path = try flags.value("--binary") {
         guard path.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: path) else {
@@ -261,6 +267,7 @@ func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
         }
         // Preserve SwiftPM's .build/debug alias so later builds can change its target.
         options.executablePath = URL(fileURLWithPath: path).standardizedFileURL.path
+        options.binaryGiven = true
     }
     options.force = flags.take("--force")
     options.dryRun = flags.take("--dry-run")

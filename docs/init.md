@@ -119,8 +119,9 @@ files. Explicit `--skills` or `--client` keeps the normal install flow.
 The same picker is available on its own as `amoo agent install`:
 
 1. **Where?** This repository (commit the files for your team) or your home directory (every project).
-   Passing `--target` or `--user` answers this. If that scope already has an install, a current install
-   exits without a picker; drift points to `amoo agent update`.
+   Passing `--target` or `--user` answers this. If that scope already has an install, the status is
+   printed (drift points to `amoo agent update`) and you are asked whether to install for additional
+   AI clients; declining exits without a picker.
 2. **Which AI clients?** Claude Code, Cursor, Codex, GitHub Copilot, Gemini CLI, OpenCode. Clients
    whose config directory exists under `~` (for example `~/.claude`) are marked *detected* and
    preselected; with none detected, all are preselected. Choose several with `1,3`, `1-2` or `all`.
@@ -134,9 +135,14 @@ edited, or unrecorded file, and supports `--json` for CI. `current` means the in
 the bundled version. `outdated` means the file still matches its install hash; `edited` means it
 changed locally; differing files without a hash are `unrecorded`.
 
-`amoo agent update` refreshes outdated and missing files, including pinned binary paths after an
-upgrade. It preserves edits and unrecorded files unless `--force` is given. A terminal asks once
-before overwriting unrecorded files. Use `--dry-run` to preview and `--non-interactive` to suppress
+`amoo agent update` refreshes outdated and missing files. When the running amoo is the same release
+as the recorded one it keeps the recorded binary path (so a debug build does not repoint a Homebrew
+install); after an upgrade, or if the recorded binary is gone, it pins the running one, and `--binary`
+always wins. It preserves edits and unrecorded files unless `--force` is given, and still exits 0 when
+it keeps them (run `amoo agent status` to see what remains). A terminal asks once before overwriting
+unrecorded files. `--agent` limits `status` and `update` to those subagents. An unreadable
+`.amoo-install.json` (merge conflict, newer schema) fails with a message; `amoo agent update --force`
+or `install --force` discards and rewrites it. Use `--dry-run` to preview and `--non-interactive` to suppress
 questions. The older `check-install.py` helper still works; status provides the richer drift report.
 
 Passing `--client` (or `--json`, `--non-interactive`, or running without a terminal) skips every
@@ -155,8 +161,8 @@ the private runtime manifest entry.
 Keep one `amoo.md` at the orchestrator root with separate `amoo-context` blocks declaring
 `"targetPlatform": "ios"` and `"targetPlatform": "android"`. Discovered target paths stay relative
 to that file, for example `iOS/NovaUITests` and `Android/app`. Profile lookup from a submodule walks
-past its `.git` file to the orchestrator, then stops at the first `.git` directory so a profile above
-the repository cannot leak in.
+past its `.git` file to the orchestrator, then stops at the first `.git` directory (or a linked
+worktree's `.git` file) so a profile above the repository cannot leak in.
 
 Configure a separate MCP server per platform using `amoo mcp serve --platform ios` and
 `amoo mcp serve --platform android`, both with the orchestrator as their working directory.

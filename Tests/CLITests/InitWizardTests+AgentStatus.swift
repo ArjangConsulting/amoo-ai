@@ -140,6 +140,28 @@ extension InitWizardTests {
         XCTAssertTrue(stale.output.contains("Run amoo agent update"))
         XCTAssertEqual(try Data(contentsOf: agent), Data("edited".utf8))
     }
+
+    func testExistingInstallCanStillAddClientsAndErrorsAreNotSwallowed() throws {
+        let scratch = try makeScratchDirectory()
+        var options = AgentInstallOptions(target: scratch.url.path)
+        options.clients = [.claude]
+        XCTAssertEqual(runAgentInstall(options, assetsRoot: pluginRoot).exitCode, 0)
+        let prompter = ScriptedPrompter()
+        prompter.confirms = [true, true]
+        prompter.multi = [[AgentClient.allCases.firstIndex(of: .cursor) ?? 0]]
+        let added = runAgentInstallCommand(
+            ["--target", scratch.url.path], prompter: prompter, interactive: { true }, assetsRoot: pluginRoot
+        )
+        XCTAssertEqual(added.exitCode, 0, added.output)
+        XCTAssertTrue(prompter.transcript.contains("Install for additional AI clients?"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: scratch.url.appendingPathComponent(".cursor").path))
+        try Data("<<<<<<<".utf8).write(to: AgentInstallStamp.url(in: scratch.url))
+        let broken = runAgentInstallCommand(
+            ["--target", scratch.url.path], prompter: ScriptedPrompter(), interactive: { true }, assetsRoot: pluginRoot
+        )
+        XCTAssertEqual(broken.exitCode, 1)
+        XCTAssertTrue(broken.output.contains("is unreadable"))
+    }
 }
 
 // swiftlint:enable multiline_arguments

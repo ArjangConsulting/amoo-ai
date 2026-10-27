@@ -107,14 +107,17 @@ func runAgentInstallCommand(
         return CLIResult(output: "Cancelled. No files were written.", exitCode: 1)
     }
     let status = probeAgentStatus(scoped, assetsRoot: assetsRoot)
+    if let error = status.error {
+        return CLIResult(output: error, exitCode: 1)
+    }
     if status.found {
         let message = status.current
             ? "AI clients: already up to date (amoo \(status.availableVersion))."
             : "AI clients: installed files need review. Run amoo agent update."
-        return CLIResult(output: message, exitCode: 0)
-    }
-    if let error = status.error {
-        return CLIResult(output: error, exitCode: 1)
+        prompter.say(message)
+        guard prompter.confirm("Install for additional AI clients?", default: false) == true else {
+            return CLIResult(output: message, exitCode: 0)
+        }
     }
     guard let chosen = completeAgentInstallOptions(
         scoped,

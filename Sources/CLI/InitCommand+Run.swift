@@ -162,7 +162,7 @@ private func chooseSkills(_ request: InitRequest, interactive: Bool, runtime: In
     options.clientsGiven = !request.clients.isEmpty
     if request.skills == nil, request.clients.isEmpty, !request.json {
         let status = runtime.agentStatus(options.root)
-        if status.found || status.error != nil {
+        if status.found {
             return existingSkillsChoice(status, options: options, interactive: interactive, runtime: runtime)
         }
     }
@@ -193,11 +193,14 @@ private func existingSkillsChoice(
     interactive: Bool,
     runtime: InitRuntime
 ) -> SkillsChoice {
+    if let error = status.error {
+        return .message(error)
+    }
     if status.current {
         return .message("AI clients: already up to date (amoo \(status.availableVersion)).")
     }
     let hint = "AI clients: run amoo agent update to review and update installed files."
-    guard interactive, status.error == nil, status.updateCount > 0 else { return .message(hint) }
+    guard interactive, status.updateCount > 0 else { return .message(hint) }
     runtime.prompter.say("AI clients: \(status.updateCount) files are outdated or missing.")
     guard let answer = runtime.prompter.confirm("Update \(status.updateCount) files?", default: true) else {
         return .cancel
