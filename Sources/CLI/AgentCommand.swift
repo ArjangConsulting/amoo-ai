@@ -170,26 +170,12 @@ func runAgentInstall(_ options: AgentInstallOptions, assetsRoot: URL? = agentAss
         return agentInstallResult(report, json: options.json)
     }
     do {
-        for file in try agentInstallPlan(options, assetsRoot: assetsRoot) {
-            let existing = try? Data(contentsOf: file.destination)
-            let action: String
-            if existing == file.contents {
-                action = "unchanged"
-            } else if existing != nil, !options.force {
-                action = "skipped (differs; use --force)"
-            } else if options.dryRun {
-                action = existing == nil ? "would install" : "would update"
-            } else {
-                try FileManager.default.createDirectory(
-                    at: file.destination.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try file.contents.write(to: file.destination, options: .atomic)
-                action = existing == nil ? "installed" : "updated"
-            }
-            report.files.append(.init(path: file.destination.path, action: action))
-        }
-        report.ok = true
+        report = try writeAgentFiles(
+            agentInstallPlan(options, assetsRoot: assetsRoot),
+            options: options,
+            shouldWrite: { _, existing in existing == nil || options.force },
+            skippedAction: { _ in "skipped (differs; use --force)" }
+        )
     } catch {
         report.error = "\(error)"
     }
@@ -222,7 +208,7 @@ func runAgentRender(outputDirectory: URL, assetsRoot: URL) -> CLIResult {
     }
 }
 
-private func agentInstallResult(_ report: AgentInstallReport, json: Bool) -> CLIResult {
+func agentInstallResult(_ report: AgentInstallReport, json: Bool) -> CLIResult {
     let human = report.error.map { "agent install failed: \($0)" }
         ?? report.files.map { "\($0.action): \($0.path)" }.joined(separator: "\n")
     return CLIResult(output: json ? renderJSON(report) : human, exitCode: report.ok ? 0 : 1)
@@ -324,7 +310,7 @@ func handleAgentCommand(remaining: [String]) -> CLIResult {
 }
 
 /// The flag reader is shared with `amoo env`, whose error text appends env help; show ours.
-private func agentUsageError(_ error: any Error) -> CLIResult {
+func agentUsageError(_ error: any Error) -> CLIResult {
     guard case let .usage(message)? = error as? EnvCommandParseError else {
         return CLIResult(output: "\(error)", exitCode: 64)
     }
