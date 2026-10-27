@@ -102,18 +102,33 @@ artifact during setup. See [initialization and manifest usage](docs/init.md), in
 client step, validation, cleanup and MCP recording.
 
 To install without a marketplace, use `amoo agent install`. It writes the subagents in each
-client's native format, plus the skills they rely on. In a terminal, without `--client`, it asks
-which AI clients to set up (detected ones are preselected) and whether to install for the repository
-or your home directory, then shows the files before writing. `--client`, `--json` or
-`--non-interactive` skip the questions, so scripts behave as before:
+client's native format, plus the skills they rely on. Guided installs choose a scope first, skip the
+client picker when that scope already has an install, and point to `amoo agent update` when files
+need review. New installs preselect detected clients and preview the files before writing.
+`--client`, `--json` or `--non-interactive` skip the questions, so scripts behave as before.
 
 ```bash
-amoo agent install                             # guided: pick clients and scope
-amoo agent install --user                      # every client, in your home directory
-amoo agent install --target . --client claude  # commit into a repo for your team
-amoo agent install --dry-run --json            # see what would be written
-amoo agent install --binary /absolute/path/to/amoo --client codex  # pin a local MCP build
+amoo agent install
+amoo agent install --user
+amoo agent install --target . --client claude
+amoo agent install --dry-run --json
+amoo agent install --binary /absolute/path/to/amoo --client codex
+amoo agent status --target .
+amoo agent update --target . --dry-run
+amoo agent update --target .
 ```
+
+Installs write `.amoo-install.json` in the scope root (repository or home directory). Commit it with
+project agent files: its per-file hashes distinguish untouched older files from local edits.
+`agent status` inspects this directory and your home directory by default; `--target`, `--user`,
+and `--client` narrow the check. It reports `current`, `missing`, `outdated`, `edited`, or
+`unrecorded` and exits 1 for any drift. `--json` provides the file states for CI.
+
+`agent update` replaces outdated and missing files and refreshes the stamp. It preserves edited
+files and differing legacy files without an install hash. Use `--force` to replace them; a terminal
+asks once before replacing unrecorded files. `--non-interactive` and `--json` never ask, and
+`--dry-run` writes nothing. Updating also refreshes the executable path pinned into the agents,
+including changed Homebrew Cellar paths.
 
 Standalone MCP configs pin the resolved absolute executable path; shell aliases do not affect spawned
 servers. Validate delegated results with `amoo agent validate-report --report <report.json>
@@ -136,7 +151,8 @@ The helper runs `amoo agent install --dry-run --json` and fails for any action o
 `unchanged`, including missing files and preserved local edits. Use `--amoo /absolute/path/to/amoo`
 to select the pinned CLI and `--binary /absolute/path/to/amoo` when the installed MCP config pins
 a different executable. For Claude installs the helper lives under `.claude/skills/` instead.
-Refresh intentionally with `amoo agent install --target . --client opencode --force`, then rerun
+`amoo agent status --target . --client opencode` is the richer successor to this helper.
+Refresh with `amoo agent update --target . --client opencode`, review any preserved files, then rerun
 the check. Upstream CI verifies a fresh installation round trip for all clients; consumer repos
 must run this check against their own checked-in copies to detect drift.
 

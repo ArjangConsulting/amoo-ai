@@ -84,7 +84,9 @@ func renderInitHelp() -> String {
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.
-    Headless, pass --client to do so; --no-skills skips it.
+    Current installs skip the picker; outdated or missing files get one update confirmation.
+    Headless, existing drift prints an `amoo agent update` hint; pass --client to install.
+    --no-skills skips AI client setup. Run from the orchestrator root for submodule layouts.
 
     Validation runs first (app exists and matches --app-id, every device exists and is available);
     no runtime starts if it fails. All results are returned, including failures; exit 1 means at

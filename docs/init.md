@@ -110,22 +110,65 @@ with `device_hint`, `app_id` and the app's `build_path`; only `end_session` expo
 
 ## AI client setup (skills and subagents)
 
-The same picker is available on its own as `amoo agent install` and as the last question of `amoo init`
-(skip with `--no-skills`):
+`amoo init` checks existing repository installs before asking about AI clients (skip with
+`--no-skills`). A current install prints `AI clients: already up to date (amoo X)` and asks nothing.
+Outdated or missing files get one `Update N files?` confirmation, using the installed clients and
+preserving local edits. Headless init prints a `run amoo agent update` hint and changes no client
+files. Explicit `--skills` or `--client` keeps the normal install flow.
 
-1. **Which AI clients?** Claude Code, Cursor, Codex, GitHub Copilot, Gemini CLI, OpenCode. Clients
+The same picker is available on its own as `amoo agent install`:
+
+1. **Where?** This repository (commit the files for your team) or your home directory (every project).
+   Passing `--target` or `--user` answers this. If that scope already has an install, a current install
+   exits without a picker; drift points to `amoo agent update`.
+2. **Which AI clients?** Claude Code, Cursor, Codex, GitHub Copilot, Gemini CLI, OpenCode. Clients
    whose config directory exists under `~` (for example `~/.claude`) are marked *detected* and
    preselected; with none detected, all are preselected. Choose several with `1,3`, `1-2` or `all`.
-2. **Where?** This repository (commit the files for your team) or your home directory (every project).
-   Passing `--target` or `--user` answers this.
 3. The exact files are listed (`would install` / `unchanged` / `skipped (differs; use --force)`) and you
-   confirm before anything is written. Existing files are never overwritten without `--force`.
+   confirm before anything is written. Existing differing files require `--force` for install.
+
+Installs record per-file hashes in `.amoo-install.json` at the scope root. Commit this stamp with
+project agent files. `amoo agent status` checks the current directory and home installs by default;
+use `--target <repo>`, `--user`, or `--client` to narrow it. It exits 1 for any missing, outdated,
+edited, or unrecorded file, and supports `--json` for CI. `current` means the installed bytes match
+the bundled version. `outdated` means the file still matches its install hash; `edited` means it
+changed locally; differing files without a hash are `unrecorded`.
+
+`amoo agent update` refreshes outdated and missing files, including pinned binary paths after an
+upgrade. It preserves edits and unrecorded files unless `--force` is given. A terminal asks once
+before overwriting unrecorded files. Use `--dry-run` to preview and `--non-interactive` to suppress
+questions. The older `check-install.py` helper still works; status provides the richer drift report.
 
 Passing `--client` (or `--json`, `--non-interactive`, or running without a terminal) skips every
 question, so existing scripts keep their behaviour. Headless `amoo init --client claude,codex`
 installs into the current repository after the devices are ready; headless init without `--client`
 installs nothing. `--json` and skills cannot be combined in `init` (one JSON document per call): run
 `amoo agent install --json` separately.
+
+## Orchestrator / multi-repo layouts
+
+Run `amoo init`, `amoo agent install`, and `amoo mcp serve` from the orchestrator root when iOS and
+Android live in submodules such as `iOS/` and `Android/`. Agent files belong in the repository that
+drives the device. Running init in a submodule would also dirty that submodule's `.gitignore` with
+the private runtime manifest entry.
+
+Keep one `amoo.md` at the orchestrator root with separate `amoo-context` blocks declaring
+`"targetPlatform": "ios"` and `"targetPlatform": "android"`. Discovered target paths stay relative
+to that file, for example `iOS/NovaUITests` and `Android/app`. Profile lookup from a submodule walks
+past its `.git` file to the orchestrator, then stops at the first `.git` directory so a profile above
+the repository cannot leak in.
+
+Configure a separate MCP server per platform using `amoo mcp serve --platform ios` and
+`amoo mcp serve --platform android`, both with the orchestrator as their working directory.
+Generated tests need explicit destinations: use `generate test --out iOS/<UITests>` or
+`generate test --out Android/app/src/androidTest/...`; generation does not discover host targets.
+
+Headless init handles one platform per run; the guided **Both** choice handles both. Android app ID
+and Gradle discovery are not implemented, so pass `app_id` when starting a session. Swift harness source
+scanning skips dependency directories and symlinks and is bounded to 16 directory levels, 50,000
+entries, 2,000 Swift files, 2 MB per file, and 32 MB total. A limit adds a review diagnostic to
+`amoo.md`. Upstream follow-up: add these traversal budgets to `mobile-kits`' public
+`UITestHarnessInspector.index` API; amoo currently builds a bounded declaration index itself.
 
 ## Related
 
