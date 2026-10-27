@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import MobileProject
 import StudioProtocol
@@ -8,10 +9,10 @@ import StudioProtocol
 // Discovers evidence from checked-in Swift tests (parsed with SwiftSyntax by MobileProject) without
 // modifying the receiving test target.
 // swiftlint:disable:next function_body_length
-func saveInitTestProfile(at root: URL) throws {
+func saveInitTestProfile(at root: URL, platform: Platform? = nil) throws {
     let output = root.appendingPathComponent("amoo.md")
     // Existing platform sections are repository-owned; only append newly discovered platforms.
-    let facts = UITestHarnessInspector().inspect(root.path)
+    let facts = inspectInitHarness(at: root)
     let android = AndroidTestProfile.discover(at: root)
     let tests = facts.uiTestFiles
     let base = facts.baseClass?.value
@@ -23,7 +24,8 @@ func saveInitTestProfile(at root: URL) throws {
     let waits = facts.waitHelpers
         .filter { ["waitForExistence", "waitForHittability", "waitForAbsence"].contains($0.key) }
         .mapValues(\.template)
-    let targets = facts.testDirectories.compactMap { $0.split(separator: "/").last.map(String.init) }
+    let targets = facts.testDirectories
+    let targetPlatform: Platform? = tests.isEmpty ? (android.files.isEmpty ? platform : .android) : .ios
     let snippets = tests.flatMap { path -> [String] in
         guard let text = try? String(contentsOf: root.appendingPathComponent(path), encoding: .utf8) else { return [] }
         return text.split(separator: "\n").enumerated().compactMap { index, line -> String? in
@@ -51,7 +53,7 @@ func saveInitTestProfile(at root: URL) throws {
         waitBindings: waits,
         timeoutExpressions: timeoutExpressions,
         relaunchHelper: facts.relaunchHelper?.template,
-        targetPlatform: .ios,
+        targetPlatform: targetPlatform,
         launchArguments: project.launchArguments
     )
     let encoder = JSONEncoder()

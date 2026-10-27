@@ -17,6 +17,12 @@ public enum RepositoryTestProfile {
             if FileManager.default.fileExists(atPath: file.path) {
                 return try select(contexts(in: file), platform: platform)
             }
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(
+                atPath: root.appendingPathComponent(".git").path, isDirectory: &isDirectory
+            ), isDirectory.boolValue {
+                return nil
+            }
             let parent = root.deletingLastPathComponent()
             if parent == root {
                 return nil
