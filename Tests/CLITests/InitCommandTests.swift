@@ -110,6 +110,11 @@ class InitTestCase: XCTestCase {
         interactive: Bool = false,
         discovery: InitDiscovery,
         setup: @escaping (EnvUpOptions) async -> CLIResult,
+        agentStatus: @escaping (URL) -> AgentStatusReport = { AgentStatusReport(root: $0.path) },
+        updateAgents: @escaping (AgentInstallOptions) -> CLIResult = { _ in
+            XCTFail("skills must not be updated")
+            return CLIResult(output: "", exitCode: 0)
+        },
         installAgents: @escaping (AgentInstallOptions) -> CLIResult = { _ in
             XCTFail("skills must not be installed")
             return CLIResult(output: "", exitCode: 0)
@@ -122,6 +127,8 @@ class InitTestCase: XCTestCase {
             setup: setup,
             now: { Date(timeIntervalSince1970: 0) },
             detectedClients: { [.codex] },
+            agentStatus: agentStatus,
+            updateAgents: updateAgents,
             installAgents: installAgents,
             assetsRoot: pluginRoot
         )
