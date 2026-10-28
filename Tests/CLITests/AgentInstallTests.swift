@@ -138,6 +138,33 @@ final class AgentInstallTests: XCTestCase {
         XCTAssertFalse(paths.contains { $0.hasPrefix(".claude") })
     }
 
+    func testVerifierOnlyInstallIncludesRecoveryGuidanceForEveryClient() throws {
+        let target = try temporaryDirectory()
+        for client in AgentClient.allCases {
+            var options = AgentInstallOptions(target: target.path)
+            options.clients = [client]
+            options.agents = ["device-verifier"]
+            let files = try agentInstallPlan(options, assetsRoot: pluginRoot)
+            let skills = AgentRenderer.skillsDirectory(for: client)
+            for path in [
+                "\(skills)/driving-amoo/SKILL.md",
+                "\(skills)/driving-amoo/references/execution-modes.md",
+                "\(skills)/device-verifier/SKILL.md"
+            ] {
+                let file = try XCTUnwrap(files.first { $0.destination == target.appendingPathComponent(path) })
+                let text = try XCTUnwrap(String(bytes: file.contents, encoding: .utf8))
+                XCTAssertTrue(text.contains("--cli-only"), "\(client): \(path)")
+                XCTAssertTrue(text.contains("--mcp-pid"), "\(client): \(path)")
+            }
+            let agent = try XCTUnwrap(files.first {
+                $0.destination.path.contains("/agents/device-verifier.")
+            })
+            let text = try XCTUnwrap(String(bytes: agent.contents, encoding: .utf8))
+            XCTAssertTrue(text.contains("--mcp-pid"), "\(client)")
+            XCTAssertTrue(text.contains("--cli-only"), "\(client)")
+        }
+    }
+
     func testDryRunWritesNothing() throws {
         let target = try temporaryDirectory()
         var options = AgentInstallOptions(target: target.path)

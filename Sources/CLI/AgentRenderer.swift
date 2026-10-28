@@ -47,7 +47,7 @@ struct AgentDefinition: Equatable, Sendable {
 
     static let deviceVerifier = Self(
         name: "device-verifier",
-        skills: ["device-verifier"],
+        skills: ["driving-amoo", "device-verifier"],
         scopedMCP: false,
         claudeModel: "sonnet",
         claudeTools: "Bash, Read, Write, Glob, Grep",

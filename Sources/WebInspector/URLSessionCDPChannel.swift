@@ -54,9 +54,9 @@ private final class URLSessionCDPChannel: CDPChannel, @unchecked Sendable {
     func receive() async throws -> Data {
         switch try await task.receive() {
         case let .data(data):
-            return data
+            data
         case let .string(string):
-            return Data(string.utf8)
+            Data(string.utf8)
         @unknown default:
             throw WebInspectorError.protocolError("unknown WebSocket frame type")
         }

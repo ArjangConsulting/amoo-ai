@@ -64,10 +64,16 @@ MCP/CLI execute it; device ownership prevents concurrent runs from interfering.
 Prefer controlled CLI for checked-in flows and probes. MCP managed sessions are recommended for
 interactive checks and can handle supported checks when the installed CLI lacks `env`.
 Check the pinned binary's `--version`, `--help`, and required subcommand help first, then run
-`doctor --json` before either transport. Missing/failing doctor blocks setup. Resolve stale MCP
-servers by reconnecting affected clients to the pinned build and rerun doctor before trusting
-results; report blocked if you cannot reconnect. `--kill-stale` requires authorization to stop
-stale servers across clients. Never invoke unlisted commands or silently change the binary.
+doctor before either transport. Use `doctor --cli-only --json` for CLI, or
+`doctor --mcp-pid <this-server-pid> --json` for MCP, when listed in help. Follow driving-amoo's
+preflight recovery on failure before reporting blocked. Identify your MCP PID from this
+connection's build metadata or warning; reconnect your stale server to the pinned binary.
+Scoped `--kill-stale` can stop your positively identified server if needed, then reconnect and
+recheck its new PID. Routine cleanup of your own server is part of setup unless forbidden;
+leave unrelated clients running. If reconnect is unavailable, use controlled CLI for supported
+checks after releasing prior ownership. On older binaries, unrelated stale MCP warnings alone
+do not block fresh CLI work. Missing doctor or unresolved relevant issues block setup.
+Never invoke unlisted commands or silently change the binary.
 
 With MCP, `start_session` owns the device; pass session_id on each call and always end_session.
 No separate CLI runtime token is needed. Preserve required flow/probe execution and report/evidence
@@ -78,7 +84,7 @@ recommend `brew upgrade amoo` for Homebrew installs, rather than marking all run
 ## Agent: controlled CLI commands
 
 ```sh
-amoo doctor --json
+amoo doctor --cli-only --json
 amoo env up --platform android --avd <avd> --app <apk> --app-id <id> --owner device-verifier --json
 amoo env up --platform ios --runtime iOS-27.0 --model "iPhone 17e" --app <App.app> --app-id <id> --json
 amoo device --platform <p> --device <id> --port <port> --runtime-id <runtime> device_launch_app app_id=<id> --env K=V

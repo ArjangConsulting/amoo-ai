@@ -215,6 +215,38 @@ only a runner whose parent process is gone is touched, never one another live am
 `reset_companion` does the same on demand for a wedged companion, and `companion_status` with a
 `session_id` probes that session's connection (`rpc_ms`, foreground app) instead of the build state.
 
+### Recovering a stale MCP server
+
+Rebuilding or upgrading amoo replaces the executable on disk; an MCP client with an open
+connection keeps running the old process. Normal stdin closure, SIGINT, and SIGTERM close sessions
+and stop server-owned companions. A force kill or crash may leave orphaned companions for the next
+session to reclaim. A stale process is not necessarily orphaned: its client may still be using it.
+
+Run `amoo doctor --json` to inspect the machine. For CLI verification, use
+`amoo doctor --cli-only --json`: unrelated stale MCP servers stay visible but do not fail preflight.
+For MCP, get this connection's PID from `dev.amoo/build` metadata or its staleness warning, then
+run `amoo doctor --mcp-pid <pid> --json`. Other clients' stale servers do not fail that check.
+A missing selected PID fails with reconnect guidance. Neither scope suppresses runtime issues.
+Legacy initialization, modern discovery, and tool-result `dev.amoo/build` metadata include
+`doctor_arguments`, plus `stale_cleanup_arguments` only when that server is stale. These are
+argument arrays to pass to the selected absolute executable, not shell commands. Stale tool
+responses also display scoped recovery commands for clients that hide metadata. Both MCP
+startup protocols explain reconnecting and supported CLI fallback before declaring blocked.
+
+End your reachable sessions, then reconnect this client's amoo MCP server using the selected
+absolute binary path. If the client cannot stop its stale process, use
+`amoo doctor --mcp-pid <pid> --kill-stale --json` for a positively identified server you own.
+Cleanup rechecks its PID, start time, executable and arguments before SIGTERM and refreshes the
+report afterward. A signal is not proof of exit; inspect the refreshed issues. Reconnect and rerun
+doctor with the new PID before MCP work; previous session IDs cannot be reused.
+
+Unscoped `doctor --kill-stale` retains machine-wide cleanup for explicitly authorized maintenance;
+agents should use scoped cleanup for their own connection. Do not use `pkill` or `killall`.
+If reconnecting is unavailable, a fresh controlled CLI runtime can perform supported verification
+after prior ownership is released. Required MCP recording remains blocked until reconnecting.
+Read `doctor --help` before using scope flags with older binaries. With an older doctor, inspect
+the issues: unrelated stale MCP warnings alone do not block a fresh CLI run.
+
 ### Tap safety and scrolling
 
 `tap_element` reads the hierarchy before tapping and refuses a target that another control (a

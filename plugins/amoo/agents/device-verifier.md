@@ -50,11 +50,16 @@ add reset flags only for a requested clean store and remove them for persistence
 
 Load the `driving-amoo` skill for mode selection. Prefer controlled CLI for the checked-in flow/probe
 contract below. Prefer MCP for interactive assertions when no CLI-only requirement is present.
-Check the caller's pinned binary with `--version` and `--help`, then run `doctor --json`
-before either transport. Missing/failing doctor blocks setup. Inspect stale MCP servers and
-binary paths; reconnect affected clients to the pinned build and rerun doctor before trusting
-results. If you cannot reconnect, report blocked. `--kill-stale` requires authorization to stop
-stale servers across clients.
+Check the caller's pinned binary with `--version`, `--help`, and `doctor --help` before either transport. Follow driving-amoo's preflight recovery before reporting blocked.
+Use `doctor --cli-only --json` for CLI, or `doctor --mcp-pid <this-server-pid> --json` for MCP,
+when listed in help. Identify the MCP PID from this connection's build metadata or warning.
+Reconnect your stale server to the pinned binary; scoped `--kill-stale` can stop your positively
+identified server if needed, then reconnect and recheck its new PID. Routine cleanup of your
+own server is part of setup unless the caller forbids it. Leave unrelated clients running.
+If reconnect is unavailable, continue supported work with controlled CLI after releasing prior
+ownership. Missing doctor, unresolved relevant issues, or unavailable required capabilities
+block the affected requirements. Older doctor versions may report unrelated stale MCP servers;
+those warnings alone do not block a fresh CLI run. Never silently switch or upgrade binaries.
 If `env` is absent, use available MCP tools for supported checks and note that this installed
 version lacks CLI device reservation commands. Recommend `brew upgrade amoo` for Homebrew
 installs; do not upgrade or switch binaries automatically. Never invoke unlisted commands.
@@ -68,8 +73,9 @@ do not silently replace them with improvised interactions or claim full verifica
 
 ## CLI procedure (when the required commands are available)
 
-1. `amoo doctor --json` → record `cli.version`/`cli.commit`. If `amoo` is missing or doctor
-   fails, report blocked (owner: environment).
+1. `amoo doctor --cli-only --json` when supported, otherwise `amoo doctor --json` → record
+   `cli.version`/`cli.commit`. Inspect failures and follow preflight recovery above. Report blocked
+   only for missing amoo/doctor or an unresolved issue affecting this run.
 2. Per platform — run iOS and Android in parallel (background both `env up` calls, then `wait`):
    `amoo env up --platform <p> [--avd …|--runtime … --model …] --app <build> --app-id <id>
    --owner device-verifier --json`. Keep `runtime_id`, `device`, `port`. A failure here is blocked

@@ -67,11 +67,17 @@ accessibility_policy: path/to/amoo.accessibility.json  # optional skill review p
   block the affected requirements; do not claim that unsupported checks passed.
 - Load the `driving-amoo` skill (it may be listed as `amoo:driving-amoo`) before driving; it holds
   the tool-selection, recovery and recording rules this file only summarizes.
-- Run `amoo doctor --json` before any device interaction, for either transport. Missing or failing
-  doctor blocks setup. Inspect stale MCP processes and their binary paths, including old/Trash
-  checkouts; reconnect affected clients to the pinned binary and rerun doctor before trusting
-  results. Report the blocker to the caller if you cannot reconnect. `--kill-stale` stops servers
-  across clients and requires authorization to stop them.
+- Run doctor before device interaction; read its help for supported scope flags. CLI uses
+  `doctor --cli-only --json`; MCP uses `doctor --mcp-pid <this-server-pid> --json`, identifying
+  the PID from this connection's `dev.amoo/build` metadata or staleness warning. Unrelated stale
+  servers do not block a healthy transport. A failure starts the driving-amoo recovery procedure:
+  reconnect your own stale MCP server to the pinned binary, or stop that positively identified
+  PID with `doctor --mcp-pid <pid> --kill-stale --json` and reconnect. Routine cleanup of your
+  own server is part of setup unless forbidden by the caller. Never kill unrelated clients.
+  Rerun scoped doctor with the new PID. If reconnect is unavailable, use controlled CLI for
+  supported work after releasing prior ownership; preserve MCP-only requirements as blocked.
+  Missing doctor or unresolved relevant issues block setup. On older binaries without scope
+  flags, inspect machine-wide issues; unrelated stale MCP warnings alone do not block CLI work.
 
 ## 2. Pick a transport — same tool names on both
 

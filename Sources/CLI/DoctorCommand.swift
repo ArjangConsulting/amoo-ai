@@ -75,23 +75,32 @@ struct DoctorReport: Encodable {
     var issues: [String]
     /// Worth knowing, not a failure (e.g. a connected phone amoo will not auto-select).
     var notes: [String]
+    var mcpPID: Int32?
+    var cliOnly: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case ok, cli, devices, companions, runtimes, issues, notes
         case mcpServers = "mcp_servers"
         case adbServerRunning = "adb_server_running"
+        case mcpPID = "mcp_pid"
+        case cliOnly = "cli_only"
     }
 }
 
 func renderDoctorHelp() -> String {
     """
-    Usage: amoo doctor [--json] [--kill-stale]
+    Usage: amoo doctor [--json] [--cli-only | --mcp-pid <pid>] [--kill-stale]
 
     One-shot health check for agents and humans: this CLI's build, running `amoo mcp serve`
     processes (flagging ones older than their binary), the adb server, devices (physical ones
     flagged — amoo never auto-selects them), companion listeners, and device runtimes.
     Also flags simulator runtimes (and the simulators on them) that simctl reports as unavailable.
-    --kill-stale   SIGTERM every stale MCP server (one older than its binary) after reporting it.
+    --kill-stale   SIGTERM matching stale MCP servers after rechecking identity, then refresh the report.
+                   Without --mcp-pid, affects every stale MCP server across clients.
+    --mcp-pid PID  Check only this MCP server for staleness; --kill-stale stops only this PID.
+    --cli-only     Check CLI device setup; unrelated MCP servers remain listed but do not fail it.
+                   Cannot be combined with --mcp-pid or --kill-stale.
+    After stopping a server, reconnect its MCP client and rerun doctor with the new server PID.
     Exit code 0 when no issues were found, 1 otherwise.
     """
 }
@@ -100,22 +109,24 @@ func handleDoctorCommand(remaining: [String]) async -> CLIResult {
     if isHelpRequest(remaining) {
         return CLIResult(output: renderDoctorHelp(), exitCode: 0)
     }
-    guard remaining.allSatisfy({ $0 == "--json" || $0 == "--kill-stale" }) else {
+    guard let options = DoctorOptions(arguments: remaining) else {
         return CLIResult(output: renderDoctorHelp(), exitCode: 64)
     }
-    var report = await runDoctor()
-    if remaining.contains("--kill-stale") {
-        let killed = killStaleMCPServers(report.mcpServers)
+    var report = await runDoctor(options: options)
+    if options.killStale {
+        let killed = await killStaleMCPServers(report.mcpServers, mcpPID: options.mcpPID)
+        report = await runDoctor(options: options)
         report.notes.append(killed.isEmpty
-            ? "--kill-stale: no stale MCP servers to stop."
+            ? "--kill-stale: no matching stale MCP servers were stopped; inspect issues and retry if needed."
             :
             "--kill-stale: sent SIGTERM to stale MCP server pid(s) \(killed.map(String.init).joined(separator: ", ")).")
     }
-    let output = remaining.contains("--json") ? renderJSON(report) : humanDoctorSummary(report)
+    let output = options.json ? renderJSON(report) : humanDoctorSummary(report)
     return CLIResult(output: output, exitCode: report.ok ? 0 : 1)
 }
 
 func runDoctor(
+    options: DoctorOptions = DoctorOptions(),
     processRunner: any ProcessRunner = SystemProcessRunner(),
     store: DeviceRuntimeStore = DeviceRuntimeStore(),
     health: DeviceRuntimeHealth = DeviceRuntimeHealth()
@@ -145,12 +156,21 @@ func runDoctor(
         companions: companions,
         runtimes: runtimes,
         issues: [],
-        notes: []
+        notes: [],
+        mcpPID: options.mcpPID,
+        cliOnly: options.cliOnly
     )
     report.issues = await doctorIssues(report) + runtimeProblems
     report.notes = report.devices.filter(\.physical).map { device in
         "Physical \(device.platform) device \(device.id) is connected. amoo never auto-selects it; "
             + "always pass an explicit simulator/emulator id."
+    }
+    let unrelated = report.mcpServers.filter { $0.stale && !options.includesMCPServer($0.pid) }
+    if !unrelated.isEmpty {
+        report.notes.append(
+            "Unrelated stale MCP server pid(s) \(unrelated.map { String($0.pid) }.joined(separator: ", ")) "
+                + "do not block this preflight. Leave other clients running."
+        )
     }
     report.ok = report.issues.isEmpty
     return report
@@ -158,12 +178,19 @@ func runDoctor(
 
 func doctorIssues(_ report: DoctorReport) -> [String] {
     var issues: [String] = []
-    for server in report.mcpServers where server.stale {
+    let servers = report.mcpServers.filter { !report.cliOnly && (report.mcpPID == nil || report.mcpPID == $0.pid) }
+    if let pid = report.mcpPID, !servers.contains(where: { $0.pid == pid }) {
+        issues.append("MCP server pid \(pid) is not running or could not be inspected. Reconnect this client's amoo "
+            + "MCP server to the selected binary, then rerun doctor with its new PID.")
+    }
+    for server in servers where server.stale {
         issues.append("Stale MCP server pid \(server.pid) (\(server.binary ?? "?")): its binary was rebuilt after it "
             + "started, so it runs old code.")
     }
-    if report.mcpServers.contains(where: \.stale) {
-        issues.append("Run `amoo doctor --kill-stale` to stop stale MCP servers, then restart their MCP clients.")
+    if servers.contains(where: \.stale) {
+        issues.append("Reconnect this client's amoo MCP server to the selected binary. To stop only an owned stale "
+            + "server, run `amoo doctor --mcp-pid <pid> --kill-stale`, then reconnect and rerun doctor. "
+            + "For CLI work, use `amoo doctor --cli-only --json`; unrelated MCP servers do not block it.")
     }
     for runtime in report.runtimes where runtime.state == .stale || runtime.state == .unresponsive {
         issues.append("Runtime on \(runtime.deviceName ?? runtime.deviceID) is \(runtime.state.rawValue); "

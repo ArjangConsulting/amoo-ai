@@ -1,5 +1,6 @@
 import AdbKit
 import AmooCore
+import AmooLogging
 import Foundation
 import ProcessRunner
 import SwiftyShell
@@ -229,9 +230,39 @@ func simulatorRuntimeProblems(processRunner: any ProcessRunner) async -> [String
 
 // MARK: - Stale MCP servers
 
-/// SIGTERMs MCP servers older than their binary. Opt-in (`amoo doctor --kill-stale`): the client
-/// that owns one sees its server vanish and must reconnect.
-func killStaleMCPServers(_ servers: [DoctorMCPServer]) -> [Int32] {
+/// Revalidates process identity before SIGTERM; a selected PID limits cleanup to one client.
+func killStaleMCPServers(
+    _ servers: [DoctorMCPServer],
+    mcpPID: Int32? = nil,
+    processRunner: any ProcessRunner = SystemProcessRunner(),
+    terminate: (Int32) -> Bool = terminateStaleMCPServer
+) async -> [Int32] {
     let own = getpid()
-    return servers.filter { $0.stale && $0.pid != own && kill($0.pid, SIGTERM) == 0 }.map(\.pid)
+    let logger = AmooLogger.forType(DoctorReport.self)
+    logger.info("Rechecking MCP process identities", context: "action=recover-mcp state=inspecting")
+    let current = await mcpServerProcesses(processRunner: processRunner)
+    logger.info(
+        "MCP process identities rechecked",
+        context: "action=recover-mcp state=inspected count=\(current.count)"
+    )
+    return servers.filter { server in
+        server.stale && server.pid > 0 && server.pid != own && (mcpPID == nil || mcpPID == server.pid)
+            && server.startedAt != nil && server.binary != nil && current.contains(server)
+            && terminate(server.pid)
+    }.map(\.pid)
+}
+
+func terminateStaleMCPServer(_ pid: Int32) -> Bool {
+    let logger = AmooLogger.forType(DoctorReport.self)
+    logger.info("Stopping stale MCP server", context: "action=recover-mcp state=stopping pid=\(pid)")
+    guard kill(pid, SIGTERM) == 0 else {
+        logger.error(
+            "Failed to stop stale MCP server",
+            error: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO),
+            context: "action=recover-mcp state=failed pid=\(pid)"
+        )
+        return false
+    }
+    logger.info("Sent SIGTERM to stale MCP server", context: "action=recover-mcp state=signalled pid=\(pid)")
+    return true
 }

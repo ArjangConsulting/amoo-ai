@@ -398,7 +398,7 @@ func renderCLIHelp() -> String {
       shots montage|diff ...       Contact sheet / baseline diff of a screenshot folder
       version                      Show the version, source commit and build time of this binary
       preflight [--platform ...]   Check local tooling and environment
-      doctor [--json] [--kill-stale]  Health check: build, stale MCP servers, devices, companions, runtimes
+      doctor [--json] [--cli-only | --mcp-pid <pid>] [--kill-stale]  Health check and scoped MCP recovery
       device ...                   Run a device tool against iOS or Android
       companion ...                Build or install a companion app
       env up|down|list ...         Start or stop amoo on a simulator/emulator
