@@ -8,6 +8,9 @@ use the available `driving-amoo` skill. Offline source/report review is useful w
 available. Respect the caller's role: the amoo device agent reports findings and never edits
 app source; an authorized coding agent can implement fixes.
 
+Before device work, follow driving-amoo's scoped doctor preflight and recovery. Unrelated stale
+MCP servers do not block a healthy CLI or MCP connection; keep offline review available.
+
 ## Scope and policy
 
 Load an explicitly supplied policy, otherwise `amoo.accessibility.json` in the app repo when

@@ -133,6 +133,7 @@ extension MCPServerTests {
             try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]
         }
         try assertModernJSONRPCResponses(objects)
+        try assertScopedDoctorMetadata(objects, pid: harness.process.processIdentifier)
 
         try harness.stdin.fileHandleForWriting.close()
         let exited = await waitForProcessExit(harness.process, timeoutNanoseconds: 5_000_000_000)
@@ -227,5 +228,24 @@ extension MCPServerTests {
         let unsupported = try XCTUnwrap(objects.first { $0["id"] as? String == "unsupported" })
         let unsupportedError = try XCTUnwrap(unsupported["error"] as? [String: Any])
         XCTAssertEqual(unsupportedError["code"] as? Int, -32022)
+    }
+
+    private func assertScopedDoctorMetadata(_ objects: [[String: Any]], pid: Int32) throws {
+        let responses = objects.filter {
+            ["discover", "modern-call"].contains($0["id"] as? String ?? "") || $0["id"] as? Int == 1
+        }
+        XCTAssertEqual(responses.count, 3)
+        for response in responses {
+            let result = try XCTUnwrap(response["result"] as? [String: Any])
+            let metadata = try XCTUnwrap(result["_meta"] as? [String: Any])
+            let build = try XCTUnwrap(metadata["dev.amoo/build"] as? [String: Any])
+            XCTAssertEqual(build["pid"] as? Int, Int(pid))
+            XCTAssertEqual(build["doctor_arguments"] as? [String], ["doctor", "--mcp-pid", String(pid), "--json"])
+            if let instructions = result["instructions"] as? String {
+                XCTAssertTrue(instructions.contains("--mcp-pid"))
+                XCTAssertTrue(instructions.contains("--cli-only"))
+                XCTAssertTrue(instructions.contains("reconnect"))
+            }
+        }
     }
 }

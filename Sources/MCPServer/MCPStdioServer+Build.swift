@@ -8,19 +8,31 @@ extension MCPStdioServer {
     static func annotatingStaleness(_ result: ToolResult, buildInfo: AmooBuildInfo) -> ToolResult {
         guard let warning = buildInfo.stalenessWarning() else { return result }
         var annotated = result
-        annotated.content = warning + "\n\n" + result.content
+        let recovery = "Using the selected amoo binary, check `doctor --mcp-pid \(buildInfo.pid) --json`. "
+            + "End reachable sessions and reconnect this client's MCP server. If it cannot stop this stale server, "
+            + "use `doctor --mcp-pid \(buildInfo.pid) --kill-stale --json`, then reconnect and recheck the new PID. "
+            + "Leave unrelated clients running. After releasing ownership, supported CLI work can use "
+            + "`doctor --cli-only --json`; MCP-only requirements need reconnecting. Never reuse old session IDs."
+        annotated.content = warning + "\n" + recovery + "\n\n" + result.content
         return annotated
     }
 
     /// Build identity under `_meta`, so a client can tell which code a long-lived server runs.
     var buildMeta: Value {
         let format = ISO8601DateFormatter()
+        let stale = buildInfo.replacedBinaryDate() != nil
         var fields: [String: Value] = [
             "version": .string(buildInfo.version),
             "pid": .int(Int(buildInfo.pid)),
             "started_at": .string(format.string(from: buildInfo.startedAt)),
-            "stale": .bool(buildInfo.replacedBinaryDate() != nil)
+            "stale": .bool(stale),
+            "doctor_arguments": .array(["doctor", "--mcp-pid", String(buildInfo.pid), "--json"].map(Value.string))
         ]
+        if stale {
+            fields["stale_cleanup_arguments"] = .array(
+                ["doctor", "--mcp-pid", String(buildInfo.pid), "--kill-stale", "--json"].map(Value.string)
+            )
+        }
         fields["commit"] = buildInfo.sourceCommit.map(Value.string)
         fields["binary_sha256"] = buildInfo.binarySHA256.map(Value.string)
         fields["source_fingerprint"] = buildInfo.sourceFingerprint.map(Value.string)

@@ -27,12 +27,14 @@ with that same `--binary` path so CLI calls and their MCP server use the same bu
 Shell aliases such as amoo-debug do not select spawned MCP processes. Reconnect a running
 MCP server after rebuilding to load the new executable. Release builds are for release verification.
 
-Before any device work, check that binary's --version and --help, then run `amoo doctor --json`.
-Doctor is mandatory preflight for both MCP and CLI. If unavailable or failing, report the setup
-blocker. Inspect issues and mcp_servers for stale processes, rebuilt executables, or old checkout
-paths, including Trash. Reconnect the affected MCP client to the selected build before trusting
-its results, then rerun doctor. `doctor --kill-stale` stops stale servers across clients; use it
-only when stopping those clients is authorized.
+Before device work, check that binary's --version, --help, and doctor --help; select a scope below.
+Doctor is mandatory preflight for both transports. A nonzero exit starts recovery; inspect
+issues before declaring blocked. For CLI work, use `doctor --cli-only --json` when listed in help.
+For MCP, `dev.amoo/build` supplies this connection's PID and `doctor_arguments`; otherwise use its warning,
+then use `doctor --mcp-pid <pid> --json`. Unrelated stale servers do not block a healthy transport.
+Follow [preflight recovery](references/execution-modes.md#recover) to reconnect or stop your own
+stale server, use supported CLI work, or report a remaining blocker. Never kill other clients
+merely to clear doctor; unscoped `--kill-stale` stops stale servers across clients.
 
 For MCP, call `start_session` with app_id, platform, and a device_hint when multiple devices
 are available. It ensures the device/companion is ready, installs build_path if supplied,

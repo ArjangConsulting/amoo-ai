@@ -24,6 +24,11 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         XCTAssertTrue(instructions.contains("inspection and debugging do not require test generation"))
         XCTAssertTrue(instructions.contains("Live IDs belong to this MCP server process"))
         XCTAssertTrue(instructions.contains("Each agent starts its own session"))
+        for recovery in ["dev.amoo/build.pid", "--mcp-pid", "--kill-stale", "--cli-only", "reconnect"] {
+            XCTAssertTrue(instructions.contains(recovery), recovery)
+        }
+        XCTAssertTrue(instructions.contains("Leave other clients running"))
+        XCTAssertTrue(instructions.contains("MCP-only requirements remain blocked"))
     }
 
     func testDrivingSkillRoutesToExistingReferencesWithinContextBudget() throws {

@@ -22,10 +22,11 @@ Do not delegate a flow that needs a question answered midway; keep it in the mai
 
 Check the pinned binary's `--version` and `--help` before choosing CLI commands. Read subcommand
 help for required flags; never call an unlisted command (older binaries may enter the REPL).
-Run `amoo doctor --json` before either MCP or CLI device work. Missing/failing doctor blocks
-setup. Inspect stale MCP processes and binary paths, reconnect affected clients to the pinned
-build, and rerun doctor before trusting results. Stop and report the blocker if reconnecting is
-unavailable. `doctor --kill-stale` requires authorization to stop stale servers across clients.
+Run doctor before either transport. Inspect `doctor --help`: CLI work uses
+`amoo doctor --cli-only --json`; MCP uses `amoo doctor --mcp-pid <this-server-pid> --json`.
+A nonzero exit starts the [recovery procedure](#recover), rather than immediately blocking the task.
+Missing doctor or an unresolved issue affecting the selected transport/target blocks that work.
+Do not stop unrelated clients to clear a machine-wide diagnostic.
 If `env` is absent, report "this installed version lacks CLI device reservation commands" and
 recommend `brew upgrade amoo` for Homebrew installs. Use available MCP managed sessions for
 supported checks; missing CLI commands do not mean Amoo has no device ownership. If a required
@@ -111,6 +112,45 @@ the main context. Pass app_id, build_path, device_hint, and the exact launch_env
 flag only for an explicitly requested clean store.
 
 ## Recover
+
+### Preflight and stale MCP servers
+
+1. Inspect `issues`, `cli.binary`, and `mcp_servers` from the pinned binary's doctor output.
+   A stale MCP process runs an older executable after a rebuild; its presence does not make a
+   fresh CLI process or another MCP connection stale. Old checkout/Trash paths may also indicate
+   a client configuration that needs correcting. Do not infer ownership from the binary path alone.
+2. For CLI work, run `amoo doctor --cli-only --json` when supported. This retains MCP inventory
+   but excludes its staleness from the exit status. Resolve remaining target/runtime issues.
+   On older binaries without scope flags, inspect `doctor --json`: unrelated stale MCP warnings
+   alone do not block CLI work. Do not ignore other issues or silently switch/upgrade binaries.
+3. For MCP, get this connection's PID from initialization/tool-result `dev.amoo/build` metadata,
+   or the explicit PID in its staleness warning. Current servers supply `doctor_arguments` and,
+   only when stale, `stale_cleanup_arguments` as argument arrays. Run them with the selected
+   absolute binary as separate arguments, never shell-evaluate metadata. Match the connection's
+   binary to the caller's selected build.
+   If metadata is unavailable, use the client's MCP diagnostics; never guess from a list of PIDs.
+   Reconnect/restart this client's amoo MCP connection using the selected absolute binary path.
+   End your reachable sessions first; after reconnecting, old session IDs cannot be reused.
+4. If the client cannot stop its stale server, and its PID is positively identified as yours,
+   use `amoo doctor --mcp-pid <pid> --kill-stale --json` when supported. Routine cleanup of your
+   own server is part of setup unless the caller forbids it; another client's server needs its
+   owner's authorization. The command rechecks identity before SIGTERM, allowing normal session
+   and companion cleanup. It does not reconnect the client. A nonzero exit may mean the selected
+   server has stopped and needs reconnecting; read the refreshed report and cleanup note.
+   Never use `pkill`, `killall`, or unscoped `doctor --kill-stale` as routine recovery.
+5. Rerun doctor with the reconnected server's new PID before using MCP. If client reconnect is
+   unavailable, continue supported inspection/verification through a fresh CLI runtime only after
+   releasing your previous ownership. Preserve required checked-in flows/probes and reporting.
+   Recording/generation that requires MCP remains blocked until reconnect; report only the
+   affected requirements, exact PID/path/error, attempted recovery, and the required client action.
+
+Always release your sessions/runtimes on success and failure. `end_session` releases the device;
+`end_session stop_companion=true` also stops its warm companion immediately. Otherwise the companion
+idles out (default 120 seconds). MCP stdin closure and SIGTERM perform server cleanup; replacing an
+executable while a client keeps its connection open does not end that running process. Do not
+terminate a healthy server merely because its task ended; let its client manage the connection.
+
+### Connection failures
 
 For client-level `Transport closed`, capture MCP stderr with AMOO_MCP_DIAGNOSTICS=1 and compare
 amoo doctor --json before/after. A missing session is a tool error, not proof the transport closed.
