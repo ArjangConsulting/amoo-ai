@@ -10,10 +10,47 @@ public enum RepositoryTestProfile {
     /// root, merged so the nearer file wins. Objects merge key by key and everything else, arrays
     /// included, is replaced by the nearer file. A file with no block for `platform` adds nothing, so a
     /// platform repository inherits the orchestrator's shared context and never another platform's.
+    ///
+    /// When a layer names the platform's repository (`repo`), that repository's own `amoo.md` is layered
+    /// over the chain too, so a session started at the orchestrator root sees the same context as one
+    /// started inside the platform repository.
     public static func discover(
         from directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
         platform: Platform? = nil
     ) throws -> StudioTestContext? {
+        let layers = try layers(from: directory, platform: platform)
+        guard let nearest = layers.first else { return nil }
+        guard layers.count > 1 else { return nearest.context }
+        let merged = layers.dropFirst().reduce(nearest.raw) { inner, outer in
+            merge(outer.raw, over: inner)
+        }
+        return try JSONDecoder().decode(
+            StudioTestContext.self, from: JSONSerialization.data(withJSONObject: merged)
+        )
+    }
+
+    /// The directory of the repository that owns `platform`, from the nearest `amoo.md` that names it
+    /// in `repo`. Nil when no profile declares one, which means the repository is the working directory.
+    public static func repositoryDirectory(
+        for platform: Platform,
+        from directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> URL? {
+        guard let layer = try declaringLayer(from: directory, platform: platform) else { return nil }
+        return layer.directory.appendingPathComponent(layer.repo, isDirectory: true).standardizedFileURL
+    }
+
+    /// A non-empty path that stays below its base: no leading `/` or `~`, and no `..` component.
+    public static func isContainedRelativePath(_ path: String) -> Bool {
+        !path.isEmpty && !path.hasPrefix("/") && !path.hasPrefix("~") && !path.split(separator: "/").contains("..")
+    }
+
+    /// The `targetPlatform` of each fenced block in `file`; nil marks an unscoped block.
+    public static func declaredPlatforms(in file: URL) throws -> [Platform?] {
+        try blocks(in: file).map(\.context.targetPlatform)
+    }
+
+    /// Nearest first. Includes the declared platform repository's `amoo.md` as the innermost layer.
+    private static func layers(from directory: URL, platform: Platform?) throws -> [Block] {
         var layers: [Block] = []
         var root = directory.standardizedFileURL
         while true {
@@ -27,14 +64,28 @@ public enum RepositoryTestProfile {
             }
             root = root.deletingLastPathComponent()
         }
-        guard let nearest = layers.first else { return nil }
-        guard layers.count > 1 else { return nearest.context }
-        let merged = layers.dropFirst().reduce(nearest.raw) { inner, outer in
-            merge(outer.raw, over: inner)
+        if let declared = layers.first(where: { $0.repo != nil }), let repo = declared.repo {
+            let file = declared.directory.appendingPathComponent(repo, isDirectory: true)
+                .appendingPathComponent("amoo.md").standardizedFileURL
+            let known = layers.contains { $0.file == file }
+            if !known, FileManager.default.fileExists(atPath: file.path),
+               let block = try select(blocks(in: file), platform: platform) {
+                layers.insert(block, at: 0)
+            }
         }
-        return try JSONDecoder().decode(
-            StudioTestContext.self, from: JSONSerialization.data(withJSONObject: merged)
-        )
+        return layers
+    }
+
+    private static func declaringLayer(
+        from directory: URL,
+        platform: Platform
+    ) throws -> (directory: URL, repo: String)? {
+        for block in try layers(from: directory, platform: platform) {
+            if let repo = block.repo {
+                return (block.directory, repo)
+            }
+        }
+        return nil
     }
 
     /// A repository root ends the upward search. A submodule's `.git` file keeps it going to the
@@ -70,9 +121,24 @@ public enum RepositoryTestProfile {
     private struct Block {
         let context: StudioTestContext
         let raw: [String: Any]
+        let file: URL
+
+        var directory: URL {
+            file.deletingLastPathComponent()
+        }
+
+        var repo: String? {
+            context.repo
+        }
 
         init(_ data: Data, in file: URL) throws {
+            self.file = file.standardizedFileURL
             context = try JSONDecoder().decode(StudioTestContext.self, from: data)
+            if let repo = context.repo, !RepositoryTestProfile.isContainedRelativePath(repo) {
+                throw ProfileError(
+                    "repo '\(repo)' in \(file.path) must be a relative path inside the repository."
+                )
+            }
             guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 throw ProfileError("An amoo-context block in \(file.path) must be a JSON object.")
             }

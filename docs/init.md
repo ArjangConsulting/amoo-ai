@@ -29,7 +29,11 @@ automatically.
 
 Then it validates, prints the plan with the **equivalent non-interactive command**, asks
 about AI clients, saving the setup locations in `AGENTS.md` and `Set up N device(s) now?`,
-runs, and prints the next commands. EOF at any prompt cancels without touching a device.
+then whether agents will need to sign in to the app. Yes runs the `amoo credentials add` conversation
+(see [Signing in](credentials.md)) with the app ID filled in; no, a cancel or a failure never stops
+device setup and ends with "Add a sign-in account any time with `amoo credentials add`". It then
+runs and prints the next commands. EOF at any prompt cancels without touching a device. Headless
+init (and `--yes`) never asks about sign-in.
 
 ## Headless (agents, CI)
 
@@ -91,15 +95,16 @@ managed block of `./AGENTS.md` (`--agents-file` to choose another). Without an a
 ## amoo init
 - Platform: `ios`
 - Manifests: `.` (device connection credentials; never commit `.amoo.json`)
-- Sign-in: no `amoo.config.json`; signed-in flows report `blocked: no credentials` (see `amoo config --help`).
+- Sign-in: no `amoo.config.json`; signed-in flows report `blocked: no credentials` until a person runs `amoo credentials add`.
 <!-- amoo:init:end -->
 ```
 
 The **Sign-in** line reflects the repository's [`amoo.config.json`](credentials.md) when the block
 is written: absent (as above), invalid (with a pointer to `amoo config validate`), or present, in
-which case it tells agents to pass `credential=<profile>#<field>` and never a password. Init never
-creates or edits `amoo.config.json`; accounts are the project's to declare. The interactive summary
-ends with the same status, listing the declared profile names.
+which case it tells agents to pass `credential=<profile>#<field>` and never a password. Only a person
+adds accounts, through the guided question or `amoo credentials add`; headless init never writes
+`amoo.config.json`. The interactive summary ends with the same status, listing the declared profile
+names and the command to add more.
 
 Only text between the markers is rewritten. Device ids and runtime ids are never saved. The block
 records setup locations for agents; saved app artifacts are not automatically installed.
@@ -182,7 +187,25 @@ Generated tests need explicit destinations: use `generate test --out iOS/<UITest
 `generate test --out Android/app/src/androidTest/...`; generation does not discover host targets.
 
 Headless init handles one platform per run; the guided **Both** choice handles both. Android app ID
-and Gradle discovery are not implemented, so pass `app_id` when starting a session. Swift harness source
+and Gradle discovery are not implemented, so pass `app_id` when starting a session.
+
+Pass `--repo <dir>` with `--platform` to name the platform's repository below the root, for example
+`amoo init --platform ios --device <udid> --repo iOS --save`. Run it once per platform. A React Native
+app uses `ios/` and `android/` the same way, with one git repository. Init then:
+
+- writes the platform's `amoo.md` (harness discovery scans only that repository) and its default
+  manifest, `<dir>/.amoo.json`, inside it;
+- records `Repo: <dir>` in the root `AGENTS.md` block and `"repo": "<dir>"` in a `targetPlatform`
+  block of the root `amoo.md`, creating the file or appending the block. It never rewrites a reviewed
+  block; if the platform already has one without `repo`, or the file has an unscoped block, init prints
+  the line to add;
+- lets discovery from the root layer `<dir>/amoo.md` over the root block, so a session started at the
+  root sees the same context as one started inside the platform repository;
+- lets `amoo init down` and `amoo init device` find the manifests without `--manifest`: they use
+  `./.amoo.json` and the `.amoo.json` of each repository `amoo.md` names. `down` reports all of them.
+
+`--repo` must be a relative path that stays inside the repository, and the directory must exist.
+`repo` in `amoo.md` is held to the same rule. Swift harness source
 scanning skips dependency directories and symlinks and is bounded to 16 directory levels, 50,000
 entries, 2,000 Swift files, 2 MB per file, and 32 MB total. A limit adds a review diagnostic to
 `amoo.md`. Upstream follow-up: add these traversal budgets to `mobile-kits`' public

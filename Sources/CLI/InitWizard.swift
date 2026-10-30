@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import StudioProtocol
 import SwiftyTerminal
 
 // MARK: - Request
@@ -9,6 +10,8 @@ struct InitRequest: Equatable {
     var platform: Platform?
     var additionalRequests: [Self] = []
     var framework: String?
+    /// The platform repository inside an orchestrator, relative to the directory holding `AGENTS.md`.
+    var repo: String?
     var appPath: String?
     var appID: String?
     var devices: [String] = []
@@ -59,6 +62,15 @@ func parseInitRequest(_ args: [String]) throws -> InitRequest {
     if let framework = request.framework,
        !["native", "react-native", "flutter", "kmp"].contains(framework) {
         throw EnvCommandParseError.usage("--framework must be native, react-native, flutter or kmp.")
+    }
+    request.repo = try flags.value("--repo")
+    if let repo = request.repo {
+        guard request.platform != nil else {
+            throw EnvCommandParseError.usage("--repo names one platform's repository; add --platform ios|android.")
+        }
+        guard RepositoryTestProfile.isContainedRelativePath(repo) else {
+            throw EnvCommandParseError.usage("--repo must be a relative path inside this repository, got '\(repo)'.")
+        }
     }
     request.appPath = try flags.value("--app")
     request.appID = try flags.value("--app-id")
@@ -349,6 +361,22 @@ func buildInitPlan(_ request: InitRequest, discovery: InitDiscovery) async -> Re
     }
     guard issues.isEmpty else { return .failure(InitPlanError(issues: issues)) }
 
+    let environment = initEnvironment(for: request, platform: platform)
+    return .success(InitPlan(
+        options: InitOptions(
+            environment: environment,
+            devices: request.devices,
+            out: request.out,
+            framework: request.framework,
+            repo: request.repo
+        ),
+        devices: checks,
+        appSHA256: environment.appSHA256
+    ))
+}
+
+/// The `env up` options every device of this request shares.
+private func initEnvironment(for request: InitRequest, platform: Platform) -> EnvUpOptions {
     var environment = EnvUpOptions()
     environment.platform = platform
     environment.appPath = request.appPath
@@ -359,16 +387,7 @@ func buildInitPlan(_ request: InitRequest, discovery: InitDiscovery) async -> Re
     environment.ttlMinutes = request.ttlMinutes
     environment.readyTimeoutSeconds = request.readyTimeoutSeconds
     environment.json = request.json
-    return .success(InitPlan(
-        options: InitOptions(
-            environment: environment,
-            devices: request.devices,
-            out: request.out,
-            framework: request.framework
-        ),
-        devices: checks,
-        appSHA256: environment.appSHA256
-    ))
+    return environment
 }
 
 func shellQuoted(_ value: String) -> String {
@@ -394,6 +413,9 @@ func equivalentInitCommand(_ plan: InitPlan) -> String {
     }
     if let framework = plan.options.framework {
         parts += ["--framework", framework]
+    }
+    if let repo = plan.options.repo {
+        parts += ["--repo", shellQuoted(repo)]
     }
     parts.append(environment.launch ? "--launch" : "--no-launch")
     if let owner = environment.owner {

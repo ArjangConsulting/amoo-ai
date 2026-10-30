@@ -6,6 +6,8 @@ import Foundation
 /// or runtime ids, which are per-machine and per-run.
 struct InitSavedLocations: Equatable {
     var platform: Platform?
+    /// The platform's repository inside an orchestrator, relative to the directory holding `AGENTS.md`.
+    var repoPath: String?
     var appPath: String?
     var appID: String?
     var manifestDirectory: String?
@@ -48,6 +50,9 @@ func renderInitLocationsBlock(
         }
         if let platform = location.platform {
             lines.append("- Platform: `\(platform.rawValue)`")
+        }
+        if let repoPath = location.repoPath {
+            lines.append("- Repo: `\(repoPath)`")
         }
         if let framework = location.framework {
             lines.append("- Framework: `\(framework)`")
@@ -112,6 +117,7 @@ func parseInitLocations(from text: String, relativeTo base: String) -> InitSaved
                 saved = InitSavedLocations()
             }
             saved.platform = Platform(rawValue: value)
+        case line.hasPrefix("- Repo:"): saved.repoPath = value
         case line.hasPrefix("- Framework:"): saved.framework = value
         case line.hasPrefix("- App artifact:"): saved.appPath = resolved(value)
         case line.hasPrefix("- App ID:"): saved.appID = value

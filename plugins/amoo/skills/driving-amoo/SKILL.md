@@ -14,6 +14,7 @@ Read AGENTS.md setup locations and amoo.md conventions first. Current CLI genera
 A prose-only amoo.md is not a test context. Elsewhere pass --context <repo>/amoo.md or context_path=<repo>/amoo.md only with a valid block and a binary supporting Markdown profiles; otherwise use an existing test-context JSON file.
 Mixed profiles use separate targetPlatform blocks for Swift and Kotlin/Java. Explicit context wins; generate test preserves embedded context. Never invent a missing context path.
 .amoo.json is private CLI runtime state: release before MCP, never commit it or automatically install remembered artifacts.
+In an orchestrator, every amoo.md up to the repo root applies (nearer wins) and a platform block's `repo` names that platform's repository; its `.amoo.json` lives there and `amoo init down` finds it without --manifest.
 
 ## Start
 
