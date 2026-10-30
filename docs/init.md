@@ -91,8 +91,15 @@ managed block of `./AGENTS.md` (`--agents-file` to choose another). Without an a
 ## amoo init
 - Platform: `ios`
 - Manifests: `.` (device connection credentials; never commit `.amoo.json`)
+- Sign-in: no `amoo.config.json`; signed-in flows report `blocked: no credentials` (see `amoo config --help`).
 <!-- amoo:init:end -->
 ```
+
+The **Sign-in** line reflects the repository's [`amoo.config.json`](credentials.md) when the block
+is written: absent (as above), invalid (with a pointer to `amoo config validate`), or present, in
+which case it tells agents to pass `credential=<profile>#<field>` and never a password. Init never
+creates or edits `amoo.config.json`; accounts are the project's to declare. The interactive summary
+ends with the same status, listing the declared profile names.
 
 Only text between the markers is rewritten. Device ids and runtime ids are never saved. The block
 records setup locations for agents; saved app artifacts are not automatically installed.

@@ -31,7 +31,11 @@ func portableInitPath(_ path: String, relativeTo base: String, home: String = NS
     return path
 }
 
-func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: String) -> String {
+func renderInitLocationsBlock(
+    _ saved: InitSavedLocations,
+    relativeTo base: String,
+    signIn: InitSignInStatus? = nil
+) -> String {
     var lines = [
         blockStart,
         "## amoo init",
@@ -66,6 +70,9 @@ func renderInitLocationsBlock(_ saved: InitSavedLocations, relativeTo base: Stri
         .append(
             "- Before recording or export, review `amoo.md` against existing tests and complete uncertain bindings."
         )
+    if let signIn {
+        lines.append(signIn.agentsLine(relativeTo: base))
+    }
     lines.append("- Prepare devices: `amoo init` (guided) or `amoo init --help`")
     lines.append(blockEnd)
     return lines.joined(separator: "\n")
@@ -139,6 +146,8 @@ func saveInitLocations(_ saved: InitSavedLocations, agentsFile: String) throws {
             return entry
         }
     }
-    let updated = upsertInitBlock(into: existing, block: renderInitLocationsBlock(merged, relativeTo: base))
+    let signIn = InitSignInStatus.inspect(root: URL(fileURLWithPath: base))
+    let block = renderInitLocationsBlock(merged, relativeTo: base, signIn: signIn)
+    let updated = upsertInitBlock(into: existing, block: block)
     try updated.write(toFile: agentsFile, atomically: true, encoding: .utf8)
 }

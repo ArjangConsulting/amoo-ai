@@ -72,8 +72,26 @@ func renderConfigHelp() -> String {
     is found by walking up from the current directory to the repository root. Validation never
     reads the keychain and never prints a credential value.
 
-    An agent signs in with credential="<profile>#<field>" on fill_field, set_text or type_text.
-    See docs/credentials.md.
+    An agent signs in with credential="<profile>#<field>" on fill_field, set_text or type_text;
+    amoo types the value and never returns it. Example, at the repository root:
+
+      {
+        "version": 1,
+        "profiles": {
+          "mock-user": {
+            "apps": ["com.example.app.qa"],
+            "requires_launch_env": { "AUTH_EMULATOR_HOST": "*" },
+            "fields": {
+              "email":    { "literal": "qa@example.test", "class": "identifier" },
+              "password": { "literal": "any-password",    "class": "secret" }
+            }
+          }
+        }
+      }
+
+    apps limits where a profile may be typed; requires_launch_env must match the launch environment
+    amoo sent the app ("*" = present). A secret only fills a secure field. Literal values are for
+    mock accounts only; keychain-backed fields are not available yet. See docs/credentials.md.
 
     Exit codes: 0 valid, 1 missing or invalid, 64 usage error.
     """
