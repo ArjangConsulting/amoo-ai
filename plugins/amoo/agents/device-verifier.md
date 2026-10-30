@@ -108,7 +108,7 @@ Use the version 1 `AgentRunReport` JSON contract shared with the amoo agent:
   "status": "pass",
   "execution": "succeeded",
   "verdict": "pass",
-  "cleanup": "stopped",
+  "cleanup": "released",
   "summary": "All requested checks passed on iOS and Android.",
   "provenance": {
     "app_id": "com.example.qa", "app_build": "<per-platform SHA-256>",
@@ -133,7 +133,7 @@ returning that JSON alone. The parent validates against its original delegation 
 Unevaluated checks need reasons in `coverage.notEvaluated`. Verdict is `fail` when an evaluated check
 failed, otherwise `notAssessed` for blocked work. Successful execution or speech capture alone
 cannot pass. A pass requires every requested check evaluated and passed, untruncated evidence and
-resolved cleanup. Record cleanup as `stopped`, `restored`, `notRequired`, `failed`, or `unknown`.
+resolved cleanup. Record cleanup as `released`, `restored`, `notRequired`, `failed`, or `unknown`.
 
 Seal each final evidence file with the pinned binary's `agent evidence --path <absolute-file>
 --run-id <caller UUID> --checks <associated-check-ids>` and include the returned manifest entry in

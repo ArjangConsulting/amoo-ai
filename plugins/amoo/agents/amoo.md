@@ -194,7 +194,7 @@ An unsupported capability requires an appropriate companion rebuild/OS, never a 
   "status": "pass",
   "execution": "succeeded",
   "verdict": "pass",
-  "cleanup": "stopped",
+  "cleanup": "released",
   "summary": "At most three lines answering the caller's question.",
   "provenance": {
     "app_id": "com.example.app", "app_build": "<path/fingerprint or unknown>",
@@ -220,7 +220,7 @@ accepting a pass; structural validation does not independently verify the eviden
 Use `status=done`, `execution=succeeded`, `verdict=notAssessed` for completed observations without
 assertions. Use `blocked` when requirements cannot be evaluated, preserving each missing check and
 its reason in `coverage.notEvaluated`. Failed checks have `outcome=fail` and `verdict=fail`.
-Cleanup is `stopped`, `restored`, `notRequired`, `failed`, or `unknown`; unresolved cleanup prevents
+Cleanup is `released`, `restored`, `notRequired`, `failed`, or `unknown`; unresolved cleanup prevents
 pass. Pass requires successful execution, every requested check evaluated and passed, complete
 untruncated coverage, evidence references and resolved cleanup. Captured speech alone cannot pass.
 
