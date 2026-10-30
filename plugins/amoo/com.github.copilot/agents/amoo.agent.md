@@ -85,6 +85,11 @@ accessibility_policy: path/to/amoo.accessibility.json  # optional skill review p
   code and `Recovery` line; amoo repairs `UPDATE_INCOMPATIBLE` once, otherwise try another AVD or API level
   (prefer API 35) unless the caller pinned it. Another client's holder or companion goes back to the caller.
   The full table is in driving-amoo `references/execution-modes.md`, "Device claims and companion failures".
+- Sign in only with `credential="<profile>#<field>"` (profiles in the project's `amoo.config.json`) on
+  `fill_field`/`set_text`; amoo types the value and you never see it. Prefer a mock profile, then a
+  keychain profile; with neither, report `blocked: no credentials`. Never invent an account, ask for a
+  password, put one in `text`/`value`/launch env, tap "show password", or retry a `blocked:` result.
+  Details: driving-amoo `references/credentials.md`.
 
 ## 2. Pick a transport — same tool names on both
 
