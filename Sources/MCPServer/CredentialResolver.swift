@@ -62,19 +62,20 @@ struct ResolvedCredential: Sendable {
 
 /// Resolves credential references from the project's `amoo.config.json` at call time.
 public struct CredentialResolver: Sendable {
-    let locateConfig: @Sendable () -> URL?
+    let locateConfigs: @Sendable () -> [URL]
     let store: any SecretStore
 
     public init(
-        locateConfig: @escaping @Sendable () -> URL? = { AmooProjectConfig.discover() },
+        locateConfigs: @escaping @Sendable () -> [URL] = { AmooProjectConfig.discoverAll() },
         store: any SecretStore = UnavailableSecretStore()
     ) {
-        self.locateConfig = locateConfig
+        self.locateConfigs = locateConfigs
         self.store = store
     }
 
     func resolve(_ reference: CredentialReference, launch: CredentialLaunch?) async throws -> ResolvedCredential {
-        guard let file = locateConfig() else {
+        let files = locateConfigs()
+        guard !files.isEmpty else {
             throw Self.blocked(
                 "no_credentials",
                 "blocked: no credentials. No \(AmooProjectConfig.fileName) was found from the working directory "
@@ -83,7 +84,7 @@ public struct CredentialResolver: Sendable {
         }
         let config: AmooProjectConfig
         do {
-            config = try AmooProjectConfig.load(file)
+            config = try AmooProjectConfig.load(layers: files)
         } catch {
             throw Self.blocked("credential_config_invalid", "blocked: no credentials. \(error)")
         }

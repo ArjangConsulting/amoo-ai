@@ -41,6 +41,47 @@ extension InitTestProfileTests {
         XCTAssertEqual(try RepositoryTestProfile.load(profile).targetPlatform, .ios)
     }
 
+    func testPlatformProfileInheritsOrchestratorContextAndInnerWins() throws {
+        let scratch = try makeScratchDirectory()
+        let root = scratch.url.appendingPathComponent("mobile")
+        let ios = root.appendingPathComponent("iOS")
+        let android = root.appendingPathComponent("Android")
+        try FileManager.default.createDirectory(at: ios, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: android, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent(".git"),
+            withIntermediateDirectories: true
+        )
+        try Data("gitdir: ../.git/modules/iOS".utf8).write(to: ios.appendingPathComponent(".git"))
+        try """
+        ```amoo-context
+        {"targetPlatform":"ios","baseClass":"SharedTests","imports":["Shared"],
+         "launchEnvironment":{"UI_TEST_PROFILE":"clean-home","MOCK":"1"},"selectorExpressions":{"a":"A.a"}}
+        ```
+        ```amoo-context
+        {"targetPlatform":"android","baseClass":"AndroidShared"}
+        ```
+        """.write(to: root.appendingPathComponent("amoo.md"), atomically: true, encoding: .utf8)
+        try """
+        ```amoo-context
+        {"targetPlatform":"ios","imports":["Inner"],"launchEnvironment":{"MOCK":"0"},
+         "selectorExpressions":{"b":"B.b"}}
+        ```
+        """.write(to: ios.appendingPathComponent("amoo.md"), atomically: true, encoding: .utf8)
+
+        let merged = try XCTUnwrap(RepositoryTestProfile.discover(from: ios, platform: .ios))
+        XCTAssertEqual(merged.baseClass, "SharedTests")
+        XCTAssertEqual(merged.imports, ["Inner"])
+        XCTAssertEqual(merged.launchEnvironment, ["UI_TEST_PROFILE": "clean-home", "MOCK": "0"])
+        XCTAssertEqual(merged.selectorExpressions, ["a": "A.a", "b": "B.b"])
+        XCTAssertEqual(merged.targetPlatform, .ios)
+        let androidContext = try RepositoryTestProfile.discover(from: android, platform: .android)
+        XCTAssertEqual(androidContext?.baseClass, "AndroidShared")
+        let crossPlatform = try RepositoryTestProfile.discover(from: ios, platform: .android)
+        XCTAssertEqual(crossPlatform?.baseClass, "AndroidShared")
+        XCTAssertTrue(crossPlatform?.imports.isEmpty ?? false)
+    }
+
     func testLinkedWorktreeIsItsOwnRepositoryBoundary() throws {
         let scratch = try makeScratchDirectory()
         let worktree = scratch.url.appendingPathComponent("worktree")

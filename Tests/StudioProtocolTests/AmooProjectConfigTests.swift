@@ -105,4 +105,45 @@ struct AmooProjectConfigTests {
         try Data(#"{"version": 1}"#.utf8).write(to: file)
         #expect(AmooProjectConfig.discover(from: nested)?.standardizedFileURL == file.standardizedFileURL)
     }
+
+    @Test("an orchestrator config layers under a submodule's, and the inner one wins")
+    func layeredDiscoveryInnerWins() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appendingPathComponent("mobile")
+        let ios = root.appendingPathComponent("iOS/App")
+        try FileManager.default.createDirectory(at: ios, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent(".git"), withIntermediateDirectories: true
+        )
+        try Data("gitdir: ../.git/modules/iOS".utf8)
+            .write(to: root.appendingPathComponent("iOS/.git"))
+        try Data("""
+        {"version": 1, "profiles": {
+          "qa": {"apps": ["com.app.ios", "com.app.android"], "requires_launch_env": {"A": "*", "B": "1"},
+            "fields": {
+              "email": {"literal": "shared@example.test", "class": "identifier"},
+              "password": {"literal": "shared", "class": "identifier"}}},
+          "prod": {"apps": ["com.app"], "fields": {"email": {"literal": "p@example.test", "class": "identifier"}}}}}
+        """.utf8).write(to: root.appendingPathComponent(AmooProjectConfig.fileName))
+        try Data("""
+        {"version": 1, "profiles": {
+          "qa": {"apps": ["com.app.ios"], "requires_launch_env": {"B": "2"},
+            "fields": {"email": {"literal": "ios@example.test", "class": "identifier"}}}}}
+        """.utf8).write(to: root.appendingPathComponent("iOS").appendingPathComponent(AmooProjectConfig.fileName))
+
+        let files = AmooProjectConfig.discoverAll(from: ios)
+        #expect(files.count == 2)
+        #expect(files.first?.deletingLastPathComponent().lastPathComponent == "iOS")
+        let config = try AmooProjectConfig.load(layers: files)
+        let qa = try #require(config.profiles["qa"])
+        #expect(qa.apps == ["com.app.ios"])
+        #expect(qa.requiresLaunchEnv == ["A": "*", "B": "2"])
+        #expect(qa.fields["email"]?.source == .literal("ios@example.test"))
+        #expect(qa.fields["password"]?.source == .literal("shared"))
+        #expect(config.profiles["prod"] != nil)
+
+        let rootOnly = try AmooProjectConfig.load(layers: AmooProjectConfig.discoverAll(from: root))
+        #expect(rootOnly.profiles["qa"]?.fields["email"]?.source == .literal("shared@example.test"))
+    }
 }
