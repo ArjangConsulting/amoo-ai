@@ -78,6 +78,13 @@ accessibility_policy: path/to/amoo.accessibility.json  # optional skill review p
   supported work after releasing prior ownership; preserve MCP-only requirements as blocked.
   Missing doctor or unresolved relevant issues block setup. On older binaries without scope
   flags, inspect machine-wide issues; unrelated stale MCP warnings alone do not block CLI work.
+- Device failures recover from the error text, never by bulk-killing: `deviceClaimed` names the holder
+  (`pid N … since T`); a holder that is no longer running clears on one retry, your own is ended, anyone
+  else's means another device (never `--force`). An `unresponsive` companion on your lease: `end_session
+  force=true`, `reset_companion`, restart. `Android companion install failed`: read the `INSTALL_FAILED_*`
+  code and `Recovery` line; amoo repairs `UPDATE_INCOMPATIBLE` once, otherwise try another AVD or API level
+  (prefer API 35) unless the caller pinned it. Another client's holder or companion goes back to the caller.
+  The full table is in driving-amoo `references/execution-modes.md`, "Device claims and companion failures".
 
 ## 2. Pick a transport — same tool names on both
 

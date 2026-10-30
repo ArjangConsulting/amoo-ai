@@ -5,7 +5,7 @@ import XCTest
 final class MCPInstructionsAlignmentTests: XCTestCase {
     func testInstructionsAreBoundedAndDescribeAvailableTools() {
         let instructions = MCPStdioServer.instructions
-        XCTAssertLessThan(instructions.utf8.count, 3500)
+        XCTAssertLessThan(instructions.utf8.count, 4000)
         for tool in [
             "start_session",
             "end_session",
@@ -29,6 +29,9 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         }
         XCTAssertTrue(instructions.contains("Leave other clients running"))
         XCTAssertTrue(instructions.contains("MCP-only requirements remain blocked"))
+        for recovery in ["deviceClaimed", "Never run bare doctor --kill-stale", "INSTALL_FAILED", "reset_companion"] {
+            XCTAssertTrue(instructions.contains(recovery), recovery)
+        }
     }
 
     func testDrivingSkillRoutesToExistingReferencesWithinContextBudget() throws {

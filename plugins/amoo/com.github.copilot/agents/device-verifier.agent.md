@@ -46,6 +46,25 @@ add reset flags only for a requested clean store and remove them for persistence
   failures, and report `blocked`. Never spend time working around amoo — report it.
 - Pass flags to amoo as separate arguments (zsh does not word-split `$VAR`; use arrays).
 
+## Device recovery
+
+Recover from the error text; never bulk-kill. Safe for you: read-only `doctor`, `end_session` / `env down` of
+your own lease, `doctor --mcp-pid <pid> --kill-stale` only for a pid you started, one retry, another AVD.
+
+- `deviceClaimed`: the holder reads `pid N (cmd) since T`. Not running → retry once; amoo discards the
+  orphaned claim. Your own → end it. Alive and not yours → another device. Never `--force`.
+- Companion `unresponsive`: your lease → `end_session force=true`, `reset_companion`, start again (CLI:
+  `env down --device <id>`, then `env up`). Not your lease → another device.
+- Stale MCP servers: unrelated ones do not block (`doctor --cli-only`); another client's go to the caller.
+- `Android companion install failed`: read the `INSTALL_FAILED_*` code and `Recovery` line. amoo repairs
+  `UPDATE_INCOMPATIBLE` itself once; otherwise `amoo companion install --platform android --device <serial>
+  --force`. `OLDER_SDK` (API < 26) or a wrong ABI means another AVD. After one identical failure fall back to
+  another AVD or API level (`emulator -list-avds`, prefer API 35) and record it in `notes`; if the caller
+  pinned the AVD, report `blocked`.
+- Return to the caller: a holder or companion owned by another client, a pinned AVD, or failures on two AVDs.
+
+Full table: driving-amoo `references/execution-modes.md`, "Device claims and companion failures".
+
 ## Choose a mode before setup
 
 Load the `driving-amoo` skill for mode selection. Prefer controlled CLI for the checked-in flow/probe
@@ -78,8 +97,8 @@ do not silently replace them with improvised interactions or claim full verifica
    only for missing amoo/doctor or an unresolved issue affecting this run.
 2. Per platform — run iOS and Android in parallel (background both `env up` calls, then `wait`):
    `amoo env up --platform <p> [--avd …|--runtime … --model …] --app <build> --app-id <id>
-   --owner device-verifier --json`. Keep `runtime_id`, `device`, `port`. A failure here is blocked
-   (owner amoo, or environment for a missing AVD/runtime); include the `log` path.
+   --owner device-verifier --json`. Keep `runtime_id`, `device`, `port`. On failure follow Device recovery
+   above; `blocked` only after it is exhausted (owner amoo, or environment for a missing AVD/runtime); include the `log` path.
 3. Launch: `amoo device --platform <p> --device <id> --port <port> --runtime-id <runtime>
    device_launch_app app_id=<id> [--env KEY=VALUE …]` (preconditions such as a skip-onboarding
    switch arrive as `--env`; it works on both platforms).
@@ -94,8 +113,8 @@ do not silently replace them with improvised interactions or claim full verifica
 6. Provenance: `artifact_sha256` from `env up`'s `app.sha256`; device id/OS/AVD from `env up`.
 7. Always `amoo env down --runtime-id <runtime> --json`, also on failure.
 
-On any tooling failure: retry once; on a second identical failure stop and report `blocked`
-with the exact command, the error text, and a one-line repro.
+On any tooling failure: retry once (or fall back to another AVD per Device recovery); on a second
+identical failure stop and report `blocked` with the exact command, the error text, and a one-line repro.
 
 ## Report (the only output)
 

@@ -106,6 +106,13 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
 - A runtime (`--runtime-id` / `AMOO_RUNTIME_ID`) is renewed on use and expires after 60 min idle.
 - Blocked beats a workaround: two identical tooling failures or 5 minutes of setup → report
   `blocked` with command, error and repro. The caller fixes; the verifier verifies.
+- Recover before blocking, never by bulk-killing: `deviceClaimed` names its holder (a dead one clears on
+  one retry; a live one is another device), an `unresponsive` companion on your lease gets
+  `end_session force=true` + `reset_companion` (CLI: `env down --device`, `env up`), and an `Android
+  companion install failed` error carries the `INSTALL_FAILED_*` code and a `Recovery` line. After one
+  identical install failure fall back to another AVD or API level (prefer API 35) unless the caller pinned
+  it. Holders owned by other clients go back to the caller. See driving-amoo
+  `references/execution-modes.md`, "Device claims and companion failures".
 - iOS WebViews are reached through the simulator's own Web Inspector (no proxy); Android
   through the WebView devtools socket. Both need the app's debug build to allow inspection.
 

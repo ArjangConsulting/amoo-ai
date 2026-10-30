@@ -150,6 +150,29 @@ idles out (default 120 seconds). MCP stdin closure and SIGTERM perform server cl
 executable while a client keeps its connection open does not end that running process. Do not
 terminate a healthy server merely because its task ended; let its client manage the connection.
 
+### Device claims and companion failures
+
+Recover from the signal, not by bulk-killing. None of these needs unscoped `--kill-stale`, and other
+clients' servers never need stopping to free a device you can replace.
+
+| Signal | Likely cause | A subagent may | Return to the caller |
+| --- | --- | --- | --- |
+| `deviceClaimed`; the holder reads `pid N (cmd) since T` | Another session holds the device | Holder **no longer running**: retry once, amoo discards the orphaned claim. Holder is your own session or runtime: `end_session` / `env down --runtime-id`. Otherwise pick another device (`list_devices`, or `env up --avd <other>`) | Holder alive and not yours; a device the caller pinned |
+| `doctor` lists `device_locks` or a note naming a stale server | The holder, and which stale MCP server it is | Read-only. Holder is a stale server **you** started: `doctor --mcp-pid <that pid> --kill-stale`, then reconnect | Holder is another client's server |
+| Companion `unresponsive` (doctor `companions` / `runtimes`) | Companion accepts connections but does not serve | Your lease: `end_session force=true`, `reset_companion`, `start_session`. CLI: `amoo env down --device <id>` then `env up`. Not your lease: use another device | A companion another client owns |
+| Stale MCP servers in `mcp_servers` | Rebuilt binary after start | Unrelated ones do not block; use `--cli-only`. Yours: reconnect | Servers you did not start |
+| `Android companion install failed` with an `INSTALL_FAILED_*` code | Read the `Likely cause` and `Recovery` lines in the error | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` / `VERSION_DOWNGRADE`: amoo already removed its own companion packages and retried once; if it persists, `amoo companion install --platform android --device <serial> --force` | Two identical failures on different AVDs |
+| `INSTALL_FAILED_OLDER_SDK`, or an API level below 26 | Device older than the companion's minimum | Use an AVD on API 26 or newer | A caller-pinned AVD |
+| `INSTALL_FAILED_NO_MATCHING_ABIS`, `INSUFFICIENT_STORAGE`, `USER_RESTRICTED` | Wrong CPU image, full `/data`, or blocked USB installs | Use another AVD (arm64-v8a on Apple silicon); cold-boot with data wiped for storage | Physical-device restrictions |
+
+An emulator that ran both a checkout build and the Homebrew release carries a companion signed with a
+different debug key; that is the usual `UPDATE_INCOMPATIBLE`, not an API-level problem.
+
+When a companion install fails, fall back to another AVD or API level: `emulator -list-avds`, prefer an
+API 35 image, `env up --avd <other>`, `env down` the failed runtime, and record the switch in `notes`. If the
+caller pinned the AVD or API level, report `blocked` with the error text instead. Never use raw `adb install`,
+`--force` on a claim, `pkill`, or an unscoped `--kill-stale`.
+
 ### Connection failures
 
 For client-level `Transport closed`, capture MCP stderr with AMOO_MCP_DIAGNOSTICS=1 and compare

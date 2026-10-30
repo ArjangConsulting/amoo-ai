@@ -115,8 +115,8 @@ An unlabeled control can still be located by an unfiltered find_elements query.
 Use record_value=fixture only for explicitly non-sensitive test data that belongs in generated
 code. The default records typed values as redacted. Never mark credentials as fixtures.
 
-For connection errors, stale targets, timeouts, or transport closure, read the
-[recovery guidance](references/execution-modes.md#recover) before retrying a mutation.
+For connection errors, stale targets, timeouts, transport closure, `deviceClaimed`, an unresponsive or
+failed-to-install companion, read [recovery](references/execution-modes.md#recover) before retrying.
 
 For build reuse, shared devices, and delegation inputs, read
 [execution modes](references/execution-modes.md). For repositories with checked-in agent copies,
