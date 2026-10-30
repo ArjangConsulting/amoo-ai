@@ -59,9 +59,17 @@ public struct ADBRunner: ADBRunning {
     private static let readTimeoutSeconds: TimeInterval = 20
 
     private let context: ShellContext
+    private let emulatorDiscovery: AndroidEmulatorDiscovery
+    private let shutdownTimeout: TimeInterval
 
-    public init(context: ShellContext = .init()) {
+    public init(
+        context: ShellContext = .init(),
+        emulatorDiscoveryDirectories: [URL]? = nil,
+        shutdownTimeout: TimeInterval = 30
+    ) {
         self.context = context
+        emulatorDiscovery = AndroidEmulatorDiscovery(context: context, directories: emulatorDiscoveryDirectories)
+        self.shutdownTimeout = shutdownTimeout
     }
 
     @discardableResult
@@ -91,7 +99,40 @@ public struct ADBRunner: ADBRunning {
 
     public func killEmulator(serial: String? = nil) async throws {
         try await onDevice(serial) { serial in
-            try await devices.killEmulator(serial)
+            let registration = try await emulatorDiscovery.runningEmulators().first { $0.serial == serial }
+            do {
+                _ = try await run(["-s", serial, "emu", "kill"], timeoutSeconds: 3)
+            } catch {
+                guard let registration else { throw error }
+                try await terminateRegisteredEmulator(registration)
+            }
+            let deadline = ContinuousClock.now + .seconds(shutdownTimeout)
+            let gracefulDeadline = ContinuousClock.now + .seconds(10)
+            var terminationRequested = false
+            repeat {
+                try Task.checkCancellation()
+                let processRunning: Bool = if let registration {
+                    try await emulatorDiscovery.isRunning(registration)
+                } else {
+                    false
+                }
+                let connected = try await run(["devices", "-l"], timeoutSeconds: 2).stdout
+                    .split(whereSeparator: \.isNewline)
+                    .contains { $0.split(whereSeparator: \.isWhitespace).first == Substring(serial) }
+                if !processRunning, !connected {
+                    return
+                }
+                if processRunning, !terminationRequested, ContinuousClock.now >= gracefulDeadline, let registration {
+                    try await terminateRegisteredEmulator(registration)
+                    terminationRequested = true
+                }
+                try await Task.sleep(for: .milliseconds(100))
+            } while ContinuousClock.now < deadline
+            throw AmooError.commandFailed(
+                command: "device_shutdown",
+                output: "Emulator \(serial) has not exited; shutdown is unverified."
+                    + " Do not start another instance of its AVD."
+            )
         }
     }
 
@@ -99,6 +140,12 @@ public struct ADBRunner: ADBRunning {
         try await translatingMobileKitErrors {
             try await devices.devicesOutput()
         }
+    }
+
+    private func terminateRegisteredEmulator(_ registration: AndroidEmulatorRegistration) async throws {
+        guard try await emulatorDiscovery.isRunning(registration) else { return }
+        _ = try await Command("kill").args(["-TERM", String(registration.pid)])
+            .timeout(.seconds(2)).run(in: context)
     }
 
     // MARK: - App Management

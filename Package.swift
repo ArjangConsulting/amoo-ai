@@ -98,7 +98,7 @@ let package = Package(
         .target(
             name: "AndroidDriver",
             dependencies: [
-                "AmooCore", "CompanionProtocol", "ProcessRunner",
+                "AmooCore", "AmooLogging", "CompanionProtocol", "ProcessRunner",
                 .product(name: "MobileDevices", package: "mobile-kits")
             ]
         ),

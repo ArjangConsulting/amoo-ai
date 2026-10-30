@@ -5,6 +5,19 @@ import MCP
 import XCTest
 
 final class EnvCommandParsingTests: XCTestCase {
+    func testAndroidColdBootIsExplicitAndRequiresAnOfflineAVDTarget() {
+        let result = parseEnvCommand(args: ["up", "--platform", "android", "--avd", "Test_AVD", "--cold-boot"])
+        guard case let .success(.up(options)) = result else { return XCTFail("\(result)") }
+        XCTAssertTrue(options.coldBoot)
+        for arguments in [
+            ["up", "--platform", "ios", "--cold-boot"],
+            ["up", "--platform", "android", "--cold-boot"],
+            ["up", "--platform", "android", "--avd", "Test_AVD", "--device", "emulator-5556", "--cold-boot"]
+        ] {
+            guard case .failure = parseEnvCommand(args: arguments) else { return XCTFail("accepted \(arguments)") }
+        }
+    }
+
     func testEnvUpParsesAndroidFlagsInAnyOrder() {
         let parsed = parseEnvCommand(args: [
             "up", "--json", "--avd", "Medium_Phone_API_35", "--platform", "android",

@@ -10,7 +10,7 @@ import XCTest
 final class ADBRunnerTests: XCTestCase {
     func testADBRunnerPrefixesAndHelpers() async throws {
         let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "", stderr: ""))
-        let runner = ADBRunner(context: mock.context)
+        let runner = ADBRunner(context: mock.context, emulatorDiscoveryDirectories: [])
 
         try await runner.startServer()
         try await runner.killEmulator(serial: "emulator-5554")

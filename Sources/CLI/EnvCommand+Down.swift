@@ -152,7 +152,7 @@ private func shutDownDevice(_ runtime: DeviceRuntime) async -> Bool {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
     do {
         switch runtime.platform {
-        case .android: try await AndroidDeviceManager(shell: context).killEmulator(runtime.deviceID)
+        case .android: try await ADBRunner(context: context).killEmulator(serial: runtime.deviceID)
         case .ios: try await SimulatorManager(shell: context).shutdown(runtime.deviceID)
         }
         return true
