@@ -405,7 +405,7 @@ func renderCLIHelp() -> String {
       companion ...                Build or install a companion app
       env up|down|list ...         Start or stop amoo on a simulator/emulator
       config validate [--path <file>]  Check amoo.config.json (sign-in credential profiles)
-      credentials add|check        Add a sign-in account for agents, or check Keychain access
+      credentials add|check|remove Add, check or remove a sign-in account for agents
       init ...                    Guided device setup + AI client skills (app build optional)
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
       agent install|render         Install the amoo subagents/skills for AI clients (guided; Claude, Codex, …)
