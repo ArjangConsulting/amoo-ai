@@ -126,6 +126,13 @@ extension ToolDefinition {
                 type: "string", description: "fixture records non-sensitive test data; default secret redacts it"
             )
         }
+        if DriverToolExecutor.credentialValueKey(name) != nil {
+            copy.properties["credential"] = .init(
+                type: "string",
+                description: "Sign-in value by reference, '<profile>#<field>' from amoo.config.json. amoo resolves"
+                    + " it, never returns it, and refuses a secret outside a secure field. Replaces text/value."
+            )
+        }
         return copy
     }
 }

@@ -162,6 +162,14 @@ extension DriverToolExecutor {
         guard matched.isVisible, matched.isEnabled else {
             return .error("set_text failed: matched field is not visible and enabled")
         }
+        let credential = CredentialDispatch.fieldClass
+        if credential == .secret, !matched.isSecureTextEntry {
+            return ToolExecutionError(
+                code: "credential_field_not_secure",
+                message: "set_text refused: a secret credential only fills a secure text field, and "
+                    + "[\(matched.id)] \(matched.label) is not one. Target the password field instead."
+            ).result
+        }
         let stableSelector = matched.id.isEmpty
             ? ElementSelector(label: matched.label, parentSelector: selector.parentSelector)
             : ElementSelector(id: matched.id, parentSelector: selector.parentSelector)
@@ -190,18 +198,22 @@ extension DriverToolExecutor {
             try await Task.sleep(for: .milliseconds(100))
         } while ContinuousClock.now < deadline
         let verified = mode == "exact"
+        let filled = credential == nil ? "\(value.count) char(s)" : "a credential"
+        var structured: [String: Value] = [
+            "verified": .bool(verified),
+            "verification_mode": .string(mode),
+            "element_id": .string(matched.id),
+            "element_label": .string(matched.label)
+        ]
+        if credential == nil {
+            structured["value_length"] = .int(value.count)
+        }
         return ToolResult(
             content: mode == "unverified"
                 ? "set_text failed: field did not expose the requested value."
-                : "Filled field [\(matched.id)] \(matched.label) with \(value.count) char(s) (\(mode)).",
+                : "Filled field [\(matched.id)] \(matched.label) with \(filled) (\(mode)).",
             isError: mode == "unverified",
-            structuredContent: .object([
-                "verified": .bool(verified),
-                "verification_mode": .string(mode),
-                "element_id": .string(matched.id),
-                "element_label": .string(matched.label),
-                "value_length": .int(value.count)
-            ])
+            structuredContent: .object(structured)
         )
     }
 

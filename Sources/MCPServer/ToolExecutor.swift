@@ -3,6 +3,7 @@ import AuditEngine
 import Foundation
 import MCP
 import ProcessRunner
+import StudioProtocol
 import SwiftyTerminal
 import TestSession
 import WebInspector
@@ -31,6 +32,12 @@ public actor DriverToolExecutor: ToolExecutor {
     /// The platform this executor was started for (`amoo mcp serve --platform`). Tools that take
     /// an optional `platform` argument fall back to it rather than to iOS.
     let defaultPlatform: Platform?
+    /// Resolves `credential` references; the default finds `amoo.config.json` and has no keychain.
+    let credentialResolver: CredentialResolver
+    /// Every secret this executor has resolved, scrubbed from every later result it returns.
+    var credentialRedactor = ArtifactRedactor()
+    /// The last app amoo launched per session id (`default` without one), for the credential gate.
+    var credentialLaunches: [String: CredentialLaunch] = [:]
 
     public init(
         driver: any PlatformDriver,
@@ -38,8 +45,10 @@ public actor DriverToolExecutor: ToolExecutor {
         foreignBuildDetector: ForeignBuildDetector = .disabled,
         webInspector: any WebInspecting = UnconfiguredWebInspector(),
         defaultPlatform: Platform? = nil,
-        defaultDeviceID: String? = nil
+        defaultDeviceID: String? = nil,
+        credentialResolver: CredentialResolver = CredentialResolver()
     ) {
+        self.credentialResolver = credentialResolver
         self.defaultPlatform = defaultPlatform
         self.defaultDeviceID = defaultDeviceID
         if let defaultPlatform, let defaultDeviceID {
@@ -91,21 +100,21 @@ public actor DriverToolExecutor: ToolExecutor {
         var executionTool = toolName
         var executionArguments = arguments
         var dispatchStarted = false
+        var credentialClass: CredentialField.Class?
         do {
             try Task.checkCancellation()
             _ = try ToolRequest(name: toolName, arguments: arguments)
-            if let id = arguments["session_id"], let session = await sessionManager?.session(id),
-               arguments["record_value"] != "fixture" {
-                for key in Self.sensitiveArgumentKeys(toolName) {
-                    if let value = arguments[key] {
-                        await session.registerSecret(value)
-                    }
-                }
-            }
-            (executionTool, executionArguments) = try await canonicalGesture(tool: toolName, arguments: arguments)
+            let callArguments: [String: String]
+            (callArguments, credentialClass) = try await preparedArguments(toolName: toolName, arguments: arguments)
+            (executionTool, executionArguments) = try await canonicalGesture(tool: toolName, arguments: callArguments)
             executionArguments = try await normalizedCoordinates(tool: executionTool, arguments: executionArguments)
             dispatchStarted = true
-            result = try await dispatch(toolName: executionTool, arguments: executionArguments)
+            let dispatchTool = executionTool
+            let dispatchArguments = executionArguments
+            result = try await CredentialDispatch.$fieldClass.withValue(credentialClass) {
+                try await self.dispatch(toolName: dispatchTool, arguments: dispatchArguments)
+            }
+            noteLaunch(toolName: executionTool, arguments: executionArguments, result: result)
         } catch let error as ToolExecutionError {
             result = error.result
         } catch is OperationDeadline.DeadlineExceeded {
@@ -122,6 +131,9 @@ public actor DriverToolExecutor: ToolExecutor {
             )
         }
         result = await diagnoseConnectivityFailure(result, arguments: executionArguments)
+        if !credentialRedactor.isEmpty {
+            result = result.redacted(using: credentialRedactor)
+        }
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
         PerformanceTelemetry.record(
@@ -184,7 +196,9 @@ public actor DriverToolExecutor: ToolExecutor {
         let action = SessionAction(
             timestamp: Date(),
             toolName: toolName,
-            arguments: redactArguments(toolName: toolName, arguments: arguments),
+            arguments: arguments["credential"] == nil
+                ? redactArguments(toolName: toolName, arguments: arguments)
+                : Self.credentialRecordedArguments(arguments),
             result: toolName == "open_url" ? "Opened URL (query values redacted)" : recordedResult,
             isError: result.isError,
             intent: sessionIntent(toolName: toolName, isError: result.isError),

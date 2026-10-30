@@ -256,7 +256,14 @@ extension DriverToolExecutor {
         // Text actions
         case "type_text":
             guard let text = arguments["text"] else {
-                return .error("Missing required argument: text")
+                return .error("Missing required argument: text or credential")
+            }
+            if CredentialDispatch.fieldClass == .secret {
+                return ToolExecutionError(
+                    code: "credential_field_not_secure",
+                    message: "type_text refused: a secret credential needs a field amoo can check is secure. "
+                        + "Use fill_field or set_text with the password field's id."
+                ).result
             }
             try await driver.typeText(text)
             // Don't echo the typed text — it may contain passwords, PINs, or
@@ -270,7 +277,7 @@ extension DriverToolExecutor {
 
         case "set_text":
             guard let value = arguments["value"] else {
-                return .error("Missing required argument: value")
+                return .error("Missing required argument: value or credential")
             }
             guard let selector = try preferredSelector(arguments: arguments) else {
                 return .error("At least one of id, label, or contains_text is required")
@@ -563,7 +570,7 @@ extension DriverToolExecutor {
 
         case "fill_field":
             guard let value = arguments["value"] else {
-                return .error("Missing required argument: value")
+                return .error("Missing required argument: value or credential")
             }
             guard let selector = try preferredSelector(arguments: arguments, includeDescription: true) else {
                 return .error("At least one of id, label, contains_text, or field_description is required")

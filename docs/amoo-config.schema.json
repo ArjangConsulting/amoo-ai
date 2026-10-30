@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/maniramezan/mobile-testing/docs/amoo-config.schema.json",
+  "title": "amoo.config.json",
+  "description": "Project configuration for amoo: credential profiles an agent signs in with by reference.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": { "const": 1 },
+    "profiles": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[^#]+$" },
+      "additionalProperties": { "$ref": "#/$defs/profile" }
+    }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "required": ["apps", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "apps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "requires_launch_env": {
+          "type": "object",
+          "description": "Launch environment amoo must have sent; \"*\" means the key only has to be present.",
+          "additionalProperties": { "type": "string" }
+        },
+        "fields": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[^#]+$" },
+          "additionalProperties": { "$ref": "#/$defs/field" }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["class"],
+      "additionalProperties": false,
+      "properties": {
+        "class": { "enum": ["identifier", "secret"] },
+        "literal": { "type": "string" },
+        "keychain": {
+          "type": "object",
+          "required": ["service", "account"],
+          "additionalProperties": false,
+          "properties": {
+            "service": { "type": "string", "minLength": 1 },
+            "account": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      "oneOf": [{ "required": ["literal"] }, { "required": ["keychain"] }]
+    }
+  }
+}

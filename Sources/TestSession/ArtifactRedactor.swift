@@ -28,6 +28,11 @@ public struct ArtifactRedactor: Sendable {
         }
     }
 
+    /// True when no secret is registered, so `redact` would return its input unchanged.
+    public var isEmpty: Bool {
+        secrets.isEmpty
+    }
+
     public func redact(_ value: String) -> String {
         secrets.sorted { $0.count > $1.count }.reduce(value) { result, secret in
             result.replacingOccurrences(of: secret, with: "<redacted>")
