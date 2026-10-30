@@ -14,6 +14,10 @@ struct InitRuntime {
     var updateAgents: (AgentInstallOptions) -> CLIResult
     var installAgents: (AgentInstallOptions) -> CLIResult
     var assetsRoot: URL?
+    /// The `amoo credentials add` conversation, offered once during guided setup.
+    var addCredentials: (CredentialsAddDefaults, URL, any Prompting) async -> CLIResult = { defaults, root, prompter in
+        await runCredentialsAdd(prompter: prompter, defaults: defaults, root: root, store: KeychainCredentialStore())
+    }
 
     static func live() -> Self {
         Self(
@@ -31,12 +35,18 @@ struct InitRuntime {
     }
 }
 
+/// The platform repository named by `--repo`, below the directory that holds the orchestrator's `AGENTS.md`.
+func initRepoDirectory(_ repo: String, agentsFile: String) -> URL {
+    URL(fileURLWithPath: agentsFile).deletingLastPathComponent().appendingPathComponent(repo, isDirectory: true)
+        .standardizedFileURL
+}
+
 private let cancelledResult = CLIResult(output: "Cancelled. No device was touched.", exitCode: 1)
 
 /// `amoo init [flags]`: collect (or require) the inputs, validate before starting anything, confirm,
 /// then reuse `env up` per device.
 func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> CLIResult {
-    let request: InitRequest
+    var request: InitRequest
     do { request = try parseInitRequest(args) } catch {
         return initFailure(error, json: args.contains("--json"))
     }
@@ -44,6 +54,20 @@ func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> C
     let interactive = !request.nonInteractive && !request.json && runtime.isInteractive()
     let agentsFile = request.agentsFile.map { absoluteInitPath($0) }
         ?? FileManager.default.currentDirectoryPath + "/AGENTS.md"
+    if let repo = request.repo {
+        let directory = initRepoDirectory(repo, agentsFile: agentsFile)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory), isDirectory.boolValue
+        else {
+            return InitRefusal(
+                message: "--repo \(repo): no such directory at \(directory.path).",
+                code: 64,
+                json: request.json
+            ).result
+        }
+        // The runtime manifest belongs to the platform repository, so `init down` finds it from `amoo.md`.
+        request.out = request.out ?? directory.appendingPathComponent(".amoo.json").path
+    }
 
     let complete: InitRequest
     switch await collectInitRequest(request, interactive: interactive, agentsFile: agentsFile, runtime: runtime) {
@@ -62,8 +86,14 @@ func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> C
         }
     }
     var results: [CLIResult] = []
-    for item in requests {
-        let result = await runCompletedInit(item, interactive: interactive, agentsFile: agentsFile, runtime: runtime)
+    for (index, item) in requests.enumerated() {
+        let result = await runCompletedInit(
+            item,
+            interactive: interactive,
+            offerSignIn: index == 0,
+            agentsFile: agentsFile,
+            runtime: runtime
+        )
         results.append(result)
         if result.output == cancelledResult.output {
             break
@@ -78,6 +108,7 @@ func runInitCommand(_ args: [String], runtime: InitRuntime = .live()) async -> C
 private func runCompletedInit(
     _ complete: InitRequest,
     interactive: Bool,
+    offerSignIn: Bool,
     agentsFile: String,
     runtime: InitRuntime
 ) async -> CLIResult {
@@ -111,6 +142,9 @@ private func runCompletedInit(
             return cancelledResult
         }
         saveLocations = save
+        if offerSignIn, !complete.assumeYes {
+            await offerSignInAccount(appID: plan.options.environment.appID, agentsFile: agentsFile, runtime: runtime)
+        }
     }
     let result = await runInit(
         plan.options,
@@ -124,6 +158,26 @@ private func runCompletedInit(
         interactive: interactive,
         agentsFile: agentsFile
     )
+}
+
+/// Asks whether agents need to sign in, and runs `amoo credentials add` if so. Declining, cancelling
+/// or failing never stops device setup; each ends by naming the command to run later.
+private func offerSignInAccount(appID: String?, agentsFile: String, runtime: InitRuntime) async {
+    let root = URL(fileURLWithPath: agentsFile).deletingLastPathComponent()
+    let question = if case .configured = InitSignInStatus.inspect(root: root) {
+        "Add another sign-in account for agents?"
+    } else {
+        "Will agents need to sign in to your app during tests? amoo can store a test account so they never see "
+            + "its password."
+    }
+    guard runtime.prompter.confirm(question, default: false) == true else {
+        runtime.prompter.say("Add a sign-in account any time with `amoo credentials add`.")
+        return
+    }
+    let result = await runtime.addCredentials(CredentialsAddDefaults(appID: appID), root, runtime.prompter)
+    if result.exitCode != 0 {
+        runtime.prompter.say(result.output + "\nRun `amoo credentials add` to try again.")
+    }
 }
 
 /// Installs the AI client files after the devices are ready, folding the outcome into the result.
@@ -312,10 +366,14 @@ private func finishInit(
     var jsonOutput = result.output
     if save {
         let environment = plan.options.environment
+        let repo = plan.options.repo
+        let repoDirectory = repo.map { initRepoDirectory($0, agentsFile: agentsFile) }
+            ?? URL(fileURLWithPath: agentsFile).deletingLastPathComponent()
         do {
             try saveInitLocations(
                 InitSavedLocations(
                     platform: environment.platform,
+                    repoPath: repo,
                     appPath: environment.appPath,
                     appID: environment.appID,
                     manifestDirectory: plan.options.out
@@ -324,10 +382,15 @@ private func finishInit(
                 ),
                 agentsFile: agentsFile
             )
-            try saveInitTestProfile(
-                at: URL(fileURLWithPath: agentsFile).deletingLastPathComponent(),
-                platform: environment.platform
-            )
+            try saveInitTestProfile(at: repoDirectory, platform: environment.platform)
+            if let repo,
+               let diagnostic = try recordInitRepo(
+                   at: URL(fileURLWithPath: agentsFile).deletingLastPathComponent(),
+                   platform: environment.platform,
+                   repo: repo
+               ) {
+                lines.append(diagnostic)
+            }
             if interactive {
                 lines.append("Saved project setup to \(agentsFile).")
                 lines

@@ -188,6 +188,10 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
 
     /// Platform this repository harness targets; automatic discovery ignores other platforms.
     public let targetPlatform: Platform?
+    /// In an orchestrator's `amoo.md`: the repo-relative directory of the repository that owns this
+    /// platform (for example `iOS`). Discovery layers that directory's own `amoo.md` over this one, and
+    /// the CLI finds its `.amoo.json` there. Absent in a platform repository's own `amoo.md`.
+    public let repo: String?
     public let imports: [String]
     public let baseClass: String?
     /// An expression that constructs the app under test, e.g. `makeApp()`. Constructs only — the
@@ -250,10 +254,12 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         assertionBindings: [String: String] = [:],
         relaunchHelper: String? = nil,
         targetPlatform: Platform? = nil,
+        repo: String? = nil,
         launchArguments: [String] = [],
         launchEnvironment: [String: String] = [:]
     ) {
         self.targetPlatform = targetPlatform
+        self.repo = repo
         self.launchArguments = launchArguments; self.launchEnvironment = launchEnvironment
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
@@ -267,7 +273,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
         case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
-        case assertionBindings, relaunchHelper, targetPlatform, launchArguments, launchEnvironment
+        case assertionBindings, relaunchHelper, targetPlatform, repo, launchArguments, launchEnvironment
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -276,6 +282,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         imports = try container.decodeIfPresent([String].self, forKey: .imports) ?? []
         targetPlatform = try container.decodeIfPresent(Platform.self, forKey: .targetPlatform)
+        repo = try container.decodeIfPresent(String.self, forKey: .repo)
         baseClass = try container.decodeIfPresent(String.self, forKey: .baseClass)
         appFactory = try container.decodeIfPresent(String.self, forKey: .appFactory)
         harnessLaunchesApp = try container.decodeIfPresent(Bool.self, forKey: .harnessLaunchesApp) ?? false
@@ -299,6 +306,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(imports, forKey: .imports)
         try container.encodeIfPresent(targetPlatform, forKey: .targetPlatform)
+        try container.encodeIfPresent(repo, forKey: .repo)
         try container.encodeIfPresent(baseClass, forKey: .baseClass)
         try container.encodeIfPresent(appFactory, forKey: .appFactory)
         try container.encode(harnessLaunchesApp, forKey: .harnessLaunchesApp)

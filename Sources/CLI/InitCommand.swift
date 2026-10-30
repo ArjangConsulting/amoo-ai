@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import StudioProtocol
 
 /// Independent controlled environments, an optional explicit artifact, and no recording transport.
 struct InitOptions {
@@ -7,6 +8,9 @@ struct InitOptions {
     var devices: [String]
     var out: String?
     var framework: String?
+    /// The platform repository, relative to the directory holding `AGENTS.md`. Nil when that directory
+    /// is itself the repository.
+    var repo: String?
 }
 
 /// Versioned CLI setup manifest. Runtime tokens are ownership credentials; keep this file private.
@@ -61,12 +65,12 @@ func renderInitHelp() -> String {
            amoo init --platform ios|android --device <id> [--device <id> ...]
                      [--app <absolute-build-path> --app-id <id>] [--launch|--no-launch] [--owner <label>]
                      [--ttl <minutes>] [--ready-timeout <seconds>] [--out <manifest.json>]
-                     [--framework native|react-native|flutter|kmp]
+                     [--framework native|react-native|flutter|kmp] [--repo <dir>]
                      [--dry-run] [--yes] [--save|--no-save] [--agents-file <path>]
                      [--client <name>]... [--skills|--no-skills]
                      [--non-interactive] [--json]
-           amoo init device --manifest <path> --device <id> [--json] <tool> [key=value ...]
-           amoo init down --manifest <path> [--shutdown] [--json]
+           amoo init device [--manifest <path>] --device <id> [--json] <tool> [key=value ...]
+           amoo init down [--manifest <path>] [--shutdown] [--json]
            amoo init repo [--target <repo>] [--client <name> ...] [--dry-run] [--json]
 
     Prepare devices without supplying an app build. Each gets its own runtime and companion port
@@ -81,14 +85,21 @@ func renderInitHelp() -> String {
     The platform, manifest directory and any explicitly supplied app are recorded in ./AGENTS.md
     (asked in a terminal; --save to do it headless). Guided setup defaults to ./.amoo.json;
     saved app paths are never selected automatically. Device and runtime ids are never saved in AGENTS.md.
-    The saved block and the summary also say whether amoo.config.json declares sign-in profiles;
-    init never writes that file (see `amoo config --help`).
+    In a terminal it also asks whether agents need to sign in, and if so runs `amoo credentials add`
+    to save a test account (mock in amoo.config.json, real in the macOS Keychain). The saved block and
+    the summary say whether sign-in profiles exist; add more any time with `amoo credentials add`.
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.
     Current installs skip the picker; outdated or missing files get one update confirmation.
     Headless, existing drift prints an `amoo agent update` hint; pass --client to install.
     --no-skills skips AI client setup. Run from the orchestrator root for submodule layouts.
+
+    --repo <dir> names the platform's repository below the orchestrator root (for example
+    `--platform ios --repo iOS`; a React Native app uses ios/ and android/ the same way). Run it once per
+    platform. The platform's amoo.md and default manifest (<dir>/.amoo.json) are written inside that
+    repository, and the root amoo.md records the repo for the platform, so later `init down` and
+    `init device` find the manifest without --manifest.
 
     Validation runs first (app exists and matches --app-id, every device exists and is available);
     no runtime starts if it fails. All results are returned, including failures; exit 1 means at
@@ -97,6 +108,8 @@ func renderInitHelp() -> String {
     supplied app is never built.
     device selects one successful manifest entry and proves ownership with its runtime.
     down stops every successful entry through env down, respecting active device access locks.
+    Without --manifest, device and down use ./.amoo.json and the .amoo.json of each repository
+    that amoo.md names in `repo`.
     repo is `amoo agent install` (guided in a terminal) for when you only want the AI client setup.
     Treat manifests as private credentials. For recording, stop CLI runtimes first, then
     use MCP start_session with device_hint and the app's build_path; end_session exports the plan.
@@ -218,7 +231,7 @@ func runInitDown(
     return CLIResult(output: renderJSON(InitDownReport(ok: ok, results: results)), exitCode: ok ? 0 : 1)
 }
 
-private struct InitDownReport: Encodable {
+private struct InitDownReport: Codable {
     var ok: Bool
     var results: [EnvDownReport]
 }
@@ -246,24 +259,36 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
     }
     do {
         var args = Array(remaining.dropFirst())
-        guard let index = args.firstIndex(of: "--manifest"), args.indices.contains(index + 1) else {
-            throw EnvCommandParseError.usage("--manifest <path> is required.")
+        let manifestPaths: [String]
+        if let index = args.firstIndex(of: "--manifest"), args.indices.contains(index + 1) {
+            manifestPaths = [args[index + 1]]
+            args.removeSubrange(index ... index + 1)
+        } else {
+            manifestPaths = discoverInitManifests()
+            guard !manifestPaths.isEmpty else {
+                throw EnvCommandParseError.usage(
+                    "--manifest <path> is required: no .amoo.json here or in a repository that amoo.md names in `repo`."
+                )
+            }
         }
-        let manifestPath = args[index + 1]
-        let manifest = try InitManifest.read(manifestPath)
-        args.removeSubrange(index ... index + 1)
+        let manifests = try manifestPaths.map { try InitManifest.read($0) }
         if remaining.first == "down" {
             var flags = EnvFlagReader(args)
             let shutdown = flags.take("--shutdown")
             let json = flags.take("--json")
             try flags.finish()
-            let result = await runInitDown(manifest, shutdown: shutdown)
-            if result.exitCode == 0 {
-                try InitManifest(ok: true, results: []).write(manifestPath)
+            var results: [CLIResult] = []
+            for (path, manifest) in zip(manifestPaths, manifests) {
+                let result = await runInitDown(manifest, shutdown: shutdown)
+                if result.exitCode == 0 {
+                    try InitManifest(ok: true, results: []).write(path)
+                }
+                results.append(result)
             }
-            return json ? result : CLIResult(
-                output: result.exitCode == 0 ? "Stopped initialized runtimes." : result.output,
-                exitCode: result.exitCode
+            let combined = combineInitDownResults(results)
+            return json ? combined : CLIResult(
+                output: combined.exitCode == 0 ? "Stopped initialized runtimes." : combined.output,
+                exitCode: combined.exitCode
             )
         }
         guard let index = args.firstIndex(of: "--device"), args.indices.contains(index + 1) else {
@@ -271,10 +296,43 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
         }
         let device = args[index + 1]
         args.removeSubrange(index ... index + 1)
-        return try await CLIApp().run(args: ["device"] + initDeviceArguments(manifest, device: device, args: args))
+        let owner = manifests.first { $0.results.contains { $0.ok && $0.device?.id == device } } ?? manifests[0]
+        return try await CLIApp().run(args: ["device"] + initDeviceArguments(owner, device: device, args: args))
     } catch {
         return initFailure(error, json: remaining.contains("--json"))
     }
+}
+
+/// The manifests `init down` and `init device` use when `--manifest` is absent: `.amoo.json` in the working
+/// directory and in each platform repository an `amoo.md` names in `repo`.
+func discoverInitManifests(
+    from directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+) -> [String] {
+    var candidates = [directory.appendingPathComponent(".amoo.json")]
+    for platform in [Platform.ios, .android] {
+        if let repo = try? RepositoryTestProfile.repositoryDirectory(for: platform, from: directory) {
+            candidates.append(repo.appendingPathComponent(".amoo.json"))
+        }
+    }
+    var seen = Set<String>()
+    return candidates.map(\.standardizedFileURL.path).filter {
+        FileManager.default.fileExists(atPath: $0) && seen.insert($0).inserted
+    }
+}
+
+/// One report for several manifests: every entry, and the worst exit code.
+func combineInitDownResults(_ results: [CLIResult]) -> CLIResult {
+    guard results.count > 1 else { return results.first ?? CLIResult(output: "", exitCode: 0) }
+    let reports = results.compactMap { try? JSONDecoder().decode(InitDownReport.self, from: Data($0.output.utf8)) }
+    guard reports.count == results.count else {
+        return CLIResult(
+            output: results.map(\.output).joined(separator: "\n"),
+            exitCode: results.map(\.exitCode).max() ?? 1
+        )
+    }
+    let all = reports.flatMap(\.results)
+    let ok = reports.allSatisfy(\.ok)
+    return CLIResult(output: renderJSON(InitDownReport(ok: ok, results: all)), exitCode: ok ? 0 : 1)
 }
 
 /// Keeps usage and file errors machine-readable whenever JSON was requested.

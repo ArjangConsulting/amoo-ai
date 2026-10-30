@@ -291,6 +291,11 @@ source in the receiving target before treating it as validated.
 
 ### Mixed-platform repositories
 
+In an orchestrator's `amoo.md`, a platform block may set `"repo"` to a relative directory such as
+`"iOS"`. Discovery then layers that directory's own `amoo.md` over the block, and the CLI looks for the
+platform's `.amoo.json` there. `amoo init --repo <dir>` writes it. The path must stay inside the
+repository.
+
 A single amoo.md may contain two fenced amoo-context objects, one with targetPlatform ios and one
 with targetPlatform android. Multiple blocks must declare distinct platforms. CLI generation selects
 using the plan/report platform; MCP uses the session platform. Explicit Markdown paths follow the
