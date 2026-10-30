@@ -25,6 +25,7 @@ import java.util.regex.Pattern
  * If UIAutomator APIs change, only this file changes.
  */
 class UIAutomatorBridge {
+    private val hierarchyCapture = HierarchyCapture()
     private companion object {
         /** Gap between injected ACTION_MOVE events during a drag, in milliseconds. */
         const val MOVE_INTERVAL_MS = 10
@@ -102,6 +103,10 @@ class UIAutomatorBridge {
     }
 
     fun <T> withAppAccessibilityRoot(appId: String, operation: (AccessibilityNodeInfo) -> T): T {
+        return hierarchyCapture.read { captureAppAccessibilityRoot(appId, operation) }
+    }
+
+    private fun <T> captureAppAccessibilityRoot(appId: String, operation: (AccessibilityNodeInfo) -> T): T {
         device
         val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
         if (Build.VERSION.SDK_INT >= 34) automation.clearCache()
@@ -508,16 +513,11 @@ class UIAutomatorBridge {
     }
 
     /**
-     * A UiObject2 is a live handle and any property access can throw after its backing node is
-     * recycled. Retry the whole operation once with a fresh tree; partial results would make a
-     * selector appear absent merely because its node changed during the walk.
+     * Queries operate on one complete immutable capture. Tree changes are retried during capture,
+     * before filtering, so partial results cannot make a selector appear absent.
      */
     private inline fun <T> withCurrentElements(appId: String? = null, operation: (List<NodeRecord>) -> T): T {
-        try {
-            return operation(currentElements(appId))
-        } catch (_: StaleObjectException) {
-            return operation(currentElements(appId))
-        }
+        return operation(currentElements(appId))
     }
 
     /**
@@ -567,9 +567,19 @@ class UIAutomatorBridge {
     )
 
     private fun currentElements(appId: String? = null): List<NodeRecord> {
+        return hierarchyCapture.read {
+            try {
+                captureCurrentElements(appId)
+            } catch (_: StaleObjectException) {
+                throw HierarchyChangedException()
+            }
+        }
+    }
+
+    private fun captureCurrentElements(appId: String?): List<NodeRecord> {
         val started = SystemClock.elapsedRealtime()
         Log.i(LOG_TAG, "hierarchy_start scope=${if (appId == null) "all" else "app"}")
-        device.waitForIdle(200)
+        device
         val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
         // Drop the process-wide `AccessibilityCache` before every read. Without this, after a
         // navigation `automation.windows` keeps returning a stale `AccessibilityWindowInfo` whose
@@ -597,9 +607,10 @@ class UIAutomatorBridge {
             Log.w(
                 LOG_TAG,
                 "currentElements found no window roots. " +
-                    "serviceInfoFlags=${automation.serviceInfo?.flags} " +
-                    "currentPackage=${device.currentPackageName}"
+                    "serviceInfoFlags=${automation.serviceInfo?.flags}"
             )
+            for (window in windows) runCatching { window.recycle() }
+            throw HierarchyChangedException()
         }
 
         val out = ArrayList<NodeRecord>()
@@ -638,7 +649,7 @@ class UIAutomatorBridge {
         into.add(record)
         val ancestorForChildren = if (record.isClickable) record else nearestClickable
         for (index in 0 until node.childCount) {
-            val child = node.getChild(index) ?: error("Hierarchy capture incomplete: a child became unavailable")
+            val child = node.getChild(index) ?: throw HierarchyChangedException()
             try {
                 collectRecords(child, ancestorForChildren, record, "$path/$index", capture, deadline, depth + 1, into)
             } finally {
