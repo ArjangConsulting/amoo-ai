@@ -9,9 +9,11 @@ enum InitSignInStatus: Equatable {
     case configured(path: String, profiles: [String])
 
     static func inspect(root: URL) -> Self {
-        guard let file = AmooProjectConfig.discover(from: root) else { return .missing }
+        let files = AmooProjectConfig.discoverAll(from: root)
+        guard let file = files.first else { return .missing }
         do {
-            return try .configured(path: file.path, profiles: AmooProjectConfig.load(file).profiles.keys.sorted())
+            let profiles = try AmooProjectConfig.load(layers: files).profiles.keys.sorted()
+            return .configured(path: file.path, profiles: profiles)
         } catch let error as AmooProjectConfigError {
             return .invalid(path: file.path, problem: error.problem)
         } catch {

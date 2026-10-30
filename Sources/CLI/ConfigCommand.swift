@@ -29,9 +29,9 @@ func handleConfigCommand(
             return CLIResult(output: renderConfigHelp(), exitCode: 64)
         }
     }
-    guard let file = path.map({ URL(fileURLWithPath: $0, relativeTo: currentDirectory) })
-        ?? AmooProjectConfig.discover(from: currentDirectory)
-    else {
+    let files = path.map { [URL(fileURLWithPath: $0, relativeTo: currentDirectory)] }
+        ?? AmooProjectConfig.discoverAll(from: currentDirectory)
+    guard let file = files.first else {
         return configResult(
             ok: false,
             message: "No \(AmooProjectConfig.fileName) found from \(currentDirectory.path) up to the repository root.",
@@ -40,13 +40,16 @@ func handleConfigCommand(
         )
     }
     do {
-        let config = try AmooProjectConfig.load(file)
+        let config = try AmooProjectConfig.load(layers: files)
         let summary = config.profiles.keys.sorted().map { name in
             let profile = config.profiles[name]
             let fields = profile?.fields.keys.sorted().joined(separator: ", ") ?? ""
             return "\(name): apps \(profile?.apps.joined(separator: ", ") ?? ""); fields \(fields)"
         }
-        return configResult(ok: true, message: "\(file.path) is valid.", profiles: summary, json: json)
+        let message = files.count > 1
+            ? "\(files.map(\.path).joined(separator: ", ")) are valid; \(file.path) wins."
+            : "\(file.path) is valid."
+        return configResult(ok: true, message: message, profiles: summary, json: json)
     } catch {
         return configResult(ok: false, message: "\(error)", profiles: [], json: json)
     }

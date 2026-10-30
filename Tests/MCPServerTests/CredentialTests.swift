@@ -60,7 +60,7 @@ final class CredentialTests: XCTestCase {
         DriverToolExecutor(
             driver: driver,
             sessionManager: sessionManager,
-            credentialResolver: CredentialResolver(locateConfig: { config }, store: store)
+            credentialResolver: CredentialResolver(locateConfigs: { [config].compactMap(\.self) }, store: store)
         )
     }
 

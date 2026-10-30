@@ -236,8 +236,11 @@ actual generated source with Swift 6 and the simulator SDK.
 platform sections (appending newly discovered platforms). Review and complete uncertain conventions using the listed source files. A fenced
 `amoo-context` block holds the export bindings; no separate JSON file is required.
 
-Recording (`start_session`) and CLI plan/test generation discover the nearest `amoo.md` from the
-working directory. Recording snapshots its bindings into the session. A discovered Swift harness
+Recording (`start_session`) and CLI plan/test generation discover `amoo.md` from the working
+directory. Every `amoo.md` up to the repository root applies and the nearer one wins: objects merge
+key by key and arrays (`imports`, `helpers`) are replaced by the nearer file, so a platform
+repository inherits the orchestrator's shared bindings and overrides only what it sets. A file with
+no block for the requested platform adds nothing. Recording snapshots its bindings into the session. A discovered Swift harness
 is marked `targetPlatform: "ios"` so it is not automatically applied to Android recordings or exports. An embedded plan context
 wins over automatic discovery; explicit context arguments win over both. `--context` and
 `context_path` also accept the Markdown profile. Malformed profiles report an error.

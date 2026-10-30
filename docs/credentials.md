@@ -7,7 +7,13 @@ accounts in a checked-in **`amoo.config.json`**; the agent passes a reference,
 ## `amoo.config.json`
 
 Found by walking up from the working directory (the MCP server's, or the shell's for `amoo device`)
-to the repository root, like `amoo.md`. A project without one behaves exactly as before. Schema:
+to the repository root, like `amoo.md`. A project without one behaves exactly as before.
+
+Configs layer the way nested `AGENTS.md` files do. Every `amoo.config.json` on the way up applies, and
+the nearer one wins. An orchestrator can keep shared profiles at its root while a platform repository
+adds or overrides its own. Each file must be valid on its own. Profiles and their `fields` merge by
+name, `requires_launch_env` merges by key, and a profile's `apps` list in the nearer file replaces the
+outer one. `amoo config validate` lists every file it layered. Schema:
 [`amoo-config.schema.json`](amoo-config.schema.json).
 
 ```json

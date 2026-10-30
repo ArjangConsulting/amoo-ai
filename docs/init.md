@@ -171,6 +171,11 @@ to that file, for example `iOS/NovaUITests` and `Android/app`. Profile lookup fr
 past its `.git` file to the orchestrator, then stops at the first `.git` directory (or a linked
 worktree's `.git` file) so a profile above the repository cannot leak in.
 
+A platform repository may keep its own `amoo.md` and `amoo.config.json`. They layer over the
+orchestrator's the way a nested `AGENTS.md` does: both apply and the inner file wins on any
+conflict. Objects merge key by key, arrays are replaced, and credential profiles merge by name. See
+[`test-context.md`](test-context.md) and [`credentials.md`](credentials.md).
+
 Configure a separate MCP server per platform using `amoo mcp serve --platform ios` and
 `amoo mcp serve --platform android`, both with the orchestrator as their working directory.
 Generated tests need explicit destinations: use `generate test --out iOS/<UITests>` or

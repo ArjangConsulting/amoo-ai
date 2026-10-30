@@ -2,7 +2,8 @@ import Foundation
 
 /// The checked-in `amoo.config.json` of a project: named credential profiles an agent can sign in
 /// with by reference, never by value. Found by walking up from the working directory to the
-/// repository root, like `amoo.md`. A project without one behaves exactly as before.
+/// repository root, like `amoo.md`, and layered the way nested `AGENTS.md` files are: every config on
+/// the way up applies and the nearer one wins. A project without one behaves exactly as before.
 public struct AmooProjectConfig: Codable, Equatable, Sendable {
     public static let fileName = "amoo.config.json"
     public static let supportedVersion = 1
@@ -25,21 +26,55 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
     public static func discover(
         from directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ) -> URL? {
+        discoverAll(from: directory).first
+    }
+
+    /// Every `amoo.config.json` from `directory` up to the repository root, nearest first. An
+    /// orchestrator keeps shared profiles at its root and a platform repository adds or overrides its own.
+    public static func discoverAll(
+        from directory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) -> [URL] {
+        var files: [URL] = []
         var root = directory.standardizedFileURL
         while true {
             let file = root.appendingPathComponent(fileName)
             if FileManager.default.fileExists(atPath: file.path) {
-                return file
+                files.append(file)
             }
-            if RepositoryTestProfile.isRepositoryBoundary(root) {
-                return nil
+            if RepositoryTestProfile.isRepositoryBoundary(root) || root.path == "/" {
+                return files
             }
-            let parent = root.deletingLastPathComponent()
-            if parent == root {
-                return nil
-            }
-            root = parent
+            root = root.deletingLastPathComponent()
         }
+    }
+
+    /// Loads each file, which must be valid on its own, and layers them. `files` is nearest first.
+    public static func load(layers files: [URL]) throws -> Self {
+        var merged: Self?
+        for file in files.reversed() {
+            let config = try load(file)
+            merged = merged.map { $0.overlaid(by: config) } ?? config
+        }
+        guard let merged else { throw AmooProjectConfigError(file: fileName, problem: "no config file given") }
+        return merged
+    }
+
+    /// `inner` wins: profiles and their fields merge by name, a profile's `apps` list is replaced, and
+    /// its launch requirements merge by key.
+    func overlaid(by inner: Self) -> Self {
+        var result = self
+        for (name, profile) in inner.profiles {
+            guard let outer = result.profiles[name] else {
+                result.profiles[name] = profile
+                continue
+            }
+            result.profiles[name] = CredentialProfile(
+                apps: profile.apps,
+                requiresLaunchEnv: outer.requiresLaunchEnv.merging(profile.requiresLaunchEnv) { _, new in new },
+                fields: outer.fields.merging(profile.fields) { _, new in new }
+            )
+        }
+        return result
     }
 
     /// Decodes and validates a config file. Errors name the file and the offending entry.
