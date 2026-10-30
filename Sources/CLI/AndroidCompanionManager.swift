@@ -416,29 +416,6 @@ final class AndroidCompanionManager: @unchecked Sendable {
             .processResult
     }
 
-    private func installAPKs(
-        config: AndroidCompanionConfig,
-        appApkPath: String,
-        testApkPath: String
-    ) async throws {
-        for (label, apkPath) in [("app", appApkPath), ("test", testApkPath)] {
-            let result: ProcessResult
-            do {
-                result = try await Adb(context: shellContext)
-                    .serial(config.serial)
-                    .install(apk: apkPath, replace: true)
-                    .run()
-                    .processResult
-            } catch {
-                throw AndroidCompanionError.installFailed(error.localizedDescription)
-            }
-            if result.exitCode != 0 {
-                let message = result.stderr.isEmpty ? result.stdout : result.stderr
-                throw AndroidCompanionError.installFailed("Failed to install Android \(label) APK:\n\(message)")
-            }
-        }
-    }
-
     private func forwardPort(config: AndroidCompanionConfig) async throws {
         let result: ProcessResult
         do {
