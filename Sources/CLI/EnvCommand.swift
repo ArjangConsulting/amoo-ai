@@ -30,6 +30,8 @@ struct EnvUpOptions: Equatable {
     /// Digest of `appPath` when the caller already computed it (init hashes once for all devices).
     var appSHA256: String?
     var launch = false
+    /// Android recovery: start the named offline AVD without loading or saving snapshots.
+    var coldBoot = false
     var owner: String?
     var ttlMinutes: Int?
     var readyTimeoutSeconds: Int?
@@ -66,6 +68,7 @@ func renderEnvHelp() -> String {
       up     --platform ios|android
              [--device <udid|emulator-serial>]
              [--avd <name>]
+             [--cold-boot]                            Android: bypass snapshots; preserves app data
              [--runtime <iOS-27.0>] [--model <name>]
              [--runtime-id <id>]                      reuse an owned, running runtime
              [--port <n>]                             default: first free 22093+
@@ -121,6 +124,7 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
     options.appPath = try flags.value("--app")
     options.appID = try flags.value("--app-id")
     options.launch = flags.take("--launch")
+    options.coldBoot = flags.take("--cold-boot")
     options.owner = try flags.value("--owner")
     options.ttlMinutes = try flags.int("--ttl")
     options.readyTimeoutSeconds = try flags.int("--ready-timeout")
@@ -131,6 +135,11 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
     }
     if platform == .ios, options.avd != nil {
         throw EnvCommandParseError.usage("--avd is Android-only; use --runtime/--model for iOS.")
+    }
+    if options.coldBoot,
+       platform != .android || options.avd == nil || options.deviceID != nil || options.runtimeID != nil {
+        throw EnvCommandParseError
+            .usage("--cold-boot needs an Android --avd and cannot reuse --device or --runtime-id.")
     }
     return options
 }

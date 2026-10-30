@@ -144,9 +144,13 @@ private func resolveEnvAndroidDevice(
     if let avd = options.avd {
         switch await selector.resolve(hint: avd) {
         case let .running(serial, _) where serial.hasPrefix("emulator-"):
+            guard !options.coldBoot else {
+                throw EnvError
+                    .noDevice("AVD '\(avd)' is already running. Verify device_shutdown before using --cold-boot.")
+            }
             return EnvDeviceReport(id: serial, name: nil, os: nil, avd: avd, bootedByEnv: false)
         case .bootAVD:
-            let booted = try await selector.bootVirtualDevice(name: avd)
+            let booted = try await selector.bootVirtualDevice(name: avd, coldBoot: options.coldBoot)
             return EnvDeviceReport(id: booted.id, name: nil, os: nil, avd: avd, bootedByEnv: true)
         case .running, .unmatched:
             throw await EnvError.noDevice("No AVD named '\(avd)'. Installed: "

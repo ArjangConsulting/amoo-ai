@@ -15,6 +15,8 @@ actor MockADBRunner: ADBRunning {
     private var _stoppedRecordings = 0
     private var _pulledFiles: [(remotePath: String, localPath: String)] = []
     private var _rawCommands: [[String]] = []
+    private var rawResponses: [[String]: [ProcessResult]] = [:]
+    private var rawFailureCounts: [[String]: Int] = [:]
     private var _openURLCalls: [String] = []
     private var _packageList = "package:com.example.app\n"
     private var _failingRawCommandSuffix: [String]?
@@ -31,6 +33,18 @@ actor MockADBRunner: ADBRunning {
 
     func run(_ arguments: [String]) async throws -> ProcessResult {
         _rawCommands.append(arguments)
+        let command = arguments.first == "-s" ? Array(arguments.dropFirst(2)) : arguments
+        if let remaining = rawFailureCounts[command], remaining > 0 {
+            rawFailureCounts[command] = remaining - 1
+            throw AmooError.timeout(operation: "mock adb read", duration: Duration(milliseconds: 2000))
+        }
+        if var responses = rawResponses[command], let response = responses.first {
+            if responses.count > 1 {
+                responses.removeFirst()
+            }
+            rawResponses[command] = responses
+            return response
+        }
         if let result = settingsCommand(arguments) {
             return result
         }
@@ -46,6 +60,9 @@ actor MockADBRunner: ADBRunning {
         }
         if arguments.last == "get-state" {
             return ProcessResult(exitCode: 0, stdout: "device\n", stderr: "")
+        }
+        if Array(arguments.suffix(3)) == ["shell", "echo", "amoo-health"] {
+            return ProcessResult(exitCode: 0, stdout: "amoo-health\n", stderr: "")
         }
         let isBootProperty = Array(arguments.suffix(3)) == ["shell", "getprop", "sys.boot_completed"]
         if let subject = arguments.last, arguments.dropLast().last == "dumpsys", let output = _dumpsysOutputs[subject] {
@@ -165,6 +182,14 @@ actor MockADBRunner: ADBRunning {
         _rawCommands
     }
 
+    func stubRawCommand(_ command: [String], outputs: [String], exitCode: Int32 = 0) {
+        rawResponses[command] = outputs.map { ProcessResult(exitCode: exitCode, stdout: $0, stderr: "") }
+    }
+
+    func failRawCommand(_ command: [String], times: Int) {
+        rawFailureCounts[command] = times
+    }
+
     func openURLCalls() -> [String] {
         _openURLCalls
     }
@@ -198,6 +223,18 @@ actor MockEmulatorRunner: EmulatorRunning {
     private(set) var launches: [String] = []
     /// When set, `launchProcess` hands this back so boot waits can watch the "process".
     var handle: EmulatorInstance?
+    private var registrations: [[AndroidEmulatorRegistration]] = [[]]
+
+    func stubRegistrations(_ snapshots: [[AndroidEmulatorRegistration]]) {
+        registrations = snapshots
+    }
+
+    func runningEmulators() async throws -> [AndroidEmulatorRegistration] {
+        if registrations.count > 1 {
+            return registrations.removeFirst()
+        }
+        return registrations.first ?? []
+    }
 
     func setHandle(_ handle: EmulatorInstance?) {
         self.handle = handle

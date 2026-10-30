@@ -37,10 +37,6 @@ public actor AndroidDriver: PlatformDriver {
 
     // MARK: - DeviceDriver
 
-    public func shutdown() async throws {
-        try await adb.killEmulator(serial: activeSerial)
-    }
-
     public func deviceInfo() async throws -> DeviceInfo {
         let devices = try await connectedDevices()
         guard let device = devices.first(where: { $0.serial == activeSerial && $0.state == "device" }) else {

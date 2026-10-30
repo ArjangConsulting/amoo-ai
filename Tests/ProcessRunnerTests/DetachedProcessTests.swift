@@ -44,6 +44,15 @@ final class DetachedProcessTests: XCTestCase {
         XCTAssertEqual(command.arguments, ["-avd", "Pixel Test", "-no-snapshot-save", "-port", "5556"])
         XCTAssertEqual(command.stdoutDestination, command.stderrDestination)
     }
+
+    func testColdBootBypassesSnapshotsWithoutWipingAppData() async throws {
+        let mock = MockExecutor()
+        let runner = EmulatorRunner(context: ShellContext(executor: mock), coldBoot: true)
+        try await runner.launch(avdName: "Test_AVD", port: 5556)
+        let command = try XCTUnwrap(mock.recordedCommands.first)
+        XCTAssertTrue(command.arguments.contains("-no-snapshot"))
+        XCTAssertFalse(command.arguments.contains("-wipe-data"))
+    }
 }
 
 /// The `am start` argument building and launcher parsing are covered by MobileDevices' own tests;
