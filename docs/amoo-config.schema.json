@@ -40,6 +40,11 @@
       "properties": {
         "class": { "enum": ["identifier", "secret"] },
         "literal": { "type": "string" },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "An environment variable of the amoo process, read at sign-in."
+        },
         "keychain": {
           "type": "object",
           "required": ["service", "account"],
@@ -50,7 +55,7 @@
           }
         }
       },
-      "oneOf": [{ "required": ["literal"] }, { "required": ["keychain"] }]
+      "oneOf": [{ "required": ["literal"] }, { "required": ["keychain"] }, { "required": ["env"] }]
     }
   }
 }

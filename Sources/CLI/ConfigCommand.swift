@@ -93,9 +93,10 @@ func renderConfigHelp() -> String {
       }
 
     apps limits where a profile may be typed; requires_launch_env must match the launch environment
-    amoo sent the app ("*" = present). A secret only fills a secure field. Literal values are for
-    mock accounts only; a real account uses {"keychain": {"service": …, "account": …}} instead.
-    `amoo credentials add` writes either kind for you. See docs/credentials.md.
+    amoo sent the app ("*" = present). A secret only fills a secure field. A field's value comes from
+    one of: "literal" (in this file; for QA, staging or mock test accounts), "env" (an environment
+    variable of the amoo process), or "keychain" ({"service": …, "account": …} in the macOS Keychain).
+    `amoo credentials add` writes any of them for you. See docs/credentials.md.
 
     Exit codes: 0 valid, 1 missing or invalid, 64 usage error.
     """

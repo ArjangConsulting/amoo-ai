@@ -140,6 +140,12 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
                 if field.isEmpty || field.contains("#") {
                     problems.append("profile '\(name)' field '\(field)' must be non-empty and must not contain '#'")
                 }
+                if case let .environment(variable) = credential.source,
+                   !CredentialField.isValidEnvironmentName(variable) {
+                    problems.append(
+                        "profile '\(name)' field '\(field)' names an invalid environment variable '\(variable)'"
+                    )
+                }
                 if case let .keychain(service, account) = credential.source, service.isEmpty || account.isEmpty {
                     problems.append("profile '\(name)' field '\(field)' needs a keychain service and account")
                 }
@@ -214,10 +220,18 @@ public struct CredentialProfile: Codable, Equatable, Sendable {
 /// One value of a profile and where it comes from.
 public struct CredentialField: Codable, Equatable, Sendable {
     public enum Source: Equatable, Sendable {
-        /// A non-secret value checked into the config, such as a mock account's password.
+        /// A value checked into the config: a mock, QA or staging test account the team may share.
         case literal(String)
         /// A generic-password item in the user's keychain.
         case keychain(service: String, account: String)
+        /// An environment variable of the amoo process (`amoo device`'s shell, or the MCP client's
+        /// server `env`). Nothing is stored; the value is read at sign-in.
+        case environment(String)
+    }
+
+    /// A portable environment variable name: letters, digits and `_`, not starting with a digit.
+    public static func isValidEnvironmentName(_ name: String) -> Bool {
+        name.range(of: "^[A-Za-z_][A-Za-z0-9_]*$", options: .regularExpression) != nil
     }
 
     /// `secret` values may only fill a secure text field and are scrubbed from every amoo output.
@@ -234,7 +248,7 @@ public struct CredentialField: Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case literal, keychain
+        case literal, keychain, env
         case fieldClass = "class"
     }
 
@@ -248,15 +262,18 @@ public struct CredentialField: Codable, Equatable, Sendable {
         fieldClass = try container.decode(Class.self, forKey: .fieldClass)
         let literal = try container.decodeIfPresent(String.self, forKey: .literal)
         let keychain = try container.decodeIfPresent(KeychainItem.self, forKey: .keychain)
-        switch (literal, keychain) {
-        case let (value?, nil):
+        let environment = try container.decodeIfPresent(String.self, forKey: .env)
+        switch (literal, keychain, environment) {
+        case let (value?, nil, nil):
             source = .literal(value)
-        case let (nil, item?):
+        case let (nil, item?, nil):
             source = .keychain(service: item.service, account: item.account)
+        case let (nil, nil, name?):
+            source = .environment(name)
         default:
             throw DecodingError.dataCorrupted(.init(
                 codingPath: container.codingPath,
-                debugDescription: "a field needs exactly one of 'literal' or 'keychain'"
+                debugDescription: "a field needs exactly one of 'literal', 'keychain' or 'env'"
             ))
         }
     }
@@ -269,6 +286,8 @@ public struct CredentialField: Codable, Equatable, Sendable {
             try container.encode(value, forKey: .literal)
         case let .keychain(service, account):
             try container.encode(KeychainItem(service: service, account: account), forKey: .keychain)
+        case let .environment(name):
+            try container.encode(name, forKey: .env)
         }
     }
 }
