@@ -29,6 +29,20 @@ public enum DeviceTools {
             ]
         ),
         ToolDefinition(
+            name: "device_wake",
+            description: "Wake an Android device's screen and report its observed power/lock state."
+                + " Does not relaunch the app. A locked display sleeps again after about 10 seconds. Set"
+                + " unlock=true to dismiss a swipe keyguard; a PIN, pattern or passphrase is never entered and"
+                + " fails with credential_required. Use before visible layout checks when a screenshot"
+                + " reports screen_state=off.",
+            properties: [
+                "unlock": .init(
+                    type: "string",
+                    description: "'true' to dismiss a keyguard that needs no credential. Defaults to false."
+                )
+            ]
+        ),
+        ToolDefinition(
             name: "device_shutdown",
             description: "Shut down the simulator/emulator device"
         ),
@@ -141,6 +155,28 @@ public enum DeviceTools {
                 )
             ],
             required: ["key"]
+        ),
+        ToolDefinition(
+            name: "set_posture",
+            title: "Set Posture",
+            description: "Change an Android foldable emulator's hinge posture. Verifies the committed device state."
+                + " Supports closed, half_opened, and opened. Physical devices and iOS are unsupported."
+                + " Re-query elements after the transition; coordinates and visible displays can change.",
+            properties: [
+                "posture": .init(type: "string", description: "closed, half_opened, or opened")
+            ],
+            required: ["posture"]
+        ),
+        ToolDefinition(
+            name: "set_display_preset",
+            title: "Set Display Preset",
+            description: "Resize an Android resizable emulator to phone, unfolded, or tablet."
+                + " Verifies the preset's advertised dimensions and density. Requires a resizable AVD;"
+                + " physical devices, fixed-size emulators, and iOS are unsupported. Re-query elements afterwards.",
+            properties: [
+                "preset": .init(type: "string", description: "phone, unfolded, or tablet")
+            ],
+            required: ["preset"]
         ),
         ToolDefinition(
             name: "set_orientation",

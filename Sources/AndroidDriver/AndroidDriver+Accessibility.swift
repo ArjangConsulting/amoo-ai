@@ -14,7 +14,17 @@ public extension AndroidDriver {
         async let rpc = ConnectivityHealth.probe(source: "companion capabilities RPC") {
             _ = try await companion.getCapabilities()
         }
-        return await ConnectivityHealth(deviceTransport: device, companionRPC: rpc)
+        async let execution = ConnectivityHealth.probe(source: "Android shell echo") {
+            let result = try await adb.run(serialArguments + ["shell", "echo", "amoo-health"], timeoutSeconds: 2)
+            guard result.exitCode == 0,
+                  result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "amoo-health" else {
+                throw AmooError.commandFailed(
+                    command: "device_health",
+                    output: "Android shell did not respond correctly"
+                )
+            }
+        }
+        return await ConnectivityHealth(deviceTransport: device, companionRPC: rpc, deviceExecution: execution)
     }
 
     func inspectAccessibility(

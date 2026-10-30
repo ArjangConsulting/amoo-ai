@@ -53,10 +53,13 @@ extension AndroidDriver {
         guard let powerDump = try? await adb.run(adbArgs() + ["shell", "dumpsys", "power"], timeoutSeconds: 2) else {
             return nil
         }
-        if powerDump.stdout.contains("mWakefulness=Asleep") || powerDump.stdout.contains("mWakefulness=Dozing") {
+        let globalWakefulness = powerDump.stdout.split(whereSeparator: \.isNewline).first(where: {
+            $0.trimmingCharacters(in: .whitespaces).hasPrefix("mWakefulness=")
+        })?.trimmingCharacters(in: .whitespaces)
+        if globalWakefulness == "mWakefulness=Asleep" || globalWakefulness == "mWakefulness=Dozing" {
             return .off
         }
-        guard powerDump.stdout.contains("mWakefulness=Awake") else { return nil }
+        guard globalWakefulness == "mWakefulness=Awake" else { return nil }
         guard let windowDump = try? await adb.run(adbArgs() + ["shell", "dumpsys", "window"], timeoutSeconds: 2) else {
             return .on
         }

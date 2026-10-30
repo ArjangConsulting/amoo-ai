@@ -2,11 +2,23 @@ import AmooCore
 import AndroidDriver
 import CompanionProtocol
 import IOSDriver
+import MCPServer
+import ProcessRunner
 
 extension DeviceCommandOptions {
     func acquireDeviceAccess(store: DeviceRuntimeStore = DeviceRuntimeStore()) throws -> DeviceAccessLock? {
         try acquireRuntimeDeviceAccess(deviceID: deviceID, runtimeID: runtimeID, store: store)
     }
+}
+
+func makeDeviceToolExecutor(_ options: DeviceCommandOptions, driver: any PlatformDriver) -> DriverToolExecutor {
+    DriverToolExecutor(
+        driver: driver,
+        foreignBuildDetector: ForeignBuildDetector(),
+        webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
+        defaultPlatform: options.platform,
+        defaultDeviceID: options.deviceID
+    )
 }
 
 func makeDeviceCommandDriver(

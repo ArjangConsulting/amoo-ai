@@ -16,20 +16,30 @@ public struct ConnectivityHealth: Sendable, Codable, Equatable {
 
     public var deviceTransport: Probe
     public var companionRPC: Probe
+    /// Guest command execution is independent of the host ADB server and companion RPC listener.
+    public var deviceExecution: Probe?
 
     public var failureScope: String {
         if ["failed", "timed_out"].contains(deviceTransport.status) {
             return "device_transport"
         }
+        if deviceTransport.status == "responded", let deviceExecution,
+           ["failed", "timed_out"].contains(deviceExecution.status) {
+            return "device_execution"
+        }
         if deviceTransport.status == "responded", ["failed", "timed_out"].contains(companionRPC.status) {
             return "companion_channel"
+        }
+        if let deviceExecution, deviceExecution.status != "responded" {
+            return "unknown"
         }
         return deviceTransport.status == "responded" && companionRPC.status == "responded" ? "none" : "unknown"
     }
 
-    public init(deviceTransport: Probe, companionRPC: Probe) {
+    public init(deviceTransport: Probe, companionRPC: Probe, deviceExecution: Probe? = nil) {
         self.deviceTransport = deviceTransport
         self.companionRPC = companionRPC
+        self.deviceExecution = deviceExecution
     }
 
     /// Measures read-only work under its own monotonic deadline and retains a timeout as uncertainty about that

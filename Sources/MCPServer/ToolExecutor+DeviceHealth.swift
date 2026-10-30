@@ -28,6 +28,7 @@ extension DriverToolExecutor {
         }
         return .success(
             "Device transport: \(health.deviceTransport.status); companion RPC: \(health.companionRPC.status)."
+                + (health.deviceExecution.map { " Android shell: \($0.status)." } ?? "")
                 + " Failure scope: \(health.failureScope). App/render readiness is reported separately.",
             structuredContent: .object(fields)
         )

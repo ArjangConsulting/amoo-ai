@@ -38,9 +38,13 @@ public extension AndroidDriver {
         return reported
     }
 
-    /// Element frames are screen pixels. `wm density` reports the physical density and, when one is
-    /// set, the override that actually lays out the UI; dp = px * 160 / dpi.
+    /// Element frames are screen pixels. The active display density accounts for resizable presets;
+    /// `wm density` is a fallback when active display information is unavailable. dp = px * 160 / dpi.
     func elementGeometry() async throws -> ElementGeometry? {
+        if let display = try? await adb.run(adbArgs() + ["shell", "dumpsys", "display"], timeoutSeconds: 2),
+           let configuration = Self.activeDisplayConfiguration(display.stdout) {
+            return ElementGeometry(unit: "dp", framesPerUnit: Double(configuration.densityDPI) / 160)
+        }
         guard let result = try? await adb.run(adbArgs() + ["shell", "wm", "density"], timeoutSeconds: 5),
               result.exitCode == 0, let dpi = Self.effectiveDensity(result.stdout) else { return nil }
         return ElementGeometry(unit: "dp", framesPerUnit: dpi / 160)

@@ -21,6 +21,21 @@ public extension CommandCoverageMatrix {
     /// file under the length limit.
     static let mcpCompanionCommands: [CommandCoverage] = [
         .init(
+            name: "device_wake", channel: .mcp, kind: .deterministic,
+            releaseTier: .informational, platforms: [.android], fixtureScreen: .environment,
+            expectedAssertion: "display reports awake or locked without bypassing the lock screen"
+        ),
+        .init(
+            name: "set_posture", channel: .mcp, kind: .deterministic,
+            releaseTier: .informational, platforms: [.android], fixtureScreen: .environment,
+            expectedAssertion: "foldable emulator commits the requested hinge posture"
+        ),
+        .init(
+            name: "set_display_preset", channel: .mcp, kind: .deterministic,
+            releaseTier: .informational, platforms: [.android], fixtureScreen: .environment,
+            expectedAssertion: "resizable emulator reports the preset's advertised dimensions and density"
+        ),
+        .init(
             name: "assert_talkback_speech", channel: .mcp, kind: .deterministic,
             releaseTier: .informational, platforms: [.android], fixtureScreen: .audit,
             expectedAssertion: "explicit speech expectations compare to actual synthesis input"

@@ -141,6 +141,9 @@ Common tools:
       home|end|page_up|page_down|<char>>
       [modifiers=<command,shift,option,control>]
   set_orientation orientation=<portrait|landscape_left|landscape_right|portrait_upside_down>
+  set_posture posture=<closed|half_opened|opened>            Android foldable emulator
+  device_wake [unlock=<true|false>]                        Android: wake; unlock=true clears a swipe lock only
+  set_display_preset preset=<phone|unfolded|tablet>          Android resizable emulator
   list_devices [platform=<ios|android>] [include_offline=<true|false>]
   open_url url=<url>
 
@@ -194,6 +197,11 @@ Live frames:
   amoo device stream [--platform ios|android] [--device <id>] [--fps <n>] streams screenshots as
   PNG files plus one JSON line per frame, without a companion or session. See
   `amoo device stream --help`.
+
+Native video:
+  amoo device --platform android --runtime-id <id> record_video output=<path.mp4> duration_seconds=5
+  Records for 1–60 seconds using the device encoder. Run gestures in another CLI call using the
+  same runtime while it records. Frame rate depends on the device; use this for animation evidence.
 
 Defaults:
   platform=ios
@@ -414,12 +422,10 @@ func runDeviceCommand(
     }
 
     let driver = await makeDeviceCommandDriver(options, companion: companion)
-    let executor = DriverToolExecutor(
-        driver: driver,
-        foreignBuildDetector: ForeignBuildDetector(),
-        webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
-        defaultPlatform: options.platform
-    )
+    if options.tool == "record_video" {
+        return await runDeviceVideoCommand(options: options, driver: driver, companion: companion)
+    }
+    let executor = makeDeviceToolExecutor(options, driver: driver)
 
     // The WebView tools need to know which platform's debug bridge to use; `--platform` is a
     // device flag, not a tool argument, so surface it as one for them.
@@ -439,24 +445,6 @@ func runDeviceCommand(
         isError: result.isError,
         structured: result.structuredContent
     )
-}
-
-/// Rejects argument keys the tool does not declare, naming the ones it does.
-///
-/// Tools read the keys they know and ignore the rest, so a misspelt or guessed key — `query=`
-/// for `find_elements` — ran the call unfiltered and returned every element on screen, which
-/// reads like a real answer. `nil` when the call is fine or amoo has no schema for the tool (the
-/// executor reports unknown tools itself).
-func unknownArgumentMessage(tool: String, arguments: [String: String]) -> String? {
-    guard let definition = MCPServer().toolDefinitions().first(where: { $0.name == tool }) else {
-        return nil
-    }
-    let unknown = Set(arguments.keys).subtracting(definition.properties.keys).sorted()
-    guard !unknown.isEmpty else { return nil }
-    let accepted = definition.properties.keys.filter { $0 != "session_id" }.sorted()
-    let noun = unknown.count == 1 ? "argument" : "arguments"
-    return "Unknown \(noun) for \(tool): \(unknown.joined(separator: ", ")). "
-        + (accepted.isEmpty ? "It takes no arguments." : "Accepted: \(accepted.joined(separator: ", ")).")
 }
 
 /// Turns a bare transport failure into something actionable.

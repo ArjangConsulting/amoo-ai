@@ -3,6 +3,17 @@ import AmooCore
 import XCTest
 
 final class AndroidElementGeometryTests: XCTestCase {
+    func testResizableActiveDensityWinsOverStalePhysicalDensity() async throws {
+        let adb = MockADBRunner()
+        await adb.stubRawCommand(
+            ["shell", "dumpsys", "display"],
+            outputs: ["mOverrideDisplayInfo=DisplayInfo{displayId 0, real 1920 x 1200, density 240}"]
+        )
+        await adb.stubRawCommand(["shell", "wm", "density"], outputs: ["Physical density: 420"])
+        let geometry = try await AndroidDriver(companion: MockCompanionClient(), adb: adb).elementGeometry()
+        XCTAssertEqual(geometry?.framesPerUnit, 1.5)
+    }
+
     func testOverrideDensityWinsOverPhysicalDensity() {
         XCTAssertEqual(AndroidDriver.effectiveDensity("Physical density: 420\nOverride density: 480\n"), 480)
         XCTAssertEqual(AndroidDriver.effectiveDensity("Physical density: 420\n"), 420)
