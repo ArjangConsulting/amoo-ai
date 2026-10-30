@@ -176,6 +176,7 @@ jobs:
           disable-animations: true
           script: |
             make sample-app-compose-test
+            (cd CompanionApps/Android && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.amoo.companion.bridge.HierarchyCaptureTests)
             bash -o pipefail -c 'scripts/run-e2e-android.sh 2>&1 | tee smoke-android.log'
       - uses: actions/upload-artifact@v7
         if: always()
