@@ -55,6 +55,7 @@ public struct MCPStdioServer: Sendable {
     assert_selected (expected=true|false; find_elements only observes). Dispatch is not a postcondition.
     After timeout, inspect before retrying.
     masked_change cannot prove equality; record_value=fixture only for non-sensitive test data.
+    Sign in with credential=<profile>#<field>, never a password; return blocked: results.
     Use run_steps for known sequences; inspect at decisions.
 
     Screenshots=pixels; gestures=points. Read geometry/scale. Wake/unlock locked/off

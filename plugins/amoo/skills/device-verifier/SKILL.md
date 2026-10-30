@@ -113,6 +113,10 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
   identical install failure fall back to another AVD or API level (prefer API 35) unless the caller pinned
   it. Holders owned by other clients go back to the caller. See driving-amoo
   `references/execution-modes.md`, "Device claims and companion failures".
+- Signed-in checks use `credential="<profile>#<field>"` from the project's `amoo.config.json` with
+  `--runtime-id`, never a typed password. Mock profile first, keychain second, else report
+  `blocked: no credentials`; never ask for a password or retry a `blocked:` result. See driving-amoo
+  `references/credentials.md`.
 - iOS WebViews are reached through the simulator's own Web Inspector (no proxy); Android
   through the WebView devtools socket. Both need the app's debug build to allow inspection.
 

@@ -45,6 +45,11 @@ add reset flags only for a requested clean store and remove them for persistence
 - Budget: stop after `budget.setup_minutes` (default 5) of setup failures or 2 identical
   failures, and report `blocked`. Never spend time working around amoo — report it.
 - Pass flags to amoo as separate arguments (zsh does not word-split `$VAR`; use arrays).
+- Sign in only with `credential="<profile>#<field>"` (profiles in the project's `amoo.config.json`) on
+  `amoo device … fill_field --runtime-id <runtime>`; amoo types the value and you never see it. Prefer a mock profile, then a
+  keychain profile; with neither, report `blocked: no credentials`. Never invent an account, ask for a
+  password, put one in `text`/`value`/launch env, tap "show password", or retry a `blocked:` result.
+  Details: driving-amoo `references/credentials.md`.
 
 ## Device recovery
 

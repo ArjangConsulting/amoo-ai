@@ -29,7 +29,10 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         }
         XCTAssertTrue(instructions.contains("Leave other clients running"))
         XCTAssertTrue(instructions.contains("MCP-only requirements remain blocked"))
-        for recovery in ["deviceClaimed", "Never run bare doctor --kill-stale", "INSTALL_FAILED", "reset_companion"] {
+        for recovery in [
+            "deviceClaimed", "Never run bare doctor --kill-stale", "INSTALL_FAILED", "reset_companion",
+            "credential=<profile>#<field>"
+        ] {
             XCTAssertTrue(instructions.contains(recovery), recovery)
         }
     }
@@ -40,7 +43,7 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         let skill = root.appendingPathComponent("plugins/amoo/skills/driving-amoo/SKILL.md")
         let text = try String(contentsOf: skill, encoding: .utf8)
         XCTAssertLessThan(text.split(separator: "\n").count, 150)
-        for reference in ["coordinates.md", "recording.md"] {
+        for reference in ["coordinates.md", "recording.md", "credentials.md"] {
             XCTAssertTrue(text.contains("references/\(reference)"))
             XCTAssertTrue(FileManager.default.fileExists(atPath: skill.deletingLastPathComponent()
                     .appendingPathComponent("references/\(reference)").path))

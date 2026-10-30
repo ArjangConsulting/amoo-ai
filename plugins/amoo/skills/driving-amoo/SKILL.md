@@ -112,8 +112,8 @@ For unlabeled controls, image coordinates, or reusing geometry across taps, read
 after it; re-query before and after each one rather than chaining blind taps.
 An unlabeled control can still be located by an unfiltered find_elements query.
 
-Use record_value=fixture only for explicitly non-sensitive test data that belongs in generated
-code. The default records typed values as redacted. Never mark credentials as fixtures.
+Use record_value=fixture only for non-sensitive test data; typed values are recorded redacted. Sign in
+only with `credential="<profile>#<field>"`, never a typed password: read [sign-in](references/credentials.md).
 
 For connection errors, stale targets, timeouts, transport closure, `deviceClaimed`, an unresponsive or
 failed-to-install companion, read [recovery](references/execution-modes.md#recover) before retrying.
