@@ -26,12 +26,13 @@ enum InitSignInStatus: Equatable {
         switch self {
         case .missing:
             "- Sign-in: no `\(AmooProjectConfig.fileName)`; signed-in flows report `blocked: no credentials`"
-                + " (see `amoo config --help`)."
+                + " until a person runs `amoo credentials add`."
         case let .invalid(path, _):
             "- Sign-in: `\(portableInitPath(path, relativeTo: base))` is invalid; run `amoo config validate`."
         case let .configured(path, _):
             "- Sign-in: profiles in `\(portableInitPath(path, relativeTo: base))`; pass"
-                + " `credential=<profile>#<field>`, never a password."
+                + " `credential=<profile>#<field>`, never a password. A person adds accounts with"
+                + " `amoo credentials add`."
         }
     }
 
@@ -42,9 +43,9 @@ enum InitSignInStatus: Equatable {
             return """
 
             Sign in during tests
-            No \(AmooProjectConfig.fileName) yet, so agents report `blocked: no credentials` for signed-in flows.
-            To let them sign in without seeing a password, add one at the repository root with a profile
-            per test account, then run `amoo config validate`. `amoo config --help` shows an example.
+            No sign-in account yet, so agents report `blocked: no credentials` for signed-in flows.
+            Add one any time with `amoo credentials add`: a mock account is saved in
+            \(AmooProjectConfig.fileName), a real one in your macOS Keychain. Agents never see the password.
             """
         case let .invalid(path, problem):
             return """
@@ -60,6 +61,7 @@ enum InitSignInStatus: Equatable {
             Sign in during tests
             \(AmooProjectConfig.fileName) declares \(declared).
             Agents sign in with credential=<profile>#<field> and never see the value.
+            Add or change accounts with `amoo credentials add`; `amoo credentials check` confirms Keychain access.
             """
         }
     }

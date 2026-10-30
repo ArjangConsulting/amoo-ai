@@ -77,6 +77,26 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
         return result
     }
 
+    /// Where a new config is created: the repository root at or above `directory`, else `directory`.
+    public static func defaultLocation(from directory: URL) -> URL {
+        var root = directory.standardizedFileURL
+        while !RepositoryTestProfile.isRepositoryBoundary(root) {
+            let parent = root.deletingLastPathComponent()
+            guard parent != root else { return directory.standardizedFileURL.appendingPathComponent(fileName) }
+            root = parent
+        }
+        return root.appendingPathComponent(fileName)
+    }
+
+    /// Writes the config as stable, reviewable JSON (sorted keys, trailing newline).
+    public func write(to file: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        var data = try encoder.encode(self)
+        data.append(contentsOf: Data("\n".utf8))
+        try data.write(to: file, options: .atomic)
+    }
+
     /// Decodes and validates a config file. Errors name the file and the offending entry.
     public static func load(_ file: URL) throws -> Self {
         let data: Data
@@ -170,6 +190,15 @@ public struct CredentialProfile: Codable, Equatable, Sendable {
         apps = try container.decode([String].self, forKey: .apps)
         requiresLaunchEnv = try container.decodeIfPresent([String: String].self, forKey: .requiresLaunchEnv) ?? [:]
         fields = try container.decode([String: CredentialField].self, forKey: .fields)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(apps, forKey: .apps)
+        if !requiresLaunchEnv.isEmpty {
+            try container.encode(requiresLaunchEnv, forKey: .requiresLaunchEnv)
+        }
+        try container.encode(fields, forKey: .fields)
     }
 
     /// The launch-environment keys that `environment` does not satisfy, sorted.

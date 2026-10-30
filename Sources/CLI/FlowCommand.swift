@@ -290,7 +290,11 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         if overrides.continueOnError {
             flow.onError = .continue
         }
-        let result = await runFlowSteps(flow, executor: DriverToolExecutor(driver: driver), context: context)
+        let executor = DriverToolExecutor(
+            driver: driver,
+            credentialResolver: CredentialResolver(store: KeychainCredentialStore())
+        )
+        let result = await runFlowSteps(flow, executor: executor, context: context)
 
         await companion.shutdown()
         openCompanion = nil

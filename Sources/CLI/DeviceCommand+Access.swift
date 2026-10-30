@@ -17,7 +17,8 @@ func makeDeviceToolExecutor(_ options: DeviceCommandOptions, driver: any Platfor
         foreignBuildDetector: ForeignBuildDetector(),
         webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
         defaultPlatform: options.platform,
-        defaultDeviceID: options.deviceID
+        defaultDeviceID: options.deviceID,
+        credentialResolver: CredentialResolver(store: KeychainCredentialStore())
     )
 }
 
