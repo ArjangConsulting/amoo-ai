@@ -4,6 +4,27 @@ An agent can sign in to the app under test without ever seeing a secret. The pro
 accounts in a checked-in **`amoo.config.json`**; the agent passes a reference,
 `credential="<profile>#<field>"`, and amoo resolves and types the value itself.
 
+## Adding an account
+
+A person runs `amoo credentials add` in a terminal (guided `amoo init` offers the same step). It asks
+for a profile name, the app ids the account may sign in to, the email or username, the password (not
+echoed), and any launch environment amoo must have set, then writes the profile to the nearest
+`amoo.config.json` (the repository root when there is none):
+
+- **Mock account**: both values are saved in `amoo.config.json` and committed. Only for a backend that
+  accepts any password, such as a Firebase Auth emulator.
+- **Real account** (macOS): both values are saved in the login Keychain as `amoo.<app id>` /
+  `<profile>.<field>` items, and the file keeps only those references.
+
+It never accepts a value as a flag, an environment variable, or without a terminal, so an agent cannot
+add or read one. `amoo credentials check [<profile>]` reports each field as found, missing or locked,
+never the value.
+
+Items amoo saves trust the amoo binary, so agents read them without a prompt. A rebuilt binary (a local
+debug build) has a new signature: macOS asks again, and an agent's read reports `blocked: credential
+store locked` after 10 seconds instead of waiting. Run `amoo credentials check` and choose
+**Always Allow**.
+
 ## `amoo.config.json`
 
 Found by walking up from the working directory (the MCP server's, or the shell's for `amoo device`)
@@ -45,10 +66,11 @@ outer one. `amoo config validate` lists every file it layered. Schema:
 | `apps` | Bundle / package ids the profile may be typed into. |
 | `requires_launch_env` | Launch environment amoo must have sent to the app; `*` means the key only has to be present. This is what keeps a staging account out of a build pointed elsewhere. |
 | `fields.<name>.literal` | A value checked into the repository. Only for non-secrets, such as a mock backend that accepts any password. |
-| `fields.<name>.keychain` | A generic-password item (`service`, `account`) in the user's keychain. Not available yet: resolves to `blocked: no credential store`. |
+| `fields.<name>.keychain` | A generic-password item (`service`, `account`) in the user's macOS login Keychain, written by `amoo credentials add`. On Linux it resolves to `blocked: no credential store`. |
 | `fields.<name>.class` | `secret` fills only a secure (password) field and is scrubbed from every amoo output; `identifier` (an email, a username) fills any field. |
 
-`amoo config validate [--path <file>] [--json]` checks the file without reading any value.
+`amoo config validate [--path <file>] [--json]` checks the file without reading any value;
+`amoo credentials add` writes it for you.
 
 ## Using a credential
 
@@ -90,9 +112,9 @@ on the launch intent.
 
 | Result | Cause |
 | --- | --- |
-| `blocked: no credentials` | No config, unknown profile or field, empty value, or no keychain item |
+| `blocked: no credentials` | No config, unknown profile or field, empty value, or no Keychain item; a person runs `amoo credentials add` |
 | `blocked: profile not allowed for <app>` | Not launched by amoo, wrong app, or missing launch environment |
-| `blocked: credential store locked` | The keychain needs a person |
+| `blocked: credential store locked` | The Keychain is locked, or macOS is asking whether amoo may read the item; a person runs `amoo credentials check` |
 | `blocked: no credential store on this platform or build` | A keychain field on Linux or a build without a store |
 
 These carry `"blocked": true` in structured content and are never retried.

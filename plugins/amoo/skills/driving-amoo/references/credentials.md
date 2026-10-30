@@ -41,9 +41,11 @@ works inside `run_steps` steps too.
 
 | Result | Meaning | Caller's move |
 | --- | --- | --- |
-| `blocked: no credentials` | No `amoo.config.json`, unknown profile/field, or no keychain item | Add the profile or item |
+| `blocked: no credentials` | No `amoo.config.json`, unknown profile/field, or no keychain item | A person runs `amoo credentials add` |
 | `blocked: profile not allowed for <app>` | Wrong app, or launched without the required environment | Relaunch through amoo with that environment, or use the right profile |
-| `blocked: credential store locked` | The keychain needs a person to unlock or approve amoo | A person unlocks it |
+| `blocked: credential store locked` | The keychain needs a person to unlock or approve amoo | A person runs `amoo credentials check` |
 | `blocked: no credential store on this platform or build` | Keychain profile on Linux or a build without one | Use a mock profile |
 
+Accounts are added by a person with `amoo credentials add`, which refuses to run without a terminal.
+Never run it, edit secret values in `amoo.config.json`, or call `security` yourself; report the gap.
 `amoo config validate` checks the file without reading any value. See `docs/credentials.md`.

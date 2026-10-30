@@ -76,7 +76,7 @@ final class InitSignInTests: XCTestCase {
     }
 
     func testSummaryNamesProfilesOrExplainsHowToAddThem() {
-        XCTAssertTrue(InitSignInStatus.missing.nextSteps.contains("amoo config --help"))
+        XCTAssertTrue(InitSignInStatus.missing.nextSteps.contains("amoo credentials add"))
         XCTAssertTrue(InitSignInStatus.invalid(path: "/r/amoo.config.json", problem: "bad").nextSteps
             .contains("amoo config validate"))
         let configured = InitSignInStatus.configured(path: "/r/amoo.config.json", profiles: ["mock-user", "staging"])

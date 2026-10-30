@@ -33,6 +33,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.2"),
         .package(url: "https://github.com/maniramezan/SwiftTestCommons.git", from: "0.3.0"),
+        // Tracks main until the release carrying swift-syntax 604 is tagged; then pin `from:`.
+        .package(url: "https://github.com/maniramezan/SwiftyChain.git", branch: "main"),
         // AmooLogging's Linux backend; Apple platforms log through OSLog.
         .package(url: "https://github.com/apple/swift-log.git", from: "1.16.1"),
         .package(url: "https://github.com/maniramezan/SwiftyShell.git", from: "0.7.0"),
@@ -163,6 +165,8 @@ let package = Package(
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "SwiftyTerminal", package: "SwiftyTerminal"),
                 .product(name: "SwiftyTerminalLineEditor", package: "SwiftyTerminal"),
+                // The Apple Keychain backs credential profiles; Linux reports no credential store.
+                .product(name: "SwiftyChain", package: "SwiftyChain", condition: .when(platforms: [.macOS])),
                 "AmooLogging"
             ]
         ),

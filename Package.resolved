@@ -1,5 +1,5 @@
 {
-  "originHash" : "1f5dc25e8b8ec6d1bcdd36938e9567bab78f9de354dc27d698e0954948309668",
+  "originHash" : "5e8b6bc587a90b2bd17aed6c4a74ea2d3a0379005bb733ad4e11a12ff4672cc9",
   "pins" : [
     {
       "identity" : "cli-wrappers",
@@ -278,6 +278,15 @@
       "state" : {
         "revision" : "3420590635e3c3bf869116679177051406d3b3a8",
         "version" : "0.4.2"
+      }
+    },
+    {
+      "identity" : "swiftychain",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maniramezan/SwiftyChain.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "4249b2103c70dddcfcae3dc855b4122a1c72bcbc"
       }
     },
     {
