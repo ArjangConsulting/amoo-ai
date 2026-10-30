@@ -27,6 +27,10 @@ public struct MCPStdioServer: Sendable {
     If needed, doctor --mcp-pid <pid> --kill-stale stops your identified stale server; reconnect.
     Leave other clients running. Recheck the new PID; never reuse old session IDs. If reconnect is
     unavailable, release ownership; use supported CLI work. MCP-only requirements remain blocked.
+    Never run bare doctor --kill-stale. deviceClaimed names the holder pid: dead clears on one retry;
+    live and yours, end it; else use another device. Unresponsive companion on your lease:
+    end_session force=true, reset_companion. Companion install failure: read its INSTALL_FAILED code
+    and Recovery line; try another AVD or API level unless pinned. Others' holders go to the caller.
 
     Use list_devices; check recording_health at start/end: saved=durable, pending=writing,
     failed=artifact loss risk. start_session boots/prepares device/companion, installs supplied
