@@ -12,6 +12,8 @@ protocol CredentialWriting: Sendable {
     /// Whether this host has a store; mock profiles work without one.
     var isAvailable: Bool { get }
     func save(_ value: String, service: String, account: String, label: String) async throws
+    /// Deletes an item; a missing one is not an error.
+    func delete(service: String, account: String) async throws
 }
 
 private let logger = AmooLogger.forType(KeychainCredentialStore.self)
@@ -68,6 +70,29 @@ struct KeychainCredentialStore: SecretStore, CredentialWriting {
             throw error
         }
         logger.info("Saved keychain credential", context: "action=save service=\(service)")
+        #else
+        throw SecretStoreError.unavailable
+        #endif
+    }
+}
+
+extension KeychainCredentialStore {
+    func delete(service: String, account: String) async throws {
+        #if canImport(SwiftyChain)
+        logger.info("Deleting keychain credential", context: "action=delete service=\(service)")
+        do {
+            try await withAbandonableTimeout(timeout) {
+                do {
+                    try await Keychain().delete(key: KeychainKey<String>(service: service, account: account))
+                } catch KeychainError.itemNotFound {
+                    return
+                }
+            }
+        } catch {
+            logger.error("Keychain delete failed", error: error, context: "action=delete service=\(service)")
+            throw error
+        }
+        logger.info("Deleted keychain credential", context: "action=delete service=\(service)")
         #else
         throw SecretStoreError.unavailable
         #endif

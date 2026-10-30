@@ -5,7 +5,7 @@ you pass `credential="<profile>#<field>"` to `fill_field`, `set_text` or `type_t
 the value itself. You never see, choose, or repeat the value.
 
 ```text
-fill_field id=login.email    credential=mock-user#email
+fill_field id=login.name     credential=mock-user#login
 fill_field id=login.password credential=mock-user#password
 ```
 
@@ -20,7 +20,7 @@ works inside `run_steps` steps too.
   pass `--runtime-id` so the launch is remembered between `amoo device` calls.
 - **Secrets only into secure fields.** A `secret` field fills only a password field. `type_text`
   refuses a secret because it cannot check the focused field; use `fill_field` with the field's id.
-  An `identifier` (an email) fills any field.
+  An `identifier` (a sign-in name: any text) fills any field.
 - **The value never comes back.** Results, errors, `report.json`, `plan.json` and `flow.json` carry
   the reference name and `<redacted, credential>`. Generated tests stop at the redacted step; the app's
   own test helper fills it.

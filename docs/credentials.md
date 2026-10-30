@@ -7,7 +7,8 @@ accounts in a checked-in **`amoo.config.json`**; the agent passes a reference,
 ## Adding an account
 
 A person runs `amoo credentials add` in a terminal (guided `amoo init` offers the same step). It asks
-for a profile name, the app ids the account may sign in to, where the values should live, and any
+for a profile name, the app ids the account may sign in to, where the values should live, the sign-in
+name (any text: an email, a username, a phone number) and password, and any
 launch environment amoo must have set, then writes the profile to the nearest `amoo.config.json` (the
 repository root when there is none). You choose where the values live:
 
@@ -17,8 +18,16 @@ repository root when there is none). You choose where the values live:
 | **Environment variables** | Only the variable names (default `AMOO_<PROFILE>_<FIELD>`) | Accounts you do not want in the repository or the Keychain, CI | Must be set wherever amoo runs; an agent could print a variable exported in its own shell |
 | **macOS Keychain** | Both values in the login Keychain as `amoo.<app id>` / `<profile>.<field>`; the file keeps references | Real accounts on one Mac | macOS may ask to approve amoo (see below) |
 
-It never accepts a value as a flag or without a terminal, so an agent cannot add one. `amoo credentials
-check [<profile>]` reports each field as found, missing, locked, set or not set, never the value.
+Every profile it writes has two fields, `login` and `password`, so agents pass
+`credential=<profile>#login` and `credential=<profile>#password`. Hand-written profiles may name fields
+anything. It never accepts a value as a flag or without a terminal, so an agent cannot add one.
+`amoo credentials check [<profile>]` reports each field as found, missing, locked, set or not set,
+never the value.
+
+`amoo credentials remove <profile> [--yes]` removes the profile from the `amoo.config.json` that
+defines it and deletes the Keychain items amoo created for it (those named `amoo.<app id>` /
+`<profile>.<field>`); it never deletes an item a hand-written profile points at elsewhere. Replacing a
+profile with `add` likewise deletes the Keychain items the old profile used and the new one does not.
 
 **Environment variables** are read from the amoo process at sign-in. For MCP, put them in the `env` of
 your AI client's amoo server configuration, which the agent's own shell does not see. For `amoo device`,
@@ -50,7 +59,7 @@ outer one. `amoo config validate` lists every file it layered. Schema:
       "apps": ["com.example.app.qa"],
       "requires_launch_env": { "FIREBASE_AUTH_EMULATOR_HOST": "*" },
       "fields": {
-        "email":    { "literal": "qa@example.test", "class": "identifier" },
+        "login":    { "literal": "qa@example.test", "class": "identifier" },
         "password": { "literal": "any-password",    "class": "secret" }
       }
     },
@@ -58,8 +67,8 @@ outer one. `amoo config validate` lists every file it layered. Schema:
       "apps": ["com.example.app.qa"],
       "requires_launch_env": { "API_ENV": "staging" },
       "fields": {
-        "email":    { "keychain": { "service": "amoo.example.qa", "account": "free-user-email" },    "class": "identifier" },
-        "password": { "keychain": { "service": "amoo.example.qa", "account": "free-user-password" }, "class": "secret" }
+        "login":    { "keychain": { "service": "amoo.example.qa", "account": "free-user.login" },    "class": "identifier" },
+        "password": { "keychain": { "service": "amoo.example.qa", "account": "free-user.password" }, "class": "secret" }
       }
     }
   }
@@ -73,7 +82,7 @@ outer one. `amoo config validate` lists every file it layered. Schema:
 | `fields.<name>.literal` | A value checked into the repository: a mock, QA or staging test account anyone with the repository may use. |
 | `fields.<name>.keychain` | A generic-password item (`service`, `account`) in the user's macOS login Keychain, written by `amoo credentials add`. On Linux it resolves to `blocked: no credential store`. |
 | `fields.<name>.env` | An environment variable of the amoo process, read at sign-in. Unset resolves to `blocked: no credentials` naming the variable. |
-| `fields.<name>.class` | `secret` fills only a secure (password) field and is scrubbed from every amoo output; `identifier` (an email, a username) fills any field. |
+| `fields.<name>.class` | `secret` fills only a secure (password) field and is scrubbed from every amoo output; `identifier` (a sign-in name: any text, such as an email or username) fills any field. |
 
 `amoo config validate [--path <file>] [--json]` checks the file without reading any value;
 `amoo credentials add` writes it for you.
@@ -82,7 +91,7 @@ outer one. `amoo config validate` lists every file it layered. Schema:
 
 ```text
 # MCP
-fill_field session_id=<id> id=login.email    credential=mock-user#email
+fill_field session_id=<id> id=login.name     credential=mock-user#login
 fill_field session_id=<id> id=login.password credential=mock-user#password
 
 # CLI: --runtime-id carries the launch between amoo device calls

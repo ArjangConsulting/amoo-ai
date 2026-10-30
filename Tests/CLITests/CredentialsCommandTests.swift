@@ -29,8 +29,8 @@ final class CredentialsCommandTests: InitTestCase {
         let root = try repository()
         let writer = RecordingWriter()
         let prompter = ScriptedPrompter()
-        // profile, app ids, identifier field, identifier, password, launch env
-        prompter.asks = ["mock-user", "com.example.qa", "", "qa@example.test", "any-password", "AUTH_HOST"]
+        // profile, app ids, sign-in name, password, launch env
+        prompter.asks = ["mock-user", "com.example.qa", "qa@example.test", "any-password", "AUTH_HOST"]
         prompter.choices = [0]
 
         let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
@@ -40,7 +40,7 @@ final class CredentialsCommandTests: InitTestCase {
         XCTAssertEqual(profile.apps, ["com.example.qa"])
         XCTAssertEqual(profile.requiresLaunchEnv, ["AUTH_HOST": "*"])
         XCTAssertEqual(
-            profile.fields["email"],
+            profile.fields["login"],
             CredentialField(source: .literal("qa@example.test"), fieldClass: .identifier)
         )
         XCTAssertEqual(
@@ -58,9 +58,9 @@ final class CredentialsCommandTests: InitTestCase {
         let root = try repository()
         let writer = RecordingWriter()
         let prompter = ScriptedPrompter()
-        // profile, app ids, identifier field, identifier, password, repeat, launch env
+        // profile, app ids, sign-in name, password, repeat, launch env
         prompter.asks = [
-            "staging-user", "com.example.qa", "username", "person@example.com", "Real-S3cret", "Real-S3cret",
+            "staging-user", "com.example.qa", "person@example.com", "Real-S3cret", "Real-S3cret",
             "API_ENV=staging"
         ]
         prompter.choices = [2]
@@ -69,7 +69,7 @@ final class CredentialsCommandTests: InitTestCase {
 
         XCTAssertEqual(result.exitCode, 0, result.output)
         let saves = await writer.saves
-        XCTAssertEqual(saves.map(\.account), ["staging-user.username", "staging-user.password"])
+        XCTAssertEqual(saves.map(\.account), ["staging-user.login", "staging-user.password"])
         XCTAssertEqual(saves.map(\.service), ["amoo.com.example.qa", "amoo.com.example.qa"])
         let text = try fileText(in: root)
         XCTAssertFalse(text.contains("Real-S3cret"))
@@ -86,7 +86,7 @@ final class CredentialsCommandTests: InitTestCase {
         let root = try repository()
         let writer = RecordingWriter()
         let prompter = ScriptedPrompter()
-        prompter.asks = ["u", "com.example.qa", "", "a@b.c", "one", "two", "right", "right", ""]
+        prompter.asks = ["u", "com.example.qa", "a@b.c", "one", "two", "right", "right", ""]
         prompter.choices = [2]
 
         let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
@@ -124,7 +124,7 @@ final class CredentialsCommandTests: InitTestCase {
     func testWithoutAKeychainPlainTextAndEnvironmentAreOffered() async throws {
         let root = try repository()
         let prompter = ScriptedPrompter()
-        prompter.asks = ["m", "com.example.qa", "", "qa@example.test", "pw", ""]
+        prompter.asks = ["m", "com.example.qa", "qa@example.test", "pw", ""]
         prompter.choices = [0]
 
         let result = await runCredentialsAdd(
@@ -142,8 +142,8 @@ final class CredentialsCommandTests: InitTestCase {
         let root = try repository()
         let writer = RecordingWriter()
         let prompter = ScriptedPrompter()
-        // profile, app ids, identifier field, its variable (default), password variable, launch env
-        prompter.asks = ["qa-user", "com.example.qa", "", "", "QA_PASSWORD", ""]
+        // profile, app ids, sign-in name variable (default), password variable, launch env
+        prompter.asks = ["qa-user", "com.example.qa", "", "QA_PASSWORD", ""]
         prompter.choices = [1]
 
         let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
@@ -151,8 +151,8 @@ final class CredentialsCommandTests: InitTestCase {
         XCTAssertEqual(result.exitCode, 0, result.output)
         let profile = try XCTUnwrap(config(in: root).profiles["qa-user"])
         XCTAssertEqual(
-            profile.fields["email"],
-            CredentialField(source: .environment("AMOO_QA_USER_EMAIL"), fieldClass: .identifier)
+            profile.fields["login"],
+            CredentialField(source: .environment("AMOO_QA_USER_LOGIN"), fieldClass: .identifier)
         )
         XCTAssertEqual(
             profile.fields["password"],
@@ -161,11 +161,11 @@ final class CredentialsCommandTests: InitTestCase {
         XCTAssertFalse(prompter.transcript.contains { $0.hasPrefix("Password") }, "no value is asked for")
         let saves = await writer.saves
         XCTAssertTrue(saves.isEmpty)
-        XCTAssertTrue(result.output.contains("Set AMOO_QA_USER_EMAIL and QA_PASSWORD where amoo runs"))
+        XCTAssertTrue(result.output.contains("Set AMOO_QA_USER_LOGIN and QA_PASSWORD where amoo runs"))
     }
 
     func testEnvironmentVariableNamesAreSanitized() {
-        XCTAssertEqual(environmentVariableName(profile: "qa-user.1", field: "email"), "AMOO_QA_USER_1_EMAIL")
+        XCTAssertEqual(environmentVariableName(profile: "qa-user.1", field: "login"), "AMOO_QA_USER_1_LOGIN")
     }
 
     func testAddRefusesWithoutATerminal() async throws {
@@ -242,6 +242,7 @@ private actor RecordingWriter: CredentialWriting {
 
     nonisolated let isAvailable: Bool
     private(set) var saves: [Save] = []
+    private(set) var deletes: [String] = []
 
     init(isAvailable: Bool = true) {
         self.isAvailable = isAvailable
@@ -249,6 +250,10 @@ private actor RecordingWriter: CredentialWriting {
 
     func save(_ value: String, service: String, account: String, label _: String) async throws {
         saves.append(Save(value: value, service: service, account: account))
+    }
+
+    func delete(service: String, account: String) async throws {
+        deletes.append("\(service)/\(account)")
     }
 }
 
@@ -275,7 +280,7 @@ extension CredentialsCommandTests {
         try FileManager.default.createDirectory(at: platform, withIntermediateDirectories: true)
         try AmooProjectConfig().write(to: platform.appendingPathComponent(AmooProjectConfig.fileName))
         let prompter = ScriptedPrompter()
-        prompter.asks = ["shared", "com.example.qa", "", "qa@example.test", "inner", ""]
+        prompter.asks = ["shared", "com.example.qa", "qa@example.test", "inner", ""]
         prompter.confirms = [true]
         prompter.choices = [0]
 
@@ -291,5 +296,87 @@ extension CredentialsCommandTests {
         XCTAssertEqual(try AmooProjectConfig.load(root.appendingPathComponent(AmooProjectConfig.fileName)), outer)
         let inner = try AmooProjectConfig.load(platform.appendingPathComponent(AmooProjectConfig.fileName))
         XCTAssertEqual(inner.profiles["shared"]?.fields["password"]?.source, .literal("inner"))
+    }
+}
+
+extension CredentialsCommandTests {
+    private func writeKeychainProfile(_ name: String, in root: URL, extra: [String: CredentialField] = [:]) throws {
+        var config = (try? config(in: root)) ?? AmooProjectConfig()
+        config.profiles[name] = CredentialProfile(apps: ["com.example.qa"], fields: [
+            "login": CredentialField(
+                source: .keychain(service: "amoo.com.example.qa", account: "\(name).login"), fieldClass: .identifier
+            ),
+            "password": CredentialField(
+                source: .keychain(service: "amoo.com.example.qa", account: "\(name).password"), fieldClass: .secret
+            )
+        ].merging(extra) { current, _ in current })
+        try config.write(to: root.appendingPathComponent(AmooProjectConfig.fileName))
+    }
+
+    func testRemoveDeletesOnlyTheItemsAmooCreatedAndTheProfile() async throws {
+        let root = try repository()
+        let foreign = CredentialField(source: .keychain(service: "com.company.vpn", account: "me"), fieldClass: .secret)
+        try writeKeychainProfile("old", in: root, extra: ["vpn": foreign])
+        try writeKeychainProfile("keep", in: root)
+        let writer = RecordingWriter()
+        var asked: String?
+
+        let result = await runCredentialsRemove(profile: "old", root: root, store: writer) { question in
+            asked = question
+            return true
+        }
+
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        XCTAssertTrue(asked?.contains("delete the 2 Keychain item(s)") == true)
+        let deletes = await writer.deletes
+        XCTAssertEqual(deletes, ["amoo.com.example.qa/old.login", "amoo.com.example.qa/old.password"])
+        let remaining = try config(in: root)
+        XCTAssertNil(remaining.profiles["old"])
+        XCTAssertNotNil(remaining.profiles["keep"])
+    }
+
+    func testDecliningRemoveChangesNothing() async throws {
+        let root = try repository()
+        try writeKeychainProfile("old", in: root)
+        let writer = RecordingWriter()
+        let result = await runCredentialsRemove(profile: "old", root: root, store: writer) { _ in false }
+        XCTAssertEqual(result.exitCode, 1)
+        let deletes = await writer.deletes
+        XCTAssertTrue(deletes.isEmpty)
+        XCTAssertNotNil(try config(in: root).profiles["old"])
+    }
+
+    func testRemoveOfAnUnknownProfileFails() async throws {
+        let root = try repository()
+        let result = await runCredentialsRemove(profile: "nobody", root: root, store: RecordingWriter()) { _ in true }
+        XCTAssertEqual(result.exitCode, 1)
+    }
+
+    func testRemoveWithoutATerminalNeedsYes() async throws {
+        let root = try repository()
+        try writeKeychainProfile("old", in: root)
+        let refused = await handleCredentialsCommand(
+            remaining: ["remove", "old"], isInteractive: { false }, prompter: ScriptedPrompter(), currentDirectory: root
+        )
+        XCTAssertEqual(refused.exitCode, 64)
+        XCTAssertNotNil(try config(in: root).profiles["old"])
+    }
+
+    func testReplacingAKeychainProfileDeletesItemsItNoLongerUses() async throws {
+        let root = try repository()
+        try writeKeychainProfile("test-user", in: root)
+        let writer = RecordingWriter()
+        let prompter = ScriptedPrompter()
+        // profile, app ids, sign-in name, password, launch env
+        prompter.asks = ["test-user", "com.example.qa", "qa@example.test", "pw", ""]
+        prompter.confirms = [true]
+        prompter.choices = [0]
+
+        let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
+
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        let deletes = await writer.deletes
+        XCTAssertEqual(deletes, ["amoo.com.example.qa/test-user.login", "amoo.com.example.qa/test-user.password"])
+        XCTAssertEqual(try config(in: root).profiles["test-user"]?.fields["login"]?.source, .literal("qa@example.test"))
     }
 }

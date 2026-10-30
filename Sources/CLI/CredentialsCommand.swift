@@ -9,7 +9,11 @@ struct CredentialsAddDefaults: Equatable {
     var appID: String?
 }
 
-/// `amoo credentials add|check`. Adding asks a person in a terminal for every value: amoo never
+/// The field a profile's sign-in name is typed from. It is any text (an email, a username, a phone
+/// number), so the name says nothing about its shape.
+let credentialLoginField = "login"
+
+/// `amoo credentials add|check|remove`. Adding asks a person in a terminal for every value: amoo never
 /// accepts a credential value as a flag, an environment variable, or from an agent.
 func handleCredentialsCommand(
     remaining: [String],
@@ -24,22 +28,9 @@ func handleCredentialsCommand(
     var arguments = Array(remaining.dropFirst())[...]
     switch remaining.first {
     case "add":
-        var defaults = CredentialsAddDefaults()
-        while let argument = arguments.popFirst() {
-            switch argument {
-            case "--profile": defaults.profile = arguments.popFirst()
-            case "--app-id": defaults.appID = arguments.popFirst()
-            default: return CLIResult(output: renderCredentialsHelp(), exitCode: 64)
-            }
-        }
-        guard isInteractive() else {
-            return CLIResult(
-                output: "amoo credentials add needs a person at a terminal: it asks for each value and never "
-                    + "accepts one as a flag or from an agent. Run it yourself in a terminal.",
-                exitCode: 64
-            )
-        }
-        return await runCredentialsAdd(prompter: prompter, defaults: defaults, root: currentDirectory, store: store)
+        return await handleCredentialsAdd(
+            Array(arguments), isInteractive: isInteractive, prompter: prompter, store: store, root: currentDirectory
+        )
     case "check":
         let profile = arguments.popFirst()
         guard arguments.isEmpty else { return CLIResult(output: renderCredentialsHelp(), exitCode: 64) }
@@ -47,9 +38,70 @@ func handleCredentialsCommand(
         // A person is running this, so leave time to answer the macOS access prompt.
         interactive.timeout = .seconds(120)
         return await runCredentialsCheck(profile: profile, root: currentDirectory, store: interactive)
+    case "remove":
+        return await handleCredentialsRemove(
+            Array(arguments), isInteractive: isInteractive, prompter: prompter, store: store, root: currentDirectory
+        )
     default:
         return CLIResult(output: renderCredentialsHelp(), exitCode: 64)
     }
+}
+
+private func handleCredentialsAdd(
+    _ remaining: [String],
+    isInteractive: () -> Bool,
+    prompter: any Prompting,
+    store: KeychainCredentialStore,
+    root currentDirectory: URL
+) async -> CLIResult {
+    var arguments = remaining[...]
+    var defaults = CredentialsAddDefaults()
+    while let argument = arguments.popFirst() {
+        switch argument {
+        case "--profile": defaults.profile = arguments.popFirst()
+        case "--app-id": defaults.appID = arguments.popFirst()
+        default: return CLIResult(output: renderCredentialsHelp(), exitCode: 64)
+        }
+    }
+    guard isInteractive() else {
+        return CLIResult(
+            output: "amoo credentials add needs a person at a terminal: it asks for each value and never "
+                + "accepts one as a flag or from an agent. Run it yourself in a terminal.",
+            exitCode: 64
+        )
+    }
+    return await runCredentialsAdd(prompter: prompter, defaults: defaults, root: currentDirectory, store: store)
+}
+
+private func handleCredentialsRemove(
+    _ remaining: [String],
+    isInteractive: () -> Bool,
+    prompter: any Prompting,
+    store: KeychainCredentialStore,
+    root currentDirectory: URL
+) async -> CLIResult {
+    var arguments = remaining[...]
+    guard let profile = arguments.popFirst()
+    else { return CLIResult(output: renderCredentialsHelp(), exitCode: 64) }
+    let assumeYes = arguments.first == "--yes"
+    if assumeYes {
+        arguments.removeFirst()
+    }
+    guard arguments.isEmpty else { return CLIResult(output: renderCredentialsHelp(), exitCode: 64) }
+    guard assumeYes || isInteractive() else {
+        return CLIResult(
+            output: "amoo credentials remove asks before deleting; pass --yes to skip it.",
+            exitCode: 64
+        )
+    }
+    var interactive = store
+    interactive.timeout = .seconds(120)
+    return await runCredentialsRemove(
+        profile: profile,
+        root: currentDirectory,
+        store: interactive,
+        confirm: assumeYes ? { _ in true } : { prompter.confirm($0, default: false) == true }
+    )
 }
 
 // swiftlint:disable:next function_body_length cyclomatic_complexity - one linear guided conversation.
@@ -96,13 +148,10 @@ func runCredentialsAdd(
     ) else { return credentialsCancelled }
     let apps = parseList(appsAnswer)
 
-    guard let storage = chooseStorage(prompter, keychainAvailable: store.isAvailable),
-          let identifierField = prompter.ask(
-              "Field name agents use for the email or username",
-              default: "email",
-              validate: validateCredentialName
-          )
-    else { return credentialsCancelled }
+    guard let storage = chooseStorage(prompter, keychainAvailable: store.isAvailable) else {
+        return credentialsCancelled
+    }
+    let identifierField = credentialLoginField
     let collected: CollectedAccount
     let naming = AccountNaming(profile: profile, identifierField: identifierField, service: "amoo.\(apps[0])")
     switch await collectAccount(storage, naming: naming, prompter: prompter, store: store) {
@@ -114,6 +163,7 @@ func runCredentialsAdd(
         default: "",
         validate: nil
     ) else { return credentialsCancelled }
+    let replaced = config.profiles[profile]
     config.profiles[profile] = CredentialProfile(
         apps: apps,
         requiresLaunchEnv: parseLaunchRequirements(launchAnswer),
@@ -124,10 +174,14 @@ func runCredentialsAdd(
     } catch {
         return CLIResult(output: "Could not write \(file.path): \(error)", exitCode: 1)
     }
+    // Keychain items the replaced profile used and the new one does not would otherwise linger.
+    let kept = Set(collected.fields.values.compactMap(\.keychainItem))
+    let stale = replaced.map { amooKeychainItems(of: $0, profile: profile) }?.filter { !kept.contains($0) } ?? []
+    let cleanup = await deleteKeychainItems(stale, store: store)
     var lines = [
         "Saved profile '\(profile)' to \(file.path).",
         "Agents sign in with credential=\(profile)#\(identifierField) and credential=\(profile)#password."
-    ] + collected.notes
+    ] + collected.notes + cleanup
     if !parseLaunchRequirements(launchAnswer).isEmpty {
         lines.append("amoo refuses this profile unless it launched the app with that environment.")
     }
@@ -198,7 +252,7 @@ private func collectAccount(
         return collectEnvironmentAccount(naming: naming, prompter: prompter)
     }
     guard let identifier = prompter.ask(
-        "Email or username",
+        "Sign-in name (any text: an email, username, phone number…)",
         default: nil,
         validate: { $0.isEmpty ? "Enter a value." : nil }
     ), let password = askPassword(prompter, confirmTwice: storage == .keychain) else { return .failure(cancelled) }
@@ -243,7 +297,7 @@ private func collectEnvironmentAccount(
     let (profile, identifierField) = (naming.profile, naming.identifierField)
     let cancelled = CredentialsRefusal(result: credentialsCancelled)
     guard let identifierVariable = prompter.ask(
-        "Environment variable holding the email or username",
+        "Environment variable holding the sign-in name",
         default: environmentVariableName(profile: profile, field: identifierField),
         validate: validateEnvironmentName
     ), let passwordVariable = prompter.ask(
@@ -275,74 +329,6 @@ func environmentVariableName(profile: String, field: String) -> String {
 
 private func validateEnvironmentName(_ name: String) -> String? {
     CredentialField.isValidEnvironmentName(name) ? nil : "Use letters, digits and '_', not starting with a digit."
-}
-
-/// Reports whether each field of a profile can be read, never the value.
-func runCredentialsCheck(
-    profile: String?,
-    root: URL,
-    store: any SecretStore,
-    environment: [String: String] = ProcessInfo.processInfo.environment
-) async -> CLIResult {
-    let files = AmooProjectConfig.discoverAll(from: root)
-    guard !files.isEmpty else {
-        return CLIResult(
-            output: "No \(AmooProjectConfig.fileName) found. Add an account with `amoo credentials add`.",
-            exitCode: 1
-        )
-    }
-    let config: AmooProjectConfig
-    do {
-        config = try AmooProjectConfig.load(layers: files)
-    } catch {
-        return CLIResult(output: "\(error)", exitCode: 1)
-    }
-    let names = profile.map { [$0] } ?? config.profiles.keys.sorted()
-    var lines: [String] = []
-    var ok = true
-    for name in names {
-        guard let entry = config.profiles[name] else {
-            lines.append("\(name): not in any \(AmooProjectConfig.fileName)")
-            ok = false
-            continue
-        }
-        for (field, credential) in entry.fields.sorted(by: { $0.key < $1.key }) {
-            let (status, readable) = await fieldStatus(
-                credential.source, profile: name, store: store, environment: environment
-            )
-            ok = ok && readable
-            lines.append("\(name)#\(field): \(status)")
-        }
-    }
-    return CLIResult(output: lines.joined(separator: "\n"), exitCode: ok ? 0 : 1)
-}
-
-/// One field's readability for `check`, and whether it counts as readable.
-private func fieldStatus(
-    _ source: CredentialField.Source,
-    profile: String,
-    store: any SecretStore,
-    environment: [String: String]
-) async -> (String, Bool) {
-    switch source {
-    case .literal:
-        return ("literal in \(AmooProjectConfig.fileName)", true)
-    case let .environment(variable):
-        return environment[variable]?.isEmpty == false
-            ? ("\(variable) is set here", true)
-            : ("\(variable) is not set here; set it where amoo runs (the MCP server's env or the shell)", false)
-    case let .keychain(service, account):
-        do {
-            _ = try await store.load(service: service, account: account)
-            return ("found in Keychain", true)
-        } catch SecretStoreError.notFound {
-            return ("missing from Keychain; run `amoo credentials add --profile \(profile)`", false)
-        } catch SecretStoreError.unavailable {
-            return ("no credential store on this platform", false)
-        } catch {
-            return ("locked, or amoo was not allowed to read it", false)
-        }
-    }
 }
 
 private let credentialsCancelled = CLIResult(output: "Cancelled. No account was saved.", exitCode: 1)
@@ -387,15 +373,20 @@ func renderCredentialsHelp() -> String {
     """
     Usage: amoo credentials add [--profile <name>] [--app-id <id>]
            amoo credentials check [<profile>]
+           amoo credentials remove <profile> [--yes]
 
-    add    Asks, in a terminal, for an account agents may sign in with and saves it as a profile in
-           amoo.config.json at the repository root. A mock account (any password works against a
-           mock backend) is stored in the file; a real account is stored in your macOS Keychain and
-           the file keeps only a reference. Values are never accepted as flags or from an agent.
-    check  Reports whether each field of a profile can be read (found / missing / locked), never the
-           value. Run it after rebuilding amoo so macOS can ask once to let amoo use the items.
+    add     Asks, in a terminal, for an account agents may sign in with: a sign-in name (any text)
+            and a password, saved as a profile with fields `login` and `password` in the nearest
+            amoo.config.json. You choose where the values live: plain text in the file (QA, staging
+            or mock test accounts), environment variables (only the names are saved), or the macOS
+            Keychain. Values are never accepted as flags or from an agent.
+    check   Reports whether each field of a profile can be read (found / missing / locked / set),
+            never the value. Run it after rebuilding amoo so macOS can ask once to let amoo use items.
+    remove  Removes a profile from the amoo.config.json that defines it and deletes the Keychain
+            items amoo created for it. Asks first unless --yes. Replacing a profile with `add` also
+            deletes the Keychain items it no longer uses.
 
-    Agents sign in with credential="<profile>#<field>" on fill_field or set_text. See
+    Agents sign in with credential="<profile>#login" and credential="<profile>#password". See
     `amoo config --help` for the file format and docs/credentials.md for the rules amoo enforces.
     """
 }
