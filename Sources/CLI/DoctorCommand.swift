@@ -77,9 +77,12 @@ struct DoctorReport: Encodable {
     var notes: [String]
     var mcpPID: Int32?
     var cliOnly: Bool = false
+    /// Devices whose session lock is held, with the process holding it.
+    var deviceLocks: [DoctorDeviceLock] = []
 
     enum CodingKeys: String, CodingKey {
         case ok, cli, devices, companions, runtimes, issues, notes
+        case deviceLocks = "device_locks"
         case mcpServers = "mcp_servers"
         case adbServerRunning = "adb_server_running"
         case mcpPID = "mcp_pid"
@@ -158,13 +161,14 @@ func runDoctor(
         issues: [],
         notes: [],
         mcpPID: options.mcpPID,
-        cliOnly: options.cliOnly
+        cliOnly: options.cliOnly,
+        deviceLocks: doctorDeviceLocks(store: store)
     )
-    report.issues = await doctorIssues(report) + runtimeProblems
+    report.issues = await doctorIssues(report) + doctorDeviceLockIssues(report) + runtimeProblems
     report.notes = report.devices.filter(\.physical).map { device in
         "Physical \(device.platform) device \(device.id) is connected. amoo never auto-selects it; "
             + "always pass an explicit simulator/emulator id."
-    }
+    } + doctorDeviceLockNotes(report) + doctorUnresponsiveCompanionNotes(report)
     let unrelated = report.mcpServers.filter { $0.stale && !options.includesMCPServer($0.pid) }
     if !unrelated.isEmpty {
         report.notes.append(
