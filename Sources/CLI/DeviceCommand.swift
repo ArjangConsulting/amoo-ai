@@ -73,13 +73,13 @@ Common tools:
   scroll_to_element [id=<id>] [label=<label>] [contains_text=<text>] [direction=<up|down|left|right>]
       [max_attempts=<n>] [distance=<n>]
   dismiss_keyboard
-  type_text text=<text> [record_value=<fixture>]
+  type_text text=<text> [record_value=<fixture>] | credential=<profile>#<field>
   clear_text [character_count=<n>]
-  set_text [id=<id>] [label=<label>] [contains_text=<text>] value=<text>
+  set_text [id=<id>] [label=<label>] [contains_text=<text>] value=<text> | credential=<profile>#<field>
       [parent_id=<id>] [record_value=<fixture>]
       [scope=<app|system>] [bundle_id=<id>]
   fill_field [id=<id>] [label=<label>] [contains_text=<text>] [field_description=<text>]
-      value=<text> [parent_id=<id>] [record_value=<fixture>]
+      value=<text> | credential=<profile>#<field> [parent_id=<id>] [record_value=<fixture>]
   press_back
   press_home
   tap_element [id=<id>] [label=<label>] [contains_text=<text>] [scope=<app|system>]
@@ -434,8 +434,10 @@ func runDeviceCommand(
         toolArguments["platform"] = options.platform.rawValue
     }
 
-    let result = await withSpinner("Running \(options.tool)") {
-        await executor.execute(toolName: options.tool, arguments: toolArguments)
+    let result = await executeCarryingCredentialLaunch(executor: executor, options: options) {
+        await withSpinner("Running \(options.tool)") {
+            await executor.execute(toolName: options.tool, arguments: toolArguments)
+        }
     }
     await companion.shutdown()
 

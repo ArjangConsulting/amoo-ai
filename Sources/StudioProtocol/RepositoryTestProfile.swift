@@ -30,7 +30,7 @@ public enum RepositoryTestProfile {
 
     /// A repository root ends the upward search. A submodule's `.git` file keeps it going to the
     /// orchestrator; a linked worktree's `.git` file is still its own repository.
-    private static func isRepositoryBoundary(_ directory: URL) -> Bool {
+    static func isRepositoryBoundary(_ directory: URL) -> Bool {
         let git = directory.appendingPathComponent(".git")
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: git.path, isDirectory: &isDirectory) else { return false }

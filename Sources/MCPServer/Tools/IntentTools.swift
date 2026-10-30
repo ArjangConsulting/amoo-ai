@@ -47,21 +47,22 @@ public enum IntentTools {
                 "id": .init(type: "string", description: "Preferred exact accessibility identifier"),
                 "label": .init(type: "string", description: "Exact accessibility label fallback"),
                 "contains_text": .init(type: "string", description: "Partial label fallback"),
-                "value": .init(type: "string", description: "Value to type"),
+                "value": .init(type: "string", description: "Value to type. Omit when passing credential."),
                 "session_id": .init(
                     type: "string",
                     description: "Optional session id; defaults to the server's default driver"
                 )
             ],
-            required: ["value"],
             outputSchema: ToolOutputSchema(
                 properties: [
                     "verified": .init(type: "boolean", description: "Whether the field exposed the new value"),
                     "element_id": .init(type: "string", description: "Matched field accessibility identifier"),
                     "element_label": .init(type: "string", description: "Matched field label"),
-                    "value_length": .init(type: "integer", description: "Length of the value typed")
+                    "value_length": .init(
+                        type: "integer", description: "Length of the value typed; omitted for a credential"
+                    )
                 ],
-                required: ["verified", "element_id", "element_label", "value_length"]
+                required: ["verified", "element_id", "element_label"]
             )
         ),
         ToolDefinition(

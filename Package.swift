@@ -124,6 +124,7 @@ let package = Package(
             name: "MCPServer",
             dependencies: [
                 "AmooCore",
+                "AmooLogging",
                 "GRPCService",
                 "AuditEngine",
                 "ProcessRunner",

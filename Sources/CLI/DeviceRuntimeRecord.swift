@@ -15,6 +15,10 @@ struct DeviceRuntime: Codable, Equatable, Sendable {
     /// Whether the runtime's process booted the device, so it may shut it down on release.
     var bootedByRuntime: Bool
     var appID: String?
+    /// The app `amoo device device_launch_app` last launched on this runtime, and its environment
+    /// with sensitive values masked. A credential profile is checked against it.
+    var launchedAppID: String?
+    var launchEnvironment: [String: String]?
     /// Free-form caller label shown to anyone refused.
     var owner: String?
     var createdAt: Date

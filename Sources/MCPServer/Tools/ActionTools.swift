@@ -142,9 +142,8 @@ public enum ActionTools {
             name: "type_text",
             description: "Type text using the keyboard",
             properties: [
-                "text": .init(type: "string", description: "The text to type")
-            ],
-            required: ["text"]
+                "text": .init(type: "string", description: "The text to type. Omit when passing credential.")
+            ]
         ),
         ToolDefinition(
             name: "clear_text",
@@ -164,7 +163,7 @@ public enum ActionTools {
                 "id": .init(type: "string", description: "Exact accessibility identifier of the field"),
                 "label": .init(type: "string", description: "Exact accessibility label of the field"),
                 "contains_text": .init(type: "string", description: "Partial label fallback"),
-                "value": .init(type: "string", description: "Value to set"),
+                "value": .init(type: "string", description: "Value to set. Omit when passing credential."),
                 "scope": .init(
                     type: "string",
                     description: "Which process to resolve the field in: 'app' (default) or 'system'."
@@ -173,8 +172,7 @@ public enum ActionTools {
                     type: "string",
                     description: "Explicit bundle/package id to resolve the field in."
                 )
-            ],
-            required: ["value"]
+            ]
         ),
         ToolDefinition(
             name: "press_back",
