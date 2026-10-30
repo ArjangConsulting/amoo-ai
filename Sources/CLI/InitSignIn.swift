@@ -44,8 +44,8 @@ enum InitSignInStatus: Equatable {
 
             Sign in during tests
             No sign-in account yet, so agents report `blocked: no credentials` for signed-in flows.
-            Add one any time with `amoo credentials add`: a mock account is saved in
-            \(AmooProjectConfig.fileName), a real one in your macOS Keychain. Agents never see the password.
+            Add one any time with `amoo credentials add`: values go in \(AmooProjectConfig.fileName) (QA or
+            staging test accounts), in environment variables, or in your macOS Keychain. Agents never see them.
             """
         case let .invalid(path, problem):
             return """

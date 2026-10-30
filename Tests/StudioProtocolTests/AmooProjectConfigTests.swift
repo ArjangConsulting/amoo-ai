@@ -51,6 +51,24 @@ struct AmooProjectConfigTests {
         }
     }
 
+    @Test("an env field names a variable, which must be a portable name")
+    func environmentFields() throws {
+        let config = try decode("""
+        {"version": 1, "profiles": {"p": {"apps": ["a"],
+          "fields": {"password": {"env": "QA_PASSWORD", "class": "secret"}}}}}
+        """)
+        #expect(config.profiles["p"]?.fields["password"]?.source == .environment("QA_PASSWORD"))
+        let bad = AmooProjectConfig(profiles: ["p": CredentialProfile(apps: ["a"], fields: [
+            "password": CredentialField(source: .environment("1-BAD"), fieldClass: .secret)
+        ])])
+        #expect(bad
+            .validationProblems() == ["profile 'p' field 'password' names an invalid environment variable '1-BAD'"])
+        #expect(throws: (any Error).self) {
+            let field = #"{"env": "A", "literal": "b", "class": "secret"}"#
+            try load(#"{"version": 1, "profiles": {"p": {"apps": ["a"], "fields": {"f": "# + field + "}}}}")
+        }
+    }
+
     @Test("validation names every problem")
     func validationProblems() {
         let config = AmooProjectConfig(version: 2, profiles: [

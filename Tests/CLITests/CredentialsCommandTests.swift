@@ -63,7 +63,7 @@ final class CredentialsCommandTests: InitTestCase {
             "staging-user", "com.example.qa", "username", "person@example.com", "Real-S3cret", "Real-S3cret",
             "API_ENV=staging"
         ]
-        prompter.choices = [1]
+        prompter.choices = [2]
 
         let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
 
@@ -87,7 +87,7 @@ final class CredentialsCommandTests: InitTestCase {
         let writer = RecordingWriter()
         let prompter = ScriptedPrompter()
         prompter.asks = ["u", "com.example.qa", "", "a@b.c", "one", "two", "right", "right", ""]
-        prompter.choices = [1]
+        prompter.choices = [2]
 
         let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
 
@@ -121,18 +121,51 @@ final class CredentialsCommandTests: InitTestCase {
         XCTAssertEqual(try fileText(in: root), before)
     }
 
-    func testWithoutAStoreOnlyAMockAccountIsOffered() async throws {
+    func testWithoutAKeychainPlainTextAndEnvironmentAreOffered() async throws {
         let root = try repository()
         let prompter = ScriptedPrompter()
         prompter.asks = ["m", "com.example.qa", "", "qa@example.test", "pw", ""]
+        prompter.choices = [0]
 
         let result = await runCredentialsAdd(
             prompter: prompter, defaults: .init(), root: root, store: RecordingWriter(isAvailable: false)
         )
 
         XCTAssertEqual(result.exitCode, 0, result.output)
-        XCTAssertFalse(prompter.transcript.contains { $0.hasPrefix("Where should the values live?") })
+        let menu = try XCTUnwrap(prompter.transcript.first { $0.hasPrefix("Where should this account's values live?") })
+        XCTAssertTrue(menu.contains("Environment variables"))
+        XCTAssertFalse(menu.contains("Keychain"))
         XCTAssertEqual(try config(in: root).profiles["m"]?.fields["password"]?.source, .literal("pw"))
+    }
+
+    func testEnvironmentAccountStoresOnlyVariableNames() async throws {
+        let root = try repository()
+        let writer = RecordingWriter()
+        let prompter = ScriptedPrompter()
+        // profile, app ids, identifier field, its variable (default), password variable, launch env
+        prompter.asks = ["qa-user", "com.example.qa", "", "", "QA_PASSWORD", ""]
+        prompter.choices = [1]
+
+        let result = await runCredentialsAdd(prompter: prompter, defaults: .init(), root: root, store: writer)
+
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        let profile = try XCTUnwrap(config(in: root).profiles["qa-user"])
+        XCTAssertEqual(
+            profile.fields["email"],
+            CredentialField(source: .environment("AMOO_QA_USER_EMAIL"), fieldClass: .identifier)
+        )
+        XCTAssertEqual(
+            profile.fields["password"],
+            CredentialField(source: .environment("QA_PASSWORD"), fieldClass: .secret)
+        )
+        XCTAssertFalse(prompter.transcript.contains { $0.hasPrefix("Password") }, "no value is asked for")
+        let saves = await writer.saves
+        XCTAssertTrue(saves.isEmpty)
+        XCTAssertTrue(result.output.contains("Set AMOO_QA_USER_EMAIL and QA_PASSWORD where amoo runs"))
+    }
+
+    func testEnvironmentVariableNamesAreSanitized() {
+        XCTAssertEqual(environmentVariableName(profile: "qa-user.1", field: "email"), "AMOO_QA_USER_1_EMAIL")
     }
 
     func testAddRefusesWithoutATerminal() async throws {
@@ -155,17 +188,23 @@ final class CredentialsCommandTests: InitTestCase {
                 "email": CredentialField(source: .literal("qa@example.test"), fieldClass: .identifier),
                 "found": CredentialField(source: .keychain(service: "s", account: "found"), fieldClass: .secret),
                 "gone": CredentialField(source: .keychain(service: "s", account: "gone"), fieldClass: .secret),
-                "shut": CredentialField(source: .keychain(service: "s", account: "shut"), fieldClass: .secret)
+                "shut": CredentialField(source: .keychain(service: "s", account: "shut"), fieldClass: .secret),
+                "envset": CredentialField(source: .environment("QA_SET"), fieldClass: .secret),
+                "envunset": CredentialField(source: .environment("QA_UNSET"), fieldClass: .secret)
             ])
         ]).write(to: root.appendingPathComponent(AmooProjectConfig.fileName))
 
-        let result = await runCredentialsCheck(profile: "p", root: root, store: ScriptedStore())
+        let result = await runCredentialsCheck(
+            profile: "p", root: root, store: ScriptedStore(), environment: ["QA_SET": "value-of-env"]
+        )
 
         XCTAssertEqual(result.exitCode, 1)
         XCTAssertTrue(result.output.contains("p#email: literal in amoo.config.json"))
         XCTAssertTrue(result.output.contains("p#found: found in Keychain"))
         XCTAssertTrue(result.output.contains("p#gone: missing from Keychain"))
         XCTAssertTrue(result.output.contains("p#shut: locked"))
+        XCTAssertTrue(result.output.contains("p#envset: QA_SET is set here"))
+        XCTAssertTrue(result.output.contains("p#envunset: QA_UNSET is not set here"))
         XCTAssertFalse(result.output.contains("value-of"))
         XCTAssertFalse(result.output.contains("qa@example.test"))
     }

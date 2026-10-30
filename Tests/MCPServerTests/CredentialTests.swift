@@ -356,6 +356,38 @@ final class CredentialTests: XCTestCase {
     }
 }
 
+extension CredentialTests {
+    func testEnvironmentFieldReadsAmoosEnvironmentAtSignIn() async throws {
+        let config = try mockConfig(password: "{ \"env\": \"QA_PASSWORD\", \"class\": \"secret\" }")
+        let driver = CredentialDriver(secure: true)
+        let executor = DriverToolExecutor(
+            driver: driver,
+            credentialResolver: CredentialResolver(
+                locateConfigs: { [config] }, environment: { ["QA_PASSWORD": Self.canary] }
+            )
+        )
+        await launched(executor)
+        let result = await executor.execute(
+            toolName: "fill_field", arguments: ["id": "field", "credential": "mock-user#password"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let typed = await driver.typed
+        XCTAssertEqual(typed, [Self.canary])
+        XCTAssertFalse(result.content.contains(Self.canary))
+
+        let unset = DriverToolExecutor(
+            driver: CredentialDriver(secure: true),
+            credentialResolver: CredentialResolver(locateConfigs: { [config] }, environment: { [:] })
+        )
+        await launched(unset)
+        let blocked = await unset.execute(
+            toolName: "fill_field", arguments: ["id": "field", "credential": "mock-user#password"]
+        )
+        XCTAssertEqual(code(blocked), "no_credentials")
+        XCTAssertTrue(blocked.content.contains("QA_PASSWORD"))
+    }
+}
+
 private struct GateCase {
     var name: String
     var environment: [String: String]?

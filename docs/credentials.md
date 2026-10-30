@@ -7,23 +7,28 @@ accounts in a checked-in **`amoo.config.json`**; the agent passes a reference,
 ## Adding an account
 
 A person runs `amoo credentials add` in a terminal (guided `amoo init` offers the same step). It asks
-for a profile name, the app ids the account may sign in to, the email or username, the password (not
-echoed), and any launch environment amoo must have set, then writes the profile to the nearest
-`amoo.config.json` (the repository root when there is none):
+for a profile name, the app ids the account may sign in to, where the values should live, and any
+launch environment amoo must have set, then writes the profile to the nearest `amoo.config.json` (the
+repository root when there is none). You choose where the values live:
 
-- **Mock account**: both values are saved in `amoo.config.json` and committed. Only for a backend that
-  accepts any password, such as a Firebase Auth emulator.
-- **Real account** (macOS): both values are saved in the login Keychain as `amoo.<app id>` /
-  `<profile>.<field>` items, and the file keeps only those references.
+| Storage | What is saved | Use it for | Trade-off |
+| --- | --- | --- | --- |
+| **Plain text** | Both values in `amoo.config.json`, committed | Mock, QA and staging test accounts the team may share | Anyone who can read the repository can read them |
+| **Environment variables** | Only the variable names (default `AMOO_<PROFILE>_<FIELD>`) | Accounts you do not want in the repository or the Keychain, CI | Must be set wherever amoo runs; an agent could print a variable exported in its own shell |
+| **macOS Keychain** | Both values in the login Keychain as `amoo.<app id>` / `<profile>.<field>`; the file keeps references | Real accounts on one Mac | macOS may ask to approve amoo (see below) |
 
-It never accepts a value as a flag, an environment variable, or without a terminal, so an agent cannot
-add or read one. `amoo credentials check [<profile>]` reports each field as found, missing or locked,
-never the value.
+It never accepts a value as a flag or without a terminal, so an agent cannot add one. `amoo credentials
+check [<profile>]` reports each field as found, missing, locked, set or not set, never the value.
 
-Items amoo saves trust the amoo binary, so agents read them without a prompt. A rebuilt binary (a local
-debug build) has a new signature: macOS asks again, and an agent's read reports `blocked: credential
-store locked` after 10 seconds instead of waiting. Run `amoo credentials check` and choose
-**Always Allow**.
+**Environment variables** are read from the amoo process at sign-in. For MCP, put them in the `env` of
+your AI client's amoo server configuration, which the agent's own shell does not see. For `amoo device`,
+export them in the shell that runs it; an agent sharing that shell could print them, so prefer the MCP
+server's env, or plain text for accounts that are safe to share.
+
+**Keychain approval.** Items amoo saves trust the amoo binary, so agents read them without a prompt. A
+rebuilt binary (a local debug build) has a new signature: macOS asks again, and an agent's read reports
+`blocked: credential store locked` after 10 seconds instead of waiting. Run `amoo credentials check` and
+choose **Always Allow**. Environment variables and plain text never need approval.
 
 ## `amoo.config.json`
 
@@ -65,8 +70,9 @@ outer one. `amoo config validate` lists every file it layered. Schema:
 | --- | --- |
 | `apps` | Bundle / package ids the profile may be typed into. |
 | `requires_launch_env` | Launch environment amoo must have sent to the app; `*` means the key only has to be present. This is what keeps a staging account out of a build pointed elsewhere. |
-| `fields.<name>.literal` | A value checked into the repository. Only for non-secrets, such as a mock backend that accepts any password. |
+| `fields.<name>.literal` | A value checked into the repository: a mock, QA or staging test account anyone with the repository may use. |
 | `fields.<name>.keychain` | A generic-password item (`service`, `account`) in the user's macOS login Keychain, written by `amoo credentials add`. On Linux it resolves to `blocked: no credential store`. |
+| `fields.<name>.env` | An environment variable of the amoo process, read at sign-in. Unset resolves to `blocked: no credentials` naming the variable. |
 | `fields.<name>.class` | `secret` fills only a secure (password) field and is scrubbed from every amoo output; `identifier` (an email, a username) fills any field. |
 
 `amoo config validate [--path <file>] [--json]` checks the file without reading any value;

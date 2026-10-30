@@ -64,13 +64,17 @@ struct ResolvedCredential: Sendable {
 public struct CredentialResolver: Sendable {
     let locateConfigs: @Sendable () -> [URL]
     let store: any SecretStore
+    /// The amoo process's environment, read for `env` fields at sign-in.
+    let environment: @Sendable () -> [String: String]
 
     public init(
         locateConfigs: @escaping @Sendable () -> [URL] = { AmooProjectConfig.discoverAll() },
-        store: any SecretStore = UnavailableSecretStore()
+        store: any SecretStore = UnavailableSecretStore(),
+        environment: @escaping @Sendable () -> [String: String] = { ProcessInfo.processInfo.environment }
     ) {
         self.locateConfigs = locateConfigs
         self.store = store
+        self.environment = environment
     }
 
     func resolve(_ reference: CredentialReference, launch: CredentialLaunch?) async throws -> ResolvedCredential {
@@ -122,16 +126,33 @@ public struct CredentialResolver: Sendable {
                     + "profile '\(reference.profile)' requires: \(unmet.joined(separator: ", "))."
             )
         }
-        let value: String = switch field.source {
-        case let .literal(literal):
-            literal
-        case let .keychain(service, account):
-            try await load(service: service, account: account, reference: reference)
-        }
+        let value = try await value(of: field.source, reference: reference)
         guard !value.isEmpty else {
             throw Self.blocked("no_credentials", "blocked: no credentials. '\(reference)' resolved to an empty value.")
         }
         return ResolvedCredential(reference: reference, value: value, fieldClass: field.fieldClass)
+    }
+
+    private func value(of source: CredentialField.Source, reference: CredentialReference) async throws -> String {
+        switch source {
+        case let .literal(literal):
+            literal
+        case let .keychain(service, account):
+            try await load(service: service, account: account, reference: reference)
+        case let .environment(name):
+            try environmentValue(name, reference: reference)
+        }
+    }
+
+    private func environmentValue(_ name: String, reference: CredentialReference) throws -> String {
+        guard let value = environment()[name], !value.isEmpty else {
+            throw Self.blocked(
+                "no_credentials",
+                "blocked: no credentials. '\(reference)' reads the environment variable \(name), which is not set "
+                    + "for amoo. A person sets it in the shell that runs amoo, or in the MCP client's amoo server env."
+            )
+        }
+        return value
     }
 
     private func load(service: String, account: String, reference: CredentialReference) async throws -> String {
