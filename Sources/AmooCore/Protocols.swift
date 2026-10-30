@@ -41,6 +41,12 @@ public protocol Actions: TouchActions, GestureActions, TextActions, NavigationAc
 public protocol DeviceDriver: Sendable {
     func boot() async throws
     func shutdown() async throws
+    /// Wakes the display without bypassing the lock screen, returning its observed power/lock state.
+    func wake() async throws -> ScreenPowerState
+    /// Dismisses a keyguard that needs no credential (swipe or none), returning the observed state.
+    /// A PIN, pattern or passphrase is never entered: the state stays `locked` for the caller to hand
+    /// back to the person holding the device.
+    func dismissKeyguard() async throws -> ScreenPowerState
     func deviceInfo() async throws -> DeviceInfo
 }
 
@@ -199,6 +205,10 @@ public protocol DeviceConfigurator: Sendable {
     /// Rotates the device, returning the orientation it reports afterwards — read back, not
     /// echoed, so a request the device ignored is visible to the caller.
     func setOrientation(_ orientation: DeviceOrientation) async throws -> DeviceOrientation
+    /// Changes an emulator's hinge posture and verifies its committed device state.
+    func setPosture(_ posture: DevicePosture) async throws -> DevicePosture
+    /// Changes a resizable emulator's display preset and reads back its dimensions and density.
+    func setDisplayPreset(_ preset: DisplayPreset) async throws -> DeviceDisplayConfiguration
 }
 
 // MARK: - AI Context
@@ -322,6 +332,20 @@ public extension NavigationActions {
 }
 
 public extension DeviceDriver {
+    func dismissKeyguard() async throws -> ScreenPowerState {
+        throw AmooError.unsupportedCapability(
+            key: "device.dismissKeyguard",
+            reason: "Keyguard dismissal is not supported by this driver."
+        )
+    }
+
+    func wake() async throws -> ScreenPowerState {
+        throw AmooError.unsupportedCapability(
+            key: "device.wake",
+            reason: "Device wake is not supported by this driver."
+        )
+    }
+
     func boot() async throws {
         throw AmooError.notImplemented("boot")
     }
@@ -427,6 +451,16 @@ public extension AccessibilityProvider {
 }
 
 public extension DeviceConfigurator {
+    func setPosture(_: DevicePosture) async throws -> DevicePosture {
+        throw AmooError.unsupportedCapability(key: "device.posture", reason: "Requires an Android foldable emulator.")
+    }
+
+    func setDisplayPreset(_: DisplayPreset) async throws -> DeviceDisplayConfiguration {
+        throw AmooError.unsupportedCapability(
+            key: "device.displayPreset", reason: "Requires an Android resizable emulator."
+        )
+    }
+
     func setPermission(_: PermissionChange) async throws {
         throw AmooError.notImplemented("setPermission")
     }

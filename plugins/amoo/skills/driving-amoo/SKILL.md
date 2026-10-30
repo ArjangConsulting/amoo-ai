@@ -75,6 +75,9 @@ needed rather than guessing its arguments.
 | Inspect layout or an image | take_screenshot |
 | Inspect WebView-only state | webview_dom or webview_eval |
 | Test landscape or rotation | set_orientation, then re-query — every coordinate moves |
+| Screen is off before a visible check | device_wake (unlock=true clears a swipe lock; `credential_required` means ask the person to unlock — never enter a PIN or passphrase), inspect screen_state, then assert the app is visible |
+| Fold an Android emulator | set_posture with posture=closed, half_opened, or opened; then re-query |
+| Test tablet sizes on a resizable Android emulator | set_display_preset with preset=phone, unfolded, or tablet; then re-query |
 | Keyboard navigation or shortcuts | press_key with key= and optional modifiers= |
 | Hide the keyboard through a dedicated Hide keyboard / Dismiss keyboard button | dismiss_keyboard; fails without acting if no unambiguous control exists. Use tap_element for an intended app action such as Done; Return, Escape, and swipes can submit forms or close sheets. |
 | Reach a row below the fold | scroll_to_element; `scroll` direction names where to scroll (down reveals below) |

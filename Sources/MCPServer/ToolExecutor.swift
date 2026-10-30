@@ -16,6 +16,7 @@ public actor DriverToolExecutor: ToolExecutor {
     /// Kept for backward compatibility with the original `amoo mcp serve` flow.
     private let operationQueue = DeviceOperationQueue()
     private var defaultDeviceKey: String?
+    private let defaultDeviceID: String?
     let defaultDriver: any PlatformDriver
     let sessionManager: SessionManager?
     /// Probes for a concurrent `xcodebuild`/`xctest` that amoo did not start, so `start_session`
@@ -36,9 +37,14 @@ public actor DriverToolExecutor: ToolExecutor {
         sessionManager: SessionManager? = nil,
         foreignBuildDetector: ForeignBuildDetector = .disabled,
         webInspector: any WebInspecting = UnconfiguredWebInspector(),
-        defaultPlatform: Platform? = nil
+        defaultPlatform: Platform? = nil,
+        defaultDeviceID: String? = nil
     ) {
         self.defaultPlatform = defaultPlatform
+        self.defaultDeviceID = defaultDeviceID
+        if let defaultPlatform, let defaultDeviceID {
+            defaultDeviceKey = "\(defaultPlatform.rawValue):\(defaultDeviceID)"
+        }
         defaultDriver = driver
         self.sessionManager = sessionManager
         self.foreignBuildDetector = foreignBuildDetector
@@ -64,7 +70,10 @@ public actor DriverToolExecutor: ToolExecutor {
         } else if arguments["session_id"] != nil {
             return await executeOrdered(toolName: toolName, arguments: arguments)
         } else {
-            if defaultDeviceKey == nil, let info = try? await defaultDriver.deviceInfo() {
+            if defaultDeviceKey == nil,
+               let info = try? await OperationDeadline.read(until: .now + .seconds(2), operation: {
+                   try await self.defaultDriver.deviceInfo()
+               }) {
                 defaultDeviceKey = "\(info.platform.rawValue):\(info.id)"
             }
             key = defaultDeviceKey ?? "default"
@@ -78,7 +87,7 @@ public actor DriverToolExecutor: ToolExecutor {
     func executeOrdered(toolName: String, arguments: [String: String]) async -> ToolResult {
         let clock = ContinuousClock()
         let start = clock.now
-        let result: ToolResult
+        var result: ToolResult
         var executionTool = toolName
         var executionArguments = arguments
         var dispatchStarted = false
@@ -112,6 +121,7 @@ public actor DriverToolExecutor: ToolExecutor {
                 failure, tool: executionTool, started: start, dispatchStarted: dispatchStarted
             )
         }
+        result = await diagnoseConnectivityFailure(result, arguments: executionArguments)
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
         PerformanceTelemetry.record(
@@ -389,11 +399,30 @@ extension DriverToolExecutor {
         let plain = "\(toolName) failed: \(error)"
         let text = "\(error)".lowercased()
         guard text.contains("timed out") || text.contains("deadlineexceeded") || text.contains("deadline exceeded"),
-              let driver = try? await resolveDriver(arguments: arguments),
-              let info = try? await driver.deviceInfo(),
-              let hijack = await foreignBuildDetector.hijackMessage(platform: info.platform, deviceID: info.id)
-        else { return plain + slowSnapshotHint(for: text) }
+              let identity = await failureDeviceIdentity(arguments: arguments),
+              let hijack = await foreignBuildDetector.hijackMessage(platform: identity.platform, deviceID: identity.id)
+        else {
+            let snapshotTool = toolName.hasPrefix("assert_") || [
+                "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
+                "tap", "tap_element", "set_text", "find_element_by_description"
+            ].contains(toolName)
+            return plain + (snapshotTool ? slowSnapshotHint(for: text) : "")
+        }
         return "\(toolName) failed: \(hijack) (original error: \(error))"
+    }
+
+    private func failureDeviceIdentity(arguments: [String: String]) async -> (platform: Platform, id: String)? {
+        if let id = arguments["session_id"], let session = await sessionManager?.session(id) {
+            return (session.platform, session.deviceID)
+        }
+        if let defaultPlatform, let defaultDeviceID {
+            return (defaultPlatform, defaultDeviceID)
+        }
+        guard let driver = try? await resolveDriver(arguments: arguments),
+              let info = try? await OperationDeadline.read(until: .now + .seconds(2), operation: {
+                  try await driver.deviceInfo()
+              }) else { return nil }
+        return (info.platform, info.id)
     }
 
     /// Explains a deadline the device missed with no one else driving it. The usual cause is an

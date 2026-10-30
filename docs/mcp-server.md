@@ -16,6 +16,51 @@ there is no remote authentication/TLS layer. See [prerequisites](prerequisites.m
 
 Install the CLI with `brew install arjangconsulting/tap/amoo`; no source checkout is required.
 
+## Adaptive Android emulator controls
+
+Use `device_wake` when a screenshot reports `screen_state=off`. It verifies that the display is
+awake and reports `locked` when the keyguard is still present. It does not dismiss the lock screen
+or relaunch the app. Android puts a locked display back to sleep after about 10 seconds, so a
+`locked` result is not stable: unlock the device (or keep it unlocked) before layout checks.
+`device_wake unlock=true` additionally dismisses a swipe (or no-credential) keyguard and verifies the
+display is on. When the device is protected by a PIN, pattern or passphrase it fails with
+`credential_required`; amoo never types or reads credentials, so ask the person holding the device to
+unlock it and retry. This applies to physical devices as much as emulators.
+Follow it with an app visibility assertion before evaluating layout.
+
+Android `device_health` independently probes the host ADB transport, an Android shell command,
+and companion RPC. `failure_scope=device_execution` identifies an unresponsive guest even when
+the ADB server and companion listener respond. Timeout results include these independent probes
+when available; app and render readiness remain separate.
+
+`device_shutdown` waits for the emulator process to exit and its ADB serial to disappear. A
+shutdown acknowledgement is insufficient. If verification times out, amoo reports failure and
+does not claim the AVD is safe to restart. Boot also checks host registrations before launching
+another instance of an AVD that is absent from ADB. No AVD data or lock files are deleted.
+If the console is unresponsive, shutdown can send SIGTERM to the host PID after rechecking that
+it still identifies the selected emulator. It still verifies both process exit and ADB disconnect.
+
+For a snapshot-related emulator failure, stop its runtime, verify `device_shutdown`, then use
+`amoo env up --platform android --avd <name> --cold-boot`. This bypasses snapshot loading and
+saving while preserving installed apps and their data. The flag rejects already running AVDs.
+
+`set_posture posture=closed|half_opened|opened` changes a foldable emulator's hinge posture
+and waits for Android's committed device state. `set_display_preset preset=phone|unfolded|tablet`
+changes a resizable emulator's display, verifying the dimensions and density advertised by that
+emulator. Both tools accept `session_id` and are also available through `amoo device` and flows.
+Re-query elements after each transition because the layout, active display, and coordinates can change.
+
+These controls use the [Android emulator console commands](https://developer.android.com/blog/posts/emulator-control-for-adaptive-app-development).
+They reject physical devices and unsupported emulator configurations. A successful result verifies
+device configuration; use app assertions or WebView observations to check playback and document
+continuity. Native XCUITest/Espresso export currently excludes these host-side configuration steps
+with a warning that blocks complete test generation.
+
+Android hierarchy captures are serialized within the companion. When a child disappears during a
+capture or no window root is available, the companion makes up to three complete capture attempts
+with a short backoff for window registration. Exhausted retries remain an error rather than an
+empty element list, so absence assertions cannot pass on an incomplete tree.
+
 ## Start the server manually
 
 ```bash

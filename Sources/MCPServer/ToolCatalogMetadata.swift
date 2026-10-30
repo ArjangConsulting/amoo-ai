@@ -46,6 +46,18 @@ enum ToolCatalogMetadata {
         .init(tools: ["start_session"], property: "build_mode", values: ["auto", "reuse", "rebuild"], exhaustive: true),
         .init(tools: ["set_appearance"], property: "appearance", values: ["light", "dark"], exhaustive: true),
         .init(
+            tools: ["set_posture"],
+            property: "posture",
+            values: ["closed", "half_opened", "opened"],
+            exhaustive: true
+        ),
+        .init(
+            tools: ["set_display_preset"],
+            property: "preset",
+            values: ["phone", "unfolded", "tablet"],
+            exhaustive: true
+        ),
+        .init(
             tools: ["set_orientation"],
             property: "orientation",
             values: ["portrait", "landscape_left", "landscape_right", "portrait_upside_down"],

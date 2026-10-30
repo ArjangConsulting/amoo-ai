@@ -38,8 +38,47 @@ extension DriverToolExecutor {
             )
 
         case "device_shutdown":
+            let target = try? await OperationDeadline.read(until: .now + .seconds(2), operation: {
+                try await driver.deviceInfo()
+            })
             try await driver.shutdown()
-            return .success("Device shut down")
+            guard let target else { return .success("Device shut down") }
+            return .success(
+                "Shut down \(target.platform.rawValue) device \(target.id)."
+                    + " Pass session_id to target a session's device;"
+                    + " without one this acts on the server's default \(target.platform.rawValue) device.",
+                structuredContent: .object([
+                    "platform": .string(target.platform.rawValue), "device_id": .string(target.id)
+                ])
+            )
+
+        case "device_wake":
+            var state = try await driver.wake()
+            if arguments["unlock"]?.lowercased() == "true", state == .locked {
+                state = try await driver.dismissKeyguard()
+                guard state != .locked else {
+                    throw ToolExecutionError(
+                        code: "credential_required",
+                        message: "The device is locked by a PIN, pattern or passphrase. amoo never enters"
+                            + " credentials. Ask the person holding the device to unlock it, then retry."
+                    )
+                }
+            }
+            guard state == .on || state == .locked else {
+                throw ToolExecutionError(
+                    code: "postcondition_failed",
+                    message: "Display wake is unverified; screen reports \(state.rawValue)."
+                )
+            }
+            return .success(
+                state == .locked
+                    ? "Display is awake and locked. Android sleeps a locked display again after about 10 seconds."
+                    + " Unlock it before visible checks." :
+                    "Display is awake.",
+                structuredContent: .object([
+                    "screen_state": .string(state.rawValue), "verified": .bool(state == .on || state == .locked)
+                ])
+            )
 
         case "device_install_app":
             guard let rawPath = arguments["path"] else {
@@ -429,6 +468,9 @@ extension DriverToolExecutor {
                 return .error("Requested \(value) but the device reports \(reported.rawValue)")
             }
             return .success("Orientation set to \(reported.rawValue)")
+
+        case "set_posture", "set_display_preset":
+            return try await executeAdaptiveDevice(tool: toolName, arguments: arguments, driver: driver)
 
         // Audit tools
         case "assert_accessibility_journey":

@@ -2,6 +2,16 @@ import AmooCore
 import XCTest
 
 final class ConnectivityHealthTests: XCTestCase {
+    func testUnresponsiveAndroidExecutionIsNotHealthyEvenWhenBothChannelsRespond() {
+        let responded = ConnectivityHealth.Probe(status: "responded", source: "fixture")
+        let health = ConnectivityHealth(
+            deviceTransport: responded,
+            companionRPC: responded,
+            deviceExecution: .init(status: "timed_out", source: "Android shell echo")
+        )
+        XCTAssertEqual(health.failureScope, "device_execution")
+    }
+
     func testCompanionFailureIsSeparateFromADeviceTransportFailure() {
         var health = ConnectivityHealth(
             deviceTransport: .init(status: "responded", source: "adb"),

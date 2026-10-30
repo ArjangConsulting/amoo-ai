@@ -251,7 +251,10 @@ extension SessionPlanCompiler {
             "set_text",
             "fill_field",
             "press_back",
-            "device_launch_app"
+            "device_launch_app",
+            "set_orientation",
+            "set_posture",
+            "set_display_preset"
         ].contains(tool)
     }
 
