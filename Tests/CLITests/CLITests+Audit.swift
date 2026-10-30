@@ -63,7 +63,12 @@ extension CLITests {
         try? createAndroidAPKFixtures(at: companionDir)
 
         let runner = MockCLIProcessRunner(results: [
-            .success(.init(exitCode: 1, stdout: "INSTALL_FAILED", stderr: ""))
+            .success(.init(exitCode: 0, stdout: "35\n", stderr: "")),
+            .success(.init(
+                exitCode: 1,
+                stdout: "",
+                stderr: "adb: failed to install app.apk: Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE]"
+            ))
         ])
         let result = await runAndroidCompanionInstall(
             options: CompanionCommandOptions(
@@ -79,9 +84,71 @@ extension CLITests {
 
         let commands = await runner.recordedCommands()
         XCTAssertEqual(result.exitCode, 1)
-        XCTAssertTrue(result.output.contains("Failed to install Android app APK:"))
+        XCTAssertTrue(result.output.contains("Failed to install Android app APK on emulator-5554, API 35:"))
+        XCTAssertTrue(result.output.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE"))
+        XCTAssertTrue(result.output.contains("Likely cause:"))
+        XCTAssertTrue(result.output.contains("Recovery:"))
+        XCTAssertEqual(commands.count, 2)
+        XCTAssertEqual(commands.last?.prefix(5), ["adb", "-s", "emulator-5554", "install", "-r"])
+    }
+
+    func testRunAndroidCompanionInstallRemovesItsOwnPackagesOnceAfterASignatureClash() async throws {
+        let companionDir = try makeTemporaryDirectory()
+        try createAndroidAPKFixtures(at: companionDir)
+
+        let clash = "Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match]"
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 0, stdout: "37\n", stderr: "")),
+            .success(.init(exitCode: 1, stdout: "", stderr: clash)),
+            .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
+            .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
+            .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
+            .success(.init(exitCode: 0, stdout: "Success", stderr: ""))
+        ])
+        let result = await runAndroidCompanionInstall(
+            options: CompanionCommandOptions(
+                action: .install,
+                platform: .android,
+                deviceID: "emulator-5554",
+                companionDir: companionDir,
+                force: false
+            ),
+            processRunner: runner,
+            currentDirectory: companionDir
+        )
+
+        let commands = await runner.recordedCommands()
+        let verbs = commands.map { $0.dropFirst(3).first }
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(verbs, ["shell", "install", "uninstall", "uninstall", "install", "install"])
+        let removed = commands.filter { $0.contains("uninstall") }.compactMap(\.last)
+        XCTAssertEqual(removed, ["com.amoo.companion.test", "com.amoo.companion"])
+    }
+
+    func testRunAndroidCompanionInstallRefusesADeviceBelowTheMinimumAPILevelBeforeInstalling() async throws {
+        let companionDir = try makeTemporaryDirectory()
+        try createAndroidAPKFixtures(at: companionDir)
+
+        let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 0, stdout: "24\n", stderr: ""))
+        ])
+        let result = await runAndroidCompanionInstall(
+            options: CompanionCommandOptions(
+                action: .install,
+                platform: .android,
+                deviceID: "emulator-5554",
+                companionDir: companionDir,
+                force: false
+            ),
+            processRunner: runner,
+            currentDirectory: companionDir
+        )
+
+        let commands = await runner.recordedCommands()
+        XCTAssertEqual(result.exitCode, 1)
+        XCTAssertTrue(result.output.contains("API 24"))
+        XCTAssertTrue(result.output.contains("API \(AndroidCompanionConfig.minimumAPILevel)"))
         XCTAssertEqual(commands.count, 1)
-        XCTAssertEqual(commands.first?.prefix(5), ["adb", "-s", "emulator-5554", "install", "-r"])
     }
 
     func testRunAndroidCompanionInstallSucceedsWithExistingArtifacts() async throws {
@@ -89,6 +156,7 @@ extension CLITests {
         try createAndroidAPKFixtures(at: companionDir)
 
         let runner = MockCLIProcessRunner(results: [
+            .success(.init(exitCode: 0, stdout: "35\n", stderr: "")),
             .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
             .success(.init(exitCode: 0, stdout: "Success", stderr: ""))
         ])
@@ -107,9 +175,10 @@ extension CLITests {
         let commands = await runner.recordedCommands()
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertEqual(result.output, "")
-        XCTAssertEqual(commands.count, 2)
-        XCTAssertEqual(commands[0][0 ... 2], ["adb", "install", "-r"])
+        XCTAssertEqual(commands.count, 3)
+        XCTAssertEqual(commands[0][0 ... 2], ["adb", "shell", "getprop"])
         XCTAssertEqual(commands[1][0 ... 2], ["adb", "install", "-r"])
+        XCTAssertEqual(commands[2][0 ... 2], ["adb", "install", "-r"])
     }
 
     func testREPLShellSplitHandlesQuotedArguments() {
