@@ -81,6 +81,8 @@ func renderInitHelp() -> String {
     The platform, manifest directory and any explicitly supplied app are recorded in ./AGENTS.md
     (asked in a terminal; --save to do it headless). Guided setup defaults to ./.amoo.json;
     saved app paths are never selected automatically. Device and runtime ids are never saved in AGENTS.md.
+    The saved block and the summary also say whether amoo.config.json declares sign-in profiles;
+    init never writes that file (see `amoo config --help`).
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.

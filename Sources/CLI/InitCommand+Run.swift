@@ -352,11 +352,12 @@ private func finishInit(
             exitCode: exitCode
         )
     }
-    lines.append(renderInitNextSteps(plan))
+    let root = URL(fileURLWithPath: agentsFile).deletingLastPathComponent()
+    lines.append(renderInitNextSteps(plan, signIn: InitSignInStatus.inspect(root: root)))
     return CLIResult(output: lines.joined(separator: "\n"), exitCode: exitCode)
 }
 
-private func renderInitNextSteps(_ plan: InitPlan) -> String {
+func renderInitNextSteps(_ plan: InitPlan, signIn: InitSignInStatus) -> String {
     let platform = plan.options.environment.platform.rawValue
     let commands = plan.options.devices.map { device in
         "  amoo companion warm --platform \(platform) --device \(shellQuoted(device))"
@@ -379,7 +380,7 @@ private func renderInitNextSteps(_ plan: InitPlan) -> String {
       amoo device --help   Browse inspection, gestures, screenshots and assertions.
       amoo doctor          Check your local setup and diagnose connection problems.
     Review amoo.md with your agent to confirm test targets, base classes and helpers.
-    """
+    """ + signIn.nextSteps
 }
 
 /// Headless refusal text: every missing input at once, plus the available devices.
