@@ -147,4 +147,29 @@ final class InitRepoTests: InitTestCase {
         let failed = CLIResult(output: "not json", exitCode: 1)
         XCTAssertEqual(combineInitDownResults([report("a"), failed]).exitCode, 1)
     }
+
+    func testInitDeviceNamesTheInitializedDevicesInsteadOfEnvUsage() async throws {
+        let manifest = try makeScratchDirectory().url.appendingPathComponent(".amoo.json").path
+        try InitManifest(ok: true, results: [
+            EnvUpReport(
+                ok: true,
+                runtimeID: "r1",
+                platform: "ios",
+                device: EnvDeviceReport(id: "UDID-1", name: "iPhone 17", bootedByEnv: false),
+                port: 22093
+            )
+        ]).write(manifest)
+        let missing = await handleInitCommand(remaining: ["device", "--manifest", manifest, "current_app"])
+        let unknown = await handleInitCommand(
+            remaining: ["device", "--manifest", manifest, "--device", "NOPE", "current_app"]
+        )
+        for result in [missing, unknown] {
+            XCTAssertEqual(result.exitCode, 64)
+            XCTAssertTrue(result.output.contains("UDID-1  ios  iPhone 17"), result.output)
+            XCTAssertTrue(result.output.contains("Searched: \(manifest)"), result.output)
+            XCTAssertFalse(result.output.contains("amoo env <up|down|list>"), result.output)
+        }
+        XCTAssertTrue(missing.output.hasPrefix("--device <id> is required."), missing.output)
+        XCTAssertTrue(unknown.output.hasPrefix("No successful init entry for device NOPE."), unknown.output)
+    }
 }
