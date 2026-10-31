@@ -54,6 +54,38 @@ extension MCPServerTests {
         ))
     }
 
+    func testServerStartedAtAnOrchestratorRootDiscoversThePlatformRepositoryProfile() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let root = scratch.url.appendingPathComponent("mobile")
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent("iOS"),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent(".git"),
+            withIntermediateDirectories: true
+        )
+        try """
+        ```amoo-context
+        {"targetPlatform":"ios","repo":"iOS","launchEnvironment":{"UI_TEST_PROFILE":"clean-home"}}
+        ```
+        """.write(to: root.appendingPathComponent("amoo.md"), atomically: true, encoding: .utf8)
+        try """
+        ```amoo-context
+        {"targetPlatform":"ios","baseClass":"NovaUITestCase"}
+        ```
+        """.write(to: root.appendingPathComponent("iOS/amoo.md"), atomically: true, encoding: .utf8)
+        let snapshot = try XCTUnwrap(DriverToolExecutor.contextSnapshot(
+            [:], platform: .ios, discoveryDirectory: root
+        ))
+        let context = try JSONDecoder().decode(StudioTestContext.self, from: Data(snapshot.utf8))
+        XCTAssertEqual(context.baseClass, "NovaUITestCase")
+        XCTAssertEqual(context.launchEnvironment, ["UI_TEST_PROFILE": "clean-home"])
+        XCTAssertEqual(context.repo, "iOS")
+        XCTAssertNil(try DriverToolExecutor.contextSnapshot([:], platform: .android, discoveryDirectory: root))
+    }
+
     private var contextJSON: String {
         """
         {
