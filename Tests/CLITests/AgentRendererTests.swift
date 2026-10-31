@@ -39,7 +39,7 @@ final class AgentRendererTests: XCTestCase {
     func testClaudeScopesTheMCPServerToTheSubagent() throws {
         let text = try render(.claude)
         XCTAssertTrue(text.hasPrefix("---\nname: amoo\ndescription: \"Drives \\\"devices\\\": iOS and Android.\"\n"))
-        XCTAssertTrue(text.contains("model: sonnet"))
+        XCTAssertFalse(text.contains("\nmodel:"))
         XCTAssertTrue(text.contains("disallowedTools: Edit, NotebookEdit"))
         XCTAssertTrue(text
             .contains("mcpServers:\n  - amoo:\n      type: stdio\n      command: \"/tmp/local amoo/amoo\""))
@@ -77,7 +77,7 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertTrue(gemini.contains("timeout_mins: 30"))
         XCTAssertTrue(gemini.contains("mcpServers:\n  amoo:\n    command: \"/tmp/local amoo/amoo\""))
 
-        XCTAssertTrue(try render(.cursor).contains("model: inherit"))
+        XCTAssertFalse(try render(.cursor).contains("model:"), "Cursor pins no model")
 
         let opencode = try render(.opencode)
         XCTAssertTrue(opencode.contains("mode: subagent"))

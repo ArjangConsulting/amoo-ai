@@ -135,6 +135,13 @@ servers. Validate delegated results with `amoo agent validate-report --report <r
 --run-id <UUID> --checks <caller-check-ids>`. A pass requires all requested assertions evaluated and
 passed, complete coverage and resolved cleanup. Detailed evidence stays in local referenced files.
 
+**Model cost.** The agents pin no model. Ask your main agent to delegate device checks on the cheapest
+model that can run them, once, in your global instructions (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, or Cursor's User Rules):
+it then picks per spawn (Claude Code's Agent `model` parameter; Codex's spawn model and effort; the model
+Cursor's parent names when it launches a subagent), and the
+choice overrides the agent file. To pin a model yourself instead, add `model:` to the Claude agent
+file or `model` / `model_reasoning_effort` to the Codex one; `amoo agent update` keeps such edits.
+
 Where the client allows it, these standalone agents start `amoo mcp serve` for the subagent
 alone. Your main session then never loads amoo's tool catalog, and the subagent uses the same
 tools through `amoo device … --json` when MCP is unavailable. Existing files that differ are

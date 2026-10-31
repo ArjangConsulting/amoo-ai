@@ -20,6 +20,14 @@ Do not try to load amoo-debug as a skill. Pass app_id, build_path, device_hint, 
 launch_env from the app's setup contract. Include reset flags only for a requested clean store.
 Do not delegate a flow that needs a question answered midway; keep it in the main context.
 
+**Model cost.** Bounded device checks are tool-driven and need little reasoning, so delegate them on
+the cheapest model your client offers that can reliably do the job. The delegating agent chooses it on
+every spawn (Claude Code: the Agent tool's `model` parameter, which overrides the agent file; Codex: the
+spawn's model and reasoning effort; Cursor: the model the parent names when it launches the subagent) and does not wait to be told. The shipped agent files pin no model
+name, so nothing goes stale. Retry on a stronger model only when the cheaper one blocks or returns an
+unusable report. Users can still pin one in their own agent file, or force one for every subagent with
+`CLAUDE_CODE_SUBAGENT_MODEL` plus `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`.
+
 Check the pinned binary's `--version` and `--help` before choosing CLI commands. Read subcommand
 help for required flags; never call an unlisted command (older binaries may enter the REPL).
 Run doctor before either transport. Inspect `doctor --help`: CLI work uses
