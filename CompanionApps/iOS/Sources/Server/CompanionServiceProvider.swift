@@ -366,8 +366,21 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             return XCUIDevice.shared.orientation
         }
         await Self.waitForStableScreen()
+        // `XCUIDevice.orientation` echoes the request, but on a multi-display device (iPhone Duo)
+        // the large display can stay landscape whatever is requested. Report what the display the
+        // app renders on actually shows, so a rotation that did nothing is reported as such.
+        let points = await accessibility.screenInfo().points
+        let screenIsLandscape = points.width > points.height
+        let reportedIsLandscape = reported == .landscapeLeft || reported == .landscapeRight
+        let effective: UIDeviceOrientation = if screenIsLandscape == reportedIsLandscape {
+            reported
+        } else if screenIsLandscape {
+            .landscapeLeft
+        } else {
+            .portrait
+        }
         var response = Amoo_OrientationResponse()
-        response.orientation = switch reported {
+        response.orientation = switch effective {
         case .portrait: .portrait
         case .portraitUpsideDown: .portraitUpsideDown
         case .landscapeLeft: .landscapeLeft
