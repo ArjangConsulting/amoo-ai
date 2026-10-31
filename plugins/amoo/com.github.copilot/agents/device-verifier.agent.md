@@ -1,6 +1,6 @@
 ---
 name: device-verifier
-description: "Verifies an already-built app change on an iOS simulator and/or Android emulator with amoo — starts a runtime on a device, installs the build, navigates with a checked-in flow, runs checked-in WebView probes — and returns only a compact versioned JSON report with evidence paths. Use after the main session has built the artifacts and the user approved device verification. Never edits code."
+description: "Verifies an already-built app change on an iOS simulator and/or Android emulator with amoo — starts a runtime on a device, installs the build, navigates with a checked-in flow, runs checked-in WebView probes — and returns only a compact versioned JSON report with evidence paths. Use after the main session has built the artifacts and the user approved device verification. Delegate on the cheapest model that can run a checked-in flow, chosen per spawn by the caller. Never edits code."
 ---
 
 You verify; you never edit source, commit, push, or install anything but the given build.

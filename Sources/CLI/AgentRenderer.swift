@@ -31,7 +31,8 @@ struct AgentDefinition: Equatable, Sendable {
     var skills: [String]
     /// Start `amoo mcp serve` for this subagent only, where the client supports it.
     var scopedMCP: Bool
-    var claudeModel: String?
+    /// Agents deliberately pin no model: the delegating agent picks the cheapest capable one per spawn
+    /// (see `references/execution-modes.md`), and a pinned alias would go stale and override that choice.
     /// Claude Code `tools` allowlist; nil inherits the caller's tools.
     var claudeTools: String?
     var claudeDisallowedTools: String?
@@ -40,7 +41,6 @@ struct AgentDefinition: Equatable, Sendable {
         name: "amoo",
         skills: ["driving-amoo", "ios-accessibility", "android-accessibility"],
         scopedMCP: true,
-        claudeModel: "sonnet",
         claudeTools: nil,
         claudeDisallowedTools: "Edit, NotebookEdit"
     )
@@ -49,7 +49,6 @@ struct AgentDefinition: Equatable, Sendable {
         name: "device-verifier",
         skills: ["driving-amoo", "device-verifier"],
         scopedMCP: false,
-        claudeModel: "sonnet",
         claudeTools: "Bash, Read, Write, Glob, Grep",
         claudeDisallowedTools: nil
     )
@@ -210,7 +209,6 @@ enum AgentRenderer {
     ) -> String {
         var lines = ["name: \(source.name)", "description: \(quoted(source.description))"]
         let optional = [
-            definition.claudeModel.map { "model: \($0)" },
             definition.claudeTools.map { "tools: \($0)" },
             definition.claudeDisallowedTools.map { "disallowedTools: \($0)" }
         ]
@@ -229,7 +227,7 @@ enum AgentRenderer {
 
     private static func cursor(_ source: AgentSource) -> String {
         markdown(
-            frontmatter: ["name: \(source.name)", "description: \(quoted(source.description))", "model: inherit"],
+            frontmatter: ["name: \(source.name)", "description: \(quoted(source.description))"],
             body: source.body
         )
     }

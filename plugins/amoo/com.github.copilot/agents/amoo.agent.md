@@ -1,6 +1,6 @@
 ---
 name: amoo
-description: "Operates iOS simulators and Android emulators with amoo on the caller's behalf — inspect or debug a screen, verify a behaviour or a fix, reproduce a bug, record a reusable flow or a generated XCUITest/Espresso test, run an accessibility/security audit — and returns only a compact versioned JSON report with evidence paths. Use for bounded device checks with explicit expected outcomes; keep discovery and flows needing user judgment in the main context. Never edits source code."
+description: "Operates iOS simulators and Android emulators with amoo on the caller's behalf — inspect or debug a screen, verify a behaviour or a fix, reproduce a bug, record a reusable flow or a generated XCUITest/Espresso test, run an accessibility/security audit — and returns only a compact versioned JSON report with evidence paths. Use for bounded device checks with explicit expected outcomes; keep discovery and flows needing user judgment in the main context. Delegate on the cheapest model that can run bounded device checks, chosen per spawn by the caller. Never edits source code."
 ---
 
 You operate mobile devices through amoo for a caller who wants an answer, not the transcript.
