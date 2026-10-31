@@ -104,6 +104,23 @@ enum TapHittability {
         }
     }
 
+    /// Where the first node named like `target` sits in `root`, ignoring its own frame — which is
+    /// what changed if a scroll was still running when the element was resolved.
+    static func currentFrame(of target: ElementInfo, in root: ViewNode) -> Rect? {
+        guard !target.id.isEmpty || !target.label.isEmpty else { return nil }
+        var found: Rect?
+        func walk(_ node: ViewNode) {
+            guard found == nil else { return }
+            if node.id == target.id, node.label == target.label, let frame = node.frame {
+                found = frame
+                return
+            }
+            node.children.forEach(walk)
+        }
+        walk(root)
+        return found
+    }
+
     private static func isTarget(_ node: ViewNode, _ target: ElementInfo) -> Bool {
         node.id == target.id && node.label == target.label && node.frame == target.frame
     }
@@ -232,6 +249,40 @@ extension DriverToolExecutor {
                 + " or pass check_hittable=false to tap the point anyway."
         )
         return TapPreflight(refusal: refusal, hierarchy: hierarchy)
+    }
+
+    /// `matched` as it stands once the screen has stopped moving.
+    ///
+    /// `tap_element` resolves an element, then spends up to the check budget reading the hierarchy
+    /// before tapping the point it resolved. A list still decelerating from a swipe has scrolled on
+    /// by then, so the tap hit whichever row had slid under that point. The hierarchy read for the
+    /// check shows where the element is now; when that differs from where it was resolved, resolve
+    /// again until two reads agree. A screen at rest costs nothing extra.
+    func settledElement(
+        _ matched: ElementInfo,
+        hierarchy: ViewNode?,
+        resolve: () async throws -> ElementInfo?
+    ) async throws -> ElementInfo {
+        guard let hierarchy, let resolved = matched.frame,
+              let now = TapHittability.currentFrame(of: matched, in: hierarchy),
+              !Self.sameFrame(resolved, now) else { return matched }
+        var previous = matched
+        for _ in 0 ..< 10 {
+            try Task.checkCancellation()
+            try await Task.sleep(for: .milliseconds(120))
+            guard let current = try await resolve(), let previousFrame = previous.frame,
+                  let currentFrame = current.frame else { return previous }
+            if Self.sameFrame(previousFrame, currentFrame) {
+                return current
+            }
+            previous = current
+        }
+        return previous
+    }
+
+    private static func sameFrame(_ lhs: Rect, _ rhs: Rect) -> Bool {
+        abs(lhs.x - rhs.x) < 1 && abs(lhs.y - rhs.y) < 1
+            && abs(lhs.width - rhs.width) < 1 && abs(lhs.height - rhs.height) < 1
     }
 
     /// Whether the screen changed within the effect budget after a tap: compares hierarchy

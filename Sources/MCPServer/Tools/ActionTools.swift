@@ -81,7 +81,11 @@ public enum ActionTools {
             properties: [
                 "direction": .init(type: "string", description: "Swipe direction: up, down, left, or right"),
                 "distance": .init(type: "string", description: "Swipe distance in points. Defaults to 300."),
-                "duration_ms": .init(type: "string", description: "Swipe duration in milliseconds. Defaults to 400."),
+                "duration_ms": .init(
+                    type: "string",
+                    description: "Swipe duration in milliseconds. Defaults to 400, which a scroll view treats as a"
+                        + " fling and carries to the end of a long list; use 1500 or more for a controlled drag."
+                ),
                 "element_id": .init(
                     type: "string",
                     description: "Accessibility ID of element to swipe on. Omit for screen-center swipe."
