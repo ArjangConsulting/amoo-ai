@@ -35,8 +35,10 @@ final class CompanionRunner: XCTestCase {
         // previous instance, set up its automation session, wait for idle). It is still named, so
         // `XCUITestBridge` can exclude it: XCUITest activates whatever app it delivers an
         // interaction to, and routing through this one would foreground the fixture.
+        #if os(iOS)
         _ = NativeAccessibilityInspector.buildFingerprint
         NativeAccessibilityInspector.recoverVoiceOverAtStartup()
+        #endif
         continueAfterFailure = true
         let app = XCUIApplication()
 

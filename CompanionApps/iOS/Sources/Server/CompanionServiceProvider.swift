@@ -13,7 +13,12 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     func inspectAccessibility(
         request: Amoo_AccessibilityInspectionRequest, context: ServerContext
     ) async throws -> Amoo_AccessibilityInspectionResponse {
+        #if os(macOS)
+        _ = (request, context)
+        throw RPCError(code: .unimplemented, message: "Native accessibility inspection is iOS-only")
+        #else
         await NativeAccessibilityInspector.inspect(request, isCancelled: { context.cancellation.isCancelled })
+        #endif
     }
 
     private let touch: TouchHandler
@@ -86,6 +91,15 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             cap.supported = true
             return cap
         }
+        #if os(macOS)
+        // A Mac has no second finger, rotation, or VoiceOver bridge to drive from XCUITest.
+        for index in response.capabilities.indices
+            where ["action.pinch", "action.setOrientation"].contains(response.capabilities[index].key) {
+            response.capabilities[index].supported = false
+            response.capabilities[index].reasonIfUnsupported = "Not available on macOS"
+        }
+        return response
+        #else
         var audit = Amoo_CapabilityDescriptor()
         audit.key = "accessibility.nativeAudit"
         audit.tier = .optional
@@ -116,6 +130,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         journey.key = "accessibility.authoredJourney.v1"
         response.capabilities.append(journey)
         return response
+        #endif
     }
 
     func endSession(
@@ -362,8 +377,12 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         request _: Amoo_Empty,
         context _: ServerContext
     ) async throws -> Amoo_ActionResponse {
+        #if os(macOS)
+        return failResponse("press_home is not available on macOS")
+        #else
         await MainActor.run { XCUIDevice.shared.press(.home) }
         return successResponse()
+        #endif
     }
 
     // MARK: - Orientation
@@ -372,6 +391,10 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         request: Amoo_SetOrientationRequest,
         context _: ServerContext
     ) async throws -> Amoo_OrientationResponse {
+        #if os(macOS)
+        _ = request
+        throw RPCError(code: .unimplemented, message: "set_orientation is not available on macOS")
+        #else
         let requested: UIDeviceOrientation
         switch request.orientation {
         case .portrait: requested = .portrait
@@ -408,6 +431,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         default: .unspecified
         }
         return response
+        #endif
     }
 
     /// Returns once two consecutive frames match, or after `timeout`.
