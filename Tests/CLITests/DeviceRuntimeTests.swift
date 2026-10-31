@@ -284,6 +284,29 @@ final class DeviceRuntimeEndpointTests: XCTestCase {
         )
     }
 
+    func testRuntimeAloneSuppliesItsPlatformWhenNoneWasGiven() throws {
+        let store = DeviceRuntimeStore.temporary()
+        var runtime = try store.start(platform: .android, deviceID: "emulator-5554", deviceName: "Pixel", owner: "t")
+        runtime.port = 22094
+        runtime = try store.refresh(runtime)
+        let parsed = try options(args: ["--runtime-id", runtime.id, "current_app"])
+        XCTAssertEqual(parsed.platform, .ios)
+
+        let adopted = try parsed.applyingRuntime(store: store, environment: [:]).get()
+
+        XCTAssertEqual(adopted.platform, .android)
+        XCTAssertEqual(adopted.port, 22094)
+        XCTAssertEqual(adopted.deviceID, "emulator-5554")
+        let fromEnvironment = try options(args: ["current_app"])
+            .applyingRuntime(store: store, environment: ["AMOO_RUNTIME_ID": runtime.id]).get()
+        XCTAssertEqual(fromEnvironment.platform, .android)
+        runtime.port = nil
+        runtime = try store.refresh(runtime)
+        let withoutPort = try options(args: ["--runtime-id", runtime.id, "current_app"])
+            .applyingRuntime(store: store, environment: [:]).get()
+        XCTAssertEqual(withoutPort.port, defaultPort(for: .android))
+    }
+
     func testRuntimeForAnotherPlatformIsRefused() throws {
         let (store, runtime) = try controlled(port: 22093)
         let parsed = try options(args: ["--platform", "android", "--runtime-id", runtime.id, "current_app"])

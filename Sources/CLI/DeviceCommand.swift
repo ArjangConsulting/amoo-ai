@@ -20,6 +20,8 @@ struct DeviceCommandOptions {
     var json = false
     /// `port` is the platform default, not a `--port` the caller chose, so a runtime may supply it.
     var portIsDefault = false
+    /// `platform` is the iOS default, not a `--platform` the caller chose, so a runtime may supply it.
+    var platformIsDefault = false
 }
 
 // MARK: - Parsing
@@ -215,6 +217,7 @@ func renderDeviceHelp() -> String {
 
 private struct DeviceCommandFlags {
     var platform: Platform = .ios
+    var platformIsDefault = true
     var port: Int?
     var deviceID: String?
     var runtimeID: String?
@@ -238,6 +241,7 @@ private func parseDeviceFlags(remaining: inout [String]) -> Result<DeviceCommand
                 return .failure(.unknownPlatform(platformStr))
             }
             flags.platform = parsed
+            flags.platformIsDefault = false
             remaining.removeFirst()
 
         case "--port":
@@ -367,7 +371,8 @@ func parseDeviceCommandOptions(args: [String]) -> Result<DeviceCommandOptions, D
         arguments: arguments,
         runtimeID: flags.runtimeID,
         json: flags.json,
-        portIsDefault: flags.port == nil
+        portIsDefault: flags.port == nil,
+        platformIsDefault: flags.platformIsDefault
     ))
 }
 
@@ -470,7 +475,7 @@ private func annotatedDeviceError(_ message: String, options: DeviceCommandOptio
     """
 }
 
-private func defaultPort(for platform: Platform) -> Int {
+func defaultPort(for platform: Platform) -> Int {
     switch platform {
     case .ios:
         22087

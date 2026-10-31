@@ -84,7 +84,8 @@ private func runDeviceBootHint(options: DeviceCommandOptions, hint: String) asyn
 
 extension DeviceCommandOptions {
     /// Fills the port and device from the presented runtime (`--runtime-id` / `AMOO_RUNTIME_ID`), so a runtime id
-    /// alone reaches the companion `amoo env up` started. An explicit `--port` / `--device` wins.
+    /// alone reaches the companion `amoo env up` started. An explicit `--port` / `--device` wins, and so does
+    /// an explicit `--platform`; without one, the runtime's platform is used instead of the iOS default.
     /// An unknown, expired or mismatched runtime passed with the flag is an error; a stale
     /// `AMOO_RUNTIME_ID` is ignored. `enforceDeviceAccess` still refuses a device another session holds.
     func applyingRuntime(
@@ -97,8 +98,15 @@ extension DeviceCommandOptions {
         guard let held = store.runtime(id: presented) else {
             return .failure(.unknownRuntime(presented))
         }
-        guard held.amooPlatform == platform else { return .failure(.wrongPlatform(held, requested: platform)) }
         var adopted = self
+        if platformIsDefault, held.amooPlatform != platform {
+            adopted.platform = held.amooPlatform
+            adopted.platformIsDefault = false
+            adopted.port = defaultPort(for: held.amooPlatform)
+        }
+        guard held.amooPlatform == adopted.platform else {
+            return .failure(.wrongPlatform(held, requested: platform))
+        }
         if portIsDefault, let port = held.port {
             adopted.port = port
             adopted.portIsDefault = false
