@@ -90,6 +90,45 @@ final class TapChecksTests: XCTestCase {
         XCTAssertEqual(block, .offScreen(Point(x: 586, y: 53)))
     }
 
+    // MARK: - settling
+
+    func testSettledElementWaitsForAScrollingListToComeToRest() async throws {
+        let executor = DriverToolExecutor(driver: TapCheckDriver(target: Self.addButton, hierarchy: screen()))
+        var resolved = Self.addButton
+        resolved.frame = Rect(x: 20, y: 500, width: 120, height: 44)
+        var frames = [Rect(x: 20, y: 640, width: 120, height: 44), Self.addButton.frame, Self.addButton.frame]
+            .compactMap(\.self)
+        var calls = 0
+        let settled = try await executor.settledElement(resolved, hierarchy: screen()) {
+            calls += 1
+            var next = Self.addButton
+            next.frame = frames.removeFirst()
+            return next
+        }
+        XCTAssertEqual(settled.frame, Self.addButton.frame)
+        XCTAssertEqual(calls, 3)
+    }
+
+    func testSettledElementDoesNotResolveAgainOnAStillScreen() async throws {
+        let executor = DriverToolExecutor(driver: TapCheckDriver(target: Self.addButton, hierarchy: screen()))
+        var calls = 0
+        let settled = try await executor.settledElement(Self.addButton, hierarchy: screen()) {
+            calls += 1
+            return Self.addButton
+        }
+        XCTAssertEqual(settled.frame, Self.addButton.frame)
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testSwipeInDirectionRejectsXAndYInsteadOfIgnoringThem() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "swipe_in_direction", arguments: ["direction": "up", "x": "100", "y": "300"]
+        )
+        XCTAssertTrue(result.isError)
+        XCTAssertTrue(result.content.contains("from_x/from_y"), result.content)
+    }
+
     // MARK: - tap_element
 
     func testRefusesAndDoesNotTapWhenCheckHittableFindsAnOverlay() async {

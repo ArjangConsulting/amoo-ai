@@ -95,6 +95,14 @@ struct ToolRequest: Sendable {
                 throw ToolExecutionError(code: "invalid_argument", message: "Invalid numeric argument: \(key)")
             }
         }
+        // Silently ignoring a start point leaves a swipe centred on the screen, which looks like it ran.
+        if name == "swipe_in_direction", arguments["from_x"] == nil, arguments["from_y"] == nil,
+           arguments["x"] != nil || arguments["y"] != nil {
+            throw ToolExecutionError(
+                code: "invalid_argument",
+                message: "swipe_in_direction takes from_x/from_y for a start point; x and y are not arguments."
+            )
+        }
         let booleanKeys = [
             "record_speech", "return_image", "labeled_only", "include_offline", "all_frames", "force",
             "check_hittable", "check_effect", "activate"
