@@ -22,11 +22,15 @@ struct InitDeviceCandidate: Equatable {
 struct InitDiscovery {
     var devices: (Platform) async -> [InitDeviceCandidate]
     var bundleID: (_ appPath: String, _ platform: Platform) -> String?
+    /// Platform repositories below an orchestrator root, relative to it. Tests that do not exercise
+    /// detection get none, so they never scan the checkout they run from.
+    var repos: (_ root: URL, _ platform: Platform) -> [String] = { _, _ in [] }
 
     static func live(store: DeviceRuntimeStore = DeviceRuntimeStore()) -> Self {
         Self(
             devices: { await discoverInitDevices(platform: $0, store: store) },
-            bundleID: { path, platform in platform == .ios ? iosBundleIdentifier(ofApp: path) : nil }
+            bundleID: { path, platform in platform == .ios ? iosBundleIdentifier(ofApp: path) : nil },
+            repos: { detectInitRepos(at: $0, platform: $1) }
         )
     }
 }

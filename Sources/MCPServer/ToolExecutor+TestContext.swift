@@ -35,8 +35,14 @@ extension DriverToolExecutor {
         )
     }
 
+    /// `discoveryDirectory` is where automatic discovery starts: the server's working directory in
+    /// production, so a server started at an orchestrator root finds the platform repository's profile
+    /// through the root `amoo.md`'s `repo`.
     static func contextSnapshot(
-        _ arguments: [String: String], discoverProfile: Bool = true, platform: Platform? = nil
+        _ arguments: [String: String],
+        discoverProfile: Bool = true,
+        platform: Platform? = nil,
+        discoveryDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ) throws -> String? {
         let json: String
         if let inline = arguments["context_json"], !inline.isEmpty {
@@ -44,7 +50,8 @@ extension DriverToolExecutor {
         } else if let path = arguments["context_path"], !path.isEmpty {
             json = try encodedContext(RepositoryTestProfile
                 .load(URL(fileURLWithPath: (path as NSString).expandingTildeInPath), platform: platform))
-        } else if discoverProfile, let context = try RepositoryTestProfile.discover(platform: platform) {
+        } else if discoverProfile,
+                  let context = try RepositoryTestProfile.discover(from: discoveryDirectory, platform: platform) {
             json = try encodedContext(context)
         } else {
             return nil

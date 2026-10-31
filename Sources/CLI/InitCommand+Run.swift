@@ -287,9 +287,10 @@ private func collectInitRequest(
     runtime: InitRuntime
 ) async -> Result<InitRequest, InitRefusal> {
     let saved = readInitLocations(agentsFile: agentsFile)
+    let root = URL(fileURLWithPath: agentsFile).deletingLastPathComponent()
     guard interactive else {
         guard request.missing.isEmpty else {
-            let message = await missingInputsMessage(request, discovery: runtime.discovery)
+            let message = await missingInputsMessage(request, discovery: runtime.discovery, root: root)
             return .failure(InitRefusal(message: message, code: 64, json: request.json))
         }
         return .success(request)
@@ -302,7 +303,8 @@ private func collectInitRequest(
             discovery: runtime.discovery,
             prompter: runtime.prompter,
             saved: saved,
-            now: runtime.now()
+            now: runtime.now(),
+            root: root
         )
         if let manifest = completed.out, manifest != initialManifest {
             try confirmExistingInitManifest(manifest, request: request, prompter: runtime.prompter)
@@ -449,7 +451,8 @@ func renderInitNextSteps(_ plan: InitPlan, signIn: InitSignInStatus) -> String {
 /// Headless refusal text: every missing input at once, plus the available devices.
 private func missingInputsMessage(
     _ request: InitRequest,
-    discovery: InitDiscovery
+    discovery: InitDiscovery,
+    root: URL
 ) async -> String {
     var lines = ["amoo init needs these before it can run non-interactively:"]
     lines += request.missing.map { "  \($0)" }
@@ -459,6 +462,11 @@ private func missingInputsMessage(
             lines
                 .append("Available devices: " +
                     (free.isEmpty ? "none" : "\n  " + free.map(\.label).joined(separator: "\n  ")))
+        }
+        let repos = discovery.repos(root, platform)
+        if request.repo == nil, !repos.isEmpty {
+            lines.append("Detected \(platform.rawValue) repositories: "
+                + repos.map { "--repo \(shellQuoted($0))" }.joined(separator: " | "))
         }
     }
     lines.append("Run `amoo init` in a terminal for guided setup, or `amoo init --help`.")
