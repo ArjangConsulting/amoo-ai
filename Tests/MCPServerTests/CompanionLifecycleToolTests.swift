@@ -88,6 +88,8 @@ final class CompanionLifecycleToolTests: XCTestCase {
         XCTAssertEqual(fields["status"]?.stringValue, "ready")
         XCTAssertEqual(fields["rpc_ok"]?.boolValue, true)
         XCTAssertNotNil(fields["rpc_ms"])
+        let schema = try XCTUnwrap(server.toolDefinitions().first { $0.name == "companion_status" }?.outputSchema)
+        XCTAssertEqual(Set(fields.keys).subtracting(schema.properties.keys), [], "undeclared fields")
     }
 
     func testCompanionStatusForAnEndedOrUnknownSession() async throws {

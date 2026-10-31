@@ -46,7 +46,16 @@ public enum CompanionTools {
                 )
             ],
             outputSchema: ToolOutputSchema(
-                properties: ["status": .init(type: "string", description: "One-line readiness report")],
+                properties: [
+                    "status": .init(type: "string", description: "One-line readiness report"),
+                    "session_id": .init(type: "string", description: "Probed session; only with session_id"),
+                    "device_id": .init(type: "string", description: "Device the session runs on; only with session_id"),
+                    "rpc_ok": .init(type: "boolean", description: "Whether the device answered; only with session_id"),
+                    "rpc_ms": .init(type: "integer", description: "Round-trip time of the probe in milliseconds"),
+                    "foreground_app": .init(type: "string", description: "Bundle id or package in front"),
+                    "target_app": .init(type: "string", description: "Bundle id or package the session targets"),
+                    "recording_health": .init(type: "string", description: "saved, pending or failed")
+                ],
                 required: ["status"]
             )
         ),
