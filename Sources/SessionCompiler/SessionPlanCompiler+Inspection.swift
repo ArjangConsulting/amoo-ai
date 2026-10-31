@@ -23,7 +23,7 @@ extension SessionPlanCompiler {
     static let stateChangingTools: Set<String> = [
         "tap_element", "tap", "double_tap", "long_press",
         "set_text", "type_text", "fill_field",
-        "swipe", "swipe_in_direction", "scroll", "scroll_to_element", "press_back"
+        "swipe", "swipe_in_direction", "scroll", "scroll_to_element", "drag", "pinch", "press_back"
     ]
 
     static func isTransition(_ action: SessionAction) -> Bool {
@@ -125,6 +125,17 @@ extension SessionPlanCompiler {
     /// identifier, or its accessibility children were merged into an ancestor. Say that, and say
     /// what to do about it — "no Studio tool equivalent" points the reader nowhere.
     static func excludedReason(for action: SessionAction) -> String {
+        switch action.toolName {
+        case "drag":
+            return "drag recorded with coordinates for at least one end; a generated test needs both the "
+                + "dragged element and the drop target. Re-record with id/label for the source and "
+                + "to_id/to_label for the target."
+        case "pinch":
+            return "pinch recorded at a coordinate; a generated test needs the pinched element. Re-record "
+                + "with the element's id/label, or with neither a point nor an element to pinch the whole app."
+        default:
+            break
+        }
         guard isCoordinateGesture(action.toolName) else {
             return "no Studio tool equivalent; excluded from compiledPlan"
         }

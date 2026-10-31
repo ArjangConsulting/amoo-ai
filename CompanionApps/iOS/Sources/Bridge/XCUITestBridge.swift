@@ -492,6 +492,73 @@ final class XCUITestBridge: @unchecked Sendable {
     /// register the drag finishing over them.
     private static let dropSettleSeconds: TimeInterval = 0.2
 
+    /// Spreads (`scale` > 1, zoom in) or pinches (`scale` < 1, zoom out) two fingers around
+    /// (`x`, `y`), inside `bounds` (the pinched element's frame) when given, else inside the target.
+    /// Returns a failure message, or nil once the gesture was delivered.
+    ///
+    /// XCUITest's `pinch(withScale:velocity:)` can only pinch around an element's centre, so the
+    /// two finger paths are synthesized directly; ``PinchGesture`` fits them inside the target.
+    /// Without the synthesizer the public API is used, but only when the requested centre is the
+    /// target's own centre — anywhere else it would pinch the wrong place and report success.
+    func pinch(x: Double, y: Double, scale: Double, velocity: Double, bounds: CGRect?) async -> String? {
+        defer { invalidateSnapshotCache() }
+        let target = gestureTarget()
+        let frame = interfaceFrame(of: target)
+        // Fingers outside the element land on its neighbours, so its pinch recognizer never fires.
+        let fitted = bounds.map { $0.intersection(frame) }.flatMap { $0.isNull || $0.isEmpty ? nil : $0 } ?? frame
+        let gesture: PinchGesture
+        do {
+            gesture = try PinchGesture(
+                center: Point(x: x, y: y),
+                scale: scale,
+                velocity: velocity,
+                bounds: Rect(x: fitted.minX, y: fitted.minY, width: fitted.width, height: fitted.height)
+            )
+        } catch {
+            return "\(error)"
+        }
+        let display = secondaryDisplay()
+        func screenPoint(_ point: Point) -> CGPoint {
+            if let display {
+                return display.portraitPoint(CGPoint(x: point.x, y: point.y))
+            }
+            return gestureCoordinate(x: point.x, y: point.y).screenPoint
+        }
+        let start = gesture.fingers(atRadius: gesture.startRadius)
+        let end = gesture.fingers(atRadius: gesture.endRadius)
+        do {
+            try await FastTapSynthesizer.multiTouch(
+                fingers: [
+                    (screenPoint(start.0), screenPoint(end.0)),
+                    (screenPoint(start.1), screenPoint(end.1))
+                ],
+                hold: Self.pinchLandSeconds,
+                travel: gesture.durationSeconds,
+                settle: Self.pinchSettleSeconds,
+                orientation: .portrait,
+                displayID: display?.id
+            )
+            return nil
+        } catch {
+            print("Two-finger synthesis unavailable for pinch: \(error)")
+        }
+        let isTargetCentre = abs(gesture.center.x - frame.midX) < 2 && abs(gesture.center.y - frame.midY) < 2
+        guard display == nil, isTargetCentre else {
+            return "pinch at (\(Int(x)), \(Int(y))) needs XCTest's event synthesizer, which this Xcode "
+                + "does not expose; only a pinch at the screen centre can fall back to the public API"
+        }
+        // XCUITest requires the velocity's sign to match the direction: positive to zoom in.
+        let magnitude = abs(gesture.effectiveScale - 1) / gesture.durationSeconds
+        target.pinch(withScale: gesture.effectiveScale, velocity: scale > 1 ? magnitude : -magnitude)
+        return nil
+    }
+
+    /// Both fingers rest briefly before moving so the app registers two touches, not a pan.
+    private static let pinchLandSeconds: TimeInterval = 0.05
+
+    /// Fingers hold at the end before lifting, so the release doesn't add momentum to the zoom.
+    private static let pinchSettleSeconds: TimeInterval = 0.1
+
     /// Scrolls the view so content in `direction` comes into view: `.down` reveals what is below, so
     /// the finger travels up.
     ///

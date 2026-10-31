@@ -65,7 +65,8 @@ public struct MCPStdioServer: Sendable {
     Tests: start_session -> drive/assert -> end_session (writes plan.json/flow.json) -> inspect
     warnings -> amoo generate test. compile_session_to_plan is optional preview.
     Pass launch_args/environment and app-owned context at start so setUp reproduces state.
-    Resolve rows with find_elements, then swipe_in_direction with element_id. Fix excluded/incomplete
+    Resolve rows with find_elements, then swipe_in_direction with element_id; drag id onto to_id.
+    Fix excluded/incomplete
     warnings before export or report omissions with --allow-incomplete. Review selectors, helpers and
     names. Use --test-name, run in the host target, report artifacts/warnings/results/dependencies.
     """

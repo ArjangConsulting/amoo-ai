@@ -71,6 +71,11 @@ Common tools:
   swipe_in_direction direction=<up|down|left|right> [distance=<n>] [duration_ms=<n>]
       [element_id=<id>] [element_label=<label>] [index=<n>] [first=<true>]
       [from_x=<n> from_y=<n> [unit=<...>]]
+  drag [id=<id>] [label=<label>] [contains_text=<text>] [parent_id=<id>] [index=<n>] [first=<true>] [to_id=<id>]
+      [to_label=<label>] [to_contains_text=<text>] [to_parent_id=<id>] [to_index=<n>] [to_first=<true>]
+      [from_x=<n> from_y=<n>] [to_x=<n> to_y=<n>] [unit=<...>] [hold_ms=<n>] [duration_ms=<n>] [check_hittable=<bool>]
+  pinch scale=<n> [velocity=<n>] [id=<id>] [label=<label>] [contains_text=<text>] [parent_id=<id>] [index=<n>]
+      [first=<true>] [x=<n> y=<n>] [unit=<...>]   (scale > 1 zooms in, < 1 out; no target: screen centre)
   scroll direction=<up|down|left|right> [distance=<n>]   (direction = which way to scroll: down reveals below)
   scroll_to_element [id=<id>] [label=<label>] [contains_text=<text>] [direction=<up|down|left|right>]
       [max_attempts=<n>] [distance=<n>]

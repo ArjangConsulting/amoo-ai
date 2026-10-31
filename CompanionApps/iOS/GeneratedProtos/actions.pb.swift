@@ -347,11 +347,24 @@ public nonisolated struct Amoo_PinchRequest: Sendable {
 
   public var velocity: Float = 0
 
+  /// The frame the fingers must stay inside, normally the pinched element's. Unset means the
+  /// whole screen. Fingers placed outside the element land on its neighbours and the element's
+  /// pinch recognizer never sees them.
+  public var bounds: Amoo_Rect {
+    get {_bounds ?? Amoo_Rect()}
+    set {_bounds = newValue}
+  }
+  /// Returns true if `bounds` has been explicitly set.
+  public var hasBounds: Bool {self._bounds != nil}
+  /// Clears the value of `bounds`. Subsequent reads from it will return its default value.
+  public mutating func clearBounds() {self._bounds = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _center: Amoo_Point? = nil
+  fileprivate var _bounds: Amoo_Rect? = nil
 }
 
 public nonisolated struct Amoo_DragRequest: Sendable {
@@ -1107,7 +1120,7 @@ nonisolated extension Amoo_ScrollToElementRequest: SwiftProtobuf.Message, SwiftP
 
 nonisolated extension Amoo_PinchRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PinchRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}center\0\u{1}scale\0\u{1}velocity\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}center\0\u{1}scale\0\u{1}velocity\0\u{1}bounds\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1118,6 +1131,7 @@ nonisolated extension Amoo_PinchRequest: SwiftProtobuf.Message, SwiftProtobuf._M
       case 1: try { try decoder.decodeSingularMessageField(value: &self._center) }()
       case 2: try { try decoder.decodeSingularFloatField(value: &self.scale) }()
       case 3: try { try decoder.decodeSingularFloatField(value: &self.velocity) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._bounds) }()
       default: break
       }
     }
@@ -1137,6 +1151,9 @@ nonisolated extension Amoo_PinchRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.velocity.bitPattern != 0 {
       try visitor.visitSingularFloatField(value: self.velocity, fieldNumber: 3)
     }
+    try { if let v = self._bounds {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1144,6 +1161,7 @@ nonisolated extension Amoo_PinchRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._center != rhs._center {return false}
     if lhs.scale != rhs.scale {return false}
     if lhs.velocity != rhs.velocity {return false}
+    if lhs._bounds != rhs._bounds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

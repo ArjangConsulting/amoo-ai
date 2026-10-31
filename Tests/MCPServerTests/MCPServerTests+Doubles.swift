@@ -131,7 +131,7 @@ actor AuditMockDriver: PlatformDriver {
     func scroll(direction _: Direction, distance _: Double) async throws {}
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {}
 
-    func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
+    func pinch(center _: Point, scale _: Double, velocity _: Double, bounds _: Rect?) async throws {}
     func drag(
         from _: Point,
         to _: Point,
@@ -230,6 +230,25 @@ actor AuditMockDriver: PlatformDriver {
 actor MockDriver: PlatformDriver {
     var inspectionResponse: AccessibilityInspection?
     var calls: [String] = []
+    /// Frames reported for elements found by id, so gestures that resolve an element have a point.
+    var elementFrames: [String: Rect] = [:]
+
+    func setElementFrames(_ frames: [String: Rect]) {
+        elementFrames = frames
+    }
+
+    /// Reported by `screenGeometry`; nil keeps the protocol default, which throws.
+    var screenSize: ScreenSize?
+
+    func setScreenSize(_ size: ScreenSize) {
+        screenSize = size
+    }
+
+    func screenGeometry() async throws -> ScreenSize {
+        guard let screenSize else { throw AmooError.notImplemented("screenGeometry") }
+        return screenSize
+    }
+
     var launchedAppID: String?
 
     func boot() async throws {
@@ -298,13 +317,16 @@ actor MockDriver: PlatformDriver {
 
     func scrollToElement(_: ElementSelector, direction _: Direction, maxScrolls _: Int) async throws {}
 
-    func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {}
-    func drag(
-        from _: Point,
-        to _: Point,
-        duration _: Duration,
-        holdDuration _: Duration
-    ) async throws {}
+    func pinch(center: Point, scale: Double, velocity: Double, bounds: Rect?) async throws {
+        let frame = bounds.map { ":\($0.x),\($0.y),\($0.width)x\($0.height)" } ?? ""
+        calls.append("pinch:\(center.x),\(center.y):\(scale):\(velocity)\(frame)")
+    }
+
+    func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws {
+        calls.append(
+            "drag:\(from.x),\(from.y)->\(to.x),\(to.y):\(holdDuration.milliseconds):\(duration.milliseconds)"
+        )
+    }
 
     func typeText(_ text: String) async throws {
         calls.append("typeText:\(text)")
@@ -329,7 +351,8 @@ actor MockDriver: PlatformDriver {
     }
 
     func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
-        [ElementInfo(id: selector.id ?? "el", label: selector.label ?? "label")]
+        let id = selector.id ?? "el"
+        return [ElementInfo(id: id, label: selector.label ?? "label", frame: elementFrames[id])]
     }
 
     func getViewHierarchy() async throws -> ViewNode {

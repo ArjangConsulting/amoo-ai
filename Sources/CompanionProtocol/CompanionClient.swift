@@ -39,6 +39,7 @@ public protocol CompanionClient: Sendable {
     ) async throws
     func scroll(direction: Direction, distance: Double) async throws
     func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws
+    func pinch(center: Point, scale: Double, velocity: Double, bounds: Rect?) async throws
 
     // Text
     func typeText(_ text: String) async throws
@@ -123,6 +124,15 @@ public extension CompanionClient {
 
     func drag(from _: Point, to _: Point, duration _: Duration, holdDuration _: Duration) async throws {
         throw AmooError.notImplemented("drag")
+    }
+
+    func pinch(center _: Point, scale _: Double, velocity _: Double, bounds _: Rect?) async throws {
+        throw AmooError.notImplemented("pinch")
+    }
+
+    /// Pinches with the fingers kept inside the whole screen.
+    func pinch(center: Point, scale: Double, velocity: Double) async throws {
+        try await pinch(center: center, scale: scale, velocity: velocity, bounds: nil)
     }
 
     func clearText(characterCount _: Int?) async throws {

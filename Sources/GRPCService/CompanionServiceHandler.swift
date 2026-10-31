@@ -163,8 +163,16 @@ package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtoc
         request: Amoo_PinchRequest,
         context _: ServerContext
     ) async throws -> Amoo_ActionResponse {
-        // Pinch delegates to companion — not yet in CompanionClient, return not implemented
-        actionResponse(success: false, message: "pinch not implemented")
+        let bounds = request.hasBounds
+            ? Rect(x: request.bounds.x, y: request.bounds.y, width: request.bounds.width, height: request.bounds.height)
+            : nil
+        try await companion.pinch(
+            center: request.center.corePoint,
+            scale: Double(request.scale),
+            velocity: Double(request.velocity),
+            bounds: bounds
+        )
+        return actionResponse(success: true)
     }
 
     /// Hold applied at the drag origin when the caller doesn't specify one. Matches the

@@ -40,9 +40,10 @@ public struct EspressoEmitter: StudioCodeEmitting {
         let ancestorImport = body.contains("isDescendantOfA(")
             ? "\nimport androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA" : ""
         let allOfImport = body.contains("allOf(") ? "\nimport org.hamcrest.Matchers.allOf" : ""
-        let needsResourceNameMatcher = operations.contains {
-            ($0.arguments["id"] != nil || $0.arguments["element_id"] != nil || $0.arguments["parent_id"] != nil) && [
-                "tap_element",
+        let needsResourceNameMatcher = operations.contains { operation in
+            let identityKeys = ["id", "element_id", "parent_id", "to_id", "to_parent_id"]
+            return identityKeys.contains { operation.arguments[$0] != nil } && [
+                "tap_element", "drag", "pinch",
                 "set_text",
                 "wait_for_element",
                 "assert_visible",
@@ -50,11 +51,13 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 "assert_text",
                 "assert_value",
                 "assert_enabled", "assert_selected", "assert_checked", "assert_state_description"
-            ].contains($0.tool)
+            ].contains(operation.tool)
         }
+        let needsGestureHelpers = Self.needsGestureHelpers(operations)
         let matcherHelpers = [
             needsResourceNameMatcher ? Self.resourceNameMatcherHelper : nil,
-            needsIndexMatcher ? Self.indexMatcherHelper : nil
+            needsIndexMatcher ? Self.indexMatcherHelper : nil,
+            needsGestureHelpers ? Self.gestureHelpers : nil
         ].compactMap(\.self).map { $0 + "\n" }.joined(separator: "\n")
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
@@ -65,7 +68,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         import android.app.Activity
         import android.content.Intent
         import android.os.SystemClock
-        import android.view.View
+        import android.view.View\(needsGestureHelpers ? Self.gestureImports : "")
         import androidx.test.core.app.ActivityScenario
         import androidx.test.espresso.Espresso.onView
         import androidx.test.espresso.Espresso.pressBack
@@ -124,7 +127,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         return StudioTestExportResult(fileName: "\(className).kt", source: source)
     }
 
-    private static let indent = "        "
+    static let indent = "        "
 
     private static let resourceNameMatcherHelper: String = {
         let raw = """
@@ -282,6 +285,12 @@ public struct EspressoEmitter: StudioCodeEmitting {
             // GestureDirection inverts scroll for us — see its documentation for why.
             return try "\(indent)onView(isRoot()).perform(\(gesture(for: operation))())"
 
+        case .drag:
+            return try dragStatement(for: operation)
+
+        case .pinch:
+            return try pinchStatement(for: operation)
+
         case .waitForElement:
             let target = try matcher(operation)
             let timeout = try timeoutMilliseconds(for: operation)
@@ -396,7 +405,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
 
     /// Every selector field is a constraint, so the target must satisfy all of them, inside the
     /// `parent_id` subtree when one is given. A `withIndex` pick applies to what survives.
-    private static func matcher(
+    static func matcher(
         _ operation: StudioToolOperation,
         idKey: String = "id",
         labelKey: String = "label",
@@ -434,7 +443,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         "anyOf(hasResourceEntryName(\(literal(id))), withContentDescription(\(literal(id))))"
     }
 
-    private static func timeoutMilliseconds(for operation: StudioToolOperation) throws -> Int64 {
+    static func timeoutMilliseconds(for operation: StudioToolOperation) throws -> Int64 {
         guard let rawValue = operation.arguments["timeout_ms"] else { return 5000 }
         guard let milliseconds = Int64(rawValue), milliseconds > 0 else {
             throw TestCodeGeneratorError.invalidArgument(tool: operation.tool, argument: "timeout_ms", value: rawValue)

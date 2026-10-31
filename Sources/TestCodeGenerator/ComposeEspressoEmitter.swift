@@ -44,10 +44,11 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             ? "\nimport androidx.compose.ui.test.assert" : ""
         let ancestorImport = body.contains("hasAnyAncestor(")
             ? "\nimport androidx.compose.ui.test.hasAnyAncestor" : ""
+        let gestureImports = Self.gestureImports(operations)
 
         let source = """
         import android.app.Activity
-        import android.content.Intent
+        import android.content.Intent\(gestureImports)
         import androidx.compose.ui.semantics.SemanticsActions
         import androidx.compose.ui.semantics.SemanticsProperties\(nativeStateImports)
         import androidx.compose.ui.test.SemanticsMatcher
@@ -107,7 +108,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         return StudioTestExportResult(fileName: "\(className).kt", source: source)
     }
 
-    private static let indent = "        "
+    static let indent = "        "
 
     private static func isUnscopedScroll(_ operation: StudioToolOperation) -> Bool {
         operation.tool == StudioTool.scroll.rawValue
@@ -215,6 +216,10 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
                 return "\(indent)scrollByViewport(vertical = \(vertical), forward = \(forward))"
             }
             return "\(indent)composeTestRule.onRoot().performTouchInput { \(gesture)() }"
+        case .drag:
+            return try dragStatement(for: operation)
+        case .pinch:
+            return try pinchStatement(for: operation)
         case .waitForElement:
             return try waitForNodePresent(semanticsMatcher(operation), timeout: timeoutMilliseconds(for: operation))
         case .assertVisible:
@@ -315,7 +320,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     /// A `waitUntil` that blocks until at least one node matches, plus the `onNode` handle to act on
     /// afterwards. Mirrors `EspressoEmitter`'s `waitUntilDisplayed` guard so a generated assertion or
     /// interaction tolerates the same load/transition delay the recording session waited out.
-    private static func guardedNode(
+    static func guardedNode(
         _ operation: StudioToolOperation,
         idKey: String = "id",
         labelKey: String = "label",

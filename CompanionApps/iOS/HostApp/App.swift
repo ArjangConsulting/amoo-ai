@@ -219,6 +219,9 @@ private struct FixtureGestureView: View {
                     .accessibilityLabel("Gesture Pad")
                     .accessibilityIdentifier("fixture-gesture-pad")
 
+                FixtureDragDropRow()
+                FixturePinchTarget()
+
                 Text("Scroll target")
                     .font(.headline)
                     .accessibilityIdentifier("fixture-gesture-scroll-target")
@@ -234,6 +237,60 @@ private struct FixtureGestureView: View {
             .padding()
         }
         .navigationTitle("Gesture Lab")
+    }
+}
+
+/// A system drag-and-drop source and drop zone: the card lifts only after a long press, so a swipe
+/// across it never counts as a drop.
+private struct FixtureDragDropRow: View {
+    @State private var dropState = "empty"
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                Text("Drag Card")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .background(Color.purple.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+                    .draggable("fixture-card")
+                    .accessibilityIdentifier("fixture-drag-source")
+                Text(dropState == "dropped" ? "Dropped" : "Drop Zone")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .background(Color.green.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+                    .dropDestination(for: String.self) { items, _ in
+                        guard items.contains("fixture-card") else { return false }
+                        dropState = "dropped"
+                        return true
+                    }
+                    .accessibilityIdentifier("fixture-drop-zone")
+            }
+            Text("Drop state: \(dropState)")
+                .accessibilityIdentifier("fixture-drop-state")
+        }
+    }
+}
+
+/// Reports the direction of the last completed pinch, so a test can tell zoom in from zoom out.
+private struct FixturePinchTarget: View {
+    @State private var lastPinch = "none"
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("Pinch Target")
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .background(Color.teal.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+                .contentShape(Rectangle())
+                .gesture(
+                    MagnifyGesture().onEnded { value in
+                        lastPinch = value.magnification > 1 ? "in" : "out"
+                    }
+                )
+                .accessibilityIdentifier("fixture-pinch-target")
+            Text("Last pinch: \(lastPinch)")
+                .accessibilityIdentifier("fixture-pinch-state")
+        }
     }
 }
 

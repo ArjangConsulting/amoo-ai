@@ -24,6 +24,15 @@ final class GeneratedCodeCompileTests: XCTestCase {
         .init(id: "op-8", tool: "assert_not_visible", arguments: ["id": "spinner"]),
         .init(id: "op-9", tool: "assert_text", arguments: ["id": "greeting", "value": "Hi there"]),
         .init(id: "op-9b", tool: "assert_value", arguments: ["id": "email-field", "value": "user@example.com"]),
+        // Drag-and-drop between two elements, then pinches on an element and on the whole app.
+        .init(id: "op-9c", tool: "drag", arguments: ["id": "card", "to_id": "done-column"]),
+        .init(
+            id: "op-9d",
+            tool: "drag",
+            arguments: ["label": "Card", "to_contains_text": "Done", "hold_ms": "600", "duration_ms": "400"]
+        ),
+        .init(id: "op-9e", tool: "pinch", arguments: ["id": "map", "scale": "2"]),
+        .init(id: "op-9f", tool: "pinch", arguments: ["scale": "0.5", "velocity": "2"]),
         .init(id: "op-10", tool: "take_screenshot", arguments: [:]),
         .init(id: "op-11", tool: "press_back", arguments: [:]),
         .init(id: "op-12", tool: "assert_enabled", arguments: ["id": "submit-button"]),

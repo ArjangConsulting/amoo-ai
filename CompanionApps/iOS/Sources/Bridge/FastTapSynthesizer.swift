@@ -35,6 +35,39 @@ enum FastTapSynthesizer {
         displayID: UInt?
     ) async throws {
         let event = try makeEvent(orientation: orientation, displayID: displayID)
+        let path = try makePath(from: start, to: end, hold: hold, travel: travel, settle: settle)
+        try add(path: path, to: event)
+        try await synthesize(event: event)
+    }
+
+    /// Several fingers that land together, each travelling in a straight line from its `start` to
+    /// its `end` over `travel`, then lifting together after `settle`. Two fingers moving apart or
+    /// together is a pinch.
+    static func multiTouch(
+        fingers: [(start: CGPoint, end: CGPoint)],
+        hold: TimeInterval,
+        travel: TimeInterval,
+        settle: TimeInterval,
+        orientation: UIInterfaceOrientation,
+        displayID: UInt?
+    ) async throws {
+        let event = try makeEvent(orientation: orientation, displayID: displayID)
+        for finger in fingers {
+            let path = try makePath(from: finger.start, to: finger.end, hold: hold, travel: travel, settle: settle)
+            try add(path: path, to: event)
+        }
+        try await synthesize(event: event)
+    }
+
+    /// One finger's path: down at `start`, held for `hold`, moved to `end` in ~60Hz steps over
+    /// `travel` (skipped when `end` is nil), held for `settle`, then lifted.
+    private static func makePath(
+        from start: CGPoint,
+        to end: CGPoint?,
+        hold: TimeInterval,
+        travel: TimeInterval,
+        settle: TimeInterval
+    ) throws -> NSObject {
         let path = try makeTouchPath(at: start)
         var offset = hold
         if let end {
@@ -53,8 +86,7 @@ enum FastTapSynthesizer {
         }
         offset += settle
         try lift(path: path, at: offset)
-        try add(path: path, to: event)
-        try await synthesize(event: event)
+        return path
     }
 
     private static func move(path: NSObject, to point: CGPoint, at offset: TimeInterval) throws {

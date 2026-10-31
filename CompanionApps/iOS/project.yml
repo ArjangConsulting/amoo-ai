@@ -59,6 +59,7 @@ targets:
     sources:
       - path: Sources
       - path: ../../Sources/AmooCore/Geometry.swift
+      - path: ../../Sources/AmooCore/PinchGesture.swift
       - path: ../../Sources/AmooCore/ElementSemantics.swift
       - path: ../../Sources/AmooCore/AccessibilityInspection.swift
       - path: ../../Sources/AmooCore/AccessibilityInspection+Codable.swift

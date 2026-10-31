@@ -141,6 +141,30 @@ final class GRPCServiceTests: XCTestCase {
         XCTAssertEqual(waitContext?.candidateBundleIDs, ["com.example.fixture"])
     }
 
+    func testPinchForwardsCenterScaleAndVelocityToCompanion() async throws {
+        let companion = MockCompanionClient()
+        let handler = CompanionServiceHandler(companion: companion)
+
+        var request = Amoo_PinchRequest()
+        request.center.x = 120
+        request.center.y = 240
+        request.scale = 0.5
+        request.velocity = -1
+        request.bounds.x = 20
+        request.bounds.y = 100
+        request.bounds.width = 300
+        request.bounds.height = 400
+        let response = try await handler.pinch(request: request, context: makeContext())
+
+        XCTAssertTrue(response.success)
+        let pinch = await companion.lastPinch
+        XCTAssertEqual(pinch?.center, Point(x: 120, y: 240))
+        XCTAssertEqual(pinch?.scale, 0.5)
+        XCTAssertEqual(pinch?.velocity, -1)
+        let bounds = await companion.lastPinchBounds
+        XCTAssertEqual(bounds, Rect(x: 20, y: 100, width: 300, height: 400))
+    }
+
     func testHostDeviceServiceHandlerDelegatesToController() async throws {
         let controller = MockHostController()
         let handler = HostDeviceServiceHandler(controller: controller)
@@ -225,6 +249,8 @@ private actor MockCompanionClient: CompanionClient {
     var lastTapElementContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
     var lastFindElementsContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
     var lastWaitForElementContext: (selector: ElementSelector, appID: String?, candidateBundleIDs: [String])?
+    var lastPinch: (center: Point, scale: Double, velocity: Double)?
+    var lastPinchBounds: Rect?
     // swiftlint:enable large_tuple
 
     func startSession() async throws {}
@@ -244,6 +270,10 @@ private actor MockCompanionClient: CompanionClient {
 
     func swipe(from _: Point, to _: Point, duration _: Duration) async throws {}
     func scroll(direction _: Direction, distance _: Double) async throws {}
+    func pinch(center: Point, scale: Double, velocity: Double, bounds: Rect?) async throws {
+        lastPinch = (center, scale, velocity)
+        lastPinchBounds = bounds
+    }
 
     func typeText(_: String) async throws {}
     func clearText(characterCount _: Int?) async throws {}

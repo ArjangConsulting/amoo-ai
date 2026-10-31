@@ -28,6 +28,7 @@ package protocol CompanionRPCClient: Sendable {
     func swipeInDirection(_ request: Amoo_SwipeDirectionRequest) async throws -> Amoo_ActionResponse
     func scroll(_ request: Amoo_ScrollRequest) async throws -> Amoo_ActionResponse
     func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse
+    func pinch(_ request: Amoo_PinchRequest) async throws -> Amoo_ActionResponse
 
     // Text
     func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse
@@ -145,6 +146,10 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
 
     package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
         try await client.drag(request)
+    }
+
+    package func pinch(_ request: Amoo_PinchRequest) async throws -> Amoo_ActionResponse {
+        try await client.pinch(request)
     }
 
     package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
@@ -320,6 +325,11 @@ package struct InMemoryCompanionRPCClient: CompanionRPCClient {
     }
 
     package func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
+        _ = request
+        return successActionResponse()
+    }
+
+    package func pinch(_ request: Amoo_PinchRequest) async throws -> Amoo_ActionResponse {
         _ = request
         return successActionResponse()
     }
@@ -607,6 +617,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         try await connectedClient.drag(request, options: Self.gestureCallOptions)
     }
 
+    package func pinch(_ request: Amoo_PinchRequest) async throws -> Amoo_ActionResponse {
+        try await connectedClient.pinch(request, options: Self.gestureCallOptions)
+    }
+
     package func typeText(_ request: Amoo_TypeTextRequest) async throws -> Amoo_ActionResponse {
         try await connectedClient.typeText(request, options: Self.gestureCallOptions)
     }
@@ -870,6 +884,27 @@ public actor GRPCCompanionClient: CompanionClient {
 
         let response = try await rpcClient.drag(request)
         try validate(response: response, action: "drag")
+    }
+
+    /// Pinches around `center`. `scale` above 1 spreads the fingers apart (zoom in), below 1
+    /// brings them together (zoom out). `velocity` is in scale factor per second; pass 0 to let
+    /// the companion pick the duration. `bounds` keeps the fingers inside the pinched element.
+    public func pinch(center: Point, scale: Double, velocity: Double, bounds: Rect?) async throws {
+        var request = Amoo_PinchRequest()
+        request.center = center.protoPoint
+        request.scale = Float(scale)
+        request.velocity = Float(velocity)
+        if let bounds {
+            var frame = Amoo_Rect()
+            frame.x = bounds.x
+            frame.y = bounds.y
+            frame.width = bounds.width
+            frame.height = bounds.height
+            request.bounds = frame
+        }
+
+        let response = try await rpcClient.pinch(request)
+        try validate(response: response, action: "pinch")
     }
 
     public func swipeInDirection(

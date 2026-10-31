@@ -7,6 +7,24 @@ public extension CommandCoverageMatrix {
     /// under the length limit.
     static let mcpInteractionCommands: [CommandCoverage] = [
         .init(
+            name: "drag",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .gesture,
+            expectedAssertion: "dragging the gesture lab's drag source onto its drop zone reports the drop"
+        ),
+        .init(
+            name: "pinch",
+            channel: .mcp,
+            kind: .deterministic,
+            releaseTier: .blocking,
+            platforms: allPlatforms,
+            fixtureScreen: .gesture,
+            expectedAssertion: "pinching the gesture lab's zoom target out and in changes its reported scale"
+        ),
+        .init(
             name: "device_health", channel: .mcp, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .home,
             expectedAssertion: "independent transport probes distinguish connectivity from app semantic readiness"

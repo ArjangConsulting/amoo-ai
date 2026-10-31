@@ -20,6 +20,10 @@ final class StudioToolCoverageTests: XCTestCase {
             ["text": "hello"]
         case .swipeInDirection, .scroll:
             ["direction": "down"]
+        case .drag:
+            ["id": "card", "to_id": "done-column"]
+        case .pinch:
+            ["id": "map", "scale": "2"]
         case .assertText, .assertValue, .assertStateDescription:
             ["id": "greeting", "value": "hi"]
         case .assertSelected, .assertChecked:

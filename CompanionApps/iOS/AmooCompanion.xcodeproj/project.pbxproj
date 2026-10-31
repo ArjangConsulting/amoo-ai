@@ -10,6 +10,7 @@
 		032B5480207F2BBE0EFE428E /* CompanionServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EDB816D9D45FC60209AE263 /* CompanionServiceProvider.swift */; };
 		08D6930304DFD0DF67C3354F /* common.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4F85A6257986D577DBC35A /* common.pb.swift */; };
 		1A19B74E7622DC2CF20CC583 /* NativeAccessibilityInspector+Journey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630D3EE828479F3A492A1132 /* NativeAccessibilityInspector+Journey.swift */; };
+		1E0F6E53DF378A717BDB35D2 /* PinchGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935B90D9922DD90C5CA3229D /* PinchGesture.swift */; };
 		1F6023E24D0D241D559834E7 /* common.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DA386AD027DAC8AB386D13 /* common.grpc.swift */; };
 		20560643730738B878A95121 /* VoiceOverPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2FBCA0D578060494989B26 /* VoiceOverPhase.swift */; };
 		32B0682FF21997215E093E62 /* TouchHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D4A7475E32DD66B2F9F07F /* TouchHandler.swift */; };
@@ -87,6 +88,7 @@
 		6F1EAB0469F724F93EED28D7 /* actions.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = actions.pb.swift; sourceTree = "<group>"; };
 		832FB073E39843DB48622303 /* AccessibilityJourney.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityJourney.swift; sourceTree = "<group>"; };
 		906954D0E31E68A568846AE7 /* ElementSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementSnapshot.swift; sourceTree = "<group>"; };
+		935B90D9922DD90C5CA3229D /* PinchGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinchGesture.swift; sourceTree = "<group>"; };
 		B2AACA87C79958C37D51E23B /* device.grpc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = device.grpc.swift; sourceTree = "<group>"; };
 		B2E2340A9910EEA5694D42D0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		BB54E0A7906CF8C4A5BACC4B /* ai.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ai.pb.swift; sourceTree = "<group>"; };
@@ -223,6 +225,7 @@
 				FF496450692A1DC45AC1DC3E /* AccessibilityJourneyRunner+Transition.swift */,
 				48DE24E54E4489608DB09382 /* ElementSemantics.swift */,
 				40E11D83B00BF2E6CEED8BB6 /* Geometry.swift */,
+				935B90D9922DD90C5CA3229D /* PinchGesture.swift */,
 				3A2FBCA0D578060494989B26 /* VoiceOverPhase.swift */,
 				E8A8D2763A7F95D43CBB9190 /* VoiceOverRecoveryJournal.swift */,
 				01569413A4F179D9C0EC0834 /* VoiceOverTraversal.swift */,
@@ -362,6 +365,7 @@
 				1A19B74E7622DC2CF20CC583 /* NativeAccessibilityInspector+Journey.swift in Sources */,
 				4BCB282ACC8930490DFF50F9 /* NativeAccessibilityInspector+VoiceOver.swift in Sources */,
 				65B15B89722A7E6E6AB92A4D /* NativeAccessibilityInspector.swift in Sources */,
+				1E0F6E53DF378A717BDB35D2 /* PinchGesture.swift in Sources */,
 				91E461BFA8B50F12CC1147BD /* ScrollDirection.swift in Sources */,
 				B3B756594712CF1FACD8AD4B /* TextHandler.swift in Sources */,
 				32B0682FF21997215E093E62 /* TouchHandler.swift in Sources */,

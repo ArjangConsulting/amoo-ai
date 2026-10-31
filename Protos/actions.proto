@@ -139,6 +139,10 @@ message PinchRequest {
   Point center = 1;
   float scale = 2;
   float velocity = 3;
+  // The frame the fingers must stay inside, normally the pinched element's. Unset means the
+  // whole screen. Fingers placed outside the element land on its neighbours and the element's
+  // pinch recognizer never sees them.
+  Rect bounds = 4;
 }
 
 message DragRequest {

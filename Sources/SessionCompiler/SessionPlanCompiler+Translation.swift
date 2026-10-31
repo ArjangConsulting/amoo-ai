@@ -18,6 +18,36 @@ extension SessionPlanCompiler {
         .relaunchApplication
     ]
 
+    /// A drag compiles only when both ends were recorded as elements. Coordinates alone cannot be
+    /// replayed faithfully on another screen size, so a coordinate drag stays excluded.
+    static func translateDrag(_ arguments: [String: String]) -> TranslatedAction? {
+        let prefix = StudioToolOperation.dropTargetPrefix
+        let probe = StudioToolOperation(id: "drag", tool: StudioTool.drag.rawValue, arguments: arguments)
+        guard probe.hasSelector(), probe.hasSelector(prefix: prefix) else { return nil }
+        var mapped: [String: String] = [:]
+        for key in StudioToolOperation.selectorKeys {
+            mapped[key] = arguments[key]
+            mapped[prefix + key] = arguments[prefix + key]
+        }
+        mapped[.holdMilliseconds] = arguments[PlanArgument.holdMilliseconds.rawValue]
+        mapped[.durationMilliseconds] = arguments[PlanArgument.durationMilliseconds.rawValue]
+        return TranslatedAction(studioTool: .drag, studioArguments: mapped, approximate: false)
+    }
+
+    /// A pinch on an element, or on the whole app when neither an element nor a point was given.
+    /// A pinch at a recorded point has no element to anchor it, so it stays excluded.
+    static func translatePinch(_ arguments: [String: String]) -> TranslatedAction? {
+        let probe = StudioToolOperation(id: "pinch", tool: StudioTool.pinch.rawValue, arguments: arguments)
+        guard probe.hasSelector() || (arguments["x"] == nil && arguments["y"] == nil) else { return nil }
+        var mapped: [String: String] = [:]
+        for key in StudioToolOperation.selectorKeys {
+            mapped[key] = arguments[key]
+        }
+        mapped[.scale] = arguments[PlanArgument.scale.rawValue]
+        mapped[.velocity] = arguments[PlanArgument.velocity.rawValue]
+        return TranslatedAction(studioTool: .pinch, studioArguments: mapped, approximate: false)
+    }
+
     static func translateFillField(_ arguments: [String: String]) -> TranslatedAction {
         var mapped = arguments
         let usesDescription = mapped["id"] == nil && mapped["label"] == nil && mapped["contains_text"] == nil
@@ -150,6 +180,19 @@ extension SessionPlanCompiler {
         case .scroll:
             let direction = arguments["direction"] ?? "unknown"
             return ("Scroll \(direction).", "Content scrolls \(direction).")
+        case .drag:
+            let target = [PlanArgument.id, .label, .containsText].lazy
+                .compactMap { arguments[StudioToolOperation.dropTargetPrefix + $0.rawValue] }.first
+            return (
+                "Drag element\(selector.map { " '\($0)'" } ?? "") onto\(target.map { " '\($0)'" } ?? " the target").",
+                "Element is dropped on the target."
+            )
+        case .pinch:
+            let zoom = Double(arguments[.scale] ?? "").map { $0 > 1 ? "in" : "out" } ?? "in or out"
+            return (
+                "Pinch to zoom \(zoom) on \(selector.map { "element '\($0)'" } ?? "the app").",
+                "Content zooms \(zoom)."
+            )
         case .assertVisible:
             return ("Assert element\(selector.map { " '\($0)'" } ?? "") is visible.", "Element is visible.")
         case .assertNotVisible:

@@ -82,14 +82,15 @@ struct ToolRequest: Sendable {
         self.arguments = arguments
         let nonnegative = [
             "timeout_ms", "duration_ms", "character_count", "offset", "settle_timeout_ms", "hittable_timeout_ms",
-            "effect_timeout_ms"
+            "effect_timeout_ms", "hold_ms"
         ]
         let coordinates = ["x", "y", "from_x", "from_y", "to_x", "to_y", "latitude", "longitude", "distance", "scale"]
         for key in nonnegative + coordinates {
             guard let raw = arguments[key] else { continue }
             guard let number = Double(raw), number.isFinite, abs(number) <= 1_000_000_000,
                   !nonnegative.contains(key) || Int(raw).map({ (0 ... 3_600_000).contains($0) }) == true,
-                  key != "scale" || (number > 0 && number <= 1),
+                  // A screenshot scale shrinks (0, 1]; a pinch scale zooms either way and the executor checks it.
+                  key != "scale" || name == "pinch" || (number > 0 && number <= 1),
                   key != "latitude" || abs(number) <= 90,
                   key != "longitude" || abs(number) <= 180 else {
                 throw ToolExecutionError(code: "invalid_argument", message: "Invalid numeric argument: \(key)")
@@ -133,6 +134,8 @@ public enum ToolProfile: String, Sendable, CaseIterable {
             "type_text",
             "swipe_in_direction",
             "scroll",
+            "drag",
+            "pinch",
             "press_back",
             "assert_visible",
             "assert_absent",

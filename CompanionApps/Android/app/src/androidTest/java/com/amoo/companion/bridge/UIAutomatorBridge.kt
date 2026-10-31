@@ -3,6 +3,7 @@ package com.amoo.companion.bridge
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Rect
+import android.graphics.RectF
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -180,6 +181,22 @@ class UIAutomatorBridge {
             toX,
             toY
         )
+    }
+
+    /**
+     * Spreads (`scale` > 1, zoom in) or pinches (`scale` < 1, zoom out) two fingers around the
+     * centre, inside [bounds] (the pinched element's frame) when given, else inside the screen.
+     * Returns a failure message, or null once the gesture was delivered.
+     */
+    fun pinch(centerX: Float, centerY: Float, scale: Float, velocity: Float, bounds: RectF?): String? {
+        val density = instrumentation.targetContext.resources.displayMetrics.density
+        val screen = RectF(0f, 0f, device.displayWidth.toFloat(), device.displayHeight.toFloat())
+        // Fingers outside the element land on its neighbours, so its pinch detector never fires.
+        val fitted = bounds?.let { RectF(it) }?.takeIf { it.intersect(screen) } ?: screen
+        val gesture = PinchGesture.fit(centerX, centerY, scale, velocity, fitted, density) ?: return "pinch scale must be a positive number other than 1 (above 1 zooms in, below 1 zooms out); got $scale"
+        val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        val delivered = PinchInjector { event -> automation.injectInputEvent(event, true) }.perform(gesture)
+        return if (delivered) null else "pinch input injection was rejected"
     }
 
     private fun injectPointerEvent(
