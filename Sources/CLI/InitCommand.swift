@@ -291,15 +291,9 @@ func handleInitCommand(remaining: [String], runtime: InitRuntime = .live()) asyn
                 exitCode: combined.exitCode
             )
         }
-        guard let index = args.firstIndex(of: "--device"), args.indices.contains(index + 1) else {
-            throw EnvCommandParseError.usage("--device <id> is required.")
-        }
-        let device = args[index + 1]
-        args.removeSubrange(index ... index + 1)
-        let owner = manifests.first { $0.results.contains { $0.ok && $0.device?.id == device } } ?? manifests[0]
-        return try await CLIApp().run(args: ["device"] + initDeviceArguments(owner, device: device, args: args))
+        return try await runInitDevice(args: args, manifests: manifests, paths: manifestPaths)
     } catch {
-        return initFailure(error, json: remaining.contains("--json"))
+        return initFailure(error, json: remaining.contains("--json"), showHelp: false)
     }
 }
 
@@ -336,10 +330,17 @@ func combineInitDownResults(_ results: [CLIResult]) -> CLIResult {
 }
 
 /// Keeps usage and file errors machine-readable whenever JSON was requested.
-func initFailure(_ error: any Error, json: Bool) -> CLIResult {
-    CLIResult(
-        output: json ? renderJSON(InitManifest(ok: false, results: [], error: String(describing: error)))
-            : "\(error)\n\n" + renderInitHelp(),
+/// The flag reader is shared with `amoo env`, whose error text appends env help; show only the message,
+/// then init's own help when `showHelp` is set and a pointer to it otherwise.
+func initFailure(_ error: any Error, json: Bool, showHelp: Bool = true) -> CLIResult {
+    let message = if case let .usage(text)? = error as? EnvCommandParseError {
+        text
+    } else {
+        "\(error)"
+    }
+    let text = showHelp ? "\(message)\n\n" + renderInitHelp() : "\(message)\n\nSee `amoo init --help`."
+    return CLIResult(
+        output: json ? renderJSON(InitManifest(ok: false, results: [], error: message)) : text,
         exitCode: 64
     )
 }
