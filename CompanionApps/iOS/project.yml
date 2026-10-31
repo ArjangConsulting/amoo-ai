@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.amoo
   deploymentTarget:
     iOS: "18.0"
+    macOS: "15.0"
   xcodeVersion: "16.0"
   createIntermediateGroups: true
   useBaseInternationalization: false
@@ -95,3 +96,62 @@ targets:
       path: Sources/Info.plist
       properties:
         AmooRecoveryAppGroup: $(AMOO_RECOVERY_APP_GROUP)
+
+  # macOS companion (experimental). The same XCUITest bridge and gRPC server, built for the Mac,
+  # driving apps on this Mac's desktop. FastTapSynthesizer and the VoiceOver inspector are UIKit-only.
+  AmooCompanionMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: MacHostApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion.mac
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+
+  AmooCompanionMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: Sources
+        excludes:
+          - Info.plist
+          - Bridge/FastTapSynthesizer.swift
+          - Bridge/NativeAccessibilityInspector.swift
+          - Bridge/NativeAccessibilityInspector+Journey.swift
+          - Bridge/NativeAccessibilityInspector+VoiceOver.swift
+      - path: ../../Sources/AmooCore/Geometry.swift
+      - path: ../../Sources/AmooCore/PinchGesture.swift
+      - path: ../../Sources/AmooCore/ElementSemantics.swift
+      - path: ../../Sources/AmooCore/AccessibilityInspection.swift
+      - path: ../../Sources/AmooCore/AccessibilityInspection+Codable.swift
+      - path: ../../Sources/AmooCore/VoiceOverPhase.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourney.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourney+Validation.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourneyRunner.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourneyRunner+Evidence.swift
+      - path: ../../Sources/AmooCore/AccessibilityJourneyRunner+Transition.swift
+      - path: ../../Sources/AmooCore/VoiceOverTraversal+Lifetime.swift
+      - path: ../../Sources/AmooCore/VoiceOverTraversal.swift
+      - path: ../../Sources/AmooCore/VoiceOverRecoveryJournal.swift
+      - path: GeneratedProtos
+        optional: true
+    dependencies:
+      - target: AmooCompanionMac
+      - package: grpc-swift-2
+        product: GRPCCore
+      - package: grpc-swift-nio-transport
+        product: GRPCNIOTransportHTTP2
+      - package: grpc-swift-protobuf
+        product: GRPCProtobuf
+      - package: swift-protobuf
+        product: SwiftProtobuf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion.mac.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        TEST_TARGET_NAME: AmooCompanionMac

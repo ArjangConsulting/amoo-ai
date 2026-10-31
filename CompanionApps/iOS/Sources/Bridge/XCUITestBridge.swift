@@ -204,7 +204,10 @@ final class XCUITestBridge: @unchecked Sendable {
     func appState(appID: String) -> String {
         switch XCUIApplication(bundleIdentifier: appID).state {
         case .runningForeground: "running"
-        case .runningBackground, .runningBackgroundSuspended: "suspended"
+        #if os(iOS)
+        case .runningBackgroundSuspended: "suspended"
+        #endif
+        case .runningBackground: "suspended"
         case .notRunning: "notRunning"
         case .unknown: "unknown"
         @unknown default: "unknown"
@@ -258,13 +261,25 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Coordinates were previously taken against `app` — the companion's own host app — so every
     /// tap activated the fixture and was delivered there, whatever was actually on screen.
     private func gestureCoordinate(x: Double, y: Double) -> XCUICoordinate {
-        gestureTarget().coordinate(withNormalizedOffset: .zero)
+        let target = gestureTarget()
+        #if os(macOS)
+        // A Mac app's element frame starts at its window, not the screen origin, while gestures and
+        // element frames are in global screen points; offset from the frame's own origin.
+        let origin = target.frame.standardized.origin
+        return target.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: x - origin.x, dy: y - origin.y))
+        #else
+        return target.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: x, dy: y))
+        #endif
     }
 
     /// Uses XCTest's runner-daemon event API when present. Unlike `XCUICoordinate.tap()`, this
     /// returns when synthesis completes without adding an implicit post-event confirmation wait.
     private func tapWithoutCacheInvalidation(x: Double, y: Double) async {
+        #if os(macOS)
+        gestureCoordinate(x: x, y: y).click()
+        #else
         // App-root coordinate taps can report success without dismissing a SpringBoard alert.
         // Resolve the live alert button under the requested screen point and let XCTest target
         // that element directly; do not redirect taps elsewhere in an alert to an arbitrary button.
@@ -310,11 +325,15 @@ final class XCUITestBridge: @unchecked Sendable {
             print("Fast tap unavailable; falling back to XCUICoordinate.tap(): \(error)")
             gestureCoordinate(x: x, y: y).tap()
         }
+        #endif
     }
 
     /// The non-main display the target renders on, with the mapping from interface points to that
     /// display's portrait space; nil on single-display devices or when XCTest exposes no display id.
     private func secondaryDisplay() -> (id: UInt, portraitPoint: (CGPoint) -> CGPoint)? {
+        #if os(macOS)
+        return nil
+        #else
         let screen = hostScreen()
         guard screen != XCUIScreen.main, let id = Self.displayID(of: screen) else { return nil }
         let size = gestureTarget().frame.standardized.size
@@ -322,6 +341,7 @@ final class XCUITestBridge: @unchecked Sendable {
         // changed (and read back) without the large display ever turning.
         let rotation = screen.screenshot().image.imageOrientation
         return (id, { Self.portraitPoint(forInterfacePoint: $0, rotation: rotation, portraitSize: size) })
+        #endif
     }
 
     /// Delivers a touch path to the secondary display; false means the caller should use the public API.
@@ -332,6 +352,9 @@ final class XCUITestBridge: @unchecked Sendable {
         travel: TimeInterval,
         settle: TimeInterval
     ) async -> Bool {
+        #if os(macOS)
+        return false
+        #else
         guard let display = secondaryDisplay() else { return false }
         do {
             try await FastTapSynthesizer.touch(
@@ -348,6 +371,7 @@ final class XCUITestBridge: @unchecked Sendable {
             print("Display-addressed touch unavailable; falling back to the public gesture API: \(error)")
             return false
         }
+        #endif
     }
 
     /// The target's frame in the space gestures are expressed in. On a secondary display the app
@@ -364,6 +388,7 @@ final class XCUITestBridge: @unchecked Sendable {
         return (screen.value(forKey: "displayID") as? NSNumber)?.uintValue
     }
 
+    #if os(iOS)
     /// Maps a point in the interface's (rotated) space to the display's portrait framebuffer space,
     /// given how the framebuffer is rotated onto the display and its portrait size in points.
     private static func portraitPoint(
@@ -378,6 +403,7 @@ final class XCUITestBridge: @unchecked Sendable {
         default: point
         }
     }
+    #endif
 
     /// The screen the gesture target renders on.
     ///
@@ -387,6 +413,10 @@ final class XCUITestBridge: @unchecked Sendable {
     /// `main` describe a screen the app is not on. The target's frame is in portrait space, so
     /// the match is on sorted dimensions, which also survives rotation.
     func hostScreen() -> XCUIScreen {
+        #if os(macOS)
+        // A Mac's displays are not the app's surface the way a phone's are; use the main one.
+        return XCUIScreen.main
+        #else
         let screens = XCUIScreen.screens
         guard screens.count > 1 else { return XCUIScreen.main }
         let frame = gestureTarget().frame.standardized
@@ -403,6 +433,7 @@ final class XCUITestBridge: @unchecked Sendable {
         let resolved = match ?? XCUIScreen.main
         hostScreenCache = (wanted, resolved)
         return resolved
+        #endif
     }
 
     private var hostScreenCache: (wanted: [CGFloat], screen: XCUIScreen)?
@@ -501,6 +532,9 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Without the synthesizer the public API is used, but only when the requested centre is the
     /// target's own centre — anywhere else it would pinch the wrong place and report success.
     func pinch(x: Double, y: Double, scale: Double, velocity: Double, bounds: CGRect?) async -> String? {
+        #if os(macOS)
+        return "pinch is not available on macOS: XCUITest has no two-finger gesture there"
+        #else
         defer { invalidateSnapshotCache() }
         let target = gestureTarget()
         let frame = interfaceFrame(of: target)
@@ -551,6 +585,7 @@ final class XCUITestBridge: @unchecked Sendable {
         let magnitude = abs(gesture.effectiveScale - 1) / gesture.durationSeconds
         target.pinch(withScale: gesture.effectiveScale, velocity: scale > 1 ? magnitude : -magnitude)
         return nil
+        #endif
     }
 
     /// Both fingers rest briefly before moving so the app registers two touches, not a pan.
@@ -764,7 +799,9 @@ final class XCUITestBridge: @unchecked Sendable {
 
     func pressHome() {
         defer { invalidateSnapshotCache() }
+        #if os(iOS)
         XCUIDevice.shared.press(.home)
+        #endif
     }
 
     // MARK: - Accessibility Queries
@@ -805,8 +842,12 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         let resolved = resolvedTargetApp(bundleID: nil, candidateBundleIDs: candidateBundleIDs)
+        #if os(macOS)
+        return [resolved]
+        #else
         guard Self.bundleID(of: resolved) != Self.springboardBundleID else { return [resolved] }
         return [resolved, springboard]
+        #endif
     }
 
     func tapElement(
@@ -857,12 +898,19 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     func isKeyboardVisible() -> Bool {
-        resolvedTargetApp(bundleID: nil, candidateBundleIDs: []).keyboards.count > 0
+        #if os(macOS)
+        return false
+        #else
+        return resolvedTargetApp(bundleID: nil, candidateBundleIDs: []).keyboards.count > 0
+        #endif
     }
 
     // MARK: - Screenshot
 
     func takeScreenshot() -> Data {
+        #if os(macOS)
+        return hostScreen().screenshot().pngRepresentation
+        #else
         let screenshot = hostScreen().screenshot()
         let image = screenshot.image
         // In landscape the pixels stay in the portrait framebuffer and the rotation rides along
@@ -875,6 +923,7 @@ final class XCUITestBridge: @unchecked Sendable {
         return UIGraphicsImageRenderer(size: image.size, format: format).pngData { _ in
             image.draw(at: .zero)
         }
+        #endif
     }
 
     /// Both coordinate spaces in play, and the factor between them.
@@ -885,7 +934,13 @@ final class XCUITestBridge: @unchecked Sendable {
     func screenInfo() -> (points: CGSize, pixels: CGSize, scale: Double) {
         let image = hostScreen().screenshot().image
         let points = image.size
+        #if os(macOS)
+        // NSImage has no scale; its bitmap's pixel width over its point width is the backing scale.
+        let pixelWidth = image.representations.first.map { Double($0.pixelsWide) } ?? Double(points.width)
+        let scale = points.width > 0 ? pixelWidth / Double(points.width) : 1
+        #else
         let scale = Double(image.scale)
+        #endif
         let pixels = CGSize(width: points.width * scale, height: points.height * scale)
         return (points, pixels, scale)
     }
@@ -1011,7 +1066,11 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         if let value = rawFrame as? NSValue {
+            #if os(macOS)
+            return value.rectValue
+            #else
             return value.cgRectValue
+            #endif
         }
 
         return nil
