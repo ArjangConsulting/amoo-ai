@@ -125,6 +125,9 @@ public enum SessionPlanCompiler {
         "list_sessions", "get_session_report", "compile_session_to_plan", "session_startup_status", "run_steps"
     ]
 
+    // One case per MCP tool that needs remapping; splitting the lookup would only hide the table.
+    // swiftlint:disable cyclomatic_complexity
+
     /// MCP tool names that map onto Studio's codegen-facing tool vocabulary, and how their
     /// arguments translate. Anything not listed here has no Studio-tool equivalent and is
     /// excluded from `compiledPlan.toolOperations` (but still included, untranslated, in the
@@ -136,6 +139,10 @@ public enum SessionPlanCompiler {
         switch toolName {
         case "fill_field":
             return translateFillField(arguments)
+        case "drag":
+            return translateDrag(arguments)
+        case "pinch":
+            return translatePinch(arguments)
         case "assert_visible":
             return translateAssertVisible(arguments)
         case "assert_absent":
@@ -154,6 +161,8 @@ public enum SessionPlanCompiler {
             return nil
         }
     }
+
+    // swiftlint:enable cyclomatic_complexity
 
     struct ProcessedAction {
         let operation: StudioToolOperation?

@@ -1,5 +1,6 @@
 package com.amoo.companion.handlers
 
+import android.graphics.RectF
 import com.amoo.companion.bridge.Direction
 import com.amoo.companion.bridge.UIAutomatorBridge
 
@@ -12,6 +13,11 @@ class GestureHandler(private val bridge: UIAutomatorBridge) {
 
     fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean {
         return bridge.drag(fromX, fromY, toX, toY, durationMs, holdMs)
+    }
+
+    /** Returns a failure message, or null once the pinch was delivered. */
+    fun pinch(centerX: Float, centerY: Float, scale: Float, velocity: Float, bounds: RectF?): String? {
+        return bridge.pinch(centerX, centerY, scale, velocity, bounds)
     }
 
     fun scroll(direction: Direction, distance: Int): Boolean {

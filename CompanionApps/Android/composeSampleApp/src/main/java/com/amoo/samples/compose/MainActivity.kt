@@ -1,10 +1,21 @@
 package com.amoo.samples.compose
 
+import android.content.ClipData
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -16,11 +27,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -212,6 +229,8 @@ private fun GestureScreen(onBack: () -> Unit) {
                 .testTag("fixture_tap_count")
                 .semantics { contentDescription = "fixture-tap-count" }
         )
+        DragDropRow()
+        PinchTarget()
         Button(
             onClick = onBack,
             modifier = Modifier
@@ -219,4 +238,81 @@ private fun GestureScreen(onBack: () -> Unit) {
                 .semantics { contentDescription = "fixture-gesture-back" }
         ) { Text("Back") }
     }
+}
+
+/** A system drag-and-drop source and drop zone; the card starts a drag only on long press. */
+@Composable
+private fun DragDropRow() {
+    var dropState by remember { mutableStateOf("empty") }
+    val target = remember {
+        object : DragAndDropTarget {
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                dropState = "dropped"
+                return true
+            }
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .height(100.dp)
+                .background(Color(0xFFE9D5FF))
+                .dragAndDropSource { _ ->
+                    DragAndDropTransferData(ClipData.newPlainText("fixture", "fixture-card"))
+                }
+                .testTag("fixture_drag_source")
+                .semantics { contentDescription = "fixture-drag-source" }
+        ) { Text("Drag Card") }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .height(100.dp)
+                .background(Color(0xFFBBF7D0))
+                .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = target)
+                .testTag("fixture_drop_zone")
+                .semantics { contentDescription = "fixture-drop-zone" }
+        ) { Text(if (dropState == "dropped") "Dropped" else "Drop Zone") }
+    }
+    Text(
+        text = "Drop state: $dropState",
+        modifier = Modifier
+            .testTag("fixture_drop_state")
+            .semantics { contentDescription = "fixture-drop-state" }
+    )
+}
+
+/** Reports the direction of the last completed pinch, so a test can tell zoom in from zoom out. */
+@Composable
+private fun PinchTarget() {
+    var lastPinch by remember { mutableStateOf("none") }
+    var cumulative by remember { mutableStateOf(1f) }
+    val state = rememberTransformableState { zoomChange, _, _ -> cumulative *= zoomChange }
+    LaunchedEffect(state.isTransformInProgress) {
+        if (!state.isTransformInProgress && cumulative != 1f) {
+            lastPinch = if (cumulative > 1f) "in" else "out"
+            cumulative = 1f
+        }
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .background(Color(0xFFCCFBF1))
+            .transformable(state)
+            .testTag("fixture_pinch_target")
+            .semantics { contentDescription = "fixture-pinch-target" }
+    ) { Text("Pinch Target") }
+    Text(
+        text = "Last pinch: $lastPinch",
+        modifier = Modifier
+            .testTag("fixture_pinch_state")
+            .semantics { contentDescription = "fixture-pinch-state" }
+    )
 }

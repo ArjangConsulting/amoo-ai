@@ -30,6 +30,15 @@ preview* you may run while the session is still open; it is never a required ste
    `swipe`/`tap`: the recorder binds it to the element you just resolved
    (`SessionAction.gestureTarget` / `observedElements`) so codegen still recovers
    the row. Never read coordinates off a screenshot (pixels vs points).
+   **Drag and drop / pinch.** `drag` takes the dragged element as
+   `id`/`label`/`contains_text` (+ `parent_id`, `index`/`first`) and the drop
+   target with the same keys prefixed `to_`. It holds 800ms at the source so the
+   item lifts (`hold_ms` to change it), then moves over `duration_ms`. `pinch`
+   takes `scale` (above 1 zooms in, below 1 zooms out) on an element, or on the
+   whole app when given no element and no point. Both compile to element-scoped
+   steps — `card.press(forDuration:thenDragTo:)`, `map.pinch(withScale:velocity:)`
+   — only when every end was an element; a coordinate end is excluded. Assert
+   the outcome afterwards (the card is in the new column, the zoom label changed).
 4. **Verify every mutation with an explicit semantic assertion.** After a delete,
    `assert_absent` (or `find_elements` + count) on a text/label. After an
    add, `assert_visible` the new element. An unverified mutation compiles to an

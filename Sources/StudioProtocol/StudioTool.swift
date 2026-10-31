@@ -21,6 +21,12 @@ public enum StudioTool: String, CaseIterable, Codable, Sendable, Hashable {
     case typeText = "type_text"
     case swipeInDirection = "swipe_in_direction"
     case scroll
+    /// Presses and holds the source element (`id` / `label` / `contains_text` / `parent_id`), drags it
+    /// onto the target element (the same keys prefixed `to_`), and releases it there.
+    case drag
+    /// Two-finger pinch on an element, or on the whole app when no selector is given. `scale` above 1
+    /// zooms in, below 1 zooms out.
+    case pinch
     case waitForElement = "wait_for_element"
     /// Scrolls until the target element is on screen and tappable.
     case scrollToElement = "scroll_to_element"
@@ -68,6 +74,10 @@ public enum PlanArgument: String, Sendable {
     case timeoutMilliseconds = "timeout_ms"
     case fieldDescription = "field_description"
     case contains
+    case scale
+    case velocity
+    case holdMilliseconds = "hold_ms"
+    case durationMilliseconds = "duration_ms"
 }
 
 public extension [String: String] {
@@ -75,5 +85,29 @@ public extension [String: String] {
     subscript(argument: PlanArgument) -> String? {
         get { self[argument.rawValue] }
         set { self[argument.rawValue] = newValue }
+    }
+}
+
+public extension StudioToolOperation {
+    /// Selector keys that name an element, shared by every element-taking tool.
+    static let selectorKeys = ["id", "label", "contains_text", "parent_id", "index", "first"]
+
+    /// Prefix that marks a `drag` operation's drop-target selector (`to_id`, `to_label`, …).
+    static let dropTargetPrefix = "to_"
+
+    /// The `drag` drop target as an operation of its own, its `to_*` keys renamed to the plain
+    /// selector keys, so emitters resolve it with the same element lookup as the source.
+    var dropTarget: StudioToolOperation {
+        var mapped: [String: String] = [:]
+        for key in Self.selectorKeys {
+            mapped[key] = arguments[Self.dropTargetPrefix + key]
+        }
+        return StudioToolOperation(id: "\(id).target", tool: tool, arguments: mapped)
+    }
+
+    /// Whether the operation names an element with `id`, `label` or `contains_text`, after an
+    /// optional key prefix.
+    func hasSelector(prefix: String = "") -> Bool {
+        ["id", "label", "contains_text"].contains { arguments[prefix + $0]?.isEmpty == false }
     }
 }

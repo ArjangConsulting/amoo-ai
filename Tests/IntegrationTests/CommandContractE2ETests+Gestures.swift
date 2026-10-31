@@ -225,6 +225,49 @@ extension CommandContractE2ETests {
         XCTAssertFalse(swipe.isError)
     }
 
+    /// Drag-and-drop and pinch on the Gesture Lab fixtures. Both fixtures report what they saw, so a
+    /// gesture that is dispatched but never recognised (a drag that scrolls instead of lifting, a
+    /// pinch read as a pan) fails here rather than passing on dispatch alone.
+    func testDragAndDropAndPinch() async throws {
+        let (server, driver) = try makeServerWithDriver()
+        let reset = await resetFixtureApp(on: server)
+        XCTAssertFalse(reset.isError, reset.content)
+        let gestureReady = await openFixtureScreen(
+            on: server,
+            launcherID: "fixture-open-gesture",
+            launcherLabel: "Open Gesture Lab",
+            readyID: "fixture-gesture-pad"
+        )
+        XCTAssertFalse(gestureReady.isError, gestureReady.content)
+
+        let drag = await server.execute(
+            toolName: "drag",
+            arguments: ["id": "fixture-drag-source", "to_id": "fixture-drop-zone"]
+        )
+        XCTAssertFalse(drag.isError, drag.content)
+        let dropped = try await pollFindElements(driver: driver, id: "fixture-drop-state", appID: Self.fixtureAppID) {
+            $0.contains { "\($0.label) \($0.value ?? "")".contains("dropped") }
+        }
+        XCTAssertTrue(dropped.contains { "\($0.label) \($0.value ?? "")".contains("dropped") }, "\(dropped)")
+
+        for (scale, expected) in [("2", "in"), ("0.5", "out")] {
+            let pinch = await server.execute(
+                toolName: "pinch",
+                arguments: ["id": "fixture-pinch-target", "scale": scale]
+            )
+            XCTAssertFalse(pinch.isError, pinch.content)
+            let state = try await pollFindElements(
+                driver: driver, id: "fixture-pinch-state", appID: Self.fixtureAppID
+            ) {
+                $0.contains { "\($0.label) \($0.value ?? "")".contains("Last pinch: \(expected)") }
+            }
+            XCTAssertTrue(
+                state.contains { "\($0.label) \($0.value ?? "")".contains("Last pinch: \(expected)") },
+                "pinch scale \(scale): \(state)"
+            )
+        }
+    }
+
     func testPressHomeAndRelaunch() async throws {
         let server = try makeServer()
         let reset = await resetFixtureApp(on: server)

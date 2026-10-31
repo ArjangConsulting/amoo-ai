@@ -300,6 +300,9 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             // GestureDirection inverts scroll for us — see its documentation for why.
             return try "\(indent)app.\(gesture(for: operation))()"
 
+        case .drag, .pinch:
+            return try gestureStatement(for: operation, context: context, localNames: &localNames, lookups: &lookups)
+
         case .waitForElement, .assertVisible:
             return try waitStatement(
                 for: operation,

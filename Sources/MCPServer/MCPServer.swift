@@ -52,6 +52,7 @@ public struct MCPServer: Sendable {
         let driverRouted = (
             DeviceTools.definitions.map { $0.categorized(.device) }
                 + ActionTools.definitions.map { $0.categorized(.action) }
+                + GestureTools.definitions.map { $0.categorized(.action) }
                 + QueryTools.definitions.map { $0.categorized(.query) }
                 + AuditTools.definitions.map { $0.categorized(.audit) }
                 + AssistantTools.definitions.map { $0.categorized(.assistant) }

@@ -15,7 +15,9 @@ public protocol GestureActions: Sendable {
     func swipe(direction: Direction, distance: Double, duration: Duration, element: ElementSelector?) async throws
     func scroll(direction: Direction, distance: Double) async throws
     func scrollToElement(_ selector: ElementSelector, direction: Direction, maxScrolls: Int) async throws
-    func pinch(center: Point, scale: Double, velocity: Double) async throws
+    /// Two-finger pinch around `center`; `scale` above 1 zooms in. The fingers stay inside `bounds`
+    /// (normally the pinched element's frame), or inside the screen when it is nil.
+    func pinch(center: Point, scale: Double, velocity: Double, bounds: Rect?) async throws
     func drag(from: Point, to: Point, duration: Duration, holdDuration: Duration) async throws
 }
 
@@ -284,7 +286,7 @@ public extension GestureActions {
         throw AmooError.notImplemented("scrollToElement")
     }
 
-    func pinch(center _: Point, scale _: Double, velocity _: Double) async throws {
+    func pinch(center _: Point, scale _: Double, velocity _: Double, bounds _: Rect?) async throws {
         throw AmooError.notImplemented("pinch")
     }
 

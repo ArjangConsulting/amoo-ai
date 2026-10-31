@@ -247,6 +247,12 @@ extension DriverToolExecutor {
             try await driver.scroll(direction: direction, distance: distance)
             return .success("Scrolled \(dirStr) by \(distance)")
 
+        case "drag":
+            return try await executeDrag(arguments: arguments, driver: driver)
+
+        case "pinch":
+            return try await executePinch(arguments: arguments, driver: driver)
+
         case "scroll_to_element":
             return try await executeScrollToElement(arguments: arguments, driver: driver)
 

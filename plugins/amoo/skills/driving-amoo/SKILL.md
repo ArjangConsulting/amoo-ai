@@ -102,6 +102,10 @@ run_steps for a known action/assertion sequence (up to 20 steps, stops on failur
 steps that need a new decision. Prefer scoped queries over full trees. Configure AMOO_TOOL_PROFILE
 as drive, record, or audit before MCP startup to load a smaller task-specific tool catalog.
 
+Drag and drop with `drag` (source `id`/`label`, target `to_id`/`to_label`); zoom with `pinch`
+`scale=2` (in) or `0.5` (out) on an element, or with no target for the whole app. Coordinate ends
+work live but are excluded from generated tests.
+
 A dispatched gesture does not prove a business outcome. Verify mutations with the relevant
 semantic assertion. `set_text` reports exact, masked_change, or unverified; a masked change
 cannot prove the secret's exact value. Use a subsequent app-level result where appropriate.

@@ -60,6 +60,8 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("action.swipe", .required),
             ("action.scroll", .required),
             ("action.swipeInDirection", .required),
+            ("action.drag", .optional),
+            ("action.pinch", .optional),
             ("action.typeText", .required),
             ("action.clearText", .required),
             ("action.setText", .required),
@@ -248,10 +250,28 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     }
 
     func pinch(
-        request _: Amoo_PinchRequest,
+        request: Amoo_PinchRequest,
         context _: ServerContext
     ) async throws -> Amoo_ActionResponse {
-        failResponse("pinch not yet implemented")
+        let bounds = request.hasBounds
+            ? CGRect(
+                x: request.bounds.x,
+                y: request.bounds.y,
+                width: request.bounds.width,
+                height: request.bounds.height
+            )
+            : nil
+        let failure = await gesture.pinch(
+            x: request.center.x,
+            y: request.center.y,
+            scale: Double(request.scale),
+            velocity: Double(request.velocity),
+            bounds: bounds
+        )
+        if let failure {
+            return failResponse(failure)
+        }
+        return successResponse()
     }
 
     func drag(

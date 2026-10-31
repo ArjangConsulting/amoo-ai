@@ -313,6 +313,26 @@ swipes, since those can submit a form or close a sheet. Use `tap_element` with a
 control when you intend that action. Deadlines are 12s per call; set `AMOO_RPC_TIMEOUT_SECONDS` (1–600) when a very
 large accessibility tree needs longer.
 
+### Drag and drop, and pinch
+
+`drag` presses its source, holds there (`hold_ms`, default 800 — above the ~500ms both iOS and
+Android wait before lifting an item for drag-and-drop), moves onto its target over `duration_ms`
+(default 1000), dwells briefly, and releases. Name the source by `id` / `label` / `contains_text`
+(with `parent_id`, `index` / `first`) and the target by the same keys prefixed `to_`; it refuses a
+covered or off-screen source the way `tap_element` does. `from_x`/`from_y` and `to_x`/`to_y` drive a
+coordinate end instead.
+
+`pinch` takes `scale` (above 1 zooms in, below 1 zooms out) and an element, a point (`x`/`y`), or
+neither for the screen centre. Both companions synthesize the two finger paths directly, fitted
+inside the screen, so an extreme scale is clamped rather than sent off-screen. The fitting lives in
+`AmooCore/PinchGesture.swift` (mirrored by the Android companion's `PinchGesture.kt`).
+
+Both export only when every end was an element: XCUITest `press(forDuration:thenDragTo:…)` and
+`pinch(withScale:velocity:)`, Compose `performTouchInput`, and for Espresso two small `ViewAction`s
+(`dragOnto`, `pinch`) emitted into the test, which inject touches through `UiController`. A
+coordinate end is excluded from the plan with a reason saying what to record instead. A drop or
+zoom is an outcome, so assert it afterwards.
+
 ## Reviewing screenshots
 
 `amoo flow ... --output-dir shots/` (or `take_screenshot output=`) leaves a folder of PNGs. Two

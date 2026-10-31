@@ -210,7 +210,8 @@ extension DriverToolExecutor {
         point: Point?,
         checks: TapChecks,
         driver: any PlatformDriver,
-        appID: String?
+        appID: String?,
+        gesture: (tool: String, noun: String) = ("tap_element", "tap")
     ) async throws -> TapPreflight {
         let (hittable, effect) = (checks.hittable, checks.effect)
         // One read serves both checks; the stricter mode decides how hard to try.
@@ -244,9 +245,9 @@ extension DriverToolExecutor {
         else { return TapPreflight(refusal: nil, hierarchy: hierarchy, hittabilityChecked: checked) }
         let name = preferredElementName(label: matched.label, id: matched.id) ?? matched.id
         let refusal = ToolResult.error(
-            "tap_element failed: '\(name)' would not receive the tap because \(block.explanation)."
+            "\(gesture.tool) failed: '\(name)' would not receive the \(gesture.noun) because \(block.explanation)."
                 + " Dismiss the overlay (keyboard, sheet) or scroll the element into view, then retry,"
-                + " or pass check_hittable=false to tap the point anyway."
+                + " or pass check_hittable=false to \(gesture.noun) the point anyway."
         )
         return TapPreflight(refusal: refusal, hierarchy: hierarchy)
     }

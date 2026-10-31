@@ -154,6 +154,10 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.drag(from: from, to: to, duration: duration, holdDuration: holdDuration)
     }
 
+    public func pinch(center: Point, scale: Double, velocity: Double, bounds: Rect?) async throws {
+        try await companion.pinch(center: center, scale: scale, velocity: velocity, bounds: bounds)
+    }
+
     // MARK: - Text Actions (delegate to companion)
 
     public func typeText(_ text: String) async throws {

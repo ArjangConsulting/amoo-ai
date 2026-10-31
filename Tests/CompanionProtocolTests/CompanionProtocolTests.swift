@@ -247,6 +247,7 @@ actor MockRPCClient: CompanionRPCClient {
     var tapElementRequest: Amoo_TapElementRequest?
     var swipeRequest: Amoo_SwipeRequest?
     var dragRequest: Amoo_DragRequest?
+    var pinchRequest: Amoo_PinchRequest?
     var swipeDirectionRequest: Amoo_SwipeDirectionRequest?
     var typeTextRequest: Amoo_TypeTextRequest?
     var clearTextRequest: Amoo_ClearTextRequest?
@@ -302,6 +303,12 @@ actor MockRPCClient: CompanionRPCClient {
     func drag(_ request: Amoo_DragRequest) async throws -> Amoo_ActionResponse {
         dragRequest = request
         actionCalls.append("drag")
+        return successResponse()
+    }
+
+    func pinch(_ request: Amoo_PinchRequest) async throws -> Amoo_ActionResponse {
+        pinchRequest = request
+        actionCalls.append("pinch")
         return successResponse()
     }
 

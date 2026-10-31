@@ -1,3 +1,5 @@
+import CoreGraphics
+
 /// Handles gesture-related gRPC requests by delegating to XCUITestBridge.
 final class GestureHandler: @unchecked Sendable {
     private let bridge: XCUITestBridge
@@ -28,6 +30,11 @@ final class GestureHandler: @unchecked Sendable {
             durationSeconds: Double(durationMs) / 1000.0,
             holdSeconds: Double(holdMs) / 1000.0
         )
+    }
+
+    /// Returns a failure message, or nil once the pinch was delivered.
+    func pinch(x: Double, y: Double, scale: Double, velocity: Double, bounds: CGRect?) async -> String? {
+        await bridge.pinch(x: x, y: y, scale: scale, velocity: velocity, bounds: bounds)
     }
 
     func scroll(direction: ScrollDirection, distance: Double) async {

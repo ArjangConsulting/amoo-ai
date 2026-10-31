@@ -1,5 +1,6 @@
 package com.amoo.companion.server
 
+import android.graphics.RectF
 import com.amoo.companion.bridge.Direction
 import com.amoo.companion.bridge.ElementSnapshot
 import com.amoo.companion.bridge.UIAutomatorBridge
@@ -26,6 +27,7 @@ import amoo.v1.FindElementsResponse
 import amoo.v1.InteractableElementsResponse
 import amoo.v1.KeyboardVisibleResponse
 import amoo.v1.LongPressRequest
+import amoo.v1.PinchRequest
 import amoo.v1.ScreenContextRequest
 import amoo.v1.ScreenContextResponse
 import amoo.v1.ScreenInfoResponse
@@ -90,6 +92,7 @@ class CompanionServiceImpl(
             capability("action.scroll", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.swipeInDirection", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.drag", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
+            capability("action.pinch", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
             capability("action.typeText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.clearText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("action.setText", CapabilityTier.CAPABILITY_TIER_REQUIRED),
@@ -178,6 +181,27 @@ class CompanionServiceImpl(
             ),
             "drag failed"
         )
+    }
+
+    override suspend fun pinch(request: PinchRequest): ActionResponse {
+        val bounds = if (request.hasBounds()) {
+            RectF(
+                request.bounds.x.toFloat(),
+                request.bounds.y.toFloat(),
+                (request.bounds.x + request.bounds.width).toFloat(),
+                (request.bounds.y + request.bounds.height).toFloat()
+            )
+        } else {
+            null
+        }
+        val failure = gesture.pinch(
+            request.center.x.toFloat(),
+            request.center.y.toFloat(),
+            request.scale,
+            request.velocity,
+            bounds
+        )
+        return actionResponse(failure == null, failure ?: "")
     }
 
     override suspend fun scroll(request: ScrollRequest): ActionResponse {

@@ -247,6 +247,7 @@ extension SessionPlanCompiler {
             "swipe_in_direction",
             "scroll",
             "drag",
+            "pinch",
             "type_text",
             "set_text",
             "fill_field",
