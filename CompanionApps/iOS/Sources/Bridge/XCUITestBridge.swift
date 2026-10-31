@@ -233,13 +233,23 @@ final class XCUITestBridge: @unchecked Sendable {
         await tapWithoutCacheInvalidation(x: x, y: y)
     }
 
-    func doubleTap(x: Double, y: Double) {
+    func doubleTap(x: Double, y: Double) async {
         defer { invalidateSnapshotCache() }
+        let point = CGPoint(x: x, y: y)
+        if await touchOnSecondaryDisplay(from: point, to: nil, hold: 0, travel: 0, settle: 0.02) {
+            _ = await touchOnSecondaryDisplay(from: point, to: nil, hold: 0, travel: 0, settle: 0.02)
+            return
+        }
         gestureCoordinate(x: x, y: y).doubleTap()
     }
 
-    func longPress(x: Double, y: Double, durationSeconds: TimeInterval) {
+    func longPress(x: Double, y: Double, durationSeconds: TimeInterval) async {
         defer { invalidateSnapshotCache() }
+        if await touchOnSecondaryDisplay(
+            from: CGPoint(x: x, y: y), to: nil, hold: 0, travel: 0, settle: durationSeconds
+        ) {
+            return
+        }
         gestureCoordinate(x: x, y: y).press(forDuration: durationSeconds)
     }
 
@@ -264,6 +274,23 @@ final class XCUITestBridge: @unchecked Sendable {
             button.tap()
             return
         }
+        // XCTest maps an interface point to the portrait screen space of the *main* display, so on
+        // a multi-display device (iPhone Duo) whose app renders on a larger display the public
+        // coordinate path lands at the wrong point and the event carries no display at all —
+        // success is reported and the app never sees the touch. Address the host display and
+        // do the orientation mapping against its own size instead.
+        if let display = secondaryDisplay() {
+            do {
+                try await FastTapSynthesizer.tap(
+                    at: display.portraitPoint(point),
+                    orientation: .portrait,
+                    displayID: display.id
+                )
+                return
+            } catch {
+                print("Display-addressed tap unavailable; falling back to XCUICoordinate.tap(): \(error)")
+            }
+        }
         guard FastTapSynthesizer.isAvailable else {
             gestureCoordinate(x: x, y: y).tap()
             return
@@ -284,6 +311,101 @@ final class XCUITestBridge: @unchecked Sendable {
             gestureCoordinate(x: x, y: y).tap()
         }
     }
+
+    /// The non-main display the target renders on, with the mapping from interface points to that
+    /// display's portrait space; nil on single-display devices or when XCTest exposes no display id.
+    private func secondaryDisplay() -> (id: UInt, portraitPoint: (CGPoint) -> CGPoint)? {
+        let screen = hostScreen()
+        guard screen != XCUIScreen.main, let id = Self.displayID(of: screen) else { return nil }
+        let size = gestureTarget().frame.standardized.size
+        // The display's own rotation, not `XCUIDevice.orientation`: the device orientation can be
+        // changed (and read back) without the large display ever turning.
+        let rotation = screen.screenshot().image.imageOrientation
+        return (id, { Self.portraitPoint(forInterfacePoint: $0, rotation: rotation, portraitSize: size) })
+    }
+
+    /// Delivers a touch path to the secondary display; false means the caller should use the public API.
+    private func touchOnSecondaryDisplay(
+        from start: CGPoint,
+        to end: CGPoint?,
+        hold: TimeInterval,
+        travel: TimeInterval,
+        settle: TimeInterval
+    ) async -> Bool {
+        guard let display = secondaryDisplay() else { return false }
+        do {
+            try await FastTapSynthesizer.touch(
+                from: display.portraitPoint(start),
+                to: end.map(display.portraitPoint),
+                hold: hold,
+                travel: travel,
+                settle: settle,
+                orientation: .portrait,
+                displayID: display.id
+            )
+            return true
+        } catch {
+            print("Display-addressed touch unavailable; falling back to the public gesture API: \(error)")
+            return false
+        }
+    }
+
+    /// The target's frame in the space gestures are expressed in. On a secondary display the app
+    /// reports its frame in portrait while the interface is laid out landscape, so the display's own
+    /// bounds are used there; everywhere else it is the target's frame.
+    private func interfaceFrame(of target: XCUIApplication) -> CGRect {
+        guard secondaryDisplay() != nil else { return target.frame.standardized }
+        return CGRect(origin: .zero, size: hostScreen().screenshot().image.size)
+    }
+
+    /// XCTest's private display identifier for `screen`, or nil when this XCTest doesn't expose one.
+    private static func displayID(of screen: XCUIScreen) -> UInt? {
+        guard screen.responds(to: NSSelectorFromString("displayID")) else { return nil }
+        return (screen.value(forKey: "displayID") as? NSNumber)?.uintValue
+    }
+
+    /// Maps a point in the interface's (rotated) space to the display's portrait framebuffer space,
+    /// given how the framebuffer is rotated onto the display and its portrait size in points.
+    private static func portraitPoint(
+        forInterfacePoint point: CGPoint,
+        rotation: UIImage.Orientation,
+        portraitSize size: CGSize
+    ) -> CGPoint {
+        switch rotation {
+        case .right, .rightMirrored: CGPoint(x: point.y, y: size.height - point.x)
+        case .left, .leftMirrored: CGPoint(x: size.width - point.y, y: point.x)
+        case .down, .downMirrored: CGPoint(x: size.width - point.x, y: size.height - point.y)
+        default: point
+        }
+    }
+
+    /// The screen the gesture target renders on.
+    ///
+    /// A device with one screen always answers `XCUIScreen.main`. On a multi-display device
+    /// (iPhone Duo) `main` is the outer display, which is black and unused while the app and its
+    /// accessibility tree live on the large one, so screenshots and screen geometry read from
+    /// `main` describe a screen the app is not on. The target's frame is in portrait space, so
+    /// the match is on sorted dimensions, which also survives rotation.
+    func hostScreen() -> XCUIScreen {
+        let screens = XCUIScreen.screens
+        guard screens.count > 1 else { return XCUIScreen.main }
+        let frame = gestureTarget().frame.standardized
+        guard !frame.isEmpty else { return XCUIScreen.main }
+        let wanted = [frame.width, frame.height].sorted()
+        if let cached = hostScreenCache, cached.wanted == wanted, screens.contains(cached.screen) {
+            return cached.screen
+        }
+        let match = screens.first { screen in
+            let size = screen.screenshot().image.size
+            let dimensions = [size.width, size.height].sorted()
+            return abs(dimensions[0] - wanted[0]) < 1.5 && abs(dimensions[1] - wanted[1]) < 1.5
+        }
+        let resolved = match ?? XCUIScreen.main
+        hostScreenCache = (wanted, resolved)
+        return resolved
+    }
+
+    private var hostScreenCache: (wanted: [CGFloat], screen: XCUIScreen)?
 
     /// The app a gesture is delivered through.
     ///
@@ -310,8 +432,17 @@ final class XCUITestBridge: @unchecked Sendable {
 
     // MARK: - Gestures
 
-    func swipe(fromX: Double, fromY: Double, toX: Double, toY: Double, durationSeconds: TimeInterval) {
+    func swipe(fromX: Double, fromY: Double, toX: Double, toY: Double, durationSeconds: TimeInterval) async {
         defer { invalidateSnapshotCache() }
+        if await touchOnSecondaryDisplay(
+            from: CGPoint(x: fromX, y: fromY),
+            to: CGPoint(x: toX, y: toY),
+            hold: 0.05,
+            travel: durationSeconds,
+            settle: 0
+        ) {
+            return
+        }
         let start = gestureCoordinate(x: fromX, y: fromY)
         let end = gestureCoordinate(x: toX, y: toY)
         start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .default, thenHoldForDuration: 0)
@@ -330,8 +461,17 @@ final class XCUITestBridge: @unchecked Sendable {
         toY: Double,
         durationSeconds: TimeInterval,
         holdSeconds: TimeInterval
-    ) {
+    ) async {
         defer { invalidateSnapshotCache() }
+        if await touchOnSecondaryDisplay(
+            from: CGPoint(x: fromX, y: fromY),
+            to: CGPoint(x: toX, y: toY),
+            hold: holdSeconds,
+            travel: durationSeconds,
+            settle: Self.dropSettleSeconds
+        ) {
+            return
+        }
         let start = gestureCoordinate(x: fromX, y: fromY)
         let end = gestureCoordinate(x: toX, y: toY)
 
@@ -358,9 +498,9 @@ final class XCUITestBridge: @unchecked Sendable {
     /// `distance` is points of finger travel, centred on the screen. It used to be handed to
     /// `swipeUp(velocity:)` as a *velocity*, so the default 300 became a slow 300 pt/s flick that
     /// barely moved a list and did nothing inside a sheet with the keyboard up.
-    func scroll(direction: ScrollDirection, distance: Double) {
+    func scroll(direction: ScrollDirection, distance: Double) async {
         defer { invalidateSnapshotCache() }
-        let frame = gestureTarget().frame.standardized
+        let frame = interfaceFrame(of: gestureTarget())
         guard !frame.isNull, !frame.isEmpty else {
             scrollWithDirectionalSwipe(direction: direction, distance: distance)
             return
@@ -374,7 +514,7 @@ final class XCUITestBridge: @unchecked Sendable {
         let extent = unitX != 0 ? frame.width : frame.height
         let travel = min(max(distance, 1), extent * 0.7)
         let centre = (x: Double(frame.midX), y: Double(frame.midY))
-        drag(
+        await drag(
             fromX: centre.x - unitX * travel / 2,
             fromY: centre.y - unitY * travel / 2,
             toX: centre.x + unitX * travel / 2,
@@ -416,7 +556,7 @@ final class XCUITestBridge: @unchecked Sendable {
         id: String?,
         label: String?,
         containsText: String?
-    ) -> Bool {
+    ) async -> Bool {
         defer { invalidateSnapshotCache() }
         let target = gestureTarget()
         let hasSelector = id != nil || label != nil || containsText != nil
@@ -427,10 +567,17 @@ final class XCUITestBridge: @unchecked Sendable {
                 where matches(candidate: candidate, id: id, label: label, containsText: containsText) {
                 let frame = candidate.frame.standardized
                 guard !frame.isNull, !frame.isEmpty else { continue }
-                swipeFromCentre(of: frame, direction: direction)
+                await swipeFromCentre(of: frame, direction: direction)
                 return true
             }
             return false
+        }
+        if secondaryDisplay() != nil {
+            let frame = interfaceFrame(of: target)
+            if !frame.isNull, !frame.isEmpty {
+                await swipeFromCentre(of: frame, direction: direction)
+                return true
+            }
         }
         switch direction {
         case .up: target.swipeUp()
@@ -649,7 +796,7 @@ final class XCUITestBridge: @unchecked Sendable {
     // MARK: - Screenshot
 
     func takeScreenshot() -> Data {
-        let screenshot = XCUIScreen.main.screenshot()
+        let screenshot = hostScreen().screenshot()
         let image = screenshot.image
         // In landscape the pixels stay in the portrait framebuffer and the rotation rides along
         // only as `imageOrientation`, which `pngRepresentation` drops. The PNG then came out
@@ -669,7 +816,7 @@ final class XCUITestBridge: @unchecked Sendable {
     /// factor of three, so a coordinate read straight off a screenshot lands far off-screen —
     /// and silently, since a tap outside any control still reports success.
     func screenInfo() -> (points: CGSize, pixels: CGSize, scale: Double) {
-        let image = XCUIScreen.main.screenshot().image
+        let image = hostScreen().screenshot().image
         let points = image.size
         let scale = Double(image.scale)
         let pixels = CGSize(width: points.width * scale, height: points.height * scale)
@@ -759,7 +906,7 @@ final class XCUITestBridge: @unchecked Sendable {
             return targetFrame
         }
 
-        return CGRect(origin: .zero, size: XCUIScreen.main.screenshot().image.size).standardized
+        return CGRect(origin: .zero, size: hostScreen().screenshot().image.size).standardized
     }
 
     private func isElementVisible(_ element: XCUIElement, viewport: CGRect) -> Bool {
@@ -1090,7 +1237,7 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     /// A directional swipe centred on `frame`, travelling a quarter of its span.
-    private func swipeFromCentre(of frame: CGRect, direction: ScrollDirection) {
+    private func swipeFromCentre(of frame: CGRect, direction: ScrollDirection) async {
         let dx = frame.width / 4
         let dy = frame.height / 4
         let (toX, toY): (CGFloat, CGFloat) = switch direction {
@@ -1098,6 +1245,15 @@ final class XCUITestBridge: @unchecked Sendable {
         case .down: (frame.midX, frame.midY + dy)
         case .left: (frame.midX - dx, frame.midY)
         case .right: (frame.midX + dx, frame.midY)
+        }
+        if await touchOnSecondaryDisplay(
+            from: CGPoint(x: frame.midX, y: frame.midY),
+            to: CGPoint(x: toX, y: toY),
+            hold: 0.05,
+            travel: 0.3,
+            settle: 0
+        ) {
+            return
         }
         gestureCoordinate(x: frame.midX, y: frame.midY).press(
             forDuration: 0.05,
