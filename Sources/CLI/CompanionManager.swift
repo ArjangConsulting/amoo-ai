@@ -222,6 +222,7 @@ final class CompanionManager: @unchecked Sendable {
             if own == nil {
                 try await refuseOtherSimulatorsCompanion(config: config, processRunner: processRunner)
             }
+            await StartupProgress.report("Reusing the iOS companion running on port \(config.port); not rebuilt")
             print("Companion already running on port \(config.port).")
             return
         }
