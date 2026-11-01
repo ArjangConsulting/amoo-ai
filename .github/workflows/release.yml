@@ -240,6 +240,7 @@ jobs:
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/iOS/project.yml'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep 'CompanionApps/iOS/prebuilt/iphonesimulator/Products/.*xctestrun$'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep 'CompanionApps/iOS/prebuilt/iphoneos/Products/.*xctestrun$'
+          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep 'CompanionApps/iOS/prebuilt/macosx/Products/.*xctestrun$'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/prebuilt/app-debug.apk'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'scripts/install-mcp.sh'
