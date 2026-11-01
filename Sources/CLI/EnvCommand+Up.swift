@@ -1,6 +1,7 @@
 import AdbKit
 import AmooCore
 import Foundation
+import IOSDriver
 import MobileCore
 import MobileDevices
 import ProcessRunner
@@ -14,6 +15,7 @@ import Glibc
 
 enum EnvError: Error, CustomStringConvertible {
     case physicalDevice(String)
+    case macNotLeased
     case noDevice(String)
     case companionFailed(String)
     case appFailed(String)
@@ -22,6 +24,9 @@ enum EnvError: Error, CustomStringConvertible {
         switch self {
         case let .physicalDevice(id):
             "\(id) is a physical device. `amoo env` only uses simulators and emulators."
+        case .macNotLeased:
+            "`amoo env` only leases simulators and emulators. Start a macOS session directly with platform macos;"
+                + " only one session can drive the Mac at a time."
         case let .noDevice(message), let .companionFailed(message), let .appFailed(message):
             message
         }
@@ -37,6 +42,7 @@ struct EnvUpDependencies {
         switch options.platform {
         case .android: try await resolveEnvAndroidDevice(options, store: store)
         case .ios: try await resolveEnvIOSDevice(options, store: store)
+        case .macos: throw EnvError.macNotLeased
         }
     }
 
@@ -473,5 +479,7 @@ private func isAppInstalled(platform: Platform, deviceID: String, appID: String)
         return await (try? Adb(context: context).serial(deviceID).pmPath(package: appID).run()) != nil
     case .ios:
         return await (try? Simctl(context: context).getAppContainer(deviceID, bundleIdentifier: appID).run()) != nil
+    case .macos:
+        return SystemMacWorkspace().applicationURL(bundleID: appID) != nil
     }
 }

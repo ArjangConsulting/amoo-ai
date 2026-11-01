@@ -36,7 +36,7 @@ enum MCPCommandParseError: Error, CustomStringConvertible {
         case let .unknownOption(option):
             "Unknown option '\(option)'."
         case let .unknownPlatform(value):
-            "Unknown platform '\(value)'. Expected 'ios' or 'android'."
+            "Unknown platform '\(value)'. Expected 'ios', 'android' or 'macos'."
         }
     }
 }
@@ -52,7 +52,7 @@ struct MCPServeOptions: Sendable, Equatable {
 }
 
 func renderMCPHelp() -> String {
-    "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]"
+    "Usage: amoo mcp serve [--platform ios|android|macos] [--port <port>] [--device <id>]"
 }
 
 func runMCPCommand(args: [String]) async -> CLIResult {
@@ -146,16 +146,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
     do {
         let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
         let companion = try GRPCCompanionClient.makeLive(connection: connection)
-        let driver: any PlatformDriver = switch options.platform {
-        case .ios:
-            await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
-        case .android:
-            AndroidDriver(
-                companion: companion,
-                inspectionMode: .productionDefault(),
-                serial: options.deviceID
-            )
-        }
+        let driver = await makeMCPDriver(options: options, companion: companion)
 
         // Wire up session management so `start_session` can boot devices,
         // build/launch the companion, install + launch the app on demand.
@@ -204,9 +195,22 @@ private func writeMCPError(_ message: String) {
 }
 
 private func defaultMCPPort(for platform: Platform) -> Int {
-    switch platform {
-    case .ios: 22087
-    case .android: 22088
+    platform.defaultCompanionPort
+}
+
+/// The default driver an `amoo mcp serve` server starts with, before any `start_session`.
+private func makeMCPDriver(options: MCPServeOptions, companion: GRPCCompanionClient) async -> any PlatformDriver {
+    switch options.platform {
+    case .ios:
+        await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
+    case .android:
+        AndroidDriver(
+            companion: companion,
+            inspectionMode: .productionDefault(),
+            serial: options.deviceID
+        )
+    case .macos:
+        IOSDriver(companion: companion, backend: MacHostBackend(), deviceID: MacHostBackend.deviceID)
     }
 }
 
@@ -217,6 +221,8 @@ private func normalizedMCPDeviceID(_ deviceID: String?, for platform: Platform) 
     case .android:
         guard let deviceID, !deviceID.isEmpty, deviceID != "booted" else { return nil }
         return deviceID
+    case .macos:
+        return MacHostBackend.deviceID
     }
 }
 

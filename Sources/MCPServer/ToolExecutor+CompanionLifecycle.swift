@@ -15,7 +15,7 @@ extension DriverToolExecutor {
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
-            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios', 'android' or 'macos'.")
         }
         do {
             let status = try await manager.companionStatus(
@@ -73,7 +73,7 @@ extension DriverToolExecutor {
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
-            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios', 'android' or 'macos'.")
         }
         do {
             let status = try await manager.resetCompanion(platform: platform, deviceHint: arguments["device_hint"])

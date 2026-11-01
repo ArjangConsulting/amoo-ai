@@ -326,6 +326,8 @@ private func makeFlowDriver(
             inspectionMode: .productionDefault(),
             serial: normalizedAndroidDeviceID(deviceID)
         )
+    case .macos:
+        IOSDriver(companion: companion, backend: MacHostBackend(), deviceID: MacHostBackend.deviceID)
     }
 }
 

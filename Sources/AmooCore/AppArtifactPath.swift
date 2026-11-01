@@ -38,6 +38,10 @@ public enum AppArtifactPath {
             guard ext == "apk", !isDirectory.boolValue else {
                 throw ValidationError(description: "\(path) is not an Android app: expected an .apk file.")
             }
+        case .macos:
+            guard ext == "app", isDirectory.boolValue else {
+                throw ValidationError(description: "\(path) is not a Mac app: expected a .app bundle directory.")
+            }
         case nil:
             break
         }

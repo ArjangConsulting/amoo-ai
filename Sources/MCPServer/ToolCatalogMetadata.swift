@@ -40,7 +40,7 @@ enum ToolCatalogMetadata {
         ),
         .init(tools: ["test_voiceover"], property: "direction", values: ["forward", "backward"], exhaustive: true),
         .init(tools: nil, property: "scope", values: ["app", "system"], exhaustive: true),
-        .init(tools: nil, property: "platform", values: ["ios", "android"], exhaustive: true),
+        .init(tools: nil, property: "platform", values: ["ios", "android", "macos"], exhaustive: true),
         .init(tools: ["get_view_hierarchy"], property: "format", values: ["full", "summary"], exhaustive: true),
         .init(tools: ["take_screenshot"], property: "format", values: ["png", "jpeg"], exhaustive: true),
         .init(tools: ["start_session"], property: "build_mode", values: ["auto", "reuse", "rebuild"], exhaustive: true),

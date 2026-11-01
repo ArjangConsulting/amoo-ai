@@ -9,7 +9,7 @@ extension CompanionManager: IOSCompanionManaging {}
 extension CompanionManager {
     /// Xcode omits the UI-test group's entitlement from the generated simulator executable.
     func signSimulatorProducts(config: CompanionConfig) async throws {
-        guard !config.isPhysicalDevice else { return }
+        guard !config.isPhysicalDevice, !config.isMac else { return }
         let result = try await processRunner.run([
             "python3", config.companionDir + "/sign-simulator-products.py",
             config.companionDir + "/build/Build/Products"
@@ -20,8 +20,7 @@ extension CompanionManager {
     }
 
     func bundledProductsDirectory(config: CompanionConfig) -> String {
-        let platform = config.isPhysicalDevice ? "iphoneos" : "iphonesimulator"
-        return config.companionDir + "/prebuilt/\(platform)/Products"
+        config.companionDir + "/prebuilt/\(config.productPlatform)/Products"
     }
 
     /// Env vars `sign-prebuilt.py` needs to re-sign the unsigned release device products.

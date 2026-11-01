@@ -14,7 +14,7 @@ public enum SessionTools {
                 ),
                 "platform": .init(
                     type: "string",
-                    description: "Target platform: 'ios' or 'android'. Defaults to 'ios'."
+                    description: "Target platform: 'ios', 'android' or 'macos' (this Mac). Defaults to 'ios'."
                 ),
                 "device_hint": .init(
                     type: "string",

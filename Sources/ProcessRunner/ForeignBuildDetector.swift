@@ -112,6 +112,9 @@ public extension ForeignBuildDetector {
             ]),
                 result.exitCode == 0 else { return [] }
             return Self.parseAndroidHijackers(result.stdout)
+        case .macos:
+            // A Mac UI-test run names no device id to match on, so none is attributed to this Mac.
+            return []
         }
     }
 

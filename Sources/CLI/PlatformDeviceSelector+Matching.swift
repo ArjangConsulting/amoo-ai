@@ -8,6 +8,8 @@ extension PlatformDeviceSelector {
         case let .android(serial, name):
             // Model names only identify emulators; a phone matches by exact serial alone.
             serial == hint || (serial.hasPrefix("emulator-") && name.lowercased() == hint.lowercased())
+        case .macos:
+            (try? Self.macDevice(hint: hint)) != nil
         }
     }
 }

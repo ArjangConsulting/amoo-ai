@@ -12,6 +12,7 @@ what a particular device supports; interface availability alone is not evidence 
 | OS/device qualification | No new qualification claimed by this change | No new qualification claimed | No new qualification claimed | No new qualification claimed |
 
 macOS 15+ and a compatible Xcode are required for iOS. The package requires Swift tools 6.2+.
+Driving the Mac's own desktop (`--platform macos`) is experimental; see [macOS](macos.md).
 Android companions require the SDK and JDK 17–26 for the checked-in AGP/Gradle stack. Generic Linux
 Swift tests do not prove iOS behavior. WebView inspection, permissions, system UI, keyboard state,
 and gestures vary by OS and application framework; check advertised capabilities and assert the

@@ -17,7 +17,7 @@ extension DriverToolExecutor {
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
-            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios', 'android' or 'macos'.")
         }
         guard let buildMode = SessionBuildMode(rawValue: arguments["build_mode"] ?? "auto") else {
             return .error("build_mode must be auto, reuse, or rebuild.")
@@ -380,7 +380,7 @@ extension DriverToolExecutor {
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {
-            return .error("Unknown platform '\(platformRaw)'. Expected 'ios' or 'android'.")
+            return .error("Unknown platform '\(platformRaw)'. Expected 'ios', 'android' or 'macos'.")
         }
         do {
             let status = try await manager.warmCompanion(
@@ -403,7 +403,7 @@ extension DriverToolExecutor {
         let platformFilter: Platform?
         if let raw = arguments["platform"] {
             guard let parsed = Platform(rawValue: raw.lowercased()) else {
-                return .error("Unknown platform '\(raw)'. Expected 'ios' or 'android'.")
+                return .error("Unknown platform '\(raw)'. Expected 'ios', 'android' or 'macos'.")
             }
             platformFilter = parsed
         } else {

@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import IOSDriver
 
 // MARK: - REPL startup options
 
@@ -78,6 +79,8 @@ func startREPLMode(args: [String]) async {
             options.port = 22087
         case .android:
             options.port = 22088
+        case .macos:
+            options.port = CompanionConfig.defaultMacPort
         }
     }
 

@@ -59,6 +59,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let deviceKey = switch available {
         case let .ios(device): "ios:\(device.udid)"
         case let .android(serial, _): "android:\(serial)"
+        case .macos: "macos:\(MacHostBackend.deviceID)"
         }
         // Cross-process: a device another session controlled via `amoo env up` is off limits unless
         // this server was started with that runtime in AMOO_RUNTIME_ID.
@@ -204,6 +205,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 inspectionMode: .productionDefault(),
                 serial: deviceID
             )
+        case .macos:
+            IOSDriver(companion: companion, backend: MacHostBackend(), deviceID: MacHostBackend.deviceID)
         }
     }
 
@@ -267,6 +270,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 )
             }
         }
+        // Listed only when asked for: the Mac is always "booted", and a platform-less listing that
+        // included it would invite an agent to drive the user's own desktop by accident.
+        if platform == .macos {
+            result.append(MacHostBackend.currentDeviceInfo())
+        }
         return result
     }
 
@@ -317,6 +325,15 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             config.installPreparedBuild = installAndroidBuild
             try await androidCompanionManager.ensureRunning(config: config, force: false)
             return (serial, port)
+        case .macos:
+            var config = CompanionConfig(
+                port: requestedPort ?? CompanionConfig.defaultMacPort,
+                deviceUDID: MacHostBackend.deviceID,
+                targetAppID: appID
+            )
+            config.buildMode = buildMode
+            try await iOSCompanionManager.ensureRunning(config: config, force: false)
+            return (MacHostBackend.deviceID, config.port)
         }
     }
 }

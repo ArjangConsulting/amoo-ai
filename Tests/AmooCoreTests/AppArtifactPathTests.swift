@@ -68,4 +68,15 @@ final class AppArtifactPathTests: XCTestCase {
         XCTAssertEqual(AppArtifactPath.editDistance("", "abc"), 3)
         XCTAssertEqual(AppArtifactPath.editDistance("same", "same"), 0)
     }
+
+    func testMacArtifactMustBeAnAppBundle() throws {
+        let scratch = try makeScratch()
+        let app = try makeDirectory("Notes.app", in: scratch)
+        let ipa = try scratch.write(Data("ipa".utf8), named: "Notes.ipa")
+
+        XCTAssertEqual(try AppArtifactPath.validated(app.path, platform: .macos), app.standardizedFileURL.path)
+        XCTAssertThrowsError(try AppArtifactPath.validated(ipa.path, platform: .macos)) { error in
+            XCTAssertTrue(String(describing: error).contains("is not a Mac app"), String(describing: error))
+        }
+    }
 }

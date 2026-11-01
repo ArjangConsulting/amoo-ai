@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import IOSDriver
 import MobileCore
 import MobileDevices
 import ProcessRunner
@@ -42,44 +43,6 @@ struct AndroidVirtualDevice: Equatable {
 }
 
 /// A cross-platform representation of an available device or emulator/simulator.
-enum AvailableDevice {
-    case ios(BootedDevice)
-    case android(serial: String, name: String)
-
-    var platform: Platform {
-        switch self {
-        case .ios: .ios
-        case .android: .android
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case let .ios(device):
-            "[iOS]     \(device.displayName)"
-        case let .android(serial, name):
-            "[Android] \(name) (\(serial))"
-        }
-    }
-
-    /// Simulator UDID or adb serial.
-    var deviceID: String {
-        switch self {
-        case let .ios(device): device.udid
-        case let .android(serial, _): serial
-        }
-    }
-
-    /// Whether this is real hardware rather than a simulator/emulator. Android emulator
-    /// serials are always `emulator-<port>`; anything else is a physical device's serial.
-    var isPhysicalDevice: Bool {
-        switch self {
-        case let .ios(device): device.isPhysicalDevice
-        case let .android(serial, _): !serial.hasPrefix("emulator-")
-        }
-    }
-}
-
 enum DeviceSelectionError: Error, CustomStringConvertible {
     case noBootedSimulators
     case noDevicesAvailable
@@ -122,6 +85,8 @@ enum DeviceSelectionError: Error, CustomStringConvertible {
                 No Android virtual devices found.
                 Create one in Android Studio Device Manager, then re-run amoo.
                 """
+            case .macos:
+                "This Mac is always available; select it with platform macos."
             }
         case let .invalidSelection(input):
             "Invalid selection '\(input)'. Enter a number from the list."
@@ -149,6 +114,7 @@ struct ConsoleDeviceSelectionPrompter: DeviceSelectionPrompting {
                 switch platform {
                 case .ios: "iOS"
                 case .android: "Android"
+                case .macos: "macOS"
                 }
             }
         )
@@ -294,6 +260,9 @@ struct PlatformDeviceSelector {
         platform: Platform? = nil,
         deferIOSBoot: Bool = false
     ) async throws -> AvailableDevice {
+        if platform == .macos {
+            return try Self.macDevice(hint: hint)
+        }
         let iosSelector = DeviceSelector(processRunner: processRunner)
         let androidSelector = AndroidDeviceSelector(processRunner: processRunner)
 
@@ -449,6 +418,8 @@ struct PlatformDeviceSelector {
                 ? androidVirtualDevices[0]
                 : try prompter.selectAndroidEmulator(from: androidVirtualDevices)
             return try await startAndroidEmulator(virtualDevice, selector: androidSelector)
+        case .macos:
+            return try Self.macDevice(hint: nil)
         }
     }
 

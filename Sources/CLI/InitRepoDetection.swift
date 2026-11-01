@@ -39,7 +39,7 @@ private let ignoredInitRepoDirectories: Set<String> = [
 private func hasPlatformMarkers(_ directory: URL, platform: Platform) -> Bool {
     let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
     switch platform {
-    case .ios:
+    case .ios, .macos:
         return names.contains { name in
             ["xcodeproj", "xcworkspace"].contains((name as NSString).pathExtension) || name == "project.yml"
         }

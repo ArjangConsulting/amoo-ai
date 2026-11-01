@@ -9,6 +9,8 @@ import SwiftyTerminal
 public enum PreflightPlatform: String, Sendable {
     case iOS = "ios"
     case android
+    /// This Mac's desktop. Opt-in, so `all` does not include it.
+    case macOS = "macos"
     case all
 }
 
@@ -82,6 +84,11 @@ public struct DefaultPreflightChecker: PreflightChecking {
             }
             checks.append(adbCheck)
             checks.append(androidJDKCheck())
+        }
+
+        if platform == .macOS {
+            let macChecks = await macOSChecks()
+            checks.append(contentsOf: macChecks)
         }
 
         return PreflightReport(platform: platform, checks: checks)
@@ -167,6 +174,48 @@ public struct DefaultPreflightChecker: PreflightChecking {
         checks.append(proxyCheck)
 
         return checks
+    }
+
+    /// Xcode builds the macOS companion; Automation Mode is what macOS requires before UI tests may
+    /// drive the desktop, and without it every companion launch stops at an authentication prompt.
+    private func macOSChecks() async -> [PreflightCheck] {
+        let xcodeCheck = await check(
+            id: "macos.xcode-select",
+            commandDescription: "xcode-select -p",
+            remediation: "Install Xcode and select it with `sudo xcode-select -s /Applications/Xcode.app`."
+        ) {
+            try await Command("xcode-select").args(["-p"]).run(in: shellContext).processResult
+        }
+        let output = try? await Command("automationmodetool").run(in: shellContext).processResult
+        return [xcodeCheck, Self.automationModeCheck(output: output.map { $0.stdout + $0.stderr })]
+    }
+
+    /// Reads `automationmodetool`'s status. Passing means UI tests can enable Automation Mode
+    /// themselves; otherwise each companion launch would wait on a password prompt nobody answers.
+    static func automationModeCheck(output: String?) -> PreflightCheck {
+        let remediation = """
+        Run in a terminal (it asks for your password once): \
+        sudo automationmodetool enable-automationmode-without-authentication
+        """
+        guard let output else {
+            return PreflightCheck(
+                id: "macos.automation-mode",
+                status: .fail,
+                message: "`automationmodetool` is not available; macOS UI automation needs macOS 13 or later.",
+                remediation: remediation
+            )
+        }
+        let lowered = output.lowercased()
+        let ready = lowered.contains("does not require") || lowered.contains("automation mode is enabled")
+        let status = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return PreflightCheck(
+            id: "macos.automation-mode",
+            status: ready ? .pass : .fail,
+            message: ready
+                ? "UI automation can start without a password prompt."
+                : "UI automation needs authentication to start: \(status)",
+            remediation: remediation
+        )
     }
 
     private func check(

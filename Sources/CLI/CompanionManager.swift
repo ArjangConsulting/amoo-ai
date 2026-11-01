@@ -312,9 +312,9 @@ final class CompanionManager: @unchecked Sendable {
         else { return nil }
 
         let candidates = enumerator.compactMap { item -> URL? in
-            guard let url = item as? URL, url.pathExtension == "xctestrun" else { return nil }
-            let platformMarker = config.isPhysicalDevice ? "iphoneos" : "iphonesimulator"
-            guard url.lastPathComponent.lowercased().contains(platformMarker) else { return nil }
+            guard let url = item as? URL, url.pathExtension == "xctestrun",
+                  url.lastPathComponent.lowercased().contains(config.productPlatform)
+            else { return nil }
             return url
         }
         return candidates.max(by: { lhs, rhs in
@@ -359,7 +359,7 @@ final class CompanionManager: @unchecked Sendable {
         let buildDeviceUDID = try await resolvedDeviceUDID(for: config)
         let buildResult = try await XcodeBuild(context: shellContext)
             .trailingArgument("build-for-testing")
-            .option(.scheme("AmooCompanion"))
+            .option(.scheme(config.scheme))
             .option(.destination(xcodeDestination(for: config, deviceUDID: buildDeviceUDID)))
             .option(.derivedDataPath(config.companionDir + "/build"))
             .option(.project(config.companionDir + "/AmooCompanion.xcodeproj"))
@@ -379,6 +379,9 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     private func xcodeDestination(for config: CompanionConfig, deviceUDID: String) -> String {
+        if config.isMac {
+            return "platform=macOS"
+        }
         let platform = config.isPhysicalDevice ? "iOS" : "iOS Simulator"
         return "platform=\(platform),id=\(deviceUDID)"
     }
@@ -390,7 +393,7 @@ final class CompanionManager: @unchecked Sendable {
     /// `amoo companion start` on the default device failed. Physical devices are always addressed
     /// by real UDID already, so only the simulator path needs resolving.
     private func resolvedDeviceUDID(for config: CompanionConfig) async throws -> String {
-        guard config.isPhysicalDevice == false,
+        guard config.isPhysicalDevice == false, !config.isMac,
               config.deviceUDID.isEmpty || config.deviceUDID == "booted"
         else { return config.deviceUDID }
 
@@ -423,7 +426,7 @@ final class CompanionManager: @unchecked Sendable {
                 .option(.destination(xcodeDestination(for: config, deviceUDID: deviceUDID)))
                 .trailingArguments([
                     "-only-testing",
-                    "AmooCompanionUITests/CompanionRunner/testRunCompanion",
+                    "\(config.testBundle)/CompanionRunner/testRunCompanion",
                     "-test-timeouts-enabled", "NO"
                 ])
                 // xcodebuild does NOT forward its own environment into the test runner process:

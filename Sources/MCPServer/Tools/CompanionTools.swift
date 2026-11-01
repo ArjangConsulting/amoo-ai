@@ -14,7 +14,7 @@ public enum CompanionTools {
                 +
                 " Poll companion_status until built, then call start_session to launch it. Requires `amoo mcp serve`.",
             properties: [
-                "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
+                "platform": .init(type: "string", description: "'ios', 'android' or 'macos'. Defaults to 'ios'."),
                 "device_hint": .init(
                     type: "string",
                     description: "Optional UDID/serial or name; auto-selects when omitted."
@@ -37,7 +37,7 @@ public enum CompanionTools {
                 + " the app-under-test was touched outside amoo (raw simctl/adb) this can still"
                 + " read ready right before the channel actually fails.",
             properties: [
-                "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
+                "platform": .init(type: "string", description: "'ios', 'android' or 'macos'. Defaults to 'ios'."),
                 "device_hint": .init(type: "string", description: "Optional UDID/serial or name."),
                 "session_id": .init(
                     type: "string",
@@ -67,7 +67,7 @@ public enum CompanionTools {
                 + " start_session launches a fresh one. End the session on that device first. A listener"
                 + " that is not that simulator's companion is left alone and reported.",
             properties: [
-                "platform": .init(type: "string", description: "'ios' or 'android'. Defaults to 'ios'."),
+                "platform": .init(type: "string", description: "'ios', 'android' or 'macos'. Defaults to 'ios'."),
                 "device_hint": .init(type: "string", description: "UDID/serial of the device to reset.")
             ],
             outputSchema: ToolOutputSchema(

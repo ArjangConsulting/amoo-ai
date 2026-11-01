@@ -24,7 +24,7 @@ public enum DeviceTools {
                 ),
                 "platform": .init(
                     type: "string",
-                    description: "Platform for device_hint resolution: 'ios' or 'android'. Defaults to 'ios'."
+                    description: "Platform for device_hint resolution: 'ios', 'android' or 'macos'. Defaults to 'ios'."
                 )
             ]
         ),
@@ -201,7 +201,8 @@ public enum DeviceTools {
             properties: [
                 "platform": .init(
                     type: "string",
-                    description: "Optional platform filter: 'ios' or 'android'. Omit for both."
+                    description: "Platform filter: 'ios', 'android' or 'macos'."
+                        + " Omitted lists iOS and Android; the Mac needs 'macos'."
                 ),
                 "include_offline": .init(
                     type: "string",

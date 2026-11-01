@@ -24,12 +24,36 @@ func runREPL(device: AvailableDevice, port: Int) async {
             name: name,
             port: port
         )
+    case .macos:
+        await runXCUITestREPL(
+            config: CompanionConfig(port: port, deviceUDID: MacHostBackend.deviceID),
+            displayName: device.displayName
+        ) { companion in
+            IOSDriver(companion: companion, backend: MacHostBackend(), deviceID: MacHostBackend.deviceID)
+        }
     }
 }
 
 private func runIOSREPL(device: BootedDevice, port: Int) async {
+    // Selection already told us which kind of target this is, so no need to re-query.
+    await runXCUITestREPL(
+        config: CompanionConfig(port: port, deviceUDID: device.udid),
+        displayName: device.displayName
+    ) { companion in
+        device.isPhysicalDevice
+            ? IOSDriver.physicalDevice(companion: companion, deviceID: device.udid)
+            : IOSDriver(companion: companion, deviceID: device.udid)
+    }
+}
+
+/// A REPL over an XCUITest companion: an iOS simulator or device, or this Mac.
+private func runXCUITestREPL(
+    config: CompanionConfig,
+    displayName: String,
+    makeDriver: (GRPCCompanionClient) -> IOSDriver
+) async {
     let manager = CompanionManager()
-    let config = CompanionConfig(port: port, deviceUDID: device.udid)
+    let port = config.port
 
     do {
         try await manager.ensureRunning(config: config)
@@ -47,17 +71,14 @@ private func runIOSREPL(device: BootedDevice, port: Int) async {
         return
     }
 
-    // Selection already told us which kind of target this is, so no need to re-query.
-    let driver = device.isPhysicalDevice
-        ? IOSDriver.physicalDevice(companion: companion, deviceID: device.udid)
-        : IOSDriver(companion: companion, deviceID: device.udid)
+    let driver = makeDriver(companion)
     let executor = DriverToolExecutor(driver: driver)
     let mcpServer = MCPServer()
     let toolDefinitions = mcpServer.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
-    print(styled("Connected to \(device.displayName)", .bold, .green) + " on port \(port)")
+    print(styled("Connected to \(displayName)", .bold, .green) + " on port \(port)")
     print(styled("Type 'help' for available commands, 'quit' to exit, and press Tab to complete.", .gray))
     print("")
 

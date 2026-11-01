@@ -1,6 +1,7 @@
 import AmooCore
 import Foundation
 import GradleKit
+import IOSDriver
 import ProcessRunner
 import SwiftyShell
 #if os(macOS)
@@ -14,6 +15,8 @@ import Glibc
 enum CompanionPlatform: String {
     case ios
     case android
+    /// This Mac's desktop. Runs the iOS companion paths with the Mac's device id and port.
+    case macos
 }
 
 struct CompanionCommandOptions {
@@ -63,7 +66,7 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
         case let .unknownAction(action):
             "Unknown companion action '\(action)'. Run 'amoo companion' for usage."
         case let .unknownPlatform(p):
-            "Unknown platform '\(p)'. Expected 'ios' or 'android'."
+            "Unknown platform '\(p)'. Expected 'ios', 'android' or 'macos'."
         case let .invalidReadyTimeout(value):
             "--ready-timeout expects a positive number of seconds, got '\(value)'."
         case let .invalidPort(value):
@@ -79,7 +82,7 @@ func renderCompanionHelp() -> String {
     Actions:
       install    Build and install the companion app on a device/simulator
                  Options:
-                   --platform ios|android  Target platform (default: ios)
+                   --platform ios|android|macos  Target platform (default: ios)
                    --device <id>           Simulator UDID or ADB serial (default: booted)
                    --port <port>           Port the companion listens on (default: ios 22087,
                                            android 22088). One companion serves one device, so a
@@ -90,7 +93,7 @@ func renderCompanionHelp() -> String {
       start      Build/install if needed, then run the companion and wait until it is
                  reachable, so `amoo device <tool>` can be used directly
                  Options:
-                   --platform ios|android  Target platform (default: ios)
+                   --platform ios|android|macos  Target platform (default: ios)
                    --device <id>           Simulator UDID or ADB serial (default: booted)
                    --app <bundle-id>       App under test, bound as the gesture target
                    --port <port>           Port to listen on; pass the same to 'amoo device --port'
@@ -290,6 +293,8 @@ func runCompanionCommand(
         switch options.platform {
         case .ios:
             await runIOSCompanionInstall(options: options, processRunner: processRunner)
+        case .macos:
+            await runIOSCompanionInstall(options: options.forMac(), processRunner: processRunner)
         case .android:
             await runAndroidCompanionInstall(
                 options: options,
@@ -307,6 +312,8 @@ func runCompanionCommand(
         switch options.platform {
         case .ios:
             await runIOSCompanionStart(options: options, processRunner: processRunner)
+        case .macos:
+            await runIOSCompanionStart(options: options.forMac(), processRunner: processRunner)
         case .android:
             await runAndroidCompanionStart(
                 options: options,
@@ -318,6 +325,8 @@ func runCompanionCommand(
         switch options.platform {
         case .ios:
             await runIOSCompanionWarm(options: options, processRunner: processRunner)
+        case .macos:
+            await runIOSCompanionWarm(options: options.forMac(), processRunner: processRunner)
         case .android:
             await runAndroidCompanionWarm(
                 options: options,
@@ -329,6 +338,8 @@ func runCompanionCommand(
         switch options.platform {
         case .ios:
             await runIOSCompanionStatus(options: options)
+        case .macos:
+            await runIOSCompanionStatus(options: options.forMac())
         case .android:
             await runAndroidCompanionStatus(
                 options: options,
@@ -359,7 +370,7 @@ func runIOSCompanionStart(
     )
     let manager = CompanionManager(processRunner: processRunner)
     let unregister = registerCompanionProcess(
-        platform: .ios, deviceID: options.deviceID, port: config.port, appID: options.appID
+        platform: options.platform, deviceID: options.deviceID, port: config.port, appID: options.appID
     )
     defer { unregister() }
 
@@ -474,5 +485,15 @@ func runAndroidCompanionInstall(
         return CLIResult(output: error.description, exitCode: 1)
     } catch {
         return CLIResult(output: "Android companion install failed: \(error)", exitCode: 1)
+    }
+}
+
+extension CompanionCommandOptions {
+    /// These options aimed at this Mac: its device id, and the Mac companion's port unless one was given.
+    func forMac() -> Self {
+        var options = self
+        options.deviceID = MacHostBackend.deviceID
+        options.port = port ?? CompanionConfig.defaultMacPort
+        return options
     }
 }

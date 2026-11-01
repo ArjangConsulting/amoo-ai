@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import IOSDriver
 import MobileDevices
 
 // MARK: - Discovery
@@ -62,6 +63,9 @@ private func discoverInitDevices(platform: Platform, store: DeviceRuntimeStore) 
                 controlledBy: store.runtime(forDevice: $0.serial)?.summary
             )
         }
+    case .macos:
+        let mac = MacHostBackend.currentDeviceInfo()
+        found = [InitDeviceCandidate(id: mac.id, name: mac.name, detail: "This Mac", booted: true, controlledBy: nil)]
     }
 
     return found

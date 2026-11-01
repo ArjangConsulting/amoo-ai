@@ -259,9 +259,11 @@ public struct DeviceInfo: Sendable, Equatable {
 public enum Platform: String, Sendable, Equatable, Hashable, Codable {
     case ios
     case android
+    /// This Mac's desktop, driven by the macOS companion. Experimental.
+    case macos
 
     /// Accepts the loose spellings that reach us from AI-authored plans, recorded sessions and CLI
-    /// input (`iOS`, `Android`, `android-emulator`, …), and rejects everything else.
+    /// input (`iOS`, `Android`, `android-emulator`, `macOS`, …), and rejects everything else.
     ///
     /// This is the single place that turns an untyped platform string into a `Platform`. Every
     /// entry point — `Decodable`, string-based initializers, session compilation — routes through
@@ -271,6 +273,8 @@ public enum Platform: String, Sendable, Equatable, Hashable, Codable {
         let value = raw.lowercased()
         if value.contains("android") {
             self = .android
+        } else if value.contains("macos") || value == "mac" || value == "osx" {
+            self = .macos
         } else if value.contains("ios") {
             self = .ios
         } else {
@@ -284,7 +288,7 @@ public enum Platform: String, Sendable, Equatable, Hashable, Codable {
         guard let parsed = Self(lenient: raw) else {
             throw DecodingError.dataCorruptedError(
                 in: container,
-                debugDescription: "Unsupported platform '\(raw)'; expected iOS or Android."
+                debugDescription: "Unsupported platform '\(raw)'; expected iOS, Android or macOS."
             )
         }
         self = parsed

@@ -42,7 +42,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
         case let .invalidPort(value):
             "Invalid port '\(value)'. Expected a number."
         case let .unknownPlatform(value):
-            "Unknown platform '\(value)'. Expected 'ios' or 'android'."
+            "Unknown platform '\(value)'. Expected 'ios', 'android' or 'macos'."
         case let .unknownFlag(flag) where flag.contains(where: \.isWhitespace):
             "Unknown flag '\(flag)'. Several flags arrived as one argument — pass each flag and "
                 + "value separately (zsh does not word-split an unquoted $VAR; use ${=VAR} or an array)."
@@ -54,7 +54,7 @@ enum DeviceCommandParseError: Error, CustomStringConvertible {
 }
 
 private let deviceHelpUsageAndTools = """
-Usage: amoo device [--platform ios|android] [--port <port>] [--device <id>] [--runtime-id <id>] [--json]
+Usage: amoo device [--platform ios|android|macos] [--port <port>] [--device <id>] [--runtime-id <id>] [--json]
                    <tool> [key=value ...] [--env KEY=VALUE ...] [--arg VALUE ...]
 
   --runtime-id <id>   Runtime from `amoo env up` (or AMOO_RUNTIME_ID). Devices controlled by another
@@ -151,7 +151,7 @@ Common tools:
   set_posture posture=<closed|half_opened|opened>            Android foldable emulator
   device_wake [unlock=<true|false>]                        Android: wake; unlock=true clears a swipe lock only
   set_display_preset preset=<phone|unfolded|tablet>          Android resizable emulator
-  list_devices [platform=<ios|android>] [include_offline=<true|false>]
+  list_devices [platform=<ios|android|macos>] [include_offline=<true|false>]
   open_url url=<url>
 
 Coordinates:
@@ -481,12 +481,7 @@ private func annotatedDeviceError(_ message: String, options: DeviceCommandOptio
 }
 
 func defaultPort(for platform: Platform) -> Int {
-    switch platform {
-    case .ios:
-        22087
-    case .android:
-        22088
-    }
+    platform.defaultCompanionPort
 }
 
 private func normalizedDeviceID(_ deviceID: String?, for platform: Platform) -> String? {
@@ -496,5 +491,7 @@ private func normalizedDeviceID(_ deviceID: String?, for platform: Platform) -> 
     case .android:
         guard let deviceID, !deviceID.isEmpty, deviceID != "booted" else { return nil }
         return deviceID
+    case .macos:
+        return MacHostBackend.deviceID
     }
 }
