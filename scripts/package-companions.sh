@@ -27,6 +27,19 @@ if [[ "${1:-all}" != android ]]; then
     # xctestrun uses __TESTROOT__ for app/test paths. Refuse non-relocatable app paths.
     python3 "$root/scripts/validate-companion-products.py" "$target/Products"
   done
+  # The macOS companion, for `--platform macos`. Unlike the iOS products it stays ad hoc signed:
+  # a Mac runner must carry a signature to launch, and the signature is what grants its App Sandbox
+  # the incoming-connection entitlement the gRPC server needs.
+  xcodebuild build-for-testing \
+    -project "$root/CompanionApps/iOS/AmooCompanion.xcodeproj" \
+    -scheme AmooCompanionMac -destination 'generic/platform=macOS' \
+    -derivedDataPath "$root/.build-companion-release/macosx" \
+    ONLY_ACTIVE_ARCH=NO "ARCHS=arm64 x86_64"
+  target="$root/CompanionApps/iOS/prebuilt/macosx"
+  mkdir -p "$target"
+  rm -rf "$target/Products"
+  cp -R "$root/.build-companion-release/macosx/Build/Products" "$target/Products"
+  python3 "$root/scripts/validate-companion-products.py" "$target/Products"
 fi
 make -C "$root" companion-android-build
 mkdir -p "$root/CompanionApps/Android/prebuilt"
