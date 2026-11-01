@@ -14,6 +14,10 @@ def info(bundle):
 def simulator_bundles(root):
     bundles = set()
     for app in root.rglob('*.app'):
+        # Simulator bundles are flat; a macOS app such as the Mac companion's runner keeps its
+        # Info.plist under Contents/, so it has none at the top level and is skipped.
+        if not (app / 'Info.plist').is_file():
+            continue
         if 'iPhoneSimulator' not in info(app).get('CFBundleSupportedPlatforms', []):
             continue
         bundles.add(app)
