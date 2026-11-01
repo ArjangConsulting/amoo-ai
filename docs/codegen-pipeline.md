@@ -16,7 +16,7 @@ flowchart TD
     E --> F["StudioAuthoredTest\n(compiledPlan.toolOperations + steps + warnings)\n= plan.json"]
     E --> G["CompiledSessionFlow\n= flow.json (replay via `amoo flow`)"]
     F --> H["GenerateCommand.runGenerateTestCommand\n(--plan, --context, --test-name, --allow-incomplete)"]
-    H --> I["StudioCodeEmitting\n(XCUITestEmitter / EspressoEmitter / ComposeEspressoEmitter)"]
+    H --> I["StudioCodeEmitting\n(XCUITestEmitter [ios | macos] / EspressoEmitter / ComposeEspressoEmitter)"]
     I --> J["StudioTestExportResult\n= a .swift / .kt file"]
 ```
 
@@ -156,6 +156,16 @@ An explicit assertion is never rewritten into a weaker one: `assert_selected` wi
 of substituting visibility, and `assertionBindings` / helpers that drop the expectation are rejected.
 `kind: preserved` is informational and is listed only for assertions a reviewer checks coverage
 against (selected state, combined selector constraints).
+
+## macOS target
+
+`XCUITestEmitter(target: .macos)` is registered for `Platform.macos` (`CLIApp.makeCodeEmitters()`),
+so `amoo generate test` on a macOS plan emits pointer and scroll-wheel input instead of touch; the
+mapping and its fidelity rules are in [`macos.md`](macos.md#generating-a-test). Two rules to keep:
+a step with no Mac equivalent (`pinch`, `press_back`, `requiredIdiom`) throws
+`unsupportedOnTarget` rather than being dropped, and `SessionPlanCompiler` does not rewrite a Mac's
+raw `swipe` (a mouse drag) into `swipe_in_direction` (a wheel scroll).
+`XCUITestMacCodegenTests` compiles the output against the macOS SDK.
 
 ## Generated XCUITest isolation
 

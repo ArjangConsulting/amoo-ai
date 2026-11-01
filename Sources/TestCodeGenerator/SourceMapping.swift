@@ -11,7 +11,9 @@ public extension XCUITestEmitter {
         var localNames = LocalNameAllocator()
         var lookups = [String: String]()
         let statements = try operations.map {
-            try Self.statement(for: $0, context: test.testContext, localNames: &localNames, lookups: &lookups)
+            try Self.statement(
+                for: $0, context: test.testContext, localNames: &localNames, lookups: &lookups, target: target
+            )
         }
         return mapped(result, statements: statements, operations: operations)
     }

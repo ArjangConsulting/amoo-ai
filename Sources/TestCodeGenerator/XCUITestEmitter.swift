@@ -5,11 +5,15 @@ import StudioProtocol
 // swiftlint:disable:next type_body_length
 public struct XCUITestEmitter: StudioCodeEmitting {
     private let useTestCommons: Bool
+    let target: Target
 
     /// Creates an emitter. Shared helpers require TestCommonsXCUI in the receiving UI-test target.
-    /// - Parameter useTestCommons: Whether to import and delegate to the shared helper library.
-    public init(useTestCommons: Bool = false) {
+    /// - Parameters:
+    ///   - useTestCommons: Whether to import and delegate to the shared helper library.
+    ///   - target: The OS the test runs on; `.macos` emits pointer and scroll-wheel input.
+    public init(useTestCommons: Bool = false, target: Target = .ios) {
         self.useTestCommons = useTestCommons
+        self.target = target
     }
 
     // SwiftLint measures the generated XCTest helper template as Swift function body lines.
@@ -18,13 +22,14 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         guard let operations = test.compiledPlan?.toolOperations, operations.isEmpty == false else {
             throw TestCodeGeneratorError.missingCompiledPlan
         }
+        try Self.checkTarget(target, supports: test)
         let className = "\(TestIdentifierNaming.pascalCase(test.name))Test"
         let methodName = "test\(TestIdentifierNaming.pascalCase(test.name))"
         var localNames = LocalNameAllocator()
         var lookups = [String: String]()
         var statements = try operations.map {
             try Self.statement(
-                for: $0, context: test.testContext, localNames: &localNames, lookups: &lookups
+                for: $0, context: test.testContext, localNames: &localNames, lookups: &lookups, target: target
             )
         }
         for warning in (test.compiledPlan?.excludedWarnings ?? []).reversed() {
@@ -143,24 +148,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 )
             }
 
-            private func replaceText(in element: XCUIElement, with text: String) {
-                element.tap()
-                if let currentValue = element.value as? String, !currentValue.isEmpty {
-                    element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
-                }
-                if !text.isEmpty {
-                    element.typeText(text)
-                }
-            }
-
-            private func pressBack() {
-                let backButton = app.navigationBars.buttons.element(boundBy: 0)
-                if backButton.exists, backButton.isHittable {
-                    backButton.tap()
-                } else {
-                    app.swipeRight()
-                }
-            }
+        \(Self.inputHelpers(for: target))
 
         \(selectionHelper)    func \(methodName)() throws {
         \(body)
@@ -226,7 +214,8 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         for operation: StudioToolOperation,
         context: StudioTestContext?,
         localNames: inout LocalNameAllocator,
-        lookups: inout [String: String]
+        lookups: inout [String: String],
+        target: Target = .ios
     ) throws -> String {
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
@@ -237,6 +226,12 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         if let call = try assertionCall(
             operation, context: context, localNames: &localNames, lookups: &lookups
         ) {
+            return call
+        }
+        if target == .macos,
+           let call = try macStatement(
+               for: operation, tool: tool, context: context, localNames: &localNames, lookups: &lookups
+           ) {
             return call
         }
         // No `default`: adding a StudioTool case must fail to compile here until it is handled.

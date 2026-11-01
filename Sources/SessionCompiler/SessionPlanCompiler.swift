@@ -398,7 +398,9 @@ public enum SessionPlanCompiler {
         )
 
         let retries = retryRuns(report.actions, interval: interval)
-        let processed = processActions(report.actions, retries: retries, interval: interval, appID: report.appID)
+        let processed = processActions(
+            report.actions, retries: retries, interval: interval, appID: report.appID, platform: platform
+        )
         let toolOperations = annotatePresetOptionTaps(processed.compactMap(\.operation))
         let steps = processed.compactMap(\.step)
         var warnings = processed.flatMap(\.warnings) + SessionPlanQualityReview.warnings(for: report.actions)

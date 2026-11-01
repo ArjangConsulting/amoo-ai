@@ -168,10 +168,7 @@ public struct CLIApp {
         }
         do {
             let options = try parseGenerateTestOptions(args: commandArgs)
-            var emitters = StudioCodeEmitters()
-            emitters.register(XCUITestEmitter(), for: .init(platform: .ios))
-            emitters.register(EspressoEmitter(), for: .init(platform: .android))
-            emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
+            let emitters = Self.makeCodeEmitters()
             return try runGenerateTestCommand(
                 options: options,
                 emitters: emitters
@@ -179,6 +176,17 @@ public struct CLIApp {
         } catch {
             return CLIResult(output: String(describing: error), exitCode: 64)
         }
+    }
+
+    /// Every emitter `amoo generate test` and Studio can pick from. A macOS session emits XCUITest
+    /// with pointer and scroll-wheel input, so it has its own entry rather than reusing iOS's.
+    static func makeCodeEmitters() -> StudioCodeEmitters {
+        var emitters = StudioCodeEmitters()
+        emitters.register(XCUITestEmitter(), for: .init(platform: .ios))
+        emitters.register(XCUITestEmitter(target: .macos), for: .init(platform: .macos))
+        emitters.register(EspressoEmitter(), for: .init(platform: .android))
+        emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
+        return emitters
     }
 
     private func handleStudioCommand(remaining: [String]) async -> CLIResult {
@@ -189,10 +197,7 @@ public struct CLIApp {
             return CLIResult(output: "Usage: amoo studio serve", exitCode: 64)
         }
         let workspace = LiveStudioDeviceWorkspace()
-        var emitters = StudioCodeEmitters()
-        emitters.register(XCUITestEmitter(), for: .init(platform: .ios))
-        emitters.register(EspressoEmitter(), for: .init(platform: .android))
-        emitters.register(ComposeEspressoEmitter(), for: .init(platform: .android, toolkit: .compose))
+        let emitters = Self.makeCodeEmitters()
         let notifications = StudioNotificationCenter()
         let deviceLocks = StudioDeviceLocks()
         let toolExecutor = CLIStudioToolExecutor()
