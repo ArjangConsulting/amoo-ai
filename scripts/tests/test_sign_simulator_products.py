@@ -52,6 +52,18 @@ class SimulatorSigningTests(unittest.TestCase):
             signing.sign_products(self.root)
         run.assert_not_called()
 
+    def test_mac_products_beside_simulator_products_are_skipped(self):
+        simulator = self.app('AmooCompanion.app', 'iPhoneSimulator', 'com.amoo.companion')
+        mac = self.root / 'Debug/AmooCompanionMacUITests-Runner.app/Contents'
+        mac.mkdir(parents=True)
+        (mac / 'Info.plist').write_bytes(plistlib.dumps({
+            'CFBundleSupportedPlatforms': ['MacOSX'], 'CFBundleIdentifier': 'com.amoo.companion.mac.uitests.xctrunner',
+        }))
+        signed = []
+        with patch.object(signing.subprocess, 'run', side_effect=lambda command, check: signed.append(command[-1])):
+            signing.sign_products(self.root)
+        self.assertEqual(signed, [str(simulator)])
+
 
 if __name__ == '__main__':
     unittest.main()
