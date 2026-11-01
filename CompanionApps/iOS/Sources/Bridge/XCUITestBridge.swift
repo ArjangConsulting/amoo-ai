@@ -1,3 +1,6 @@
+#if os(macOS)
+import AppKit
+#endif
 import ObjectiveC.runtime
 import XCTest
 
@@ -8,7 +11,13 @@ import XCTest
 /// The gRPC server actor dispatches calls here; `@MainActor` ensures thread safety.
 @MainActor
 final class XCUITestBridge: @unchecked Sendable {
+    /// The always-running app of last resort. A Mac has no SpringBoard, and creating an
+    /// `XCUIApplication` for an app that is not installed raises there, so Finder stands in.
+    #if os(macOS)
+    private let springboard = XCUIApplication(bundleIdentifier: "com.apple.finder")
+    #else
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    #endif
 
     /// Bundle ID of the companion's own host app, which must never be picked as a gesture target.
     ///
@@ -202,7 +211,8 @@ final class XCUITestBridge: @unchecked Sendable {
     /// to poll, unlike `.snapshot()` on a backgrounded app (see GetAppStateResponse in
     /// actions.proto for why that distinction matters).
     func appState(appID: String) -> String {
-        switch XCUIApplication(bundleIdentifier: appID).state {
+        guard let app = Self.application(bundleID: appID) else { return "notRunning" }
+        return switch app.state {
         case .runningForeground: "running"
         #if os(iOS)
         case .runningBackgroundSuspended: "suspended"
@@ -215,6 +225,25 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     static let springboardBundleID = "com.apple.springboard"
+
+    /// `XCUIApplication(bundleIdentifier:)`, or nil on macOS when no app with that ID is installed.
+    ///
+    /// On a Mac, XCTest raises an assertion for a bundle ID it cannot resolve, which ends the
+    /// runner's one long-lived test and the server with it. iOS answers `.notRunning` instead.
+    static func application(bundleID: String) -> XCUIApplication? {
+        #if os(macOS)
+        // Inside the runner's App Sandbox, Launch Services does not resolve an app outside the
+        // standard locations, and XCTest asserts on such a bundle id even while the app is running.
+        // A running app's own bundle URL always resolves, so it is preferred.
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.bundleURL
+        guard let url = running ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            return nil
+        }
+        return XCUIApplication(url: url)
+        #else
+        return XCUIApplication(bundleIdentifier: bundleID)
+        #endif
+    }
 
     private static func bundleID(of application: XCUIApplication) -> String? {
         for name in ["bundleID", "bundleId", "bundleIdentifier"] {
@@ -238,12 +267,16 @@ final class XCUITestBridge: @unchecked Sendable {
 
     func doubleTap(x: Double, y: Double) async {
         defer { invalidateSnapshotCache() }
+        #if os(macOS)
+        gestureCoordinate(x: x, y: y).doubleClick()
+        #else
         let point = CGPoint(x: x, y: y)
         if await touchOnSecondaryDisplay(from: point, to: nil, hold: 0, travel: 0, settle: 0.02) {
             _ = await touchOnSecondaryDisplay(from: point, to: nil, hold: 0, travel: 0, settle: 0.02)
             return
         }
         gestureCoordinate(x: x, y: y).doubleTap()
+        #endif
     }
 
     func longPress(x: Double, y: Double, durationSeconds: TimeInterval) async {
@@ -260,16 +293,20 @@ final class XCUITestBridge: @unchecked Sendable {
     ///
     /// Coordinates were previously taken against `app` — the companion's own host app — so every
     /// tap activated the fixture and was delivered there, whatever was actually on screen.
-    private func gestureCoordinate(x: Double, y: Double) -> XCUICoordinate {
-        let target = gestureTarget()
+    ///
+    /// On macOS `x`/`y` are global points and the coordinate is anchored on a window, offset from
+    /// that window's own origin: see ``macFrontWindow()`` for why the app itself cannot anchor it.
+    func gestureCoordinate(x: Double, y: Double) -> XCUICoordinate {
         #if os(macOS)
-        // A Mac app's element frame starts at its window, not the screen origin, while gestures and
-        // element frames are in global screen points; offset from the frame's own origin.
-        let origin = target.frame.standardized.origin
-        return target.coordinate(withNormalizedOffset: .zero)
+        let anchor: XCUIElement = macFrontWindow() ?? gestureTarget()
+        let origin = anchor.frame.standardized.origin
+        if !origin.x.isFinite || !origin.y.isFinite {
+            print("No window to anchor a gesture at (\(x), \(y)); it will not land")
+        }
+        return anchor.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: x - origin.x, dy: y - origin.y))
         #else
-        return target.coordinate(withNormalizedOffset: .zero)
+        return gestureTarget().coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: x, dy: y))
         #endif
     }
@@ -383,7 +420,7 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     /// XCTest's private display identifier for `screen`, or nil when this XCTest doesn't expose one.
-    private static func displayID(of screen: XCUIScreen) -> UInt? {
+    static func displayID(of screen: XCUIScreen) -> UInt? {
         guard screen.responds(to: NSSelectorFromString("displayID")) else { return nil }
         return (screen.value(forKey: "displayID") as? NSNumber)?.uintValue
     }
@@ -414,8 +451,7 @@ final class XCUITestBridge: @unchecked Sendable {
     /// the match is on sorted dimensions, which also survives rotation.
     func hostScreen() -> XCUIScreen {
         #if os(macOS)
-        // A Mac's displays are not the app's surface the way a phone's are; use the main one.
-        return XCUIScreen.main
+        return macHostScreen(for: macHostDisplay())
         #else
         let screens = XCUIScreen.screens
         guard screens.count > 1 else { return XCUIScreen.main }
@@ -446,7 +482,7 @@ final class XCUITestBridge: @unchecked Sendable {
     /// and coordinate taps routed through it land on empty chrome and are silently swallowed —
     /// the command reports success and nothing happens. Falling through to the query order only
     /// once the target is no longer foreground is what keeps system sheets reachable.
-    private func gestureTarget() -> XCUIApplication {
+    func gestureTarget() -> XCUIApplication {
         // The bound target wins whenever it is running at all, without asking for foreground. Two
         // reasons: an app launched outside this test process is not reliably reported as
         // `.runningForeground`, and SpringBoard *is* — so a foreground check hands gestures to
@@ -476,7 +512,12 @@ final class XCUITestBridge: @unchecked Sendable {
         }
         let start = gestureCoordinate(x: fromX, y: fromY)
         let end = gestureCoordinate(x: toX, y: toY)
+        #if os(macOS)
+        // A mouse drag between the two points; scrolling a Mac view goes through `scroll` instead.
+        start.click(forDuration: 0.05, thenDragTo: end, withVelocity: .default, thenHoldForDuration: 0)
+        #else
         start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .default, thenHoldForDuration: 0)
+        #endif
     }
 
     /// A true drag: dwell at the origin long enough for the target to enter a drag
@@ -511,12 +552,21 @@ final class XCUITestBridge: @unchecked Sendable {
             ? XCUIGestureVelocity(rawValue: distance / durationSeconds)
             : .default
 
+        #if os(macOS)
+        start.click(
+            forDuration: holdSeconds,
+            thenDragTo: end,
+            withVelocity: velocity,
+            thenHoldForDuration: Self.dropSettleSeconds
+        )
+        #else
         start.press(
             forDuration: holdSeconds,
             thenDragTo: end,
             withVelocity: velocity,
             thenHoldForDuration: Self.dropSettleSeconds
         )
+        #endif
     }
 
     /// Brief dwell at the destination before lifting, giving drop targets a chance to
@@ -602,7 +652,11 @@ final class XCUITestBridge: @unchecked Sendable {
     /// barely moved a list and did nothing inside a sheet with the keyboard up.
     func scroll(direction: ScrollDirection, distance: Double) async {
         defer { invalidateSnapshotCache() }
+        #if os(macOS)
+        let frame = macFrontWindow()?.frame.standardized ?? .null
+        #else
         let frame = interfaceFrame(of: gestureTarget())
+        #endif
         guard !frame.isNull, !frame.isEmpty else {
             scrollWithDirectionalSwipe(direction: direction, distance: distance)
             return
@@ -616,6 +670,10 @@ final class XCUITestBridge: @unchecked Sendable {
         let extent = unitX != 0 ? frame.width : frame.height
         let travel = min(max(distance, 1), extent * 0.7)
         let centre = (x: Double(frame.midX), y: Double(frame.midY))
+        #if os(macOS)
+        // The content moves the way the finger would have: `.down` moves it up.
+        macScroll(at: CGPoint(x: centre.x, y: centre.y), by: CGVector(dx: unitX * travel, dy: unitY * travel))
+        #else
         await drag(
             fromX: centre.x - unitX * travel / 2,
             fromY: centre.y - unitY * travel / 2,
@@ -624,6 +682,7 @@ final class XCUITestBridge: @unchecked Sendable {
             durationSeconds: 0.4,
             holdSeconds: 0.05
         )
+        #endif
     }
 
     private func scrollWithDirectionalSwipe(direction: ScrollDirection, distance: Double) {
@@ -674,6 +733,12 @@ final class XCUITestBridge: @unchecked Sendable {
             }
             return false
         }
+        #if os(macOS)
+        if let frame = macFrontWindow()?.frame.standardized, !frame.isNull, !frame.isEmpty {
+            await swipeFromCentre(of: frame, direction: direction)
+            return true
+        }
+        #else
         if secondaryDisplay() != nil {
             let frame = interfaceFrame(of: target)
             if !frame.isNull, !frame.isEmpty {
@@ -681,6 +746,7 @@ final class XCUITestBridge: @unchecked Sendable {
                 return true
             }
         }
+        #endif
         switch direction {
         case .up: target.swipeUp()
         case .down: target.swipeDown()
@@ -797,13 +863,6 @@ final class XCUITestBridge: @unchecked Sendable {
         gestureTarget().navigationBars.buttons.element(boundBy: 0).tap()
     }
 
-    func pressHome() {
-        defer { invalidateSnapshotCache() }
-        #if os(iOS)
-        XCUIDevice.shared.press(.home)
-        #endif
-    }
-
     // MARK: - Accessibility Queries
 
     func findElements(
@@ -899,6 +958,7 @@ final class XCUITestBridge: @unchecked Sendable {
 
     func isKeyboardVisible() -> Bool {
         #if os(macOS)
+        // A Mac never shows a software keyboard; text goes in through the hardware one.
         return false
         #else
         return resolvedTargetApp(bundleID: nil, candidateBundleIDs: []).keyboards.count > 0
@@ -932,17 +992,32 @@ final class XCUITestBridge: @unchecked Sendable {
     /// factor of three, so a coordinate read straight off a screenshot lands far off-screen —
     /// and silently, since a tap outside any control still reports success.
     func screenInfo() -> (points: CGSize, pixels: CGSize, scale: Double) {
-        let image = hostScreen().screenshot().image
-        let points = image.size
         #if os(macOS)
-        // NSImage has no scale; its bitmap's pixel width over its point width is the backing scale.
+        // A Mac screenshot's `NSImage.size` is in pixels, not points, so the points come from the
+        // display's bounds and the scale from the ratio between the two.
+        let display = macHostDisplay()
+        let points = display.bounds.size
+        let image = macHostScreen(for: display).screenshot().image
         let pixelWidth = image.representations.first.map { Double($0.pixelsWide) } ?? Double(points.width)
         let scale = points.width > 0 ? pixelWidth / Double(points.width) : 1
         #else
+        let image = hostScreen().screenshot().image
+        let points = image.size
         let scale = Double(image.scale)
         #endif
         let pixels = CGSize(width: points.width * scale, height: points.height * scale)
         return (points, pixels, scale)
+    }
+
+    /// Where the display the companion reports on starts, in the global space XCUITest frames and
+    /// coordinates use. The handlers convert between that space and display-local points with it.
+    /// Zero on iOS, where the screen is the whole space.
+    func displayOrigin() -> CGPoint {
+        #if os(macOS)
+        macHostDisplay().bounds.origin
+        #else
+        .zero
+        #endif
     }
 
     // MARK: - Private
@@ -1023,12 +1098,17 @@ final class XCUITestBridge: @unchecked Sendable {
     }
 
     private func visibleViewport(for target: XCUIApplication) -> CGRect {
+        #if os(macOS)
+        // A Mac app's frame is infinite; what is visible is what is on the display it reports on.
+        return macHostDisplay().bounds
+        #else
         let targetFrame = target.frame.standardized
         if !targetFrame.isNull, !targetFrame.isEmpty {
             return targetFrame
         }
 
         return CGRect(origin: .zero, size: hostScreen().screenshot().image.size).standardized
+        #endif
     }
 
     private func isElementVisible(_ element: XCUIElement, viewport: CGRect) -> Bool {
@@ -1097,10 +1177,18 @@ final class XCUITestBridge: @unchecked Sendable {
     /// The companion's own host app is excluded throughout: XCUITest activates an app before
     /// delivering an interaction, so resolving to it foregrounds the fixture and swallows the
     /// gesture. It is never launched either: the server runs in the UI-test runner process.
-    private func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
+    func resolvedTargetApp(bundleID: String?, candidateBundleIDs: [String]) -> XCUIApplication {
         if let named = runningApp(bundleID) {
             return named
         }
+
+        #if os(macOS)
+        // On a Mac the frontmost app is usually whatever the user is working in, not a system
+        // sheet over the app under test, so the bound target answers queries while it runs.
+        if let bound = runningApp(targetBundleID) {
+            return bound
+        }
+        #endif
 
         if let frontmost = frontmostActiveApplication() {
             return frontmost
@@ -1113,7 +1201,7 @@ final class XCUITestBridge: @unchecked Sendable {
         if let frontmost = candidateBundleIDs
             .lazy
             .filter({ $0 != self.hostBundleID })
-            .map({ XCUIApplication(bundleIdentifier: $0) })
+            .compactMap({ Self.application(bundleID: $0) })
             .first(where: { $0.state == .runningForeground }) {
             return frontmost
         }
@@ -1129,8 +1217,7 @@ final class XCUITestBridge: @unchecked Sendable {
     /// routinely: reinstalling the app under test terminates it while the companion stays bound
     /// to it. Callers fall through to whatever is actually on screen instead.
     private func runningApp(_ bundleID: String?) -> XCUIApplication? {
-        guard let bundleID, !bundleID.isEmpty else { return nil }
-        let candidate = XCUIApplication(bundleIdentifier: bundleID)
+        guard let bundleID, !bundleID.isEmpty, let candidate = Self.application(bundleID: bundleID) else { return nil }
         switch candidate.state {
         case .notRunning, .unknown:
             return nil
@@ -1145,6 +1232,13 @@ final class XCUITestBridge: @unchecked Sendable {
     /// The companion's own host app is filtered out: it is always running (it hosts this test
     /// bundle), so leaving it in would let it win the "frontmost" race and capture every gesture.
     private func frontmostActiveApplication() -> XCUIApplication? {
+        #if os(macOS)
+        // XCTest's private active-application list is empty on a Mac; AppKit knows the frontmost app.
+        if let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, bundleID != hostBundleID,
+           let frontmost = Self.application(bundleID: bundleID), isSelectableTarget(frontmost) {
+            return frontmost
+        }
+        #endif
         if let activeApps = invokeXCUIApplicationClassSelector(named: "activeApplications") as? [XCUIApplication],
            let frontmost = activeApps.first(where: { isSelectableTarget($0) }) {
             return frontmost
@@ -1154,8 +1248,7 @@ final class XCUITestBridge: @unchecked Sendable {
         for selectorName in selectors {
             guard let rawValue = invokeXCUIApplicationClassSelector(named: selectorName) else { continue }
             for bundleID in extractBundleIDs(from: rawValue) where bundleID != hostBundleID {
-                let candidate = XCUIApplication(bundleIdentifier: bundleID)
-                if candidate.state == .runningForeground {
+                if let candidate = Self.application(bundleID: bundleID), candidate.state == .runningForeground {
                     return candidate
                 }
             }
@@ -1372,6 +1465,10 @@ final class XCUITestBridge: @unchecked Sendable {
         case .left: (frame.midX - dx, frame.midY)
         case .right: (frame.midX + dx, frame.midY)
         }
+        #if os(macOS)
+        // A trackpad swipe on a Mac is a scroll; the content follows the direction of the swipe.
+        macScroll(at: CGPoint(x: frame.midX, y: frame.midY), by: CGVector(dx: toX - frame.midX, dy: toY - frame.midY))
+        #else
         if await touchOnSecondaryDisplay(
             from: CGPoint(x: frame.midX, y: frame.midY),
             to: CGPoint(x: toX, y: toY),
@@ -1387,6 +1484,7 @@ final class XCUITestBridge: @unchecked Sendable {
             withVelocity: .default,
             thenHoldForDuration: 0
         )
+        #endif
     }
 
     /// Bounds on a pathological tree, so a dense screen degrades into a truncated answer instead

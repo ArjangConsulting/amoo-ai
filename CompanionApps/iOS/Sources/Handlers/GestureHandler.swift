@@ -1,6 +1,10 @@
 import CoreGraphics
 
 /// Handles gesture-related gRPC requests by delegating to XCUITestBridge.
+///
+/// Points arrive relative to the display the companion reports on and are moved into the global
+/// space the bridge works in; see `XCUITestBridge.displayOrigin()`. Pinch is iOS-only, where that
+/// origin is always zero.
 final class GestureHandler: @unchecked Sendable {
     private let bridge: XCUITestBridge
 
@@ -9,9 +13,10 @@ final class GestureHandler: @unchecked Sendable {
     }
 
     func swipe(fromX: Double, fromY: Double, toX: Double, toY: Double, durationMs: Int) async {
+        let origin = await bridge.displayOrigin()
         await bridge.swipe(
-            fromX: fromX, fromY: fromY,
-            toX: toX, toY: toY,
+            fromX: fromX + origin.x, fromY: fromY + origin.y,
+            toX: toX + origin.x, toY: toY + origin.y,
             durationSeconds: Double(durationMs) / 1000.0
         )
     }
@@ -24,9 +29,10 @@ final class GestureHandler: @unchecked Sendable {
         durationMs: Int,
         holdMs: Int
     ) async {
+        let origin = await bridge.displayOrigin()
         await bridge.drag(
-            fromX: fromX, fromY: fromY,
-            toX: toX, toY: toY,
+            fromX: fromX + origin.x, fromY: fromY + origin.y,
+            toX: toX + origin.x, toY: toY + origin.y,
             durationSeconds: Double(durationMs) / 1000.0,
             holdSeconds: Double(holdMs) / 1000.0
         )

@@ -17,7 +17,7 @@ final class AccessibilityHandler: @unchecked Sendable {
         candidateBundleIDs: [String] = [],
         labeledOnly: Bool = false
     ) async -> [ElementSnapshot] {
-        await bridge.findElements(
+        let elements = await bridge.findElements(
             id: id,
             label: label,
             containsText: containsText,
@@ -25,10 +25,22 @@ final class AccessibilityHandler: @unchecked Sendable {
             candidateBundleIDs: candidateBundleIDs,
             labeledOnly: labeledOnly
         )
+        guard let delta = await displayLocalDelta() else { return elements }
+        return elements.map { $0.translated(by: delta) }
     }
 
     func getViewHierarchy(bundleID: String? = nil, candidateBundleIDs: [String] = []) async -> ViewNodeSnapshot {
-        await bridge.getViewHierarchy(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
+        let hierarchy = await bridge.getViewHierarchy(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
+        guard let delta = await displayLocalDelta() else { return hierarchy }
+        return hierarchy.translated(by: delta)
+    }
+
+    /// The shift from the bridge's global space to the reported display's own points, or nil when
+    /// the two coincide, as on iOS and a Mac's main display.
+    private func displayLocalDelta() async -> CGVector? {
+        let origin = await bridge.displayOrigin()
+        guard origin != .zero else { return nil }
+        return CGVector(dx: -origin.x, dy: -origin.y)
     }
 
     func isKeyboardVisible() async -> Bool {

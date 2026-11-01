@@ -14,3 +14,13 @@ struct ElementSnapshot {
     /// Text-input placeholder; `nil` for other controls.
     var placeholder: String?
 }
+
+extension ElementSnapshot {
+    /// The same element with its frame and hit point moved by `delta`.
+    func translated(by delta: CGVector) -> ElementSnapshot {
+        var copy = self
+        copy.frame = frame.offsetBy(dx: delta.dx, dy: delta.dy)
+        copy.hitPoint = CGPoint(x: hitPoint.x + delta.dx, y: hitPoint.y + delta.dy)
+        return copy
+    }
+}

@@ -1,4 +1,7 @@
 /// Handles touch-related gRPC requests by delegating to XCUITestBridge.
+///
+/// Points arrive relative to the display the companion reports on and are moved into the global
+/// space the bridge works in; see `XCUITestBridge.displayOrigin()`.
 final class TouchHandler: @unchecked Sendable {
     private let bridge: XCUITestBridge
 
@@ -7,15 +10,18 @@ final class TouchHandler: @unchecked Sendable {
     }
 
     func tap(x: Double, y: Double) async {
-        await bridge.tap(x: x, y: y)
+        let origin = await bridge.displayOrigin()
+        await bridge.tap(x: x + origin.x, y: y + origin.y)
     }
 
     func doubleTap(x: Double, y: Double) async {
-        await bridge.doubleTap(x: x, y: y)
+        let origin = await bridge.displayOrigin()
+        await bridge.doubleTap(x: x + origin.x, y: y + origin.y)
     }
 
     func longPress(x: Double, y: Double, durationMs: Int) async {
-        await bridge.longPress(x: x, y: y, durationSeconds: Double(durationMs) / 1000.0)
+        let origin = await bridge.displayOrigin()
+        await bridge.longPress(x: x + origin.x, y: y + origin.y, durationSeconds: Double(durationMs) / 1000.0)
     }
 
     func tapElement(

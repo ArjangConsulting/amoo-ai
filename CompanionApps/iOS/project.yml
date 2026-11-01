@@ -152,6 +152,11 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amoo.companion.mac.uitests
         GENERATE_INFOPLIST_FILE: YES
+        # Xcode runs a macOS UI-test runner in the App Sandbox with outgoing connections only, so
+        # the gRPC server's bind failed with EPERM. The runner takes these from this target.
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_INCOMING_NETWORK_CONNECTIONS: YES
+        ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         TEST_TARGET_NAME: AmooCompanionMac

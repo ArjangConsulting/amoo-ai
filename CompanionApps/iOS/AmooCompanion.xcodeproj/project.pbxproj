@@ -12,6 +12,7 @@
 		08B3B095F6B14839DB4AF379 /* AccessibilityJourney.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832FB073E39843DB48622303 /* AccessibilityJourney.swift */; };
 		08D6930304DFD0DF67C3354F /* common.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4F85A6257986D577DBC35A /* common.pb.swift */; };
 		1A19B74E7622DC2CF20CC583 /* NativeAccessibilityInspector+Journey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630D3EE828479F3A492A1132 /* NativeAccessibilityInspector+Journey.swift */; };
+		1C87F25588E8FCEEA0C87F6A /* XCUITestBridge+MacDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A7C4CE416E84D848CDB57F /* XCUITestBridge+MacDisplay.swift */; };
 		1E0F6E53DF378A717BDB35D2 /* PinchGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935B90D9922DD90C5CA3229D /* PinchGesture.swift */; };
 		1F6023E24D0D241D559834E7 /* common.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DA386AD027DAC8AB386D13 /* common.grpc.swift */; };
 		20560643730738B878A95121 /* VoiceOverPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2FBCA0D578060494989B26 /* VoiceOverPhase.swift */; };
@@ -77,6 +78,7 @@
 		B83D9F2EA10EFA830B431421 /* actions.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1EAB0469F724F93EED28D7 /* actions.pb.swift */; };
 		B94389CCB67A344C757F49F4 /* CompanionServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E97E4108591B5D20A7C7A03 /* CompanionServer.swift */; };
 		BC65B361D511ACE8905AAEF8 /* ViewNodeSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BAB2764C1BE905427CB1E01 /* ViewNodeSnapshot.swift */; };
+		BE97ECFBD10F80E69EC021B6 /* XCUITestBridge+MacDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A7C4CE416E84D848CDB57F /* XCUITestBridge+MacDisplay.swift */; };
 		C4371F0F325FF4715E264E7D /* AccessibilityJourneyRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1E9DA91D9EC8DF0BDEC7D /* AccessibilityJourneyRunner.swift */; };
 		C8F4424954331CF965150004 /* VoiceOverTraversal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01569413A4F179D9C0EC0834 /* VoiceOverTraversal.swift */; };
 		CB515B07A842384588F0C31D /* ElementSemantics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DE24E54E4489608DB09382 /* ElementSemantics.swift */; };
@@ -143,6 +145,7 @@
 		B2E2340A9910EEA5694D42D0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		BB54E0A7906CF8C4A5BACC4B /* ai.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ai.pb.swift; sourceTree = "<group>"; };
 		C3165D2688F04FA444D74B83 /* TextHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextHandler.swift; sourceTree = "<group>"; };
+		C4A7C4CE416E84D848CDB57F /* XCUITestBridge+MacDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUITestBridge+MacDisplay.swift"; sourceTree = "<group>"; };
 		C92975927754DD911FB22D1A /* AmooCompanionUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AmooCompanionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE71619A8386E729F68A73C4 /* accessibility.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = accessibility.pb.swift; sourceTree = "<group>"; };
 		D1CD06E38643ED828C2A8C5F /* device.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = device.pb.swift; sourceTree = "<group>"; };
@@ -327,6 +330,7 @@
 				F9CE7CCB4CD474B7C638685D /* ScrollDirection.swift */,
 				5BAB2764C1BE905427CB1E01 /* ViewNodeSnapshot.swift */,
 				46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */,
+				C4A7C4CE416E84D848CDB57F /* XCUITestBridge+MacDisplay.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -495,6 +499,7 @@
 				664774DB3A96E4E446B13BE6 /* VoiceOverRecoveryJournal.swift in Sources */,
 				4A02E0BAA433A957026CC07E /* VoiceOverTraversal+Lifetime.swift in Sources */,
 				582B4A239217344150A0D16B /* VoiceOverTraversal.swift in Sources */,
+				1C87F25588E8FCEEA0C87F6A /* XCUITestBridge+MacDisplay.swift in Sources */,
 				CDBAC70C4DCB93CCA73A8E88 /* XCUITestBridge.swift in Sources */,
 				60E77A54BC227699930C68D1 /* accessibility.grpc.swift in Sources */,
 				5D08265AB9EFDB252C87CC66 /* accessibility.pb.swift in Sources */,
@@ -554,6 +559,7 @@
 				E371E140B5BDF202FE267827 /* VoiceOverRecoveryJournal.swift in Sources */,
 				549D12BF350943F35606D80F /* VoiceOverTraversal+Lifetime.swift in Sources */,
 				C8F4424954331CF965150004 /* VoiceOverTraversal.swift in Sources */,
+				BE97ECFBD10F80E69EC021B6 /* XCUITestBridge+MacDisplay.swift in Sources */,
 				6C6FBE10AA9B2D9F91ECB13B /* XCUITestBridge.swift in Sources */,
 				DECBD1E454115A739522B8F0 /* accessibility.grpc.swift in Sources */,
 				57E634A01468C0CF18306F96 /* accessibility.pb.swift in Sources */,
@@ -699,6 +705,9 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -719,6 +728,9 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
