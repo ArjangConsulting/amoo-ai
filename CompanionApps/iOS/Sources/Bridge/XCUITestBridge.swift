@@ -11,8 +11,8 @@ import XCTest
 /// The gRPC server actor dispatches calls here; `@MainActor` ensures thread safety.
 @MainActor
 final class XCUITestBridge: @unchecked Sendable {
-    /// The always-running app of last resort. A Mac has no SpringBoard, and creating an
-    /// `XCUIApplication` for an app that is not installed raises there, so Finder stands in.
+    // The always-running app of last resort. A Mac has no SpringBoard, and creating an
+    // `XCUIApplication` for an app that is not installed raises there, so Finder stands in.
     #if os(macOS)
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.finder")
     #else
@@ -653,14 +653,16 @@ final class XCUITestBridge: @unchecked Sendable {
     func scroll(direction: ScrollDirection, distance: Double) async {
         defer { invalidateSnapshotCache() }
         #if os(macOS)
-        let frame = macFrontWindow()?.frame.standardized ?? .null
+        // A Mac app's own frame is infinite, so the app-wide swipe fallback cannot find a hit point
+        // and fails the gesture; without a window there is nothing to scroll.
+        guard let frame = macWindowFrame(for: "scroll") else { return }
         #else
         let frame = interfaceFrame(of: gestureTarget())
-        #endif
         guard !frame.isNull, !frame.isEmpty else {
             scrollWithDirectionalSwipe(direction: direction, distance: distance)
             return
         }
+        #endif
         let (unitX, unitY): (Double, Double) = switch direction {
         case .down: (0, -1)
         case .up: (0, 1)
@@ -734,10 +736,10 @@ final class XCUITestBridge: @unchecked Sendable {
             return false
         }
         #if os(macOS)
-        if let frame = macFrontWindow()?.frame.standardized, !frame.isNull, !frame.isEmpty {
+        if let frame = macWindowFrame(for: "swipe_in_direction") {
             await swipeFromCentre(of: frame, direction: direction)
-            return true
         }
+        return true
         #else
         if secondaryDisplay() != nil {
             let frame = interfaceFrame(of: target)
@@ -746,7 +748,6 @@ final class XCUITestBridge: @unchecked Sendable {
                 return true
             }
         }
-        #endif
         switch direction {
         case .up: target.swipeUp()
         case .down: target.swipeDown()
@@ -754,6 +755,7 @@ final class XCUITestBridge: @unchecked Sendable {
         case .right: target.swipeRight()
         }
         return true
+        #endif
     }
 
     // MARK: - Text
@@ -959,9 +961,9 @@ final class XCUITestBridge: @unchecked Sendable {
     func isKeyboardVisible() -> Bool {
         #if os(macOS)
         // A Mac never shows a software keyboard; text goes in through the hardware one.
-        return false
+        false
         #else
-        return resolvedTargetApp(bundleID: nil, candidateBundleIDs: []).keyboards.count > 0
+        resolvedTargetApp(bundleID: nil, candidateBundleIDs: []).keyboards.count > 0
         #endif
     }
 
@@ -1041,6 +1043,7 @@ final class XCUITestBridge: @unchecked Sendable {
 
         let visibleFrame = snapshotVisibleFrame(snapshot)
         let isVisible = isRoot || isSnapshotVisible(snapshot, visibleFrame: visibleFrame, viewport: viewport)
+        let frame = Self.reportedFrame(snapshot.frame, isRoot: isRoot, viewport: viewport)
 
         return ViewNodeSnapshot(
             id: stableNodeID(identifier: snapshot.identifier, label: snapshot.label),
@@ -1048,9 +1051,9 @@ final class XCUITestBridge: @unchecked Sendable {
             value: snapshot.value as? String ?? "",
             isSecureTextEntry: snapshot.elementType == .secureTextField,
             type: snapshot.elementType.amooTypeName,
-            frame: snapshot.frame,
+            frame: frame,
             hitPoint: interactionPoint(
-                frame: snapshot.frame,
+                frame: frame,
                 visibleFrame: visibleFrame,
                 viewport: viewport
             ),
@@ -1080,6 +1083,7 @@ final class XCUITestBridge: @unchecked Sendable {
         }
 
         let isVisible = isRoot || isElementVisible(element, viewport: viewport)
+        let frame = Self.reportedFrame(element.frame, isRoot: isRoot, viewport: viewport)
 
         return ViewNodeSnapshot(
             id: stableNodeID(identifier: element.identifier, label: element.label),
@@ -1087,14 +1091,25 @@ final class XCUITestBridge: @unchecked Sendable {
             value: element.value as? String ?? "",
             isSecureTextEntry: element.elementType == .secureTextField,
             type: element.elementType.amooTypeName,
-            frame: element.frame,
-            hitPoint: interactionPoint(frame: element.frame, visibleFrame: nil, viewport: viewport),
+            frame: frame,
+            hitPoint: interactionPoint(frame: frame, visibleFrame: nil, viewport: viewport),
             isEnabled: element.isEnabled,
             isVisible: isVisible,
             children: children,
             placeholder: element.placeholderValue,
             isSelected: element.isSelected
         )
+    }
+
+    /// The frame a hierarchy node reports. A Mac app's root element has an empty or infinite frame,
+    /// so the root reports the display it is shown on instead; callers treat the root's frame as the
+    /// visible screen, and an empty one made every tap point look off-screen.
+    private static func reportedFrame(_ frame: CGRect, isRoot: Bool, viewport: CGRect) -> CGRect {
+        #if os(macOS)
+        isRoot ? viewport : frame
+        #else
+        frame
+        #endif
     }
 
     private func visibleViewport(for target: XCUIApplication) -> CGRect {
