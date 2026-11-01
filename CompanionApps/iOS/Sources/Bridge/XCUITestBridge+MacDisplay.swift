@@ -67,6 +67,18 @@ extension XCUITestBridge {
         return nil
     }
 
+    /// The frame of ``macFrontWindow()`` in global points, or nil, logged either way so a gesture
+    /// that did nothing can be traced to the window it was aimed at.
+    func macWindowFrame(for action: String) -> CGRect? {
+        let frame = macFrontWindow()?.frame.standardized
+        guard let frame, !frame.isNull, !frame.isEmpty, frame.width.isFinite, frame.height.isFinite else {
+            print("macOS \(action): no window of the target app to aim at (frame \(String(describing: frame)))")
+            return nil
+        }
+        print("macOS \(action): aiming at window \(frame)")
+        return frame
+    }
+
     /// Bounds the per-call window walk; each window's frame is an IPC round trip.
     private static let maxWindowsConsidered = 8
 
