@@ -52,7 +52,7 @@ public enum SessionPlanCompilerError: Error, Equatable, CustomStringConvertible 
     public var description: String {
         switch self {
         case let .unsupportedPlatform(value):
-            "Session records an unsupported platform '\(value)'; expected iOS or Android."
+            "Session records an unsupported platform '\(value)'; expected iOS, Android or macOS."
         }
     }
 }

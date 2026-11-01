@@ -31,6 +31,8 @@ func makeDeviceCommandDriver(
         await makeIOSDriver(companion: companion, deviceID: options.deviceID ?? "booted")
     case .android:
         AndroidDriver(companion: companion, inspectionMode: .productionDefault(), serial: options.deviceID)
+    case .macos:
+        IOSDriver(companion: companion, backend: MacHostBackend(), deviceID: MacHostBackend.deviceID)
     }
 }
 

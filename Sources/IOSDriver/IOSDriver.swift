@@ -230,8 +230,7 @@ public actor IOSDriver: PlatformDriver {
         do {
             return try await companion.takeScreenshot()
         } catch {
-            // Fall back to the host backend if companion doesn't support screenshots
-            return try await backend.screenshot(device: deviceID, format: format)
+            return try await Self.hostScreenshot(backend: backend, device: deviceID, format: format, after: error)
         }
     }
 
@@ -450,5 +449,25 @@ extension IOSDriver {
         }
 
         return (nil, [])
+    }
+}
+
+extension IOSDriver {
+    /// Falls back to the host backend when the companion could not take a screenshot. A backend that
+    /// cannot capture at all (the Mac) rethrows the companion's failure, the one that explains it.
+    static func hostScreenshot(
+        backend: any IOSHostBackend,
+        device: String,
+        format: ImageFormat,
+        after companionError: any Error
+    ) async throws -> ScreenshotData {
+        do {
+            return try await backend.screenshot(device: device, format: format)
+        } catch let hostError as AmooError {
+            if case .unsupportedCapability = hostError {
+                throw companionError
+            }
+            throw hostError
+        }
     }
 }

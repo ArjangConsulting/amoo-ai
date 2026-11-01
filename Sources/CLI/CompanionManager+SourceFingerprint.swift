@@ -12,7 +12,7 @@ import XcodeGenKit
 extension CompanionManager {
     func currentSourceFingerprint(config: CompanionConfig) -> String {
         let root = URL(fileURLWithPath: config.companionDir)
-        let locations = [
+        var locations = [
             root.appendingPathComponent("project.yml"),
             root.appendingPathComponent("Recovery.entitlements"),
             root.appendingPathComponent("sign-simulator-products.py"),
@@ -21,6 +21,10 @@ extension CompanionManager {
             root.appendingPathComponent("../../Sources/AmooCore", isDirectory: true).standardizedFileURL,
             root.appendingPathComponent("../../Protos", isDirectory: true).standardizedFileURL
         ]
+        // Only the Mac build's own host app; listing it for iOS would invalidate every iOS build once.
+        if config.isMac {
+            locations.append(root.appendingPathComponent("MacHostApp", isDirectory: true))
+        }
         var hash: UInt64 = 14_695_981_039_346_656_037
         for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
             for byte in url.path.utf8 {
@@ -98,7 +102,9 @@ extension CompanionManager {
         )
     }
 
+    /// One record per build: the iOS and Mac companions share a build folder but not products, so a
+    /// shared record let one platform's build mark the other's stale products as current.
     func fingerprintPath(config: CompanionConfig) -> String {
-        config.companionDir + "/build/.amoo-source-fingerprint"
+        config.companionDir + "/build/.amoo-source-fingerprint" + (config.isMac ? "-macosx" : "")
     }
 }

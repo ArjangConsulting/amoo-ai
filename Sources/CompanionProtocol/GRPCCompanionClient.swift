@@ -504,6 +504,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         return try await connectedClient.inspectAccessibility(request, options: options)
     }
 
+    /// A screenshot is far larger than any other response. gRPC's 4 MiB default rejected a Retina
+    /// Mac display outright: a 6400×3600 PNG of a busy desktop is around 30 MB.
+    package static let maxScreenshotBytes = 64 * 1024 * 1024
+
     private static var gestureCallOptions: GRPCCore.CallOptions {
         var options = GRPCCore.CallOptions.defaults
         // XCUITest can wedge on beta runtimes. A deadline keeps the client usable and makes
@@ -699,7 +703,12 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
         -> Amoo_ScreenshotResponse {
-        try await connectedClient.takeScreenshot(request, options: Self.gestureCallOptions)
+        var options = Self.gestureCallOptions
+        options.maxResponseMessageBytes = Self.maxScreenshotBytes
+        // grpc-swift-nio-transport sizes the client stream's message decoder, which also reads the
+        // response, from the request limit, so the larger limit has to be set there too.
+        options.maxRequestMessageBytes = Self.maxScreenshotBytes
+        return try await connectedClient.takeScreenshot(request, options: options)
     }
 
     package func getScreenContext(

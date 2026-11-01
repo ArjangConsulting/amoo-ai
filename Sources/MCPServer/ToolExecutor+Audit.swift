@@ -33,7 +33,11 @@ extension DriverToolExecutor {
         let geometry = try? await driver.elementGeometry()
         let platform = try? await driver.deviceInfo().platform
         // Without a density, Android frames stay in pixels and size heuristics decline to evaluate.
-        let fallbackUnit = platform == .ios ? "points" : platform == .android ? "pixels" : "unknown"
+        let fallbackUnit = switch platform {
+        case .ios, .macos: "points"
+        case .android: "pixels"
+        case nil: "unknown"
+        }
         let normalize: ([ElementInfo]) -> [ElementInfo] = { elements in
             guard let geometry else { return elements }
             return elements.map { element in

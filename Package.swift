@@ -96,7 +96,7 @@ let package = Package(
             ]
         ),
         .target(name: "WebInspector"),
-        .target(name: "IOSDriver", dependencies: ["AmooCore", "CompanionProtocol", "ProcessRunner"]),
+        .target(name: "IOSDriver", dependencies: ["AmooCore", "AmooLogging", "CompanionProtocol", "ProcessRunner"]),
         .target(
             name: "AndroidDriver",
             dependencies: [
@@ -175,7 +175,10 @@ let package = Package(
             dependencies: ["AmooCore", .product(name: "TestCommons", package: "SwiftTestCommons")]
         ),
         .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"]),
-        .testTarget(name: "IOSDriverTests", dependencies: ["IOSDriver"]),
+        .testTarget(
+            name: "IOSDriverTests",
+            dependencies: ["IOSDriver", .product(name: "TestCommons", package: "SwiftTestCommons")]
+        ),
         .testTarget(
             name: "AndroidDriverTests",
             dependencies: [

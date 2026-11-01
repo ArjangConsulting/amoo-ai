@@ -44,9 +44,13 @@ extension DefaultSessionBootstrapper {
     func bootDevice(hint: String, platform: Platform) async throws -> DeviceInfo {
         switch platform {
         case .ios:
-            try await bootIOSDevice(hint: hint)
+            return try await bootIOSDevice(hint: hint)
         case .android:
-            try await bootAndroidDevice(hint: hint)
+            return try await bootAndroidDevice(hint: hint)
+        case .macos:
+            // Nothing to boot; this only checks that the hint names this Mac.
+            _ = try PlatformDeviceSelector.macDevice(hint: hint)
+            return MacHostBackend.currentDeviceInfo()
         }
     }
 
@@ -127,10 +131,30 @@ extension DefaultSessionBootstrapper {
             }
             return "companion warm started (android, port \(port)); "
                 + "poll companion_status until built, then call start_session to launch."
+        case .macos:
+            let config = macCompanionConfig(appID: appID)
+            let store = CompanionStatusStore(companionDir: config.companionDir)
+            let device = config.deviceUDID
+            let port = config.port
+            store.write(warmRecord(.building, platform: "macos", device: device, port: port, detail: "build"))
+            Task.detached {
+                do {
+                    try await CompanionManager(processRunner: runner).install(config: config)
+                    store.write(warmRecord(.built, platform: "macos", device: device, port: port, detail: nil))
+                } catch {
+                    store.write(warmRecord(.failed, platform: "macos", device: device, port: port, detail: "\(error)"))
+                }
+            }
+            return "companion warm started (macos, port \(port)); "
+                + "poll companion_status until built, then call start_session to launch."
         }
     }
 
     func stopCompanion(platform: Platform, deviceID: String) async {
+        if platform == .macos {
+            await iOSCompanionManager.stopCompanion(config: macCompanionConfig(appID: nil))
+            return
+        }
         guard platform == .ios, UUID(uuidString: deviceID) != nil else { return }
         await iOSCompanionManager.stopCompanion(config: iosCompanionConfig(udid: deviceID, appID: nil))
     }
@@ -146,6 +170,8 @@ extension DefaultSessionBootstrapper {
         case .android:
             await androidCompanionManager.shutdown()
             return "android companions started by this server were stopped"
+        case .macos:
+            return await iOSCompanionManager.resetCompanion(config: macCompanionConfig(appID: nil))
         }
     }
 
@@ -166,6 +192,10 @@ extension DefaultSessionBootstrapper {
             let config = AndroidCompanionConfig(port: resolvedPort, serial: deviceHint)
             (host, port, dir) = (config.host, config.port, config.companionDir)
             isBuildCurrent = { AndroidCompanionManager(processRunner: runner).isBuildCurrent(config: config) }
+        case .macos:
+            let config = macCompanionConfig(appID: nil)
+            (host, port, dir) = (config.host, config.port, config.companionDir)
+            isBuildCurrent = { CompanionManager(processRunner: runner).isBuildCurrent(config: config) }
         }
         let store = CompanionStatusStore(companionDir: dir)
         let result = await companionStatusResult(
@@ -192,6 +222,11 @@ extension DefaultSessionBootstrapper {
             legacyPortOwner: { await companionSimulatorUDID(port: CompanionConfig.defaultPort, processRunner: runner) }
         )
         return config
+    }
+
+    /// The macOS companion config: this Mac, on the Mac companion's port.
+    func macCompanionConfig(appID: String?) -> CompanionConfig {
+        CompanionConfig(port: CompanionConfig.defaultMacPort, deviceUDID: MacHostBackend.deviceID, targetAppID: appID)
     }
 
     private func resolveIOSWarmDevice(hint: String?) async -> String {

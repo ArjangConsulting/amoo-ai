@@ -94,7 +94,7 @@ extension CLITests {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios' or 'android'.")
+        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios', 'android' or 'macos'.")
     }
 
     func testRunDeviceCommandReturnsConnectionFailureForInvalidPort() async {
@@ -423,7 +423,7 @@ extension CLITests {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Unknown platform 'desktop'. Expected 'ios' or 'android'.")
+        XCTAssertEqual(error.description, "Unknown platform 'desktop'. Expected 'ios', 'android' or 'macos'.")
     }
 
     func testCompanionCommandParserAcceptsWarmAndStatus() {

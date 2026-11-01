@@ -199,6 +199,7 @@ scripts/run-e2e-android.sh
 
 - [Prerequisites](docs/prerequisites.md) — external tooling, install steps, `make` targets
 - [Physical iOS Devices](docs/physical-ios-devices.md) — `iproxy`, pairing, provisioning, current constraints
+- [macOS](docs/macos.md) — driving apps on this Mac's desktop (experimental): setup, geometry, limits
 - [MCP For Local AI](docs/mcp-server.md) — running the MCP server, client config, reusable test flows
 - [Amoo Studio](https://github.com/maniramezan/amoo-studio) — Compose desktop client
 - [Studio protocol](docs/studio.md) — Swift service and GUI integration boundary

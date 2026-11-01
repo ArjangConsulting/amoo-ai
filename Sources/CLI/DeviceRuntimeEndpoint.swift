@@ -17,5 +17,8 @@ func runtimeEndpointReady(_ runtime: DeviceRuntime) async -> Bool {
             let fields = line.split(whereSeparator: \.isWhitespace)
             return fields.count == 3 && fields[0] == runtime.deviceID && fields[1] == "tcp:\(port)"
         }
+    case .macos:
+        // There is one Mac, so a companion answering on the runtime's port is the one it recorded.
+        return true
     }
 }

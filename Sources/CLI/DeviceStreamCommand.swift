@@ -1,6 +1,7 @@
 import AmooCore
 import AmooLogging
 import Foundation
+import IOSDriver
 import ProcessRunner
 #if canImport(CoreGraphics) && canImport(ImageIO)
 import CoreGraphics
@@ -341,6 +342,14 @@ func makeDeviceFrameCapture(_ options: DeviceStreamOptions) async -> @Sendable (
         let adb = ADBRunner()
         let serial = options.deviceID
         return { try await adb.screenshot(serial: serial) }
+    case .macos:
+        // Host capture of the Mac needs Screen Recording access; amoo does not ask for it.
+        return {
+            throw AmooError.unsupportedCapability(
+                key: "capture.stream",
+                reason: "streaming is not available on macOS; take screenshots through a session instead"
+            )
+        }
     }
 }
 

@@ -157,10 +157,7 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
     case let .failure(result): return result
     }
 
-    let resolvedDeviceID: String = switch device {
-    case let .ios(booted): booted.udid
-    case let .android(serial, _): serial
-    }
+    let resolvedDeviceID = device.deviceID
 
     if let earlyExit = await ensureChatCompanionReady(
         options: options,
@@ -192,7 +189,7 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
 
     let systemPrompt = """
     You are an AI assistant for mobile app testing using the amoo framework.
-    You have access to tools that control \(options.platform == .ios ? "iOS" : "Android") devices/simulators.
+    You have access to tools that control \(chatPlatformDescription(options.platform)).
 
     When the user asks you to perform actions on the device, use the available tools.
     Always explain what you're doing and report results clearly.
@@ -335,6 +332,12 @@ private func makeChatDriver(
                 inspectionMode: .productionDefault(),
                 serial: resolvedDeviceID
             ))
+        case .macos:
+            return .success(IOSDriver(
+                companion: companion,
+                backend: MacHostBackend(),
+                deviceID: MacHostBackend.deviceID
+            ))
         }
     } catch {
         return .failure(CLIResult(output: "Failed to create driver: \(error)", exitCode: 1))
@@ -373,16 +376,30 @@ private func installAndLaunchCompanion(
         } catch {
             return .failure(.invalid("\(error)"))
         }
+    case .macos:
+        let config = CompanionConfig(port: port, deviceUDID: MacHostBackend.deviceID)
+        do {
+            try await CompanionManager().ensureRunning(config: config)
+            return .success(())
+        } catch {
+            return .failure(.invalid("\(error)"))
+        }
     }
 }
 
 // MARK: - Helpers
 
-private func defaultChatPort(for platform: Platform) -> Int {
+/// What the chat model is told it controls.
+private func chatPlatformDescription(_ platform: Platform) -> String {
     switch platform {
-    case .ios: 22087
-    case .android: 22088
+    case .ios: "iOS devices/simulators"
+    case .android: "Android devices/emulators"
+    case .macos: "apps on this Mac's desktop"
     }
+}
+
+private func defaultChatPort(for platform: Platform) -> Int {
+    platform.defaultCompanionPort
 }
 
 // MARK: - Help
@@ -395,8 +412,8 @@ func renderChatHelp() -> String {
 
     Options:
       --model, -m <name>       Ollama model to use (default: qwen3.6:latest)
-      --platform <ios|android> Target platform (default: ios)
-      --port <port>            Companion gRPC port (default: 22087 iOS, 22088 Android)
+      --platform <name>        ios, android or macos (default: ios)
+      --port <port>            Companion gRPC port (default: 22087 iOS, 22088 Android, 22086 macOS)
       --device <id>            Device/simulator ID
       --ollama-host <host>     Ollama host (default: 127.0.0.1)
       --ollama-port <port>     Ollama port (default: 11434)

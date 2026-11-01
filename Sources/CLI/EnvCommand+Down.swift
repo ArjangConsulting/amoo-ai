@@ -1,6 +1,7 @@
 import AmooCore
 import AmooLogging
 import Foundation
+import IOSDriver
 import MobileDevices
 import ProcessRunner
 import SwiftyShell
@@ -154,6 +155,8 @@ private func shutDownDevice(_ runtime: DeviceRuntime) async -> Bool {
         switch runtime.platform {
         case .android: try await ADBRunner(context: context).killEmulator(serial: runtime.deviceID)
         case .ios: try await SimulatorManager(shell: context).shutdown(runtime.deviceID)
+        // `env up` never leases the Mac, and amoo never shuts it down.
+        case .macos: return false
         }
         return true
     } catch { return false }

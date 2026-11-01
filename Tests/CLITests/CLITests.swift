@@ -235,7 +235,7 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertEqual(
             result.output,
-            "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]"
+            "Usage: amoo mcp serve [--platform ios|android|macos] [--port <port>] [--device <id>]"
         )
     }
 
@@ -244,7 +244,7 @@ final class CLITests: XCTestCase {
         let result = await app.run(args: ["preflight", "--help"])
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.output, "Usage: amoo preflight [--platform ios|android|all]")
+        XCTAssertEqual(result.output, "Usage: amoo preflight [--platform ios|android|macos|all]")
     }
 
     func testNestedHelpAfterSubcommandActionReturnsSubcommandHelp() async {
@@ -254,7 +254,7 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertEqual(
             result.output,
-            "Usage: amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]"
+            "Usage: amoo mcp serve [--platform ios|android|macos] [--port <port>] [--device <id>]"
         )
     }
 
@@ -293,7 +293,7 @@ final class CLITests: XCTestCase {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios' or 'android'.")
+        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios', 'android' or 'macos'.")
     }
 
     func testMCPServeOptionsRejectsInvalidPort() {

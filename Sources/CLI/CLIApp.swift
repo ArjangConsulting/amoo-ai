@@ -438,16 +438,16 @@ private func parsePreflightPlatform(args: [String]) -> ParsedPreflightPlatform {
     }
 
     guard args.count == 2, args[0] == "--platform" else {
-        return .failure("Usage: amoo preflight [--platform ios|android|all]")
+        return .failure("Usage: amoo preflight [--platform ios|android|macos|all]")
     }
 
     guard let platform = PreflightPlatform(rawValue: args[1].lowercased()) else {
-        return .failure("Invalid platform '\(args[1])'. Expected ios, android, or all.")
+        return .failure("Invalid platform '\(args[1])'. Expected ios, android, macos, or all.")
     }
 
     return .success(platform)
 }
 
 func renderPreflightHelp() -> String {
-    "Usage: amoo preflight [--platform ios|android|all]"
+    "Usage: amoo preflight [--platform ios|android|macos|all]"
 }

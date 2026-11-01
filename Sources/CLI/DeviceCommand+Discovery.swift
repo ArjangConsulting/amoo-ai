@@ -19,7 +19,7 @@ func runDeviceDiscovery(
         guard let parsed = Platform(rawValue: raw.lowercased()) else {
             return deviceCommandResult(
                 options: options,
-                content: "Unknown platform '\(raw)'. Expected 'ios' or 'android'.",
+                content: "Unknown platform '\(raw)'. Expected 'ios', 'android' or 'macos'.",
                 isError: true,
                 structured: nil
             )
