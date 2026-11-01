@@ -1,3 +1,4 @@
+import AmooCore
 import Foundation
 import StudioProtocol
 import TestSession
@@ -16,7 +17,8 @@ extension SessionPlanCompiler {
         _ actions: [SessionAction],
         retries: RetryAnalysis,
         interval: TimeInterval,
-        appID: String
+        appID: String,
+        platform: Platform
     ) -> [ProcessedAction] {
         let gapsByIndex = Dictionary(
             uniqueKeysWithValues: retries.observations.map { ($0.actionIndex, $0.gaps) }
@@ -45,11 +47,14 @@ extension SessionPlanCompiler {
             } else if action.toolName == "find_elements" {
                 recentElements = legacyRecordedElements(from: action.result)
             }
+            // A raw `swipe` is a touch swipe on a phone but a mouse drag on a Mac, and a drag is not
+            // a scroll. Turning it into `swipe_in_direction` would replay as a wheel scroll, so on a
+            // Mac it stays a coordinate gesture and is reported as excluded.
+            let swipeResolved = platform == .macos
+                ? action
+                : semanticCoordinateSwipe(action, recentElements: recentElements)
             var effectiveAction = attachObservedLabel(
-                attachGestureTargetLabel(
-                    semanticCoordinateSwipe(action, recentElements: recentElements),
-                    recentElements: recentElements
-                ),
+                attachGestureTargetLabel(swipeResolved, recentElements: recentElements),
                 recentElements: recentElements
             )
             if offset + 1 < actions.count, safeRelaunch(action, actions[offset + 1], appID: appID) {

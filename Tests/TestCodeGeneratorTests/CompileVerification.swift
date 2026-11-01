@@ -8,17 +8,38 @@ import XCTest
 /// when its toolchain isn't available, since these depend on machine-local tooling
 /// (Xcode + iOS Simulator SDK for Swift; kotlinc + a resolved Espresso classpath for Kotlin).
 enum CompileVerification {
+    /// The SDK a generated XCUITest is compiled against.
+    enum SwiftSDK {
+        case iosSimulator
+        case macOS
+
+        var name: String {
+            switch self {
+            case .iosSimulator: "iphonesimulator"
+            case .macOS: "macosx"
+            }
+        }
+
+        var target: String {
+            switch self {
+            case .iosSimulator: "arm64-apple-ios18.0-simulator"
+            case .macOS: "arm64-apple-macos15.0"
+            }
+        }
+    }
+
     static func verifySwiftCompiles(
         _ source: String,
         additionalImportPaths: [String] = [],
         swiftVersion: Int = 5,
         extraArguments: [String] = [],
+        sdk: SwiftSDK = .iosSimulator,
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws {
         let result = try swiftTypecheck(
             source, additionalImportPaths: additionalImportPaths,
-            swiftVersion: swiftVersion, extraArguments: extraArguments
+            swiftVersion: swiftVersion, extraArguments: extraArguments, sdk: sdk
         )
         if result.exitCode != 0 {
             XCTFail("Generated Swift did not compile:\n\(result.output)", file: file, line: line)
@@ -38,7 +59,8 @@ enum CompileVerification {
         _ source: String,
         additionalImportPaths: [String] = [],
         swiftVersion: Int = 5,
-        extraArguments: [String] = []
+        extraArguments: [String] = [],
+        sdk: SwiftSDK = .iosSimulator
     ) throws -> (exitCode: Int32, output: String) {
         var environment = ProcessInfo.processInfo.environment
         if let developerDir = environment["AMOO_COMPILE_DEVELOPER_DIR"], !developerDir.isEmpty {
@@ -46,15 +68,15 @@ enum CompileVerification {
         }
         guard
             let sdkPath = try? runCapturingOutput(
-                "/usr/bin/xcrun", ["--sdk", "iphonesimulator", "--show-sdk-path"], environment: environment
+                "/usr/bin/xcrun", ["--sdk", sdk.name, "--show-sdk-path"], environment: environment
             )
             .trimmingCharacters(in: .whitespacesAndNewlines), sdkPath.isEmpty == false
         else {
-            throw XCTSkip("iOS Simulator SDK not found — skipping Swift compile verification.")
+            throw XCTSkip("\(sdk.name) SDK not found — skipping Swift compile verification.")
         }
         let platformPath = try runCapturingOutput(
             "/usr/bin/xcrun",
-            ["--sdk", "iphonesimulator", "--show-sdk-platform-path"],
+            ["--sdk", sdk.name, "--show-sdk-platform-path"],
             environment: environment
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -73,7 +95,7 @@ enum CompileVerification {
             [
                 "swiftc", "-emit-sil", "-o", "/dev/null", "-swift-version", String(swiftVersion),
                 "-sdk", sdkPath,
-                "-target", "arm64-apple-ios18.0-simulator",
+                "-target", sdk.target,
                 "-F", frameworksPath,
                 "-I", overlayPath
             ] + extraArguments + [sourceFile.path] + additionalImportPaths.flatMap { ["-I", $0] },

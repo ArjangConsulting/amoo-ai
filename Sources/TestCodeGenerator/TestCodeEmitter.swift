@@ -11,6 +11,10 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
     /// An authored assertion this emitter cannot express. Generation stops rather than substituting
     /// a weaker check, since a test that passes without checking the recorded state is worse than none.
     case unsupportedAssertion(tool: String, emitter: String, reason: String)
+    /// A recorded step that has no equivalent on the OS the test targets, such as a pinch on a Mac.
+    /// Generation stops instead of dropping the step, which would leave a test that passes without
+    /// doing what was recorded.
+    case unsupportedOnTarget(tool: String, target: String, reason: String)
 
     public var description: String {
         switch self {
@@ -29,6 +33,8 @@ public enum TestCodeGeneratorError: Error, CustomStringConvertible, Equatable {
         case let .unsupportedAssertion(tool, emitter, reason):
             "The \(emitter) emitter cannot express '\(tool)': \(reason) Generation stops instead of"
                 + " substituting a weaker assertion."
+        case let .unsupportedOnTarget(tool, target, reason):
+            "'\(tool)' cannot be generated for \(target): \(reason)"
         }
     }
 }

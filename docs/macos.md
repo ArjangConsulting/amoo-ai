@@ -58,8 +58,31 @@ size in points and its backing scale (2 on Retina). On a multi-display Mac this 
 | `scroll`, `swipe_in_direction` | The scroll wheel (a mouse drag would select text instead) |
 
 Not available: `pinch`, `set_orientation`, `press_home`, location, permissions, appearance, screen
-recording, `amoo device stream`, and test generation from a macOS session. Uninstalling an app and
-shutting the device down are refused, because the device is your own Mac.
+recording and `amoo device stream`. Uninstalling an app and shutting the device down are refused,
+because the device is your own Mac.
+
+## Generating a test
+
+A macOS session records and generates like any other: `start_session` with `platform: macos`, drive
+and assert, `end_session`, then `amoo generate test`. The result is an XCUITest class, and it runs in
+a macOS UI-testing bundle whose target application is the app you recorded.
+
+| Recorded | Generated |
+| --- | --- |
+| `tap_element` | `element.click()` |
+| `set_text` | click, select all (`typeKey("a", .command)`), delete, then `typeText` |
+| `scroll`, `swipe_in_direction`, `scroll_to_element` | `scroll(byDeltaX:deltaY:)` on the element, else on `app.windows.firstMatch` (the app element has an infinite frame) |
+| `drag` | `source.click(forDuration:thenDragTo:)` |
+| `pinch`, `press_back` | Generation stops with an `unsupportedOnTarget` error; a Mac has neither |
+
+Waits, assertions, `type_text` and screenshots are the same as on iOS. The scroll deltas follow the
+companion: content moves the way the gesture does, so `scroll(down)` is a negative `deltaY`, and
+`distance` (default 300) is points of wheel travel.
+
+A raw point `swipe` is a mouse drag on a Mac, not a scroll, so it is not turned into
+`swipe_in_direction` as it is on a phone. It stays an excluded step in the plan warnings; record
+`scroll`, `swipe_in_direction` or `drag` instead. A `requiredIdiom` in the test context is refused,
+since a Mac is neither a phone nor a tablet.
 
 ## Things to know
 
