@@ -69,7 +69,7 @@ needed rather than guessing its arguments.
 | Need | Tool |
 | --- | --- |
 | Confirm app identity | current_app |
-| Orient on an unfamiliar screen | describe_screen |
+| Orient on an unfamiliar screen | get_screen_context; use describe_screen if more detail is needed |
 | Locate a specific target | find_elements with id, label, or contains_text |
 | Wait for a postcondition | assert_visible, assert_absent, assert_enabled, assert_value, assert_selected (selected trait), assert_checked (native checkable state), assert_state_description (native description) |
 | Compare screen state | get_screen_context then assert_screen_changed with from_token |
@@ -97,8 +97,15 @@ Queries return bounded pages. Follow next_offset with the same selector when has
 Do not interpret a truncated result as proof an element is absent. Use assert_absent instead.
 Use timeout_ms on assertions instead of client-side polling loops.
 
-Quality and latency come first; keep semantic postconditions when reducing model calls. Use
-run_steps for a known action/assertion sequence (up to 20 steps, stops on failure); inspect between
+Quality and latency come first; keep semantic postconditions when reducing model calls. Prefer
+get_screen_context and scoped find_elements to full trees or screenshots, and use semantic
+postconditions rather than a screenshot after a tap. For transient UI, put the action and an immediate
+take_screenshot in one run_steps call with output, return_image=false, and settle_timeout_ms=0.
+Save screenshots without inline images; analyze pixels locally with available Python/ffmpeg tools
+(diffs, bounds, centroids), and view only a small crop when visual interpretation is necessary. Keep focused
+inspections to 20 actions where the task allows, and reuse a recorded flow.json via amoo flow rather
+than re-driving it. Use run_steps for
+known action/assertion/observation sequences (up to 20 steps, stops on failure); inspect between
 steps that need a new decision. Prefer scoped queries over full trees. Configure AMOO_TOOL_PROFILE
 as drive, record, or audit before MCP startup to load a smaller task-specific tool catalog.
 
@@ -111,7 +118,8 @@ semantic assertion. `set_text` reports exact, masked_change, or unverified; a ma
 cannot prove the secret's exact value. Use a subsequent app-level result where appropriate.
 
 Screenshot output includes pixels, gesture points, and scale. Use a modest scale for visual
-inspection. For evidence saved without model image input, use output=<path> return_image=false.
+inspection. Prefer output=<path> return_image=false; inline screenshots are expensive and should be
+avoided unless visual interpretation is required.
 For unlabeled controls, image coordinates, or reusing geometry across taps, read
 [coordinate guidance](references/coordinates.md) — a coordinate read before any tap is stale
 after it; re-query before and after each one rather than chaining blind taps.

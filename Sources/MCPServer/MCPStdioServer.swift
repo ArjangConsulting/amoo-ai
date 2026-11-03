@@ -38,15 +38,15 @@ public struct MCPStdioServer: Sendable {
     Live IDs belong to this MCP server process; separate servers cannot attach.
     Each agent starts its own session on an available device. Delegate app_id/build/device, not
     live IDs; end sessions before reuse.
-    companion_warm builds ahead; poll companion_status until built, then start_session.
-    Poll session_startup_status during cold starts; never duplicate sessions. build_mode=reuse never
-    compiles; auto uses bundled products or builds missing/changed ones.
+    Use companion_warm, then companion_status to prebuild; poll session_startup_status on cold starts, never
+    duplicate sessions. reuse never compiles; auto reuses bundled or builds missing companions.
     Physical devices need explicit IDs; controlled devices are refused.
     Launch/terminate/reinstall through amoo; raw simctl/adb desyncs the channel.
     On connection failure, end_session force=true closes without app termination; reset_companion
     if wedged, then restart. Forced closure may omit in-flight actions. Always end sessions.
 
-    Orient with current_app/describe_screen; scope find_elements; use timeout_ms on assertions.
+    Orient with current_app/get_screen_context; describe_screen only if needed. Scope find_elements;
+    use timeout_ms on assertions; prefer assertions to screenshots.
     Follow next_offset when has_more; truncation cannot prove absence.
     Prefer IDs, then exact labels/text; parent_id scopes, index/first resolves exact duplicates.
     include_noise=true shows scroll bars/decor. tap_element refuses covered/off-screen targets and
@@ -58,17 +58,15 @@ public struct MCPStdioServer: Sendable {
     Sign in with credential=<profile>#<field>, never a password; return blocked: results.
     Use run_steps for known sequences; inspect at decisions.
 
-    Screenshots=pixels; gestures=points. Read geometry/scale. Wake/unlock locked/off
-    screen_state before interpreting it. Save with output and return_image=false.
+    Screenshots=pixels; gestures=points. Save with output and return_image=false; analyze pixels locally
+    and view small crops only if needed. For transient UI, run_steps batches an action + an
+    immediate take_screenshot (settle_timeout_ms=0). Wake/unlock locked/off screen_state before interpreting.
     Use webview_dom/webview_eval for WebView state hidden from accessibility.
 
-    Tests: start_session -> drive/assert -> end_session (writes plan.json/flow.json) -> inspect
-    warnings -> amoo generate test. compile_session_to_plan is optional preview.
-    Pass launch_args/environment and app-owned context at start so setUp reproduces state.
-    Resolve rows with find_elements, then swipe_in_direction with element_id; drag id onto to_id.
-    Fix excluded/incomplete
-    warnings before export or report omissions with --allow-incomplete. Review selectors, helpers and
-    names. Use --test-name, run in the host target, report artifacts/warnings/results/dependencies.
+    Tests: start_session -> drive/assert -> end_session (plan.json/flow.json) -> inspect warnings ->
+    amoo generate test; compile_session_to_plan is optional. Pass launch_args/environment/context
+    at start. Resolve rows then swipe_in_direction/drag with element_id. Fix excluded warnings or report omissions
+    with --allow-incomplete; review selectors/names and report artifacts/results/dependencies.
     """
     static let cacheTTLMilliseconds = 3_600_000
 

@@ -147,7 +147,7 @@ app, use the CLI path.
 
 ## 3. Drive
 
-1. `current_app` to confirm identity, `describe_screen` to orient.
+1. `current_app` to confirm identity, `get_screen_context` to orient; use `describe_screen` if more detail is needed.
 2. Locate with `find_elements` (prefer id, then exact label, then `contains_text`; disambiguate
    with `parent_id`). `tap_element` / `set_text` / `fill_field` resolve their own target.
 3. After every mutation, prove the outcome with `assert_visible`, `assert_absent`,
@@ -157,8 +157,12 @@ app, use the CLI path.
    Compare screens with `get_screen_context` → `assert_screen_changed from_token=…`.
 4. Results are paged: follow `next_offset` while `has_more`; a truncated list never proves
    absence — use `assert_absent`.
-5. Evidence: `take_screenshot output=<evidence_dir>/<name>.png return_image=false`; look at
-   pixels (`return_image=true`, modest scale) only when layout itself is the question.
+5. Evidence: prefer `get_screen_context` and scoped selectors. Save screenshots with `output` and
+   `return_image=false`; for transient UI, batch the action and immediate screenshot
+   (`settle_timeout_ms=0`) in `run_steps`.    Analyze saved pixels with local tools such as Python/ffmpeg (diffs, bounds, centroids); only view
+   a small crop when visual interpretation is needed. Verify taps with semantic postconditions, not
+   screenshots. Keep focused inspections to 20 actions where the task allows; recorded `flow.json`
+   files can be replayed with `amoo flow`.
 6. WebViews: `webview_dom` / `webview_eval` (debug builds with inspection enabled).
 7. Audits: `audit_accessibility`, `audit_security`, `audit_app`, `highlight_a11y_issues`.
    For accessibility review, load only `ios-accessibility` or `android-accessibility` for the

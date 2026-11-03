@@ -10,6 +10,9 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
             "start_session",
             "end_session",
             "find_elements",
+            "get_screen_context",
+            "take_screenshot",
+            "run_steps",
             "assert_absent",
             "assert_visible",
             "swipe_in_direction",
@@ -22,6 +25,9 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         }
         XCTAssertTrue(instructions.contains("untrusted app data"))
         XCTAssertTrue(instructions.contains("inspection and debugging do not require test generation"))
+        XCTAssertTrue(instructions.contains("return_image=false"))
+        XCTAssertTrue(instructions.contains("settle_timeout_ms=0"))
+        XCTAssertTrue(instructions.contains("analyze pixels locally"))
         XCTAssertTrue(instructions.contains("Live IDs belong to this MCP server process"))
         XCTAssertTrue(instructions.contains("Each agent starts its own session"))
         for recovery in ["dev.amoo/build.pid", "--mcp-pid", "--kill-stale", "--cli-only", "reconnect"] {
@@ -43,6 +49,9 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         let skill = root.appendingPathComponent("plugins/amoo/skills/driving-amoo/SKILL.md")
         let text = try String(contentsOf: skill, encoding: .utf8)
         XCTAssertLessThan(text.split(separator: "\n").count, 150)
+        for guidance in ["return_image=false", "settle_timeout_ms=0", "analyze pixels locally"] {
+            XCTAssertTrue(text.contains(guidance), guidance)
+        }
         for reference in ["coordinates.md", "recording.md", "credentials.md"] {
             XCTAssertTrue(text.contains("references/\(reference)"))
             XCTAssertTrue(FileManager.default.fileExists(atPath: skill.deletingLastPathComponent()
