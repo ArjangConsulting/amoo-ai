@@ -200,11 +200,17 @@ else:
     print(f"Driver/protocol coverage: {driver_cov:.2f}% (min {driver_min:.2f}%)")
 
 failures = []
-for label, prefix, minimum in [
-    ("iOS driver", "/Sources/IOSDriver/", ios_driver_min),
-    ("Android driver", "/Sources/AndroidDriver/", android_driver_min),
+# The IOSDriver target also contains the host-only macOS backend; it is not part of the mobile gate.
+for label, prefix, minimum, excludes in [
+    (
+        "iOS driver",
+        "/Sources/IOSDriver/",
+        ios_driver_min,
+        ["/Sources/IOSDriver/MacHostBackend.swift", "/Sources/IOSDriver/MacWorkspace.swift"],
+    ),
+    ("Android driver", "/Sources/AndroidDriver/", android_driver_min, []),
 ]:
-    coverage = aggregate([prefix])
+    coverage = aggregate([prefix], excludes)
     if coverage is None:
         failures.append(f"{label} coverage is missing")
     else:
