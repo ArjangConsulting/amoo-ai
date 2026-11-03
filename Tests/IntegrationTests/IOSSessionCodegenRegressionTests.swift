@@ -153,7 +153,12 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
     /// an element-scoped `groceriesTaskRow.swipeLeft()`. Prove the generator actually emits that
     /// identifier for the documented input, so the example can't rot.
     func testMCPInstructionsElementScopedSwipeExampleMatchesGeneratorOutput() throws {
-        XCTAssertTrue(MCPStdioServer.instructions.contains("swipe_in_direction with element_id"))
+        let rowGestureInstruction = MCPStdioServer.instructions
+            .split(separator: "\n")
+            .first { $0.contains("Resolve rows") }
+        XCTAssertNotNil(rowGestureInstruction)
+        XCTAssertTrue(rowGestureInstruction?.contains("swipe_in_direction") == true)
+        XCTAssertTrue(rowGestureInstruction?.contains("element_id") == true)
 
         let test = StudioAuthoredTest(
             formatVersion: 1,
