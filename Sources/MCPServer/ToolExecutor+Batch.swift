@@ -17,7 +17,7 @@ extension DriverToolExecutor {
             "tap", "tap_element", "double_tap", "long_press", "type_text", "set_text", "fill_field",
             "clear_text", "swipe", "swipe_in_direction", "scroll", "drag", "pinch", "press_back",
             "assert_visible", "assert_absent", "assert_enabled", "assert_value", "assert_selected", "assert_checked",
-            "assert_state_description",
+            "assert_state_description", "take_screenshot",
             "assert_screen_changed"
         ]
         let prepared = try steps.map { step -> (String, [String: String]) in
@@ -28,6 +28,16 @@ extension DriverToolExecutor {
                 )
             }
             var values = step.arguments.mapValues { $0.stringValue ?? $0.description }
+            if step.tool == "take_screenshot" {
+                guard let output = values["output"], !output.isEmpty,
+                      values["return_image"]?.lowercased() == "false"
+                else {
+                    throw ToolExecutionError(
+                        code: "invalid_argument",
+                        message: "Batch take_screenshot steps require output and return_image=false."
+                    )
+                }
+            }
             values["session_id"] = sessionID
             _ = try ToolRequest(name: step.tool, arguments: values)
             _ = try QueryPage.integer(values["timeout_ms"], fallback: 0, range: 0 ... 10000)

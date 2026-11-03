@@ -74,7 +74,8 @@ public enum QueryTools {
         ToolDefinition(
             name: "take_screenshot",
             description: "Capture a screenshot of the current screen."
-                + " Returns the image as an MCP image content block, and optionally writes it to disk.",
+                + " Returns the image as an MCP image content block, and optionally writes it to disk."
+                + " For token-efficient evidence, prefer output with return_image=false.",
             properties: [
                 "format": .init(
                     type: "string",
@@ -88,6 +89,7 @@ public enum QueryTools {
                 "return_image": .init(
                     type: "boolean",
                     description: "Return inline image; default true. False requires output."
+                        + " Prefer false for saved evidence to avoid sending image tokens."
                 ),
                 "scale": .init(
                     type: "number",

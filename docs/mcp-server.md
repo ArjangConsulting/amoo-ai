@@ -465,10 +465,12 @@ compiled into an assertion. When a recorded observation read a selected state, t
 `find_elements`, `list_apps`, `list_sessions`, and `get_session_report` default to 50 results;
 use `limit` and `next_offset` while `has_more` is true. Offsets query live state, so keep the screen
 stable while paging and restart if it changes. Hierarchy output defaults to 200 nodes with an
-explicit truncation marker. Truncated output cannot establish absence. Screenshots can be saved
-without returning image tokens: pass `output` and `return_image=false`. Use `scale` to reduce
-image dimensions. Reusable deterministic action sequences can use `amoo flow` to avoid a model
-round trip per action.
+explicit truncation marker. Truncated output cannot establish absence. Prefer `get_screen_context`
+and scoped queries over screenshots. Save screenshot evidence without inline image tokens by passing
+`output` and `return_image=false`; use available local tools such as Python/ffmpeg for pixel diffs,
+bounds or centroids, and view only a small crop when visual interpretation is necessary. For a transient state, batch the action and an immediate
+`take_screenshot` with `settle_timeout_ms=0` in one `run_steps` call. Reusable deterministic action
+sequences can use `amoo flow` to avoid a model round trip per action.
 
 Requests execute independently across devices and serialize per device within one server process.
 Cancellation notifications propagate to outstanding request tasks. RPC deadlines and bounded input
@@ -499,8 +501,10 @@ Audit results describe the inspected screen and include per-rule evidence covera
 is not a whole-app security certification; deep-link validation requires scenario evidence.
 
 For a short known sequence, `run_steps` accepts an active `session_id` and an array of up to 20
-`{"tool":"…","arguments":{…}}` objects. Actions and assertions execute in order under the same
-device queue, stop at the first failure, and each attempted step is recorded once. Nested batches,
+`{"tool":"…","arguments":{…}}` objects, including `take_screenshot` observations. Actions,
+assertions and observations execute in order under the same device queue, stop at the first failure,
+and each attempted step is recorded once. Save screenshot steps to `output` with `return_image=false`;
+batch responses contain compact summaries, not inline images. Nested batches,
 lifecycle calls and per-step session overrides are rejected before execution. Per-step timeouts
 are capped at 10 seconds and gesture durations at 3 seconds. Completed actions are not rolled back.
 Use normal discovery calls to decide the sequence first; batch responses contain compact summaries.
