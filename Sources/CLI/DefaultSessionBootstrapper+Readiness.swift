@@ -3,17 +3,21 @@ import CompanionProtocol
 import Foundation
 
 extension DefaultSessionBootstrapper {
-    func waitForScreenReady(driver: any PlatformDriver) async throws {
+    func waitForScreenReady(driver: any PlatformDriver) async throws -> Bool {
         let deadline = ContinuousClock.now + .seconds(screenStabilizationTimeoutSeconds)
         while ContinuousClock.now < deadline {
             try Task.checkCancellation()
             do {
-                _ = try await OperationDeadline.read(until: deadline) { try await driver.getScreenContext() }
-                return
+                let observation = try await OperationDeadline.read(until: deadline) { try await driver.observeScreen() }
+                if !observation.hierarchy.children.isEmpty {
+                    return true
+                }
+                try await Task.sleep(until: min(deadline, .now + .milliseconds(300)), clock: .continuous)
             } catch is CancellationError {
                 throw CancellationError()
             } catch { try await Task.sleep(until: min(deadline, .now + .milliseconds(300)), clock: .continuous) }
         }
+        return false
     }
 
     func waitForCompanionReady(_ companion: any CompanionClient) async throws {

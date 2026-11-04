@@ -175,7 +175,7 @@ public struct ADBRunner: ADBRunning {
         try await launch(
             serial: serial,
             appID: appID,
-            options: AndroidLaunchOptions(arguments: arguments, environment: environment)
+            options: AndroidLaunchOptions(arguments: arguments, environment: environment, forceStopFirst: true)
         )
     }
 

@@ -92,8 +92,9 @@ struct StudioToolExecutorTests {
         let find = try #require(definitions["find_elements"]).mcpTool()
 
         #expect(swipe.inputSchema.description.contains("enum"))
-        #expect(key.inputSchema.description.contains("examples"))
-        #expect(!key.inputSchema.description.contains("enum"))
+        let keyProperty = try #require(key.inputSchema.objectValue?["properties"]?.objectValue?["key"]?.objectValue)
+        #expect(keyProperty["examples"] != nil)
+        #expect(keyProperty["enum"] == nil)
         #expect(uninstall.annotations.destructiveHint == true)
         #expect(find.annotations.readOnlyHint == true)
         #expect(find.annotations.destructiveHint == nil)

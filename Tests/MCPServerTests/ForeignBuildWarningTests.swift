@@ -65,7 +65,8 @@ final class ForeignBuildWarningTests: XCTestCase {
 
         XCTAssertFalse(result.isError)
         XCTAssertEqual(result.content, "App installed from \(path)")
-        XCTAssertNil(result.structuredContent)
+        XCTAssertEqual(result.structuredContent?.objectValue?["installation"], .string("installed"))
+        XCTAssertNil(result.structuredContent?.objectValue?["warnings"])
     }
 
     func testDeviceInstallAppRejectsMissingPathBeforeInstalling() async {

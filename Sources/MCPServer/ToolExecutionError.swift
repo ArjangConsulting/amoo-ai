@@ -46,7 +46,11 @@ extension DriverToolExecutor {
                     + " id of the one you want, scope with parent_id, or pick one of the matches with"
                     + " index (0-based) or first=true. If none has an id, tap its"
                     + " listed point directly rather than guessing coordinates from a screenshot.",
-                extra: ["candidates": .array(candidates.map { elementFields($0) })]
+                extra: [
+                    "candidates": .array(candidates.map { elementFields($0) }),
+                    "candidate_total": .int(elements.count),
+                    "candidates_truncated": .bool(elements.count > candidates.count)
+                ]
             )
         }
         return elements.first

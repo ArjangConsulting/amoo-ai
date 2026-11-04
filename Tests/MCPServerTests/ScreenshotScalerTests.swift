@@ -4,10 +4,40 @@ import CoreGraphics
 import Foundation
 import ImageIO
 @testable import MCPServer
+import TestCommons
+import TestSession
 import UniformTypeIdentifiers
 import XCTest
 
 final class ScreenshotScalerTests: XCTestCase {
+    func testSavedScaledScreenshotReportsActualDimensionsAndMeasuredBytesWithoutInlineImage() async throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let output = scratch.url.appending(path: "screen.png")
+        let bootstrapper = MockSessionBootstrapper()
+        let manager = SessionManager(bootstrapper: bootstrapper)
+        let session = try await manager.startSession(appID: "com.example.app", platform: .ios)
+        let driver = await bootstrapper.lastDriver
+        await driver?.setScreenshotFrames([Array(makePNG(width: 200, height: 100))])
+        let result = await DriverToolExecutor(driver: MockDriver(), sessionManager: manager).execute(
+            toolName: "take_screenshot",
+            arguments: [
+                "session_id": session.id, "output": output.path, "return_image": "false",
+                "scale": "0.5", "settle_timeout_ms": "0"
+            ]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertNil(result.image)
+        XCTAssertEqual(result.structuredContent?.objectValue?["width_pixels"]?.intValue, 100)
+        XCTAssertEqual(result.structuredContent?.objectValue?["height_pixels"]?.intValue, 50)
+        let metrics = await session.verificationMetrics
+        XCTAssertEqual(metrics.clientCalls, 1)
+        XCTAssertEqual(metrics.operations, 1)
+        XCTAssertEqual(metrics.imageBytes, 0)
+        XCTAssertEqual(metrics.imageDimensions, ["100x50"])
+        XCTAssertEqual(metrics.evidenceImageBytes, try Data(contentsOf: output).count)
+    }
+
     private func makePNG(width: Int, height: Int) -> Data {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let context = CGContext(
@@ -55,6 +85,9 @@ final class ScreenshotScalerTests: XCTestCase {
         let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
         XCTAssertEqual(image.width, 100)
         XCTAssertEqual(image.height, 50)
+        let dimensions = try XCTUnwrap(ScreenshotScaler.dimensions(scaled))
+        XCTAssertEqual(dimensions.width, 100)
+        XCTAssertEqual(dimensions.height, 50)
     }
 
     func testScaledProducesJPEGWhenRequested() throws {

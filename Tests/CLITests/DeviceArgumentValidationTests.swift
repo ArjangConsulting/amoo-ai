@@ -37,7 +37,7 @@ final class DeviceArgumentValidationTests: XCTestCase {
 
     func testArgumentlessToolSaysSo() throws {
         let message = try XCTUnwrap(unknownArgumentMessage(tool: "press_home", arguments: ["force": "true"]))
-        XCTAssertTrue(message.hasSuffix("It takes no arguments."), message)
+        XCTAssertTrue(message.contains("Accepted: response_mode."), message)
     }
 
     func testUnknownToolIsLeftToTheExecutor() {

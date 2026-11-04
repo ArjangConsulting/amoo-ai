@@ -74,11 +74,14 @@ final class IOSDriverTests: XCTestCase {
             simctl: simctl
         )
 
-        try await driver.launchApp(
+        let receipt = try await driver.launchAppWithReceipt(
             appID: "com.example.app",
             arguments: [],
             environment: ["STAGE": "test", "VERBOSE": "1"]
         )
+        XCTAssertEqual(receipt.freshProcess, true)
+        XCTAssertEqual(receipt.environmentDelivery, "process_environment")
+        XCTAssertEqual(receipt.environmentKeys, ["STAGE", "VERBOSE"])
 
         let calls = await simctl.appCalls()
         XCTAssertEqual(

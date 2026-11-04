@@ -98,7 +98,7 @@ final class AndroidDriverTests: XCTestCase {
         let appCalls = await adb.appCalls()
         XCTAssertEqual(appCalls, [
             "install:com.example.app:/tmp/app.apk",
-            "launchResetting:com.example.app",
+            "launch:com.example.app",
             "terminate:com.example.app",
             "uninstall:com.example.app"
         ])

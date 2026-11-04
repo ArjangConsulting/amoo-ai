@@ -31,11 +31,34 @@ final class AgentReportValidationTests: XCTestCase {
         ]
     }
 
-    private func validate(_ report: [String: Any], extra: [String] = []) throws -> CLIResult {
+    private func validate(
+        _ report: [String: Any], extra: [String] = [], checks: [String] = ["login"]
+    ) throws -> CLIResult {
         let scratch = try makeScratchDirectory()
         let path = scratch.url.appending(path: "compact.json")
         try JSONSerialization.data(withJSONObject: report).write(to: path)
-        return runAgentReportValidation(["--report", path.path, "--run-id", runID, "--checks", "login"] + extra)
+        return runAgentReportValidation([
+            "--report", path.path, "--run-id", runID, "--checks", checks.joined(separator: ",")
+        ] + extra)
+    }
+
+    func testPartialCoverageCannotBeSubmittedAsPassOrBlocked() throws {
+        let scratch = try makeScratchDirectory()
+        let evidence = scratch.url.appending(path: "assertion.json")
+        try Data(#"{"passed":true}"#.utf8).write(to: evidence)
+        var report = fixture(evidence: evidence.path)
+        let checks = ["login", "navigation", "checked"]
+        report["coverage"] = [
+            "requested": checks, "evaluated": ["login"],
+            "notEvaluated": ["navigation": "Not attempted", "checked": "Native property unsupported"],
+            "truncated": false
+        ]
+        XCTAssertEqual(try validate(report, checks: checks).exitCode, 1)
+        report["status"] = "blocked"
+        report["verdict"] = "notAssessed"
+        XCTAssertEqual(try validate(report, checks: checks).exitCode, 1)
+        report["status"] = "partial"
+        XCTAssertEqual(try validate(report, checks: checks).exitCode, 0)
     }
 
     func testCompletePassAndCallerRequirementMatching() throws {

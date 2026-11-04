@@ -54,7 +54,7 @@ public protocol DeviceDriver: Sendable {
 
 // MARK: - App Management
 
-public protocol AppManagement: Sendable {
+public protocol AppManagement: AppLaunchReporting, Sendable {
     func installApp(path: String) async throws
     func launchApp(appID: String, arguments: [String], environment: [String: String]) async throws
     func terminateApp(appID: String) async throws
@@ -231,6 +231,7 @@ public protocol PlatformDriver:
     AccessibilityProvider,
     DeviceConfigurator,
     AIContextProvider,
+    InspectionCapabilityProviding,
     Sendable {
     /// Probes device transport and companion connectivity separately without mutating app state.
     func connectivityHealth() async -> ConnectivityHealth

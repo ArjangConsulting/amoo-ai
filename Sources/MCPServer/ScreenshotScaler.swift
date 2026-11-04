@@ -14,6 +14,28 @@ import UniformTypeIdentifiers
 /// Scaling is best-effort: an unsupported platform or an undecodable image returns `nil` and the
 /// caller keeps the original rather than failing the capture.
 enum ScreenshotScaler {
+    static func scalingStatus(requested: Double?, scaled: Data?) -> String {
+        if scaled != nil {
+            return "applied"
+        }
+        return (requested ?? 1) < 1 ? "unavailable" : "not_requested"
+    }
+
+    static func dimensions(_ data: Data) -> (width: Int, height: Int)? {
+        #if canImport(CoreGraphics) && canImport(ImageIO)
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int else { return nil }
+        return (width, height)
+        #else
+        guard data.count >= 24, Array(data.prefix(8)) == [137, 80, 78, 71, 13, 10, 26, 10] else { return nil }
+        let width = data[16 ..< 20].reduce(0) { $0 * 256 + Int($1) }
+        let height = data[20 ..< 24].reduce(0) { $0 * 256 + Int($1) }
+        return width > 0 && height > 0 ? (width, height) : nil
+        #endif
+    }
+
     static func scaled(_ data: Data, by scale: Double?, format: ImageFormat) -> Data? {
         guard let scale, scale > 0, scale < 1 else { return nil }
 

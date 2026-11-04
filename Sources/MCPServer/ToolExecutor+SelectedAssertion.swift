@@ -131,10 +131,14 @@ extension DriverToolExecutor {
         let detail: String
         switch observation {
         case .none:
+            fields["failure_kind"] = .string("observation_failed")
             detail = "the device could not be queried before the deadline, so no state was observed"
         case .notFound:
+            fields["failure_kind"] = .string("selector_miss")
+            fields["last_observation_status"] = .string("no_match")
             detail = "no element matched, so selection was not checked (the element must exist)"
         case let .selected(isSelected, id, label):
+            fields["failure_kind"] = .string("assertion_mismatch")
             fields["element_id"] = .string(id)
             fields["element_label"] = .string(label)
             detail = "observed selected=\(isSelected) on [\(id)] \(label)"

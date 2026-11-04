@@ -21,6 +21,9 @@ public struct SessionReport: Sendable, Codable, Equatable {
     public let launchEnvironment: [String: String]
     public let testName: String?
     public var codegenIntent: SessionCodegenIntent?
+    public var verification: VerificationCoverage?
+    public var verificationMetrics = VerificationMetrics()
+    public var startup: AppStartupState?
 
     public init(
         sessionID: String,
@@ -37,7 +40,10 @@ public struct SessionReport: Sendable, Codable, Equatable {
         launchArguments: [String] = [],
         launchEnvironment: [String: String] = [:],
         testName: String? = nil,
-        codegenIntent: SessionCodegenIntent? = nil
+        codegenIntent: SessionCodegenIntent? = nil,
+        verification: VerificationCoverage? = nil,
+        verificationMetrics: VerificationMetrics = VerificationMetrics(),
+        startup: AppStartupState? = nil
     ) {
         self.sessionID = sessionID
         self.appID = appID
@@ -54,6 +60,9 @@ public struct SessionReport: Sendable, Codable, Equatable {
         self.launchEnvironment = launchEnvironment
         self.testName = testName
         self.codegenIntent = codegenIntent
+        self.verification = verification
+        self.verificationMetrics = verificationMetrics
+        self.startup = startup
     }
 
     public static func make(from session: TestSession) async -> Self {
@@ -74,13 +83,17 @@ public struct SessionReport: Sendable, Codable, Equatable {
             errorCount: errorCount,
             isActive: isActive,
             actions: [],
-            testName: testName
+            testName: testName,
+            verification: verification,
+            verificationMetrics: verificationMetrics,
+            startup: startup
         )
     }
 
     private enum CodingKeys: String, CodingKey {
         case sessionID, appID, deviceID, platform, startedAt, endedAt, durationSeconds
         case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName, codegenIntent
+        case verification, verificationMetrics, startup
     }
 
     /// ISO-8601 *with* fractional seconds. The single source of truth for how a `report.json` is
@@ -142,7 +155,11 @@ public struct SessionReport: Sendable, Codable, Equatable {
             launchArguments: container.decodeIfPresent([String].self, forKey: .launchArguments) ?? [],
             launchEnvironment: container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:],
             testName: container.decodeIfPresent(String.self, forKey: .testName),
-            codegenIntent: container.decodeIfPresent(SessionCodegenIntent.self, forKey: .codegenIntent)
+            codegenIntent: container.decodeIfPresent(SessionCodegenIntent.self, forKey: .codegenIntent),
+            verification: container.decodeIfPresent(VerificationCoverage.self, forKey: .verification),
+            verificationMetrics: container.decodeIfPresent(VerificationMetrics.self, forKey: .verificationMetrics)
+                ?? VerificationMetrics(),
+            startup: container.decodeIfPresent(AppStartupState.self, forKey: .startup)
         )
     }
 }
@@ -168,7 +185,10 @@ extension TestSession {
             launchArguments: launchArguments.map(redactor.redact),
             launchEnvironment: redactor.environment(launchEnvironment),
             testName: testName,
-            codegenIntent: codegenIntent
+            codegenIntent: codegenIntent,
+            verification: verification,
+            verificationMetrics: verificationMetrics,
+            startup: startup
         )
     }
 }

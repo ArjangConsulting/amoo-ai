@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import Foundation
 import MCP
 
@@ -7,9 +8,67 @@ enum ToolContracts {
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func enrich(_ definition: ToolDefinition) -> ToolDefinition {
         var definition = definition
+        if definition.name.hasPrefix("webview_") {
+            definition.properties["platform"] = .init(type: "string", description: "Override inspector platform")
+        }
+        if definition.properties["session_id"] != nil {
+            definition.properties["response_mode"] = .init(
+                type: "string", description: "full (default) or compact; assertions retain identical proof fields",
+                values: ["full", "compact"]
+            )
+        }
+        if definition.name.hasPrefix("assert_") {
+            definition.properties["check_id"] = .init(
+                type: "string", description: "Requested verification check ID declared at start_session"
+            )
+        }
+        if definition.name == "start_session" {
+            definition.properties["checks"] = .init(
+                type: "array", description: "All required verification check IDs; untested until explicitly asserted",
+                items: .scalar(type: "string")
+            )
+        }
+        if ["tap_element", "find_elements"].contains(definition.name) {
+            definition.properties["timeout_ms"] = .init(
+                type: "integer", description: "Selector observation budget in milliseconds; default 5000"
+            )
+        }
         if let schema = definition.outputSchema {
             var fields = schema.properties
+            if ["find_elements", "get_screen_context", "tap_element"].contains(definition.name) {
+                fields["observation_status"] = .init(type: "string", description: "selector_miss or empty_observation")
+                fields["navigation_status"] = .init(
+                    type: "string",
+                    description: "Navigation is unassessed after a miss"
+                )
+                fields["recovery"] = .init(type: "array", description: "Bounded recovery suggestions")
+                fields["foreground_app_id"] = .init(type: "string", description: "Observed foreground app")
+                fields["target_app_id"] = .init(type: "string", description: "Bound inspection target")
+                fields["available_controls"] = .init(
+                    type: "array",
+                    description: "At most 12 currently available controls"
+                )
+            }
             switch definition.name {
+            case "device_launch_app":
+                fields["launch"] = .init(
+                    type: "object",
+                    description: "Fresh process and configuration delivery receipt"
+                )
+                fields["target_app_id"] = .init(type: "string", description: "Requested inspection target")
+            case "get_screen_context":
+                fields["element_count"] = .init(type: "integer", description: "Observed nodes including the root")
+                fields["semantic_readiness"] = .init(
+                    type: "string",
+                    description: "empty or queryable; not render readiness"
+                )
+            case "take_screenshot":
+                fields["scaling_status"] = .init(type: "string", description: "applied, unavailable or not_requested")
+            case "start_session":
+                fields["startup"] = .init(
+                    type: "object",
+                    description: "Installation, fresh-process launch and readiness"
+                )
             case "tap_element":
                 fields["tap_point"] = .init(type: "object", description: "Where the tap landed, {x, y} in points")
                 fields["hittability_checked"] = .init(
@@ -23,11 +82,16 @@ enum ToolContracts {
             case "set_text", "fill_field":
                 fields["verification_mode"] = .init(type: "string", description: "exact, masked_change, or unverified")
             case "end_session":
+                fields["verification_status"] = .init(type: "string", description: "Derived required-check status")
+                fields["verification"] = .init(type: "object", description: "Per-check outcomes and evidence")
                 fields["recording_health"] = .init(
                     type: "string",
                     description: "saved, failed, pending, unknown, or disabled"
                 )
             case "get_session_report":
+                fields["verification"] = .init(type: "object", description: "Per-check outcomes and evidence")
+                fields["verificationMetrics"] = .init(type: "object", description: "Measured host costs")
+                fields["startup"] = .init(type: "object", description: "Startup state")
                 fields["recording_health"] = .init(
                     type: "string",
                     description: "saved, failed, pending, unknown, or disabled"
@@ -80,6 +144,16 @@ struct ToolRequest: Sendable {
     init(name: String, arguments: [String: String]) throws {
         self.name = name
         self.arguments = arguments
+        // Silently ignoring a start point leaves a swipe centred on the screen, which looks like it ran.
+        if name == "swipe_in_direction", arguments["from_x"] == nil, arguments["from_y"] == nil,
+           arguments["x"] != nil || arguments["y"] != nil {
+            throw ToolExecutionError(
+                code: "invalid_argument",
+                message: "swipe_in_direction takes from_x/from_y for a start point; x and y are not arguments."
+            )
+        }
+        try Self.validateSchema(name: name, arguments: arguments)
+        try Self.validateSemantics(name: name, arguments: arguments)
         let nonnegative = [
             "timeout_ms", "duration_ms", "character_count", "offset", "settle_timeout_ms", "hittable_timeout_ms",
             "effect_timeout_ms", "hold_ms"
@@ -93,16 +167,8 @@ struct ToolRequest: Sendable {
                   key != "scale" || name == "pinch" || (number > 0 && number <= 1),
                   key != "latitude" || abs(number) <= 90,
                   key != "longitude" || abs(number) <= 180 else {
-                throw ToolExecutionError(code: "invalid_argument", message: "Invalid numeric argument: \(key)")
+                throw Self.invalidArgument(key, example: "\(key)=1")
             }
-        }
-        // Silently ignoring a start point leaves a swipe centred on the screen, which looks like it ran.
-        if name == "swipe_in_direction", arguments["from_x"] == nil, arguments["from_y"] == nil,
-           arguments["x"] != nil || arguments["y"] != nil {
-            throw ToolExecutionError(
-                code: "invalid_argument",
-                message: "swipe_in_direction takes from_x/from_y for a start point; x and y are not arguments."
-            )
         }
         let booleanKeys = [
             "record_speech", "return_image", "labeled_only", "include_offline", "all_frames", "force",
@@ -110,7 +176,7 @@ struct ToolRequest: Sendable {
         ]
         for key in booleanKeys {
             if let raw = arguments[key], boolArgument(raw) == nil {
-                throw ToolExecutionError(code: "invalid_argument", message: "Invalid boolean argument: \(key)")
+                throw Self.invalidArgument(key, example: "\(key)=true")
             }
         }
     }
@@ -145,7 +211,7 @@ public enum ToolProfile: String, Sendable, CaseIterable {
             "list_devices",
             "run_steps"
         ])
-        if name == "session_startup_status" {
+        if ["session_startup_status", "get_capabilities", "get_verification_report"].contains(name) {
             return true
         }
         switch self {
@@ -165,3 +231,5 @@ public enum ToolProfile: String, Sendable, CaseIterable {
         }
     }
 }
+
+// swiftlint:enable multiline_arguments

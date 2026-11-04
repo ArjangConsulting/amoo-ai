@@ -58,6 +58,16 @@ final class DetachedProcessTests: XCTestCase {
 /// The `am start` argument building and launcher parsing are covered by MobileDevices' own tests;
 /// these check that `ADBRunner` wires its overloads to the right options.
 final class AndroidLaunchArgumentsTests: XCTestCase {
+    func testConfiguredLaunchStopsRunningProcessEvenWithOnlyArguments() async throws {
+        let (runner, mock) = makeRunner()
+        try await runner.launch(serial: "phone", appID: "com.app", arguments: ["two words"], environment: [:])
+        let commands = mock.recordedCommands.map(\.arguments)
+        let stop = try XCTUnwrap(commands.firstIndex { $0.contains("force-stop") })
+        let start = try XCTUnwrap(commands.firstIndex { $0.contains("start") })
+        XCTAssertLessThan(stop, start)
+        XCTAssertEqual(commands.filter { $0.contains("force-stop") }.count, 1)
+    }
+
     private func makeRunner() -> (ADBRunner, MockExecutor) {
         let mock = MockExecutor { command, _ in
             let stdout = command.arguments.contains("resolve-activity")

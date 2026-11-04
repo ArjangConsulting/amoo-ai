@@ -27,6 +27,23 @@ The caller supplies the resolved app_id/build_path/device_hint for each platform
 launch_env from the app's contract. Apply launch_env through MCP environment or CLI --env;
 add reset flags only for a requested clean store and remove them for persistence relaunches.
 
+## Installed contract and complete coverage
+
+Cache one `amoo capabilities --command device --platform <platform>` or MCP `get_capabilities`
+response per binary/runtime; query an individual tool schema only when needed. Prefer typed MCP
+arguments or CLI `--arguments-json @arguments.json` for multiword selectors. Preserve `--runtime-id`
+through reinstall and owned-runtime recovery with `env up --platform <platform> --runtime-id <id>`.
+Inspect startup fresh-process/environment delivery and readiness separately; unknown delivery is
+unverified. Declare all MCP `start_session checks`, attach `check_id` to explicit assertions, and
+retain `get_verification_report`. A selector miss or content error does not establish a navigation
+blocker; verify independent controls. Unsupported assertions and gesture dispatch never prove a check.
+Use bounded compact queries and compact batches; continue after errors only for independent steps.
+Save scaled screenshot evidence without inline images and inspect it for visual/layout checks.
+Report measured response bytes, calls and timings without inferred token savings. Derive `fail` from
+observed failed requirements, `pass` only from all required checks passed, `partial` from completed
+checks with missing coverage, and `blocked` when no requested check completed. Preserve every reason.
+Read driving-amoo's “Discover once, verify complete coverage” for the shared operating contract.
+
 ## Hard rules
 
 - Use the caller's absolute amoo executable path, recording build/capability provenance. Shell aliases
@@ -59,7 +76,7 @@ your own lease, `doctor --mcp-pid <pid> --kill-stale` only for a pid you started
 - `deviceClaimed`: the holder reads `pid N (cmd) since T`. Not running → retry once; amoo discards the
   orphaned claim. Your own → end it. Alive and not yours → another device. Never `--force`.
 - Companion `unresponsive`: your lease → `end_session force=true`, `reset_companion`, start again (CLI:
-  `env down --device <id>`, then `env up`). Not your lease → another device.
+  `env up --platform <platform> --runtime-id <id>`). Not your lease → another device.
 - Stale MCP servers: unrelated ones do not block (`doctor --cli-only`); another client's go to the caller.
 - `Android companion install failed`: read the `INSTALL_FAILED_*` code and `Recovery` line. amoo repairs
   `UPDATE_INCOMPATIBLE` itself once; otherwise `amoo companion install --platform android --device <serial>
@@ -140,10 +157,10 @@ Use the version 1 `AgentRunReport` JSON contract shared with the amoo agent:
     "locale": "<observed locale or unknown>", "host_binary": "<absolute executable>",
     "host_version": "<doctor version/commit>", "host_sha256": "<actual host executable SHA-256>"
   },
-  "assertions": [{"check": "ios.seek-coalesce", "outcome": "pass", "evidence": ["/tmp/evidence/ios/probe.json"]}],
-  "coverage": {"requested": ["ios.seek-coalesce"], "evaluated": ["ios.seek-coalesce"], "notEvaluated": {}, "truncated": false},
+  "assertions": [{"check": "ios.details-state", "outcome": "pass", "evidence": ["/tmp/evidence/ios/probe.json"]}],
+  "coverage": {"requested": ["ios.details-state"], "evaluated": ["ios.details-state"], "notEvaluated": {}, "truncated": false},
   "artifacts": [{"path": "/tmp/evidence/ios/probe.json", "sha256": "<file SHA-256>",
-                 "runID": "<caller UUID>", "checks": ["ios.seek-coalesce"]}]
+                 "runID": "<caller UUID>", "checks": ["ios.details-state"]}]
 }
 ```
 
@@ -153,7 +170,8 @@ compact. Preserve the caller's run ID (create a UUID when omitted). Save the JSO
 `amoo agent validate-report --report <path> --run-id <UUID> --checks <all-caller-check-ids>` before
 returning that JSON alone. The parent validates against its original delegation too.
 
-`status` is `blocked` if any platform is blocked, else `fail` if any check failed, else `pass`.
+`status` is `fail` if an observed check failed, `pass` if all required checks passed,
+`partial` if some completed with remaining coverage, and `blocked` if none completed.
 Unevaluated checks need reasons in `coverage.notEvaluated`. Verdict is `fail` when an evaluated check
 failed, otherwise `notAssessed` for blocked work. Successful execution or speech capture alone
 cannot pass. A pass requires every requested check evaluated and passed, untruncated evidence and

@@ -24,11 +24,28 @@ Review discovered Kotlin/Java instrumentation evidence as well as Swift harness 
 adopt its runtimes into MCP, or automatically install a remembered app artifact.
 
 
+## Installed contract and complete coverage
+
+Cache one `amoo capabilities --command device --platform <platform>` or MCP `get_capabilities`
+response per binary/runtime; query an individual tool schema only when needed. Prefer typed MCP
+arguments or CLI `--arguments-json @arguments.json` for multiword selectors. Preserve `--runtime-id`
+through reinstall and owned-runtime recovery with `env up --platform <platform> --runtime-id <id>`.
+Inspect startup fresh-process/environment delivery and readiness separately; unknown delivery is
+unverified. Declare all MCP `start_session checks`, attach `check_id` to explicit assertions, and
+retain `get_verification_report`. A selector miss or content error does not establish a navigation
+blocker; verify independent controls. Unsupported assertions and gesture dispatch never prove a check.
+Use bounded compact queries and compact batches; continue after errors only for independent steps.
+Save scaled screenshot evidence without inline images and inspect it for visual/layout checks.
+Report measured response bytes, calls and timings without inferred token savings. Derive `fail` from
+observed failed requirements, `pass` only from all required checks passed, `partial` from completed
+checks with missing coverage, and `blocked` when no requested check completed. Preserve every reason.
+Read driving-amoo's “Discover once, verify complete coverage” for the shared operating contract.
+
 ## Caller: input contract
 
 ```yaml
 run_id: <caller-generated UUID>
-task: "Verify web-player seek fixes"
+task: "Verify details navigation and state"
 platforms: [android, ios]                     # run in parallel
 builds:
   android: { apk: <path>, app_id: com.example.qa }
@@ -40,10 +57,10 @@ launch_env: { UI_TEST_SKIP_ONBOARDING: "1" }
 preconditions:
   - "Use the existing store; reset only when a clean store is requested"
 navigate:
-  flow: flows/open-first-video.amoo.json      # checked-in amoo flow
+  flow: flows/open-details.amoo.json      # checked-in amoo flow
 checks:
-  - probe: scripts/device-probes/00-install-recorder.js   # must pass first
-  - probe: scripts/device-probes/10-seek-coalesce.js
+  - probe: scripts/device-probes/00-ready.js   # must pass first
+  - probe: scripts/device-probes/10-details-state.js
   - screenshot: after-navigate
 evidence_dir: <scratch>/verify-<timestamp>/
 budget: { setup_minutes: 5, total_minutes: 20 }
@@ -108,7 +125,7 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
   `blocked` with command, error and repro. The caller fixes; the verifier verifies.
 - Recover before blocking, never by bulk-killing: `deviceClaimed` names its holder (a dead one clears on
   one retry; a live one is another device), an `unresponsive` companion on your lease gets
-  `end_session force=true` + `reset_companion` (CLI: `env down --device`, `env up`), and an `Android
+  `end_session force=true` + `reset_companion` (CLI: `env up --platform <platform> --runtime-id <id>`), and an `Android
   companion install failed` error carries the `INSTALL_FAILED_*` code and a `Recovery` line. After one
   identical install failure fall back to another AVD or API level (prefer API 35) unless the caller pinned
   it. Holders owned by other clients go back to the caller. See driving-amoo
@@ -123,7 +140,7 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
 
 ## Report validation
 
-Use the shared `AgentRunReport` version 1 JSON contract in the device-verifier agent instructions.
+Use the shared `AgentRunReport` version 2 JSON contract in the device-verifier agent instructions.
 Save detailed per-platform evidence locally; the parent receives check outcomes, coverage, provenance
 and cleanup with absolute evidence paths. Prefix check IDs by platform and preserve the complete
 caller-requested check set, including not-evaluated reasons. Validate before returning:

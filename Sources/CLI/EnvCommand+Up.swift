@@ -37,6 +37,14 @@ enum EnvError: Error, CustomStringConvertible {
 
 /// Injectable lifecycle boundaries; init and env share the same runtime orchestration.
 struct EnvUpDependencies {
+    var stop: (DeviceRuntime) async -> Bool = { runtime in
+        guard stopRuntimeCompanion(runtime) else { return false }
+        if runtime.platform == .android {
+            return await forceStopAndroidCompanion(serial: runtime.deviceID)
+        }
+        return true
+    }
+
     var health = DeviceRuntimeHealth()
     var resolve: (EnvUpOptions, DeviceRuntimeStore) async throws -> EnvDeviceReport = { options, store in
         switch options.platform {
@@ -261,7 +269,7 @@ private func startRuntimeCompanion(
 ) async throws -> DeviceRuntime {
     var runtime = runtime
     let reservedPorts = Set(store.all().compactMap(\.port))
-    var chosenPort = options.port
+    var chosenPort = options.port ?? runtime.port
     if chosenPort == nil {
         chosenPort = await pickFreeCompanionPort(reservedPorts: reservedPorts) {
             await isTCPPortReachable(host: "127.0.0.1", port: $0, timeoutSeconds: 0.3)
@@ -437,49 +445,3 @@ func logTail(_ path: String, characters: Int = 2000) -> String {
 }
 
 // MARK: - App
-
-private func prepareEnvApp(_ options: EnvUpOptions, runtime: DeviceRuntime, app: inout EnvAppReport?) async throws {
-    guard options.appPath != nil || options.appID != nil, let port = runtime.port else { return }
-
-    func run(_ tool: String, _ arguments: [String: String]) async throws {
-        let result = await runDeviceCommand(options: DeviceCommandOptions(
-            platform: options.platform,
-            port: port,
-            deviceID: runtime.deviceID,
-            tool: tool,
-            arguments: arguments,
-            runtimeID: runtime.id
-        ))
-        guard result.exitCode == 0 else { throw EnvError.appFailed("\(tool) failed: \(result.output)") }
-    }
-
-    if let path = options.appPath {
-        guard FileManager.default.fileExists(atPath: path) else { throw EnvError.appFailed("No app at \(path).") }
-        try await run("device_install_app", ["path": path])
-        app?.installed = true
-    }
-    if let appID = options.appID {
-        app?.installed = await isAppInstalled(platform: options.platform, deviceID: runtime.deviceID, appID: appID)
-        guard app?.installed == true
-        else { throw EnvError.appFailed("\(appID) is not installed on \(runtime.deviceID).") }
-        if options.launch {
-            try await run("device_launch_app", ["app_id": appID])
-            app?.launched = true
-        }
-    } else {
-        app?.installed = options.appPath != nil
-    }
-}
-
-/// Read-only install check, independent of the companion.
-private func isAppInstalled(platform: Platform, deviceID: String, appID: String) async -> Bool {
-    let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
-    switch platform {
-    case .android:
-        return await (try? Adb(context: context).serial(deviceID).pmPath(package: appID).run()) != nil
-    case .ios:
-        return await (try? Simctl(context: context).getAppContainer(deviceID, bundleIdentifier: appID).run()) != nil
-    case .macos:
-        return SystemMacWorkspace().applicationURL(bundleID: appID) != nil
-    }
-}

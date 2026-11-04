@@ -1,5 +1,6 @@
 import Foundation
 import ProcessRunner
+import SwiftyShell
 import TestCommons
 import XCTest
 
@@ -7,6 +8,19 @@ import XCTest
 /// `SimctlRunner` delegates to MobileDevices' `SimulatorManager`; these cover the argument mapping
 /// and error translation at that boundary (macOS only, `simctl` does not exist elsewhere).
 final class SimctlRunnerDelegationTests: XCTestCase {
+    func testEnvironmentLaunchReplacesRunningAppAndPreservesMultiwordArgument() async throws {
+        let mock = MockExecutor()
+        let runner = SimctlRunner(context: ShellContext(executor: mock))
+        try await runner.launch(
+            device: "SIM", appID: "com.example.app", arguments: ["two words"], environment: ["TEST_MODE": "1"]
+        )
+        let command = try XCTUnwrap(mock.recordedCommands.first)
+        XCTAssertEqual(command.arguments, [
+            "simctl", "launch", "--terminate-running-process", "SIM", "com.example.app", "two words"
+        ])
+        XCTAssertEqual(command.environmentOverrides["SIMCTL_CHILD_TEST_MODE"], "1")
+    }
+
     func testSimctlRunnerRejectsUnknownPermissionAction() async throws {
         let mock = MockShellExecutor(result: .init(exitCode: 0, stdout: "", stderr: ""))
         let runner = SimctlRunner(context: mock.context)

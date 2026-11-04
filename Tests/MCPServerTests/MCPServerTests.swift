@@ -49,7 +49,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertNotNil(tap)
         XCTAssertEqual(tap?.required, ["x", "y"])
         // x, y, unit, and the auto-injected session_id (optional).
-        XCTAssertEqual(tap?.properties.count, 4)
+        XCTAssertEqual(tap?.properties.count, 5)
         XCTAssertNotNil(tap?.properties["session_id"], "session_id should be advertised on driver-routed tools")
         XCTAssertFalse(try XCTUnwrap(tap?.description.isEmpty))
     }

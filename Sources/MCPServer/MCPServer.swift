@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import AuditEngine
 import GRPCService
@@ -33,12 +34,23 @@ public struct MCPServer: Sendable {
 
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
         guard profile.includes(toolName) else {
-            return .error("Tool is not available in this catalog profile.")
+            return ToolExecutionError(
+                code: "tool_profile_unavailable", message: "Tool is not available in this catalog profile.",
+                extra: ["catalog_profile": .string(profile.rawValue)]
+            ).result
         }
         guard let executor else {
             return .error("No tool executor configured. Connect a device driver first.")
         }
-        return await executor.execute(toolName: toolName, arguments: arguments)
+        var result = await executor.execute(toolName: toolName, arguments: arguments)
+        if toolName == "get_capabilities", var fields = result.structuredContent?.objectValue {
+            fields["catalog_profile"] = .string(profile.rawValue)
+            if let tool = arguments["tool"] {
+                fields["available_in_profile"] = .bool(profile.includes(tool))
+            }
+            result.structuredContent = .object(fields)
+        }
+        return result
     }
 
     public func health() -> String {
@@ -61,9 +73,11 @@ public struct MCPServer: Sendable {
         return (driverRouted
             + SessionTools.definitions.map { $0.categorized(.session) }
             + CompanionTools.definitions.map { $0.categorized(.companion) }
-            + WebViewTools.definitions.map { $0.categorized(.webView) }
+            + WebViewTools.definitions.map { $0.categorized(.webView).allowingSessionID() }
             + IntentTools.definitions.map { $0.categorized(.intent).allowingSessionID() }
-            + BatchTools.definitions.map { $0.categorized(.batch) })
+            + BatchTools.definitions.map { $0.categorized(.batch) }
+            + CapabilityDiscovery.definitions.map { $0.categorized(.query) }
+            + VerificationTools.definitions.map { $0.categorized(.session) })
             .map(ToolContracts.enrich)
             .map(ToolCatalogMetadata.apply)
             .filter { profile.includes($0.name) }
@@ -137,3 +151,5 @@ extension ToolDefinition {
         return copy
     }
 }
+
+// swiftlint:enable multiline_arguments

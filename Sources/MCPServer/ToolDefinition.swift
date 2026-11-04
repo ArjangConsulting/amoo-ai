@@ -87,7 +87,8 @@ public struct ToolDefinition: Sendable {
         )
     }
 
-    private func inputSchemaValue() -> Value {
+    /// The argument schema shared by MCP and installed-binary discovery.
+    public func inputSchemaValue() -> Value {
         guard !properties.isEmpty else {
             return .object([
                 "type": .string("object"),

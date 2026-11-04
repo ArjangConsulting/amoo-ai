@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 // The dispatcher is intentionally exhaustive so the public tool catalog has one routing point.
 // swiftlint:disable file_length
 import AmooCore
@@ -12,6 +13,12 @@ extension DriverToolExecutor {
         let driver = try await Self.controlPlaneTools.contains(toolName)
             ? defaultDriver : resolveDriver(arguments: arguments)
         switch toolName {
+        case "get_capabilities":
+            return try await executeCapabilities(arguments: arguments)
+
+        case "get_verification_report":
+            return try await executeVerificationReport(arguments: arguments)
+
         case "device_health":
             return try await executeDeviceHealth(driver: driver, arguments: arguments)
 
@@ -96,12 +103,16 @@ extension DriverToolExecutor {
                 deviceID: try? driver.deviceInfo().id
             )
             try await driver.installApp(path: path)
-            guard let contention else {
-                return .success("App installed from \(path)")
+            var fields: [String: Value] = [
+                "installation": .string("installed"), "path": .string(path),
+                "launch": .string("not_requested"), "data_policy": .string("preserved")
+            ]
+            if let contention {
+                fields["warnings"] = .array([.string(contention)])
             }
             return .success(
-                "App installed from \(path)\n⚠️ \(contention)",
-                structuredContent: .object(["warnings": .array([.string(contention)])])
+                "App installed from \(path)" + (contention.map { "\n⚠️ \($0)" } ?? ""),
+                structuredContent: .object(fields)
             )
 
         case "device_launch_app":
@@ -111,17 +122,22 @@ extension DriverToolExecutor {
             let launchArgs: [String] = arguments["launch_args"]
                 .map { $0.split(separator: ",").map(String.init) } ?? []
             let env = Self.parseEnvironment(arguments["environment"])
-            try await driver.launchApp(appID: appID, arguments: launchArgs, environment: env)
+            let receipt = try await driver.launchAppWithReceipt(appID: appID, arguments: launchArgs, environment: env)
             // Bind the launched app as the companion's target before verifying. With no target
             // bound, the iOS companion reports `com.apple.springboard` as frontmost even while the
             // launched app is on screen, so `verifyLaunch` reported healthy launches as failures.
             // Best effort: a driver without target binding falls back to frontmost detection.
             try? await driver.setTargetApp(bundleID: appID)
-            return await verifyLaunch(
+            var result = await verifyLaunch(
                 appID: appID,
                 driver: driver,
                 timeoutMS: arguments["timeout_ms"].flatMap(Int.init) ?? 5000
             )
+            var fields = result.structuredContent?.objectValue ?? [:]
+            fields["launch"] = try Value(receipt)
+            fields["target_app_id"] = .string(appID)
+            result.structuredContent = .object(fields)
+            return result
 
         case "device_terminate_app":
             guard let appID = arguments["app_id"] else {
@@ -317,10 +333,17 @@ extension DriverToolExecutor {
             }
             let appID = queryScopeAppID(arguments: arguments, driver: driver)
             let pick = try ElementPick.parse(arguments)
-            guard let matched = try await resolveElement(
-                selector: selector, driver: driver, appID: appID, pick: pick
-            ) else {
-                return .error("tap_element failed: no element matched the selector")
+            let deadline = ContinuousClock.now + .milliseconds(max(
+                1,
+                arguments["timeout_ms"].flatMap(Int.init) ?? 5000
+            ))
+            guard let matched = try await OperationDeadline.read(until: deadline, operation: {
+                try await self.resolveElement(selector: selector, driver: driver, appID: appID, pick: pick)
+            }) else {
+                throw ToolExecutionError(
+                    code: "element_not_found", message: "tap_element failed: no element matched the selector",
+                    extra: ["dispatch_status": .string("not_dispatched"), "failure_kind": .string("selector_miss")]
+                )
             }
             guard matched.isVisible, matched.isEnabled else {
                 return .error("tap_element failed: matched element is not visible and enabled")
@@ -394,6 +417,8 @@ extension DriverToolExecutor {
                 context.summary,
                 structuredContent: .object([
                     "screen_summary": .string(context.summary),
+                    "element_count": .int(observation.elements.count),
+                    "semantic_readiness": .string(observation.hierarchy.children.isEmpty ? "empty" : "queryable"),
                     "screen_token": .string(observation.token)
                 ])
             )
@@ -670,3 +695,5 @@ extension DriverToolExecutor {
 
     // swiftlint:enable cyclomatic_complexity function_body_length
 }
+
+// swiftlint:enable multiline_arguments

@@ -19,6 +19,17 @@ struct EnvAppReport: Codable, Equatable {
     var sha256: String?
     var installed: Bool
     var launched: Bool
+    var launch: AppLaunchReceipt?
+    var foregroundVerified: Bool?
+    var semanticReadiness: String?
+    var renderReadiness: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, path, sha256, installed, launched, launch
+        case foregroundVerified = "foreground_verified"
+        case semanticReadiness = "semantic_readiness"
+        case renderReadiness = "render_readiness"
+    }
 }
 
 struct EnvUpReport: Codable {
@@ -34,9 +45,12 @@ struct EnvUpReport: Codable {
     var amooCommit = AmooBuildInfo.current.sourceCommit
     var error: String?
     var state: DeviceRuntimeState?
+    var recovered: Bool?
+    var recoveryMilliseconds: Int?
 
     enum CodingKeys: String, CodingKey {
-        case ok, state, platform, device, port, app, log, error
+        case ok, state, platform, device, port, app, log, error, recovered
+        case recoveryMilliseconds = "recovery_ms"
         case runtimeID = "runtime_id"
         case companionPID = "companion_pid"
         case amooVersion = "amoo_version"

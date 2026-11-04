@@ -60,7 +60,7 @@ public actor DriverToolExecutor: ToolExecutor {
         self.webInspector = webInspector
     }
 
-    public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+    func executeUnmeasured(toolName: String, arguments: [String: String]) async -> ToolResult {
         if toolName == "end_session", boolArgument(arguments["force"]) == true {
             do { _ = try ToolRequest(name: toolName, arguments: arguments) } catch {
                 return await executeOrdered(toolName: toolName, arguments: arguments)
@@ -104,6 +104,7 @@ public actor DriverToolExecutor: ToolExecutor {
         do {
             try Task.checkCancellation()
             _ = try ToolRequest(name: toolName, arguments: arguments)
+            try await validateCheck(arguments: arguments)
             let callArguments: [String: String]
             (callArguments, credentialClass) = try await preparedArguments(toolName: toolName, arguments: arguments)
             (executionTool, executionArguments) = try await canonicalGesture(tool: toolName, arguments: callArguments)
@@ -131,10 +132,13 @@ public actor DriverToolExecutor: ToolExecutor {
             )
         }
         result = await diagnoseConnectivityFailure(result, arguments: executionArguments)
+        result = await diagnoseSelectorMiss(result, tool: executionTool, arguments: executionArguments)
         if !credentialRedactor.isEmpty {
             result = result.redacted(using: credentialRedactor)
         }
+        result = compactResult(result, tool: toolName, arguments: arguments)
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
+        await measureOperation(tool: toolName, arguments: arguments, result: result, started: start)
         let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
         PerformanceTelemetry.record(
             category,
@@ -177,7 +181,8 @@ public actor DriverToolExecutor: ToolExecutor {
     static let controlPlaneTools: Set<String> = [
         "start_session", "start_test_session", "end_session", "end_test_session",
         "list_sessions", "get_session_report", "compile_session_to_plan",
-        "companion_warm", "companion_status", "session_startup_status", "reset_companion"
+        "companion_warm", "companion_status", "session_startup_status", "reset_companion",
+        "get_capabilities", "get_verification_report"
     ]
 
     private func recordIfNeeded(
@@ -206,6 +211,7 @@ public actor DriverToolExecutor: ToolExecutor {
             diagnosticEvidence: diagnosticEvidence(toolName: toolName, arguments: arguments, result: result)
         )
         await session.record(action)
+        await trackVerification(tool: toolName, arguments: arguments, result: result)
         // Persist so a mid-session crash or a server restart still leaves a compilable history
         // behind. The manager batches the actual writes — see `SessionManager.persist`.
         await manager.persist(sessionID)
