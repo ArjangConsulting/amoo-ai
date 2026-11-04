@@ -176,10 +176,16 @@ app, use the CLI path.
    absence — use `assert_absent`.
 5. Evidence: prefer `get_screen_context` and scoped selectors. Save screenshots with `output` and
    `return_image=false`; for transient UI, batch the action and immediate screenshot
-   (`settle_timeout_ms=0`) in `run_steps`.    Analyze saved pixels with local tools such as Python/ffmpeg (diffs, bounds, centroids); only view
+   (`settle_timeout_ms=0`) in `run_steps`. Set `check_effect=false` on the triggering `tap_element`;
+   for tighter timing, use a coordinate `tap` from fresh geometry to also avoid foreground-app
+   observation. Capture before asserting the eventual outcome; use a cold fixture for loading UI.
+   Batching removes client round trips, not all device latency. Analyze saved pixels with local
+   tools such as Python/ffmpeg (diffs, bounds, centroids); only view
    a small crop when visual interpretation is needed. Verify taps with semantic postconditions, not
    screenshots. Keep focused inspections to 20 actions where the task allows; recorded `flow.json`
    files can be replayed with `amoo flow`.
+   Oversized accessibility frames can cause false occlusion refusals. Confirm the blocker is false,
+   retry with `check_hittable=false`, assert the outcome, and report the frame defect.
 6. WebViews: `webview_dom` / `webview_eval` (debug builds with inspection enabled).
 7. Audits: `audit_accessibility`, `audit_security`, `audit_app`, `highlight_a11y_issues`.
    For accessibility review, load only `ios-accessibility` or `android-accessibility` for the

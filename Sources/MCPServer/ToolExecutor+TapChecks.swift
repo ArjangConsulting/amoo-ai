@@ -56,7 +56,7 @@ enum TapHittability {
             return .clipped(by: describe(container))
         }
         var order: [(node: ViewNode, insideTarget: Bool)] = []
-        collect(root, target: target, insideTarget: false, into: &order)
+        collect(root, target: target, at: point, insideTarget: false, into: &order)
         guard let targetIndex = order.firstIndex(where: { isTarget($0.node, target) }) else { return nil }
         for entry in order[(targetIndex + 1)...].reversed()
             where !entry.insideTarget && entry.node.isVisible && entry.node.type.map(covering.contains) == true {
@@ -94,13 +94,18 @@ enum TapHittability {
     private static func collect(
         _ node: ViewNode,
         target: ElementInfo,
+        at point: Point,
         insideTarget: Bool,
         into order: inout [(node: ViewNode, insideTarget: Bool)]
     ) {
+        if let type = node.type, clipping.contains(type),
+           let frame = node.frame, !contains(frame, point) {
+            return
+        }
         order.append((node, insideTarget))
         let nowInside = insideTarget || isTarget(node, target)
         for child in node.children {
-            collect(child, target: target, insideTarget: nowInside, into: &order)
+            collect(child, target: target, at: point, insideTarget: nowInside, into: &order)
         }
     }
 

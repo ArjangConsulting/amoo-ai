@@ -5,7 +5,10 @@ public enum BatchTools {
         description: "Run 1–20 known actions, assertions, or screenshot observations in one managed session."
             + " Stops on first failure and returns compact step summaries. For transient UI, put"
             + " take_screenshot immediately after the action with output, return_image=false, and"
-            + " settle_timeout_ms=0. No nested batches or lifecycle calls. No rollback.",
+            + " settle_timeout_ms=0. Set check_effect=false on a triggering tap_element to skip post-tap"
+            + " hierarchy reads; a coordinate tap from fresh geometry also avoids foreground-app observation."
+            + " Capture before asserting the eventual outcome. Device latency still applies."
+            + " No nested batches or lifecycle calls. No rollback.",
         properties: [
             "session_id": .init(type: "string", description: "Active managed session"),
             "continue_on_error": .init(
