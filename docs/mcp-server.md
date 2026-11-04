@@ -306,6 +306,11 @@ off, or whose tap point is off-screen. The check is on by default but best effor
 and after the tap — within `effect_timeout_ms` (1500), `check_effect=false` to skip — so a tap that
 left the semantic snapshot unchanged reports `semantic_change=false` and `observable_change=false`.
 Pixel changes and app postconditions remain unverified; unchanged semantics do not prove identical screenshots.
+Occlusion is inferred from accessibility frames and traversal order, not a native hit test. An
+oversized frame can cause a false refusal even when the target receives real taps. Confirm that
+the reported blocker is false before retrying with `check_hittable=false`, assert the intended
+outcome, and report the frame defect for investigation in the app. A successful override alone
+does not establish which layer supplied the incorrect geometry.
 `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
 names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen, and exports
 (a swipe-until-hittable loop in XCUITest, `scrollTo()` in Espresso, `performScrollTo()` in Compose);
@@ -472,8 +477,19 @@ explicit truncation marker. Truncated output cannot establish absence. Prefer `g
 and scoped queries over screenshots. Save screenshot evidence without inline image tokens by passing
 `output` and `return_image=false`; use available local tools such as Python/ffmpeg for pixel diffs,
 bounds or centroids, and view only a small crop when visual interpretation is necessary. For a transient state, batch the action and an immediate
-`take_screenshot` with `settle_timeout_ms=0` in one `run_steps` call. Reusable deterministic action
-sequences can use `amoo flow` to avoid a model round trip per action.
+`take_screenshot` with `settle_timeout_ms=0` in one `run_steps` call. Set `check_effect=false` on
+a triggering `tap_element` to skip its post-tap hierarchy reads. For tighter timing, use a
+coordinate `tap` from freshly queried geometry to avoid its foreground-app observation too.
+Capture before asserting the eventual outcome, and use a cold fixture when cached data would
+skip loading. Batching removes client round trips; device and recording latency still apply,
+so it does not guarantee capture within a subsecond window. Reusable deterministic action
+sequences can use `amoo flow` to avoid a model round trip per action. Keep focused inspections
+within 20 actions where practical without dropping required checks.
+
+`end_session` returns `flow_path` and `plan_path` when artifact compilation succeeds. Inspect
+the plan warnings before replay: screenshots may be omitted and coordinate actions may not
+translate into generated tests. These warnings can be expected for an inspection-only session;
+they are distinct from `recording_health`, which reports whether the recording was saved.
 
 Requests execute independently across devices and serialize per device within one server process.
 Cancellation notifications propagate to outstanding request tasks. RPC deadlines and bounded input

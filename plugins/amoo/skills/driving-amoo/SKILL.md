@@ -97,8 +97,10 @@ mandatory when you already have a reliable selector. Mutations require one match
 when repeated controls share labels, and `index=<n>` or `first=true` when matches are exact
 duplicates (iPadOS tab bars list each tab twice). `find_elements` hides scroll bars and
 decorative text unless `include_noise=true`. `tap_element` refuses a target a keyboard or sheet
-covers, or one off-screen (`check_hittable`), and says when the foreground app changed after the
-tap, or that it changed nothing (`No observable change`). Pass `port` to
+covers, or one off-screen (`check_hittable`). This hierarchy-based heuristic can misread oversized
+accessibility frames as occlusion. After confirming a false blocker, retry with check_hittable=false
+and verify the intended outcome; keep the frame defect in the report. A semantic_change result
+compares accessibility snapshots; it does not prove a business outcome or identical pixels. Pass `port` to
 `start_session` when sessions run on several simulators at once.
 
 Queries return bounded pages. Follow next_offset with the same selector when has_more is true.
@@ -109,6 +111,11 @@ Quality and latency come first; keep semantic postconditions when reducing model
 get_screen_context and scoped find_elements to full trees or screenshots, and use semantic
 postconditions rather than a screenshot after a tap. For transient UI, put the action and an immediate
 take_screenshot in one run_steps call with output, return_image=false, and settle_timeout_ms=0.
+Use check_effect=false on a triggering tap_element so its post-tap hierarchy reads do not consume
+the capture window. For tighter timing, use a coordinate tap from freshly queried geometry to avoid
+tap_element's foreground-app observation too. Capture first, then assert the eventual outcome;
+batching removes client round trips but cannot guarantee a subsecond capture. Use a cold fixture
+when cached data would skip the loading state.
 Save screenshots without inline images; analyze pixels locally with available Python/ffmpeg tools
 (diffs, bounds, centroids), and view only a small crop when visual interpretation is necessary. Keep focused
 inspections to 20 actions where the task allows, and reuse a recorded flow.json via amoo flow rather
