@@ -1,6 +1,7 @@
 import AmooCore
 import Foundation
 import MCP
+import MCPServer
 import MobileDevices
 
 /// Checks that answer without a companion: argument names, `device_boot device_hint=…`, and runtimes.
@@ -9,8 +10,10 @@ func devicePreflight(
     _ options: DeviceCommandOptions,
     discoverDevices: (Platform?, Bool) async throws -> [DeviceInfo] = discoverCommandDevices
 ) async -> CLIResult? {
-    if let message = unknownArgumentMessage(tool: options.tool, arguments: options.arguments) {
-        return CLIResult(output: message, exitCode: 1)
+    if let invalid = MCPServer.validateArguments(tool: options.tool, arguments: options.arguments) {
+        return deviceCommandResult(
+            options: options, content: invalid.content, isError: true, structured: invalid.structuredContent
+        )
     }
     if options.tool == "list_devices" {
         return await runDeviceDiscovery(options: options, discover: discoverDevices)

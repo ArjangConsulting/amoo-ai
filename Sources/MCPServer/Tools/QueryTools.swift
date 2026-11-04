@@ -69,7 +69,16 @@ public enum QueryTools {
         ),
         ToolDefinition(
             name: "get_screen_context",
-            description: "Get an AI-optimized summary of the current screen state"
+            description: "Get a compact semantic summary and screen token; empty trees include recovery diagnostics.",
+            outputSchema: ToolOutputSchema(
+                properties: [
+                    "screen_summary": .init(type: "string", description: "Semantic screen summary"),
+                    "screen_token": .init(type: "string", description: "Semantic snapshot identity"),
+                    "element_count": .init(type: "integer", description: "Nodes including the root"),
+                    "semantic_readiness": .init(type: "string", description: "empty or queryable")
+                ],
+                required: ["screen_summary", "screen_token", "element_count", "semantic_readiness"]
+            )
         ),
         ToolDefinition(
             name: "take_screenshot",

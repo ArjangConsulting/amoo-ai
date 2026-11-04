@@ -214,7 +214,8 @@ extension DriverToolExecutor {
 
         var fields: [String: Value] = [
             "byte_count": .int(data.count),
-            "format": .string(actualFormat.rawValue)
+            "format": .string(actualFormat.rawValue),
+            "scaling_status": .string(ScreenshotScaler.scalingStatus(requested: scale, scaled: scaledData))
         ]
         if data.count != originalData.count {
             fields["original_byte_count"] = .int(originalData.count)
@@ -265,6 +266,7 @@ extension DriverToolExecutor {
         }
 
         var savedNote = ""
+        fields.merge(Self.screenshotDimensionFields(data), uniquingKeysWith: { _, actual in actual })
         if let output = arguments["output"], !output.isEmpty {
             let url = URL(fileURLWithPath: (output as NSString).expandingTildeInPath)
             do {

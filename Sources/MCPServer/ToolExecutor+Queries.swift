@@ -96,11 +96,12 @@ extension DriverToolExecutor {
             parentSelector: arguments["parent_id"].map { .selector(ElementSelector(id: $0)) },
             labeledOnly: boolArgument(arguments["labeled_only"]) ?? false
         )
-        var elements = try await findScopedElements(
-            selector,
-            driver: driver,
-            appID: queryScopeAppID(arguments: arguments, driver: driver)
-        )
+        let deadline = ContinuousClock.now + .milliseconds(max(1, arguments["timeout_ms"].flatMap(Int.init) ?? 5000))
+        var elements = try await OperationDeadline.read(until: deadline) {
+            try await self.findScopedElements(
+                selector, driver: driver, appID: self.queryScopeAppID(arguments: arguments, driver: driver)
+            )
+        }
         elements = try validateGeometry(elements)
         // `index` / `first` narrow the matches to the one a later tap or assertion would pick. That
         // index counts the device's own order, so noise is never filtered out from under it.

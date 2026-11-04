@@ -42,7 +42,7 @@ enum ToolCatalogMetadata {
         .init(tools: nil, property: "scope", values: ["app", "system"], exhaustive: true),
         .init(tools: nil, property: "platform", values: ["ios", "android", "macos"], exhaustive: true),
         .init(tools: ["get_view_hierarchy"], property: "format", values: ["full", "summary"], exhaustive: true),
-        .init(tools: ["take_screenshot"], property: "format", values: ["png", "jpeg"], exhaustive: true),
+        .init(tools: ["take_screenshot"], property: "format", values: ["png", "jpeg", "jpg"], exhaustive: true),
         .init(tools: ["start_session"], property: "build_mode", values: ["auto", "reuse", "rebuild"], exhaustive: true),
         .init(tools: ["set_appearance"], property: "appearance", values: ["light", "dark"], exhaustive: true),
         .init(
@@ -92,7 +92,7 @@ enum ToolCatalogMetadata {
         "audit_app",
         "audit_accessibility", "audit_security", "audit_accessibility_native", "list_devices",
         "list_apps", "companion_status", "session_startup_status", "list_sessions",
-        "get_session_report", "compile_session_to_plan", "webview_dom"
+        "get_session_report", "compile_session_to_plan", "webview_dom", "get_capabilities", "get_verification_report"
     ]
 
     /// Tools that can destroy app or device state a user cannot get back by retrying.

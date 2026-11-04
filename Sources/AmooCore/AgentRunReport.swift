@@ -41,7 +41,7 @@ public struct AgentRunReport: Codable, Sendable {
         if UUID(uuidString: runID) == nil || expectedRunID.map({ $0 != runID }) == true {
             errors.append("runID must be a UUID matching the caller's run")
         }
-        if !["pass", "fail", "blocked", "done"].contains(status) {
+        if !["pass", "fail", "partial", "blocked", "done"].contains(status) {
             errors.append("Invalid status")
         }
         if !["succeeded", "failed", "blocked"].contains(execution) {
@@ -119,15 +119,40 @@ public struct AgentRunReport: Codable, Sendable {
         if status == "done", execution != "succeeded" || verdict != "notAssessed" {
             errors.append("Done requires successful observation with verdict notAssessed")
         }
+        if status == "done", !coverage.requested.isEmpty {
+            errors.append("Done is reserved for observations without required verification checks")
+        }
         if status == "fail", verdict != "fail" {
             errors.append("Fail status requires verdict fail")
         }
         if status == "blocked", !["notAssessed", "fail"].contains(verdict) {
             errors.append("Blocked status cannot carry a pass verdict")
         }
+        if status != "done", status != verificationStatus {
+            errors.append("Overall status must be \(verificationStatus) for the reported required coverage")
+        }
+        if status == "partial", verdict != "notAssessed" {
+            errors.append("Partial coverage requires verdict notAssessed")
+        }
         return errors
     }
     // swiftlint:enable function_body_length cyclomatic_complexity
+}
+
+public extension AgentRunReport {
+    /// Derived independently of the agent's submitted overall status.
+    var verificationStatus: String {
+        if assertions.contains(where: { $0.outcome == "fail" }) {
+            return "fail"
+        }
+        if !coverage.requested.isEmpty, Set(coverage.requested) == Set(coverage.evaluated),
+           coverage.notEvaluated.isEmpty, !coverage.truncated,
+           Set(assertions.map(\.check)) == Set(coverage.requested),
+           assertions.allSatisfy({ $0.outcome == "pass" }) {
+            return "pass"
+        }
+        return assertions.isEmpty ? "blocked" : "partial"
+    }
 }
 
 private extension AgentRunReport {

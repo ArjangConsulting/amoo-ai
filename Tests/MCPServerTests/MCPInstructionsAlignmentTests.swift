@@ -13,6 +13,8 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
             "get_screen_context",
             "take_screenshot",
             "run_steps",
+            "get_capabilities",
+            "get_verification_report",
             "assert_absent",
             "assert_visible",
             "swipe_in_direction",
@@ -52,7 +54,7 @@ final class MCPInstructionsAlignmentTests: XCTestCase {
         for guidance in ["return_image=false", "settle_timeout_ms=0", "analyze pixels locally"] {
             XCTAssertTrue(text.contains(guidance), guidance)
         }
-        for reference in ["coordinates.md", "recording.md", "credentials.md"] {
+        for reference in ["coordinates.md", "recording.md", "credentials.md", "verification.md"] {
             XCTAssertTrue(text.contains("references/\(reference)"))
             XCTAssertTrue(FileManager.default.fileExists(atPath: skill.deletingLastPathComponent()
                     .appendingPathComponent("references/\(reference)").path))

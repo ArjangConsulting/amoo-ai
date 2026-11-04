@@ -1,5 +1,8 @@
 # MCP For Local AI
 
+Machine-readable discovery, startup receipts, required coverage and measured compact execution are
+documented in [AI-driven verification](verification.md).
+
 Amoo exposes AI-facing automation through MCP, implemented in Swift over the standard `stdio` transport.
 The CLI does not configure or run an AI provider; local AI clients provide the reasoning and call Amoo tools.
 

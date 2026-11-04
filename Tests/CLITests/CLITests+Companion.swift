@@ -76,7 +76,8 @@ extension CLITests {
             return XCTFail("Expected parser failure")
         }
 
-        XCTAssertEqual(error.description, "Malformed argument 'oops'. Expected key=value format.")
+        XCTAssertTrue(error.description.contains("Malformed argument 'oops'"))
+        XCTAssertTrue(error.description.contains("--arguments-json"))
     }
 
     func testDeviceCommandRejectsInvalidPort() {

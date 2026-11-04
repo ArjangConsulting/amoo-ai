@@ -16,6 +16,14 @@ Mixed profiles use separate targetPlatform blocks for Swift and Kotlin/Java. Exp
 .amoo.json is private CLI runtime state: release before MCP, never commit it or automatically install remembered artifacts.
 In an orchestrator, every amoo.md up to the repo root applies (nearer wins) and a platform block's `repo` names that platform's repository; its `.amoo.json` lives there and `amoo init down` finds it without --manifest.
 
+## Discover once, verify complete coverage
+
+Cache `get_capabilities` or `amoo capabilities --command device --platform <platform>` per binary/runtime.
+Prefer typed MCP or CLI `--arguments-json @arguments.json`; preserve `--runtime-id` during recovery.
+Read [verification contracts](references/verification.md) for startup receipts, selector recovery,
+required check IDs, derived pass/fail/partial/blocked results, compact queries/batches and measured costs.
+Unsupported state and gesture dispatch cannot prove a check. Inspect saved screenshots for layout checks.
+
 ## Start
 
 Set up the amoo subagents and skills for an AI client with `amoo agent install` (guided in a terminal:

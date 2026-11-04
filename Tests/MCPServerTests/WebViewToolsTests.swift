@@ -69,7 +69,8 @@ final class WebViewToolsTests: XCTestCase {
                     closeTracker: tracker
                 )
                 let server = MCPServer(executor: DriverToolExecutor(driver: MockDriver(), webInspector: inspector))
-                let result = await server.execute(toolName: tool, arguments: ["expression": "1+1"])
+                let arguments = tool == "webview_eval" ? ["expression": "1+1"] : ["mode": "html"]
+                let result = await server.execute(toolName: tool, arguments: arguments)
                 XCTAssertEqual(result.isError, fails, tool)
                 let closeCount = await tracker.count
                 XCTAssertEqual(closeCount, 1, tool)

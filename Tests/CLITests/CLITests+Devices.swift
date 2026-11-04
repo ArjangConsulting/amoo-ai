@@ -204,7 +204,8 @@ extension CLITests {
             catalog.argumentCandidates(for: "tap_element"),
             [
                 "bundle_id=", "check_effect=", "check_hittable=", "contains_text=", "effect_timeout_ms=", "first=",
-                "hittable_timeout_ms=", "id=", "index=", "label=", "parent_id=", "scope=", "session_id="
+                "hittable_timeout_ms=", "id=", "index=", "label=", "parent_id=", "response_mode=", "scope=",
+                "session_id=", "timeout_ms="
             ]
         )
     }

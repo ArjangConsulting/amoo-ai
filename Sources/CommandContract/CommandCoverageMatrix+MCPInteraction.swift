@@ -7,6 +7,16 @@ public extension CommandCoverageMatrix {
     /// under the length limit.
     static let mcpInteractionCommands: [CommandCoverage] = [
         .init(
+            name: "get_capabilities", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .environment,
+            expectedAssertion: "installed schemas, binary identity and provider assertion support are queryable"
+        ),
+        .init(
+            name: "get_verification_report", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .home,
+            expectedAssertion: "every required check retains outcome, reason and evidence; status is derived"
+        ),
+        .init(
             name: "drag",
             channel: .mcp,
             kind: .deterministic,

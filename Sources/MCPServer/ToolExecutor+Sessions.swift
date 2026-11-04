@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import AuditEngine
 import Foundation
@@ -68,6 +69,10 @@ extension DriverToolExecutor {
             return .error("Invalid context: \(error)")
         }
         let launch = Self.launchConfiguration(arguments: arguments, contextJSON: contextJSON)
+        let checks: [String]?
+        do { checks = try Self.requestedChecks(arguments["checks"]) } catch {
+            return (error as? ToolExecutionError)?.result ?? .error(String(describing: error))
+        }
         let launchArgs = launch.arguments
         let environment = launch.environment
         await StartupProgress.report("Preparing session startup")
@@ -84,6 +89,9 @@ extension DriverToolExecutor {
                 testName: testName,
                 port: port
             )
+            if let checks {
+                await session.configureVerification(checks: checks)
+            }
             // Persist the codegen intent (descriptive name/description + app-owned test-context
             // reference) so `end_session`'s auto-compile reproduces the plan an explicit
             // `compile_session_to_plan` would — without recording a control-plane call as a step.
@@ -111,6 +119,13 @@ extension DriverToolExecutor {
             ]
             summary["recording_health"] = await .string(manager.recordingHealth(for: session.id))
             summary["launch_config_source"] = .string(launch.source)
+            summary["startup"] = try session.startup.map(Value.init) ?? .object([
+                "installation": .string("unknown"), "launch": .object([
+                    "environment_delivery": .string("unknown"), "fresh_process": .null,
+                    "app_id": .string(appID), "environment_keys": .array(environment.keys.sorted().map(Value.string))
+                ]),
+                "semantic_readiness": .string("unverified"), "render_readiness": .string("unverified")
+            ])
             var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
                 + " device \(session.deviceID)."
             if let contentionWarning {
@@ -120,7 +135,15 @@ extension DriverToolExecutor {
             return .success(text, structuredContent: .object(summary))
         } catch {
             await StartupProgress.report("Session startup failed: \(error)")
-            return .error("start_session failed: \(error)")
+            return ToolResult(
+                content: "start_session failed: \(error)", isError: true,
+                structuredContent: .object([
+                    "code": .string("startup_failed"), "app_id": .string(appID),
+                    "startup_stage": .string((error as? any SessionStartupFailure)?.startupStage ?? "unknown"),
+                    "environment_delivery": .string("unverified"), "semantic_readiness": .string("unverified"),
+                    "render_readiness": .string("unverified")
+                ])
+            )
         }
     }
 
@@ -162,6 +185,10 @@ extension DriverToolExecutor {
         let report = await manager.report(for: sessionID)
         let actionCount = report?.actionCount ?? 0
         summary["action_count"] = .int(actionCount)
+        if let coverage = report?.verification {
+            summary["verification_status"] = .string(coverage.status)
+            summary["verification"] = try Value(coverage)
+        }
 
         var artifactNote = await writeSessionArtifacts(
             sessionID: sessionID, report: report, manager: manager, summary: &summary
@@ -456,3 +483,5 @@ extension DriverToolExecutor {
 
     // MARK: - Intent tools
 }
+
+// swiftlint:enable multiline_arguments

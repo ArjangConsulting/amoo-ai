@@ -1,6 +1,11 @@
 import AmooCore
 import Foundation
 
+/// Startup errors retain their failed stage across the CLI/bootstrapper boundary.
+public protocol SessionStartupFailure: Error {
+    var startupStage: String { get }
+}
+
 /// Produces fully configured drivers for new sessions. Implemented in the CLI
 /// layer so the MCP server stays decoupled from the build toolchain.
 public protocol SessionBootstrapper: Sendable {
@@ -113,6 +118,7 @@ public struct BootstrapResult: Sendable {
     public let deviceID: String
     public let platform: Platform
     public let appArtifactSHA256: String?
+    public let startup: AppStartupState?
     /// Releases per-session resources (e.g. the gRPC client connection).
     /// Does NOT tear down the companion process itself — that stays alive for reuse.
     public let cleanup: @Sendable () async -> Void
@@ -122,12 +128,14 @@ public struct BootstrapResult: Sendable {
         deviceID: String,
         platform: Platform,
         appArtifactSHA256: String? = nil,
+        startup: AppStartupState? = nil,
         cleanup: @escaping @Sendable () async -> Void
     ) {
         self.driver = driver
         self.deviceID = deviceID
         self.platform = platform
         self.appArtifactSHA256 = appArtifactSHA256
+        self.startup = startup
         self.cleanup = cleanup
     }
 }

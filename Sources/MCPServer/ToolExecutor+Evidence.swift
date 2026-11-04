@@ -10,7 +10,8 @@ extension DriverToolExecutor {
         arguments: [String: String],
         result: ToolResult
     ) -> DiagnosticEvidence? {
-        guard DiagnosticEvidence.structuredToolNames.contains(toolName) else { return nil }
+        guard DiagnosticEvidence.structuredToolNames.contains(toolName) || arguments["check_id"] != nil
+        else { return nil }
         let structured = result.structuredContent ?? .object([
             "executionStatus": .string(result.isError ? "failed" : "unknown"),
             "verdict": .string("notAssessed"), "error": .string(result.content)

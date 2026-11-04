@@ -327,6 +327,7 @@ extension DriverToolExecutor {
         driver: any PlatformDriver
     ) async -> ToolResult {
         let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
+        var observed = false
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
@@ -335,6 +336,7 @@ extension DriverToolExecutor {
                 until: deadline,
                 operation: { try await driver.observeScreen() }
             ) {
+                observed = true
                 let context = observation.context
                 let current = observation.token
                 if current != baseline {
@@ -353,7 +355,10 @@ extension DriverToolExecutor {
         return ToolResult(
             content: "assert_screen_changed failed after \(timeoutMS)ms.",
             isError: true,
-            structuredContent: .object(["passed": .bool(false), "screen_token": .string(baseline)])
+            structuredContent: .object([
+                "passed": .bool(false), "screen_token": .string(baseline),
+                "failure_kind": .string(observed ? "assertion_mismatch" : "observation_failed")
+            ])
         )
     }
 
@@ -443,6 +448,7 @@ extension DriverToolExecutor {
             isError: true,
             structuredContent: .object([
                 "passed": .bool(false),
+                "failure_kind": .string("assertion_mismatch"),
                 "query": .string(description),
                 "query_lowercased": .string(lowered),
                 "screen_summary": .string(lastScreenSummary)

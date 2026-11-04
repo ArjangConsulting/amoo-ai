@@ -5,6 +5,26 @@ import TestSession
 import XCTest
 
 final class BatchExecutionTests: XCTestCase {
+    func testInvalidLaterArgumentRejectsWholeBatchBeforeMutation() async throws {
+        let bootstrapper = MockSessionBootstrapper()
+        let manager = SessionManager(bootstrapper: bootstrapper)
+        let session = try await manager.startSession(appID: "app", platform: .ios)
+        let executor = DriverToolExecutor(driver: MockDriver(), sessionManager: manager)
+        let result = await executor.execute(toolName: "run_steps", arguments: [
+            "session_id": session.id, "steps": """
+            [{"tool":"tap","arguments":{"x":1,"y":2}},
+             {"tool":"tap","arguments":{"x":"invalid","y":2}}]
+            """
+        ])
+        XCTAssertTrue(result.isError)
+        XCTAssertEqual(result.structuredContent?.objectValue?["argument"], .string("x"))
+        let report = await manager.report(for: session.id)
+        XCTAssertEqual(report?.actionCount, 0)
+        let driver = await bootstrapper.lastDriver
+        let calls = await driver?.calls
+        XCTAssertEqual(calls, [])
+    }
+
     func testBatchStopsAtFailureAndRecordsEachAttemptOnce() async throws {
         let bootstrapper = MockSessionBootstrapper()
         let manager = SessionManager(bootstrapper: bootstrapper)
@@ -14,13 +34,13 @@ final class BatchExecutionTests: XCTestCase {
             "session_id": session.id,
             "steps": """
             [{"tool":"tap","arguments":{"x":1,"y":2}},
-             {"tool":"tap","arguments":{}},
+             {"tool":"assert_value","arguments":{"id":"content","expected":"Ready","timeout_ms":1}},
              {"tool":"press_back","arguments":{}}]
             """
         ])
         XCTAssertTrue(result.isError)
         let report = await manager.report(for: session.id)
-        XCTAssertEqual(report?.actions.map(\.toolName), ["tap", "tap"])
+        XCTAssertEqual(report?.actions.map(\.toolName), ["tap", "assert_value"])
         XCTAssertEqual(report?.errorCount, 1)
         let driver = await bootstrapper.lastDriver
         let calls = await driver?.calls

@@ -29,24 +29,6 @@ public struct CLIApp {
         AmooVersion.current
     }
 
-    /// `amoo version`: the source version, commit, and build time identifying this binary.
-    static func verboseVersion(_ info: AmooBuildInfo) -> String {
-        let format = ISO8601DateFormatter()
-        var lines = ["amoo \(info.version)"]
-        if let commit = info.sourceCommit {
-            lines.append("commit:  \(commit)\(info.sourceDirty == "true" ? " (uncommitted changes)" : "")")
-        } else {
-            lines.append("commit:  unknown (not a source build)")
-        }
-        if let built = info.binaryModifiedAt {
-            lines.append("built:   \(format.string(from: built))")
-        }
-        if let path = info.executablePath {
-            lines.append("binary:  \(path)")
-        }
-        return lines.joined(separator: "\n")
-    }
-
     private let mcpServer: MCPServer
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
@@ -125,6 +107,7 @@ public struct CLIApp {
     private func dispatchSubcommand(args: [String]) async -> CLIResult? {
         let remaining = Array(args.dropFirst())
         switch args.first {
+        case "capabilities": return runCapabilitiesCommand(remaining)
         case "preflight": return await handlePreflightCommand(remaining: remaining)
         case "device": return await handleDeviceCommand(remaining: remaining)
         case "companion": return await handleCompanionCommand(remaining: remaining)
@@ -407,6 +390,7 @@ func renderCLIHelp() -> String {
       preflight [--platform ...]   Check local tooling and environment
       doctor [--json] [--cli-only | --mcp-pid <pid>] [--kill-stale]  Health check and scoped MCP recovery
       device ...                   Run a device tool against iOS or Android
+      capabilities ...             Query installed tool schemas, assertion support and runtime identity as JSON
       companion ...                Build or install a companion app
       env up|down|list ...         Start or stop amoo on a simulator/emulator
       config validate [--path <file>]  Check amoo.config.json (sign-in credential profiles)

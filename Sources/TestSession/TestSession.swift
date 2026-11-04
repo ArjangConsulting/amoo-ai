@@ -14,6 +14,7 @@ public actor TestSession {
     nonisolated public let launchArguments: [String]
     nonisolated public let launchEnvironment: [String: String]
     nonisolated public let appArtifactSHA256: String?
+    nonisolated public let startup: AppStartupState?
     nonisolated public let testName: String?
     nonisolated public let driver: any PlatformDriver
 
@@ -22,6 +23,8 @@ public actor TestSession {
     private(set) var recordedErrorCount = 0
     public private(set) var isActive: Bool = true
     public private(set) var codegenIntent: SessionCodegenIntent?
+    public internal(set) var verification: VerificationCoverage?
+    public internal(set) var verificationMetrics = VerificationMetrics()
 
     public func setCodegenIntent(_ intent: SessionCodegenIntent) {
         codegenIntent = intent
@@ -49,6 +52,7 @@ public actor TestSession {
         launchEnvironment: [String: String] = [:],
         testName: String? = nil,
         appArtifactSHA256: String? = nil,
+        startup: AppStartupState? = nil,
         cleanup: @escaping @Sendable () async -> Void
     ) {
         self.id = id
@@ -61,6 +65,7 @@ public actor TestSession {
         self.launchEnvironment = launchEnvironment
         self.testName = testName
         self.appArtifactSHA256 = appArtifactSHA256
+        self.startup = startup
         self.cleanup = cleanup
         redactor = ArtifactRedactor(environment: launchEnvironment, arguments: launchArguments)
     }

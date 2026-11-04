@@ -32,6 +32,16 @@ extension DriverToolExecutor {
             "expected": expected, "observed": .null,
             "selector": .string(Self.describeConstraints(selector)), "dispatch_status": .string("not_applicable")
         ]
+        let capabilities = await driver.inspectionCapabilities()
+        fields["provider"] = .string(capabilities.provider)
+        if capabilities.assertions[tool] == "unsupported" {
+            fields["failure_kind"] = .string("unsupported_property")
+            fields["code"] = .string("state_property_unsupported")
+            return ToolResult(
+                content: "\(tool) unsupported by provider \(capabilities.provider). Required coverage remains blocked.",
+                isError: true, structuredContent: .object(fields)
+            )
+        }
         repeat {
             try Task.checkCancellation()
             do {
@@ -82,7 +92,8 @@ extension DriverToolExecutor {
         } while ContinuousClock.now < deadline
         let elapsed = started.duration(to: .now).components
         fields["elapsed_ms"] = .int(Int(elapsed.seconds * 1000 + elapsed.attoseconds / 1_000_000_000_000_000))
-        fields["failure_kind"] = fields["failure_kind"] ?? .string("assertion_mismatch")
+        fields["failure_kind"] = fields["failure_kind"]
+            ?? .string(fields["observed"] == .null ? "selector_miss" : "assertion_mismatch")
         fields["device_health"] = .string("unconfirmed")
         return ToolResult(
             content: "Native state assertion did not complete successfully; see expected and last observed state.",

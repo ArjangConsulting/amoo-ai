@@ -53,6 +53,23 @@ budget: { setup_minutes: 5, total_minutes: 20 }
 accessibility_policy: path/to/amoo.accessibility.json  # optional skill review policy
 ```
 
+## Installed contract and complete coverage
+
+Cache one `amoo capabilities --command device --platform <platform>` or MCP `get_capabilities`
+response per binary/runtime; query an individual tool schema only when needed. Prefer typed MCP
+arguments or CLI `--arguments-json @arguments.json` for multiword selectors. Preserve `--runtime-id`
+through reinstall and owned-runtime recovery with `env up --platform <platform> --runtime-id <id>`.
+Inspect startup fresh-process/environment delivery and readiness separately; unknown delivery is
+unverified. Declare all MCP `start_session checks`, attach `check_id` to explicit assertions, and
+retain `get_verification_report`. A selector miss or content error does not establish a navigation
+blocker; verify independent controls. Unsupported assertions and gesture dispatch never prove a check.
+Use bounded compact queries and compact batches; continue after errors only for independent steps.
+Save scaled screenshot evidence without inline images and inspect it for visual/layout checks.
+Report measured response bytes, calls and timings without inferred token savings. Derive `fail` from
+observed failed requirements, `pass` only from all required checks passed, `partial` from completed
+checks with missing coverage, and `blocked` when no requested check completed. Preserve every reason.
+Read driving-amoo's “Discover once, verify complete coverage” for the shared operating contract.
+
 ## 1. Preflight
 
 - Use the absolute MCP/CLI binary selected by the caller or installed agent configuration. Shell
@@ -234,7 +251,8 @@ A parent must compare the run ID and requested check IDs with its original deleg
 accepting a pass; structural validation does not independently verify the evidence's meaning.
 
 Use `status=done`, `execution=succeeded`, `verdict=notAssessed` for completed observations without
-assertions. Use `blocked` when requirements cannot be evaluated, preserving each missing check and
+assertions. Use `partial` when some requested checks completed and others could not; use `blocked` when none
+completed, preserving each missing check and
 its reason in `coverage.notEvaluated`. Failed checks have `outcome=fail` and `verdict=fail`.
 Cleanup is `released`, `restored`, `notRequired`, `failed`, or `unknown`; unresolved cleanup prevents
 pass. Pass requires successful execution, every requested check evaluated and passed, complete

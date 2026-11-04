@@ -1,3 +1,4 @@
+// swiftlint:disable multiline_arguments
 import AmooCore
 import AndroidDriver
 import CompanionProtocol
@@ -17,8 +18,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     let processRunner: any ProcessRunner
     let usbTunnel: any USBTunneling
 
-    /// How many seconds to wait for `getScreenContext` to succeed after launch
-    /// before giving up on screen stabilization.
+    /// How many seconds to wait for a hierarchy with app content after launch.
     let screenStabilizationTimeoutSeconds: Double
     /// Cross-process device runtimes (`amoo env up`); injectable so tests never read `~/.amoo`.
     let runtimeStore: DeviceRuntimeStore
@@ -155,11 +155,12 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
 
         let platformDriver: any PlatformDriver
         let appArtifactSHA256: String?
+        let launchReceipt: AppLaunchReceipt
         do {
             // Unlike a TCP dial, this proves the companion application is serving its API.
             try await waitForCompanionReady(companion)
             platformDriver = await makePlatformDriver(for: available, companion: companion, deviceID: deviceID)
-            appArtifactSHA256 = try await installAndLaunch(request, driver: platformDriver)
+            (appArtifactSHA256, launchReceipt) = try await installAndLaunch(request, driver: platformDriver)
         } catch {
             await cleanup()
             throw error
@@ -167,14 +168,15 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
 
         // Wait for the first screen to be queryable (best-effort).
         await StartupProgress.report("Waiting for the first app screen")
+        let screenReady: Bool
         do {
-            try await waitForScreenReady(driver: platformDriver)
+            screenReady = try await waitForScreenReady(driver: platformDriver)
             try Task.checkCancellation()
         } catch {
             await cleanup()
             throw error
         }
-        await StartupProgress.report("Session ready")
+        await StartupProgress.report(screenReady ? "Session ready" : "Session started; semantic readiness unverified")
 
         PerformanceTelemetry.record(
             "session_bootstrap",
@@ -186,6 +188,10 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             deviceID: deviceID,
             platform: request.platform,
             appArtifactSHA256: appArtifactSHA256,
+            startup: AppStartupState(
+                installation: request.buildPath == nil ? "reused" : "installed",
+                launch: launchReceipt, semanticReadiness: screenReady ? "queryable" : "unverified"
+            ),
             cleanup: cleanup
         )
     }
@@ -215,7 +221,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     private func installAndLaunch(
         _ request: SessionBootstrapRequest,
         driver: any PlatformDriver
-    ) async throws -> String? {
+    ) async throws -> (String?, AppLaunchReceipt) {
         let before = request.buildPath.flatMap { sha256Hex(ofPath: $0) }
         if let buildPath = request.buildPath, !buildPath.isEmpty {
             do {
@@ -225,9 +231,10 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                 throw BootstrapError.installFailed(error.localizedDescription)
             }
         }
+        let receipt: AppLaunchReceipt
         do {
             await StartupProgress.report("Launching app under test")
-            try await driver.launchApp(
+            receipt = try await driver.launchAppWithReceipt(
                 appID: request.appID,
                 arguments: request.arguments,
                 environment: request.environment
@@ -240,7 +247,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             throw BootstrapError.launchFailed(error.localizedDescription)
         }
         let after = request.buildPath.flatMap { sha256Hex(ofPath: $0) }
-        return before == after ? before : nil
+        return (before == after ? before : nil, receipt)
     }
 
     func listDevices(platform: Platform?) async throws -> [DeviceInfo] {
@@ -338,11 +345,20 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     }
 }
 
-enum BootstrapError: Error, CustomStringConvertible {
+enum BootstrapError: SessionStartupFailure, CustomStringConvertible {
     case platformMismatch(requested: String, actual: String)
     case connectionFailed(String)
     case installFailed(String)
     case launchFailed(String)
+
+    var startupStage: String {
+        switch self {
+        case .platformMismatch: "device_selection"
+        case .connectionFailed: "companion_readiness"
+        case .installFailed: "installation"
+        case .launchFailed: "launch"
+        }
+    }
 
     var description: String {
         switch self {
@@ -357,3 +373,5 @@ enum BootstrapError: Error, CustomStringConvertible {
         }
     }
 }
+
+// swiftlint:enable multiline_arguments
