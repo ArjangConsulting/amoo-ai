@@ -23,6 +23,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
     public var codegenIntent: SessionCodegenIntent?
     public var verification: VerificationCoverage?
     public var verificationMetrics = VerificationMetrics()
+    public var artifactSnapshot: AppArtifactSnapshot?
     public var startup: AppStartupState?
 
     public init(
@@ -43,6 +44,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
         codegenIntent: SessionCodegenIntent? = nil,
         verification: VerificationCoverage? = nil,
         verificationMetrics: VerificationMetrics = VerificationMetrics(),
+        artifactSnapshot: AppArtifactSnapshot? = nil,
         startup: AppStartupState? = nil
     ) {
         self.sessionID = sessionID
@@ -62,6 +64,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
         self.codegenIntent = codegenIntent
         self.verification = verification
         self.verificationMetrics = verificationMetrics
+        self.artifactSnapshot = artifactSnapshot
         self.startup = startup
     }
 
@@ -86,6 +89,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
             testName: testName,
             verification: verification,
             verificationMetrics: verificationMetrics,
+            artifactSnapshot: artifactSnapshot,
             startup: startup
         )
     }
@@ -93,7 +97,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case sessionID, appID, deviceID, platform, startedAt, endedAt, durationSeconds
         case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName, codegenIntent
-        case verification, verificationMetrics, startup
+        case verification, verificationMetrics, startup, artifactSnapshot
     }
 
     /// ISO-8601 *with* fractional seconds. The single source of truth for how a `report.json` is
@@ -159,6 +163,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
             verification: container.decodeIfPresent(VerificationCoverage.self, forKey: .verification),
             verificationMetrics: container.decodeIfPresent(VerificationMetrics.self, forKey: .verificationMetrics)
                 ?? VerificationMetrics(),
+            artifactSnapshot: container.decodeIfPresent(AppArtifactSnapshot.self, forKey: .artifactSnapshot),
             startup: container.decodeIfPresent(AppStartupState.self, forKey: .startup)
         )
     }
@@ -188,6 +193,7 @@ extension TestSession {
             codegenIntent: codegenIntent,
             verification: verification,
             verificationMetrics: verificationMetrics,
+            artifactSnapshot: artifactSnapshot,
             startup: startup
         )
     }

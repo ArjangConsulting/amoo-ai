@@ -16,6 +16,9 @@ extension DriverToolExecutor {
         case "get_capabilities":
             return try await executeCapabilities(arguments: arguments)
 
+        case "get_run_telemetry":
+            return try await executeRunTelemetry(arguments: arguments)
+
         case "get_verification_report":
             return try await executeVerificationReport(arguments: arguments)
 

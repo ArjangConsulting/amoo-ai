@@ -12,6 +12,11 @@ public extension CommandCoverageMatrix {
             expectedAssertion: "installed schemas, binary identity and provider assertion support are queryable"
         ),
         .init(
+            name: "get_run_telemetry", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .environment,
+            expectedAssertion: "Counts failed, unfinished and completed requests across a caller run UUID."
+        ),
+        .init(
             name: "get_verification_report", channel: .mcp, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .home,
             expectedAssertion: "every required check retains outcome, reason and evidence; status is derived"

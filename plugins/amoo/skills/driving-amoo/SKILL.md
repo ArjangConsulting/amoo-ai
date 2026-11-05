@@ -30,9 +30,8 @@ Set up the amoo subagents and skills for an AI client with `amoo agent install` 
 it asks which clients and where; scripts pass `--client <name> --json`). `amoo init` offers the same
 step. Existing files are preserved unless `--force`; preview with `--dry-run`.
 
-From an installed binary, use `amoo`. For local development, run `swift build` and use the
-absolute path to `.build/debug/amoo` for both MCP and CLI/subagents. Install local agents
-with that same `--binary` path so CLI calls and their MCP server use the same build.
+Use installed amoo, or swift build then absolute .build/debug/amoo for MCP and CLI/subagents.
+Install local agents with that same --binary path.
 Shell aliases such as amoo-debug do not select spawned MCP processes. Reconnect a running
 MCP server after rebuilding to load the new executable. Release builds are for release verification.
 
@@ -50,8 +49,7 @@ are available. It ensures the device/companion is ready, installs build_path if 
 and launches the app. Pass the returned session_id on every later device call. An invalid or
 closed ID is an error; never remove it just to make a call succeed.
 
-For a cold companion build, `companion_warm` and `companion_status` let you prepare ahead of
-app interaction. Do useful independent work between status checks.
+Prepare cold builds with companion_warm/companion_status while doing independent work.
 
 ## Choose an execution mode
 
@@ -63,9 +61,7 @@ and transport limitations.
 MCP `start_session` owns the device until `end_session`; it needs no separate CLI runtime.
 Never use a second transport to bypass an ownership conflict.
 
-One companion serves one device. With several simulators booted, give each its own port and pass
-the same `--port` to `amoo device`; a companion attached to a different simulator is refused rather
-than silently driving the wrong device.
+One companion serves one device; use matching per-device ports for several simulators.
 
 Use `--platform android` and the device serial for Android. Pair/trust and sign the companion
 for physical iOS hardware; see [physical iOS setup](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/physical-ios-devices.md).
@@ -107,34 +103,14 @@ Queries return bounded pages. Follow next_offset with the same selector when has
 Do not interpret a truncated result as proof an element is absent. Use assert_absent instead.
 Use timeout_ms on assertions instead of client-side polling loops.
 
-Quality and latency come first; keep semantic postconditions when reducing model calls. Prefer
-get_screen_context and scoped find_elements to full trees or screenshots, and use semantic
-postconditions rather than a screenshot after a tap. For transient UI, put the action and an immediate
-take_screenshot in one run_steps call with output, return_image=false, and settle_timeout_ms=0.
-Use check_effect=false on a triggering tap_element so its post-tap hierarchy reads do not consume
-the capture window. For tighter timing, use a coordinate tap from freshly queried geometry to avoid
-tap_element's foreground-app observation too. Capture first, then assert the eventual outcome;
-batching removes client round trips but cannot guarantee a subsecond capture. Use a cold fixture
-when cached data would skip the loading state.
-Save screenshots without inline images; analyze pixels locally with available Python/ffmpeg tools
-(diffs, bounds, centroids), and view only a small crop when visual interpretation is necessary. Keep focused
-inspections to 20 actions where the task allows, and reuse a recorded flow.json via amoo flow rather
-than re-driving it. Use run_steps for
-known action/assertion/observation sequences (up to 20 steps, stops on failure); inspect between
-steps that need a new decision. Prefer scoped queries over full trees. Configure AMOO_TOOL_PROFILE
-as drive, record, or audit before MCP startup to load a smaller task-specific tool catalog.
+Prefer compact queries and semantic assertions. For transient UI, batch the action and immediate
+screenshot with return_image=false and settle_timeout_ms=0; use check_effect=false on the tap.
+Save screenshots without inline images and analyze pixels locally. Delegated captures default to
+output=<path> return_image=false; return selected thumbnails or contact-sheet paths for review.
+Pause playback for stable checks and reuse recorded navigation. Check capture_suspect and device
+state; retain get_run_telemetry with one run_id across every attempt. See [verification](references/verification.md).
+Drag with source id/label and to_id/to_label; pinch scale zooms. Assert the app outcome afterwards.
 
-Drag and drop with `drag` (source `id`/`label`, target `to_id`/`to_label`); zoom with `pinch`
-`scale=2` (in) or `0.5` (out) on an element, or with no target for the whole app. Coordinate ends
-work live but are excluded from generated tests.
-
-A dispatched gesture does not prove a business outcome. Verify mutations with the relevant
-semantic assertion. `set_text` reports exact, masked_change, or unverified; a masked change
-cannot prove the secret's exact value. Use a subsequent app-level result where appropriate.
-
-Screenshot output includes pixels, gesture points, and scale. Use a modest scale for visual
-inspection. Prefer output=<path> return_image=false; inline screenshots are expensive and should be
-avoided unless visual interpretation is required.
 For unlabeled controls, image coordinates, or reusing geometry across taps, read
 [coordinate guidance](references/coordinates.md) — a coordinate read before any tap is stale
 after it; re-query before and after each one rather than chaining blind taps.
@@ -156,8 +132,7 @@ in CI with a pinned binary; any missing or differing file fails the check.
 End managed sessions with end_session. Report the assertions and relevant evidence; inspection
 or debugging does not require generated test code.
 
-For repeated deterministic execution, use a checked-in `amoo flow` file. For requested code
-generation, a passing session is not the deliverable: verify the exported test too.
+Reuse checked-in amoo flow files; verify exported tests when code generation is requested.
 
 **Canonical workflow:** `start_session` → drive and assert → `end_session` → inspect plan.json
 and warnings → `amoo generate test`. `compile_session_to_plan` is an optional preview, never a

@@ -97,6 +97,8 @@ extension DriverToolExecutor {
             "summary": .string(String(result.content.prefix(400)))
         ]
         let proofKeys: Set = [
+            "outcome_status", "postcondition_verified", "capture_suspect", "capture_analysis", "viewport",
+            "screen_state", "foreground_app_id", "target_app_id", "available_controls", "selector_hint",
             "passed", "failure_kind", "code", "dispatch_status", "last_observation_status", "saved_path",
             "byte_count", "width_pixels", "height_pixels", "scale", "semantic_readiness", "verified"
         ]

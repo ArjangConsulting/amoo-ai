@@ -5,11 +5,35 @@ import MCP
 extension DriverToolExecutor {
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
         let started = ContinuousClock.now
-        let result: ToolResult = if let invalid = MCPServer.validateArguments(tool: toolName, arguments: arguments) {
-            invalid
-        } else {
-            await executeUnmeasured(toolName: toolName, arguments: arguments)
+        let runID = runIdentity(arguments: arguments)
+        let call = await runTelemetry.begin(runID: runID, tool: toolName, sessionID: arguments["session_id"])
+        var result = await RunCallIdentity.$current.withValue(call) {
+            if let invalid = MCPServer.validateArguments(tool: toolName, arguments: arguments) {
+                return invalid
+            }
+            return await self.executeUnmeasured(toolName: toolName, arguments: arguments)
         }
+        if toolName == "start_session" {
+            var fields = result.structuredContent?.objectValue ?? [:]
+            fields["run_id"] = .string(runID)
+            result.structuredContent = .object(fields)
+            if let id = fields["session_id"]?.stringValue {
+                sessionRuns[id] = runID
+            }
+        }
+        var textResult = result
+        textResult.image = nil
+        await runTelemetry.finish(
+            call, failed: result.isError,
+            sessionID: arguments["session_id"] ?? result.structuredContent?.objectValue?["session_id"]?.stringValue,
+            metrics: [
+                "elapsed_ms": Self.elapsedMilliseconds(since: started),
+                "wire_response_bytes": (try? JSONEncoder().encode(result.mcpResult()).count) ?? 0,
+                "text_payload_bytes": (try? JSONEncoder().encode(textResult.mcpResult()).count) ?? 0,
+                "image_bytes": result.image?.data.count ?? 0,
+                "image_pixels": result.image == nil ? 0 : Self.imagePixels(result)
+            ]
+        )
         await measureResponse(tool: toolName, arguments: arguments, result: result, started: started)
         return result
     }
@@ -17,6 +41,16 @@ extension DriverToolExecutor {
     func measureOperation(
         tool toolName: String, arguments: [String: String], result: ToolResult, started start: ContinuousClock.Instant
     ) async {
+        if let call = RunCallIdentity.current, !Self.controlPlaneTools.contains(toolName), toolName != "run_steps" {
+            let saved = result.structuredContent?.objectValue?["saved_path"] != nil
+            await runTelemetry.operation(
+                call, milliseconds: Self.elapsedMilliseconds(since: start),
+                recovery: ["device_install_app", "device_launch_app", "device_uninstall_app", "device_wake"]
+                    .contains(toolName),
+                evidenceBytes: saved ? result.structuredContent?.objectValue?["byte_count"]?.intValue ?? 0 : 0,
+                pixels: saved ? Self.imagePixels(result) : 0
+            )
+        }
         if let id = arguments["session_id"], let session = await sessionManager?.session(id),
            !Self.controlPlaneTools.contains(toolName), toolName != "run_steps" {
             await session.recordOperation(

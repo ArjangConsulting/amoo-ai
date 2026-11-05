@@ -155,7 +155,9 @@ extension DriverToolExecutor {
     /// Swiping can dismiss the sheet too, so none of those are keyboard-dismissal fallbacks.
     func executeDismissKeyboard(arguments: [String: String], driver: any PlatformDriver) async throws -> ToolResult {
         guard try await driver.isKeyboardVisible() else {
-            return .success("Keyboard was not visible")
+            return .success("Keyboard was not visible", structuredContent: .object([
+                "dispatch_status": .string("not_dispatched"), "postcondition_verified": .bool(true)
+            ]))
         }
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
         var candidates: [ElementInfo] = []

@@ -92,7 +92,8 @@ enum ToolCatalogMetadata {
         "audit_app",
         "audit_accessibility", "audit_security", "audit_accessibility_native", "list_devices",
         "list_apps", "companion_status", "session_startup_status", "list_sessions",
-        "get_session_report", "compile_session_to_plan", "webview_dom", "get_capabilities", "get_verification_report"
+        "get_session_report", "compile_session_to_plan", "webview_dom", "get_capabilities", "get_verification_report",
+        "get_run_telemetry"
     ]
 
     /// Tools that can destroy app or device state a user cannot get back by retrying.

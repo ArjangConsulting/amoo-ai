@@ -8,6 +8,9 @@ enum ToolContracts {
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func enrich(_ definition: ToolDefinition) -> ToolDefinition {
         var definition = definition
+        definition.properties["run_id"] = .init(
+            type: "string", description: "Caller UUID for telemetry across startup, recovery and abandoned sessions"
+        )
         if definition.name.hasPrefix("webview_") {
             definition.properties["platform"] = .init(type: "string", description: "Override inspector platform")
         }
@@ -35,6 +38,17 @@ enum ToolContracts {
         }
         if let schema = definition.outputSchema {
             var fields = schema.properties
+            if definition.name.hasPrefix("assert_") || !ToolCatalogMetadata.isReadOnly(definition.name) {
+                fields["outcome_status"] = .init(
+                    type: "string",
+                    description: "dispatched, target_state_confirmed, target_state_mismatch or inconclusive"
+                )
+                fields["dispatch_status"] = .init(type: "string", description: "completed, unknown or not_dispatched")
+                fields["postcondition_verified"] = .init(
+                    type: "boolean",
+                    description: "Whether an app outcome was verified"
+                )
+            }
             if ["find_elements", "get_screen_context", "tap_element"].contains(definition.name) {
                 fields["observation_status"] = .init(type: "string", description: "selector_miss or empty_observation")
                 fields["navigation_status"] = .init(
@@ -44,9 +58,10 @@ enum ToolContracts {
                 fields["recovery"] = .init(type: "array", description: "Bounded recovery suggestions")
                 fields["foreground_app_id"] = .init(type: "string", description: "Observed foreground app")
                 fields["target_app_id"] = .init(type: "string", description: "Bound inspection target")
+                fields["selector_hint"] = .init(type: "string", description: "Accessible text granularity guidance")
                 fields["available_controls"] = .init(
                     type: "array",
-                    description: "At most 12 currently available controls"
+                    description: "Up to eight nearby accessible candidates, with roles"
                 )
             }
             switch definition.name {
@@ -63,8 +78,27 @@ enum ToolContracts {
                     description: "empty or queryable; not render readiness"
                 )
             case "take_screenshot":
+                fields["capture_suspect"] = .init(
+                    type: "boolean",
+                    description: "Advisory blank or invalid capture warning"
+                )
+                fields["capture_analysis"] = .init(
+                    type: "string",
+                    description: "Pixel assessment or analysis_unavailable"
+                )
+                fields["viewport"] = .init(
+                    type: "object",
+                    description: "Observed native viewport and gesture dimensions"
+                )
+                fields["foreground_app_id"] = .init(type: "string", description: "Observed foreground app or unknown")
+                fields["target_app_id"] = .init(type: "string", description: "Bound target app or unknown")
                 fields["scaling_status"] = .init(type: "string", description: "applied, unavailable or not_requested")
             case "start_session":
+                fields["run_id"] = .init(type: "string", description: "Run telemetry UUID, retained on startup failure")
+                fields["artifact_snapshot"] = .init(
+                    type: "object",
+                    description: "Validated session-owned artifact and hash"
+                )
                 fields["startup"] = .init(
                     type: "object",
                     description: "Installation, fresh-process launch and readiness"
@@ -89,6 +123,7 @@ enum ToolContracts {
                     description: "saved, failed, pending, unknown, or disabled"
                 )
             case "get_session_report":
+                fields["artifactSnapshot"] = .init(type: "object", description: "Installed session-owned artifact")
                 fields["verification"] = .init(type: "object", description: "Per-check outcomes and evidence")
                 fields["verificationMetrics"] = .init(type: "object", description: "Measured host costs")
                 fields["startup"] = .init(type: "object", description: "Startup state")
@@ -154,6 +189,9 @@ struct ToolRequest: Sendable {
         }
         try Self.validateSchema(name: name, arguments: arguments)
         try Self.validateSemantics(name: name, arguments: arguments)
+        if let runID = arguments["run_id"], UUID(uuidString: runID) == nil {
+            throw Self.invalidArgument("run_id", example: "run_id=<UUID>")
+        }
         let nonnegative = [
             "timeout_ms", "duration_ms", "character_count", "offset", "settle_timeout_ms", "hittable_timeout_ms",
             "effect_timeout_ms", "hold_ms"
@@ -211,7 +249,8 @@ public enum ToolProfile: String, Sendable, CaseIterable {
             "list_devices",
             "run_steps"
         ])
-        if ["session_startup_status", "get_capabilities", "get_verification_report"].contains(name) {
+        if ["session_startup_status", "get_capabilities", "get_verification_report", "get_run_telemetry"]
+            .contains(name) {
             return true
         }
         switch self {
