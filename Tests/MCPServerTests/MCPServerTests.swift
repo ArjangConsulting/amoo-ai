@@ -48,8 +48,7 @@ final class MCPServerTests: XCTestCase {
         let tap = defs.first(where: { $0.name == "tap" })
         XCTAssertNotNil(tap)
         XCTAssertEqual(tap?.required, ["x", "y"])
-        // x, y, unit, and the auto-injected session_id (optional).
-        XCTAssertEqual(tap?.properties.count, 5)
+        XCTAssertEqual(tap?.properties.count, 6)
         XCTAssertNotNil(tap?.properties["session_id"], "session_id should be advertised on driver-routed tools")
         XCTAssertFalse(try XCTUnwrap(tap?.description.isEmpty))
     }

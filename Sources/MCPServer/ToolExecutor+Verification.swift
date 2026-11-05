@@ -5,15 +5,24 @@ import MCP
 import TestSession
 
 enum VerificationTools {
-    static let definitions: [ToolDefinition] = [ToolDefinition(
-        name: "get_verification_report",
-        description: "Derived coverage and measured response bytes, call counts, image dimensions and timings."
-            + " pass requires every requested check passed; fail requires an observed requirement failure;"
-            + " partial means completed checks with missing coverage; blocked means none completed."
-            + " Unsupported assertions and gesture dispatch are never proof. Available after end_session.",
-        properties: ["session_id": .init(type: "string", description: "Managed session ID")],
-        required: ["session_id"]
-    )]
+    static let definitions: [ToolDefinition] = [
+        ToolDefinition(
+            name: "get_verification_report",
+            description: "Derived coverage and measured response bytes, call counts, image dimensions and timings."
+                + " pass requires every requested check passed; fail requires an observed requirement failure;"
+                + " partial means completed checks with missing coverage; blocked means none completed."
+                + " Unsupported assertions and gesture dispatch are never proof. Available after end_session.",
+            properties: ["session_id": .init(type: "string", description: "Managed session ID")],
+            required: ["session_id"]
+        ),
+        ToolDefinition(
+            name: "get_run_telemetry",
+            description: "Aggregate calls, failed startup/recovery, unfinished requests, text payload,"
+                + " image bytes and pixels across every session sharing a run_id. Model token usage is unavailable."
+                + " Set run_id or AMOO_RUN_ID across processes; MCP sessions inherit it.",
+            properties: ["session_id": .init(type: "string", description: "Optional session whose run to aggregate")]
+        )
+    ]
 }
 
 extension DriverToolExecutor {

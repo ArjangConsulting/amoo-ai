@@ -19,7 +19,7 @@ extension DriverToolExecutor {
             return .success(
                 "Already on target screen.\n\(initial.summary)",
                 structuredContent: .object([
-                    "navigated": .bool(false),
+                    "navigated": .bool(false), "dispatch_status": .string("not_dispatched"),
                     "matched_current_screen": .bool(true),
                     "screen_summary": .string(initial.summary)
                 ])
@@ -36,7 +36,7 @@ extension DriverToolExecutor {
                 """,
                 isError: true,
                 structuredContent: .object([
-                    "navigated": .bool(false),
+                    "navigated": .bool(false), "dispatch_status": .string("not_dispatched"),
                     "reason": .string("no_match"),
                     "screen_summary": .string(initial.summary)
                 ])

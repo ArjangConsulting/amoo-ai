@@ -220,6 +220,15 @@ extension DriverToolExecutor {
         if data.count != originalData.count {
             fields["original_byte_count"] = .int(originalData.count)
         }
+        let quality = ScreenshotQuality.assess(originalData)
+        fields["capture_analysis"] = .string(quality.reason)
+        if let suspect = quality.suspect {
+            fields["capture_suspect"] = .bool(suspect)
+        }
+        let capturedDeviceState = await deviceObservation(driver: driver)
+        fields.merge(capturedDeviceState, uniquingKeysWith: { _, observed in observed })
+        let qualityNote = quality.suspect == true
+            ? " — capture_suspect: \(quality.reason); inspect device state before interpreting app content" : ""
         var settleNote = ""
         if let settled = capture.settled {
             fields["settled"] = .bool(settled)
@@ -233,30 +242,32 @@ extension DriverToolExecutor {
         // A locked/off screen otherwise looks exactly like the app rendering black — surface it
         // so an agent doesn't start debugging the app for what is actually a device state.
         var screenStateNote = ""
-        if let screenState = try? await driver.screenState() {
-            fields["screen_state"] = .string(screenState.rawValue)
-            if screenState != .on {
-                screenStateNote = " — warning: screen is \(screenState.rawValue), image may not reflect app content"
-            }
+        if let screenState = fields["screen_state"]?.stringValue, screenState != "on" {
+            screenStateNote = " — warning: screen is \(screenState), image may not reflect app content"
         }
 
         // The image is in pixels and gestures take points. Reporting both, and the factor between
         // them, is what stops a position read off this image from being passed straight to `tap`
         // — which lands off-screen and still reports success.
         var geometryNote = ""
-        if let screen = try? await driver.screenGeometry(), screen.scale > 0 {
+        if let viewport = fields["viewport"]?.objectValue,
+           let screenScale = viewport["scale"]?.doubleValue, screenScale > 0,
+           let widthPixels = viewport["width_pixels"]?.doubleValue,
+           let heightPixels = viewport["height_pixels"]?.doubleValue,
+           let widthPoints = viewport["width_points"]?.doubleValue,
+           let heightPoints = viewport["height_points"]?.doubleValue {
             let imageScale = scaledData == nil ? 1 : (scale ?? 1)
-            let imageWidth = (screen.widthPixels * imageScale).rounded()
-            let imageHeight = (screen.heightPixels * imageScale).rounded()
-            let imagePixelsPerPoint = screen.scale * imageScale
+            let imageWidth = (widthPixels * imageScale).rounded()
+            let imageHeight = (heightPixels * imageScale).rounded()
+            let imagePixelsPerPoint = screenScale * imageScale
             fields["width_pixels"] = .double(imageWidth)
             fields["height_pixels"] = .double(imageHeight)
-            fields["width_points"] = .double(screen.widthPoints)
-            fields["height_points"] = .double(screen.heightPoints)
+            fields["width_points"] = .double(widthPoints)
+            fields["height_points"] = .double(heightPoints)
             fields["scale"] = .double(imagePixelsPerPoint)
             geometryNote = " — image is \(geometryNumber(imageWidth))x\(geometryNumber(imageHeight))px;"
-                + " gestures take points (\(geometryNumber(screen.widthPoints))"
-                + "x\(geometryNumber(screen.heightPoints))),"
+                + " gestures take points (\(geometryNumber(widthPoints))"
+                + "x\(geometryNumber(heightPoints))),"
                 + " so divide image coordinates by \(imagePixelsPerPoint.formatted())"
             if scaledData == nil {
                 geometryNote += " or pass unit=pixels"
@@ -292,7 +303,7 @@ extension DriverToolExecutor {
 
         return ToolResult(
             content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
-                + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)\(settleNote)",
+                + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)\(settleNote)\(qualityNote)",
             structuredContent: .object(fields),
             image: boolArgument(arguments["return_image"]) == false
                 ? nil : ToolImageContent(data: data, mimeType: actualFormat.mimeType)

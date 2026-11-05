@@ -42,6 +42,7 @@ public actor SessionManager {
         self.store = store
     }
 
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     public func startSession(
         appID: String,
         platform: Platform,
@@ -55,26 +56,56 @@ public actor SessionManager {
     ) async throws -> TestSession {
         try Task.checkCancellation()
         guard !shuttingDown else { throw SessionError.closed("server") }
-        let bootstrap = try await bootstrapper.bootstrap(
-            SessionBootstrapRequest(
-                appID: appID,
-                platform: platform,
-                deviceHint: deviceHint,
-                buildPath: buildPath,
-                buildMode: buildMode,
-                arguments: arguments,
-                environment: environment,
-                port: port
+        let id = idGenerator()
+        let ephemeralDirectory = store == nil
+            ? FileManager.default.temporaryDirectory.appending(path: "amoo-session-" + UUID().uuidString) : nil
+        let directory = store?.directory(for: id) ?? ephemeralDirectory!
+        let snapshot: AppArtifactSnapshot?
+        do {
+            snapshot = try buildPath.map {
+                try AppArtifactSnapshot.create(source: $0, platform: platform, appID: appID, directory: directory)
+            }
+        } catch is CancellationError {
+            if let ephemeralDirectory {
+                try? FileManager.default.removeItem(at: ephemeralDirectory)
+            }
+            throw CancellationError()
+        } catch {
+            if let ephemeralDirectory {
+                try? FileManager.default.removeItem(at: ephemeralDirectory)
+            }
+            throw SessionArtifactFailure(reason: String(describing: error))
+        }
+        let bootstrap: BootstrapResult
+        do {
+            bootstrap = try await bootstrapper.bootstrap(
+                SessionBootstrapRequest(
+                    appID: appID,
+                    platform: platform,
+                    deviceHint: deviceHint,
+                    buildPath: snapshot?.path,
+                    buildMode: buildMode,
+                    arguments: arguments,
+                    environment: environment,
+                    port: port
+                )
             )
-        )
+        } catch {
+            if let ephemeralDirectory {
+                try? FileManager.default.removeItem(at: ephemeralDirectory)
+            }
+            throw error
+        }
         guard !shuttingDown, !Task.isCancelled else {
             await bootstrap.cleanup()
+            if let ephemeralDirectory {
+                try? FileManager.default.removeItem(at: ephemeralDirectory)
+            }
             if Task.isCancelled {
                 throw CancellationError()
             }
             throw SessionError.closed("server")
         }
-        let id = idGenerator()
         let session = TestSession(
             id: id,
             appID: appID,
@@ -84,9 +115,15 @@ public actor SessionManager {
             launchArguments: arguments,
             launchEnvironment: environment,
             testName: testName,
-            appArtifactSHA256: bootstrap.appArtifactSHA256,
+            appArtifactSHA256: snapshot?.sha256 ?? bootstrap.appArtifactSHA256,
+            artifactSnapshot: snapshot,
             startup: bootstrap.startup,
-            cleanup: bootstrap.cleanup
+            cleanup: {
+                await bootstrap.cleanup()
+                if let ephemeralDirectory {
+                    try? FileManager.default.removeItem(at: ephemeralDirectory)
+                }
+            }
         )
         sessions[id] = session
         await flush(id)
@@ -357,5 +394,16 @@ public enum SessionError: Error, Equatable, CustomStringConvertible {
         case let .closed(id): "Session is closed: \(id)"
         case let .notFound(id): "Session not found: \(id)"
         }
+    }
+}
+
+private struct SessionArtifactFailure: SessionStartupFailure, CustomStringConvertible {
+    let reason: String
+    var startupStage: String {
+        "artifact_snapshot"
+    }
+
+    var description: String {
+        reason
     }
 }

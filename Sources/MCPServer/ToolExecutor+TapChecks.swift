@@ -419,7 +419,7 @@ extension DriverToolExecutor {
                 notes.append("Tap dispatch completed; outcome observation failed. App postcondition unverified.")
             }
         }
-        let message = (["Tapped verified element \(name)"] + notes).joined(separator: "\n")
+        let message = (["Tap dispatched to element \(name); target state unconfirmed."] + notes).joined(separator: "\n")
         return .success(message, structuredContent: .object(fields))
     }
 }

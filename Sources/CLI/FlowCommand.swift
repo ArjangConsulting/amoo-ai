@@ -292,7 +292,8 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         }
         let executor = DriverToolExecutor(
             driver: driver,
-            credentialResolver: CredentialResolver(store: KeychainCredentialStore())
+            credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
+            runTelemetry: .persistent()
         )
         let result = await runFlowSteps(flow, executor: executor, context: context)
 

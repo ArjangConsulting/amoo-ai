@@ -117,6 +117,9 @@ extension DriverToolExecutor {
                     "started_at": .string(ISO8601DateFormatter().string(from: AmooBuildInfo.current.startedAt))
                 ])
             ]
+            if let snapshot = session.artifactSnapshot {
+                summary["artifact_snapshot"] = try Value(snapshot)
+            }
             summary["recording_health"] = await .string(manager.recordingHealth(for: session.id))
             summary["launch_config_source"] = .string(launch.source)
             summary["startup"] = try session.startup.map(Value.init) ?? .object([

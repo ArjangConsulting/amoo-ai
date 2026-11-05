@@ -38,7 +38,17 @@ unverified. Declare all MCP `start_session checks`, attach `check_id` to explici
 retain `get_verification_report`. A selector miss or content error does not establish a navigation
 blocker; verify independent controls. Unsupported assertions and gesture dispatch never prove a check.
 Use bounded compact queries and compact batches; continue after errors only for independent steps.
-Save scaled screenshot evidence without inline images and inspect it for visual/layout checks.
+Default every delegated capture to output=<evidence path> and return_image=false. Select only
+representative thumbnails or an `amoo shots montage` contact sheet for caller review, include their
+artifact paths, and inspect screenshots that establish layout quality. Pause playback through an
+accessible app control before stable captures unless playback is itself under test. Replay the supplied
+recorded navigation flow before improvising navigation. Check capture_suspect, screen_state,
+foreground_app_id and viewport before diagnosing blank captures; after posture changes, confirm
+these facts and assert the expected app state. Dispatch, target_state_confirmed and inconclusive
+are distinct outcomes; an unresolved selector or unchanged semantic tree cannot prove app failure.
+Keep one caller run_id across every setup/recovery attempt; retain get_run_telemetry alongside
+session reports. Separate text payload, image bytes/pixels and provider-reported token usage;
+report model token usage as unavailable when the provider did not supply it.
 Report measured response bytes, calls and timings without inferred token savings. Derive `fail` from
 observed failed requirements, `pass` only from all required checks passed, `partial` from completed
 checks with missing coverage, and `blocked` when no requested check completed. Preserve every reason.

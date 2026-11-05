@@ -15,6 +15,9 @@ public protocol ToolExecutor: Sendable {
 public actor DriverToolExecutor: ToolExecutor {
     /// The default driver used when a tool call does not specify a `session_id`.
     /// Kept for backward compatibility with the original `amoo mcp serve` flow.
+    let runTelemetry: RunTelemetryStore
+    let telemetryRunID: String
+    var sessionRuns: [String: String] = [:]
     private let operationQueue = DeviceOperationQueue()
     private var defaultDeviceKey: String?
     private let defaultDeviceID: String?
@@ -46,8 +49,12 @@ public actor DriverToolExecutor: ToolExecutor {
         webInspector: any WebInspecting = UnconfiguredWebInspector(),
         defaultPlatform: Platform? = nil,
         defaultDeviceID: String? = nil,
-        credentialResolver: CredentialResolver = CredentialResolver()
+        credentialResolver: CredentialResolver = CredentialResolver(),
+        runTelemetry: RunTelemetryStore = RunTelemetryStore()
     ) {
+        self.runTelemetry = runTelemetry
+        let configuredRun = ProcessInfo.processInfo.environment["AMOO_RUN_ID"]
+        telemetryRunID = configuredRun.flatMap { UUID(uuidString: $0) != nil ? $0 : nil } ?? UUID().uuidString
         self.credentialResolver = credentialResolver
         self.defaultPlatform = defaultPlatform
         self.defaultDeviceID = defaultDeviceID
@@ -133,6 +140,7 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         result = await diagnoseConnectivityFailure(result, arguments: executionArguments)
         result = await diagnoseSelectorMiss(result, tool: executionTool, arguments: executionArguments)
+        result = outcomeFields(result, tool: executionTool)
         if !credentialRedactor.isEmpty {
             result = result.redacted(using: credentialRedactor)
         }
@@ -182,7 +190,7 @@ public actor DriverToolExecutor: ToolExecutor {
         "start_session", "start_test_session", "end_session", "end_test_session",
         "list_sessions", "get_session_report", "compile_session_to_plan",
         "companion_warm", "companion_status", "session_startup_status", "reset_companion",
-        "get_capabilities", "get_verification_report"
+        "get_capabilities", "get_verification_report", "get_run_telemetry"
     ]
 
     private func recordIfNeeded(

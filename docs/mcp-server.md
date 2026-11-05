@@ -554,3 +554,37 @@ is silent and does not verify audible output or touch gestures. See
 `device_health [app_id=...]` independently probes device transport and companion RPC under bounded
 deadlines. Optional app checks report foreground identity and semantic readiness separately from
 render readiness. Transport failures remain environment failures, not app assertion failures.
+
+## Capture and run reliability
+
+`start_session` snapshots an explicit build into `<session>/build/` before device startup. It
+validates the app identifier and executable for `.app` bundles, checks archive signatures for
+APK/IPA files, compares source/copy fingerprints, and installs from the snapshot. An incomplete
+or changing build fails with `startup_stage=artifact_snapshot`. `artifact_snapshot` in the startup
+response and `artifactSnapshot` in the persisted report identify the installed copy and SHA-256.
+Concurrent builds can continue after the snapshot is complete.
+
+Screenshots report `capture_suspect` for nearly black, white, transparent or uniform frames, plus
+`capture_analysis`, `screen_state`, `foreground_app_id` and native `viewport` dimensions. This is
+an advisory image-quality check, not an app-failure verdict. Unsupported decoding reports
+`analysis_unavailable` and omits `capture_suspect`. Posture/display operations return the same
+device context; verified posture alone does not establish an unlocked screen or app readiness.
+
+Action responses and recorded diagnostic evidence carry `outcome_status`: `dispatched`,
+`target_state_confirmed`, `target_state_mismatch` or `inconclusive`. Tap dispatch and semantic
+change do not establish the requested app outcome. Missing selectors include bounded, ranked
+accessible candidates with roles, preserving parent scope and the original assertion constraints.
+
+Use one caller UUID as `run_id` across all attempts, or set `AMOO_RUN_ID` across CLI/MCP processes.
+Managed sessions inherit the startup run UUID. `get_run_telemetry` aggregates every tool request,
+including validation failures, failed startup, recovery and unfinished calls. Persistent tool
+telemetry lives under the configured session root's `runs/` directory. The snapshot excludes its
+own report request; unfinished requests can be active or abandoned. Check `recording_health`
+before trusting completeness. Counts cover instrumented device-tool requests, not shell commands.
+Text payload bytes exclude image blocks; wire response bytes include base64 and JSON overhead.
+Inline image bytes/pixels and saved evidence bytes/pixels are separate. `model_token_usage=null`
+means no model-provider token usage is available; none is inferred from bytes or pixels.
+
+Delegated checks default to `output=<path> return_image=false`, with selected thumbnails or
+`amoo shots montage` contact sheets returned for review. Pause playback through the app when
+stable content is needed, and replay recorded navigation flows for repeatable setup.

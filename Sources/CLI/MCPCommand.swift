@@ -164,7 +164,8 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             foreignBuildDetector: ForeignBuildDetector(),
             webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
             defaultPlatform: options.platform,
-            credentialResolver: CredentialResolver(store: KeychainCredentialStore())
+            credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
+            runTelemetry: .persistent()
         )
         let server = MCPServer(executor: executor, sessionManager: sessionManager, profile: profile)
 

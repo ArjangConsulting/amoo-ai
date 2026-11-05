@@ -44,3 +44,57 @@ only if every required check passed; `partial` if some checks completed and cove
 In the compact AgentRunReport version 2 transport, passed/failed checks are assertions and blocked/
 untested checks remain in `coverage.notEvaluated` with explicit reasons. Use `verdict=notAssessed`
 for partial coverage. Never report overall pass for an incomplete run.
+
+Keep one caller UUID in `run_id` across every attempt, or set `AMOO_RUN_ID` before starting each
+CLI/MCP process. Successful sessions inherit their startup run UUID. Call `get_run_telemetry`
+with that UUID to aggregate failed startup, recovery and unfinished calls across sessions and
+processes. The current report request is excluded from its snapshot; subsequent reports include it.
+`unfinished_calls` includes active requests and requests abandoned by a terminated process.
+`recording_health=incomplete` means the totals may omit unreadable or unwritten records.
+Text payload bytes exclude image blocks; wire response bytes include encoding overhead and
+base64 images. Inline image bytes/pixels and saved evidence bytes/pixels are separate measurements,
+not token estimates. `model_token_usage=null` means the device tool has no provider token usage.
+
+Delegated checks default to `output=<path> return_image=false`. Return selected thumbnail or
+contact-sheet paths for review; use `amoo shots montage <evidence-dir>` to combine saved captures.
+Inspect every screenshot needed to assess layout. Pause playback through an app control before
+stable inspections unless motion is the requirement, and replay supplied recorded navigation flows.
+Treat `capture_suspect=true` as inconclusive image evidence. Check capture_analysis, foreground_app_id,
+screen_state and viewport together, then recover the device or recapture before diagnosing rendering.
+Pixel analysis may be unavailable on hosts without an image decoder; that is never a clean capture verdict.
+After a fold or display change, read posture, viewport, lock and foreground identity together and
+assert the requested app state. A verified hinge transition does not verify the app or unlock the screen.
+Reports preserve `outcome_status`: `dispatched`, `target_state_confirmed`, `target_state_mismatch`,
+or `inconclusive`. Explicit assertions or exact field readback confirm target state; required coverage still needs authored assertions. Selector-miss candidates
+are nearby text matches within the requested parent scope, with roles; a subtitle may expose one
+action per word instead of a sentence-level label. These suggestions never weaken the assertion.
+
+Quality and latency come first; keep semantic postconditions when reducing model calls. Prefer
+get_screen_context and scoped find_elements to full trees or screenshots, and use semantic
+postconditions rather than a screenshot after a tap. For transient UI, put the action and an immediate
+take_screenshot in one run_steps call with output, return_image=false, and settle_timeout_ms=0.
+Use check_effect=false on a triggering tap_element so its post-tap hierarchy reads do not consume
+the capture window. For tighter timing, use a coordinate tap from freshly queried geometry to avoid
+tap_element's foreground-app observation too. Capture first, then assert the eventual outcome;
+batching removes client round trips but cannot guarantee a subsecond capture. Use a cold fixture
+when cached data would skip the loading state.
+Save screenshots without inline images; analyze pixels locally with available Python/ffmpeg tools
+(diffs, bounds, centroids), and view only a small crop when visual interpretation is necessary. Keep focused
+inspections to 20 actions where the task allows, and reuse a recorded flow.json via amoo flow rather
+than re-driving it. Use run_steps for
+known action/assertion/observation sequences (up to 20 steps, stops on failure); inspect between
+steps that need a new decision. Prefer scoped queries over full trees. Configure AMOO_TOOL_PROFILE
+as drive, record, or audit before MCP startup to load a smaller task-specific tool catalog.
+
+Drag and drop with `drag` (source `id`/`label`, target `to_id`/`to_label`); zoom with `pinch`
+`scale=2` (in) or `0.5` (out) on an element, or with no target for the whole app. Coordinate ends
+work live but are excluded from generated tests.
+
+A dispatched gesture does not prove a business outcome. Verify mutations with the relevant
+semantic assertion. `set_text` reports exact, masked_change, or unverified; a masked change
+cannot prove the secret's exact value. Use a subsequent app-level result where appropriate.
+
+Screenshot output includes pixels, gesture points, and scale. Use a modest scale for visual
+inspection. Delegated checks default to output=<path> return_image=false; return selected thumbnail
+or contact-sheet paths for review. Pause playback for stable checks and reuse recorded navigation.
+Check capture_suspect and device state; retain get_run_telemetry with one run_id across every attempt.
