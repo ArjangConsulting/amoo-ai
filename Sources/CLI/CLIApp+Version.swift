@@ -11,6 +11,9 @@ extension CLIApp {
         } else {
             lines.append("commit:  unknown (not a source build)")
         }
+        if let fingerprint = info.sourceFingerprint, fingerprint != "unknown" {
+            lines.append("source:  \(fingerprint) (compare with scripts/source-fingerprint.sh)")
+        }
         if let built = info.binaryModifiedAt {
             lines.append("built:   \(format.string(from: built))")
         }
