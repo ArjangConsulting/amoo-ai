@@ -33,6 +33,11 @@ actor MCPRequestRuntime {
         return true
     }
 
+    /// True when no request is running, so the process can exit without dropping a response.
+    var isIdle: Bool {
+        requests.isEmpty
+    }
+
     func contains(id: String) -> Bool {
         requests[id] != nil
     }

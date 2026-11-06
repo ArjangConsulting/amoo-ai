@@ -22,6 +22,32 @@ final class MCPRecoveryTests: XCTestCase {
         XCTAssertNil(metadata["stale_cleanup_arguments"])
     }
 
+    func testIdleServerExitsAfterItsBinaryIsReplaced() async throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let binary = try scratch.write(Data("v1".utf8), named: "amoo")
+        let info = AmooBuildInfo.capture(executableURL: binary)
+        let exited = expectation(description: "superseded idle server exits")
+        let stdio = MCPStdioServer(
+            server: MCPServer(),
+            buildInfo: info,
+            supersededPollInterval: .milliseconds(20),
+            exitWhenSuperseded: { exited.fulfill() }
+        )
+        let runtime = MCPRequestRuntime(output: FileHandle.nullDevice)
+        let watcher = Task {
+            await stdio.exitOnceSupersededAndIdle(runtime: runtime, diagnostics: MCPTransportDiagnostics())
+        }
+        defer { watcher.cancel() }
+        try await Task.sleep(for: .milliseconds(100))
+        try Data("v2".utf8).write(to: binary)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date().addingTimeInterval(120)],
+            ofItemAtPath: binary.path
+        )
+        await fulfillment(of: [exited], timeout: 5)
+    }
+
     func testBothProtocolsAdvertiseScopedCleanupWhenTheirServerBecomesStale() throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }

@@ -17,6 +17,27 @@ extension MCPStdioServer {
         return annotated
     }
 
+    /// Whether a rebuilt binary should make an idle server exit. `AMOO_MCP_KEEP_STALE=1` keeps it running.
+    static var exitsWhenSuperseded: Bool {
+        ProcessInfo.processInfo.environment["AMOO_MCP_KEEP_STALE"] != "1"
+    }
+
+    /// Ends a server that runs superseded code once it holds no sessions and has no request in flight.
+    /// Rebuilding the binary otherwise leaves every earlier client's server running the old code until
+    /// someone finds and stops it. A busy server is never interrupted; the staleness warning covers it.
+    func exitOnceSupersededAndIdle(runtime: MCPRequestRuntime, diagnostics: MCPTransportDiagnostics) async {
+        guard Self.exitsWhenSuperseded else { return }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: supersededPollInterval)
+            guard !Task.isCancelled, buildInfo.replacedBinaryDate() != nil else { continue }
+            let sessions = await server.sessionManager?.allSessions().count ?? 0
+            guard sessions == 0, await runtime.isIdle else { continue }
+            diagnostics.emit("binary_replaced_idle_exit")
+            exitWhenSuperseded()
+            return
+        }
+    }
+
     /// Build identity under `_meta`, so a client can tell which code a long-lived server runs.
     var buildMeta: Value {
         let format = ISO8601DateFormatter()
