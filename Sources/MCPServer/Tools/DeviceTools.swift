@@ -44,7 +44,15 @@ public enum DeviceTools {
         ),
         ToolDefinition(
             name: "device_shutdown",
-            description: "Shut down the simulator/emulator device"
+            description: "Shut down the simulator/emulator device of session_id, or the server's default device"
+                + " when none is given. Pass device_id to name the device you expect; the call refuses"
+                + " when the targeted device is a different one, so it never shuts down the wrong emulator.",
+            properties: [
+                "device_id": .init(
+                    type: "string",
+                    description: "Expected UDID or ADB serial of the device to shut down, e.g. emulator-5556"
+                )
+            ]
         ),
         ToolDefinition(
             name: "device_install_app",
@@ -225,7 +233,7 @@ public enum DeviceTools {
                                 "state": .init(type: "string", description: "Device state, e.g. booted"),
                                 "lease": .init(
                                     type: "object",
-                                    description: "Owner, runtimeID and expiresAt; null if free"
+                                    description: "Owner, runtimeID and expiresAt; omitted when the device is free"
                                 )
                             ],
                             required: ["id", "name", "platform", "os_version", "state"]

@@ -23,6 +23,16 @@ private struct FeedbackBootstrapper: SessionBootstrapper {
     }
 }
 
+private struct UnleasedBootstrapper: SessionBootstrapper {
+    func bootstrap(_: SessionBootstrapRequest) async throws -> BootstrapResult {
+        BootstrapResult(driver: ReliabilityVerificationDriver(), deviceID: "fixture", platform: .ios, cleanup: {})
+    }
+
+    func listDevices(platform _: Platform?) async throws -> [DeviceInfo] {
+        [DeviceInfo(id: "fixture", name: "Fixture", platform: .ios, osVersion: "27", state: .booted)]
+    }
+}
+
 final class VerificationFeedbackTests: XCTestCase {
     func testInvalidRunIDHasConcreteUUIDExample() async {
         let result = await DriverToolExecutor(driver: MockDriver()).execute(
@@ -94,6 +104,16 @@ final class VerificationFeedbackTests: XCTestCase {
         XCTAssertEqual(device["lease"]?.objectValue?["owner"], .string("amoo-init"))
         XCTAssertEqual(device["lease"]?.objectValue?["expiresAt"], .string("2030-01-01T00:00:00Z"))
         XCTAssertTrue(result.content.contains("amoo-init"))
+    }
+
+    func testUnleasedDeviceOmitsLeaseSoTheOutputSchemaValidates() async throws {
+        let executor = DriverToolExecutor(
+            driver: MockDriver(), sessionManager: SessionManager(bootstrapper: UnleasedBootstrapper())
+        )
+        let result = await executor.execute(toolName: "list_devices", arguments: [:])
+        let device = try XCTUnwrap(result.structuredContent?.objectValue?["devices"]?.arrayValue?.first?.objectValue)
+        XCTAssertNil(device["lease"])
+        XCTAssertTrue(result.content.contains("free"), result.content)
     }
 
     func testPreconditionSuccessAloneDoesNotPassRequirement() async throws {

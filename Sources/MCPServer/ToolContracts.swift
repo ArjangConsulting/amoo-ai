@@ -9,7 +9,9 @@ enum ToolContracts {
     static func enrich(_ definition: ToolDefinition) -> ToolDefinition {
         var definition = definition
         definition.properties["run_id"] = .init(
-            type: "string", description: "Caller UUID for telemetry across startup, recovery and abandoned sessions"
+            type: "string",
+            description: "Caller UUID (e.g. 550e8400-e29b-41d4-a716-446655440000) for telemetry across startup,"
+                + " recovery and abandoned sessions; any other format is rejected as invalid_argument"
         )
         if definition.name.hasPrefix("webview_") {
             definition.properties["platform"] = .init(type: "string", description: "Override inspector platform")
