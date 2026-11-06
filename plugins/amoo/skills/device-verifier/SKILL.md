@@ -51,6 +51,33 @@ observed failed requirements, `pass` only from all required checks passed, `part
 checks with missing coverage, and `blocked` when no requested check completed. Preserve every reason.
 Read driving-amoo's “Discover once, verify complete coverage” for the shared operating contract.
 
+## Plan a verification run
+
+Run `amoo env list --json` before selecting a device, then inspect MCP `list_devices`
+lease metadata when using MCP. Choose a free device; never take one leased by another runtime.
+Listings are advisory: acquisition can still lose a race. Process leases end with their session
+and have no fixed expiry. Keep one caller-generated UUID `run_id` across startup and recovery,
+for example `550e8400-e29b-41d4-a716-446655440000`.
+
+Callers use the agent's versioned JSON report contract; do not request a replacement format.
+Bundle all checks for one screen into one delegation, since even blocked runs incur startup
+context cost. Record and check in a navigation flow for repeated checks; replay it on later runs.
+
+Installing `build_path` over an existing app preserves its data. Default-value checks require
+known clean data: when a clean store is requested, use `start_session fresh_install=true` with
+`build_path`. This removes app-local data, but cannot clear Keychain, account or server state.
+On older versions, uninstall through amoo before installing. Preserve user data for other checks.
+Use explicit assertions with `precondition=true` for setup requirements; a mismatch is
+`preconditionFailed` and blocks coverage rather than proving a product defect. In the agent report,
+keep affected checks in `coverage.notEvaluated` with the failed precondition and evidence path.
+A passed precondition alone does not establish the requested behavior.
+
+`get_verification_report` embeds run usage across startup/recovery attempts and reports session
+wall time. Provider token usage remains unavailable unless supplied by the provider. `tap_element`
+returns `target_state` observations when effect checks are enabled; unknown or ambiguous state
+is null. Use those observations for navigation decisions; required coverage still needs explicit
+assertions, which can share a compact `run_steps` batch with the tap.
+
 ## Caller: input contract
 
 ```yaml

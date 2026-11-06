@@ -61,6 +61,18 @@ final class AgentReportValidationTests: XCTestCase {
         XCTAssertEqual(try validate(report, checks: checks).exitCode, 0)
     }
 
+    func testMeasuredUsageIsOptionalAndRejectsInvalidCounters() throws {
+        let scratch = try makeScratchDirectory()
+        let evidence = scratch.url.appending(path: "evidence.json")
+        try Data("{}".utf8).write(to: evidence)
+        var report = fixture(evidence: evidence.path)
+        XCTAssertEqual(try validate(report).exitCode, 0)
+        report["usage"] = ["client_calls": 7, "wire_response_bytes": 512, "elapsed_ms": 42]
+        XCTAssertEqual(try validate(report).exitCode, 0)
+        report["usage"] = ["client_calls": -1]
+        XCTAssertEqual(try validate(report).exitCode, 1)
+    }
+
     func testCompletePassAndCallerRequirementMatching() throws {
         let scratch = try makeScratchDirectory()
         let evidence = scratch.url.appending(path: "evidence.json")

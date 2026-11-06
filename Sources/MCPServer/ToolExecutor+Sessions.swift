@@ -63,6 +63,10 @@ extension DriverToolExecutor {
         } catch {
             return .error("start_session failed: invalid build_path: \(error)")
         }
+        let freshInstall = boolArgument(arguments["fresh_install"]) == true
+        guard !freshInstall || buildPath != nil else {
+            return .error("fresh_install=true requires build_path; no app data was removed.")
+        }
         let testName = arguments["test_name"]
         let contextJSON: String?
         do { contextJSON = try Self.contextSnapshot(arguments, platform: platform) } catch {
@@ -84,6 +88,8 @@ extension DriverToolExecutor {
                 deviceHint: deviceHint,
                 buildPath: buildPath,
                 buildMode: buildMode,
+                freshInstall: freshInstall,
+                runID: runIdentity(arguments: arguments),
                 arguments: launchArgs,
                 environment: environment,
                 testName: testName,
@@ -447,15 +453,19 @@ extension DriverToolExecutor {
         )
         var rows: [Value] = []
         var lines: [String] = []
+        let leases = await manager.deviceLeases()
         for device in devices {
-            rows.append(.object([
+            let lease = leases[device.id]
+            try rows.append(.object([
                 "id": .string(device.id),
                 "name": .string(device.name),
                 "platform": .string(device.platform.rawValue),
                 "os_version": .string(device.osVersion),
-                "state": .string(device.state.rawValue)
+                "state": .string(device.state.rawValue),
+                "lease": lease.map(Value.init) ?? .null
             ]))
-            lines.append("[\(device.platform.rawValue)] \(device.name) (\(device.id)) — \(device.state.rawValue)")
+            lines.append("[\(device.platform.rawValue)] \(device.name) (\(device.id)) — \(device.state.rawValue)"
+                + (lease.map { " owner=\($0.owner) expires=\($0.expiresAt ?? "session end")" } ?? " free"))
         }
         let text = lines.isEmpty ? "No devices found." : lines.joined(separator: "\n")
         return .success(text, structuredContent: .object(["devices": .array(rows)]))

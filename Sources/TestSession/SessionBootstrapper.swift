@@ -16,6 +16,9 @@ public protocol SessionBootstrapper: Sendable {
     /// Enumerate currently usable devices for the given platform (or all when nil).
     func listDevices(platform: Platform?) async throws -> [DeviceInfo]
 
+    /// Advisory ownership snapshot; acquisition still checks the live lock.
+    func deviceLeases() async -> [String: SessionDeviceLease]
+
     /// Like `listDevices(platform:)`, but when `includeOffline` is true also reports installed
     /// simulators/emulators that are not currently booted. Defaults to `listDevices(platform:)`.
     func listDevices(platform: Platform?, includeOffline: Bool) async throws -> [DeviceInfo]
@@ -43,6 +46,10 @@ public protocol SessionBootstrapper: Sendable {
 }
 
 public extension SessionBootstrapper {
+    func deviceLeases() async -> [String: SessionDeviceLease] {
+        [:]
+    }
+
     func listDevices(platform: Platform?, includeOffline _: Bool) async throws -> [DeviceInfo] {
         try await listDevices(platform: platform)
     }
@@ -70,9 +77,12 @@ public enum SessionBootstrapError: Error, CustomStringConvertible {
     /// The active bootstrapper is not wired to the build toolchain, so it cannot boot a device by
     /// hint or manage the companion lifecycle directly.
     case unsupported
+    case freshInstallRequiresArtifact
 
     public var description: String {
         switch self {
+        case .freshInstallRequiresArtifact:
+            "freshInstall requires a build artifact; no app data was removed."
         case .unsupported:
             "This server is not configured for device/companion management; do it from the CLI instead."
         }
@@ -85,6 +95,8 @@ public struct SessionBootstrapRequest: Sendable {
     public let platform: Platform
     public let deviceHint: String?
     public let buildPath: String?
+    /// Remove the app and local data before reinstalling the supplied artifact.
+    public let freshInstall: Bool
     public let buildMode: SessionBuildMode
     public let arguments: [String]
     public let environment: [String: String]
@@ -98,6 +110,7 @@ public struct SessionBootstrapRequest: Sendable {
         deviceHint: String? = nil,
         buildPath: String? = nil,
         buildMode: SessionBuildMode = .auto,
+        freshInstall: Bool = false,
         arguments: [String] = [],
         environment: [String: String] = [:],
         port: Int? = nil
@@ -108,6 +121,7 @@ public struct SessionBootstrapRequest: Sendable {
         self.deviceHint = deviceHint
         self.buildPath = buildPath
         self.buildMode = buildMode
+        self.freshInstall = freshInstall
         self.arguments = arguments
         self.environment = environment
     }

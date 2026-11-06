@@ -60,7 +60,7 @@ private func validateAgentReportShape(_ data: Data) throws {
         "coverage",
         "artifacts"
     ]
-    guard Set(object.keys) == keys,
+    guard Set(object.keys).subtracting(["usage"]) == keys,
           let coverage = object["coverage"] as? [String: Any],
           Set(coverage.keys) == ["requested", "evaluated", "notEvaluated", "truncated"],
           let assertions = object["assertions"] as? [[String: Any]],

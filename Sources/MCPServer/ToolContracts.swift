@@ -21,6 +21,9 @@ enum ToolContracts {
             )
         }
         if definition.name.hasPrefix("assert_") {
+            definition.properties["precondition"] = .init(
+                type: "boolean", description: "Setup assertion: a mismatch blocks coverage as a precondition failure"
+            )
             definition.properties["check_id"] = .init(
                 type: "string", description: "Requested verification check ID declared at start_session"
             )
@@ -104,6 +107,9 @@ enum ToolContracts {
                     description: "Installation, fresh-process launch and readiness"
                 )
             case "tap_element":
+                fields["target_state"] = .init(
+                    type: "object", description: "Observed selected/checked/value state; null when unavailable"
+                )
                 fields["tap_point"] = .init(type: "object", description: "Where the tap landed, {x, y} in points")
                 fields["hittability_checked"] = .init(
                     type: "boolean",
@@ -190,7 +196,7 @@ struct ToolRequest: Sendable {
         try Self.validateSchema(name: name, arguments: arguments)
         try Self.validateSemantics(name: name, arguments: arguments)
         if let runID = arguments["run_id"], UUID(uuidString: runID) == nil {
-            throw Self.invalidArgument("run_id", example: "run_id=<UUID>")
+            throw Self.invalidArgument("run_id", example: "run_id=550e8400-e29b-41d4-a716-446655440000 (UUID required)")
         }
         let nonnegative = [
             "timeout_ms", "duration_ms", "character_count", "offset", "settle_timeout_ms", "hittable_timeout_ms",
@@ -210,7 +216,7 @@ struct ToolRequest: Sendable {
         }
         let booleanKeys = [
             "record_speech", "return_image", "labeled_only", "include_offline", "all_frames", "force",
-            "check_hittable", "check_effect", "activate"
+            "check_hittable", "check_effect", "activate", "fresh_install", "precondition"
         ]
         for key in booleanKeys {
             if let raw = arguments[key], boolArgument(raw) == nil {
