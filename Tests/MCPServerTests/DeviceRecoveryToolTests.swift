@@ -24,6 +24,21 @@ final class DeviceRecoveryToolTests: XCTestCase {
         XCTAssertEqual(result.structuredContent?.objectValue?["device_id"]?.stringValue, "mock")
     }
 
+    func testShutdownRefusesWhenTheNamedDeviceIsNotTheTarget() async {
+        let result = await DriverToolExecutor(driver: RecoveryToolDriver(state: .on))
+            .execute(toolName: "device_shutdown", arguments: ["device_id": "emulator-5556"])
+        XCTAssertTrue(result.isError)
+        XCTAssertTrue(result.content.contains("not emulator-5556"), result.content)
+        XCTAssertTrue(result.content.contains("Nothing was shut down"), result.content)
+    }
+
+    func testShutdownAcceptsTheNamedTargetDevice() async {
+        let result = await DriverToolExecutor(driver: RecoveryToolDriver(state: .on))
+            .execute(toolName: "device_shutdown", arguments: ["device_id": "mock"])
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertEqual(result.structuredContent?.objectValue?["device_id"]?.stringValue, "mock")
+    }
+
     func testUnlockRequestedForASecureLockFailsAsCredentialRequired() async {
         let result = await DriverToolExecutor(driver: RecoveryToolDriver(state: .locked, unlockResult: .locked))
             .execute(toolName: "device_wake", arguments: ["unlock": "true"])

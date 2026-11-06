@@ -51,6 +51,13 @@ extension DriverToolExecutor {
             let target = try? await OperationDeadline.read(until: .now + .seconds(2), operation: {
                 try await driver.deviceInfo()
             })
+            if let expected = arguments["device_id"], expected != target?.id {
+                throw ToolExecutionError(
+                    code: "device_mismatch",
+                    message: "device_shutdown targets \(target?.id ?? "an unidentified device"), not \(expected)."
+                        + " Pass the session_id that owns \(expected), or omit device_id. Nothing was shut down."
+                )
+            }
             try await driver.shutdown()
             guard let target else { return .success("Device shut down") }
             return .success(

@@ -456,14 +456,13 @@ extension DriverToolExecutor {
         let leases = await manager.deviceLeases()
         for device in devices {
             let lease = leases[device.id]
-            try rows.append(.object([
-                "id": .string(device.id),
-                "name": .string(device.name),
-                "platform": .string(device.platform.rawValue),
-                "os_version": .string(device.osVersion),
-                "state": .string(device.state.rawValue),
-                "lease": lease.map(Value.init) ?? .null
-            ]))
+            var row: [String: Value] = [
+                "id": .string(device.id), "name": .string(device.name),
+                "platform": .string(device.platform.rawValue), "os_version": .string(device.osVersion),
+                "state": .string(device.state.rawValue)
+            ]
+            row["lease"] = try lease.map(Value.init)
+            rows.append(.object(row))
             lines.append("[\(device.platform.rawValue)] \(device.name) (\(device.id)) — \(device.state.rawValue)"
                 + (lease.map { " owner=\($0.owner) expires=\($0.expiresAt ?? "session end")" } ?? " free"))
         }
