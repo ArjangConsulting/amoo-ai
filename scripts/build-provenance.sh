@@ -33,15 +33,7 @@ if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         fi
         version="\"$resolved\""
     fi
-    fingerprint=$(
-        git -C "$repo" ls-files -co --exclude-standard -- Sources Protos Package.swift Package.resolved BuildPlugins scripts/build-provenance.sh |
-        sort -u |
-        while IFS= read -r path; do
-            [ -f "$repo/$path" ] || continue
-            printf '%s\n' "$path"
-            git -C "$repo" hash-object -- "$path"
-        done | git -C "$repo" hash-object --stdin
-    )
+    fingerprint=$(/bin/sh "$(dirname "$0")/source-fingerprint.sh" "$repo")
 fi
 temp="$out/CompiledBuildProvenance.swift.tmp"
 cat > "$temp" <<EOF
