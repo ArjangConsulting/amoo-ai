@@ -49,10 +49,10 @@ extension DriverToolExecutor {
         let fields = result.structuredContent?.objectValue ?? [:]
         let outcome: VerificationCoverage.Outcome = if tool.hasPrefix("assert_"), !result.isError,
                                                        fields["passed"] == .bool(true) {
-            .passed
+            boolArgument(arguments["precondition"]) == true ? .blocked : .passed
         } else if tool.hasPrefix("assert_"), fields["passed"] == .bool(false),
                   fields["failure_kind"] == .string("assertion_mismatch") {
-            .failed
+            boolArgument(arguments["precondition"]) == true ? .preconditionFailed : .failed
         } else {
             .blocked
         }
@@ -69,12 +69,21 @@ extension DriverToolExecutor {
             throw ToolExecutionError(code: "session_not_found", message: "No report for this session.")
         }
         let coverage = report.verification ?? VerificationCoverage(checks: [])
+        let usage = await runTelemetry.snapshot(
+            runID: report.provenance?["run_id"] ?? runIdentity(arguments: arguments),
+            excluding: RunCallIdentity.current?.callID
+        )
         return try .success(
             "Verification \(coverage.status): \(coverage.completedChecks)/\(coverage.checks.count) checks completed.",
             structuredContent: .object([
                 "session_id": .string(id), "status": .string(coverage.status),
                 "checks": Value(coverage.checks), "completed_checks": .int(coverage.completedChecks),
                 "required_checks": .int(coverage.checks.count), "metrics": Value(report.verificationMetrics),
+                "usage": .object(usage.totals.mapValues(Value.int)),
+                "usage_scope": .string("All run attempts; excludes this request; elapsed_ms sums call durations"),
+                "wall_time_seconds": .double(report.durationSeconds),
+                "model_token_usage": .null,
+                "provenance": .object((report.provenance ?? [:]).mapValues(Value.string)),
                 "evidence_source": .string(
                     "get_session_report actions; persisted report.json when recording is enabled"
                 )

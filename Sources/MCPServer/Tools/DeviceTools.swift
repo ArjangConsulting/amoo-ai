@@ -197,7 +197,8 @@ public enum DeviceTools {
             title: "List Devices",
             description: "Enumerate booted simulators and online Android emulators/devices."
                 + " Optionally filter by platform, or set include_offline to also list installed"
-                + " simulators/emulators that are not currently booted.",
+                + " simulators/emulators that are not currently booted. Includes advisory lease owner/expiry;"
+                + " choose a free device before start_session.",
             properties: [
                 "platform": .init(
                     type: "string",
@@ -221,7 +222,11 @@ public enum DeviceTools {
                                 "name": .init(type: "string", description: "Device name"),
                                 "platform": .init(type: "string", description: "ios or android"),
                                 "os_version": .init(type: "string", description: "OS version when known"),
-                                "state": .init(type: "string", description: "Device state, e.g. booted")
+                                "state": .init(type: "string", description: "Device state, e.g. booted"),
+                                "lease": .init(
+                                    type: "object",
+                                    description: "Owner, runtimeID and expiresAt; null if free"
+                                )
                             ],
                             required: ["id", "name", "platform", "os_version", "state"]
                         )

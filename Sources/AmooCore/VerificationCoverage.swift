@@ -3,7 +3,7 @@ import Foundation
 /// Required verification coverage; dispatch success is deliberately absent from the proof model.
 public struct VerificationCoverage: Codable, Sendable, Equatable {
     public enum Outcome: String, Codable, Sendable {
-        case passed, failed, blocked, untested
+        case passed, failed, blocked, untested, preconditionFailed
     }
 
     public struct Check: Codable, Sendable, Equatable {

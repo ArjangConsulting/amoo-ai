@@ -150,7 +150,13 @@ identical failure stop and report `blocked` with the exact command, the error te
 
 ## Report (the only output)
 
-Use the version 1 `AgentRunReport` JSON contract shared with the amoo agent:
+Include the optional `usage` object from `get_verification_report` or `get_run_telemetry`
+measured totals in the final JSON. Do not sum cumulative snapshots or invent token counts.
+When setup preconditions fail, keep affected requirements in `coverage.notEvaluated` with
+precondition reasons and evidence; setup noise alone cannot establish a product failure.
+
+
+Use the version 2 `AgentRunReport` JSON contract shared with the amoo agent:
 
 ```json
 {

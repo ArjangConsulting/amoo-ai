@@ -588,3 +588,30 @@ means no model-provider token usage is available; none is inferred from bytes or
 Delegated checks default to `output=<path> return_image=false`, with selected thumbnails or
 `amoo shots montage` contact sheets returned for review. Pause playback through the app when
 stable content is needed, and replay recorded navigation flows for repeatable setup.
+
+### Clean verification starts and setup failures
+
+`start_session` preserves app data when installing `build_path`. Use `fresh_install=true`
+with an explicit artifact to uninstall the existing app before reinstalling under the same
+exclusive device lease. Artifact validation precedes removal. This clears app-local data;
+iOS Keychain and remote account state can survive. Missing artifacts and invalid booleans fail
+before device work. Uninstall failures stop startup instead of silently reusing dirty data.
+
+MCP `list_devices` includes a nullable `lease` with owner, runtimeID and expiresAt. Runtime
+leases have an expiry; process locks have no fixed expiry. CLI `env list --json` already exposes
+owner and expires_at for runtime records. Listings are advisory; startup checks ownership again.
+
+Explicit assertions accept `precondition=true`. A mismatch records `preconditionFailed`, which
+leaves that requirement incomplete and derives blocked/partial coverage. A passing setup assertion
+alone does not complete a requirement. A later behavior assertion supplies its actual verdict.
+
+`get_verification_report` includes run-wide `usage`, session `wall_time_seconds` and provenance.
+The usage snapshot excludes the report request itself; elapsed_ms sums request durations and is
+not wall time for concurrent calls. Token usage is null. Device OS is read at startup; locale from
+launch configuration is labeled with its source. Device locale and companion build fingerprint
+remain explicitly unavailable because the companion protocol does not expose them.
+
+`tap_element` includes bounded `target_state` observations (selected, checked, state_description,
+value) after dispatch with effect checks enabled. Missing or ambiguous targets return null.
+Observations do not create assertions or complete coverage; batch explicit assertions with the tap
+when proof is required. Set check_effect=false to omit this read for latency-sensitive captures.

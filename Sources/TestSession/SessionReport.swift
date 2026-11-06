@@ -24,6 +24,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
     public var verification: VerificationCoverage?
     public var verificationMetrics = VerificationMetrics()
     public var artifactSnapshot: AppArtifactSnapshot?
+    public var provenance: [String: String]?
     public var startup: AppStartupState?
 
     public init(
@@ -45,6 +46,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
         verification: VerificationCoverage? = nil,
         verificationMetrics: VerificationMetrics = VerificationMetrics(),
         artifactSnapshot: AppArtifactSnapshot? = nil,
+        provenance: [String: String]? = nil,
         startup: AppStartupState? = nil
     ) {
         self.sessionID = sessionID
@@ -66,6 +68,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
         self.verificationMetrics = verificationMetrics
         self.artifactSnapshot = artifactSnapshot
         self.startup = startup
+        self.provenance = provenance
     }
 
     public static func make(from session: TestSession) async -> Self {
@@ -90,6 +93,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
             verification: verification,
             verificationMetrics: verificationMetrics,
             artifactSnapshot: artifactSnapshot,
+            provenance: provenance,
             startup: startup
         )
     }
@@ -97,7 +101,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case sessionID, appID, deviceID, platform, startedAt, endedAt, durationSeconds
         case actionCount, errorCount, isActive, actions, launchArguments, launchEnvironment, testName, codegenIntent
-        case verification, verificationMetrics, startup, artifactSnapshot
+        case verification, verificationMetrics, startup, artifactSnapshot, provenance
     }
 
     /// ISO-8601 *with* fractional seconds. The single source of truth for how a `report.json` is
@@ -164,6 +168,7 @@ public struct SessionReport: Sendable, Codable, Equatable {
             verificationMetrics: container.decodeIfPresent(VerificationMetrics.self, forKey: .verificationMetrics)
                 ?? VerificationMetrics(),
             artifactSnapshot: container.decodeIfPresent(AppArtifactSnapshot.self, forKey: .artifactSnapshot),
+            provenance: container.decodeIfPresent([String: String].self, forKey: .provenance),
             startup: container.decodeIfPresent(AppStartupState.self, forKey: .startup)
         )
     }
@@ -194,6 +199,7 @@ extension TestSession {
             verification: verification,
             verificationMetrics: verificationMetrics,
             artifactSnapshot: artifactSnapshot,
+            provenance: provenance,
             startup: startup
         )
     }

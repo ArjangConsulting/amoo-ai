@@ -236,6 +236,12 @@ An unsupported capability requires an appropriate companion rebuild/OS, never a 
 
 ## Report (the only output)
 
+Include the optional `usage` object from `get_verification_report` or `get_run_telemetry`
+measured totals in the final JSON. Do not sum cumulative snapshots or invent token counts.
+When setup preconditions fail, keep affected requirements in `coverage.notEvaluated` with
+precondition reasons and evidence; setup noise alone cannot establish a product failure.
+
+
 ```json
 {
   "schemaVersion": 2,

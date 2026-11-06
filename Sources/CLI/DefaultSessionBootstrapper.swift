@@ -189,7 +189,8 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             platform: request.platform,
             appArtifactSHA256: appArtifactSHA256,
             startup: AppStartupState(
-                installation: request.buildPath == nil ? "reused" : "installed",
+                installation: request.freshInstall ? "fresh_installed" : request
+                    .buildPath == nil ? "reused" : "installed",
                 launch: launchReceipt, semanticReadiness: screenReady ? "queryable" : "unverified"
             ),
             cleanup: cleanup
@@ -218,13 +219,19 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
 
     /// Installs the app under test (when a build path was supplied) and launches it, mapping any
     /// failure to the matching `BootstrapError` case.
-    private func installAndLaunch(
+    func installAndLaunch(
         _ request: SessionBootstrapRequest,
         driver: any PlatformDriver
     ) async throws -> (String?, AppLaunchReceipt) {
         let before = request.buildPath.flatMap { sha256Hex(ofPath: $0) }
         if let buildPath = request.buildPath, !buildPath.isEmpty {
             do {
+                if request.freshInstall {
+                    await StartupProgress.report("Removing app and local data")
+                    if try await driver.listApps().contains(where: { $0.appID == request.appID }) {
+                        try await driver.uninstallApp(appID: request.appID)
+                    }
+                }
                 await StartupProgress.report("Installing app under test")
                 try await driver.installApp(path: buildPath)
             } catch {

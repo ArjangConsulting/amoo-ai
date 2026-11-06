@@ -49,11 +49,16 @@ public actor SessionManager {
         deviceHint: String? = nil,
         buildPath: String? = nil,
         buildMode: SessionBuildMode = .auto,
+        freshInstall: Bool = false,
+        runID: String? = nil,
         arguments: [String] = [],
         environment: [String: String] = [:],
         testName: String? = nil,
         port: Int? = nil
     ) async throws -> TestSession {
+        guard !freshInstall || buildPath != nil else {
+            throw SessionBootstrapError.freshInstallRequiresArtifact
+        }
         try Task.checkCancellation()
         guard !shuttingDown else { throw SessionError.closed("server") }
         let id = idGenerator()
@@ -85,6 +90,7 @@ public actor SessionManager {
                     deviceHint: deviceHint,
                     buildPath: snapshot?.path,
                     buildMode: buildMode,
+                    freshInstall: freshInstall,
                     arguments: arguments,
                     environment: environment,
                     port: port
@@ -96,6 +102,12 @@ public actor SessionManager {
             }
             throw error
         }
+        var provenance = await Self.sessionProvenance(
+            driver: bootstrap.driver,
+            arguments: arguments,
+            environment: environment
+        )
+        provenance["run_id"] = runID
         guard !shuttingDown, !Task.isCancelled else {
             await bootstrap.cleanup()
             if let ephemeralDirectory {
@@ -117,6 +129,7 @@ public actor SessionManager {
             testName: testName,
             appArtifactSHA256: snapshot?.sha256 ?? bootstrap.appArtifactSHA256,
             artifactSnapshot: snapshot,
+            provenance: provenance,
             startup: bootstrap.startup,
             cleanup: {
                 await bootstrap.cleanup()
@@ -267,6 +280,11 @@ public actor SessionManager {
             byID[id] = await session.reportSnapshot(includeActions: includeActions)
         }
         return byID.values.sorted { $0.startedAt < $1.startedAt }
+    }
+
+    /// Advisory ownership snapshot for device discovery.
+    public func deviceLeases() async -> [String: SessionDeviceLease] {
+        await bootstrapper.deviceLeases()
     }
 
     public func listAvailableDevices(

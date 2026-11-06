@@ -25,6 +25,8 @@ public struct AgentRunReport: Codable, Sendable {
     public let provenance: [String: String]
     public let assertions: [Assertion]
     public let coverage: Coverage
+    /// Measured run totals from amoo telemetry; absent when the installed transport cannot report usage.
+    public let usage: [String: Int]?
     public let artifacts: [AgentEvidenceArtifact]
 
     // Keep the linear contract checks together so reviewers can audit every acceptance condition.
@@ -55,6 +57,9 @@ public struct AgentRunReport: Codable, Sendable {
         }
         if summary.isEmpty || summary.count > 800 || assertions.count > 128 || artifacts.count > 32 {
             errors.append("Report exceeds compact bounds or has an empty summary")
+        }
+        if let usage, usage.count > 32 || usage.values.contains(where: { $0 < 0 }) {
+            errors.append("Usage must contain at most 32 nonnegative measured counters")
         }
         let provenanceKeys = ["app_id", "app_build", "device_id", "device_os", "locale", "host_binary", "host_version"]
         for key in provenanceKeys where provenance[key]?.isEmpty != false {
