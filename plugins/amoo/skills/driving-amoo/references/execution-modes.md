@@ -129,8 +129,10 @@ flag only for an explicitly requested clean store.
    a client configuration that needs correcting. Do not infer ownership from the binary path alone.
 2. For CLI work, run `amoo doctor --cli-only --json` when supported. This retains MCP inventory
    but excludes its staleness from the exit status. Resolve remaining target/runtime issues.
-   On older binaries without scope flags, inspect `doctor --json`: unrelated stale MCP warnings
-   alone do not block CLI work. Do not ignore other issues or silently switch/upgrade binaries.
+   Binaries without scope flags (Homebrew amoo 0.3.0 and earlier) cannot scope doctor: bare
+   `doctor` counts every client's servers, so never gate on it. Read its output only for issues on
+   your own device, runtime or server; another client's stale or unresponsive server or companion
+   never blocks. Check `doctor --help` for the flags up front. Do not silently switch/upgrade binaries.
 3. For MCP, get this connection's PID from initialization/tool-result `dev.amoo/build` metadata,
    or the explicit PID in its staleness warning. Current servers supply `doctor_arguments` and,
    only when stale, `stale_cleanup_arguments` as argument arrays. Run them with the selected
@@ -154,8 +156,10 @@ flag only for an explicitly requested clean store.
 
 Always release your sessions/runtimes on success and failure. `end_session` releases the device;
 `end_session stop_companion=true` also stops its warm companion immediately. Otherwise the companion
-idles out (default 120 seconds). MCP stdin closure and SIGTERM perform server cleanup; replacing an
-executable while a client keeps its connection open does not end that running process. Do not
+idles out (default 120 seconds). MCP stdin closure and SIGTERM perform server cleanup. A server whose executable was replaced exits
+by itself once it holds no session and has no request in flight (set `AMOO_MCP_KEEP_STALE=1` to
+keep it); the client must then reconnect. A busy server keeps running the old code, and builds
+before this behavior keep running until stopped. Do not
 terminate a healthy server merely because its task ended; let its client manage the connection.
 
 ### Device claims and companion failures
@@ -200,6 +204,12 @@ companion; `companion_status` can briefly still report ready, so it is not proof
 `device_launch_app` binds the launched app as the target. To drive an app that is already running,
 call `set_target_app` first: with no target bound, the iOS companion reports `com.apple.springboard`
 as frontmost even while another app is on screen.
+
+System crash and ANR dialogs (for example "Bluetooth keeps stopping") can be absent from the
+accessibility tree. When `current_app` or a screenshot shows one over the app, dismiss it with a
+coordinate `tap` read from a saved screenshot, then re-check `current_app`. Likewise, if TalkBack
+reports that app focus is unavailable, the error names the foreground app; a TalkBack
+notification or setup prompt there needs dismissing before retrying.
 
 Use the documented system scope for permission prompts. Do not guess that an app's controls
 are system UI merely because their labels contain words such as time or settings.
