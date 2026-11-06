@@ -38,7 +38,8 @@ struct BuildProvenancePlugin: BuildToolPlugin {
                 includingPropertiesForKeys: [.isRegularFileKey],
                 options: [.skipsHiddenFiles]
             ) else { continue }
-            for case let url as URL in walker where (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
+            for case let url as URL in walker
+                where (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
                 found.append(url)
             }
         }
