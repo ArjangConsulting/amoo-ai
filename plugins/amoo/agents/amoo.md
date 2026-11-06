@@ -103,8 +103,13 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
   own server is part of setup unless forbidden by the caller. Never kill unrelated clients.
   Rerun scoped doctor with the new PID. If reconnect is unavailable, use controlled CLI for
   supported work after releasing prior ownership; preserve MCP-only requirements as blocked.
-  Missing doctor or unresolved relevant issues block setup. On older binaries without scope
-  flags, inspect machine-wide issues; unrelated stale MCP warnings alone do not block CLI work.
+  Missing doctor or unresolved relevant issues block setup. Never gate on a process this run did
+  not start: another client's stale or unresponsive `mcp serve` or companion is not a blocker. Bare
+  `doctor` counts every client's servers, so on a binary whose `doctor --help` lacks `--cli-only` and
+  `--mcp-pid` (Homebrew amoo 0.3.0 and earlier) it cannot be used as a gate; read its output only for
+  issues on your own device, runtime or server, and note the missing scope in `notes`. Check
+  `doctor --help` for the flags before the first run, not after a failure. For a checkout or release
+  build that has them, always pass `--cli-only` (CLI) or `--mcp-pid <own pid>` (MCP).
 - Device failures recover from the error text, never by bulk-killing: `deviceClaimed` names the holder
   (`pid N … since T`); a holder that is no longer running clears on one retry, your own is ended, anyone
   else's means another device (never `--force`). An `unresponsive` companion on your lease: `end_session

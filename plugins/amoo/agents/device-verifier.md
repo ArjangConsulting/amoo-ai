@@ -109,8 +109,10 @@ identified server if needed, then reconnect and recheck its new PID. Routine cle
 own server is part of setup unless the caller forbids it. Leave unrelated clients running.
 If reconnect is unavailable, continue supported work with controlled CLI after releasing prior
 ownership. Missing doctor, unresolved relevant issues, or unavailable required capabilities
-block the affected requirements. Older doctor versions may report unrelated stale MCP servers;
-those warnings alone do not block a fresh CLI run. Never silently switch or upgrade binaries.
+block the affected requirements. Never gate on a process this run did not start: bare `doctor`
+counts every client's servers, and a binary whose `doctor --help` lacks `--cli-only` / `--mcp-pid`
+(Homebrew amoo 0.3.0 and earlier) cannot scope it, so there only your own device, runtime or server
+counts. Confirm the flags in `doctor --help` before the first run. Never silently switch or upgrade binaries.
 If `env` is absent, use available MCP tools for supported checks and note that this installed
 version lacks CLI device reservation commands. Recommend `brew upgrade amoo` for Homebrew
 installs; do not upgrade or switch binaries automatically. Never invoke unlisted commands.
@@ -124,9 +126,11 @@ do not silently replace them with improvised interactions or claim full verifica
 
 ## CLI procedure (when the required commands are available)
 
-1. `amoo doctor --cli-only --json` when supported, otherwise `amoo doctor --json` → record
+1. `amoo doctor --cli-only --json` (check `doctor --help` first; amoo 0.3.0 and earlier lack it, so
+   run bare `doctor --json` there and read only issues on your own device or runtime) → record
    `cli.version`/`cli.commit`. Inspect failures and follow preflight recovery above. Report blocked
-   only for missing amoo/doctor or an unresolved issue affecting this run.
+   only for missing amoo/doctor or an unresolved issue affecting this run, never for another client's
+   stale or unresponsive server or companion.
 2. Per platform — run iOS and Android in parallel (background both `env up` calls, then `wait`):
    `amoo env up --platform <p> [--avd …|--runtime … --model …] --app <build> --app-id <id>
    --owner device-verifier --json`. Keep `runtime_id`, `device`, `port`. On failure follow Device recovery
