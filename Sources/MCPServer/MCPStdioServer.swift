@@ -69,10 +69,22 @@ public struct MCPStdioServer: Sendable {
 
     let server: MCPServer
     let buildInfo: AmooBuildInfo
+    let supersededPollInterval: Swift.Duration
+    let exitWhenSuperseded: @Sendable () -> Void
 
-    public init(server: MCPServer, buildInfo: AmooBuildInfo = .current) {
+    /// - Parameters:
+    ///   - supersededPollInterval: How often to check whether the binary on disk was replaced.
+    ///   - exitWhenSuperseded: Runs once the binary was replaced and the server is idle; stops the process.
+    public init(
+        server: MCPServer,
+        buildInfo: AmooBuildInfo = .current,
+        supersededPollInterval: Swift.Duration = .seconds(5),
+        exitWhenSuperseded: @escaping @Sendable () -> Void = { exit(0) }
+    ) {
         self.server = server
         self.buildInfo = buildInfo
+        self.supersededPollInterval = supersededPollInterval
+        self.exitWhenSuperseded = exitWhenSuperseded
     }
 
     public func run(input: FileHandle = .standardInput, output: FileHandle = .standardOutput) async throws {
@@ -80,6 +92,8 @@ public struct MCPStdioServer: Sendable {
         let runtime = MCPRequestRuntime(output: output, lifetime: lifetime)
         let diagnostics = MCPTransportDiagnostics()
         diagnostics.emit("started")
+        let watcher = Task { await exitOnceSupersededAndIdle(runtime: runtime, diagnostics: diagnostics) }
+        defer { watcher.cancel() }
         var buffer = Data()
         var legacyInitialized = false
         do {
