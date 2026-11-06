@@ -2,6 +2,7 @@ package com.amoo.companion.bridge
 
 import android.app.UiAutomation
 import android.content.ComponentName
+import android.os.Build
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityNodeInfo
@@ -70,6 +71,7 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
             result.putProvenance("screen_reader_version", context.packageManager.getPackageInfo(service.packageName, 0).versionName.orEmpty())
             result.putProvenance("speech_source", "TalkBack UID ${service.applicationInfo.uid}; TextToSpeechService.onSynthesizeText")
             result.putProvenance("capture_engine", context.packageName)
+            grantTalkBackNotifications(service.packageName, result)
             recovery.enableCapture(original)
             awaitCaptureReady(token, request.appId)
             check(bridge.currentPackageName() == request.appId) { "TalkBack changed foreground; target traversal withheld" }
@@ -78,7 +80,10 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
             SystemClock.sleep(300)
             awaitSpeech(token, utterances(token).size)
             val initialFocus = focus()
-            check(initialFocus != null && initialFocus.packageName == request.appId) { "Initial app-owned TalkBack focus unavailable" }
+            check(initialFocus != null && initialFocus.packageName == request.appId) {
+                "Initial app-owned TalkBack focus unavailable; foreground app is ${bridge.currentPackageName()}, " +
+                    "TalkBack focus is in ${initialFocus?.packageName ?: "no window"}, expected ${request.appId}"
+            }
             result.putProvenance("initial_focus", initialFocus.description())
             result.putProvenance("initial_navigation", "Alt+Ctrl+Left sent before requested moves; default keymap first-item command")
             var offset = utterances(token).size
@@ -172,6 +177,18 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
         return focus()
     }
 
+    /**
+     * TalkBack's first start posts a notification-permission prompt that takes the foreground and steals
+     * focus from the target app. Granting the permission up front keeps the prompt from appearing.
+     */
+    private fun grantTalkBackNotifications(talkBackPackage: String, result: AccessibilityInspectionResponse.Builder) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val outcome = runCatching {
+            automation.grantRuntimePermission(talkBackPackage, "android.permission.POST_NOTIFICATIONS")
+        }
+        result.putProvenance("talkback_notification_grant", if (outcome.isSuccess) "granted" else "unavailable: ${outcome.exceptionOrNull()?.javaClass?.simpleName}")
+    }
+
     private fun awaitCaptureReady(token: String, appId: String) {
         val deadline = SystemClock.elapsedRealtime() + 10000
         do {
@@ -179,7 +196,7 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
             SystemClock.sleep(100)
         } while (SystemClock.elapsedRealtime() < deadline)
         if (bridge.currentPackageName() != appId) {
-            error("TalkBack startup opened another app or a system permission prompt; complete its first-run setup before retrying")
+            error("TalkBack startup moved ${bridge.currentPackageName()} to the foreground instead of $appId; complete its first-run setup before retrying")
         }
         error("TalkBack did not produce a qualified synthesis request before startup deadline")
     }
