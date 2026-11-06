@@ -48,14 +48,19 @@ jobs:
         run: |
           simulator_id="$(python3 - <<'PY'
           import json
+          import re
           import subprocess
 
           catalog = json.loads(subprocess.check_output(
               ["xcrun", "simctl", "list", "devices", "available", "--json"]
           ))
+          # Only plain iOS runtimes (iOS-27-2). Device-specific variants such as
+          # iOS-27-2-iPhone19-4 have a non-numeric suffix and are skipped.
+          runtime_pattern = re.compile(r"\.iOS-(\d+(?:-\d+)*)$")
           candidates = [
-              (tuple(map(int, runtime.rsplit("iOS-", 1)[1].split("-"))), device["name"], device["udid"])
-              for runtime, devices in catalog["devices"].items() if "iOS-" in runtime
+              (tuple(map(int, match.group(1).split("-"))), device["name"], device["udid"])
+              for runtime, devices in catalog["devices"].items()
+              for match in [runtime_pattern.search(runtime)] if match
               for device in devices if device["name"].startswith("iPhone")
           ]
           if not candidates:
