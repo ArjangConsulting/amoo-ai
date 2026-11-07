@@ -139,6 +139,28 @@ final class CompanionStaleAndDetachTests: XCTestCase {
         XCTAssertEqual(polls.get(), 3)
     }
 
+    func testDetachUsesEachPlatformsOwnDefaultPort() async {
+        let cases: [(platform: String, port: Int)] = [("ios", 22087), ("android", 22088), ("macos", 22086)]
+        for (platform, port) in cases {
+            let spawned = Locked<[String]>([])
+            let hooks = hooks(
+                spawn: { arguments, _ in
+                    spawned.set(arguments)
+                    return 4245
+                }
+            )
+            let result = await runDetachedCompanionStart(
+                options: parsedStart(["start", "--platform", platform, "--device", "dev"]), hooks: hooks
+            )
+            XCTAssertEqual(result.exitCode, 0, result.output)
+            XCTAssertTrue(result.output.contains("port \(port)"), "\(platform): \(result.output)")
+            XCTAssertTrue(
+                spawned.get().joined(separator: " ").contains("--port \(port) "),
+                "\(platform) spawned \(spawned.get())"
+            )
+        }
+    }
+
     func testDetachFailsWithTheLogTailWhenTheProcessDiesBeforeReady() async throws {
         let log = NSTemporaryDirectory() + "amoo-companion-ios-23002.log"
         try Data("boom: build failed".utf8).write(to: URL(fileURLWithPath: log))
