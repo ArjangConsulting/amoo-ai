@@ -156,14 +156,15 @@ jobs:
       - run: make companion-ios-protos
       - run: swift build --product amoo
       # Drives Calculator on the runner's own desktop. macOS refuses UI automation until Automation
-      # Mode may start without a password prompt, which needs passwordless sudo on the runner.
+      # Mode may start without a password prompt, which needs passwordless sudo on the runner. The
+      # runner's screen is small enough that the Dock covers Calculator's bottom row, so hide it.
       - name: macOS smoke
         timeout-minutes: 20
         shell: bash
         run: |
           mkdir -p "$AMOO_MACOS_SMOKE_DIR"
           set -o pipefail
-          scripts/run-e2e-macos.sh --enable-automation-mode 2>&1 | tee "$AMOO_MACOS_SMOKE_DIR/smoke-macos.log"
+          scripts/run-e2e-macos.sh --enable-automation-mode --hide-dock 2>&1 | tee "$AMOO_MACOS_SMOKE_DIR/smoke-macos.log"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
