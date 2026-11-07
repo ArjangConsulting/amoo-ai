@@ -1,6 +1,6 @@
 # Driving this Mac (`--platform macos`, experimental)
 
-amoo can drive apps on the desktop of the Mac it runs on. It uses the same XCUITest companion and
+amoo can drive apps on the desktop of the Mac it runs on (available since 0.4.0). It uses the same XCUITest companion and
 gRPC protocol as iOS, built for macOS (`AmooCompanionMac` in `CompanionApps/iOS/project.yml`).
 
 ## Setup
@@ -91,3 +91,11 @@ since a Mac is neither a phone nor a tablet.
   app rather than whatever app is frontmost.
 - The companion runs in the App Sandbox. It finds a target app by its running instance, so the app
   must be launched (by the session or by you) before it can be queried.
+
+## Checking your setup
+
+`scripts/run-e2e-macos.sh` is a one-minute smoke test of the whole path. It runs the preflight,
+starts the companion, launches Calculator, checks the foreground app, takes a screenshot, taps
+`7 × 6 =` and reads `42` back. Calculator has no documents, so nothing is left behind. The
+screenshot shows your whole desktop, so it is deleted on exit unless `AMOO_MACOS_SMOKE_DIR` is set.
+CI runs the same script in the `macos` job of `companions.yml`.
