@@ -20,7 +20,8 @@ intended outcome rather than assuming parity from a tool name.
 
 ## CI and hardware setup
 
-`companions.yml` builds both companions and runs a small strict smoke suite. With
+`companions.yml` builds the companions and runs a small strict smoke suite on iOS, Android and
+macOS (`scripts/run-e2e-macos.sh`, which drives Calculator). With
 `AMOO_E2E_STRICT=1`, missing companions and failed setup queries fail the job instead of becoming
 skipped tests. Platform-specific unsupported scenarios can still skip. `make companion-ios-build`
 regenerates protos/project inputs, and shell pipeline failures propagate to Make.
