@@ -99,3 +99,9 @@ starts the companion, launches Calculator, checks the foreground app, takes a sc
 `7 × 6 =` and reads `42` back. Calculator has no documents, so nothing is left behind. The
 screenshot shows your whole desktop, so it is deleted on exit unless `AMOO_MACOS_SMOKE_DIR` is set.
 CI runs the same script in the `macos` job of `companions.yml`.
+
+Before tapping, the script checks that each key lies inside the screen's visible area and fails
+with a clear message if the Dock or a screen edge covers one; after each tap it checks Calculator
+is still frontmost. On a small display the Dock can cover Calculator's bottom row (`0`, `.`, `=`),
+so a tap opens a Dock app instead. Pass `--hide-dock` to auto-hide the Dock for the run (it is
+restored on exit); CI does.
