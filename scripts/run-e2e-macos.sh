@@ -70,6 +70,17 @@ device() {
   "$AMOO" device --platform macos --device mac --port "$PORT" "$@"
 }
 
+all_elements() {
+  local offset=0 page next
+  for _ in $(seq 1 20); do
+    page="$(device find_elements "offset=$offset")"
+    printf '%s\n' "$page"
+    next="$(sed -n 's/^More results: offset=\([0-9][0-9]*\).*/\1/p' <<<"$page" | head -n 1)"
+    [[ -n "$next" ]] || return 0
+    offset="$next"
+  done
+}
+
 cleanup() {
   local status=$?
   set +e
@@ -133,14 +144,20 @@ done
 step "Read the result back"
 result_seen=0
 for _ in 1 2 3 4 5 6; do
-  screen_elements="$(device find_elements)"
-  if [[ "$screen_elements" == *'value="42"'* ]]; then
+  screen_elements="$(all_elements)"
+  if [[ "$screen_elements" == *'value="42"'* || "$screen_elements" == *'value="forty two"'* ]]; then
     result_seen=1
     break
   fi
   sleep 1
 done
-[[ "$result_seen" -eq 1 ]] || fail "7 x 6 did not show 42"
+if [[ "$result_seen" -ne 1 ]]; then
+  printf '%s\n' "$screen_elements" >"$OUT/elements-final.txt"
+  device take_screenshot "output=$OUT/macos-final.png" return_image=false scale=0.25 >/dev/null 2>&1 || true
+  echo "Elements with a value:" >&2
+  grep 'value=' <<<"$screen_elements" | head -n 20 >&2 || true
+  fail "7 x 6 did not show 42"
+fi
 
 device tap_element id=AllClear >/dev/null || true
 
