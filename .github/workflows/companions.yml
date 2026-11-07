@@ -120,6 +120,55 @@ jobs:
             companion-ios.log
             CompanionApps/iOS/build/companion-ios-build.log
             CompanionApps/iOS/build/Logs/Test/*.xcresult
+  macos:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    env:
+      AMOO_MACOS_SMOKE_DIR: ${{ github.workspace }}/macos-smoke
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Cache Homebrew packages
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-companion-${{ hashFiles('.github/workflows/companions.yml') }}
+          restore-keys: brew-${{ runner.os }}-companion-
+      - run: brew install protobuf swift-protobuf protoc-gen-grpc-swift xcodegen
+      - name: Compute cache keys
+        id: keys
+        shell: bash
+        run: |
+          echo "package=$(shasum -a 256 Package.resolved | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "project=$(shasum -a 256 CompanionApps/iOS/project.yml | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Restore host SPM dependencies
+        uses: actions/cache@v6
+        with:
+          path: .build
+          key: spm-companion-macos-${{ steps.keys.outputs.package }}
+      - name: Restore companion SPM checkouts
+        uses: actions/cache@v6
+        with:
+          path: CompanionApps/iOS/build/SourcePackages
+          key: spm-companion-xcode-${{ steps.keys.outputs.project }}
+      - run: make companion-ios-protos
+      - run: swift build --product amoo
+      # Drives Calculator on the runner's own desktop. macOS refuses UI automation until Automation
+      # Mode may start without a password prompt, which needs passwordless sudo on the runner.
+      - name: macOS smoke
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          mkdir -p "$AMOO_MACOS_SMOKE_DIR"
+          set -o pipefail
+          scripts/run-e2e-macos.sh --enable-automation-mode 2>&1 | tee "$AMOO_MACOS_SMOKE_DIR/smoke-macos.log"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macos-smoke
+          path: macos-smoke
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 45
