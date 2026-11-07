@@ -75,10 +75,15 @@ func runDetachedCompanionStart(
     hooks: DetachedCompanionHooks = .live
 ) async -> CLIResult {
     let platform = options.platform
-    let port = options.port ?? (platform == .ios ? CompanionConfig.defaultPort : AndroidCompanionConfig.defaultPort)
-    let readyTimeout = options.readyTimeoutSeconds ?? (platform == .ios
-        ? CompanionConfig.readyTimeoutFromEnvironment()
-        : AndroidCompanionConfig.readyTimeoutFromEnvironment())
+    let defaultPort = switch platform {
+    case .ios: CompanionConfig.defaultPort
+    case .android: AndroidCompanionConfig.defaultPort
+    case .macos: CompanionConfig.defaultMacPort
+    }
+    let port = options.port ?? defaultPort
+    let readyTimeout = options.readyTimeoutSeconds ?? (platform == .android
+        ? AndroidCompanionConfig.readyTimeoutFromEnvironment()
+        : CompanionConfig.readyTimeoutFromEnvironment())
     guard let executable = hooks.executablePath() else {
         return CLIResult(output: "Cannot locate the amoo executable to start the companion.", exitCode: 1)
     }
