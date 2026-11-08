@@ -474,8 +474,9 @@ compiled into an assertion. When a recorded observation read a selected state, t
 use `limit` and `next_offset` while `has_more` is true. Offsets query live state, so keep the screen
 stable while paging and restart if it changes. Hierarchy output defaults to 200 nodes with an
 explicit truncation marker. Truncated output cannot establish absence. Prefer `get_screen_context`
-and scoped queries over screenshots. Save screenshot evidence without inline image tokens by passing
-`output` and `return_image=false`; use available local tools such as Python/ffmpeg for pixel diffs,
+and scoped queries over screenshots. `take_screenshot` saves to `saved_path` (or `output`) without an
+inline image by default, at one pixel per point/dp; pass `return_image=true` only when the model must
+see pixels, since an inline image is re-read on every later turn. Use available local tools such as Python/ffmpeg for pixel diffs,
 bounds or centroids, and view only a small crop when visual interpretation is necessary. For a transient state, batch the action and an immediate
 `take_screenshot` with `settle_timeout_ms=0` in one `run_steps` call. Set `check_effect=false` on
 a triggering `tap_element` to skip its post-tap hierarchy reads. For tighter timing, use a
@@ -522,8 +523,8 @@ is not a whole-app security certification; deep-link validation requires scenari
 For a short known sequence, `run_steps` accepts an active `session_id` and an array of up to 20
 `{"tool":"…","arguments":{…}}` objects, including `take_screenshot` observations. Actions,
 assertions and observations execute in order under the same device queue, stop at the first failure,
-and each attempted step is recorded once. Save screenshot steps to `output` with `return_image=false`;
-batch responses contain compact summaries, not inline images. Nested batches,
+and each attempted step is recorded once. Screenshot steps save to a file
+(`output` or a temporary `saved_path`); batch responses contain compact summaries, never inline images. Nested batches,
 lifecycle calls and per-step session overrides are rejected before execution. Per-step timeouts
 are capped at 10 seconds and gesture durations at 3 seconds. Completed actions are not rolled back.
 Use normal discovery calls to decide the sequence first; batch responses contain compact summaries.

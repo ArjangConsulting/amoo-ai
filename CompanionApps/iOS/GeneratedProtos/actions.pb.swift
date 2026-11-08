@@ -476,6 +476,16 @@ public nonisolated struct Amoo_ScreenshotRequest: Sendable {
 
   public var format: String = String()
 
+  /// Fraction of native pixels per side to return, in (0, 1]. 0 (unset) returns native pixels.
+  public var scale: Double = 0
+
+  /// Return one image pixel per point (iOS) or density-independent pixel (Android), i.e.
+  /// scale = 1 / density. Overrides scale. Scaling on the device keeps transfers small.
+  public var pointResolution: Bool = false
+
+  /// JPEG quality in (0, 1]; 0 uses the companion default. Ignored for PNG.
+  public var quality: Double = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -498,6 +508,16 @@ public nonisolated struct Amoo_ScreenshotResponse: Sendable {
   public var hasScreen: Bool {self._screen != nil}
   /// Clears the value of `screen`. Subsequent reads from it will return its default value.
   public mutating func clearScreen() {self._screen = nil}
+
+  /// Fraction of native pixels per side the companion applied; 0 when the image is native
+  /// (including companions that predate scaling).
+  public var appliedScale: Double = 0
+
+  /// Image format actually produced: "png" or "jpeg". Empty from older companions (png).
+  public var format: String = String()
+
+  /// Native pixels per point (iOS) or per density-independent pixel (Android).
+  public var density: Double = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1327,7 +1347,7 @@ nonisolated extension Amoo_SetTextRequest: SwiftProtobuf.Message, SwiftProtobuf.
 
 nonisolated extension Amoo_ScreenshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ScreenshotRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}format\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}format\0\u{1}scale\0\u{3}point_resolution\0\u{1}quality\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1336,6 +1356,9 @@ nonisolated extension Amoo_ScreenshotRequest: SwiftProtobuf.Message, SwiftProtob
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.format) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.scale) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.pointResolution) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.quality) }()
       default: break
       }
     }
@@ -1345,11 +1368,23 @@ nonisolated extension Amoo_ScreenshotRequest: SwiftProtobuf.Message, SwiftProtob
     if !self.format.isEmpty {
       try visitor.visitSingularStringField(value: self.format, fieldNumber: 1)
     }
+    if self.scale.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.scale, fieldNumber: 2)
+    }
+    if self.pointResolution != false {
+      try visitor.visitSingularBoolField(value: self.pointResolution, fieldNumber: 3)
+    }
+    if self.quality.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.quality, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_ScreenshotRequest, rhs: Amoo_ScreenshotRequest) -> Bool {
     if lhs.format != rhs.format {return false}
+    if lhs.scale != rhs.scale {return false}
+    if lhs.pointResolution != rhs.pointResolution {return false}
+    if lhs.quality != rhs.quality {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1357,7 +1392,7 @@ nonisolated extension Amoo_ScreenshotRequest: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Amoo_ScreenshotResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ScreenshotResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0\u{1}screen\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0\u{1}screen\0\u{3}applied_scale\0\u{1}format\0\u{1}density\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1367,6 +1402,9 @@ nonisolated extension Amoo_ScreenshotResponse: SwiftProtobuf.Message, SwiftProto
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBytesField(value: &self.data) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._screen) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.appliedScale) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.format) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.density) }()
       default: break
       }
     }
@@ -1383,12 +1421,24 @@ nonisolated extension Amoo_ScreenshotResponse: SwiftProtobuf.Message, SwiftProto
     try { if let v = self._screen {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if self.appliedScale.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.appliedScale, fieldNumber: 3)
+    }
+    if !self.format.isEmpty {
+      try visitor.visitSingularStringField(value: self.format, fieldNumber: 4)
+    }
+    if self.density.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.density, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_ScreenshotResponse, rhs: Amoo_ScreenshotResponse) -> Bool {
     if lhs.data != rhs.data {return false}
     if lhs._screen != rhs._screen {return false}
+    if lhs.appliedScale != rhs.appliedScale {return false}
+    if lhs.format != rhs.format {return false}
+    if lhs.density != rhs.density {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

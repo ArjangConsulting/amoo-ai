@@ -211,6 +211,9 @@ private func runFlowScreenshot(
     var forwarded = arguments.filter { $0.key != "name" }
     forwarded["output"] = file.path
     forwarded["return_image"] = "false"
+    // Flow captures are checked-in evidence and `shots diff` baselines; keep native pixels unless
+    // the step sets its own scale.
+    forwarded["scale"] = forwarded["scale"] ?? "1"
     let result = await executor.execute(toolName: "take_screenshot", arguments: forwarded)
     return result.isError ? result : .success("Saved \(file.path)")
 }

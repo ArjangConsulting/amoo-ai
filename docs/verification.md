@@ -115,9 +115,12 @@ dimensions. `result_mode=full` retains full structured results and content. Set
 `continue_on_error=true` only for independent steps; it never converts an error into success.
 Batch results distinguish attempted, successful, failed and unattempted operations.
 
-Screenshots support `scale`, `output`, and `return_image=false`. Results report actual decoded
-dimensions when available, saved paths, byte counts and scaling status. Unavailable scaling keeps
-the original image and says so. Screen tokens support semantic change assertions; hierarchy deltas
+Screenshots are saved to a file (`output`, or a temporary file reported as `saved_path`) and return
+no inline image unless `return_image=true`. They default to one image pixel per point (iOS) or
+density-independent pixel (Android), scaled on the device; `scale` (a fraction of native pixels,
+`1` for native) overrides it. Results report actual decoded dimensions, `image_scale`, saved paths,
+byte counts and scaling status (`applied_on_device`, `applied`, `not_requested`, `unavailable`).
+Unavailable scaling keeps the original image and says so. Screen tokens support semantic change assertions; hierarchy deltas
 are not advertised. Pixel review and model choice remain agent guidance.
 
 Metrics count serialized executor MCP result payload bytes, including base64 for inline images,

@@ -3,11 +3,13 @@ import MCP
 
 extension DriverToolExecutor {
     /// Bounded device facts observed together after a display transition or capture.
-    func deviceObservation(driver: any PlatformDriver) async -> [String: Value] {
+    /// `geometry` reported with a capture skips the separate geometry call (on iOS another full capture).
+    func deviceObservation(driver: any PlatformDriver, geometry known: ScreenSize? = nil) async -> [String: Value] {
         let deadline = ContinuousClock.now + .seconds(3)
         async let state = try? OperationDeadline.read(until: deadline) { try await driver.screenState() }
         async let app = try? OperationDeadline.read(until: deadline) { try await driver.currentApp() }
-        async let geometry = try? OperationDeadline.read(until: deadline) { try await driver.screenGeometry() }
+        async let geometry = known == nil
+            ? try? OperationDeadline.read(until: deadline) { try await driver.screenGeometry() } : known
         let (screenState, currentApp, screen) = await (state, app, geometry)
         var fields: [String: Value] = [
             "screen_state": .string(screenState?.rawValue ?? "unknown"),

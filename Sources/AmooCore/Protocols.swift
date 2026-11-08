@@ -72,6 +72,8 @@ public protocol ScreenCapture: Sendable {
     /// in a different encoding (e.g. Android always produces PNG). Callers must
     /// consult `ScreenshotData.format` for the encoding actually returned.
     func takeScreenshot(format: ImageFormat) async throws -> ScreenshotData
+    /// Captures sized at the source when the driver can; the default captures native pixels.
+    func takeScreenshot(_ options: ScreenshotRequestOptions) async throws -> ScreenshotData
     func startRecording() async throws -> RecordingSession
     func stopRecording(sessionID: String) async throws -> String
     /// Best-effort screen power/lock state, or `nil` when a driver can't determine it.
@@ -160,29 +162,6 @@ public struct ElementGeometry: Sendable, Equatable {
             width: frame.width / framesPerUnit,
             height: frame.height / framesPerUnit
         )
-    }
-}
-
-/// Gesture space (points) and screenshot space (pixels), plus the factor between them.
-public struct ScreenSize: Sendable, Equatable {
-    public let widthPoints: Double
-    public let heightPoints: Double
-    public let widthPixels: Double
-    public let heightPixels: Double
-    public let scale: Double
-
-    public init(
-        widthPoints: Double,
-        heightPoints: Double,
-        widthPixels: Double,
-        heightPixels: Double,
-        scale: Double
-    ) {
-        self.widthPoints = widthPoints
-        self.heightPoints = heightPoints
-        self.widthPixels = widthPixels
-        self.heightPixels = heightPixels
-        self.scale = scale
     }
 }
 

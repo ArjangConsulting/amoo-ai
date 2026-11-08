@@ -387,9 +387,25 @@ class CompanionServiceImpl(
     }
 
     override suspend fun takeScreenshot(request: ScreenshotRequest): ScreenshotResponse {
-        request
+        val jpeg = request.format == "jpeg" || request.format == "jpg"
+        val quality = if (request.quality > 0.0 && request.quality <= 1.0) request.quality else 0.8
+        val capture = accessibility.captureScreen(request.scale, request.pointResolution, if (jpeg) quality else null)
+        // Gestures take raw pixels on Android, so points and pixels are the same here.
+        val width = capture.widthPixels.toDouble()
+        val height = capture.heightPixels.toDouble()
+        val screen = ScreenInfoResponse.newBuilder()
+            .setWidthPoints(width)
+            .setHeightPoints(height)
+            .setWidthPixels(width)
+            .setHeightPixels(height)
+            .setScale(1.0)
+            .build()
         return ScreenshotResponse.newBuilder()
-            .setData(com.google.protobuf.ByteString.copyFrom(accessibility.takeScreenshot()))
+            .setData(com.google.protobuf.ByteString.copyFrom(capture.data))
+            .setFormat(capture.format)
+            .setAppliedScale(capture.appliedScale)
+            .setDensity(capture.density)
+            .setScreen(screen)
             .build()
     }
 

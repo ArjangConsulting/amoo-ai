@@ -2,6 +2,7 @@ package com.amoo.companion.bridge
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.graphics.Bitmap
 import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
@@ -19,7 +20,9 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
+import java.io.ByteArrayOutputStream
 import java.util.regex.Pattern
+import kotlin.math.roundToInt
 
 /**
  * Single point of contact with Android's UIAutomator2 framework.
@@ -463,6 +466,52 @@ class UIAutomatorBridge {
         return bytes
     }
 
+    /**
+     * One capture, scaled and encoded in memory before it crosses gRPC.
+     *
+     * [fraction] is of native pixels per side; [pointResolution] asks for one pixel per
+     * density-independent pixel (fraction = 1 / density), which is what keeps a capture of a
+     * 420 dpi screen at about a seventh of its pixels. Falls back to the file-based capture when
+     * UiAutomation returns no bitmap.
+     */
+    fun captureScreen(fraction: Double, pointResolution: Boolean, jpegQuality: Double?): CapturedScreen {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val density = instrumentation.targetContext.resources.displayMetrics.density.toDouble()
+        val bitmap = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).takeScreenshot()
+            ?: return CapturedScreen(takeScreenshot(), "png", 0.0, screenWidth(), screenHeight(), density)
+        val target = when {
+            pointResolution -> 1.0 / density.coerceAtLeast(1.0)
+            fraction > 0.0 && fraction < 1.0 -> fraction
+            else -> 1.0
+        }
+        val applied = target.coerceIn(0.05, 1.0)
+        val output = if (applied < 1.0) {
+            Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * applied).roundToInt().coerceAtLeast(1),
+                (bitmap.height * applied).roundToInt().coerceAtLeast(1),
+                true
+            )
+        } else {
+            bitmap
+        }
+        val stream = ByteArrayOutputStream()
+        val jpeg = jpegQuality != null
+        output.compress(
+            if (jpeg) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG,
+            ((jpegQuality ?: 1.0) * 100).roundToInt().coerceIn(1, 100),
+            stream
+        )
+        val width = bitmap.width
+        val height = bitmap.height
+        if (output !== bitmap) output.recycle()
+        bitmap.recycle()
+        return CapturedScreen(
+            stream.toByteArray(), if (jpeg) "jpeg" else "png", if (applied < 1.0) applied else 0.0,
+            width, height, density
+        )
+    }
+
     private fun NodeRecord.toSnapshot(): ElementSnapshot = ElementSnapshot(
         id = id,
         label = label,
@@ -823,3 +872,15 @@ class UIAutomatorBridge {
         return sequenceOf(node) + node.children.asSequence().flatMap { child -> collectDescendants(child) }
     }
 }
+
+/** A screenshot and the native pixel size of the same frame. */
+data class CapturedScreen(
+    val data: ByteArray,
+    val format: String,
+    /** Fraction of native pixels per side applied; 0 when the image is native. */
+    val appliedScale: Double,
+    val widthPixels: Int,
+    val heightPixels: Int,
+    /** Native pixels per density-independent pixel. */
+    val density: Double
+)

@@ -82,9 +82,9 @@ public enum QueryTools {
         ),
         ToolDefinition(
             name: "take_screenshot",
-            description: "Capture a screenshot of the current screen."
-                + " Returns the image as an MCP image content block, and optionally writes it to disk."
-                + " For token-efficient evidence, prefer output with return_image=false.",
+            description: "Capture a screenshot of the current screen and save it to a file (saved_path)."
+                + " By default no image is returned: read the file only when you need pixels."
+                + " Images default to one pixel per point (iOS) or dp (Android).",
             properties: [
                 "format": .init(
                     type: "string",
@@ -93,19 +93,19 @@ public enum QueryTools {
                 ),
                 "output": .init(
                     type: "string",
-                    description: "Optional file path to also save the screenshot to (~ is expanded)."
+                    description: "File path to save to (~ is expanded). Defaults to a temporary file,"
+                        + " reported as saved_path."
                 ),
                 "return_image": .init(
                     type: "boolean",
-                    description: "Return inline image; default true. False requires output."
-                        + " Prefer false for saved evidence to avoid sending image tokens."
+                    description: "Also return the image inline; default false. Inline images cost image"
+                        + " tokens on this and every later turn."
                 ),
                 "scale": .init(
                     type: "number",
-                    description: "Optional downscale factor in (0, 1]. 0.5 halves each dimension and"
-                        + " cuts the image roughly to a quarter of the bytes — enough for reading"
-                        + " layout and state, and far cheaper for a model to consume."
-                        + " When omitted, the original resolution is preserved."
+                    description: "Fraction of native pixels per side in (0, 1]; keeps the aspect ratio."
+                        + " Omitted: 1 / screen density (402x874 on a 3x iPhone), scaled on the device."
+                        + " 1 keeps native pixels."
                 ),
                 "settle_timeout_ms": .init(
                     type: "string",
@@ -119,6 +119,14 @@ public enum QueryTools {
                 properties: [
                     "byte_count": .init(type: "integer", description: "Size of the captured image in bytes"),
                     "original_byte_count": .init(type: "integer", description: "Size before downscaling"),
+                    "image_scale": .init(
+                        type: "number",
+                        description: "Fraction of native pixels per side in the returned image"
+                    ),
+                    "scaling_status": .init(
+                        type: "string",
+                        description: "applied_on_device, applied, not_requested or unavailable"
+                    ),
                     "screen_state": .init(
                         type: "string",
                         description: "on, locked, or off when detectable; omitted if unknown"
@@ -132,7 +140,7 @@ public enum QueryTools {
                     "format": .init(type: "string", description: "Image format actually captured: png or jpeg"),
                     "saved_path": .init(
                         type: "string",
-                        description: "Absolute path written to, when output was provided"
+                        description: "Absolute path written to (output, or a temporary file by default)"
                     ),
                     "settled": .init(
                         type: "boolean",

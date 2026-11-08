@@ -67,6 +67,10 @@ final class AccessibilityHandler: @unchecked Sendable {
         await bridge.takeScreenshot()
     }
 
+    func captureScreen(fraction: Double, pointResolution: Bool, jpegQuality: Double?) async -> CapturedScreen {
+        await bridge.captureScreen(fraction: fraction, pointResolution: pointResolution, jpegQuality: jpegQuality)
+    }
+
     func screenInfo() async -> (points: CGSize, pixels: CGSize, scale: Double) {
         await bridge.screenInfo()
     }

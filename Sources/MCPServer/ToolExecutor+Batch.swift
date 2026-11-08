@@ -68,15 +68,11 @@ extension DriverToolExecutor {
                 )
             }
             var values = step.arguments.mapValues { $0.stringValue ?? $0.description }
-            if step.tool == "take_screenshot" {
-                guard let output = values["output"], !output.isEmpty,
-                      values["return_image"]?.lowercased() == "false"
-                else {
-                    throw ToolExecutionError(
-                        code: "invalid_argument",
-                        message: "Batch take_screenshot steps require output and return_image=false."
-                    )
-                }
+            if step.tool == "take_screenshot", values["return_image"]?.lowercased() == "true" {
+                throw ToolExecutionError(
+                    code: "invalid_argument",
+                    message: "Batch take_screenshot steps save to a file; omit return_image."
+                )
             }
             values["session_id"] = sessionID
             _ = try ToolRequest(name: step.tool, arguments: values)

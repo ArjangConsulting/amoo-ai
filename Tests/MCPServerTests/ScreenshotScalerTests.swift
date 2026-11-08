@@ -48,7 +48,7 @@ final class ScreenshotScalerTests: XCTestCase {
         XCTAssertEqual(costs?["evidence_image_pixels"], .int(5000))
         XCTAssertEqual(costs?["evidence_image_bytes"]?.intValue, try Data(contentsOf: output).count)
         let inline = await executor.execute(toolName: "take_screenshot", arguments: [
-            "session_id": session.id, "settle_timeout_ms": "0"
+            "session_id": session.id, "settle_timeout_ms": "0", "return_image": "true", "scale": "1"
         ])
         let afterInline = await executor.execute(toolName: "get_run_telemetry", arguments: [:])
         let inlineCosts = afterInline.structuredContent?.objectValue?["metrics"]?.objectValue

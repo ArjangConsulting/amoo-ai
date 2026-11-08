@@ -64,6 +64,8 @@ actor CLIStudioSessions: StudioSessionDriving {
             "session_id": sessionId,
             "output": output,
             "return_image": "false",
+            // Studio displays the capture, so it keeps native pixels.
+            "scale": "1",
             "settle_timeout_ms": "1500"
         ])
         guard !result.isError else { return nil }

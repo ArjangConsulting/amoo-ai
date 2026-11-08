@@ -29,10 +29,6 @@ extension ToolRequest {
            (arguments["expected"] != nil) == (arguments["contains"] != nil) {
             throw invalidArgument("expected", example: "Provide expected=Ready or contains=Ready, exactly one")
         }
-        if name == "take_screenshot", boolArgument(arguments["return_image"]) == false,
-           arguments["output"]?.isEmpty != false {
-            throw invalidArgument("output", example: "output=/absolute/path/screen.png when return_image=false")
-        }
     }
 
     private static func validateSelector(_ arguments: [String: String]) throws {

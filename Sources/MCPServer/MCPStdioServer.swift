@@ -54,8 +54,8 @@ public struct MCPStdioServer: Sendable {
     Use run_steps result_mode=compact for known sequences; continue_on_error=true only for independent steps.
     Keep run_id across attempts; get_run_telemetry measures bytes/calls, not tokens. Use response_mode=compact.
 
-    Screenshots=pixels; gestures=points. Save with output and return_image=false; scale controls size;
-    analyze pixels locally; inspect layout evidence.
+    Screenshots save to saved_path at 1px/point (default return_image=false); inline only when
+    pixels matter; scale=native fraction; analyze pixels locally.
     Transient UI: run_steps action + take_screenshot (settle_timeout_ms=0);
     tap_element check_effect=false skips effect reads. Check capture_suspect, screen_state, foreground and viewport.
     Delegated captures default save-only; return selected thumbnails. Pause playback; reuse recorded navigation.
