@@ -123,6 +123,7 @@ public struct CLIApp {
         case "probe": return await handleProbeCommand(remaining: remaining)
         case "doctor": return await handleDoctorCommand(remaining: remaining)
         case "agent": return handleAgentCommand(remaining: remaining)
+        case "usage": return await handleUsageCommand(remaining: remaining)
         case "config": return handleConfigCommand(remaining: remaining)
         case "credentials": return await handleCredentialsCommand(remaining: remaining)
         default: return nil
@@ -398,6 +399,7 @@ func renderCLIHelp() -> String {
       init ...                    Guided device setup + AI client skills (app build optional)
       probe run <file.js>...       Run WebView JavaScript probes and judge {pass}
       agent install|render         Install the amoo subagents/skills for AI clients (guided; Claude, Codex, …)
+      usage report [--since 7d]    Token, latency, retry and generated-test health from local telemetry
       flow <path.amoo.json>        Run a reusable checked-in device flow
       generate plan ...            Recompile a recorded session report into plan.json
       generate test ...            Emit a standalone XCUITest/Espresso test from a plan

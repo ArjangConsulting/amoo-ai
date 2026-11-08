@@ -24,8 +24,10 @@ public enum TelemetryAttribute {
     public static let processExecutableName = "process.executable.name"
     public static let processExitCode = "process.exit.code"
 
-    // amoo.
+    /// amoo.
     public static let runID = "amoo.run.id"
+    /// The run-ledger call id, so a report can tell which ledger entries a span already covers.
+    public static let callID = "amoo.call.id"
     public static let sessionID = "amoo.session.id"
     public static let client = "amoo.client"
     public static let clientName = "amoo.client.name"

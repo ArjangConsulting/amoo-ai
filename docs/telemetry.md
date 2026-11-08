@@ -37,6 +37,41 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ```
 
+## `amoo usage report`
+
+```bash
+amoo usage report                      # everything recorded locally
+amoo usage report --since 7d --out week.json
+amoo usage report --since 1d --baseline week.json   # p50 change per tool
+amoo usage report --transcripts all --json          # every Claude Code project
+```
+
+It joins, from local files only:
+
+- **Tool latency and payloads** from `execute_tool` spans, merged with the run ledger
+  (`sessions/runs/`) for calls recorded before spans existed (spans carry the ledger's
+  `amoo.call.id`, so nothing is counted twice): calls, failures, p50/p95, response bytes, inline
+  versus saved screenshots, compact-mode adoption, surface (`mcp`/`cli`/`flow`).
+- **Where the time goes** inside calls: companion RPCs with device time (`amoo-server-ms`) versus
+  transport overhead, device-queue waits, hierarchy reads, subprocesses (`exec adb shell`, …) and
+  startup phases.
+- **Retries** from session reports: identical back-to-back calls, a failure followed by an
+  inspection call or by the same tool again, selector misses, transport failures, timeouts, and
+  failed startups.
+- **Generated-test health** from each session's `plan.json`: compiler warnings by category
+  (locale-dependent selectors, approximate selectors, invented assertions, unasserted final
+  mutations, excluded actions) and risk warnings per plan.
+- **Real token usage** from Claude Code transcripts (main sessions and `subagents/`): input,
+  cache-read, cache-write and output tokens, and per amoo tool the context its results added —
+  measured as the growth between the assistant turns around the result — and how many tokens those
+  results cost again as later turns re-read them. Inline images are counted and their image tokens
+  estimated from their dimensions. `amoo …` commands run through the agent's shell count as
+  `cli <command>`.
+
+The report ends with opportunities derived from those numbers (for example inline screenshots,
+low compact-mode use, failure→inspection loops, repeated identical calls). It prints counts, tool
+names and normalized error messages — never arguments, screen content or transcript text.
+
 ## Joining amoo with the AI client's traces
 
 - **CLI from an agent's shell:** amoo reads W3C `TRACEPARENT`/`TRACESTATE` from the environment, so
