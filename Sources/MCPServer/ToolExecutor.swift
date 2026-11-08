@@ -147,18 +147,6 @@ public actor DriverToolExecutor: ToolExecutor {
         result = compactResult(result, tool: toolName, arguments: arguments)
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         await measureOperation(tool: toolName, arguments: arguments, result: result, started: start)
-        let category = toolName == "get_view_hierarchy" ? "hierarchy_retrieval" : "action_execution"
-        PerformanceTelemetry.record(
-            category,
-            operation: toolName,
-            duration: start.duration(to: clock.now),
-            metadata: [
-                "success": String(!result.isError),
-                "response_text_bytes": String(result.content.utf8.count),
-                "image_bytes": String(result.image?.data.count ?? 0),
-                "observed_elements": String(result.observedElements.count)
-            ]
-        )
         return result
     }
 

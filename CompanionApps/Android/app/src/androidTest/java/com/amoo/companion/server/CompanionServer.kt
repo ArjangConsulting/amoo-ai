@@ -40,6 +40,7 @@ class CompanionServer(
         server = NettyServerBuilder.forAddress(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port))
             .addService(CompanionServiceImpl(touch, gesture, text, accessibility))
             .intercept(DescriptionBackfillInterceptor())
+            .intercept(ServerTimingInterceptor())
             .build()
             .start()
         println("[CompanionServer] Ready on port $port")

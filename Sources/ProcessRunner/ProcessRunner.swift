@@ -82,19 +82,26 @@ public struct SystemProcessRunner: ProcessRunner {
         }
 
         let command = try bounded(Command(arguments[0]).args(Array(arguments.dropFirst())), context: context)
-        do {
-            return try await command.run(in: context).processResult
-        } catch let error as ShellError {
-            if case let .exitFailure(_, output) = error {
-                return output.processResult
+        return try await ProcessTracing.trace(executable: arguments[0], arguments: Array(arguments.dropFirst())) {
+            do {
+                return try await command.run(in: context).processResult
+            } catch let error as ShellError {
+                if case let .exitFailure(_, output) = error {
+                    return output.processResult
+                }
+                throw error
             }
-            throw error
         }
     }
 
     public func run(_ request: ProcessExecutionRequest) async throws -> ProcessResult {
         let command = try bounded(request.command, context: request.context)
-        return try await SubprocessExecutor().execute(command, in: request.context).processResult
+        return try await ProcessTracing.trace(
+            executable: request.command.executableOverride ?? request.command.executableName,
+            arguments: request.command.arguments
+        ) {
+            try await SubprocessExecutor().execute(command, in: request.context).processResult
+        }
     }
 
     public func run(_ pipeline: Pipeline, context: ShellContext) async throws -> ProcessResult {

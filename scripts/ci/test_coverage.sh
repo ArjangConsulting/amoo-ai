@@ -159,7 +159,7 @@ root_cov = aggregate(
     [f"{repo_root}/Sources/"],
     # Protos/Generated is committed protoc output, not hand-written code; the plugin-generated
     # copy used to live under .build/ and so never counted.
-    ["/Sources/CLI/main.swift", "/Sources/Protos/Generated/"],
+    ["/Sources/CLI/main.swift", "/Sources/Protos/Generated/", "/Sources/OTLP/Generated/"],
 )
 core_cov = aggregate(["/Sources/AmooCore/"])
 cli_cov = aggregate(["/Sources/CLI/"], ["/Sources/CLI/main.swift"])
@@ -179,7 +179,7 @@ if root_cov is None:
 modules = sorted({Path(entry["filename"]).parts[Path(entry["filename"]).parts.index("Sources") + 1]
                   for entry in files if f"{repo_root}/Sources/" in entry.get("filename", "")})
 for module in modules:
-    coverage = aggregate([f"{repo_root}/Sources/{module}/"], ["/Sources/Protos/Generated/"])
+    coverage = aggregate([f"{repo_root}/Sources/{module}/"], ["/Sources/Protos/Generated/", "/Sources/OTLP/Generated/"])
     if coverage is not None:
         print(f"Module {module}: {coverage:.2f}%")
 

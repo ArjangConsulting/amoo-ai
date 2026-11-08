@@ -1,5 +1,6 @@
 import AmooCore
 import MCP
+import Tracing
 
 /// Why a tap would not reach the element it was aimed at.
 enum TapBlock: Equatable {
@@ -173,6 +174,18 @@ extension DriverToolExecutor {
     }
 
     private func readHierarchy(
+        _ check: HierarchyCheck,
+        driver: any PlatformDriver,
+        appID: String?
+    ) async throws -> ViewNode? {
+        guard check != .off else { return nil }
+        return try await withSpan("hierarchy.read") { span in
+            span.attributes["amoo.hierarchy.purpose"] = "tap_check"
+            return try await readHierarchyUntraced(check, driver: driver, appID: appID)
+        }
+    }
+
+    private func readHierarchyUntraced(
         _ check: HierarchyCheck,
         driver: any PlatformDriver,
         appID: String?
