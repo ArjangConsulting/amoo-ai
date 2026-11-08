@@ -18,7 +18,9 @@ enum ToolContracts {
         }
         if definition.properties["session_id"] != nil {
             definition.properties["response_mode"] = .init(
-                type: "string", description: "full (default) or compact; assertions retain identical proof fields",
+                type: "string",
+                description: "Default compacts element rows; compact also shortens the text; full keeps"
+                    + " semantics and bounds. Assertions retain identical proof fields",
                 values: ["full", "compact"]
             )
         }
@@ -49,6 +51,11 @@ enum ToolContracts {
                     description: "dispatched, target_state_confirmed, target_state_mismatch or inconclusive"
                 )
                 fields["dispatch_status"] = .init(type: "string", description: "completed, unknown or not_dispatched")
+                fields["repeated_call"] = .init(
+                    type: "boolean", description: "Same tool and arguments as the previous mutating call"
+                )
+                fields["repeat_count"] = .init(type: "integer", description: "Consecutive identical calls")
+                fields["repeat_hint"] = .init(type: "string", description: "How to avoid the repeat")
                 fields["postcondition_verified"] = .init(
                     type: "boolean",
                     description: "Whether an app outcome was verified"

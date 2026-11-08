@@ -112,7 +112,7 @@ enum UsageTraceReader {
                 inlineImage: inline,
                 savedImage: !inline && span.attributes[TelemetryAttribute.imageBytes] != nil,
                 repeated: span.attributes[TelemetryAttribute.repeatedCall] == "true",
-                compact: span.attributes[TelemetryAttribute.responseMode] == "compact",
+                compact: span.attributes[TelemetryAttribute.responseMode] != "full",
                 surface: span.attributes[TelemetryAttribute.client] ?? "unknown"
             )
         }

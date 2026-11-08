@@ -244,16 +244,59 @@ final class VerificationReliabilityTests: XCTestCase {
         XCTAssertEqual(taps, 0)
     }
 
+    func testIdenticalMutatingCallsAreFlaggedWithAHint() async throws {
+        let executor = stack().executor
+        let first = await executor.execute(toolName: "swipe_in_direction", arguments: ["direction": "up"])
+        XCTAssertNil(first.structuredContent?.objectValue?["repeated_call"])
+        let second = await executor.execute(toolName: "swipe_in_direction", arguments: ["direction": "up"])
+        let fields = try XCTUnwrap(second.structuredContent?.objectValue)
+        XCTAssertEqual(fields["repeated_call"], .bool(true))
+        XCTAssertEqual(fields["repeat_count"], .int(2))
+        XCTAssertTrue(fields["repeat_hint"]?.stringValue?.contains("scroll_to_element") == true)
+        let different = await executor.execute(toolName: "swipe_in_direction", arguments: ["direction": "down"])
+        XCTAssertNil(different.structuredContent?.objectValue?["repeated_call"])
+        // Reads are never flagged: polling the same query is legitimate.
+        _ = await executor.execute(toolName: "find_elements", arguments: ["label": "Account settings"])
+        let read = await executor.execute(toolName: "find_elements", arguments: ["label": "Account settings"])
+        XCTAssertNil(read.structuredContent?.objectValue?["repeated_call"])
+    }
+
+    func testSelectorMissCandidatesCarryARetrySelector() async throws {
+        let executor = stack().executor
+        let missed = await executor.execute(toolName: "tap_element", arguments: ["label": "Settings guess"])
+        let controls = try XCTUnwrap(missed.structuredContent?.objectValue?["available_controls"]?.arrayValue)
+        let first = try XCTUnwrap(controls.first?.objectValue)
+        let selector = try XCTUnwrap(first["selector"]?.objectValue)
+        XCTAssertTrue(selector["id"] != nil || selector["label"] != nil)
+        let recovery = missed.structuredContent?.objectValue?["recovery"]?.arrayValue?.first?.stringValue
+        XCTAssertTrue(recovery?.contains("retry with its selector") == true)
+    }
+
     func testCompactOutputReducesBytesWithEquivalentAssertions() async throws {
         let harness = stack()
         let executor = harness.executor
-        let full = await executor.execute(toolName: "find_elements", arguments: ["limit": "60"])
+        let full = await executor.execute(
+            toolName: "find_elements",
+            arguments: ["limit": "60", "response_mode": "full"]
+        )
         let compact = await executor.execute(toolName: "find_elements", arguments: [
             "limit": "60", "response_mode": "compact"
         ])
+        let byDefault = await executor.execute(toolName: "find_elements", arguments: ["limit": "60"])
         let fullBytes = try JSONEncoder().encode(full.mcpResult()).count
         let compactBytes = try JSONEncoder().encode(compact.mcpResult()).count
         XCTAssertLessThan(compactBytes, fullBytes / 2)
+        // Structured rows (what Claude Code hands the model) are compact by default; only
+        // response_mode=compact also shortens the text summary.
+        let structuredBytes = { (result: ToolResult) in
+            (try? JSONEncoder().encode(result.structuredContent)).map(\.count) ?? 0
+        }
+        XCTAssertLessThan(structuredBytes(byDefault), structuredBytes(full) / 2)
+        XCTAssertEqual(byDefault.content, full.content)
+        let row = try XCTUnwrap(byDefault.structuredContent?.objectValue?["elements"]?.arrayValue?.first?.objectValue)
+        XCTAssertNil(row["semantics"])
+        XCTAssertNil(row["bounds"])
+        XCTAssertNotEqual(row["visible"], .bool(true))
         XCTAssertEqual(full.structuredContent?.objectValue?["total"], compact.structuredContent?.objectValue?["total"])
         let assertion = await executor.execute(toolName: "assert_visible", arguments: ["label": "Account settings"])
         let compactAssertion = await executor.execute(toolName: "assert_visible", arguments: [

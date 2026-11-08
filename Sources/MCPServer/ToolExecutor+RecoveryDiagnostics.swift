@@ -29,7 +29,10 @@ extension DriverToolExecutor {
         fields["observation_status"] = .string(empty ? "empty_observation" : "selector_miss")
         fields["navigation_status"] = .string("unassessed")
         fields["recovery"] = .array([
-            .string("Confirm target identity; query a stable id or scoped contains_text with find_elements limit=12."),
+            .string("If an available_controls entry is the intended control, retry with its selector directly."),
+            .string(
+                "Otherwise confirm target identity with find_elements (stable id or scoped contains_text, limit=12)."
+            ),
             .string("If the control is visible, inspect a saved screenshot and retry its actual semantic selector."),
             .string(
                 "A content error or selector miss does not establish a navigation blocker. Test independent controls."
@@ -47,10 +50,17 @@ extension DriverToolExecutor {
             )
         }) {
             fields["available_controls"] = .array(Self.nearbyCandidates(candidates, arguments: arguments).map {
-                .object([
+                var control: [String: Value] = [
                     "id": .string($0.id), "label": .string(String($0.label.prefix(120))),
-                    "role": .string($0.type?.rawValue ?? "unknown"), "enabled": .bool($0.isEnabled)
-                ])
+                    "role": .string($0.type?.rawValue ?? "unknown"), "enabled": .bool($0.isEnabled),
+                    // Ready to retry with: the stable id when there is one, otherwise the exact label.
+                    "selector": .object($0.id.isEmpty ? ["label": .string($0.label)] : ["id": .string($0.id)])
+                ]
+                if let point = $0.hitPoint ?? $0.frame?.centre {
+                    control["x"] = .double((point.x * 10).rounded() / 10)
+                    control["y"] = .double((point.y * 10).rounded() / 10)
+                }
+                return .object(control)
             })
         }
         if missing {
