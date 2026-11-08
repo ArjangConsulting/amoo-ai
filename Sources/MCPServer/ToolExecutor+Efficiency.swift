@@ -33,6 +33,7 @@ extension DriverToolExecutor {
                 sessionRuns[id] = runID
             }
         }
+        result = flagRepeatedCall(result, tool: toolName, arguments: arguments)
         var textResult = result
         textResult.image = nil
         await runTelemetry.finish(
@@ -70,7 +71,7 @@ extension DriverToolExecutor {
             if let session = arguments["session_id"] ?? fields["session_id"]?.stringValue {
                 attributes[TelemetryAttribute.sessionID] = session
             }
-            attributes[TelemetryAttribute.responseMode] = arguments["response_mode"] ?? "full"
+            attributes[TelemetryAttribute.responseMode] = arguments["response_mode"] ?? "default"
             attributes[TelemetryAttribute.responseBytes] = (try? JSONEncoder().encode(result.mcpResult()).count) ?? 0
             attributes[TelemetryAttribute.responseTextBytes] =
                 (try? JSONEncoder().encode(textResult.mcpResult()).count) ?? 0
@@ -145,21 +146,72 @@ extension DriverToolExecutor {
         return Int(duration.seconds * 1000 + duration.attoseconds / 1_000_000_000_000_000)
     }
 
+    /// Shapes a result for the model. Clients such as Claude Code hand the model `structuredContent`,
+    /// so element rows there are compacted by default: no semantics or bounds, default-valued fields
+    /// (`id: ""`, `visible: true`, `enabled: true`, `selected: false`) omitted, coordinates rounded.
+    /// `response_mode=full` keeps everything; `response_mode=compact` also shortens the text summary.
     func compactResult(_ original: ToolResult, tool: String, arguments: [String: String]) -> ToolResult {
-        guard arguments["response_mode"] == "compact", !original.isError,
-              original.structuredContent != nil else { return original }
+        let mode = arguments["response_mode"] ?? "default"
+        guard mode != "full", let fields = original.structuredContent?.objectValue else { return original }
         var result = original
-        result.recordedContent = original.recordedContent ?? original.content
-        result.content = "\(tool): ok"
-        if tool == "find_elements", var fields = original.structuredContent?.objectValue,
-           let rows = fields["elements"]?.arrayValue {
-            fields["elements"] = .array(rows.map { row in
-                guard let element = row.objectValue else { return row }
-                return .object(element.filter { !["semantics", "bounds"].contains($0.key) })
-            })
-            result.structuredContent = .object(fields)
+        result.structuredContent = .object(Self.compactElementRows(fields))
+        if mode == "compact", !original.isError {
+            result.recordedContent = original.recordedContent ?? original.content
+            result.content = "\(tool): ok"
         }
         return result
+    }
+
+    /// Marks a mutating call identical to the previous one in the same session (`repeated_call`,
+    /// `repeat_count`, `repeat_hint`): repeats were the most common retry pattern in recorded runs,
+    /// usually a swipe looking for something or a tap whose effect went unchecked.
+    func flagRepeatedCall(_ result: ToolResult, tool: String, arguments: [String: String]) -> ToolResult {
+        guard !ToolCatalogMetadata.isReadOnly(tool), !Self.controlPlaneTools.contains(tool), tool != "run_steps"
+        else { return result }
+        let ignored: Set = ["session_id", "run_id", "response_mode", "check_id"]
+        let signature = tool + "|" + arguments.filter { !ignored.contains($0.key) }
+            .sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+        let key = arguments["session_id"] ?? "default"
+        let count = lastMutatingCall[key]?.signature == signature ? (lastMutatingCall[key]?.count ?? 0) + 1 : 1
+        lastMutatingCall[key] = (signature, count)
+        guard count >= 2, var fields = result.structuredContent?.objectValue else { return result }
+        fields["repeated_call"] = .bool(true)
+        fields["repeat_count"] = .int(count)
+        fields["repeat_hint"] = .string(
+            ["swipe", "swipe_in_direction", "scroll", "drag"].contains(tool)
+                ? "Identical \(tool) \(count) times in a row; scroll_to_element reaches a target in one call."
+                : "Identical \(tool) \(count) times in a row; check the previous outcome before repeating."
+        )
+        var flagged = result
+        flagged.structuredContent = .object(fields)
+        return flagged
+    }
+
+    /// Keys whose arrays hold element rows.
+    static let elementRowKeys: Set = ["elements", "available_controls", "interactable_elements", "matches"]
+
+    static func compactElementRows(_ fields: [String: Value]) -> [String: Value] {
+        fields.mapValuesWithKeys { key, value in
+            guard elementRowKeys.contains(key), let rows = value.arrayValue else { return value }
+            return .array(rows.map { row in row.objectValue.map { .object(compactRow($0)) } ?? row })
+        }
+    }
+
+    static func compactRow(_ row: [String: Value]) -> [String: Value] {
+        var compact: [String: Value] = [:]
+        for (key, value) in row {
+            switch (key, value) {
+            case ("semantics", _), ("bounds", _),
+                 ("id", .string("")), ("visible", .bool(true)), ("enabled", .bool(true)),
+                 ("selected", .bool(false)), ("checkable", .bool(false)):
+                continue
+            case let ("x", .double(number)), let ("y", .double(number)):
+                compact[key] = .double((number * 10).rounded() / 10)
+            default:
+                compact[key] = value
+            }
+        }
+        return compact
     }
 
     func measureResponse(
@@ -179,3 +231,9 @@ extension DriverToolExecutor {
 }
 
 // swiftlint:enable multiline_arguments
+
+extension Dictionary {
+    func mapValuesWithKeys(_ transform: (Key, Value) -> Value) -> [Key: Value] {
+        Dictionary(uniqueKeysWithValues: map { ($0.key, transform($0.key, $0.value)) })
+    }
+}

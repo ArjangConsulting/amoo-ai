@@ -570,6 +570,18 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         return client
     }
 
+    /// Read-only RPCs retry once after a transient transport failure ("Channel is in a transient
+    /// failure state"), which recorded runs hit on otherwise healthy companions; a dead companion
+    /// still fails after the single retry. Mutating RPCs never retry, since they may have run.
+    private func idempotent<Response>(_ call: () async throws -> Response) async throws -> Response {
+        do {
+            return try await call()
+        } catch let error as RPCError where error.code == .unavailable {
+            try await Task.sleep(for: .milliseconds(300))
+            return try await call()
+        }
+    }
+
     package func startSession(_ request: Amoo_StartSessionRequest) async throws
         -> Amoo_StartSessionResponse {
         try await connectedClient.startSession(request, options: Self.gestureCallOptions)
@@ -647,13 +659,15 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func findElements(_ request: Amoo_FindElementsRequest) async throws
         -> Amoo_FindElementsResponse {
-        try await connectedClient.findElements(request, options: Self.gestureCallOptions)
+        try await idempotent { try await self.connectedClient.findElements(request, options: Self.gestureCallOptions) }
     }
 
     package func getViewHierarchy(
         _ request: Amoo_ViewHierarchyRequest
     ) async throws -> Amoo_ViewHierarchyResponse {
-        try await connectedClient.getViewHierarchy(request, options: Self.gestureCallOptions)
+        try await idempotent {
+            try await self.connectedClient.getViewHierarchy(request, options: Self.gestureCallOptions)
+        }
     }
 
     package func waitForElement(
@@ -669,17 +683,19 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func isKeyboardVisible(_ request: Amoo_Empty) async throws
         -> Amoo_KeyboardVisibleResponse {
-        try await connectedClient.isKeyboardVisible(request, options: Self.gestureCallOptions)
+        try await idempotent {
+            try await self.connectedClient.isKeyboardVisible(request, options: Self.gestureCallOptions)
+        }
     }
 
     package func getCurrentApp(_ request: Amoo_Empty) async throws
         -> Amoo_CurrentAppResponse {
-        try await connectedClient.getCurrentApp(request, options: Self.gestureCallOptions)
+        try await idempotent { try await self.connectedClient.getCurrentApp(request, options: Self.gestureCallOptions) }
     }
 
     package func getScreenInfo(_ request: Amoo_Empty) async throws
         -> Amoo_ScreenInfoResponse {
-        try await connectedClient.getScreenInfo(request, options: Self.gestureCallOptions)
+        try await idempotent { try await self.connectedClient.getScreenInfo(request, options: Self.gestureCallOptions) }
     }
 
     package func setTargetApp(_ request: Amoo_SetTargetAppRequest) async throws
@@ -698,7 +714,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func getAppState(_ request: Amoo_GetAppStateRequest) async throws
         -> Amoo_GetAppStateResponse {
-        try await connectedClient.getAppState(request, options: Self.gestureCallOptions)
+        try await idempotent { try await self.connectedClient.getAppState(request, options: Self.gestureCallOptions) }
     }
 
     package func takeScreenshot(_ request: Amoo_ScreenshotRequest) async throws
@@ -708,25 +724,31 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
         // grpc-swift-nio-transport sizes the client stream's message decoder, which also reads the
         // response, from the request limit, so the larger limit has to be set there too.
         options.maxRequestMessageBytes = Self.maxScreenshotBytes
-        return try await connectedClient.takeScreenshot(request, options: options)
+        return try await idempotent { try await self.connectedClient.takeScreenshot(request, options: options) }
     }
 
     package func getScreenContext(
         _ request: Amoo_ScreenContextRequest
     ) async throws -> Amoo_ScreenContextResponse {
-        try await connectedClient.getScreenContext(request, options: Self.gestureCallOptions)
+        try await idempotent {
+            try await self.connectedClient.getScreenContext(request, options: Self.gestureCallOptions)
+        }
     }
 
     package func findByDescription(
         _ request: Amoo_FindByDescriptionRequest
     ) async throws -> Amoo_FindElementsResponse {
-        try await connectedClient.findByDescription(request, options: Self.gestureCallOptions)
+        try await idempotent {
+            try await self.connectedClient.findByDescription(request, options: Self.gestureCallOptions)
+        }
     }
 
     package func getInteractableElements(
         _ request: Amoo_Empty
     ) async throws -> Amoo_InteractableElementsResponse {
-        try await connectedClient.getInteractableElements(request, options: Self.gestureCallOptions)
+        try await idempotent {
+            try await self.connectedClient.getInteractableElements(request, options: Self.gestureCallOptions)
+        }
     }
 
     package func shutdown() async {

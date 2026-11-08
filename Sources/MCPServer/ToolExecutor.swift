@@ -18,6 +18,8 @@ public actor DriverToolExecutor: ToolExecutor {
     let runTelemetry: RunTelemetryStore
     let telemetryRunID: String
     var sessionRuns: [String: String] = [:]
+    /// The previous mutating call per session, to flag identical back-to-back repeats.
+    var lastMutatingCall: [String: (signature: String, count: Int)] = [:]
     private let operationQueue = DeviceOperationQueue()
     private var defaultDeviceKey: String?
     private let defaultDeviceID: String?
