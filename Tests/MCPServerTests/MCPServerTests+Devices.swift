@@ -354,10 +354,10 @@ extension MCPServerTests {
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "take_screenshot", arguments: [:])
+        let result = await server.execute(toolName: "take_screenshot", arguments: ["return_image": "true"])
         XCTAssertFalse(result.isError, result.content)
 
-        let image = try XCTUnwrap(result.image, "take_screenshot must return an image content block")
+        let image = try XCTUnwrap(result.image, "return_image=true must return an image content block")
         XCTAssertEqual(image.mimeType, "image/png")
         XCTAssertFalse(image.data.isEmpty)
 
@@ -377,7 +377,7 @@ extension MCPServerTests {
         await driver.setScreenshotFrames([[1], [2], [3], [3]])
         let server = MCPServer(executor: DriverToolExecutor(driver: driver))
 
-        let result = await server.execute(toolName: "take_screenshot", arguments: [:])
+        let result = await server.execute(toolName: "take_screenshot", arguments: ["return_image": "true"])
         XCTAssertFalse(result.isError, result.content)
         XCTAssertEqual(result.image?.data, Data([3]))
         let fields = try XCTUnwrap(result.structuredContent?.objectValue)
@@ -410,7 +410,9 @@ extension MCPServerTests {
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let result = await server.execute(toolName: "take_screenshot", arguments: ["format": "jpg"])
+        let result = await server.execute(
+            toolName: "take_screenshot", arguments: ["format": "jpg", "return_image": "true"]
+        )
         XCTAssertFalse(result.isError, result.content)
         let image = try XCTUnwrap(result.image)
         XCTAssertEqual(image.mimeType, "image/jpeg")

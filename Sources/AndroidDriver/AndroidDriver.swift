@@ -1,4 +1,5 @@
 import AmooCore
+import AmooLogging
 import CompanionProtocol
 import Foundation
 import ProcessRunner
@@ -192,6 +193,23 @@ public actor AndroidDriver: PlatformDriver {
     public func takeScreenshot(format _: ImageFormat) async throws -> ScreenshotData {
         let data = try await adb.screenshot(serial: activeSerial)
         return ScreenshotData(bytes: [UInt8](data), format: .png)
+    }
+
+    /// Captures through the companion (UiAutomation), which scales and encodes on the device so a
+    /// point-resolution capture moves a fraction of the bytes `adb screencap -p` does. Falls back to
+    /// adb (native PNG) when the companion is unavailable.
+    public func takeScreenshot(_ options: ScreenshotRequestOptions) async throws -> ScreenshotData {
+        do {
+            let capture = try await companion.takeScreenshot(options: options)
+            if !capture.bytes.isEmpty {
+                return capture
+            }
+        } catch {
+            AmooLogger.forType(Self.self).error(
+                "Companion screenshot failed; using adb", error: error, context: "feature=screenshot action=fallback"
+            )
+        }
+        return try await takeScreenshot(format: options.format)
     }
 
     public func startRecording() async throws -> RecordingSession {

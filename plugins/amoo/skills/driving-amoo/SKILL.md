@@ -132,7 +132,8 @@ Use timeout_ms on assertions instead of client-side polling loops.
 
 Prefer compact queries and semantic assertions. For transient UI, batch the action and immediate
 screenshot with return_image=false and settle_timeout_ms=0; use check_effect=false on the tap.
-Save screenshots without inline images and analyze pixels locally. Delegated captures default to
+Screenshots save to `saved_path` without an inline image by default, at one pixel per point/dp;
+read the file only when pixels matter and analyze pixels locally. Delegated captures use
 output=<path> return_image=false; return selected thumbnails or contact-sheet paths for review.
 Pause playback for stable checks and reuse recorded navigation. Check capture_suspect and device
 state; retain get_run_telemetry with one run_id across every attempt. See [verification](references/verification.md).

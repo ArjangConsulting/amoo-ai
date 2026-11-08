@@ -180,22 +180,29 @@ extension DriverToolExecutor {
     }
 
     // Image capture, optional file output, and geometry share one response boundary.
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func executeTakeScreenshot(
         driver: any PlatformDriver,
         arguments: [String: String]
     ) async throws -> ToolResult {
-        guard boolArgument(arguments["return_image"]) != false || arguments["output"]?.isEmpty == false else {
-            throw ToolExecutionError(code: "invalid_argument", message: "output is required when return_image=false")
-        }
         let requestedFormat = ImageFormat(parsing: arguments["format"])
         let settleTimeout = min(
             arguments["settle_timeout_ms"].flatMap(Int.init) ?? Self.defaultScreenshotSettleMilliseconds,
             10000
         )
+        // Image tokens scale with pixel area, so the default is one image pixel per point (iOS) or
+        // density-independent pixel (Android): a 3x iPhone capture drops from 1206x2622 to 402x874,
+        // a ninth of the pixels, and image coordinates then equal gesture points. `scale` (a
+        // fraction of native pixels) overrides it; scale=1 keeps native pixels.
+        let explicitScale = arguments["scale"].flatMap(Double.init)
+        let options = ScreenshotRequestOptions(
+            format: requestedFormat,
+            scale: explicitScale.flatMap { $0 < 1 ? $0 : nil },
+            pointResolution: explicitScale == nil
+        )
         let capture = try await captureSettledScreenshot(
             driver: driver,
-            format: requestedFormat,
+            options: options,
             timeoutMilliseconds: settleTimeout
         )
         let screenshot = capture.screenshot
@@ -205,17 +212,26 @@ extension DriverToolExecutor {
         let actualFormat = screenshot.format
         let originalData = Data(screenshot.bytes)
 
-        // Downscaling is the single biggest lever on how much a screenshot costs a model to read:
-        // a full-resolution phone screen runs into thousands of tokens, and most questions
-        // ("which screen am I on", "did the sheet close") are answerable at half scale.
-        let scale = arguments["scale"].flatMap(Double.init)
-        let scaledData = ScreenshotScaler.scaled(originalData, by: scale, format: actualFormat)
+        // A device that scaled at the source reports it; otherwise (an older companion, a host
+        // capture) the same target is applied here.
+        let hostScale: Double? = if screenshot.appliedScale != nil {
+            nil
+        } else if let explicitScale {
+            explicitScale
+        } else {
+            (screenshot.density ?? screenshot.geometry?.scale).flatMap { $0 > 1 ? 1 / $0 : nil }
+        }
+        let scaledData = ScreenshotScaler.scaled(originalData, by: hostScale, format: actualFormat)
         let data = scaledData ?? originalData
+        let imageScale = screenshot.appliedScale ?? (scaledData == nil ? 1 : hostScale ?? 1)
+        let scalingStatus = screenshot.appliedScale != nil ? "applied_on_device"
+            : ScreenshotScaler.scalingStatus(requested: hostScale, scaled: scaledData)
 
         var fields: [String: Value] = [
             "byte_count": .int(data.count),
             "format": .string(actualFormat.rawValue),
-            "scaling_status": .string(ScreenshotScaler.scalingStatus(requested: scale, scaled: scaledData))
+            "scaling_status": .string(scalingStatus),
+            "image_scale": .double(imageScale)
         ]
         if data.count != originalData.count {
             fields["original_byte_count"] = .int(originalData.count)
@@ -225,7 +241,7 @@ extension DriverToolExecutor {
         if let suspect = quality.suspect {
             fields["capture_suspect"] = .bool(suspect)
         }
-        let capturedDeviceState = await deviceObservation(driver: driver)
+        let capturedDeviceState = await deviceObservation(driver: driver, geometry: screenshot.geometry)
         fields.merge(capturedDeviceState, uniquingKeysWith: { _, observed in observed })
         let qualityNote = quality.suspect == true
             ? " — capture_suspect: \(quality.reason); inspect device state before interpreting app content" : ""
@@ -256,7 +272,6 @@ extension DriverToolExecutor {
            let heightPixels = viewport["height_pixels"]?.doubleValue,
            let widthPoints = viewport["width_points"]?.doubleValue,
            let heightPoints = viewport["height_points"]?.doubleValue {
-            let imageScale = scaledData == nil ? 1 : (scale ?? 1)
             let imageWidth = (widthPixels * imageScale).rounded()
             let imageHeight = (heightPixels * imageScale).rounded()
             let imagePixelsPerPoint = screenScale * imageScale
@@ -269,7 +284,7 @@ extension DriverToolExecutor {
                 + " gestures take points (\(geometryNumber(widthPoints))"
                 + "x\(geometryNumber(heightPoints))),"
                 + " so divide image coordinates by \(imagePixelsPerPoint.formatted())"
-            if scaledData == nil {
+            if imageScale == 1 {
                 geometryNote += " or pass unit=pixels"
             } else {
                 geometryNote += "; unit=pixels expects native screenshot pixels"
@@ -278,7 +293,15 @@ extension DriverToolExecutor {
 
         var savedNote = ""
         fields.merge(Self.screenshotDimensionFields(data), uniquingKeysWith: { _, actual in actual })
-        if let output = arguments["output"], !output.isEmpty {
+        let returnImage = boolArgument(arguments["return_image"]) == true
+        // Saved by default: the path costs a few tokens and the client reads the file only when it
+        // needs pixels, instead of carrying an image through every later turn.
+        let output = arguments["output"].flatMap { $0.isEmpty ? nil : $0 }
+            ?? (returnImage ? nil : Self.scratchScreenshotPath(
+                sessionID: arguments["session_id"],
+                format: actualFormat
+            ))
+        if let output {
             let url = URL(fileURLWithPath: (output as NSString).expandingTildeInPath)
             do {
                 try data.write(to: url)
@@ -305,9 +328,27 @@ extension DriverToolExecutor {
             content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
                 + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)\(settleNote)\(qualityNote)",
             structuredContent: .object(fields),
-            image: boolArgument(arguments["return_image"]) == false
-                ? nil : ToolImageContent(data: data, mimeType: actualFormat.mimeType)
+            image: returnImage ? ToolImageContent(data: data, mimeType: actualFormat.mimeType) : nil
         )
+    }
+
+    /// `$TMPDIR/amoo-screenshots/<session>/<time>.<ext>` for a capture saved without `output`.
+    static func scratchScreenshotPath(sessionID: String?, format: ImageFormat) -> String? {
+        let session = sessionID.flatMap { UUID(uuidString: $0)?.uuidString } ?? "adhoc"
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "amoo-screenshots/\(session)", directoryHint: .isDirectory)
+        do {
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]
+            )
+        } catch {
+            return nil
+        }
+        let stamp = Date().ISO8601Format(.iso8601.year().month().day().time(includingFractionalSeconds: true))
+            .replacingOccurrences(of: ":", with: "")
+        let suffix = UUID().uuidString.prefix(6)
+        let ext = format == .jpeg ? "jpg" : "png"
+        return directory.appending(path: "\(stamp)-\(suffix).\(ext)").path
     }
 
     static let defaultScreenshotSettleMilliseconds = 1500
@@ -319,33 +360,52 @@ extension DriverToolExecutor {
         let frames: Int
     }
 
-    /// Captures until two consecutive frames are byte-identical or the timeout passes. Identical encoded frames mean
-    /// identical pixels, so this
-    /// catches sheet dismissals and push transitions that a hierarchy snapshot can report as done.
+    /// Small probe frames used only to detect that the screen stopped changing.
+    static func settleProbe(_ options: ScreenshotRequestOptions) -> ScreenshotRequestOptions {
+        ScreenshotRequestOptions(format: options.format, scale: 0.25, quality: options.quality)
+    }
+
+    /// Captures small probe frames until two consecutive ones are byte-identical or the timeout
+    /// passes, then the requested capture. Identical encoded frames mean identical pixels, so this
+    /// catches sheet dismissals and push transitions that a hierarchy snapshot can report as done,
+    /// while each probe moves a sixteenth of a native frame. A device that cannot scale returns
+    /// native probes; then the settled probe is the result.
     private func captureSettledScreenshot(
         driver: any PlatformDriver,
-        format: ImageFormat,
+        options: ScreenshotRequestOptions,
         timeoutMilliseconds: Int
     ) async throws -> SettledCapture {
-        var previous = try await driver.takeScreenshot(format: format)
-        guard timeoutMilliseconds > 0 else { return SettledCapture(screenshot: previous, settled: nil, frames: 1) }
+        guard timeoutMilliseconds > 0 else {
+            return try await SettledCapture(screenshot: driver.takeScreenshot(options), settled: nil, frames: 1)
+        }
         let clock = ContinuousClock()
         let deadline = clock.now + .milliseconds(timeoutMilliseconds)
+        var previous = try await driver.takeScreenshot(Self.settleProbe(options))
         var frames = 1
+        var settled = false
         while clock.now < deadline {
             try await Task.sleep(for: .milliseconds(120))
             guard clock.now < deadline else { break }
             let next: ScreenshotData
             do {
-                next = try await OperationDeadline
-                    .read(until: deadline) { try await driver.takeScreenshot(format: format) }
+                next = try await OperationDeadline.read(until: deadline) {
+                    try await driver.takeScreenshot(Self.settleProbe(options))
+                }
             } catch is OperationDeadline.DeadlineExceeded { break }
             frames += 1
             if next.bytes == previous.bytes {
-                return SettledCapture(screenshot: next, settled: true, frames: frames)
+                previous = next
+                settled = true
+                break
             }
             previous = next
         }
-        return SettledCapture(screenshot: previous, settled: false, frames: frames)
+        // A device that ignored the probe's scale cannot scale the final capture either; the host
+        // scales the settled frame instead of capturing it again.
+        if previous.appliedScale == nil {
+            return SettledCapture(screenshot: previous, settled: settled, frames: frames)
+        }
+        let final = try await driver.takeScreenshot(options)
+        return SettledCapture(screenshot: final, settled: settled, frames: frames + 1)
     }
 }

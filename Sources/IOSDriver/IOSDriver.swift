@@ -10,8 +10,8 @@ public actor IOSDriver: PlatformDriver {
     }
 
     let companion: any CompanionClient
-    private let backend: any IOSHostBackend
-    private let deviceID: String
+    let backend: any IOSHostBackend
+    let deviceID: String
     // sessionID → recording
     private var activeRecordings: [String: ActiveRecording] = [:]
     private var currentAppID: String?
@@ -226,12 +226,7 @@ public actor IOSDriver: PlatformDriver {
     // MARK: - Screen Capture
 
     public func takeScreenshot(format: ImageFormat) async throws -> ScreenshotData {
-        // Prefer companion screenshot (XCUIScreen) — simctl screenshot can time out when XCUITest is active
-        do {
-            return try await companion.takeScreenshot()
-        } catch {
-            return try await Self.hostScreenshot(backend: backend, device: deviceID, format: format, after: error)
-        }
+        try await takeScreenshot(ScreenshotRequestOptions(format: format))
     }
 
     public func startRecording() async throws -> RecordingSession {

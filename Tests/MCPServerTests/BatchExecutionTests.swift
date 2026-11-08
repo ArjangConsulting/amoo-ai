@@ -99,7 +99,7 @@ final class BatchExecutionTests: XCTestCase {
         XCTAssertEqual(report?.actions.map(\.toolName), ["tap", "take_screenshot"])
     }
 
-    func testBatchRejectsUnsavedScreenshotBeforeMutating() async throws {
+    func testBatchRejectsInlineScreenshotBeforeMutating() async throws {
         let bootstrapper = MockSessionBootstrapper()
         let manager = SessionManager(bootstrapper: bootstrapper)
         let session = try await manager.startSession(appID: "app", platform: .ios)
@@ -108,12 +108,12 @@ final class BatchExecutionTests: XCTestCase {
             "session_id": session.id,
             "steps": """
             [{"tool":"tap","arguments":{"x":1,"y":2}},
-             {"tool":"take_screenshot","arguments":{"return_image":false}}]
+             {"tool":"take_screenshot","arguments":{"return_image":true}}]
             """
         ])
 
         XCTAssertTrue(result.isError)
-        XCTAssertTrue(result.content.contains("require output and return_image=false"))
+        XCTAssertTrue(result.content.contains("save to a file; omit return_image"))
         let driver = await bootstrapper.lastDriver
         let calls = await driver?.calls
         XCTAssertEqual(calls, [])

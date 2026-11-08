@@ -614,13 +614,27 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
     // MARK: - Capture
 
     func takeScreenshot(
-        request _: Amoo_ScreenshotRequest,
+        request: Amoo_ScreenshotRequest,
         context _: ServerContext
     ) async throws -> Amoo_ScreenshotResponse {
-        let data = await accessibility.takeScreenshot()
+        let jpeg = request.format == "jpeg" || request.format == "jpg"
+        let capture = await accessibility.captureScreen(
+            fraction: request.scale,
+            pointResolution: request.pointResolution,
+            jpegQuality: jpeg ? (request.quality > 0 && request.quality <= 1 ? request.quality : 0.8) : nil
+        )
         var response = Amoo_ScreenshotResponse()
-        response.data = data
-        response.screen = await screenInfoResponse()
+        response.data = capture.data
+        response.format = capture.format
+        response.appliedScale = capture.appliedScale
+        response.density = capture.density
+        var screen = Amoo_ScreenInfoResponse()
+        screen.widthPoints = Double(capture.points.width)
+        screen.heightPoints = Double(capture.points.height)
+        screen.widthPixels = Double(capture.pixels.width)
+        screen.heightPixels = Double(capture.pixels.height)
+        screen.scale = capture.density
+        response.screen = screen
         return response
     }
 

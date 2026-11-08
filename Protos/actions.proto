@@ -173,6 +173,13 @@ message SetTextRequest {
 
 message ScreenshotRequest {
   string format = 1;
+  // Fraction of native pixels per side to return, in (0, 1]. 0 (unset) returns native pixels.
+  double scale = 2;
+  // Return one image pixel per point (iOS) or density-independent pixel (Android), i.e.
+  // scale = 1 / density. Overrides scale. Scaling on the device keeps transfers small.
+  bool point_resolution = 3;
+  // JPEG quality in (0, 1]; 0 uses the companion default. Ignored for PNG.
+  double quality = 4;
 }
 
 message ScreenshotResponse {
@@ -180,6 +187,13 @@ message ScreenshotResponse {
   // Screen geometry, carried alongside the image so a caller can convert a pixel
   // position read off it into the points that gestures take, without a second call.
   ScreenInfoResponse screen = 2;
+  // Fraction of native pixels per side the companion applied; 0 when the image is native
+  // (including companions that predate scaling).
+  double applied_scale = 3;
+  // Image format actually produced: "png" or "jpeg". Empty from older companions (png).
+  string format = 4;
+  // Native pixels per point (iOS) or per density-independent pixel (Android).
+  double density = 5;
 }
 
 message ScreenInfoResponse {

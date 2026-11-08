@@ -51,10 +51,50 @@ public enum ScreenPowerState: String, Sendable, Equatable {
 public struct ScreenshotData: Sendable, Equatable {
     public var bytes: [UInt8]
     public var format: ImageFormat
+    /// Fraction of native pixels per side applied where the image was captured; `nil` when the
+    /// image is at native resolution.
+    public var appliedScale: Double?
+    /// Native pixels per point (iOS) or per density-independent pixel (Android), when known.
+    public var density: Double?
+    /// Screen geometry reported with the capture, so callers need no separate geometry call.
+    public var geometry: ScreenSize?
 
-    public init(bytes: [UInt8], format: ImageFormat = .png) {
+    public init(
+        bytes: [UInt8],
+        format: ImageFormat = .png,
+        appliedScale: Double? = nil,
+        density: Double? = nil,
+        geometry: ScreenSize? = nil
+    ) {
         self.bytes = bytes
         self.format = format
+        self.appliedScale = appliedScale
+        self.density = density
+        self.geometry = geometry
+    }
+}
+
+/// How a screenshot should be sized and encoded. Drivers that cannot scale at the source return
+/// native pixels (`ScreenshotData.appliedScale == nil`) and the caller scales instead.
+public struct ScreenshotRequestOptions: Sendable, Equatable {
+    public var format: ImageFormat
+    /// Fraction of native pixels per side in (0, 1]; `nil` for native unless `pointResolution`.
+    public var scale: Double?
+    /// One image pixel per point / density-independent pixel (scale = 1 / density); overrides `scale`.
+    public var pointResolution: Bool
+    /// JPEG quality in (0, 1]; `nil` for the driver default.
+    public var quality: Double?
+
+    public init(
+        format: ImageFormat = .png,
+        scale: Double? = nil,
+        pointResolution: Bool = false,
+        quality: Double? = nil
+    ) {
+        self.format = format
+        self.scale = scale
+        self.pointResolution = pointResolution
+        self.quality = quality
     }
 }
 
@@ -305,4 +345,33 @@ public enum DeviceState: String, Sendable, Equatable {
     case booted
     case shutdown
     case unknown
+}
+
+/// Gesture space (points) and screenshot space (pixels), plus the factor between them.
+public struct ScreenSize: Sendable, Equatable {
+    public let widthPoints: Double
+    public let heightPoints: Double
+    public let widthPixels: Double
+    public let heightPixels: Double
+    public let scale: Double
+
+    public init(
+        widthPoints: Double,
+        heightPoints: Double,
+        widthPixels: Double,
+        heightPixels: Double,
+        scale: Double
+    ) {
+        self.widthPoints = widthPoints
+        self.heightPoints = heightPoints
+        self.widthPixels = widthPixels
+        self.heightPixels = heightPixels
+        self.scale = scale
+    }
+}
+
+public extension ScreenCapture {
+    func takeScreenshot(_ options: ScreenshotRequestOptions) async throws -> ScreenshotData {
+        try await takeScreenshot(format: options.format)
+    }
 }

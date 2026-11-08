@@ -80,6 +80,8 @@ public protocol CompanionClient: Sendable {
 
     /// Capture
     func takeScreenshot() async throws -> ScreenshotData
+    /// Capture sized and encoded on the device; companions that predate scaling return native pixels.
+    func takeScreenshot(options: ScreenshotRequestOptions) async throws -> ScreenshotData
 
     // AI
     func getScreenContext() async throws -> ScreenContext
@@ -208,6 +210,10 @@ public extension CompanionClient {
 
     func takeScreenshot() async throws -> ScreenshotData {
         throw AmooError.notImplemented("takeScreenshot")
+    }
+
+    func takeScreenshot(options _: ScreenshotRequestOptions) async throws -> ScreenshotData {
+        try await takeScreenshot()
     }
 
     func getInteractableElements() async throws -> [ElementInfo] {

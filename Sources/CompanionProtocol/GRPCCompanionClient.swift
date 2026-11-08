@@ -1064,8 +1064,7 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Capture
 
     public func takeScreenshot() async throws -> ScreenshotData {
-        let response = try await rpcClient.takeScreenshot(Amoo_ScreenshotRequest())
-        return ScreenshotData(bytes: [UInt8](response.data))
+        try await takeScreenshot(options: ScreenshotRequestOptions())
     }
 
     // MARK: - AI

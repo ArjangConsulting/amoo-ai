@@ -988,6 +988,54 @@ final class XCUITestBridge: @unchecked Sendable {
         #endif
     }
 
+    /// One capture, sized and encoded on the device, with the geometry read off the same frame.
+    ///
+    /// `fraction` is of native pixels per side; `pointResolution` asks for one pixel per point.
+    /// Scaling here, before the image crosses gRPC, is what keeps a point-resolution capture a
+    /// ninth of the pixels of a 3x screen; reading the geometry from this frame saves the second
+    /// capture `screenInfo()` would take.
+    func captureScreen(fraction requested: Double, pointResolution: Bool, jpegQuality: Double?) -> CapturedScreen {
+        #if os(macOS)
+        let info = screenInfo()
+        return CapturedScreen(
+            data: hostScreen().screenshot().pngRepresentation, format: "png", appliedScale: 0,
+            points: info.points, pixels: info.pixels, density: info.scale
+        )
+        #else
+        let screenshot = hostScreen().screenshot()
+        let image = screenshot.image
+        let density = Double(image.scale)
+        let points = image.size
+        let pixels = CGSize(width: points.width * density, height: points.height * density)
+        let target = pointResolution ? 1 / max(density, 1) : (requested > 0 && requested < 1 ? requested : 1)
+        let fraction = min(1, max(target, 0.05))
+        let jpeg = jpegQuality != nil
+        guard fraction < 1 || image.imageOrientation != .up || jpeg else {
+            return CapturedScreen(
+                data: screenshot.pngRepresentation, format: "png", appliedScale: 0,
+                points: points, pixels: pixels, density: density
+            )
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale * fraction
+        format.opaque = true
+        // Drawing also bakes in `imageOrientation`, which `pngRepresentation` drops in landscape.
+        let renderer = UIGraphicsImageRenderer(size: points, format: format)
+        let draw: (UIGraphicsImageRendererContext) -> Void = { _ in
+            image.draw(in: CGRect(origin: .zero, size: points))
+        }
+        let data = if let jpegQuality {
+            renderer.jpegData(withCompressionQuality: jpegQuality, actions: draw)
+        } else {
+            renderer.pngData(actions: draw)
+        }
+        return CapturedScreen(
+            data: data, format: jpeg ? "jpeg" : "png", appliedScale: fraction < 1 ? fraction : 0,
+            points: points, pixels: pixels, density: density
+        )
+        #endif
+    }
+
     /// Both coordinate spaces in play, and the factor between them.
     ///
     /// Gestures take points; screenshots come back in pixels. On a 3x device those differ by a
@@ -1651,4 +1699,17 @@ extension XCUIElement.ElementType {
             "other"
         }
     }
+}
+
+/// A screenshot and the screen geometry of the same frame.
+struct CapturedScreen: Sendable {
+    let data: Data
+    /// `png` or `jpeg`.
+    let format: String
+    /// Fraction of native pixels per side applied; 0 when the image is native.
+    let appliedScale: Double
+    let points: CGSize
+    let pixels: CGSize
+    /// Native pixels per point.
+    let density: Double
 }

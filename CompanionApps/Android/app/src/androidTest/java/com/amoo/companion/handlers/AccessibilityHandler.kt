@@ -44,6 +44,9 @@ class AccessibilityHandler(private val bridge: UIAutomatorBridge) {
 
     fun takeScreenshot(): ByteArray = bridge.takeScreenshot()
 
+    fun captureScreen(fraction: Double, pointResolution: Boolean, jpegQuality: Double?) =
+        bridge.captureScreen(fraction, pointResolution, jpegQuality)
+
     fun getAllElements(appId: String? = null): List<ElementSnapshot> = bridge.getAllElements(appId)
 
     fun getInteractableElements(): List<ElementSnapshot> = bridge.getInteractableElements()
