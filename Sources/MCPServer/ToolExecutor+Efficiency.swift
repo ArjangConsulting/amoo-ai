@@ -48,6 +48,7 @@ extension DriverToolExecutor {
         )
         await measureResponse(tool: toolName, arguments: arguments, result: result, started: started)
         Self.annotate(span, tool: toolName, arguments: arguments, result: result, runID: runID)
+        span.attributes[TelemetryAttribute.callID] = call.callID
         return result
     }
 

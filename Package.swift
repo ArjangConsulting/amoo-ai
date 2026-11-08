@@ -267,6 +267,7 @@ let package = Package(
         .testTarget(
             name: "CLITests",
             dependencies: [
+                "AmooTelemetry",
                 .product(name: "TestCommons", package: "SwiftTestCommons"),
                 "CLI",
                 "OllamaClient",
