@@ -1,0 +1,13 @@
+{
+  "generate": {
+    "clients": true,
+    "servers": false,
+    "messages": true
+  },
+  "generatedSource": {
+    "accessLevel": "public"
+  },
+  "protoc": {
+    "executablePath": "Protos/protoc"
+  }
+}

@@ -8,6 +8,8 @@ actor MCPRequestRuntime {
     private var writeError: (any Error)?
     private let writer: MCPPipeWriter
     let lifetime: MCPPipeLifetime
+    /// `clientInfo.name` from `initialize`, recorded on request spans.
+    private(set) var clientName: String?
 
     init(output: FileHandle, lifetime: MCPPipeLifetime = MCPPipeLifetime()) {
         self.lifetime = lifetime
@@ -20,17 +22,19 @@ actor MCPRequestRuntime {
             regularRequests.insert(id)
         }
         requests[id] = Task {
-            await PerformanceTelemetry.$traceID.withValue(UUID().uuidString) {
-                let start = ContinuousClock.now
-                if let data = await operation() {
-                    await write(data)
-                }
-                PerformanceTelemetry.record("mcp_request", operation: "complete", duration: start.duration(to: .now))
+            if let data = await operation() {
+                await write(data)
             }
             requests.removeValue(forKey: id)
             regularRequests.remove(id)
         }
         return true
+    }
+
+    func setClientName(_ name: String?) {
+        if let name, !name.isEmpty {
+            clientName = String(name.prefix(64))
+        }
     }
 
     /// True when no request is running, so the process can exit without dropping a response.
@@ -51,15 +55,6 @@ actor MCPRequestRuntime {
     }
 
     func write(_ data: Data) async {
-        let start = ContinuousClock.now
-        defer {
-            PerformanceTelemetry.record(
-                "mcp_output",
-                operation: "write",
-                duration: start.duration(to: .now),
-                metadata: ["bytes": String(data.count)]
-            )
-        }
         do { try await writer.write(data) } catch {
             if writeError == nil {
                 MCPTransportDiagnostics().emit("output_error")

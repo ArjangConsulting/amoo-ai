@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Regenerate the committed host-side protobuf/gRPC Swift in Sources/Protos/Generated from Protos/*.proto.
+# Regenerate the committed host-side protobuf/gRPC Swift from Protos/: the companion contract
+# (Protos/*.proto -> Sources/Protos/Generated) and the vendored OpenTelemetry protos
+# (Protos/OTLP -> Sources/OTLP/Generated).
 #
 # Normal builds do not run the GRPCProtobufGenerator plugin (it makes SwiftPM compile protoc from
 # C++ source, 3-6 min per clean build — see the note at the top of Package.swift). Setting
@@ -12,6 +14,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$REPO_ROOT/Sources/Protos/Generated"
+OTLP_DEST="$REPO_ROOT/Sources/OTLP/Generated"
 CHECK=false
 
 case "${1:-}" in
@@ -43,17 +46,25 @@ if [[ "${#GENERATED[@]}" -ne 1 ]]; then
     exit 1
 fi
 
-mkdir -p "$DEST"
-rm -f "$DEST"/*.swift
-cp "${GENERATED[0]}"/*.swift "$DEST"/
+mkdir -p "$DEST" "$OTLP_DEST"
+rm -f "$DEST"/*.swift "$OTLP_DEST"/*.swift
+# The plugin names output after the proto path with underscores, so everything generated from
+# Protos/OTLP/opentelemetry/... starts with opentelemetry_ and belongs to the OTLP target.
+for file in "${GENERATED[0]}"/*.swift; do
+    case "$(basename "$file")" in
+        opentelemetry_*) cp "$file" "$OTLP_DEST"/ ;;
+        *) cp "$file" "$DEST"/ ;;
+    esac
+done
 
 if [[ "$CHECK" == true ]]; then
-    if [[ -n "$(git status --porcelain -- Sources/Protos/Generated)" ]]; then
-        echo "error: Sources/Protos/Generated is stale relative to Protos/*.proto. Run 'make protos' and commit." >&2
-        git --no-pager diff --stat -- Sources/Protos/Generated >&2 || true
+    if [[ -n "$(git status --porcelain -- Sources/Protos/Generated Sources/OTLP/Generated)" ]]; then
+        echo "error: generated protos are stale relative to Protos/. Run 'make protos' and commit." >&2
+        git --no-pager diff --stat -- Sources/Protos/Generated Sources/OTLP/Generated >&2 || true
         exit 1
     fi
-    echo "Sources/Protos/Generated is up to date."
+    echo "Sources/Protos/Generated and Sources/OTLP/Generated are up to date."
 else
-    echo "Regenerated $(find "$DEST" -name '*.swift' | wc -l | tr -d ' ') files in Sources/Protos/Generated."
+    echo "Regenerated $(find "$DEST" -name '*.swift' | wc -l | tr -d ' ') files in Sources/Protos/Generated" \
+        "and $(find "$OTLP_DEST" -name '*.swift' | wc -l | tr -d ' ') in Sources/OTLP/Generated."
 fi

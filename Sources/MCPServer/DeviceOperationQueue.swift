@@ -1,6 +1,7 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
+import Tracing
 
 /// FIFO per device. Queued cancellation returns immediately; active work retains ownership
 /// until it has actually stopped, even when its backend ignores cancellation.
@@ -41,8 +42,8 @@ actor DeviceOperationQueue {
         operation: @escaping @Sendable () async -> ToolResult
     ) async -> ToolResult {
         let id = UUID()
-        let queuedAt = ContinuousClock.now
-        let traceID = PerformanceTelemetry.traceID
+        let queuedAt = DefaultTracerClock.now
+        let parentContext = InstrumentationContext.current ?? .topLevel
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 guard !Task.isCancelled else {
@@ -50,13 +51,13 @@ actor DeviceOperationQueue {
                     return
                 }
                 pending[id] = Pending(key: key, owner: owner, operation: {
-                    await PerformanceTelemetry.$traceID.withValue(traceID) {
-                        PerformanceTelemetry.record(
-                            "device_queue",
-                            operation: "wait",
-                            duration: queuedAt.duration(to: .now)
-                        )
-                        return await operation()
+                    // The operation runs on the queue's own task; carry the caller's trace into it
+                    // and record how long the call waited for the device.
+                    InstrumentationSystem.tracer
+                        .startSpan("device_queue.wait", context: parentContext, at: queuedAt)
+                        .end()
+                    return await InstrumentationContext.$current.withValue(parentContext) {
+                        await operation()
                     }
                 }, continuation: continuation)
                 queues[key, default: []].append(id)

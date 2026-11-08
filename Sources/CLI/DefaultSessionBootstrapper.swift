@@ -1,5 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
+import AmooTelemetry
 import AndroidDriver
 import CompanionProtocol
 import Foundation
@@ -7,6 +8,7 @@ import IOSDriver
 import MobileDevices
 import ProcessRunner
 import TestSession
+import Tracing
 
 /// Production `SessionBootstrapper`: selects a device, ensures the companion is
 /// running on that device, opens a gRPC connection, installs + launches the
@@ -45,8 +47,13 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     }
 
     func bootstrap(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
-        let clock = ContinuousClock()
-        let bootstrapStart = clock.now
+        try await withSpan("session_bootstrap") { span in
+            span.attributes[TelemetryAttribute.platform] = request.platform.rawValue
+            return try await bootstrapTraced(request)
+        }
+    }
+
+    private func bootstrapTraced(_ request: SessionBootstrapRequest) async throws -> BootstrapResult {
         await StartupProgress.report("Selecting device")
         let selector = PlatformDeviceSelector(processRunner: processRunner, runtimeStore: runtimeStore)
         async let androidBuild: Bool = prepareAndroidBuild(request)
@@ -77,7 +84,6 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
             return try await bootstrap(
                 request,
                 available: available,
-                start: bootstrapStart,
                 ownership: SessionOwnership(deviceKey: deviceKey, owner: owner, accessLock: accessLock),
                 installAndroidBuild: installAndroidBuild
             )
@@ -92,11 +98,9 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
     private func bootstrap(
         _ request: SessionBootstrapRequest,
         available: AvailableDevice,
-        start bootstrapStart: ContinuousClock.Instant,
         ownership: SessionOwnership,
         installAndroidBuild: Bool
     ) async throws -> BootstrapResult {
-        let clock = ContinuousClock()
         // Ensure platform hint is consistent with the selected device.
         guard available.platform == request.platform else {
             throw BootstrapError.platformMismatch(
@@ -109,19 +113,15 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let deviceID: String
         let port: Int
         do {
-            let companionStart = clock.now
-            (deviceID, port) = try await ensureCompanion(
-                for: available,
-                appID: request.appID,
-                buildMode: request.buildMode,
-                installAndroidBuild: installAndroidBuild,
-                requestedPort: request.port
-            )
-            PerformanceTelemetry.record(
-                "companion_startup",
-                operation: request.platform.rawValue,
-                duration: companionStart.duration(to: clock.now)
-            )
+            (deviceID, port) = try await withSpan("companion.ensure") { _ in
+                try await ensureCompanion(
+                    for: available,
+                    appID: request.appID,
+                    buildMode: request.buildMode,
+                    installAndroidBuild: installAndroidBuild,
+                    requestedPort: request.port
+                )
+            }
             if case let .ios(device) = available, device.isPhysicalDevice {
                 tunnelHandle = try await usbTunnel.open(
                     deviceUDID: device.udid,
@@ -170,7 +170,11 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         await StartupProgress.report("Waiting for the first app screen")
         let screenReady: Bool
         do {
-            screenReady = try await waitForScreenReady(driver: platformDriver)
+            screenReady = try await withSpan("screen.ready") { span in
+                let ready = try await waitForScreenReady(driver: platformDriver)
+                span.attributes["amoo.screen.ready"] = ready
+                return ready
+            }
             try Task.checkCancellation()
         } catch {
             await cleanup()
@@ -178,11 +182,6 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         }
         await StartupProgress.report(screenReady ? "Session ready" : "Session started; semantic readiness unverified")
 
-        PerformanceTelemetry.record(
-            "session_bootstrap",
-            operation: request.platform.rawValue,
-            duration: bootstrapStart.duration(to: clock.now)
-        )
         return BootstrapResult(
             driver: platformDriver,
             deviceID: deviceID,
@@ -233,7 +232,7 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
                     }
                 }
                 await StartupProgress.report("Installing app under test")
-                try await driver.installApp(path: buildPath)
+                try await withSpan("app.install") { _ in try await driver.installApp(path: buildPath) }
             } catch {
                 throw BootstrapError.installFailed(error.localizedDescription)
             }
@@ -241,11 +240,13 @@ struct DefaultSessionBootstrapper: SessionBootstrapper {
         let receipt: AppLaunchReceipt
         do {
             await StartupProgress.report("Launching app under test")
-            receipt = try await driver.launchAppWithReceipt(
-                appID: request.appID,
-                arguments: request.arguments,
-                environment: request.environment
-            )
+            receipt = try await withSpan("app.launch") { _ in
+                try await driver.launchAppWithReceipt(
+                    appID: request.appID,
+                    arguments: request.arguments,
+                    environment: request.environment
+                )
+            }
             // Bind the target app the caller just asked to launch — otherwise `current_app`
             // reports an empty `target_bundle_id` until the caller separately calls
             // `set_target_app`, even though `start_session` already took `app_id`.

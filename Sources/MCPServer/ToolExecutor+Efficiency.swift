@@ -1,9 +1,21 @@
 // swiftlint:disable multiline_arguments
+import AmooTelemetry
 import Foundation
 import MCP
+import Tracing
 
 extension DriverToolExecutor {
+    /// Runs one tool call for every surface (MCP, CLI, flows) inside an OpenTelemetry
+    /// `execute_tool <name>` span, and records the run-level cost entry.
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        await withSpan("execute_tool \(toolName)", ofKind: .internal) { span in
+            await executeMeasured(toolName: toolName, arguments: arguments, span: span)
+        }
+    }
+
+    private func executeMeasured(
+        toolName: String, arguments: [String: String], span: any Tracing.Span
+    ) async -> ToolResult {
         let started = ContinuousClock.now
         let runID = runIdentity(arguments: arguments)
         let call = await runTelemetry.begin(runID: runID, tool: toolName, sessionID: arguments["session_id"])
@@ -35,7 +47,59 @@ extension DriverToolExecutor {
             ]
         )
         await measureResponse(tool: toolName, arguments: arguments, result: result, started: started)
+        Self.annotate(span, tool: toolName, arguments: arguments, result: result, runID: runID)
         return result
+    }
+
+    static func annotate(
+        _ span: any Tracing.Span, tool: String, arguments: [String: String], result: ToolResult, runID: String
+    ) {
+        let fields = result.structuredContent?.objectValue ?? [:]
+        var textResult = result
+        textResult.image = nil
+        span.updateAttributes { attributes in
+            attributes[TelemetryAttribute.genAIOperationName] = "execute_tool"
+            attributes[TelemetryAttribute.genAIToolName] = tool
+            attributes[TelemetryAttribute.runID] = runID
+            let context = TelemetryCallContext.current
+            attributes[TelemetryAttribute.client] = context?.surface ?? "library"
+            if let name = context?.clientName {
+                attributes[TelemetryAttribute.clientName] = name
+            }
+            if let session = arguments["session_id"] ?? fields["session_id"]?.stringValue {
+                attributes[TelemetryAttribute.sessionID] = session
+            }
+            attributes[TelemetryAttribute.responseMode] = arguments["response_mode"] ?? "full"
+            attributes[TelemetryAttribute.responseBytes] = (try? JSONEncoder().encode(result.mcpResult()).count) ?? 0
+            attributes[TelemetryAttribute.responseTextBytes] =
+                (try? JSONEncoder().encode(textResult.mcpResult()).count) ?? 0
+            attributes[TelemetryAttribute.observedElements] = result.observedElements.count
+            let inline = result.image != nil
+            attributes[TelemetryAttribute.imageInline] = inline
+            if inline || fields["saved_path"] != nil {
+                attributes[TelemetryAttribute.imageBytes] = result.image?.data.count ?? fields["byte_count"]?
+                    .intValue ?? 0
+                if let width = fields["width_pixels"].flatMap({ Double($0.description) }),
+                   let height = fields["height_pixels"].flatMap({ Double($0.description) }) {
+                    attributes[TelemetryAttribute.imageWidth] = Int(width)
+                    attributes[TelemetryAttribute.imageHeight] = Int(height)
+                }
+                if let scale = fields["image_scale"]?.doubleValue {
+                    attributes[TelemetryAttribute.imageScale] = scale
+                }
+            }
+            if let frames = fields["settle_frames"]?.intValue {
+                attributes[TelemetryAttribute.settleFrames] = frames
+            }
+            if fields["repeated_call"] == .bool(true) {
+                attributes[TelemetryAttribute.repeatedCall] = true
+            }
+        }
+        if result.isError {
+            let code = fields["code"]?.stringValue ?? fields["failure_kind"]?.stringValue ?? "tool_error"
+            span.attributes[TelemetryAttribute.errorType] = code
+            span.setStatus(SpanStatus(code: .error, message: code))
+        }
     }
 
     func measureOperation(

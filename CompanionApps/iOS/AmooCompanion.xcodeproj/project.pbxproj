@@ -51,6 +51,7 @@
 		676406D3EBB4B54E81A938AF /* AccessibilityInspection+Codable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BEBDC8D36D311E616B26C79 /* AccessibilityInspection+Codable.swift */; };
 		691EA9BCFB3472CD1061E622 /* ElementSemantics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DE24E54E4489608DB09382 /* ElementSemantics.swift */; };
 		6C6FBE10AA9B2D9F91ECB13B /* XCUITestBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */; };
+		718FFF4F7886FC24A72173F2 /* ServerTimingInterceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4853E9BFBD2F7718B86E9D84 /* ServerTimingInterceptor.swift */; };
 		719228FA65C1CCF989FA5972 /* AccessibilityHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B81131AADDD8CDE7E99184 /* AccessibilityHandler.swift */; };
 		7366EBF725E2980E1BE4543E /* device.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CD06E38643ED828C2A8C5F /* device.pb.swift */; };
 		746A92F77CC21F046B1F27EE /* AccessibilityHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B81131AADDD8CDE7E99184 /* AccessibilityHandler.swift */; };
@@ -79,6 +80,7 @@
 		B94389CCB67A344C757F49F4 /* CompanionServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E97E4108591B5D20A7C7A03 /* CompanionServer.swift */; };
 		BC65B361D511ACE8905AAEF8 /* ViewNodeSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BAB2764C1BE905427CB1E01 /* ViewNodeSnapshot.swift */; };
 		BE97ECFBD10F80E69EC021B6 /* XCUITestBridge+MacDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A7C4CE416E84D848CDB57F /* XCUITestBridge+MacDisplay.swift */; };
+		C24ED4A2B53B1472C84ACFFD /* ServerTimingInterceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4853E9BFBD2F7718B86E9D84 /* ServerTimingInterceptor.swift */; };
 		C4371F0F325FF4715E264E7D /* AccessibilityJourneyRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1E9DA91D9EC8DF0BDEC7D /* AccessibilityJourneyRunner.swift */; };
 		C8F4424954331CF965150004 /* VoiceOverTraversal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01569413A4F179D9C0EC0834 /* VoiceOverTraversal.swift */; };
 		CB515B07A842384588F0C31D /* ElementSemantics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DE24E54E4489608DB09382 /* ElementSemantics.swift */; };
@@ -130,6 +132,7 @@
 		43DE3558D8F3DFA006582ED3 /* AmooCompanionMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AmooCompanionMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		45AD2153457130C91BDE23A1 /* NativeAccessibilityInspector+VoiceOver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NativeAccessibilityInspector+VoiceOver.swift"; sourceTree = "<group>"; };
 		46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCUITestBridge.swift; sourceTree = "<group>"; };
+		4853E9BFBD2F7718B86E9D84 /* ServerTimingInterceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerTimingInterceptor.swift; sourceTree = "<group>"; };
 		48DE24E54E4489608DB09382 /* ElementSemantics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementSemantics.swift; sourceTree = "<group>"; };
 		4E4F85A6257986D577DBC35A /* common.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = common.pb.swift; sourceTree = "<group>"; };
 		555AE31F8A032DBAEA6A4E3D /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
@@ -272,6 +275,7 @@
 			children = (
 				0E97E4108591B5D20A7C7A03 /* CompanionServer.swift */,
 				2EDB816D9D45FC60209AE263 /* CompanionServiceProvider.swift */,
+				4853E9BFBD2F7718B86E9D84 /* ServerTimingInterceptor.swift */,
 			);
 			path = Server;
 			sourceTree = "<group>";
@@ -492,6 +496,7 @@
 				65B15B89722A7E6E6AB92A4D /* NativeAccessibilityInspector.swift in Sources */,
 				1E0F6E53DF378A717BDB35D2 /* PinchGesture.swift in Sources */,
 				91E461BFA8B50F12CC1147BD /* ScrollDirection.swift in Sources */,
+				C24ED4A2B53B1472C84ACFFD /* ServerTimingInterceptor.swift in Sources */,
 				B3B756594712CF1FACD8AD4B /* TextHandler.swift in Sources */,
 				32B0682FF21997215E093E62 /* TouchHandler.swift in Sources */,
 				BC65B361D511ACE8905AAEF8 /* ViewNodeSnapshot.swift in Sources */,
@@ -552,6 +557,7 @@
 				7A31830786D5A616077469A8 /* GestureHandler.swift in Sources */,
 				3D81FE8A88A9E44DBCF54652 /* PinchGesture.swift in Sources */,
 				4C2484BEBCD5E0FF998E0548 /* ScrollDirection.swift in Sources */,
+				718FFF4F7886FC24A72173F2 /* ServerTimingInterceptor.swift in Sources */,
 				290A460556222258AED32F34 /* TextHandler.swift in Sources */,
 				D99E1A1DD493F348B78FAB1C /* TouchHandler.swift in Sources */,
 				4364F8F5A6294BC705B8A95E /* ViewNodeSnapshot.swift in Sources */,

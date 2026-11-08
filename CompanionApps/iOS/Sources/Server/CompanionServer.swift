@@ -41,7 +41,8 @@ final class CompanionServer: Sendable {
 
         let server = GRPCServer(
             transport: transport,
-            services: [provider]
+            services: [provider],
+            interceptors: [ServerTimingInterceptor()]
         )
 
         print("[CompanionServer] Listening on port \(port)")

@@ -220,6 +220,11 @@ plugin (AGP 9's new DSL is incompatible with it). Before editing `CompanionApps/
   here because it is OSLog-only and its `StringParsable` conformances make `Int.init` ambiguous);
   log before and after async operations and on every error with feature/action/state context via
   `error(_:error:context:)`; never log user data.
+- Telemetry is OpenTelemetry: instrument with swift-distributed-tracing (`import Tracing`,
+  `withSpan`), put attribute keys in `TelemetryAttribute`, keep span names low-cardinality and never
+  record arguments or UI values. The `AmooTelemetry` target owns the tracer and OTLP exporters; the
+  OTLP types in `Sources/OTLP/Generated` come from the vendored `Protos/OTLP` via `make protos`.
+  See `docs/telemetry.md`.
 
 ## Versioning
 

@@ -14,6 +14,7 @@ let package = Package(
     products: [
         .library(name: "AmooCore", targets: ["AmooCore"]),
         .library(name: "Protos", targets: ["Protos"]),
+        .library(name: "AmooTelemetry", targets: ["AmooTelemetry"]),
         .library(name: "CompanionProtocol", targets: ["CompanionProtocol"]),
         .library(name: "IOSDriver", targets: ["IOSDriver"]),
         .library(name: "AndroidDriver", targets: ["AndroidDriver"]),
@@ -46,6 +47,8 @@ let package = Package(
         .package(url: "https://github.com/ShipItSwifty/mobile-kits.git", branch: "main"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
+        // OpenTelemetry instrumentation API; AmooTelemetry provides the tracer and OTLP export.
+        .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.7.4"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin.git", from: "1.5.0")
@@ -70,9 +73,31 @@ let package = Package(
                 .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf")
             ]
         ),
+        // OTLP trace types generated from the vendored opentelemetry-proto (Protos/OTLP).
+        .target(
+            name: "OTLP",
+            dependencies: [
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf")
+            ]
+        ),
+        .target(
+            name: "AmooTelemetry",
+            dependencies: [
+                "AmooLogging",
+                "OTLP",
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
+                .product(name: "Instrumentation", package: "swift-distributed-tracing"),
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf"),
+                .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport")
+            ]
+        ),
         .target(
             name: "CompanionProtocol",
             dependencies: [
+                "AmooTelemetry",
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
                 "AmooCore",
                 "Protos",
                 .product(name: "GRPCCore", package: "grpc-swift-2"),
@@ -82,6 +107,8 @@ let package = Package(
         .target(
             name: "ProcessRunner",
             dependencies: [
+                "AmooTelemetry",
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
                 "AmooCore",
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "XcrunKit", package: "cli-wrappers"),
@@ -125,6 +152,8 @@ let package = Package(
         .target(
             name: "MCPServer",
             dependencies: [
+                "AmooTelemetry",
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
                 "AmooCore",
                 "AmooLogging",
                 "GRPCService",
@@ -141,6 +170,8 @@ let package = Package(
         .executableTarget(
             name: "CLI",
             dependencies: [
+                "AmooTelemetry",
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
                 "AmooCore",
                 "CompanionProtocol",
                 "IOSDriver",
@@ -175,6 +206,15 @@ let package = Package(
             dependencies: ["AmooCore", .product(name: "TestCommons", package: "SwiftTestCommons")]
         ),
         .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"]),
+        .testTarget(
+            name: "AmooTelemetryTests",
+            dependencies: [
+                "AmooTelemetry",
+                "OTLP",
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
+                .product(name: "TestCommons", package: "SwiftTestCommons")
+            ]
+        ),
         .testTarget(
             name: "IOSDriverTests",
             dependencies: ["IOSDriver", .product(name: "TestCommons", package: "SwiftTestCommons")]
@@ -267,7 +307,7 @@ if regenerateProtos {
                 .product(name: "GRPCProtobuf", package: "grpc-swift-protobuf")
             ],
             path: "Protos",
-            exclude: ["protoc"],
+            exclude: ["protoc", "OTLP/README.md"],
             plugins: [
                 .plugin(name: "GRPCProtobufGenerator", package: "grpc-swift-protobuf")
             ]

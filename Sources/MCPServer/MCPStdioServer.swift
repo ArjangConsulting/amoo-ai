@@ -139,6 +139,11 @@ public struct MCPStdioServer: Sendable {
         }
         // Initialization is cheap and ordered before dependent requests.
         if request?.method == "initialize" || request?.id == nil {
+            if request?.method == "initialize" {
+                await runtime.setClientName(
+                    request?.params?.objectValue?["clientInfo"]?.objectValue?["name"]?.stringValue
+                )
+            }
             let outcome = await handle(data, legacyInitialized: initialized)
             if let response = outcome.response {
                 await runtime.write(encoded(response))
@@ -150,11 +155,20 @@ public struct MCPStdioServer: Sendable {
         let control = ["ping", "tools/list", "server/discover"].contains(request?.method ?? "")
             || ["end_session", "companion_status", "session_startup_status", "list_sessions"].contains(name)
         let duplicate = await runtime.contains(id: requestKey(id))
+        let clientName = await runtime.clientName
         let accepted = await runtime.submit(id: requestKey(id), control: control) {
             let token = request?.params?.objectValue?["_meta"]?.objectValue?["progressToken"]
-            return await withMCPStartupProgress(runtime: runtime, token: token) {
-                let outcome = await handle(data, legacyInitialized: initialized)
-                return outcome.response.map(encoded)
+            let traceInfo = MCPRequestTraceInfo(
+                method: request?.method ?? "",
+                toolName: name,
+                id: id,
+                params: request?.params?.objectValue
+            )
+            return await Self.traced(traceInfo, clientName: clientName) {
+                await withMCPStartupProgress(runtime: runtime, token: token) {
+                    let outcome = await handle(data, legacyInitialized: initialized)
+                    return outcome.response.map(encoded)
+                }
             }
         }
         if !accepted {
