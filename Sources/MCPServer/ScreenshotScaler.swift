@@ -13,12 +13,46 @@ import UniformTypeIdentifiers
 /// asks a screenshot ("which screen is this", "did the sheet dismiss") survives a halving intact.
 /// Scaling is best-effort: an unsupported platform or an undecodable image returns `nil` and the
 /// caller keeps the original rather than failing the capture.
+enum ScaleAuditStatus: String {
+    case ok
+    case mismatch
+    case unchecked
+}
+
 enum ScreenshotScaler {
     static func scalingStatus(requested: Double?, scaled: Data?) -> String {
         if scaled != nil {
             return "applied"
         }
         return (requested ?? 1) < 1 ? "unavailable" : "not_requested"
+    }
+
+    /// Whether the delivered image is the size the reported scale implies.
+    ///
+    /// Gestures take points and the image is in pixels, so a client divides image coordinates by
+    /// `pixels per point`. If the device or the host scaled to a different size than it reported
+    /// (a clamp, an orientation swap, an older companion), that division lands taps off target
+    /// with no error. Rounding differences of a pixel or two are expected and pass.
+    struct ScaleAudit: Equatable {
+        let status: ScaleAuditStatus
+        /// Delivered pixels per point, measured from the image rather than the reported scale.
+        let measuredPixelsPerPoint: Double?
+    }
+
+    static func audit(
+        actual: (width: Int, height: Int)?,
+        nominalWidth: Double,
+        nominalHeight: Double,
+        widthPoints: Double
+    ) -> ScaleAudit {
+        guard let actual, widthPoints > 0, nominalWidth > 0, nominalHeight > 0 else {
+            return ScaleAudit(status: .unchecked, measuredPixelsPerPoint: nil)
+        }
+        let measured = Double(actual.width) / widthPoints
+        let tolerance = 2.0
+        let matches = abs(Double(actual.width) - nominalWidth) <= tolerance
+            && abs(Double(actual.height) - nominalHeight) <= tolerance
+        return ScaleAudit(status: matches ? .ok : .mismatch, measuredPixelsPerPoint: measured)
     }
 
     static func dimensions(_ data: Data) -> (width: Int, height: Int)? {
@@ -36,6 +70,17 @@ enum ScreenshotScaler {
         #endif
     }
 
+    #if canImport(CoreGraphics) && canImport(ImageIO)
+    /// An RGB space to draw into: a grayscale, indexed or missing source space cannot back a
+    /// premultiplied RGBA context, which made the scale silently fail and the full image ship.
+    private static func drawableColorSpace(_ source: CGColorSpace?) -> CGColorSpace {
+        if let source, source.model == .rgb {
+            return source
+        }
+        return CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+    }
+    #endif
+
     static func scaled(_ data: Data, by scale: Double?, format: ImageFormat) -> Data? {
         guard let scale, scale > 0, scale < 1 else { return nil }
 
@@ -46,7 +91,8 @@ enum ScreenshotScaler {
 
         let width = Int((Double(image.width) * scale).rounded())
         let height = Int((Double(image.height) * scale).rounded())
-        guard width > 0, height > 0, let colorSpace = image.colorSpace,
+        let colorSpace = Self.drawableColorSpace(image.colorSpace)
+        guard width > 0, height > 0,
               let context = CGContext(
                   data: nil,
                   width: width,

@@ -79,6 +79,48 @@ final class ScreenshotScalerTests: XCTestCase {
         XCTAssertEqual(ScreenshotQuality.assess(pngData(context)).suspect, false)
     }
 
+    func testDownscaleHitsTheRequestedSizeAcrossRealDensities() throws {
+        let native = makePNG(width: 1080, height: 2400)
+        for scale in [1.0 / 3, 1.0 / 2.625, 0.5, 0.25] {
+            let scaled = try XCTUnwrap(ScreenshotScaler.scaled(native, by: scale, format: .png), "scale \(scale)")
+            let size = try XCTUnwrap(ScreenshotScaler.dimensions(scaled))
+            XCTAssertEqual(Double(size.width), 1080 * scale, accuracy: 1, "width at \(scale)")
+            XCTAssertEqual(Double(size.height), 2400 * scale, accuracy: 1, "height at \(scale)")
+            let audit = ScreenshotScaler.audit(
+                actual: size, nominalWidth: (1080 * scale).rounded(), nominalHeight: (2400 * scale).rounded(),
+                widthPoints: 1080 / (1 / scale)
+            )
+            XCTAssertEqual(audit.status, .ok, "scale \(scale)")
+        }
+    }
+
+    func testAGrayscaleCaptureIsStillScaledInsteadOfShippedFullSize() throws {
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: 300, height: 600, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ))
+        context.setFillColor(CGColor(gray: 0.5, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 300, height: 600))
+        let scaled = try XCTUnwrap(ScreenshotScaler.scaled(pngData(context), by: 0.5, format: .png))
+        let size = try XCTUnwrap(ScreenshotScaler.dimensions(scaled))
+        XCTAssertEqual(size.width, 150)
+        XCTAssertEqual(size.height, 300)
+    }
+
+    func testAuditFlagsAnImageThatIsNotTheReportedSize() throws {
+        let mismatch = ScreenshotScaler.audit(
+            actual: (width: 805, height: 1748), nominalWidth: 402, nominalHeight: 874, widthPoints: 402
+        )
+        XCTAssertEqual(mismatch.status, .mismatch)
+        XCTAssertEqual(try XCTUnwrap(mismatch.measuredPixelsPerPoint), 805.0 / 402.0, accuracy: 0.0001)
+        let rounding = ScreenshotScaler.audit(
+            actual: (width: 411, height: 914), nominalWidth: 412, nominalHeight: 914, widthPoints: 411.43
+        )
+        XCTAssertEqual(rounding.status, .ok, "a pixel of rounding is not a defect")
+        let unknown = ScreenshotScaler.audit(actual: nil, nominalWidth: 402, nominalHeight: 874, widthPoints: 402)
+        XCTAssertEqual(unknown.status, .unchecked)
+    }
+
     private func pngData(_ context: CGContext) -> Data {
         let output = NSMutableData()
         let destination = CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil)!

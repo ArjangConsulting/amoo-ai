@@ -266,15 +266,31 @@ extension DriverToolExecutor {
         // them, is what stops a position read off this image from being passed straight to `tap`
         // — which lands off-screen and still reports success.
         var geometryNote = ""
+        var scaleAuditNote = ""
         if let viewport = fields["viewport"]?.objectValue,
            let screenScale = viewport["scale"]?.doubleValue, screenScale > 0,
            let widthPixels = viewport["width_pixels"]?.doubleValue,
            let heightPixels = viewport["height_pixels"]?.doubleValue,
            let widthPoints = viewport["width_points"]?.doubleValue,
            let heightPoints = viewport["height_points"]?.doubleValue {
-            let imageWidth = (widthPixels * imageScale).rounded()
-            let imageHeight = (heightPixels * imageScale).rounded()
-            let imagePixelsPerPoint = screenScale * imageScale
+            var imageWidth = (widthPixels * imageScale).rounded()
+            var imageHeight = (heightPixels * imageScale).rounded()
+            var imagePixelsPerPoint = screenScale * imageScale
+            let audit = ScreenshotScaler.audit(
+                actual: ScreenshotScaler.dimensions(data),
+                nominalWidth: imageWidth,
+                nominalHeight: imageHeight,
+                widthPoints: widthPoints
+            )
+            fields["scale_audit"] = .string(audit.status.rawValue)
+            if audit.status == .mismatch, let actual = ScreenshotScaler.dimensions(data),
+               let measured = audit.measuredPixelsPerPoint {
+                imageWidth = Double(actual.width)
+                imageHeight = Double(actual.height)
+                imagePixelsPerPoint = measured
+                scaleAuditNote = " — warning: image size differs from the reported scale; using the measured"
+                    + " \(measured.formatted()) pixels per point"
+            }
             fields["width_pixels"] = .double(imageWidth)
             fields["height_pixels"] = .double(imageHeight)
             fields["width_points"] = .double(widthPoints)
@@ -326,7 +342,8 @@ extension DriverToolExecutor {
 
         return ToolResult(
             content: "Screenshot captured: \(data.count) bytes (\(actualFormat.rawValue))"
-                + "\(savedNote)\(formatNote)\(geometryNote)\(screenStateNote)\(settleNote)\(qualityNote)",
+                + "\(savedNote)\(formatNote)\(geometryNote)\(scaleAuditNote)"
+                + "\(screenStateNote)\(settleNote)\(qualityNote)",
             structuredContent: .object(fields),
             image: returnImage ? ToolImageContent(data: data, mimeType: actualFormat.mimeType) : nil
         )
