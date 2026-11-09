@@ -149,7 +149,8 @@ public actor DriverToolExecutor: ToolExecutor {
         result = compactResult(result, tool: toolName, arguments: arguments)
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         await measureOperation(tool: toolName, arguments: arguments, result: result, started: start)
-        return result
+        // After recording, so the session's evidence keeps every field.
+        return Self.omittingDefaultTapFields(result, tool: toolName, arguments: arguments)
     }
 
     // swiftlint:enable multiline_arguments

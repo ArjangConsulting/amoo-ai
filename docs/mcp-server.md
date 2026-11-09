@@ -513,7 +513,8 @@ EOF allows two seconds for pending responses, then cancels remaining requests be
 cleanup. SIGTERM follows the same cleanup path. Assertions propagate their remaining monotonic
 deadline into RPCs and subprocesses; a late read cannot turn an expired assertion into success.
 Required hittability inspection must succeed before a tap; best-effort taps report
-`hittability_checked=false` when inspection was unavailable.
+`hittability_checked=false` when inspection was unavailable (omitted under `response_mode=compact`,
+where a missing field means `false`).
 
 Reports flush after ten pending actions or five seconds of idle time, and at orderly shutdown.
 Pending writes coalesce per session, and session listings use lightweight summaries. The persisted

@@ -19,8 +19,9 @@ enum ToolContracts {
         if definition.properties["session_id"] != nil {
             definition.properties["response_mode"] = .init(
                 type: "string",
-                description: "Default compacts element rows; compact also shortens the text; full keeps"
-                    + " semantics and bounds. Assertions retain identical proof fields",
+                description: "Default compacts element rows; compact also shortens the text and omits"
+                    + " default-valued tap_element fields; full keeps semantics and bounds."
+                    + " Assertions retain identical proof fields",
                 values: ["full", "compact"]
             )
         }

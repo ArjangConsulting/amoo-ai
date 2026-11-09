@@ -107,7 +107,11 @@ cannot independently establish the meaning of arbitrary images or agent-authored
 
 `find_elements` remains paginated and bounded. `response_mode=compact` removes duplicated human
 text and redundant `bounds`/`semantics` objects, retaining identity, state, values, hit points and
-pagination. Explicit assertion proof fields remain identical in full and compact modes.
+pagination. Explicit assertion proof fields remain identical in full and compact modes. A
+successful compact `tap_element` also omits fields that hold their default: a missing
+`postcondition_verified` or `hittability_checked` means `false`, a missing `visual_change` means
+`unverified`, a missing `target_state` means unavailable and a missing `element_label` means empty.
+The session report still records every field.
 
 `run_steps` retains its default stop-on-error behavior and twenty-step limit. Its default
 `result_mode=compact` includes assertion proof, error classifications, screenshot paths and

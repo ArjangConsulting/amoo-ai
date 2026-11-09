@@ -47,6 +47,27 @@ extension TapChecksTests {
         XCTAssertEqual(reads, 1, "only the read before the tap")
     }
 
+    func testCompactTapOmitsFieldsThatHoldTheirDefault() async throws {
+        let unlabeled = ElementInfo(id: "add", label: "", type: .button, frame: Self.addButton.frame)
+        let driver = TapCheckDriver(target: unlabeled, hierarchy: screen())
+        let executor = DriverToolExecutor(driver: driver)
+        let arguments = ["id": "add", "check_effect": "false", "check_hittable": "false"]
+        let fullResult = await executor.execute(toolName: "tap_element", arguments: arguments)
+        let compactResult = await executor.execute(
+            toolName: "tap_element", arguments: arguments.merging(["response_mode": "compact"]) { $1 }
+        )
+        let full = try XCTUnwrap(fullResult.structuredContent?.objectValue)
+        let compact = try XCTUnwrap(compactResult.structuredContent?.objectValue)
+        XCTAssertEqual(full["postcondition_verified"], .bool(false))
+        XCTAssertEqual(full["hittability_checked"], .bool(false))
+        XCTAssertEqual(full["element_label"], .string(""))
+        for key in ["postcondition_verified", "hittability_checked", "element_label"] {
+            XCTAssertNil(compact[key], "\(key) holds its default and is omitted in compact mode")
+        }
+        XCTAssertEqual(compact["outcome_status"], .string("dispatched"))
+        XCTAssertEqual(compact["element_id"], .string("add"))
+    }
+
     func testExpectAbsentOnAnElementAlreadyGoneIsInconclusive() async {
         let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), missingIDs: ["spinner"])
         let result = await DriverToolExecutor(driver: driver).execute(
