@@ -66,6 +66,7 @@ package extension CompanionServiceHandler {
 
         var response = Amoo_ViewHierarchyResponse()
         response.root = hierarchy.protoViewNode
+        response.digest = hierarchy.contentDigest ?? ""
         return response
     }
 
@@ -91,21 +92,24 @@ package extension CompanionServiceHandler {
     ) async throws -> Amoo_WaitForElementResponse {
         let timeout = Duration(milliseconds: Int(request.timeout.milliseconds))
         let appID = request.appID.isEmpty ? nil : request.appID
+        let selector = request.selector.coreSelector
+        let candidateBundleIDs = request.candidateBundleIds
+        var response = Amoo_WaitForElementResponse()
         do {
-            try await companion.waitForElement(
-                request.selector.coreSelector,
-                timeout: timeout,
-                appID: appID,
-                candidateBundleIDs: request.candidateBundleIds
-            )
-            var response = Amoo_WaitForElementResponse()
+            if request.condition == .absent {
+                try await companion.waitForElementToDisappear(
+                    selector, timeout: timeout, appID: appID, candidateBundleIDs: candidateBundleIDs
+                )
+            } else {
+                try await companion.waitForElement(
+                    selector, timeout: timeout, appID: appID, candidateBundleIDs: candidateBundleIDs
+                )
+            }
             response.found = true
-            return response
         } catch {
-            var response = Amoo_WaitForElementResponse()
             response.found = false
-            return response
         }
+        return response
     }
 
     func isKeyboardVisible(

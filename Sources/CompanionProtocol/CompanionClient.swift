@@ -56,6 +56,15 @@ public protocol CompanionClient: Sendable {
     func getViewHierarchy(appID: String?, candidateBundleIDs: [String]) async throws -> ViewNode
     func waitForElement(_ selector: ElementSelector, timeout: Duration, appID: String?, candidateBundleIDs: [String])
         async throws
+    /// Waits on the device until nothing matches `selector`. Throws ``AmooError/timeout(operation:duration:)``
+    /// if something still matches at the deadline, and ``AmooError/notImplemented(_:)`` on a companion that
+    /// cannot wait for absence itself (callers then poll from the host).
+    func waitForElementToDisappear(
+        _ selector: ElementSelector,
+        timeout: Duration,
+        appID: String?,
+        candidateBundleIDs: [String]
+    ) async throws
     func isKeyboardVisible() async throws -> Bool
 
     /// Target app
@@ -178,6 +187,15 @@ public extension CompanionClient {
         candidateBundleIDs _: [String]
     ) async throws {
         throw AmooError.notImplemented("waitForElement")
+    }
+
+    func waitForElementToDisappear(
+        _: ElementSelector,
+        timeout _: Duration,
+        appID _: String?,
+        candidateBundleIDs _: [String]
+    ) async throws {
+        throw AmooError.notImplemented("waitForElementToDisappear")
     }
 
     func isKeyboardVisible() async throws -> Bool {

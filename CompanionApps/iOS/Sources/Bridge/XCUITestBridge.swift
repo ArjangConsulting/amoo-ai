@@ -286,6 +286,9 @@ final class XCUITestBridge: @unchecked Sendable {
         ) {
             return
         }
+        if await fastTouch(from: CGPoint(x: x, y: y), to: nil, hold: 0, travel: 0, settle: durationSeconds) {
+            return
+        }
         gestureCoordinate(x: x, y: y).press(forDuration: durationSeconds)
     }
 
@@ -361,6 +364,43 @@ final class XCUITestBridge: @unchecked Sendable {
             // happens before confirmation, so retrying through the public path is safe here.
             print("Fast tap unavailable; falling back to XCUICoordinate.tap(): \(error)")
             gestureCoordinate(x: x, y: y).tap()
+        }
+        #endif
+    }
+
+    /// Delivers a one-finger touch on the main display through XCTest's runner daemon, as taps are.
+    ///
+    /// `XCUICoordinate.press(forDuration:)` and `press(forDuration:thenDragTo:…)` wait for the app
+    /// to go idle after the gesture, which is most of the 3–4s a swipe or long press took (a tap,
+    /// already synthesized this way, took ~0.35s). Callers settle the screen themselves, so the
+    /// gesture returns once it has been delivered. False means the caller should use the public API.
+    private func fastTouch(
+        from start: CGPoint,
+        to end: CGPoint?,
+        hold: TimeInterval,
+        travel: TimeInterval,
+        settle: TimeInterval
+    ) async -> Bool {
+        #if os(macOS)
+        return false
+        #else
+        guard FastTapSynthesizer.isAvailable else { return false }
+        do {
+            // Portrait screen space, as for taps: see `tapWithoutCacheInvalidation(x:y:)`.
+            try await FastTapSynthesizer.touch(
+                from: gestureCoordinate(x: start.x, y: start.y).screenPoint,
+                to: end.map { gestureCoordinate(x: $0.x, y: $0.y).screenPoint },
+                hold: hold,
+                travel: travel,
+                settle: settle,
+                orientation: .portrait,
+                displayID: nil
+            )
+            return true
+        } catch {
+            // Synthesis fails before any event is delivered, so the public path is a safe retry.
+            print("Fast touch unavailable; falling back to the public gesture API: \(error)")
+            return false
         }
         #endif
     }
@@ -510,6 +550,15 @@ final class XCUITestBridge: @unchecked Sendable {
         ) {
             return
         }
+        if await fastTouch(
+            from: CGPoint(x: fromX, y: fromY),
+            to: CGPoint(x: toX, y: toY),
+            hold: 0.05,
+            travel: durationSeconds,
+            settle: 0
+        ) {
+            return
+        }
         let start = gestureCoordinate(x: fromX, y: fromY)
         let end = gestureCoordinate(x: toX, y: toY)
         #if os(macOS)
@@ -536,6 +585,15 @@ final class XCUITestBridge: @unchecked Sendable {
     ) async {
         defer { invalidateSnapshotCache() }
         if await touchOnSecondaryDisplay(
+            from: CGPoint(x: fromX, y: fromY),
+            to: CGPoint(x: toX, y: toY),
+            hold: holdSeconds,
+            travel: durationSeconds,
+            settle: Self.dropSettleSeconds
+        ) {
+            return
+        }
+        if await fastTouch(
             from: CGPoint(x: fromX, y: fromY),
             to: CGPoint(x: toX, y: toY),
             hold: holdSeconds,

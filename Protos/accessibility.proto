@@ -17,6 +17,10 @@ message ViewHierarchyRequest {
 
 message ViewHierarchyResponse {
   ViewNode root = 1;
+  // Content digest of this hierarchy (every node's ids, labels, values, frames and state), so a
+  // caller can tell whether the screen changed between two reads. Only comparable with digests
+  // from the same companion. Empty from companions that predate digests.
+  string digest = 2;
 }
 
 message FindElementsRequest {
@@ -29,13 +33,26 @@ message FindElementsResponse {
   repeated ElementInfo elements = 1;
 }
 
+// What WaitForElement waits for the selector to do.
+enum WaitCondition {
+  // Same as WAIT_CONDITION_PRESENT, so requests from older hosts keep their meaning.
+  WAIT_CONDITION_UNSPECIFIED = 0;
+  // Wait until at least one element matches.
+  WAIT_CONDITION_PRESENT = 1;
+  // Wait until no element matches.
+  WAIT_CONDITION_ABSENT = 2;
+}
+
 message WaitForElementRequest {
   ElementSelector selector = 1;
   Duration timeout = 2;
   string app_id = 3;
   repeated string candidate_bundle_ids = 4;
+  WaitCondition condition = 5;
 }
 
+// `found` reports whether the requested condition held within the timeout: an element matched for
+// PRESENT, none matched for ABSENT.
 message WaitForElementResponse {
   bool found = 1;
 }

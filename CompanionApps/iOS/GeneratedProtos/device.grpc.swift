@@ -6,7 +6,7 @@
 // Source: device.proto
 //
 // For information on using the generated types, please see the documentation:
-//   https://github.com/grpc/grpc-swift
+//   https://github.com/grpc/grpc-swift-2
 
 import GRPCCore
 import GRPCProtobuf
@@ -167,8 +167,9 @@ extension Amoo_HostDeviceService {
     /// This protocol is the lowest-level of the service protocols generated for this service
     /// giving you the most flexibility over the implementation of your service. This comes at
     /// the cost of more verbose and less strict APIs. Each RPC requires you to implement it in
-    /// terms of a request stream and response stream. Where only a single request or response
-    /// message is expected, you are responsible for enforcing this invariant is maintained.
+    /// terms of a request stream and response stream. Where the RPC expects only a single
+    /// request or response message, you are responsible for ensuring your implementation
+    /// maintains this invariant.
     ///
     /// Where possible, prefer using the stricter, less-verbose ``ServiceProtocol``
     /// or ``SimpleServiceProtocol`` instead.
@@ -915,9 +916,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_InstallAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func installApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_InstallAppRequest>,
@@ -934,9 +935,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_LaunchAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func launchApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_LaunchAppRequest>,
@@ -953,9 +954,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_TerminateAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func terminateApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_TerminateAppRequest>,
@@ -972,9 +973,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_UninstallAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func uninstallApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_UninstallAppRequest>,
@@ -991,9 +992,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_SetPermissionRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func setPermission<Result>(
             request: GRPCCore.ClientRequest<Amoo_SetPermissionRequest>,
@@ -1010,9 +1011,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_SetLocationRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func setLocation<Result>(
             request: GRPCCore.ClientRequest<Amoo_SetLocationRequest>,
@@ -1029,9 +1030,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_Empty` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func clearLocation<Result>(
             request: GRPCCore.ClientRequest<Amoo_Empty>,
@@ -1048,9 +1049,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_SetAppearanceRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func setAppearance<Result>(
             request: GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>,
@@ -1067,9 +1068,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_OpenURLRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         func openURL<Result>(
             request: GRPCCore.ClientRequest<Amoo_OpenURLRequest>,
@@ -1103,9 +1104,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_InstallAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func installApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_InstallAppRequest>,
@@ -1133,9 +1134,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_LaunchAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func launchApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_LaunchAppRequest>,
@@ -1163,9 +1164,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_TerminateAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func terminateApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_TerminateAppRequest>,
@@ -1193,9 +1194,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_UninstallAppRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func uninstallApp<Result>(
             request: GRPCCore.ClientRequest<Amoo_UninstallAppRequest>,
@@ -1223,9 +1224,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_SetPermissionRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func setPermission<Result>(
             request: GRPCCore.ClientRequest<Amoo_SetPermissionRequest>,
@@ -1253,9 +1254,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_SetLocationRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func setLocation<Result>(
             request: GRPCCore.ClientRequest<Amoo_SetLocationRequest>,
@@ -1283,9 +1284,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_Empty` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func clearLocation<Result>(
             request: GRPCCore.ClientRequest<Amoo_Empty>,
@@ -1313,9 +1314,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_SetAppearanceRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func setAppearance<Result>(
             request: GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>,
@@ -1343,9 +1344,9 @@ extension Amoo_HostDeviceService {
         ///   - serializer: A serializer for `Amoo_OpenURLRequest` messages.
         ///   - deserializer: A deserializer for `Amoo_ActionResponse` messages.
         ///   - options: Options to apply to this RPC.
-        ///   - handleResponse: A closure which handles the response, the result of which is
-        ///       returned to the caller. Returning from the closure will cancel the RPC if it
-        ///       hasn't already finished.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
         /// - Returns: The result of `handleResponse`.
         public func openURL<Result>(
             request: GRPCCore.ClientRequest<Amoo_OpenURLRequest>,
@@ -1376,9 +1377,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_InstallAppRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func installApp<Result>(
         request: GRPCCore.ClientRequest<Amoo_InstallAppRequest>,
@@ -1401,9 +1402,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_LaunchAppRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func launchApp<Result>(
         request: GRPCCore.ClientRequest<Amoo_LaunchAppRequest>,
@@ -1426,9 +1427,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_TerminateAppRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func terminateApp<Result>(
         request: GRPCCore.ClientRequest<Amoo_TerminateAppRequest>,
@@ -1451,9 +1452,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_UninstallAppRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func uninstallApp<Result>(
         request: GRPCCore.ClientRequest<Amoo_UninstallAppRequest>,
@@ -1476,9 +1477,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_SetPermissionRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func setPermission<Result>(
         request: GRPCCore.ClientRequest<Amoo_SetPermissionRequest>,
@@ -1501,9 +1502,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_SetLocationRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func setLocation<Result>(
         request: GRPCCore.ClientRequest<Amoo_SetLocationRequest>,
@@ -1526,9 +1527,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_Empty` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func clearLocation<Result>(
         request: GRPCCore.ClientRequest<Amoo_Empty>,
@@ -1551,9 +1552,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_SetAppearanceRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func setAppearance<Result>(
         request: GRPCCore.ClientRequest<Amoo_SetAppearanceRequest>,
@@ -1576,9 +1577,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     /// - Parameters:
     ///   - request: A request containing a single `Amoo_OpenURLRequest` message.
     ///   - options: Options to apply to this RPC.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func openURL<Result>(
         request: GRPCCore.ClientRequest<Amoo_OpenURLRequest>,
@@ -1606,9 +1607,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func installApp<Result>(
         _ message: Amoo_InstallAppRequest,
@@ -1635,9 +1636,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func launchApp<Result>(
         _ message: Amoo_LaunchAppRequest,
@@ -1664,9 +1665,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func terminateApp<Result>(
         _ message: Amoo_TerminateAppRequest,
@@ -1693,9 +1694,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func uninstallApp<Result>(
         _ message: Amoo_UninstallAppRequest,
@@ -1722,9 +1723,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func setPermission<Result>(
         _ message: Amoo_SetPermissionRequest,
@@ -1751,9 +1752,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func setLocation<Result>(
         _ message: Amoo_SetLocationRequest,
@@ -1780,9 +1781,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func clearLocation<Result>(
         _ message: Amoo_Empty,
@@ -1809,9 +1810,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func setAppearance<Result>(
         _ message: Amoo_SetAppearanceRequest,
@@ -1838,9 +1839,9 @@ extension Amoo_HostDeviceService.ClientProtocol {
     ///   - message: request message to send.
     ///   - metadata: Additional metadata to send, defaults to empty.
     ///   - options: Options to apply to this RPC, defaults to `.defaults`.
-    ///   - handleResponse: A closure which handles the response, the result of which is
-    ///       returned to the caller. Returning from the closure will cancel the RPC if it
-    ///       hasn't already finished.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
     /// - Returns: The result of `handleResponse`.
     public func openURL<Result>(
         _ message: Amoo_OpenURLRequest,

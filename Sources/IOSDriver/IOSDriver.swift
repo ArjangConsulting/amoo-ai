@@ -315,23 +315,6 @@ public actor IOSDriver: PlatformDriver {
         )
     }
 
-    public func waitForElementToDisappear(_ selector: ElementSelector, timeout: Duration) async throws {
-        let deadline = Date().addingTimeInterval(Double(timeout.milliseconds) / 1000.0)
-        let context = try await appQueryContext()
-        while Date() < deadline {
-            let elements = try await companion.findElements(
-                selector,
-                appID: context.appID,
-                candidateBundleIDs: context.candidateBundleIDs
-            )
-            if elements.isEmpty {
-                return
-            }
-            try await Task.sleep(for: .milliseconds(100))
-        }
-        throw AmooError.timeout(operation: "waitForElementToDisappear", duration: timeout)
-    }
-
     public func isKeyboardVisible() async throws -> Bool {
         try await companion.isKeyboardVisible()
     }
@@ -438,7 +421,7 @@ extension IOSDriver {
         )
     }
 
-    private func appQueryContext() async throws -> (appID: String?, candidateBundleIDs: [String]) {
+    func appQueryContext() async throws -> (appID: String?, candidateBundleIDs: [String]) {
         if let currentAppID {
             return (currentAppID, [])
         }

@@ -265,6 +265,75 @@ final class TapChecksTests: XCTestCase {
         XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, true, result.content)
     }
 
+    func testADigestingCompanionComparesDigestsOfTheHierarchyReads() async {
+        let changed = ViewNode(id: "root", type: .other, frame: Self.window, children: [
+            ViewNode(id: "detail", label: "Day detail", type: .other, frame: Self.window)
+        ])
+        let driver = TapCheckDriver(
+            target: Self.addButton, hierarchy: screen(), hierarchyAfterTap: changed, staleReadsAfterTap: 1,
+            digests: true
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add"]
+        )
+        XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, true, result.content)
+        let hierarchyReads = await driver.hierarchyReads
+        XCTAssertEqual(hierarchyReads, 3, "one before the tap, a stale read and the changed one after")
+    }
+
+    func testAnUnchangedDigestReportsNoChange() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), digests: true)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add"]
+        )
+        XCTAssertEqual(result.structuredContent?.objectValue?["observable_change"]?.boolValue, false, result.content)
+        let hierarchyReads = await driver.hierarchyReads
+        XCTAssertGreaterThan(hierarchyReads, 2)
+    }
+
+    func testAnExpectedElementIsWaitedForInsteadOfPollingTheHierarchy() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "expect_id": "detail"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertEqual(result.structuredContent?.objectValue?["expected_effect_met"]?.boolValue, true)
+        XCTAssertNil(result.structuredContent?.objectValue?["observable_change"])
+        let (reads, waits) = await (driver.hierarchyReads, driver.waits)
+        XCTAssertEqual(reads, 1, "only the pre-tap check reads the tree")
+        XCTAssertEqual(waits, [.init(id: "detail", disappear: false, timeout: Duration(milliseconds: 5000))])
+    }
+
+    func testAnExpectedElementThatNeverShowsIsReportedNotFailed() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), waitTimesOut: true)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "expect_label": "Done", "expect_timeout_ms": "250"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertEqual(result.structuredContent?.objectValue?["expected_effect_met"]?.boolValue, false)
+        XCTAssertTrue(result.content.contains("not observed"), result.content)
+    }
+
+    func testExpectAbsentWaitsForDisappearance() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "expect_id": "spinner", "expect_absent": "true"]
+        )
+        XCTAssertEqual(result.structuredContent?.objectValue?["expected_effect_met"]?.boolValue, true)
+        let waits = await driver.waits
+        XCTAssertEqual(waits.map(\.disappear), [true])
+    }
+
+    func testExpectAbsentWithoutAnElementIsRejected() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "expect_absent": "true"]
+        )
+        XCTAssertTrue(result.isError)
+        let taps = await driver.taps
+        XCTAssertTrue(taps.isEmpty)
+    }
+
     func testCheckEffectFalseSkipsTheAfterRead() async {
         let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
         let result = await DriverToolExecutor(driver: driver).execute(
@@ -272,6 +341,30 @@ final class TapChecksTests: XCTestCase {
         )
         XCTAssertFalse(result.content.contains("Semantic snapshot unchanged"), result.content)
         XCTAssertNil(result.structuredContent?.objectValue?["observable_change"])
+    }
+}
+
+extension TapChecksTests {
+    func testExpectAbsentOnAnElementAlreadyGoneIsInconclusive() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), missingIDs: ["spinner"])
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "expect_id": "spinner", "expect_absent": "true"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let fields = result.structuredContent?.objectValue
+        XCTAssertEqual(fields?["expectation_status"]?.stringValue, "already_satisfied")
+        XCTAssertNil(fields?["expected_effect_met"])
+        XCTAssertTrue(result.content.contains("Inconclusive"), result.content)
+        let waits = await driver.waits
+        XCTAssertTrue(waits.isEmpty, "waiting on an element that was never there proves nothing")
+    }
+
+    func testExpectAbsentOnAPresentElementReportsMet() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "expect_id": "spinner", "expect_absent": "true"]
+        )
+        XCTAssertEqual(result.structuredContent?.objectValue?["expectation_status"]?.stringValue, "met")
     }
 }
 
@@ -286,6 +379,18 @@ private actor TapCheckDriver: PlatformDriver {
     private var summaries: [String]
     private(set) var taps: [Point] = []
     private(set) var hierarchyReads = 0
+    private(set) var waits: [Wait] = []
+    private let waitTimesOut: Bool
+    private let missingIDs: Set<String>
+
+    struct Wait: Equatable {
+        var id: String?
+        var disappear: Bool
+        var timeout: AmooCore.Duration
+    }
+
+    /// Whether this driver digests its hierarchy like a current companion does.
+    private let digests: Bool
 
     init(
         target: ElementInfo,
@@ -295,8 +400,14 @@ private actor TapCheckDriver: PlatformDriver {
         summaries: [String] = ["Home", "Home"],
         hierarchyDelay: Swift.Duration? = nil,
         hierarchyAfterTap: ViewNode? = nil,
-        staleReadsAfterTap: Int = 0
+        staleReadsAfterTap: Int = 0,
+        digests: Bool = false,
+        waitTimesOut: Bool = false,
+        missingIDs: Set<String> = []
     ) {
+        self.missingIDs = missingIDs
+        self.waitTimesOut = waitTimesOut
+        self.digests = digests
         self.hierarchyDelay = hierarchyDelay
         self.hierarchyAfterTap = hierarchyAfterTap
         self.staleReadsAfterTap = staleReadsAfterTap
@@ -314,6 +425,9 @@ private actor TapCheckDriver: PlatformDriver {
     /// A precise selector finds the target; an empty one lists the screen, whose title row follows
     /// the scripted summaries so a test can make "the screen" change or stay put.
     func findElements(_ selector: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+        if let id = selector.id, missingIDs.contains(id) {
+            return []
+        }
         guard selector.id == nil, selector.label == nil, selector.containsText == nil else { return [target] }
         let title = summaries.count > 1 ? summaries.removeFirst() : (summaries.first ?? "")
         return [target, ElementInfo(id: "title", label: title)]
@@ -321,6 +435,20 @@ private actor TapCheckDriver: PlatformDriver {
 
     func tap(at point: Point) async throws {
         taps.append(point)
+    }
+
+    func waitForElement(_ selector: ElementSelector, timeout: AmooCore.Duration) async throws {
+        waits.append(Wait(id: selector.id ?? selector.label, disappear: false, timeout: timeout))
+        if waitTimesOut {
+            throw AmooError.timeout(operation: "waitForElement", duration: timeout)
+        }
+    }
+
+    func waitForElementToDisappear(_ selector: ElementSelector, timeout: AmooCore.Duration) async throws {
+        waits.append(Wait(id: selector.id ?? selector.label, disappear: true, timeout: timeout))
+        if waitTimesOut {
+            throw AmooError.timeout(operation: "waitForElementToDisappear", duration: timeout)
+        }
     }
 
     func isKeyboardVisible() async throws -> Bool {
@@ -332,6 +460,18 @@ private actor TapCheckDriver: PlatformDriver {
         if let hierarchyDelay {
             try await Task.sleep(for: hierarchyDelay)
         }
+        var node = currentHierarchy()
+        if digests {
+            node.contentDigest = digest(of: node)
+        }
+        return node
+    }
+
+    private func digest(of node: ViewNode) -> String {
+        node == hierarchy ? "before" : "after"
+    }
+
+    private func currentHierarchy() -> ViewNode {
         if !taps.isEmpty, let hierarchyAfterTap {
             if staleReadsAfterTap > 0 {
                 staleReadsAfterTap -= 1

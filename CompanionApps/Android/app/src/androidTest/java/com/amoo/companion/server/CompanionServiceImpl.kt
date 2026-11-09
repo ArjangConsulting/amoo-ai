@@ -1,6 +1,10 @@
 package com.amoo.companion.server
 
 import android.graphics.RectF
+import android.os.SystemClock
+import com.google.protobuf.CodedOutputStream
+import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 import com.amoo.companion.bridge.Direction
 import com.amoo.companion.bridge.ElementSnapshot
 import com.amoo.companion.bridge.UIAutomatorBridge
@@ -45,6 +49,7 @@ import amoo.v1.TypeTextRequest
 import amoo.v1.SetTextRequest
 import amoo.v1.ViewHierarchyRequest
 import amoo.v1.ViewHierarchyResponse
+import amoo.v1.WaitCondition
 import amoo.v1.WaitForElementRequest
 import amoo.v1.WaitForElementResponse
 import amoo.v1.ElementInfo
@@ -65,6 +70,9 @@ class CompanionServiceImpl(
          * than degrading into a swipe.
          */
         const val DEFAULT_DRAG_HOLD_MS = 500
+
+        /** Gap between accessibility reads while waiting for an element; the read itself dominates. */
+        const val ELEMENT_POLL_INTERVAL_MS = 50L
     }
 
     private var sessionId: String? = null
@@ -101,6 +109,7 @@ class CompanionServiceImpl(
             capability("action.pressHome", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("query.findElements", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("query.getViewHierarchy", CapabilityTier.CAPABILITY_TIER_REQUIRED),
+            capability("query.waitForElement.absent", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
             capability("query.isKeyboardVisible", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("capture.screenshot", CapabilityTier.CAPABILITY_TIER_REQUIRED),
             capability("ai.screenContext", CapabilityTier.CAPABILITY_TIER_OPTIONAL),
@@ -271,6 +280,23 @@ class CompanionServiceImpl(
     }
 
     override suspend fun getViewHierarchy(request: ViewHierarchyRequest): ViewHierarchyResponse {
+        val root = hierarchyRoot(request)
+        return ViewHierarchyResponse.newBuilder().setRoot(root).setDigest(digest(root)).build()
+    }
+
+    /** SHA-256 of the deterministically serialized tree, so equal hierarchies always hash equal. */
+    private fun digest(root: ViewNode): String {
+        val buffer = ByteArrayOutputStream()
+        val output = CodedOutputStream.newInstance(buffer)
+        output.useDeterministicSerialization()
+        root.writeTo(output)
+        output.flush()
+        return MessageDigest.getInstance("SHA-256")
+            .digest(buffer.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    private fun hierarchyRoot(request: ViewHierarchyRequest): ViewNode {
         val appId = request.appId.takeUnless { it.isBlank() }
         val elements = accessibility.getAllElements(appId)
         val references = elements.map { it.reference }.toSet()
@@ -279,7 +305,7 @@ class CompanionServiceImpl(
             .addAllChildren(childrenByParent[element.reference].orEmpty().map { subtree(it) })
             .build()
         val children = elements.filter { it.parentReference !in references }.map { subtree(it) }
-        val root = ViewNode.newBuilder()
+        return ViewNode.newBuilder()
             .setId("android-root")
             .setLabel(bridge.currentPackageName())
             .setType("other")
@@ -287,8 +313,6 @@ class CompanionServiceImpl(
             .setIsVisible(true)
             .addAllChildren(children)
             .build()
-
-        return ViewHierarchyResponse.newBuilder().setRoot(root).build()
     }
 
     override suspend fun findElements(request: FindElementsRequest): FindElementsResponse {
@@ -308,18 +332,19 @@ class CompanionServiceImpl(
     override suspend fun waitForElement(request: WaitForElementRequest): WaitForElementResponse {
         val selector = request.selector
         val timeoutMs = request.timeout.milliseconds.takeIf { it > 0 } ?: 3_000
-        val deadline = System.currentTimeMillis() + timeoutMs
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        val wantPresent = request.condition != WaitCondition.WAIT_CONDITION_ABSENT
 
-        while (System.currentTimeMillis() < deadline) {
+        while (SystemClock.elapsedRealtime() < deadline) {
             val matches = accessibility.findElements(
                 selector.id.takeUnless { it.isBlank() },
                 selector.label.takeUnless { it.isBlank() },
                 selector.containsText.takeUnless { it.isBlank() }
             )
-            if (matches.isNotEmpty()) {
+            if (matches.isNotEmpty() == wantPresent) {
                 return WaitForElementResponse.newBuilder().setFound(true).build()
             }
-            Thread.sleep(100)
+            SystemClock.sleep(ELEMENT_POLL_INTERVAL_MS)
         }
 
         return WaitForElementResponse.newBuilder().setFound(false).build()

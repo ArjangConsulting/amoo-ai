@@ -358,7 +358,11 @@ extension DriverToolExecutor {
             guard matched.isVisible, matched.isEnabled else {
                 return .error("tap_element failed: matched element is not visible and enabled")
             }
-            let checks = tapChecks(arguments: arguments)
+            let expectation = try TapExpectation.parse(arguments)
+            var checks = tapChecks(arguments: arguments)
+            if expectation != nil {
+                checks.effect = .off
+            }
             let preflight = try await tapPreflight(
                 matched: matched,
                 point: matched.hitPoint ?? matched.frame.map(\.centre),
@@ -374,6 +378,10 @@ extension DriverToolExecutor {
             }
             let tapPoint = settled.hitPoint ?? settled.frame.map(\.centre)
             let foregroundBefore = try? await driver.currentApp().bundleID
+            var presentBeforeTap: Bool?
+            if let expectation {
+                presentBeforeTap = await expectationPresentBeforeTap(expectation, driver: driver, appID: appID)
+            }
             // The verification query already resolved the element and returned XCTest/UIAutomator's
             // preferred screen-space hit point. Re-sending the selector makes the companion take and
             // walk another accessibility snapshot immediately before the gesture, duplicating the
@@ -395,7 +403,9 @@ extension DriverToolExecutor {
                     hierarchyBefore: preflight.hierarchy,
                     effect: checks.effect,
                     appID: appID,
-                    hittabilityChecked: preflight.hittabilityChecked
+                    hittabilityChecked: preflight.hittabilityChecked,
+                    expectation: expectation,
+                    expectationPresentBeforeTap: presentBeforeTap
                 ),
                 driver: driver
             )

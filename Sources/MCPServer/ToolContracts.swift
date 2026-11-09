@@ -116,6 +116,16 @@ enum ToolContracts {
                     description: "Installation, fresh-process launch and readiness"
                 )
             case "tap_element":
+                fields["expected_effect_met"] = .init(
+                    type: "boolean",
+                    description: "With expect_*: whether the expected element appeared (or went) in time;"
+                        + " omitted when inconclusive (see expectation_status)"
+                )
+                fields["expectation_status"] = .init(
+                    type: "string",
+                    description: "met, not_met, already_satisfied (expect_absent on an element that was gone"
+                        + " before the tap) or unverified"
+                )
                 fields["target_state"] = .init(
                     type: "object", description: "Observed selected/checked/value state; null when unavailable"
                 )
@@ -225,7 +235,7 @@ struct ToolRequest: Sendable {
         }
         let booleanKeys = [
             "record_speech", "return_image", "labeled_only", "include_offline", "all_frames", "force",
-            "check_hittable", "check_effect", "activate", "fresh_install", "precondition"
+            "check_hittable", "check_effect", "activate", "fresh_install", "precondition", "expect_absent"
         ]
         for key in booleanKeys {
             if let raw = arguments[key], boolArgument(raw) == nil {

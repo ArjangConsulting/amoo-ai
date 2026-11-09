@@ -280,6 +280,17 @@ public actor AndroidDriver: PlatformDriver {
     }
 
     public func waitForElementToDisappear(_ selector: ElementSelector, timeout: Duration) async throws {
+        do {
+            try await companion.waitForElementToDisappear(
+                selector, timeout: timeout, appID: nil, candidateBundleIDs: []
+            )
+            return
+        } catch AmooError.notImplemented {
+            AmooLogger.forType(Self.self).debug(
+                "Companion cannot wait for absence; polling from the host",
+                context: "action=waitForElementToDisappear state=host_polling"
+            )
+        }
         let deadline = Date().addingTimeInterval(Double(timeout.milliseconds) / 1000.0)
         while Date() < deadline {
             let elements = try await companion.findElements(selector)

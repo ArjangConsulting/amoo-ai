@@ -318,6 +318,7 @@ actor MockCompanionClient: CompanionClient {
     private var _pressBackCount = 0
     private var _findElementsResponses: [[ElementInfo]] = []
     private var _waitForElementCalls: [(selector: ElementSelector, timeout: Duration)] = []
+    private var _waitsForAbsenceOnDevice = false
     private var _keyboardVisible = false
     private var _interactableElements: [ElementInfo] = []
     private var _findByDescriptionResults: [ElementInfo] = []
@@ -415,6 +416,16 @@ actor MockCompanionClient: CompanionClient {
         _waitForElementCalls.append((selector, timeout))
     }
 
+    func waitForElementToDisappear(
+        _ selector: ElementSelector,
+        timeout: Duration,
+        appID _: String?,
+        candidateBundleIDs _: [String]
+    ) async throws {
+        guard _waitsForAbsenceOnDevice else { throw AmooError.notImplemented("waitForElementToDisappear") }
+        _waitForElementCalls.append((selector, timeout))
+    }
+
     func isKeyboardVisible() async throws -> Bool {
         _keyboardVisible
     }
@@ -450,6 +461,10 @@ actor MockCompanionClient: CompanionClient {
 
     func setFindElementsResponses(_ responses: [[ElementInfo]]) {
         _findElementsResponses = responses
+    }
+
+    func setWaitsForAbsenceOnDevice(_ enabled: Bool) {
+        _waitsForAbsenceOnDevice = enabled
     }
 
     func waitForElementCalls() -> [(selector: ElementSelector, timeout: Duration)] {

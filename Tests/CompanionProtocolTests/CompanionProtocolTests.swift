@@ -61,6 +61,7 @@ final class CompanionProtocolTests: XCTestCase {
         XCTAssertEqual(elements.first?.hitPoint, Point(x: 42, y: 84))
         XCTAssertEqual(hierarchy.id, "root-from-rpc")
         XCTAssertEqual(hierarchy.hitPoint, Point(x: 160, y: 320))
+        XCTAssertEqual(hierarchy.contentDigest, "digest-1")
         XCTAssertEqual(screenContext.summary, "Summary from rpc client")
         XCTAssertEqual(interactable.first?.id, "action-1")
         XCTAssertEqual(described.first?.label, "Fixture")
@@ -253,6 +254,7 @@ actor MockRPCClient: CompanionRPCClient {
     var clearTextRequest: Amoo_ClearTextRequest?
     var setTextRequest: Amoo_SetTextRequest?
     var waitForElementRequest: Amoo_WaitForElementRequest?
+    var waitForElementFound = true
     var actionCalls: [String] = []
 
     func startSession(_ request: Amoo_StartSessionRequest) async throws -> Amoo_StartSessionResponse {
@@ -375,10 +377,8 @@ actor MockRPCClient: CompanionRPCClient {
         return response
     }
 
-    func getViewHierarchy(_ request: Amoo_ViewHierarchyRequest) async throws
+    func getViewHierarchy(_: Amoo_ViewHierarchyRequest) async throws
         -> Amoo_ViewHierarchyResponse {
-        _ = request
-
         var node = Amoo_ViewNode()
         node.id = "root-from-rpc"
         node.hitPoint = Amoo_Point.with { point in
@@ -388,6 +388,7 @@ actor MockRPCClient: CompanionRPCClient {
 
         var response = Amoo_ViewHierarchyResponse()
         response.root = node
+        response.digest = "digest-1"
         return response
     }
 
@@ -395,7 +396,7 @@ actor MockRPCClient: CompanionRPCClient {
         -> Amoo_WaitForElementResponse {
         waitForElementRequest = request
         var response = Amoo_WaitForElementResponse()
-        response.found = true
+        response.found = waitForElementFound
         return response
     }
 

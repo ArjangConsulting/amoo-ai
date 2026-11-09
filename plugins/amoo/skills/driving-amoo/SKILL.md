@@ -128,7 +128,9 @@ compares accessibility snapshots; it does not prove a business outcome or identi
 
 Queries return bounded pages. Follow next_offset with the same selector when has_more is true.
 Do not interpret a truncated result as proof an element is absent. Use assert_absent instead.
-Use timeout_ms on assertions instead of client-side polling loops.
+Use timeout_ms on assertions instead of client-side polling loops. When a tap should reveal a
+known element, pass expect_id or expect_label (expect_absent=true for a disappearing one): the call
+returns as soon as it shows, with expected_effect_met, instead of polling for any change.
 
 Prefer compact queries and semantic assertions. For transient UI, batch the action and immediate
 screenshot with return_image=false and settle_timeout_ms=0; use check_effect=false on the tap.
