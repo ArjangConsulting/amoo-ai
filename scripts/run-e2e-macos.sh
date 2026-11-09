@@ -12,9 +12,8 @@
 #   --enable-automation-mode   run `sudo -n automationmodetool enable-automationmode-without-authentication`
 #                              first. For CI runners with passwordless sudo; a developer Mac is asked once
 #                              by `amoo preflight --platform macos` instead.
-#   --hide-dock                auto-hide the Dock for the run and restore it on exit. A small screen puts
-#                              Calculator's bottom row under the Dock, where a tap opens a Dock app
-#                              instead. CI passes this; the script fails early if a key is covered.
+#   --hide-dock                auto-hide the Dock for the run and restore it on exit. On small screens,
+#                              Calculator's bottom row can extend below the display; CI passes this.
 #
 # Environment:
 #   AMOO_MACOS_SMOKE_DIR   keep the screenshot and companion log here (default: a temporary directory
@@ -132,6 +131,18 @@ set_dock_autohide() {
   killall Dock >/dev/null 2>&1 || true
 }
 
+# The hosted runner's display is too short for Calculator's bottom row, even with the Dock hidden.
+move_calculator_up() {
+  osascript <<'APPLESCRIPT'
+tell application "System Events"
+  tell process "Calculator"
+    set {windowX, windowY} to position of front window
+    set position of front window to {windowX, windowY - 32}
+  end tell
+end tell
+APPLESCRIPT
+}
+
 # Waits until the visible frame stops changing, which is when the Dock has finished (un)hiding.
 wait_for_dock_to_settle() {
   local previous="" current
@@ -202,6 +213,10 @@ step "Launch Calculator"
 launch_output="$(device device_launch_app "app_id=$APP_ID")"
 echo "$launch_output"
 [[ "$launch_output" == *"verified=true"* ]] || fail "Calculator did not launch as the verified foreground app"
+if [[ "$HIDE_DOCK" -eq 1 ]]; then
+  step "Move Calculator above the screen edge"
+  move_calculator_up
+fi
 
 step "Foreground app is Calculator"
 current_output="$(device current_app)"
