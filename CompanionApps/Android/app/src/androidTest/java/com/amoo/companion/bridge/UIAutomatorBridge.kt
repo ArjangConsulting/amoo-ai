@@ -486,11 +486,10 @@ class UIAutomatorBridge {
         }
         val applied = target.coerceIn(0.05, 1.0)
         val output = if (applied < 1.0) {
-            Bitmap.createScaledBitmap(
+            downscale(
                 bitmap,
                 (bitmap.width * applied).roundToInt().coerceAtLeast(1),
-                (bitmap.height * applied).roundToInt().coerceAtLeast(1),
-                true
+                (bitmap.height * applied).roundToInt().coerceAtLeast(1)
             )
         } else {
             bitmap
@@ -510,6 +509,26 @@ class UIAutomatorBridge {
             stream.toByteArray(), if (jpeg) "jpeg" else "png", if (applied < 1.0) applied else 0.0,
             width, height, density
         )
+    }
+
+    /**
+     * Scales [source] to [width] x [height] in steps of at most half.
+     *
+     * A bilinear filter reads a 2x2 neighbourhood, so one pass below half size skips source pixels
+     * and thin strokes (1dp rules, small text) can disappear. Halving first averages every source
+     * pixel into the result. Intermediate bitmaps are recycled; [source] is left to the caller.
+     */
+    private fun downscale(source: Bitmap, width: Int, height: Int): Bitmap {
+        var current = source
+        while (current.width / 2 >= width && current.height / 2 >= height) {
+            val half = Bitmap.createScaledBitmap(current, current.width / 2, current.height / 2, true)
+            if (current !== source) current.recycle()
+            current = half
+        }
+        if (current.width == width && current.height == height) return current
+        val result = Bitmap.createScaledBitmap(current, width, height, true)
+        if (current !== source) current.recycle()
+        return result
     }
 
     private fun NodeRecord.toSnapshot(): ElementSnapshot = ElementSnapshot(

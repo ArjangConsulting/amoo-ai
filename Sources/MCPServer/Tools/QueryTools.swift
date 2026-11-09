@@ -127,6 +127,11 @@ public enum QueryTools {
                         type: "string",
                         description: "applied_on_device, applied, not_requested or unavailable"
                     ),
+                    "scale_audit": .init(
+                        type: "string",
+                        description: "ok, mismatch or unchecked: whether the image is the size the reported scale"
+                            + " implies. On mismatch, scale and the width/height fields use the measured image"
+                    ),
                     "screen_state": .init(
                         type: "string",
                         description: "on, locked, or off when detectable; omitted if unknown"
