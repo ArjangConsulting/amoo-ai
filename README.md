@@ -201,6 +201,7 @@ scripts/run-e2e-android.sh
 - [Physical iOS Devices](docs/physical-ios-devices.md) — `iproxy`, pairing, provisioning, current constraints
 - [macOS](docs/macos.md) — driving apps on this Mac's desktop (experimental): setup, geometry, limits
 - [MCP For Local AI](docs/mcp-server.md) — running the MCP server, client config, reusable test flows
+- [Telemetry](docs/telemetry.md) — local OpenTelemetry traces (on by default, `AMOO_TELEMETRY_LOCAL=0` to turn off), OTLP export, `amoo usage report`
 - [Amoo Studio](https://github.com/maniramezan/amoo-studio) — Compose desktop client
 - [Studio protocol](docs/studio.md) — Swift service and GUI integration boundary
 - [iOS E2E Runbook](docs/e2e-ios.md) — full workflow and troubleshooting
