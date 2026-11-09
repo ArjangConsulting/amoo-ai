@@ -83,10 +83,10 @@ dependencies {
 
     // AndroidX Test + UIAutomator
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    androidTestImplementation("org.checkerframework:checker-qual:4.3.1")
+    androidTestImplementation("org.checkerframework:checker-qual:4.4.0")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test:runner:1.5.2")
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.1")
     androidTestImplementation("com.google.android.apps.common.testing.accessibility.framework:accessibility-test-framework:4.1.1") {
         exclude(group = "com.google.protobuf", module = "protobuf-javalite")
     }
