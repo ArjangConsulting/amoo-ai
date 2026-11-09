@@ -831,11 +831,16 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Touch
 
     public func tap(at point: Point) async throws {
+        _ = try await tapReportingForeground(at: point)
+    }
+
+    public func tapReportingForeground(at point: Point) async throws -> String? {
         var request = Amoo_TapRequest()
         request.point = point.protoPoint
 
         let response = try await rpcClient.tap(request)
         try validate(response: response, action: "tap")
+        return response.foregroundPackage.isEmpty ? nil : response.foregroundPackage
     }
 
     public func doubleTap(at point: Point) async throws {
@@ -988,8 +993,13 @@ public actor GRPCCompanionClient: CompanionClient {
     // MARK: - Navigation
 
     public func pressBack() async throws {
+        _ = try await pressBackReportingForeground()
+    }
+
+    public func pressBackReportingForeground() async throws -> String? {
         let response = try await rpcClient.pressBack(Amoo_Empty())
         try validate(response: response, action: "pressBack")
+        return response.foregroundPackage.isEmpty ? nil : response.foregroundPackage
     }
 
     public func pressHome() async throws {

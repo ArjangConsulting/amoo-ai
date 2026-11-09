@@ -358,6 +358,9 @@ actor TapCheckDriver: PlatformDriver {
     private(set) var waits: [Wait] = []
     private let waitTimesOut: Bool
     private let missingIDs: Set<String>
+    /// What a companion that reports the foreground with an action returns; `nil` models one that does not.
+    private let reportedForeground: String?
+    private(set) var currentAppReads = 0
 
     struct Wait: Equatable {
         var id: String?
@@ -379,8 +382,10 @@ actor TapCheckDriver: PlatformDriver {
         staleReadsAfterTap: Int = 0,
         digests: Bool = false,
         waitTimesOut: Bool = false,
-        missingIDs: Set<String> = []
+        missingIDs: Set<String> = [],
+        reportedForeground: String? = nil
     ) {
+        self.reportedForeground = reportedForeground
         self.missingIDs = missingIDs
         self.waitTimesOut = waitTimesOut
         self.digests = digests
@@ -413,7 +418,16 @@ actor TapCheckDriver: PlatformDriver {
         taps.append(point)
     }
 
+    func tapReportingForeground(at point: Point) async throws -> String? {
+        try await tap(at: point)
+        return reportedForeground
+    }
+
     func pressBack() async throws {}
+
+    func pressBackReportingForeground() async throws -> String? {
+        reportedForeground
+    }
 
     func waitForElement(_ selector: ElementSelector, timeout: AmooCore.Duration) async throws {
         waits.append(Wait(id: selector.id ?? selector.label, disappear: false, timeout: timeout))
@@ -461,6 +475,7 @@ actor TapCheckDriver: PlatformDriver {
     }
 
     func currentApp() async throws -> CurrentApp {
+        currentAppReads += 1
         let bundleID = foregrounds.count > 1 ? foregrounds.removeFirst() : (foregrounds.first ?? "com.jot")
         return CurrentApp(bundleID: bundleID, targetBundleID: "com.jot")
     }

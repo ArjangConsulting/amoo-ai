@@ -25,6 +25,28 @@ extension TapChecksTests {
         XCTAssertEqual(result.content, "Pressed back")
     }
 
+    func testPressBackUsesTheForegroundTheCompanionReports() async {
+        let driver = TapCheckDriver(
+            target: Self.addButton, hierarchy: screen(), reportedForeground: "com.android.launcher"
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(toolName: "press_back", arguments: [:])
+        XCTAssertEqual(result.structuredContent?.objectValue?["left_app"]?.boolValue, true, result.content)
+        let reads = await driver.currentAppReads
+        XCTAssertEqual(reads, 1, "only the read before the press; the companion reported the one after")
+    }
+
+    func testTapUsesTheForegroundTheCompanionReports() async {
+        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), reportedForeground: "com.apple.siri")
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element", arguments: ["id": "add", "check_effect": "false"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertEqual(result.structuredContent?.objectValue?["foreground_changed"]?.boolValue, true)
+        XCTAssertEqual(result.structuredContent?.objectValue?["foreground_bundle_id"]?.stringValue, "com.apple.siri")
+        let reads = await driver.currentAppReads
+        XCTAssertEqual(reads, 1, "only the read before the tap")
+    }
+
     func testExpectAbsentOnAnElementAlreadyGoneIsInconclusive() async {
         let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), missingIDs: ["spinner"])
         let result = await DriverToolExecutor(driver: driver).execute(

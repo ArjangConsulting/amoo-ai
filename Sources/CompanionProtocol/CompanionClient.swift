@@ -23,8 +23,12 @@ public protocol CompanionClient: Sendable {
     func getCapabilities() async throws -> [CapabilityDescriptor]
     func endSession() async throws
 
-    // Touch
+    // MARK: Touch
+
     func tap(at point: Point) async throws
+    /// Taps and returns the foreground bundle ID the companion read right after, or `nil` when it
+    /// does not report one.
+    func tapReportingForeground(at point: Point) async throws -> String?
     func doubleTap(at point: Point) async throws
     func longPress(at point: Point, duration: Duration) async throws
     func tapElement(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws
@@ -46,8 +50,12 @@ public protocol CompanionClient: Sendable {
     func clearText(characterCount: Int?) async throws
     func setText(_ selector: ElementSelector, text: String, appID: String?, candidateBundleIDs: [String]) async throws
 
-    // Navigation
+    // MARK: Navigation
+
     func pressBack() async throws
+    /// Presses Back and returns the foreground bundle ID the companion read right after, or `nil`
+    /// when it does not report one.
+    func pressBackReportingForeground() async throws -> String?
     func pressHome() async throws
 
     /// Accessibility
@@ -102,6 +110,16 @@ public protocol CompanionClient: Sendable {
 public extension CompanionClient {
     func tapElement(_ selector: ElementSelector) async throws {
         try await tapElement(selector, appID: nil, candidateBundleIDs: [])
+    }
+
+    func tapReportingForeground(at point: Point) async throws -> String? {
+        try await tap(at: point)
+        return nil
+    }
+
+    func pressBackReportingForeground() async throws -> String? {
+        try await pressBack()
+        return nil
     }
 
     func doubleTap(at _: Point) async throws {

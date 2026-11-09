@@ -522,6 +522,10 @@ public nonisolated struct Amoo_ActionResponse: Sendable {
 
   public var message: String = String()
 
+  /// Foreground app package / bundle ID read on the device right after the action, so the host does
+  /// not need a separate current-app call. Empty when the companion does not report it.
+  public var foregroundPackage: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1216,7 +1220,7 @@ nonisolated extension Amoo_ViewNode: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Amoo_ActionResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ActionResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0\u{1}message\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0\u{1}message\0\u{3}foreground_package\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1226,6 +1230,7 @@ nonisolated extension Amoo_ActionResponse: SwiftProtobuf.Message, SwiftProtobuf.
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.success) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.message) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.foregroundPackage) }()
       default: break
       }
     }
@@ -1238,12 +1243,16 @@ nonisolated extension Amoo_ActionResponse: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.message.isEmpty {
       try visitor.visitSingularStringField(value: self.message, fieldNumber: 2)
     }
+    if !self.foregroundPackage.isEmpty {
+      try visitor.visitSingularStringField(value: self.foregroundPackage, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_ActionResponse, rhs: Amoo_ActionResponse) -> Bool {
     if lhs.success != rhs.success {return false}
     if lhs.message != rhs.message {return false}
+    if lhs.foregroundPackage != rhs.foregroundPackage {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

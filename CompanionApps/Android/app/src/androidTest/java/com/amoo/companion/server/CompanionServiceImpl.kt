@@ -129,7 +129,7 @@ class CompanionServiceImpl(
     }
 
     override suspend fun tap(request: TapRequest): ActionResponse {
-        return actionResponse(touch.tap(request.point.x.toInt(), request.point.y.toInt()), "tap failed")
+        return withForeground(actionResponse(touch.tap(request.point.x.toInt(), request.point.y.toInt()), "tap failed"))
     }
 
     override suspend fun doubleTap(request: TapRequest): ActionResponse {
@@ -262,7 +262,7 @@ class CompanionServiceImpl(
 
     override suspend fun pressBack(request: Empty): ActionResponse {
         request
-        return actionResponse(touchBack(), "back navigation failed")
+        return withForeground(actionResponse(touchBack(), "back navigation failed"))
     }
 
     override suspend fun pressHome(request: Empty): ActionResponse {
@@ -452,6 +452,16 @@ class CompanionServiceImpl(
 
     private fun success(message: String): ActionResponse {
         return ActionResponse.newBuilder().setSuccess(true).setMessage(message).build()
+    }
+
+    /**
+     * Adds the foreground package read right after a successful action, the same value
+     * [getCurrentApp] reports, so the host can skip its own current-app call.
+     */
+    private fun withForeground(response: ActionResponse): ActionResponse {
+        if (!response.success) return response
+        val foreground = runCatching { accessibility.currentPackageName() }.getOrNull() ?: return response
+        return response.toBuilder().setForegroundPackage(foreground).build()
     }
 
     private fun actionResponse(success: Boolean, failureMessage: String): ActionResponse {
