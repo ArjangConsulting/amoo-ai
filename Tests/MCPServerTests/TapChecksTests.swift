@@ -8,12 +8,12 @@ import XCTest
 /// `tap_element` used to answer "Tapped verified element" for taps that hit a keypad key, landed
 /// outside the visible tab pill, or opened another app. These pin the refusals and the warnings.
 final class TapChecksTests: XCTestCase {
-    private static let window = Rect(x: 0, y: 0, width: 390, height: 844)
-    private static let addButton = ElementInfo(
+    static let window = Rect(x: 0, y: 0, width: 390, height: 844)
+    static let addButton = ElementInfo(
         id: "add", label: "Add entry", type: .button, frame: Rect(x: 20, y: 700, width: 120, height: 44)
     )
 
-    private func screen(overlay: ViewNode? = nil) -> ViewNode {
+    func screen(overlay: ViewNode? = nil) -> ViewNode {
         let target = ViewNode(id: "add", label: "Add entry", type: .button, frame: Self.addButton.frame)
         return ViewNode(
             id: "root", type: .other, frame: Self.window,
@@ -344,31 +344,7 @@ final class TapChecksTests: XCTestCase {
     }
 }
 
-extension TapChecksTests {
-    func testExpectAbsentOnAnElementAlreadyGoneIsInconclusive() async {
-        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen(), missingIDs: ["spinner"])
-        let result = await DriverToolExecutor(driver: driver).execute(
-            toolName: "tap_element", arguments: ["id": "add", "expect_id": "spinner", "expect_absent": "true"]
-        )
-        XCTAssertFalse(result.isError, result.content)
-        let fields = result.structuredContent?.objectValue
-        XCTAssertEqual(fields?["expectation_status"]?.stringValue, "already_satisfied")
-        XCTAssertNil(fields?["expected_effect_met"])
-        XCTAssertTrue(result.content.contains("Inconclusive"), result.content)
-        let waits = await driver.waits
-        XCTAssertTrue(waits.isEmpty, "waiting on an element that was never there proves nothing")
-    }
-
-    func testExpectAbsentOnAPresentElementReportsMet() async {
-        let driver = TapCheckDriver(target: Self.addButton, hierarchy: screen())
-        let result = await DriverToolExecutor(driver: driver).execute(
-            toolName: "tap_element", arguments: ["id": "add", "expect_id": "spinner", "expect_absent": "true"]
-        )
-        XCTAssertEqual(result.structuredContent?.objectValue?["expectation_status"]?.stringValue, "met")
-    }
-}
-
-private actor TapCheckDriver: PlatformDriver {
+actor TapCheckDriver: PlatformDriver {
     private let target: ElementInfo
     private let hierarchy: ViewNode
     private let keyboardVisible: Bool
@@ -436,6 +412,8 @@ private actor TapCheckDriver: PlatformDriver {
     func tap(at point: Point) async throws {
         taps.append(point)
     }
+
+    func pressBack() async throws {}
 
     func waitForElement(_ selector: ElementSelector, timeout: AmooCore.Duration) async throws {
         waits.append(Wait(id: selector.id ?? selector.label, disappear: false, timeout: timeout))

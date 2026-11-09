@@ -39,6 +39,15 @@ class FixtureContractTest {
     }
 
     @Test
+    fun detailsHasABackControlAtTheTopThatNeedsNoScroll() {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.onNode(hasTestTag("fixture_open_details")).performClick()
+            compose.onNode(hasTestTag("fixture_details_back_top")).assertIsDisplayed().performClick()
+            compose.onNode(hasTestTag("fixture_home_title")).assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun textInputEchoesEditsAndClears() {
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.onNode(hasTestTag("fixture_open_text")).performClick()

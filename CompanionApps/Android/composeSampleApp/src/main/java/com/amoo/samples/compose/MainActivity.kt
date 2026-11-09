@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.draganddrop.dragAndDropSource
@@ -72,6 +73,10 @@ private enum class Screen { HOME, DETAILS, TEXT_INPUT, GESTURE }
 @Composable
 private fun SampleApp(deepLink: String?) {
     var screen by remember { mutableStateOf(Screen.HOME) }
+
+    // System back leaves a sub-screen for Home. Home itself keeps the default, which exits the app,
+    // so a test that presses back on Home leaves the app by design: drivers must not do that.
+    BackHandler(enabled = screen != Screen.HOME) { screen = Screen.HOME }
 
     MaterialTheme {
         Surface(
@@ -145,6 +150,13 @@ private fun DetailsScreen(onBack: () -> Unit) {
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // Reachable without scrolling, so leaving Details never needs the 30 rows below to be crossed.
+        Button(
+            onClick = onBack,
+            modifier = Modifier
+                .testTag("fixture_details_back_top")
+                .semantics { contentDescription = "fixture-details-back-top" }
+        ) { Text("Back") }
         Text(
             text = "Details",
             modifier = Modifier.semantics { contentDescription = "fixture-details-screen" }
