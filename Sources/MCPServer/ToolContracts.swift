@@ -159,6 +159,7 @@ enum ToolContracts {
                 fields["launchArguments"] = .init(type: "array", description: "Redacted launch arguments")
                 fields["launchEnvironment"] = .init(type: "object", description: "Redacted launch environment")
                 fields["testName"] = .init(type: "string", description: "Test name")
+                fields["provenance"] = .init(type: "object", description: "Where the session came from")
                 fields["codegenIntent"] = .init(type: "object", description: "Persisted compiler context")
                 fields["has_more"] = .init(type: "boolean", description: "More actions remain")
                 fields["next_offset"] = .init(type: "integer", description: "Next action offset")
