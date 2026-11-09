@@ -186,6 +186,8 @@ actor MockCompanionClient: CompanionClient {
     private var _pressHomeCount = 0
     private var _findElementsResponses: [[ElementInfo]] = []
     private var _waitForElementCalls: [WaitForElementCall] = []
+    private var _waitsForAbsenceOnDevice = false
+    private var _waitForAbsenceCalls: [WaitForElementCall] = []
     private var _keyboardVisible = false
     private var _interactableElements: [ElementInfo] = []
     private var _findByDescriptionResults: [ElementInfo] = []
@@ -291,6 +293,20 @@ actor MockCompanionClient: CompanionClient {
         )
     }
 
+    func waitForElementToDisappear(
+        _ selector: ElementSelector,
+        timeout: Duration,
+        appID: String?,
+        candidateBundleIDs: [String]
+    ) async throws {
+        guard _waitsForAbsenceOnDevice else { throw AmooError.notImplemented("waitForElementToDisappear") }
+        _waitForAbsenceCalls.append(
+            WaitForElementCall(
+                selector: selector, timeout: timeout, appID: appID, candidateBundleIDs: candidateBundleIDs
+            )
+        )
+    }
+
     func isKeyboardVisible() async throws -> Bool {
         _keyboardVisible
     }
@@ -339,6 +355,14 @@ actor MockCompanionClient: CompanionClient {
 
     func waitForElementCalls() -> [WaitForElementCall] {
         _waitForElementCalls
+    }
+
+    func setWaitsForAbsenceOnDevice(_ enabled: Bool) {
+        _waitsForAbsenceOnDevice = enabled
+    }
+
+    func waitForAbsenceCalls() -> [WaitForElementCall] {
+        _waitForAbsenceCalls
     }
 
     func setKeyboardVisible(_ visible: Bool) {

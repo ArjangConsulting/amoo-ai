@@ -1,5 +1,8 @@
+import CryptoKit
 import Foundation
 import GRPCCore
+import SwiftProtobuf
+import TestCommons
 import XCTest
 
 // swiftformat:disable wrapMultilineStatementBraces
@@ -73,6 +76,7 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
             ("action.pressBack", .required),
             ("query.findElements", .required),
             ("query.getViewHierarchy", .required),
+            ("query.waitForElement.absent", .optional),
             ("query.isKeyboardVisible", .required),
             ("query.currentApp", .required),
             ("query.screenInfo", .required),
@@ -458,12 +462,25 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         request: Amoo_ViewHierarchyRequest,
         context _: ServerContext
     ) async throws -> Amoo_ViewHierarchyResponse {
+        let root = await hierarchyRoot(request)
+        var response = Amoo_ViewHierarchyResponse()
+        response.root = root
+        response.digest = Self.digest(of: root)
+        return response
+    }
+
+    private func hierarchyRoot(_ request: Amoo_ViewHierarchyRequest) async -> Amoo_ViewNode {
         let bundleID = request.appID.isEmpty ? nil : request.appID
         let candidates = request.candidateBundleIds
-        let hierarchy = await accessibility.getViewHierarchy(bundleID: bundleID, candidateBundleIDs: candidates)
-        var response = Amoo_ViewHierarchyResponse()
-        response.root = hierarchy.toProto()
-        return response
+        return await accessibility.getViewHierarchy(bundleID: bundleID, candidateBundleIDs: candidates).toProto()
+    }
+
+    /// SHA-256 of the deterministically serialized tree, so equal hierarchies always hash equal.
+    private static func digest(of root: Amoo_ViewNode) -> String {
+        var options = BinaryEncodingOptions()
+        options.useDeterministicOrdering = true
+        guard let bytes: Data = try? root.serializedBytes(options: options) else { return "" }
+        return SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
 
     func findElements(
@@ -495,32 +512,38 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         let id = request.selector.id.isEmpty ? nil : request.selector.id
         let label = request.selector.label.isEmpty ? nil : request.selector.label
         let containsText = request.selector.containsText.isEmpty ? nil : request.selector.containsText
-        let timeoutMs = Int(request.timeout.milliseconds)
-        let intervalMs = 200
-        var elapsed = 0
+        let timeout = Duration.milliseconds(max(0, Int(request.timeout.milliseconds)))
         let bundleID = request.appID.isEmpty ? nil : request.appID
+        let candidateBundleIDs = request.candidateBundleIds
+        let present = request.condition != .absent
 
-        while elapsed < timeoutMs {
-            let elements = await accessibility.findElements(
-                id: id,
-                label: label,
-                containsText: containsText,
-                bundleID: bundleID,
-                candidateBundleIDs: request.candidateBundleIds
-            )
-            if !elements.isEmpty {
-                var response = Amoo_WaitForElementResponse()
-                response.found = true
-                return response
-            }
-            try await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
-            elapsed += intervalMs
-        }
-
+        // `waitUntil` observes once even for a zero timeout and measures its deadline on a
+        // monotonic clock; the poll interval only bounds how late an arrival is noticed, since
+        // each observation already costs a whole accessibility snapshot.
         var response = Amoo_WaitForElementResponse()
-        response.found = false
+        do {
+            _ = try await waitUntil(
+                timeout: timeout,
+                pollInterval: Self.waitPollInterval,
+                operation: { [accessibility] in
+                    await accessibility.findElements(
+                        id: id,
+                        label: label,
+                        containsText: containsText,
+                        bundleID: bundleID,
+                        candidateBundleIDs: candidateBundleIDs
+                    ).isEmpty == false
+                },
+                matching: { $0 == present }
+            )
+            response.found = true
+        } catch is ObservationTimeout<Bool> {
+            response.found = false
+        }
         return response
     }
+
+    private static let waitPollInterval = Duration.milliseconds(50)
 
     func isKeyboardVisible(
         request _: Amoo_Empty,

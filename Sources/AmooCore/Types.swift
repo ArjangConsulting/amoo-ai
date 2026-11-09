@@ -144,6 +144,9 @@ public struct ViewNode: Sendable, Equatable {
     public var children: [Self]
     /// Placeholder (iOS) or hint (Android) text; `nil` when the capture source does not report it.
     public var placeholder: String?
+    /// On a root read from a companion: its content digest, comparable with the digest of another
+    /// root read from the same companion.
+    public var contentDigest: String?
 
     public init(
         id: String,

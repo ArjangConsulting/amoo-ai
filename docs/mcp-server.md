@@ -305,6 +305,15 @@ off, or whose tap point is off-screen. The check is on by default but best effor
 `foreground_changed` when the tap left the app (Siri, a system sheet), and compares the screen before
 and after the tap — within `effect_timeout_ms` (1500), `check_effect=false` to skip — so a tap that
 left the semantic snapshot unchanged reports `semantic_change=false` and `observable_change=false`.
+After the tap it re-reads the hierarchy until it differs (compared by the companion's content digest)
+and takes `target_state` from that same read, so a changed screen costs no extra snapshot. A tap that
+changes nothing visible waits out the 800ms settle window; pass `expect_id`, `expect_label` or
+`expect_contains_text` (`expect_absent=true` to wait for it to go away, `expect_timeout_ms`, default
+5000) and the call instead waits on the device for exactly that element and returns as soon as it
+shows (or, with `expect_absent`, is gone), reporting `expected_effect_met` and `expectation_status`.
+With `expect_absent`, the element is read before the tap; if it was already gone the status is
+`already_satisfied` and `expected_effect_met` is omitted, because waiting proves nothing. A companion that does not
+advertise `query.waitForElement.absent` is polled from the host instead. `check_effect` is skipped when an expectation is given.
 Pixel changes and app postconditions remain unverified; unchanged semantics do not prove identical screenshots.
 Occlusion is inferred from accessibility frames and traversal order, not a native hit test. An
 oversized frame can cause a false refusal even when the target receives real taps. Confirm that

@@ -20,6 +20,51 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// What WaitForElement waits for the selector to do.
+public nonisolated enum Amoo_WaitCondition: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Same as WAIT_CONDITION_PRESENT, so requests from older hosts keep their meaning.
+  case unspecified // = 0
+
+  /// Wait until at least one element matches.
+  case present // = 1
+
+  /// Wait until no element matches.
+  case absent // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .present
+    case 2: self = .absent
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .present: return 1
+    case .absent: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Amoo_WaitCondition] = [
+    .unspecified,
+    .present,
+    .absent,
+  ]
+
+}
+
 public nonisolated struct Amoo_ViewHierarchyRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -49,6 +94,11 @@ public nonisolated struct Amoo_ViewHierarchyResponse: Sendable {
   public var hasRoot: Bool {self._root != nil}
   /// Clears the value of `root`. Subsequent reads from it will return its default value.
   public mutating func clearRoot() {self._root = nil}
+
+  /// Content digest of this hierarchy (every node's ids, labels, values, frames and state), so a
+  /// caller can tell whether the screen changed between two reads. Only comparable with digests
+  /// from the same companion. Empty from companions that predate digests.
+  public var digest: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -121,6 +171,8 @@ public nonisolated struct Amoo_WaitForElementRequest: Sendable {
 
   public var candidateBundleIds: [String] = []
 
+  public var condition: Amoo_WaitCondition = .unspecified
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -129,6 +181,8 @@ public nonisolated struct Amoo_WaitForElementRequest: Sendable {
   fileprivate var _timeout: Amoo_Duration? = nil
 }
 
+/// `found` reports whether the requested condition held within the timeout: an element matched for
+/// PRESENT, none matched for ABSENT.
 public nonisolated struct Amoo_WaitForElementResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -295,6 +349,10 @@ public nonisolated struct Amoo_VoiceOverPhaseObservation: Sendable {
 
 fileprivate nonisolated let _protobuf_package = "amoo.v1"
 
+nonisolated extension Amoo_WaitCondition: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0WAIT_CONDITION_UNSPECIFIED\0\u{1}WAIT_CONDITION_PRESENT\0\u{1}WAIT_CONDITION_ABSENT\0")
+}
+
 nonisolated extension Amoo_ViewHierarchyRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ViewHierarchyRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}app_id\0\u{3}candidate_bundle_ids\0")
@@ -332,7 +390,7 @@ nonisolated extension Amoo_ViewHierarchyRequest: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Amoo_ViewHierarchyResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ViewHierarchyResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}root\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}root\0\u{1}digest\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -341,6 +399,7 @@ nonisolated extension Amoo_ViewHierarchyResponse: SwiftProtobuf.Message, SwiftPr
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._root) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.digest) }()
       default: break
       }
     }
@@ -354,11 +413,15 @@ nonisolated extension Amoo_ViewHierarchyResponse: SwiftProtobuf.Message, SwiftPr
     try { if let v = self._root {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    if !self.digest.isEmpty {
+      try visitor.visitSingularStringField(value: self.digest, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Amoo_ViewHierarchyResponse, rhs: Amoo_ViewHierarchyResponse) -> Bool {
     if lhs._root != rhs._root {return false}
+    if lhs.digest != rhs.digest {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -440,7 +503,7 @@ nonisolated extension Amoo_FindElementsResponse: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Amoo_WaitForElementRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WaitForElementRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}selector\0\u{1}timeout\0\u{3}app_id\0\u{3}candidate_bundle_ids\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}selector\0\u{1}timeout\0\u{3}app_id\0\u{3}candidate_bundle_ids\0\u{1}condition\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -452,6 +515,7 @@ nonisolated extension Amoo_WaitForElementRequest: SwiftProtobuf.Message, SwiftPr
       case 2: try { try decoder.decodeSingularMessageField(value: &self._timeout) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.appID) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.candidateBundleIds) }()
+      case 5: try { try decoder.decodeSingularEnumField(value: &self.condition) }()
       default: break
       }
     }
@@ -474,6 +538,9 @@ nonisolated extension Amoo_WaitForElementRequest: SwiftProtobuf.Message, SwiftPr
     if !self.candidateBundleIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.candidateBundleIds, fieldNumber: 4)
     }
+    if self.condition != .unspecified {
+      try visitor.visitSingularEnumField(value: self.condition, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -482,6 +549,7 @@ nonisolated extension Amoo_WaitForElementRequest: SwiftProtobuf.Message, SwiftPr
     if lhs._timeout != rhs._timeout {return false}
     if lhs.appID != rhs.appID {return false}
     if lhs.candidateBundleIds != rhs.candidateBundleIds {return false}
+    if lhs.condition != rhs.condition {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -151,6 +151,19 @@ extension IOSDriverTests {
         XCTAssertNil(waitCalls.first?.appID)
     }
 
+    func testWaitForElementToDisappearWaitsOnTheDeviceWhenTheCompanionCan() async throws {
+        let companion = MockCompanionClient()
+        await companion.setWaitsForAbsenceOnDevice(true)
+        await companion.setFindElementsResponses([[ElementInfo(id: "spinner", label: "Loading")]])
+        let driver = IOSDriver(companion: companion, simctl: MockSimctlRunner())
+
+        try await driver.waitForElementToDisappear(.init(id: "spinner"), timeout: Duration(milliseconds: 1))
+
+        let calls = await companion.waitForAbsenceCalls()
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls.first?.selector.id, "spinner")
+    }
+
     func testWaitForElementToDisappearTimesOutWhenElementPersists() async throws {
         let companion = MockCompanionClient()
         await companion.setFindElementsResponses([[ElementInfo(id: "spinner", label: "Loading")]])

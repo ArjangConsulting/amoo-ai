@@ -238,6 +238,24 @@ public enum ActionTools {
                         + " semantic_change=false and observable_change=false; visual effect is unverified. Runs within"
                         + " effect_timeout_ms; 'true' makes it required, 'false' skips it."
                 ),
+                "expect_id": .init(
+                    type: "string",
+                    description: "Identifier of an element expected to appear after the tap. The call waits"
+                        + " on the device for it and returns as soon as it shows (expected_effect_met), instead of"
+                        + " polling for any change; check_effect is skipped. Use an element the screen did not"
+                        + " already show."
+                ),
+                "expect_label": .init(type: "string", description: "Exact label of the element expected after the tap"),
+                "expect_contains_text": .init(
+                    type: "string", description: "Partial label text of the element expected after the tap"
+                ),
+                "expect_absent": .init(
+                    type: "string",
+                    description: "'true' waits for the expect_* element to disappear instead of appear"
+                ),
+                "expect_timeout_ms": .init(
+                    type: "string", description: "How long to wait for the expectation (default 5000, max 120000)"
+                ),
                 "effect_timeout_ms": .init(
                     type: "string",
                     description: "Budget for the default effect check, in milliseconds (default 1500). A hierarchy"

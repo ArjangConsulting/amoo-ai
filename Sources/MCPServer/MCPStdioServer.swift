@@ -42,7 +42,7 @@ public struct MCPStdioServer: Sendable {
     Orient: current_app/get_screen_context; describe_screen for detail. Scope find_elements;
     follow next_offset when has_more. Truncation cannot prove absence. Prefer IDs, then exact labels/text;
     parent_id scopes, index/first resolves duplicates. A selector miss does not establish navigation blockage:
-    inspect target identity/available controls and saved screenshots; test navigation despite content errors.
+    inspect target identity/controls and saved screenshots; test navigation despite content errors.
     tap_element checks occlusion; scroll_to_element/dismiss_keyboard help.
     Verify with assert_visible, assert_absent, assert_enabled,
     assert_value, assert_selected, assert_checked or assert_state_description. Unsupported state is blocked.
@@ -51,14 +51,15 @@ public struct MCPStdioServer: Sendable {
     blocked=none completed. Dispatch is not a postcondition. Inspect after timeout before retrying.
     masked_change cannot prove equality; record_value=fixture only for non-sensitive data.
     Sign in with credential=<profile>#<field>, never a password; return blocked: results.
-    Use run_steps result_mode=compact for known sequences; continue_on_error=true only for independent steps.
-    Keep run_id across attempts; get_run_telemetry measures bytes/calls, not tokens. Use response_mode=compact.
+    run_steps result_mode=compact for known sequences; continue_on_error=true only for independent steps.
+    Keep run_id across attempts; get_run_telemetry measures bytes/calls, not tokens. response_mode=compact.
 
     Screenshots save to saved_path at 1px/point (default return_image=false); inline only when
     pixels matter; scale=native fraction; analyze pixels locally.
     Transient UI: run_steps action + take_screenshot (settle_timeout_ms=0);
-    tap_element check_effect=false skips effect reads. Check capture_suspect, screen_state, foreground and viewport.
-    Delegated captures default save-only; return selected thumbnails. Pause playback; reuse recorded navigation.
+    tap_element expect_id waits for the result; check_effect=false skips effect reads.
+    Check capture_suspect/screen_state/foreground/viewport.
+    Delegated captures save-only; return selected thumbnails. Pause playback; reuse recorded navigation.
     webview_dom/webview_eval expose WebViews; screen tokens detect semantic change.
 
     Tests: start_session -> drive/assert -> end_session (plan.json/flow.json) -> inspect warnings ->

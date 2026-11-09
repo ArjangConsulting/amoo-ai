@@ -304,19 +304,31 @@ extension DriverToolExecutor {
             && abs(lhs.width - rhs.width) < 1 && abs(lhs.height - rhs.height) < 1
     }
 
-    /// Whether the screen changed within the effect budget after a tap: compares hierarchy
-    /// fingerprints, polling briefly so a transition still animating is not mistaken for no change.
-    func screenChanged(
+    /// What the post-tap polling saw: whether the screen changed, and the last hierarchy read.
+    struct TapEffect {
+        /// `nil` when nothing could be read at all.
+        var changed: Bool?
+        /// The last hierarchy read, which also shows the target's state after the tap.
+        var hierarchy: ViewNode?
+    }
+
+    /// Whether the screen changed within the effect budget after a tap, polling briefly so a
+    /// transition still animating is not mistaken for no change.
+    ///
+    /// Each poll reads the whole hierarchy rather than a digest: on the device the snapshot is the
+    /// cost either way, and keeping the read lets the caller take the target's state from it
+    /// instead of asking for it with another snapshot.
+    func tapEffect(
         since before: ViewNode,
         check: HierarchyCheck,
         driver: any PlatformDriver,
         appID: String?
-    ) async throws -> Bool? {
-        guard check != .off else { return nil }
-        let reference = Self.hierarchyFingerprint(before)
+    ) async throws -> TapEffect {
+        guard check != .off else { return TapEffect() }
+        let reference = before.contentDigest ?? Self.hierarchyFingerprint(before)
         let settleMilliseconds = 800
         let deadline = ContinuousClock.now.advanced(by: .milliseconds(settleMilliseconds))
-        var observed = false
+        var last: ViewNode?
         repeat {
             try Task.checkCancellation()
             let snapshot: ViewNode?
@@ -324,17 +336,19 @@ extension DriverToolExecutor {
                 snapshot = try await OperationDeadline.read(until: deadline) {
                     try await self.readHierarchy(check, driver: driver, appID: appID)
                 }
-            } catch is OperationDeadline.DeadlineExceeded { return observed ? false : nil }
-            guard let after = snapshot else {
-                return observed ? false : nil
+            } catch is OperationDeadline.DeadlineExceeded {
+                return TapEffect(changed: last == nil ? nil : false, hierarchy: last)
             }
-            observed = true
-            if Self.hierarchyFingerprint(after) != reference {
-                return true
+            guard let after = snapshot else {
+                return TapEffect(changed: last == nil ? nil : false, hierarchy: last)
+            }
+            last = after
+            if (after.contentDigest ?? Self.hierarchyFingerprint(after)) != reference {
+                return TapEffect(changed: true, hierarchy: after)
             }
             try await Task.sleep(for: .milliseconds(150))
         } while ContinuousClock.now < deadline
-        return false
+        return TapEffect(changed: false, hierarchy: last)
     }
 
     /// Ids, labels, values, geometry and state of the first 800 nodes: anything a tap could change.
@@ -377,6 +391,9 @@ extension DriverToolExecutor {
         var effect: HierarchyCheck
         var appID: String?
         var hittabilityChecked = false
+        var expectation: TapExpectation?
+        /// For an absence expectation: whether the element was on screen before the tap.
+        var expectationPresentBeforeTap: Bool?
     }
 
     /// Builds the `tap_element` success result, flagging taps that landed somewhere unexpected.
@@ -412,11 +429,18 @@ extension DriverToolExecutor {
                 notes.append("Foreground app changed from \(foregroundBefore) to \(foregroundAfter) after the tap.")
             }
         }
-        if let before = context.hierarchyBefore {
+        var observed: ViewNode?
+        if let expectation = context.expectation {
+            let (expectationFields, note) = await expectationOutcome(context, expectation, driver: driver)
+            fields.merge(expectationFields, uniquingKeysWith: { _, new in new })
+            notes.append(note)
+        } else if let before = context.hierarchyBefore {
             do {
-                if let changed = try await screenChanged(
+                let effect = try await tapEffect(
                     since: before, check: context.effect, driver: driver, appID: context.appID
-                ) {
+                )
+                observed = effect.hierarchy
+                if let changed = effect.changed {
                     fields["observable_change"] = .bool(changed)
                     fields["semantic_change"] = .bool(changed)
                     fields["visual_change"] = .string("unverified")
@@ -433,7 +457,7 @@ extension DriverToolExecutor {
             }
         }
         if context.effect != .off {
-            fields["target_state"] = await observedTapState(matched, driver: driver)
+            fields["target_state"] = await observedTapState(matched, in: observed, driver: driver)
         }
         let message = (["Tap dispatched to element \(name); target state unconfirmed."] + notes).joined(separator: "\n")
         return .success(message, structuredContent: .object(fields))

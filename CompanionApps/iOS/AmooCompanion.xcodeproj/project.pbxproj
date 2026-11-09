@@ -21,6 +21,7 @@
 		3453FB7460AAD597B2238539 /* ai.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB54E0A7906CF8C4A5BACC4B /* ai.pb.swift */; };
 		37C9F56A2891F9C653433F52 /* AccessibilityInspection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E81CB8391B3CDCF74786BA /* AccessibilityInspection.swift */; };
 		3938BBE65EC8345462D65295 /* GRPCProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 090E2CD7721EF1CD008A92B2 /* GRPCProtobuf */; };
+		3D1BFD0C0F42241B36F7A74E /* TestCommons in Frameworks */ = {isa = PBXBuildFile; productRef = 8F969008410A66BBF91A1F08 /* TestCommons */; };
 		3D81FE8A88A9E44DBCF54652 /* PinchGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935B90D9922DD90C5CA3229D /* PinchGesture.swift */; };
 		3FBAB13C0D174B8A35B2BD77 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = FFE6AB35DFCF670ED81177AF /* SwiftProtobuf */; };
 		414E3316FE1E6247B9FEA31A /* AccessibilityJourneyRunner+Transition.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF496450692A1DC45AC1DC3E /* AccessibilityJourneyRunner+Transition.swift */; };
@@ -84,6 +85,7 @@
 		C4371F0F325FF4715E264E7D /* AccessibilityJourneyRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1E9DA91D9EC8DF0BDEC7D /* AccessibilityJourneyRunner.swift */; };
 		C8F4424954331CF965150004 /* VoiceOverTraversal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01569413A4F179D9C0EC0834 /* VoiceOverTraversal.swift */; };
 		CB515B07A842384588F0C31D /* ElementSemantics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DE24E54E4489608DB09382 /* ElementSemantics.swift */; };
+		CBC859173A910D0FD4A9F15B /* TestCommons in Frameworks */ = {isa = PBXBuildFile; productRef = 85382B38A1A0ABC53C19EA95 /* TestCommons */; };
 		CDBAC70C4DCB93CCA73A8E88 /* XCUITestBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46DB122F5ECC1F9D8A44A9F2 /* XCUITestBridge.swift */; };
 		CE3B9E02E03B14134B8BB9D6 /* AccessibilityInspection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E81CB8391B3CDCF74786BA /* AccessibilityInspection.swift */; };
 		D99E1A1DD493F348B78FAB1C /* TouchHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D4A7475E32DD66B2F9F07F /* TouchHandler.swift */; };
@@ -177,6 +179,7 @@
 				4228309D4B91DCD55C16E1C8 /* GRPCNIOTransportHTTP2 in Frameworks */,
 				3938BBE65EC8345462D65295 /* GRPCProtobuf in Frameworks */,
 				3FBAB13C0D174B8A35B2BD77 /* SwiftProtobuf in Frameworks */,
+				CBC859173A910D0FD4A9F15B /* TestCommons in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -188,6 +191,7 @@
 				96758EE28F98602936E8917C /* GRPCNIOTransportHTTP2 in Frameworks */,
 				8470ABD1B2B32DD51395F5BF /* GRPCProtobuf in Frameworks */,
 				AA1D36B4E7DDF908A4819175 /* SwiftProtobuf in Frameworks */,
+				3D1BFD0C0F42241B36F7A74E /* TestCommons in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -377,6 +381,7 @@
 				DE03E8B353B1E0E31174045D /* GRPCNIOTransportHTTP2 */,
 				BDE11FED75C855983727DB75 /* GRPCProtobuf */,
 				A69CEAD12D8D941F78F6EDEE /* SwiftProtobuf */,
+				8F969008410A66BBF91A1F08 /* TestCommons */,
 			);
 			productName = AmooCompanionUITests;
 			productReference = C92975927754DD911FB22D1A /* AmooCompanionUITests.xctest */;
@@ -400,6 +405,7 @@
 				D6E90562D6AC98C23C51C59C /* GRPCNIOTransportHTTP2 */,
 				090E2CD7721EF1CD008A92B2 /* GRPCProtobuf */,
 				FFE6AB35DFCF670ED81177AF /* SwiftProtobuf */,
+				85382B38A1A0ABC53C19EA95 /* TestCommons */,
 			);
 			productName = AmooCompanionMacUITests;
 			productReference = 43DE3558D8F3DFA006582ED3 /* AmooCompanionMacUITests.xctest */;
@@ -452,6 +458,7 @@
 			mainGroup = 7AA7697FCC9CB3563F7A58CE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				88EFC4EB30371F9975D8553C /* XCRemoteSwiftPackageReference "SwiftTestCommons" */,
 				C3BFD3662627F2425AA092A4 /* XCRemoteSwiftPackageReference "grpc-swift-2" */,
 				2EA0DEDDDA164B77C1EB805D /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */,
 				AF658989DF19907F7CB4F85B /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */,
@@ -938,6 +945,14 @@
 				version = 1.36.0;
 			};
 		};
+		88EFC4EB30371F9975D8553C /* XCRemoteSwiftPackageReference "SwiftTestCommons" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maniramezan/SwiftTestCommons.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.2;
+			};
+		};
 		AF658989DF19907F7CB4F85B /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/grpc/grpc-swift-protobuf.git";
@@ -961,6 +976,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AF658989DF19907F7CB4F85B /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */;
 			productName = GRPCProtobuf;
+		};
+		85382B38A1A0ABC53C19EA95 /* TestCommons */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 88EFC4EB30371F9975D8553C /* XCRemoteSwiftPackageReference "SwiftTestCommons" */;
+			productName = TestCommons;
+		};
+		8F969008410A66BBF91A1F08 /* TestCommons */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 88EFC4EB30371F9975D8553C /* XCRemoteSwiftPackageReference "SwiftTestCommons" */;
+			productName = TestCommons;
 		};
 		A69CEAD12D8D941F78F6EDEE /* SwiftProtobuf */ = {
 			isa = XCSwiftPackageProductDependency;

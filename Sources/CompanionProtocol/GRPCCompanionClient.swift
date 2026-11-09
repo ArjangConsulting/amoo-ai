@@ -1019,7 +1019,9 @@ public actor GRPCCompanionClient: CompanionClient {
         request.appID = appID ?? ""
         request.candidateBundleIds = candidateBundleIDs
         let response = try await rpcClient.getViewHierarchy(request)
-        return response.root.coreViewNode
+        var root = response.root.coreViewNode
+        root.contentDigest = response.digest.isEmpty ? nil : response.digest
+        return root
     }
 
     public func waitForElement(
@@ -1028,6 +1030,22 @@ public actor GRPCCompanionClient: CompanionClient {
         appID: String? = nil,
         candidateBundleIDs: [String] = []
     ) async throws {
+        let request = Self.waitRequest(
+            selector, timeout: timeout, appID: appID, candidateBundleIDs: candidateBundleIDs, condition: .present
+        )
+        let response = try await rpcClient.waitForElement(request)
+        if !response.found {
+            throw AmooError.timeout(operation: "waitForElement", duration: timeout)
+        }
+    }
+
+    static func waitRequest(
+        _ selector: ElementSelector,
+        timeout: Duration,
+        appID: String?,
+        candidateBundleIDs: [String],
+        condition: Amoo_WaitCondition
+    ) -> Amoo_WaitForElementRequest {
         var request = Amoo_WaitForElementRequest()
         request.selector = selector.protoSelector
         var dur = Amoo_Duration()
@@ -1035,11 +1053,8 @@ public actor GRPCCompanionClient: CompanionClient {
         request.timeout = dur
         request.appID = appID ?? ""
         request.candidateBundleIds = candidateBundleIDs
-
-        let response = try await rpcClient.waitForElement(request)
-        if !response.found {
-            throw AmooError.timeout(operation: "waitForElement", duration: timeout)
-        }
+        request.condition = condition
+        return request
     }
 
     public func isKeyboardVisible() async throws -> Bool {
