@@ -7,6 +7,9 @@ public protocol TouchActions: Sendable {
     func tapElement(_ selector: ElementSelector) async throws
     /// Taps an element resolved in a specific process; `nil` keeps the default resolution.
     func tapElement(_ selector: ElementSelector, appID: String?) async throws
+    /// Taps `point` and returns the foreground app's bundle ID the device read right after the tap,
+    /// or `nil` when the backend does not report it (the caller then asks with `currentApp()`).
+    func tapReportingForeground(at point: Point) async throws -> String?
 }
 
 public protocol GestureActions: Sendable {
@@ -32,6 +35,9 @@ public protocol TextActions: Sendable {
 
 public protocol NavigationActions: Sendable {
     func pressBack() async throws
+    /// Presses Back and returns the foreground app's bundle ID the device read right after, or
+    /// `nil` when the backend does not report it (the caller then asks with `currentApp()`).
+    func pressBackReportingForeground() async throws -> String?
     func pressHome() async throws
     func openURL(_ url: String) async throws
 }
@@ -238,6 +244,11 @@ public extension TouchActions {
     func tapElement(_: ElementSelector) async throws {
         throw AmooError.notImplemented("tapElement")
     }
+
+    func tapReportingForeground(at point: Point) async throws -> String? {
+        try await tap(at: point)
+        return nil
+    }
 }
 
 public extension GestureActions {
@@ -302,6 +313,11 @@ public extension TextActions {
 public extension NavigationActions {
     func pressBack() async throws {
         throw AmooError.notImplemented("pressBack")
+    }
+
+    func pressBackReportingForeground() async throws -> String? {
+        try await pressBack()
+        return nil
     }
 
     func pressHome() async throws {

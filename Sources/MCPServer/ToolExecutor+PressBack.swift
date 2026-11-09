@@ -7,14 +7,18 @@ extension DriverToolExecutor {
     /// Back on an app's root screen leaves the app. That is easy to do by accident (a back tap
     /// that was meant to leave a detail screen, issued once too often) and the call otherwise
     /// reports plain success, so the next step runs against the launcher. The check compares the
-    /// foreground app before and after and says so when it changed.
+    /// foreground app before and after and says so when it changed. A companion that reports the
+    /// foreground with the press saves the second read.
     func executePressBack(driver: any PlatformDriver) async throws -> ToolResult {
         let before = try? await driver.currentApp().bundleID
-        try await driver.pressBack()
+        let reported = try await driver.pressBackReportingForeground()
         guard let before else {
             return .success("Pressed back")
         }
-        let after = try? await driver.currentApp().bundleID
+        var after = reported
+        if after == nil {
+            after = try? await driver.currentApp().bundleID
+        }
         var fields: [String: Value] = ["foreground_bundle_id": after.map(Value.string) ?? .null]
         guard let after else {
             return .success(

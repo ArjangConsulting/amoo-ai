@@ -362,6 +362,8 @@ extension DriverToolExecutor {
             if expectation != nil {
                 checks.effect = .off
             }
+            // Independent of the preflight hierarchy read, so it overlaps it instead of adding a round trip.
+            async let foregroundRead = try? await driver.currentApp().bundleID
             let preflight = try await tapPreflight(
                 matched: matched,
                 point: matched.hitPoint ?? matched.frame.map(\.centre),
@@ -376,7 +378,7 @@ extension DriverToolExecutor {
                 try await resolveElement(selector: selector, driver: driver, appID: appID, pick: pick)
             }
             let tapPoint = settled.hitPoint ?? settled.frame.map(\.centre)
-            let foregroundBefore = try? await driver.currentApp().bundleID
+            let foregroundBefore = await foregroundRead
             var presentBeforeTap: Bool?
             if let expectation {
                 presentBeforeTap = await expectationPresentBeforeTap(expectation, driver: driver, appID: appID)
@@ -387,8 +389,9 @@ extension DriverToolExecutor {
             // most expensive part of this tool. Use that verified coordinate for the same gesture.
             // Fall back to the frame center for older companions that do not provide hit points.
             try Task.checkCancellation()
+            var foregroundAfter: String?
             if let point = tapPoint {
-                try await driver.tap(at: point)
+                foregroundAfter = try await driver.tapReportingForeground(at: point)
             } else if pick != nil {
                 // Re-sending the selector would let the device choose among the duplicates.
                 return .error("tap_element failed: the picked element reports no frame or hit point to tap")
@@ -399,6 +402,7 @@ extension DriverToolExecutor {
                 TapOutcomeContext(
                     matched: settled,
                     foregroundBefore: foregroundBefore,
+                    foregroundAfter: foregroundAfter,
                     hierarchyBefore: preflight.hierarchy,
                     effect: checks.effect,
                     appID: appID,

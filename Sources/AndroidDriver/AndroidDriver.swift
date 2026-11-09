@@ -108,6 +108,10 @@ public actor AndroidDriver: PlatformDriver {
         try await companion.tap(at: point)
     }
 
+    public func tapReportingForeground(at point: Point) async throws -> String? {
+        try await companion.tapReportingForeground(at: point)
+    }
+
     public func doubleTap(at point: Point) async throws {
         try await companion.doubleTap(at: point)
     }
@@ -178,6 +182,10 @@ public actor AndroidDriver: PlatformDriver {
 
     public func pressBack() async throws {
         try await companion.pressBack()
+    }
+
+    public func pressBackReportingForeground() async throws -> String? {
+        try await companion.pressBackReportingForeground()
     }
 
     public func pressHome() async throws {

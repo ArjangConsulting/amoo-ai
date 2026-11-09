@@ -128,7 +128,64 @@ class UIAutomatorBridge {
 
     // -- Touch --
 
-    fun tap(x: Int, y: Int): Boolean = device.click(x, y)
+    /**
+     * A single finger tap: DOWN and UP injected back to back, as Espresso's single tap does.
+     *
+     * `UiDevice.click` sleeps a fixed 100ms between DOWN and UP (`InteractionController.clickNoSync`
+     * in UiAutomator 2.4.0), which was about 70% of the device-side cost of every tap. Views and
+     * Compose `clickable` both treat a DOWN/UP pair as a click regardless of the gap; only a
+     * long-press detector needs a hold, and [longPress] keeps its own.
+     */
+    fun tap(x: Int, y: Int): Boolean {
+        if (x < 0 || y < 0 || x >= device.displayWidth || y >= device.displayHeight) {
+            Log.w(LOG_TAG, "Cannot tap ($x, $y): outside the display")
+            return false
+        }
+        val downTime = SystemClock.uptimeMillis()
+        if (!injectFingerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, x, y)) {
+            return false
+        }
+        return injectFingerEvent(MotionEvent.ACTION_UP, downTime, SystemClock.uptimeMillis(), x, y)
+    }
+
+    /**
+     * One touchscreen event with a finger tool type and full pressure, matching what
+     * `UiDevice.click` injects under this bridge's [Configurator] settings, so apps that inspect
+     * the tool type see the same input as before.
+     */
+    private fun injectFingerEvent(action: Int, downTime: Long, eventTime: Long, x: Int, y: Int): Boolean {
+        val properties = MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_FINGER
+        }
+        val coords = MotionEvent.PointerCoords().apply {
+            this.x = x.toFloat()
+            this.y = y.toFloat()
+            pressure = 1f
+            size = 1f
+        }
+        val event = MotionEvent.obtain(
+            downTime,
+            eventTime,
+            action,
+            1,
+            arrayOf(properties),
+            arrayOf(coords),
+            0,
+            0,
+            1f,
+            1f,
+            0,
+            0,
+            InputDevice.SOURCE_TOUCHSCREEN,
+            0
+        )
+        return try {
+            instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).injectInputEvent(event, true)
+        } finally {
+            event.recycle()
+        }
+    }
 
     fun longPress(x: Int, y: Int, durationMs: Int): Boolean {
         // swipe in-place simulates long press

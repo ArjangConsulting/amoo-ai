@@ -113,6 +113,9 @@ message ViewNode {
 message ActionResponse {
   bool success = 1;
   string message = 2;
+  // Foreground app package / bundle ID read on the device right after the action, so the host does
+  // not need a separate current-app call. Empty when the companion does not report it.
+  string foreground_package = 3;
 }
 
 enum Direction {

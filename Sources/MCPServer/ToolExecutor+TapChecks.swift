@@ -387,6 +387,8 @@ extension DriverToolExecutor {
     struct TapOutcomeContext {
         var matched: ElementInfo
         var foregroundBefore: String?
+        /// The foreground the device reported with the tap; `nil` means it must be read.
+        var foregroundAfter: String?
         var hierarchyBefore: ViewNode?
         var effect: HierarchyCheck
         var appID: String?
@@ -394,6 +396,23 @@ extension DriverToolExecutor {
         var expectation: TapExpectation?
         /// For an absence expectation: whether the element was on screen before the tap.
         var expectationPresentBeforeTap: Bool?
+    }
+
+    /// `foreground_bundle_id` / `foreground_changed`, and a note when another app took over. Uses
+    /// the foreground the device reported with the tap, reading it only when none was reported.
+    private func foregroundOutcome(
+        _ context: TapOutcomeContext, driver: any PlatformDriver
+    ) async -> ([String: Value], String?)? {
+        guard let before = context.foregroundBefore else { return nil }
+        var reported = context.foregroundAfter
+        if reported == nil {
+            reported = try? await driver.currentApp().bundleID
+        }
+        guard let after = reported else { return nil }
+        let fields: [String: Value] = [
+            "foreground_bundle_id": .string(after), "foreground_changed": .bool(after != before)
+        ]
+        return (fields, after == before ? nil : "Foreground app changed from \(before) to \(after) after the tap.")
     }
 
     /// Builds the `tap_element` success result, flagging taps that landed somewhere unexpected.
@@ -421,13 +440,9 @@ extension DriverToolExecutor {
         if !context.hittabilityChecked {
             notes.append("Hittability was not checked.")
         }
-        if let foregroundBefore = context.foregroundBefore,
-           let foregroundAfter = try? await driver.currentApp().bundleID {
-            fields["foreground_bundle_id"] = .string(foregroundAfter)
-            fields["foreground_changed"] = .bool(foregroundAfter != foregroundBefore)
-            if foregroundAfter != foregroundBefore {
-                notes.append("Foreground app changed from \(foregroundBefore) to \(foregroundAfter) after the tap.")
-            }
+        if let (foregroundFields, note) = await foregroundOutcome(context, driver: driver) {
+            fields.merge(foregroundFields, uniquingKeysWith: { _, new in new })
+            notes += note.map { [$0] } ?? []
         }
         var observed: ViewNode?
         if let expectation = context.expectation {
