@@ -323,8 +323,7 @@ extension DriverToolExecutor {
 
         // Navigation
         case "press_back":
-            try await driver.pressBack()
-            return .success("Pressed back")
+            return try await executePressBack(driver: driver)
 
         case "press_home":
             try await driver.pressHome()
