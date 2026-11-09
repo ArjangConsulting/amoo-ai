@@ -162,6 +162,31 @@ extension DriverToolExecutor {
         return result
     }
 
+    /// `tap_element` fields omitted under `response_mode=compact` while they hold these values. They
+    /// are the same on nearly every tap (`hittability_checked` is always false on Android, whose
+    /// inspection is a flat list), and `outcome_status` already says the postcondition is unverified.
+    static let defaultTapFields: [String: Value] = [
+        "postcondition_verified": .bool(false),
+        "hittability_checked": .bool(false),
+        "visual_change": .string("unverified"),
+        "target_state": .null,
+        "element_label": .string("")
+    ]
+
+    /// Drops ``defaultTapFields`` from a successful compact `tap_element` result; a missing field
+    /// means its default. Default and full modes keep them.
+    static func omittingDefaultTapFields(
+        _ result: ToolResult,
+        tool: String,
+        arguments: [String: String]
+    ) -> ToolResult {
+        guard tool == "tap_element", arguments["response_mode"] == "compact", !result.isError,
+              let fields = result.structuredContent?.objectValue else { return result }
+        var compact = result
+        compact.structuredContent = .object(fields.filter { key, value in defaultTapFields[key] != value })
+        return compact
+    }
+
     /// Marks a mutating call identical to the previous one in the same session (`repeated_call`,
     /// `repeat_count`, `repeat_hint`): repeats were the most common retry pattern in recorded runs,
     /// usually a swipe looking for something or a tap whose effect went unchecked.
