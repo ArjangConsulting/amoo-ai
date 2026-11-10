@@ -66,6 +66,16 @@ final class GeneratedCodeCompileTests: XCTestCase {
         try CompileVerification.verifyKotlinCompiles(result.source)
     }
 
+    func testGeneratedEspressoTestWithSharedHelpersCompiles() throws {
+        let result = try EspressoEmitter(useTestCommons: true).generate(makeTest(platform: .android))
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
+
+    func testGeneratedComposeEspressoTestWithSharedHelpersCompiles() throws {
+        let result = try ComposeEspressoEmitter(useTestCommons: true).generate(makeTest(platform: .android))
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
+
     /// Picks among duplicate matches (`index` / `first`) on every targeting step.
     private static let pickOperations: [StudioToolOperation] = [
         .init(id: "p1", tool: "tap_element", arguments: ["id": "tab.reports", "index": "1"]),
@@ -119,6 +129,17 @@ final class GeneratedCodeCompileTests: XCTestCase {
 
     func testGeneratedComposePicksCompile() throws {
         let result = try ComposeEspressoEmitter().generate(makePickTest(platform: .android))
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
+
+    func testGeneratedEspressoPicksWithSharedHelpersCompile() throws {
+        let result = try EspressoEmitter(useTestCommons: true).generate(makePickTest(platform: .android))
+        XCTAssertFalse(result.source.contains("private fun withIndex("))
+        try CompileVerification.verifyKotlinCompiles(result.source)
+    }
+
+    func testGeneratedComposePicksWithSharedHelpersCompile() throws {
+        let result = try ComposeEspressoEmitter(useTestCommons: true).generate(makePickTest(platform: .android))
         try CompileVerification.verifyKotlinCompiles(result.source)
     }
 }

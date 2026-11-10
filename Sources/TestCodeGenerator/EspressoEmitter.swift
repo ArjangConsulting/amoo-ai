@@ -8,7 +8,18 @@ import StudioProtocol
 // with a comment pointing at the substitution — swap it for `withId(R.id...)` where convenient.
 // swiftlint:disable:next type_body_length
 public struct EspressoEmitter: StudioCodeEmitting {
-    public init() {}
+    /// The context `imports` entry that opts a generated test into the shared device helpers.
+    static let sharedHelpersImport = "io.github.maniramezan.testcommons.device.*"
+
+    private let useTestCommons: Bool
+
+    /// Creates an emitter. Shared helpers require the KotlinTestCommons `device` artifact in the
+    /// receiving `androidTest` source set.
+    /// - Parameter useTestCommons: Whether to import and delegate to the shared helper library
+    ///   instead of pasting the wait and matcher helpers into every generated test.
+    public init(useTestCommons: Bool = false) {
+        self.useTestCommons = useTestCommons
+    }
 
     // SwiftLint measures the generated Kotlin template as Swift function body lines.
     // swiftlint:disable:next function_body_length
@@ -19,7 +30,11 @@ public struct EspressoEmitter: StudioCodeEmitting {
         let pascalName = TestIdentifierNaming.pascalCase(test.name)
         let className = "\(pascalName)Test"
         let methodName = pascalName.prefix(1).lowercased() + pascalName.dropFirst()
-        let body = try operations.map { try Self.statement(for: $0, context: test.testContext) }.joined(separator: "\n")
+        let shared = useTestCommons
+            || TestHelperRendering.imports(for: test.testContext).contains(Self.sharedHelpersImport)
+        let body = try operations
+            .map { try Self.statement(for: $0, context: test.testContext, useTestCommons: shared) }
+            .joined(separator: "\n")
         let launchedBody = body.split(separator: "\n", omittingEmptySubsequences: false)
             .map { "    \($0)" }
             .joined(separator: "\n")
@@ -55,70 +70,48 @@ public struct EspressoEmitter: StudioCodeEmitting {
         }
         let needsGestureHelpers = Self.needsGestureHelpers(operations)
         let matcherHelpers = [
-            needsResourceNameMatcher ? Self.resourceNameMatcherHelper : nil,
-            needsIndexMatcher ? Self.indexMatcherHelper : nil,
+            shared ? nil : (needsResourceNameMatcher ? Self.resourceNameMatcherHelper : nil),
+            shared ? nil : (needsIndexMatcher ? Self.indexMatcherHelper : nil),
             needsGestureHelpers ? Self.gestureHelpers : nil
         ].compactMap(\.self).map { $0 + "\n" }.joined(separator: "\n")
+        let waitHelpers = shared ? "" : Self.waitHelpers
+        let stateDescriptionBlock = stateDescriptionHelper.isEmpty ? "" : "\n" + stateDescriptionHelper
+        let helperBlock = "\n\(matcherHelpers)\n\(waitHelpers)\(stateDescriptionBlock)\n"
+        let gestureImports = needsGestureHelpers ? Self.gestureImports : ""
         let contextImports = TestHelperRendering.imports(for: test.testContext)
             .map { "import \($0)" }
             .joined(separator: "\n")
         let baseClass = test.testContext?.baseClass.map { " : \($0)" } ?? ""
+        let importFragments = Self.ImportFragments(
+            scroll: scrollImport,
+            ancestor: ancestorImport,
+            nativeState: nativeStateImports,
+            allOf: allOfImport,
+            gesture: gestureImports,
+            context: contextImports
+        )
+        let importBlock = shared
+            ? Self.sharedImports(
+                body: body,
+                nativeStateImports: nativeStateImports,
+                gestureImports: gestureImports,
+                contextImports: contextImports
+            )
+            : Self.standaloneImports(importFragments)
+        let launchBlock = shared ? Self.sharedLaunch : Self.standaloneLaunch
 
         let source = """
-        import android.app.Activity
-        import android.content.Intent
-        import android.os.SystemClock
-        import android.view.View\(needsGestureHelpers ? Self.gestureImports : "")
-        import androidx.test.core.app.ActivityScenario
-        import androidx.test.espresso.Espresso.onView
-        import androidx.test.espresso.Espresso.pressBack
-        import androidx.test.espresso.PerformException
-        import androidx.test.espresso.UiController
-        import androidx.test.espresso.ViewAction
-        import androidx.test.espresso.action.ViewActions.click
-        import androidx.test.espresso.action.ViewActions.replaceText\(scrollImport)
-        import androidx.test.espresso.action.ViewActions.swipeDown
-        import androidx.test.espresso.action.ViewActions.swipeLeft
-        import androidx.test.espresso.action.ViewActions.swipeRight
-        import androidx.test.espresso.action.ViewActions.swipeUp
-        import androidx.test.espresso.assertion.ViewAssertions.matches
-        import androidx.test.espresso.matcher.ViewMatchers.hasFocus
-        import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-        import androidx.test.espresso.matcher.ViewMatchers.isEnabled
-        import androidx.test.espresso.matcher.ViewMatchers.isRoot\(ancestorImport)\(nativeStateImports)
-        import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
-        import androidx.test.espresso.matcher.ViewMatchers.withText
-        import androidx.test.ext.junit.runners.AndroidJUnit4
-        import androidx.test.platform.app.InstrumentationRegistry
-        import androidx.test.espresso.util.HumanReadables
-        import androidx.test.espresso.util.TreeIterables
-        import org.hamcrest.Description
-        import org.hamcrest.Matcher
-        import org.hamcrest.Matchers.containsString
-        import org.hamcrest.Matchers.anyOf\(allOfImport)
-        import org.hamcrest.TypeSafeMatcher
-        import org.junit.Test
-        import org.junit.runner.RunWith
-        import java.util.concurrent.TimeoutException\(contextImports.isEmpty ? "" : "\n\(contextImports)")
+        \(importBlock)
 
         /**
          * Generated by amoo from the Studio test "\(test.name)". Edit freely — this file has no
          * dependency on amoo or the companion apps once generated.
          */
         @RunWith(AndroidJUnit4::class)
-        class \(className)\(baseClass) {
-        \(matcherHelpers)
-        \(Self.waitHelpers)\(stateDescriptionHelper.isEmpty ? "" : "\n" + stateDescriptionHelper)
-
+        class \(className)\(baseClass) {\(helperBlock)
             @Test
             fun \(methodName)() {
-                val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
-                val launchIntent = requireNotNull(
-                    targetContext.packageManager.getLaunchIntentForPackage(targetContext.packageName)
-                ) { "No launcher activity found for ${targetContext.packageName}" }
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
-
-                ActivityScenario.launch<Activity>(launchIntent).use {
+        \(launchBlock)
         \(launchedBody)
                 }
             }
@@ -230,7 +223,11 @@ public struct EspressoEmitter: StudioCodeEmitting {
 
     // A direct switch keeps the supported Studio-tool-to-Espresso mapping auditable in one place.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    static func statement(for operation: StudioToolOperation, context: StudioTestContext?) throws -> String {
+    static func statement(
+        for operation: StudioToolOperation,
+        context: StudioTestContext?,
+        useTestCommons: Bool = false
+    ) throws -> String {
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
         }
@@ -242,7 +239,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         case .tapElement:
             let target = try matcher(operation)
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).perform(click())
             """
 
@@ -252,7 +249,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             }
             let target = try matcher(operation)
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).perform(replaceText(\(literal(value))))
             """
 
@@ -261,9 +258,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "text")
             }
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(hasFocus(), \(
-                timeoutMilliseconds(for: operation)
-            )L))
+            \(indent)\(displayedWait("hasFocus()", for: operation, shared: useTestCommons))
             \(indent)onView(hasFocus()).perform(replaceText(\(literal(text))))
             """
 
@@ -277,7 +272,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             }
             guard hasElement else { return "\(indent)onView(isRoot()).perform(\(action))" }
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).perform(\(action))
             """
 
@@ -286,27 +281,27 @@ public struct EspressoEmitter: StudioCodeEmitting {
             return try "\(indent)onView(isRoot()).perform(\(gesture(for: operation))())"
 
         case .drag:
-            return try dragStatement(for: operation)
+            return try dragStatement(for: operation, shared: useTestCommons)
 
         case .pinch:
-            return try pinchStatement(for: operation)
+            return try pinchStatement(for: operation, shared: useTestCommons)
 
         case .waitForElement:
             let target = try matcher(operation)
             let timeout = try timeoutMilliseconds(for: operation)
-            return "\(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeout)L))"
+            return "\(indent)\(displayedWait(target, timeout: timeout, shared: useTestCommons))"
 
         case .assertVisible:
             let target = try matcher(operation)
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).check(matches(isDisplayed()))
             """
 
         case .assertNotVisible:
             let target = try matcher(operation)
             let timeout = try timeoutMilliseconds(for: operation)
-            return "\(indent)onView(isRoot()).perform(waitUntilNotDisplayed(\(target), \(timeout)L))"
+            return "\(indent)\(notDisplayedWait(target, timeout: timeout, shared: useTestCommons))"
 
         case .assertText:
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
@@ -314,7 +309,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             }
             let target = try matcher(operation)
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).check(matches(withText(\(literal(expected)))))
             """
 
@@ -328,7 +323,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             // On Android Views, the accessibility value represented by assert_value is exposed as
             // text. Compose has its own semantics-specific implementation below.
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).check(matches(withText(\(textMatcher))))
             """
 
@@ -338,7 +333,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
             // `RecyclerViewActions.scrollTo` with the same matcher, which this file cannot assume.
             return try """
             \(indent)onView(\(target)).perform(scrollTo())
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             """
 
         case .assertSelected, .assertChecked:
@@ -346,12 +341,20 @@ public struct EspressoEmitter: StudioCodeEmitting {
             let property = tool == .assertChecked ? "isChecked()" : "isSelected()"
             let state = expected ? property : "not(\(property))"
             let target = try matcher(operation)
-            return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(
-            \(indent)    allOf(\(target), \(state)), \(timeoutMilliseconds(for: operation))L
-            \(indent)))
-            \(indent)onView(\(target)).check(matches(\(state)))
-            """
+            let timeout = try timeoutMilliseconds(for: operation)
+            return try useTestCommons
+                ? """
+                \(indent)waitUntilDisplayed(
+                \(indent)    allOf(\(target), \(state)), \(timeout)L
+                \(indent))
+                \(indent)onView(\(target)).check(matches(\(state)))
+                """
+                : """
+                \(indent)onView(isRoot()).perform(waitUntilDisplayed(
+                \(indent)    allOf(\(target), \(state)), \(timeout)L
+                \(indent)))
+                \(indent)onView(\(target)).check(matches(\(state)))
+                """
 
         case .assertStateDescription:
             let exact = operation.arguments["value"] ?? operation.arguments["expected"]
@@ -360,17 +363,25 @@ public struct EspressoEmitter: StudioCodeEmitting {
             }
             let target = try matcher(operation)
             let state = "hasNativeStateDescription(\(literal(expected)), \(exact == nil))"
-            return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(
-            \(indent)    allOf(\(target), \(state)), \(timeoutMilliseconds(for: operation))L
-            \(indent)))
-            \(indent)onView(\(target)).check(matches(\(state)))
-            """
+            let timeout = try timeoutMilliseconds(for: operation)
+            return try useTestCommons
+                ? """
+                \(indent)waitUntilDisplayed(
+                \(indent)    allOf(\(target), \(state)), \(timeout)L
+                \(indent))
+                \(indent)onView(\(target)).check(matches(\(state)))
+                """
+                : """
+                \(indent)onView(isRoot()).perform(waitUntilDisplayed(
+                \(indent)    allOf(\(target), \(state)), \(timeout)L
+                \(indent)))
+                \(indent)onView(\(target)).check(matches(\(state)))
+                """
 
         case .assertEnabled:
             let target = try matcher(operation)
             return try """
-            \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+            \(indent)\(displayedWait(target, for: operation, shared: useTestCommons))
             \(indent)onView(\(target)).check(matches(isEnabled()))
             """
 
