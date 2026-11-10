@@ -40,21 +40,8 @@ make companion-android-build   # gradle assembleDebug assembleAndroidTest
 
 ### Verifying the Linux build locally
 
-CI's `Build & Test (Linux)` job (`.github/workflows/ci.yml`) runs in the `swift:6.4-noble`
-container. Reproduce it locally with Docker instead of guessing at platform gating — a
-`#if canImport(Darwin)` / `#if os(Linux)` split that looks right can still leave a symbol
-undefined or a test asserting on an empty result:
-
-```bash
-make verify-linux                    # build --product amoo + test (mirrors the CI job)
-./scripts/verify-linux.sh build      # build only
-./scripts/verify-linux.sh test       # test only (add --filter by editing, or use `shell`)
-./scripts/verify-linux.sh shell      # interactive shell in the container
-```
-
-It builds into `.build-linux/` (gitignored) so the host `.build/` is left alone, and skips
-`IntegrationTests` + `CLIQualityCoverageTests` exactly as CI does. Run it after any change to
-platform-conditional code (`ProcessRunner`, anything with `#if os`/`canImport`) before pushing.
+CI's Linux job runs in `swift:6.4-noble`. After any change to platform-conditional code (`ProcessRunner`,
+`#if os`/`canImport`), run `make verify-linux` before pushing; details in [`docs/verify-linux.md`](docs/verify-linux.md).
 
 ### Test conventions and mechanics
 
@@ -100,21 +87,10 @@ run `swiftformat` directly on specific files.
 
 ## `amoo init` (guided multi-device setup)
 
-Code: `Sources/CLI/Init*.swift` — `InitCommand.swift` (manifest, `runInit`, `init down|device`),
-`InitCommand+Run.swift` (flow: collect → validate → confirm → run), `InitWizard.swift` (flags, prompts,
-plan), `InitDiscovery.swift` (devices, bundle id), `InitSavedLocations.swift` (the `AGENTS.md` block),
-`AgentInstallWizard.swift` (guided `amoo agent install`, also the AI-client step of init). Prompts come
-from SwiftyTerminal's `Prompting`/`Prompter` (see "Terminal UX" below). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
-It reuses `runEnvUp`/`runEnvDown`; never duplicate runtime, port or companion logic there.
-
-- `amoo init` never asks for an app artifact path or scans for builds. Artifacts are optional and
-  only used with explicit `--app`. `--json`/`--non-interactive`/no TTY never prompts and requires
-  `--platform --device`; `--app-id` is also required with `--app` or `--launch`.
-- The AI-client step (`amoo agent install` guided; `amoo init --client`/`--no-skills`) reuses
-  `runAgentInstall`; with `--client`, `--json`, `--non-interactive` or no TTY it never prompts.
-- It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the
-  platform, manifest directory and any explicitly supplied app artifact/id — **locations only,
-  never device or runtime ids**. Saved app paths are not automatically selected on later runs.
+Code is `Sources/CLI/Init*.swift` and `AgentInstallWizard.swift`; tests are `Tests/CLITests/Init*Tests.swift`.
+It reuses `runEnvUp`/`runEnvDown`; never duplicate runtime, port or companion logic there. It never asks for
+an app artifact path, never prompts under `--json`/`--non-interactive`/no TTY, and writes locations only,
+never device or runtime ids. Full contract: [`docs/init.md`](docs/init.md#contributor-notes).
 
 ## Terminal UX (SwiftyTerminal)
 
@@ -144,32 +120,13 @@ naming hints go in `name_hint`.
 
 ## Distributable plugin (`plugins/amoo`)
 
-The user-facing subagents (`amoo`, `device-verifier`) and skills (`driving-amoo`,
-`device-verifier`) live in `plugins/amoo/`, packaged for every client's marketplace: Claude and
-Cursor (`.claude-plugin/` / `.cursor-plugin/`), Agent Plugins 1.0 (`plugin.json`, used by Copilot
-and Codex), and Gemini (`gemini-extension.json`). The repo-root `.claude-plugin/`,
-`.cursor-plugin/` and `.agents/plugins/` hold the marketplace catalogs. `agents/*.md` is the
-canonical source and keeps only `name` and `description` in its frontmatter. `amoo agent install`
-renders it for each client (`Sources/CLI/AgentRenderer.swift`), and `make plugin` regenerates the
-committed `com.github.copilot/agents/*`. `AmooPluginTests` fails on stale or inconsistent files.
-
-The plugin ships the `driving-amoo`, `ios-accessibility`, `android-accessibility`, and
-`device-verifier` skills under `plugins/amoo/skills/`; installed copies belong to the consuming
-repository or client. Contributor references under `skills/` and global skills such as
-`device-interaction` are separate. Load `driving-amoo` for main-context device work; delegate
-bounded checks to the `amoo` subagent (a consuming repo may call it `amoo-debug`). `amoo-debug`
-is a subagent name, not a skill. `device-verifier` handles built artifacts with checked-in
-flows and WebView probes; the generic `amoo` subagent handles bounded device assertions.
-Keep discovery, flows needing user decisions, and source edits in the main context. Supply
-app_id, build_path, device_hint, and exact launch_env when delegating; enable reset only for a
-requested clean store. Consumer CI can check installed copies with the bundled
-`driving-amoo/scripts/check-install.py` helper described in README.md.
-
-`plugins/amoo-live` is a separate, Claude Code-only **mod** (a TypeScript hooks module:
-`hooks/register.tsx`, state contract `types/index.d.ts`). It mirrors the driven device in a pane via
-`amoo device stream` (`Sources/CLI/DeviceStreamCommand.swift`), and it is listed only in
-`.claude-plugin/marketplace.json`. Never add a `hooks/` folder to `plugins/amoo`, because Gemini
-reads `hooks/hooks.json` there. After editing the mod, run `make mod-check`. See `docs/amoo-live.md`.
+`plugins/amoo/agents/*.md` is the canonical source for the `amoo` and `device-verifier` subagents and keeps
+only `name` and `description` in its frontmatter; `make plugin` regenerates the committed
+`com.github.copilot/agents/*` and `AmooPluginTests` fails on stale files. Never add a `hooks/` folder to
+`plugins/amoo` (Gemini reads `hooks/hooks.json` there). `plugins/amoo-live` is a separate Claude Code-only mod;
+run `make mod-check` after editing it. Load `driving-amoo` for main-context device work and delegate bounded
+checks to the `amoo` subagent (`amoo-debug` is a subagent name, not a skill). Layout, marketplaces and
+delegation rules: [`docs/plugin-distribution.md`](docs/plugin-distribution.md), [`docs/amoo-live.md`](docs/amoo-live.md).
 
 ## External Dependencies
 
@@ -185,16 +142,9 @@ rather than `FAIL`, so simulator-only setups still pass.
 
 ### Android build stack
 
-AGP 9.3 / Gradle 9.5 with **AGP's built-in Kotlin** — deliberately no `org.jetbrains.kotlin.android`
-plugin (AGP 9's new DSL is incompatible with it). Before editing `CompanionApps/Android/*.gradle.kts`:
-
-- Kotlin options go in a top-level `kotlin { compilerOptions { … } }` block. The old
-  `android { kotlinOptions { … } }` form is deprecated-as-error under Kotlin 2.4.
-- `gradle.properties` carries only `android.useAndroidX=true`. The AGP 9 upgrade needs none of the
-  `android.newDsl` / `android.builtInKotlin` / `android.r8.*` opt-out shims — fix the underlying
-  incompatibility instead; they all disappear in AGP 10.
-- `protobuf-gradle-plugin` must be ≥ 0.10.0; earlier versions cast to the removed `BaseExtension`
-  and fail under the new DSL.
+AGP 9.3 / Gradle 9.5 with AGP's built-in Kotlin (no `org.jetbrains.kotlin.android` plugin, no `android.newDsl` /
+`android.builtInKotlin` shims). Read [`docs/android-build.md`](docs/android-build.md) before editing
+`CompanionApps/Android/*.gradle.kts`.
 
 ## Gotchas
 
