@@ -54,3 +54,6 @@ local.properties
 .build-companion-release/
 CompanionApps/iOS/prebuilt/
 CompanionApps/Android/prebuilt/
+
+# Scratch output from Tooling/benchmarks/bench.sh
+Tooling/benchmarks/bench-*/
