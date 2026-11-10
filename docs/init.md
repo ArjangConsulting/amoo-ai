@@ -278,3 +278,21 @@ alongside the save error. A requested manifest is checked for writability before
 write fails, setup stops acquiring further devices and returns the credentials needed for cleanup.
 
 See [Device runtimes](device-runtimes.md) for lifecycle states, device access coordination and saved-state migration.
+
+## Contributor notes
+
+Code: `Sources/CLI/Init*.swift` — `InitCommand.swift` (manifest, `runInit`, `init down|device`),
+`InitCommand+Run.swift` (flow: collect → validate → confirm → run), `InitWizard.swift` (flags, prompts,
+plan), `InitDiscovery.swift` (devices, bundle id), `InitSavedLocations.swift` (the `AGENTS.md` block),
+`AgentInstallWizard.swift` (guided `amoo agent install`, also the AI-client step of init). Prompts come
+from SwiftyTerminal's `Prompting`/`Prompter` (see "Terminal UX" below). Tests: `Tests/CLITests/Init*Tests.swift` (`InitTestCase` holds the fakes). Docs: `docs/init.md`.
+It reuses `runEnvUp`/`runEnvDown`; never duplicate runtime, port or companion logic there.
+
+- `amoo init` never asks for an app artifact path or scans for builds. Artifacts are optional and
+  only used with explicit `--app`. `--json`/`--non-interactive`/no TTY never prompts and requires
+  `--platform --device`; `--app-id` is also required with `--app` or `--launch`.
+- The AI-client step (`amoo agent install` guided; `amoo init --client`/`--no-skills`) reuses
+  `runAgentInstall`; with `--client`, `--json`, `--non-interactive` or no TTY it never prompts.
+- It writes a managed `## amoo init` block (between `amoo:init` HTML-comment markers) with the
+  platform, manifest directory and any explicitly supplied app artifact/id — **locations only,
+  never device or runtime ids**. Saved app paths are not automatically selected on later runs.
