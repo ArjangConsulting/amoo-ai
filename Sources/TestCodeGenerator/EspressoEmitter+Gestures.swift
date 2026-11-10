@@ -7,29 +7,38 @@ import StudioProtocol
 /// espresso-core and replay the gestures the live tools perform: a drag holds at the source long
 /// enough to lift the item before moving, and a pinch moves two fingers about the view's centre.
 extension EspressoEmitter {
-    static func dragStatement(for operation: StudioToolOperation) throws -> String {
+    static func dragStatement(for operation: StudioToolOperation, shared: Bool = false) throws -> String {
         let timing = try DragArguments(operation)
         let source = try matcher(operation)
         let target = try matcher(operation.dropTarget)
         let timeout = try timeoutMilliseconds(for: operation)
+        let wait = { (matcher: String, timeout: Int64) in
+            shared
+                ? "\(Self.indent)waitUntilDisplayed(\(matcher), \(timeout)L)"
+                : "\(Self.indent)onView(isRoot()).perform(waitUntilDisplayed(\(matcher), \(timeout)L))"
+        }
         return """
-        \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(source), \(timeout)L))
-        \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeout)L))
+        \(wait(source, timeout))
+        \(wait(target, timeout))
         \(indent)onView(\(source)).perform(dragOnto(\(target), \(timing.holdMilliseconds)L, \(
             timing.durationMilliseconds
         )L))
         """
     }
 
-    static func pinchStatement(for operation: StudioToolOperation) throws -> String {
+    static func pinchStatement(for operation: StudioToolOperation, shared: Bool = false) throws -> String {
         let pinch = try PinchArguments(operation)
         let action = "pinch(\(pinch.scale)f, \(pinch.durationMilliseconds)L)"
         guard PinchArguments.targetsElement(operation) else {
             return "\(indent)onView(isRoot()).perform(\(action))"
         }
         let target = try matcher(operation)
+        let timeout = try timeoutMilliseconds(for: operation)
+        let wait = shared
+            ? "\(indent)waitUntilDisplayed(\(target), \(timeout)L)"
+            : "\(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeout)L))"
         return try """
-        \(indent)onView(isRoot()).perform(waitUntilDisplayed(\(target), \(timeoutMilliseconds(for: operation))L))
+        \(wait)
         \(indent)onView(\(target)).perform(\(action))
         """
     }

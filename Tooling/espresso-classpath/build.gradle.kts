@@ -11,6 +11,9 @@ repositories {
 
 val espressoClasspath: Configuration by configurations.creating
 val composeAndroidArtifacts: Configuration by configurations.creating
+val testCommonsAndroidArtifacts: Configuration by configurations.creating
+
+val testCommonsVersion = "0.1.0"
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
@@ -26,11 +29,21 @@ dependencies {
     espressoClasspath("androidx.compose.foundation:foundation")
     espressoClasspath("androidx.activity:activity-compose:1.12.3")
     espressoClasspath("junit:junit:4.13.2")
+    espressoClasspath("androidx.test.uiautomator:uiautomator:2.4.0")
+    // KotlinTestCommons publishes Android AARs. The JVM-only Gradle variant of the same coordinates
+    // would not contain the Espresso, UiAutomator, or Compose-rule helpers generated tests call.
+    listOf("core", "device", "compose").forEach { module ->
+        testCommonsAndroidArtifacts("io.github.maniramezan.testcommons:$module-android:$testCommonsVersion@aar") {
+            isTransitive = false
+        }
+    }
 }
 
 tasks.register("printClasspath") {
     doLast {
-        (espressoClasspath.resolve() + composeAndroidArtifacts.resolve()).forEach {
+        (
+            espressoClasspath.resolve() + composeAndroidArtifacts.resolve() + testCommonsAndroidArtifacts.resolve()
+        ).forEach {
             println("CLASSPATH_ENTRY:${it.absolutePath}")
         }
     }

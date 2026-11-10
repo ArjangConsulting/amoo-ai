@@ -3,7 +3,18 @@ import StudioProtocol
 // Emits an instrumented Android test that queries Jetpack Compose's semantics tree.
 // swiftlint:disable:next type_body_length
 public struct ComposeEspressoEmitter: StudioCodeEmitting {
-    public init() {}
+    /// The context `imports` entry that opts a generated test into the shared Compose helpers.
+    static let sharedHelpersImport = "io.github.maniramezan.testcommons.compose.*"
+
+    private let useTestCommons: Bool
+
+    /// Creates an emitter. Shared helpers require the KotlinTestCommons `compose` artifact in the
+    /// receiving `androidTest` source set.
+    /// - Parameter useTestCommons: Whether to import and delegate to the shared helper library
+    ///   instead of pasting the scroll helpers into every generated test.
+    public init(useTestCommons: Bool = false) {
+        self.useTestCommons = useTestCommons
+    }
 
     // SwiftLint measures the generated Kotlin template as Swift function body lines.
     // swiftlint:disable:next function_body_length
@@ -13,11 +24,18 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         }
         let className = "\(TestIdentifierNaming.pascalCase(test.name))Test"
         let methodName = "test\(TestIdentifierNaming.pascalCase(test.name))"
-        let needsScrollHelper = operations.contains { Self.isUnscopedScroll($0) }
+        let shared = useTestCommons
+            || TestHelperRendering.imports(for: test.testContext).contains(Self.sharedHelpersImport)
+        let needsScrollHelper = !shared && operations.contains { Self.isUnscopedScroll($0) }
         let body = try operations.indices
             .map { index -> String in
                 let next = index + 1 < operations.count ? operations[index + 1] : nil
-                return try Self.statement(for: operations[index], next: next, context: test.testContext)
+                return try Self.statement(
+                    for: operations[index],
+                    next: next,
+                    context: test.testContext,
+                    useTestCommons: shared
+                )
             }
             .joined(separator: "\n")
         // Statements sit inside `ActivityScenario.launch { }`, one level deeper than they are
@@ -45,15 +63,27 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         let ancestorImport = body.contains("hasAnyAncestor(")
             ? "\nimport androidx.compose.ui.test.hasAnyAncestor" : ""
         let gestureImports = Self.gestureImports(operations)
+        // In shared mode the scroll helpers (the only users of SemanticsActions, SemanticsNodeInteraction
+        // and performSemanticsAction) come from the library; native state assertions still use
+        // semantics inline, so their imports stay in both modes.
+        let semanticsImports = shared
+            ? (nativeStateImports.isEmpty
+                ? ""
+                : "\nimport androidx.compose.ui.semantics.SemanticsProperties"
+                + "\nimport androidx.compose.ui.semantics.SemanticsMatcher"
+                + nativeStateImports
+                + "\n")
+            : "import androidx.compose.ui.semantics.SemanticsActions"
+            + "\nimport androidx.compose.ui.semantics.SemanticsProperties\(nativeStateImports)"
+            + "\nimport androidx.compose.ui.test.SemanticsMatcher"
+            + "\nimport androidx.compose.ui.test.SemanticsNodeInteraction\n"
+        let semanticsActionImport = shared ? "" : "import androidx.compose.ui.test.performSemanticsAction\n"
+        let sharedImports = shared ? Self.sharedImports(body: body).map { "\n\($0)" }.joined() : ""
 
         let source = """
         import android.app.Activity
         import android.content.Intent\(gestureImports)
-        import androidx.compose.ui.semantics.SemanticsActions
-        import androidx.compose.ui.semantics.SemanticsProperties\(nativeStateImports)
-        import androidx.compose.ui.test.SemanticsMatcher
-        import androidx.compose.ui.test.SemanticsNodeInteraction
-        import androidx.compose.ui.test.assertIsDisplayed
+        \(semanticsImports)import androidx.compose.ui.test.assertIsDisplayed
         import androidx.compose.ui.test.assertIsEnabled
         import androidx.compose.ui.test.assertTextContains
         import androidx.compose.ui.test.assertTextEquals
@@ -66,8 +96,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import androidx.compose.ui.test.performScrollTo
         import androidx.compose.ui.test.performClick
         import androidx.compose.ui.test.performScrollToNode
-        import androidx.compose.ui.test.performSemanticsAction
-        import androidx.compose.ui.test.performTextInput
+        \(semanticsActionImport)import androidx.compose.ui.test.performTextInput
         import androidx.compose.ui.test.performTextReplacement
         import androidx.compose.ui.test.performTouchInput
         import androidx.compose.ui.test.swipeDown
@@ -80,7 +109,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         import androidx.test.platform.app.InstrumentationRegistry
         import org.junit.Rule
         import org.junit.Test
-        import org.junit.runner.RunWith\(contextImports.isEmpty ? "" : "\n\(contextImports)")
+        import org.junit.runner.RunWith\(sharedImports)\(contextImports.isEmpty ? "" : "\n\(contextImports)")
 
         /**
          * Generated by amoo from the Studio test "\(test.name)". Edit freely — this file has no
@@ -109,6 +138,13 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     }
 
     static let indent = "        "
+
+    /// The shared-library imports for the helpers the generated body actually calls.
+    private static func sharedImports(body: String) -> [String] {
+        ["scrollByViewport", "scrollContainer", "waitUntilDisplayed", "waitUntilGone"]
+            .filter { body.contains("\($0)(") }
+            .map { "import io.github.maniramezan.testcommons.compose.\($0)" }
+    }
 
     private static func isUnscopedScroll(_ operation: StudioToolOperation) -> Bool {
         operation.tool == StudioTool.scroll.rawValue
@@ -166,7 +202,8 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     static func statement(
         for operation: StudioToolOperation,
         next: StudioToolOperation?,
-        context: StudioTestContext?
+        context: StudioTestContext?,
+        useTestCommons: Bool = false
     ) throws -> String {
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
@@ -177,13 +214,13 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         // No `default`: adding a StudioTool case must fail to compile here until it is handled.
         switch tool {
         case .tapElement:
-            let target = try guardedNode(operation)
+            let target = try guardedNode(operation, shared: useTestCommons)
             return "\(target.wait)\n\(indent)\(target.node).assertIsDisplayed().performClick()"
         case .setText:
             guard let value = operation.arguments["value"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
             }
-            let target = try guardedNode(operation)
+            let target = try guardedNode(operation, shared: useTestCommons)
             return "\(target.wait)\n\(indent)\(target.node)"
                 + ".assertIsDisplayed().performTextReplacement(\(literal(value)))"
         case .typeText:
@@ -196,11 +233,17 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             // GestureDirection inverts scroll for us — see its documentation for why.
             let gesture = try gesture(for: operation)
             if operation.arguments["element_id"] != nil || operation.arguments["element_label"] != nil {
-                let target = try guardedNode(operation, idKey: "element_id", labelKey: "element_label")
+                let target = try guardedNode(
+                    operation,
+                    idKey: "element_id",
+                    labelKey: "element_label",
+                    shared: useTestCommons
+                )
                 return "\(target.wait)\n\(indent)\(target.node)"
                     + ".assertIsDisplayed().performTouchInput { \(gesture)() }"
             }
             if tool == .scroll {
+                let receiver = useTestCommons ? "composeTestRule." : ""
                 // A coordinate swipe (on the root or on the scroll node) is unreliable in Compose:
                 // it is not routed into the nested-scroll system from the root, and a LazyColumn's
                 // scroll node can report zero bounds, making the gesture a no-op. Scroll via
@@ -211,9 +254,9 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
                 if let next, let target = try? Self.lookAheadMatcher(for: next) {
                     // A recorded scroll almost always exists to bring the next step's target on
                     // screen — scroll exactly until it is, which needs no distance guess.
-                    return "\(indent)scrollContainer(vertical = \(vertical)).performScrollToNode(\(target))"
+                    return "\(indent)\(receiver)scrollContainer(vertical = \(vertical)).performScrollToNode(\(target))"
                 }
-                return "\(indent)scrollByViewport(vertical = \(vertical), forward = \(forward))"
+                return "\(indent)\(receiver)scrollByViewport(vertical = \(vertical), forward = \(forward))"
             }
             return "\(indent)composeTestRule.onRoot().performTouchInput { \(gesture)() }"
         case .drag:
@@ -223,13 +266,17 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         case .waitForElement:
             return try waitForNodePresent(semanticsMatcher(operation), timeout: timeoutMilliseconds(for: operation))
         case .assertVisible:
-            let target = try guardedNode(operation)
+            let target = try guardedNode(operation, shared: useTestCommons)
             return "\(target.wait)\n\(indent)\(target.node).assertIsDisplayed()"
         case .assertNotVisible:
             // Poll until no node matches, so a control that is still animating out at the moment the
             // step runs does not fail the assertion. In a Compose tree an off-screen node in a lazy
             // container is already absent from the semantics tree, so this also covers "scrolled away".
-            return try waitForNodeAbsent(semanticsMatcher(operation), timeout: timeoutMilliseconds(for: operation))
+            return try waitForNodeAbsent(
+                semanticsMatcher(operation),
+                timeout: timeoutMilliseconds(for: operation),
+                shared: useTestCommons
+            )
         case .assertText:
             guard let expected = operation.arguments["value"] ?? operation.arguments["expected"] else {
                 throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "value")
@@ -324,7 +371,8 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         _ operation: StudioToolOperation,
         idKey: String = "id",
         labelKey: String = "label",
-        containsTextKey: String = "contains_text"
+        containsTextKey: String = "contains_text",
+        shared: Bool = false
     ) throws -> (wait: String, node: String) {
         let matcher = try semanticsMatcher(
             operation,
@@ -332,7 +380,10 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             labelKey: labelKey,
             containsTextKey: containsTextKey
         )
-        let wait = try waitForNodePresent(matcher, timeout: timeoutMilliseconds(for: operation))
+        let timeout = try timeoutMilliseconds(for: operation)
+        let wait = shared
+            ? "\(indent)composeTestRule.waitUntilDisplayed(\(matcher), timeoutMillis = \(timeout)L)"
+            : waitForNodePresent(matcher, timeout: timeout)
         // A recorded `index` / `first` picks one of several identical matches, which `onNode` rejects.
         if let pick = try XCUITestEmitter.elementPick(operation) {
             return (wait, "composeTestRule.onAllNodes(\(matcher))[\(pick.position)]")
@@ -345,8 +396,11 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isNotEmpty() }"
     }
 
-    private static func waitForNodeAbsent(_ matcher: String, timeout: Int64) -> String {
-        "\(indent)composeTestRule.waitUntil(timeoutMillis = \(timeout)L) { "
+    private static func waitForNodeAbsent(_ matcher: String, timeout: Int64, shared: Bool = false) -> String {
+        if shared {
+            return "\(indent)composeTestRule.waitUntilGone(\(matcher), timeoutMillis = \(timeout)L)"
+        }
+        return "\(indent)composeTestRule.waitUntil(timeoutMillis = \(timeout)L) { "
             + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isEmpty() }"
     }
 

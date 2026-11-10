@@ -229,6 +229,39 @@ Set `TESTCOMMONS_XCUI_MODULE_PATH` to an iOS Simulator build's module directory
 when running the generator's shared-helper compilation test. That test checks the
 actual generated source with Swift 6 and the simulator SDK.
 
+### Android (KotlinTestCommons)
+
+Android projects that depend on [KotlinTestCommons](https://github.com/maniramezan/KotlinTestCommons)
+(`io.github.maniramezan.testcommons`, Maven Central) can opt in the same way, by adding a star import
+to the context's `imports`. Direct emitter callers can instead use `EspressoEmitter(useTestCommons: true)`
+or `ComposeEspressoEmitter(useTestCommons: true)`. Existing generation stays standalone unless
+explicitly opted in. Each emitter has its own marker and artifact:
+
+| Emitter | `imports` entry | `androidTestImplementation` |
+| --- | --- | --- |
+| `EspressoEmitter` (Views) | `io.github.maniramezan.testcommons.device.*` | `...testcommons:device:<version>` |
+| `ComposeEspressoEmitter` | `io.github.maniramezan.testcommons.compose.*` | `...testcommons:compose:<version>` |
+
+```json
+{ "imports": ["io.github.maniramezan.testcommons.device.*"] }
+```
+
+Views: the pasted `waitUntil*` action, `hasResourceEntryName` and `withIndex` are replaced by imports of
+the library's functions of the same names (`waitUntilDisplayed` and `waitUntilNotDisplayed` perform
+`onView(isRoot()).perform(...)` themselves), and the launcher-intent boilerplate becomes
+`launchTargetApp().use { ... }`.
+
+Compose: the pasted `scrollContainer` / `scrollByViewport` helpers become `composeTestRule.scrollContainer(...)`
+and `composeTestRule.scrollByViewport(...)`. Steps that assert the node is displayed afterwards
+(`tap_element`, `set_text`, element-scoped swipes, `assert_visible`) wait with
+`composeTestRule.waitUntilDisplayed(...)`, and `assert_not_visible` waits with `waitUntilGone(...)`, which
+counts a node that exists off screen as gone. Other waits stay presence-based. Two small differences from
+the pasted helper: `scrollByViewport` fails when the root has no size instead of assuming 2000 px, and it
+does not call `waitForIdle()` itself (semantics queries synchronize on their own).
+
+`GeneratedCodeCompileTests` compile-checks both modes against the artifacts in
+`Tooling/espresso-classpath` (needs `kotlinc` and network on first run, as for the standalone output).
+
 ## Repository integration profile
 
 `amoo init --save` discovers Swift UI-test and Kotlin/Java instrumentation harness evidence and writes `amoo.md` alongside
