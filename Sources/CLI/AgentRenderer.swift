@@ -161,7 +161,12 @@ enum AgentRenderer {
         if mode == .standalone, executablePath.hasPrefix("/") {
             source.body = "Use the executable at \(quoted(executablePath)) "
                 + "for every CLI command shown as `amoo` below. "
-                + "Use this absolute path rather than PATH or shell aliases.\n\n" + source.body
+                + "Use this absolute path rather than PATH or shell aliases. "
+                + "This also pins MCP: before device interaction, compare this connection's "
+                + "`dev.amoo/build.binary_path` (resolving symlinks) and `binary_sha256` with that executable. "
+                + "Inherited MCP tools are not trusted by name. If identity differs or cannot be verified, "
+                + "do not use that server for device work; use the pinned CLI for supported checks "
+                + "or report blocked with expected and observed identities.\n\n" + source.body
         }
         switch client {
         case .claude:

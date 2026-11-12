@@ -117,8 +117,12 @@ Read the `driving-amoo` skill's mode-selection table before setup. Subagents del
 MCP/CLI execute it; device ownership prevents concurrent runs from interfering.
 Prefer controlled CLI for checked-in flows and probes. MCP managed sessions are recommended for
 interactive checks and can handle supported checks when the installed CLI lacks `env`.
-Check the pinned binary's `--version`, `--help`, and required subcommand help first, then run
-doctor before either transport. Use `doctor --cli-only --json` for CLI, or
+Check the pinned binary's `--version`, `--help`, and required subcommand help first.
+For MCP, compare `dev.amoo/build.binary_path` (resolve symlinks) and `binary_sha256`
+with the pinned executable before device interaction. Inherited tool names do not prove identity.
+On mismatch or unknown identity, use the correctly scoped server or pinned CLI for supported checks;
+otherwise report blocked with expected and observed identities.
+Run doctor before either transport. Use `doctor --cli-only --json` for CLI, or
 `doctor --mcp-pid <this-server-pid> --json` for MCP, when listed in help. Follow driving-amoo's
 preflight recovery on failure before reporting blocked. Identify your MCP PID from this
 connection's build metadata or warning; reconnect your stale server to the pinned binary.
@@ -160,6 +164,11 @@ Exit codes: 0 ok · 1 failed (probe: a real `pass:false`) · 2 probe could not r
 - A runtime (`--runtime-id` / `AMOO_RUNTIME_ID`) is renewed on use and expires after 60 min idle.
 - Blocked beats a workaround: two identical tooling failures or 5 minutes of setup → report
   `blocked` with command, error and repro. The caller fixes; the verifier verifies.
+- Include in-flight calls in the setup wall-clock budget. Limit each `device_boot` attempt to
+  60 seconds; cancel your own stalled invocation, inspect device state, then retry at most once
+  within the remaining budget. Never overlap boot attempts. If cancellation is unavailable, notify
+  the caller at the deadline and report the pending call. Stop at the setup deadline even during
+  recovery, preserving unchecked screens as not evaluated.
 - Recover before blocking, never by bulk-killing: `deviceClaimed` names its holder (a dead one clears on
   one retry; a live one is another device), an `unresponsive` companion on your lease gets
   `end_session force=true` + `reset_companion` (CLI: `env up --platform <platform> --runtime-id <id>`), and an `Android

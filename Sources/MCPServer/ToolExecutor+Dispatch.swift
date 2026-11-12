@@ -30,22 +30,7 @@ extension DriverToolExecutor {
 
         // Device lifecycle
         case "device_boot":
-            let info: DeviceInfo
-            if let hint = arguments["device_hint"], !hint.isEmpty, let manager = sessionManager {
-                let platform = arguments["platform"].flatMap { Platform(rawValue: $0.lowercased()) }
-                    ?? defaultPlatform ?? .ios
-                info = try await manager.bootDevice(hint: hint, platform: platform)
-            } else {
-                try await driver.boot()
-                info = try await driver.deviceInfo()
-            }
-            guard info.state == .booted else {
-                throw AmooError.commandFailed(command: "device_boot", output: "device state is \(info.state.rawValue)")
-            }
-            return .success(
-                "Device booted and verified: \(info.name)",
-                structuredContent: .object(["verified": .bool(true), "device_id": .string(info.id)])
-            )
+            return try await executeDeviceBoot(driver: driver, arguments: arguments)
 
         case "device_shutdown":
             let target = try? await OperationDeadline.read(until: .now + .seconds(2), operation: {

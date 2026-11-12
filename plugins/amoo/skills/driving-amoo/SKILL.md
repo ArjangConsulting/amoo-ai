@@ -35,6 +35,8 @@ Install local agents with that same --binary path.
 Shell aliases such as amoo-debug do not select spawned MCP processes. Reconnect a running
 MCP server after rebuilding to load the new executable. Release builds are for release verification.
 
+Before device work, [verify pinned MCP identity and enforce boot deadlines](references/execution-modes.md#routing-and-startup-deadlines).
+
 Before device work, check that binary's --version, --help, and doctor --help; select a scope below.
 Doctor is mandatory preflight for both transports. A nonzero exit starts recovery; inspect
 issues before declaring blocked. For CLI work, use `doctor --cli-only --json` when listed in help.

@@ -104,6 +104,10 @@ final class AgentRendererTests: XCTestCase {
                 ).contents
                 XCTAssertTrue(text.contains("Use the executable at \"/tmp/local amoo/.build/debug/amoo\""))
                 XCTAssertTrue(text.contains("rather than PATH or shell aliases"))
+                XCTAssertTrue(text.contains("This also pins MCP"))
+                XCTAssertTrue(text.contains("`dev.amoo/build.binary_path`"))
+                XCTAssertTrue(text.contains("`binary_sha256`"))
+                XCTAssertTrue(text.contains("Inherited MCP tools are not trusted by name"))
             }
         }
         XCTAssertFalse(try render(.copilot, mode: .plugin).contains("Use the executable at"))
