@@ -85,6 +85,11 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
 - Use the absolute MCP/CLI binary selected by the caller or installed agent configuration. Shell
   aliases do not select spawned MCP processes. Record host build metadata and companion capability
   provenance from inspection results; report unknown values explicitly.
+- Before any device interaction, compare this connection's `dev.amoo/build.binary_path` (resolve
+  symlinks) and `binary_sha256` with the pinned executable. An inherited `mcp__amoo__*` tool name
+  does not identify the release. On mismatch or unknown identity, use the correctly scoped server
+  or pinned CLI for supported checks; otherwise report blocked with expected and observed identities.
+  Never silently switch binaries, or stop an inherited server belonging to another client.
 - `amoo --version`. Missing → report `blocked` (owner: environment) with the install hint
   `brew tap arjangconsulting/tap && brew install amoo`.
 - Check `amoo --help` before CLI setup. If `env` is absent, this installed version lacks CLI
@@ -228,6 +233,12 @@ app, use the CLI path.
   `end_session force=true` and start a new session rather than dropping the `session_id`.
 - Budget: two identical failures, or `budget.setup_minutes` (default 5) of setup trouble →
   stop and report `blocked`. Never spend the caller's time working around amoo itself.
+- Count in-flight calls against wall-clock budgets. Limit each `device_boot` attempt to 60 seconds
+  and other setup calls to the remaining setup budget. If a call stalls, cancel your own invocation
+  promptly; inspect device state before one retry, including after the caller boots it manually.
+  Never start a duplicate boot while the first invocation is unresolved. If cancellation is unavailable,
+  notify the caller at the deadline and report the pending call instead of silently waiting.
+  Stop at the setup deadline even during recovery; preserve all unchecked screens as not evaluated.
 - Always clean up: `end_session`, or `amoo env down --runtime-id <runtime>`.
 - A caller-supplied probe contract (builds + checked-in WebView probes + flow) belongs to the
   `device-verifier` agent; follow its skill if you receive one.

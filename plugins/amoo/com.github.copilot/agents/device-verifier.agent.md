@@ -58,6 +58,10 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
 
 - Use the caller's absolute amoo executable path, recording build/capability provenance. Shell aliases
   do not select spawned MCP servers. Delegate app/build/device requirements, never a live session ID.
+- Before device interaction, compare MCP `dev.amoo/build.binary_path` (resolve symlinks) and
+  `binary_sha256` with the pinned executable. Inherited tool names do not prove identity. On mismatch
+  or unknown identity, use the correctly scoped server or pinned CLI for supported checks; otherwise
+  report blocked with expected and observed identities. Never silently use a different binary.
 - Simulators and emulators only. Never a physical device, even if `adb devices` or `devicectl`
   lists one. Always pass an explicit simulator UDID / emulator serial; `export ANDROID_SERIAL` to
   the selected serial before any read-only adb diagnostic.
@@ -71,6 +75,12 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
   allows it; label it in `notes` if it does.
 - Budget: stop after `budget.setup_minutes` (default 5) of setup failures or 2 identical
   failures, and report `blocked`. Never spend time working around amoo — report it.
+- Count in-flight calls against wall-clock budgets. Limit each `device_boot` attempt to 60 seconds
+  and other setup calls to the remaining setup budget. If a call stalls, cancel your own invocation
+  promptly; inspect device state before one retry, including after the caller boots it manually.
+  Never start a duplicate boot while the first invocation is unresolved. If cancellation is unavailable,
+  notify the caller at the deadline and report the pending call instead of silently waiting.
+  Stop at the setup deadline even during recovery; preserve all unchecked screens as not evaluated.
 - Pass flags to amoo as separate arguments (zsh does not word-split `$VAR`; use arrays).
 - Sign in only with `credential="<profile>#<field>"` (profiles in the project's `amoo.config.json`) on
   `amoo device … fill_field --runtime-id <runtime>`; amoo types the value and you never see it. Prefer a mock profile, then a

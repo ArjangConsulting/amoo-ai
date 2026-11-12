@@ -1,4 +1,5 @@
 import AmooCore
+import AmooLogging
 import Foundation
 import SwiftyShell
 #if os(macOS)
@@ -45,6 +46,7 @@ public protocol SimctlRunning: Sendable {
 
 #if os(macOS)
 public struct SimctlRunner: SimctlRunning {
+    private static let logger = AmooLogger.forType(Self.self)
     private let context: ShellContext
 
     public init(context: ShellContext = .init()) {
@@ -75,8 +77,24 @@ public struct SimctlRunner: SimctlRunning {
 
     // MARK: - Device Lifecycle
 
+    /// Waits at most 60 seconds for boot, honoring shorter context and request deadlines.
     public func bootStatus(device: String = "booted") async throws {
-        _ = try await run(.bootStatus(device))
+        try Task.checkCancellation()
+        if let deadline = OperationDeadline.current, ContinuousClock.now >= deadline {
+            throw OperationDeadline.DeadlineExceeded()
+        }
+        let timeout = OperationDeadline.remaining(cappedAt: min(context.defaultTimeout ?? .seconds(60), .seconds(60)))
+        Self.logger.info("Starting simulator boot", context: "stage=bootstatus")
+        await StartupProgress.report("Booting simulator and waiting for readiness (at most 60 seconds)")
+        do {
+            _ = try await run(.custom("bootstatus", arguments: [device, "-b"]), timeout: timeout)
+            Self.logger.info("Simulator boot completed", context: "stage=bootstatus")
+            await StartupProgress.report("Simulator boot completed")
+        } catch {
+            Self.logger.error("Simulator boot failed", error: error, context: "stage=bootstatus")
+            await StartupProgress.report("Simulator boot failed or timed out; inspect device state before retrying")
+            throw error
+        }
     }
 
     public func shutdown(device: String = "booted") async throws {
@@ -187,9 +205,13 @@ public struct SimctlRunner: SimctlRunning {
         try await translatingMobileKitErrors { try await simulators.installedAppBundleIDs(on: device) }
     }
 
-    private func run(_ command: SimctlCommand) async throws -> ProcessResult {
+    private func run(_ command: SimctlCommand, timeout: Swift.Duration? = nil) async throws -> ProcessResult {
         do {
-            return try await Simctl(context: context).command(command).run().processResult
+            var invocation = Simctl(context: context).command(command)
+            if let timeout {
+                invocation = invocation.timeout(timeout)
+            }
+            return try await invocation.run().processResult
         } catch let error as ShellError {
             throw processRunnerError(
                 error, command: (["xcrun", "simctl"] + command.arguments).joined(separator: " ")

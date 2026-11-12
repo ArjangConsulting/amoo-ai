@@ -214,3 +214,29 @@ notification or setup prompt there needs dismissing before retrying.
 Use the documented system scope for permission prompts. Do not guess that an app's controls
 are system UI merely because their labels contain words such as time or settings.
 For WebViews, read [the transport prerequisites](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/webview-introspection.md).
+
+## Routing and startup deadlines
+
+Before device interaction, compare this connection's `dev.amoo/build.binary_path` (resolve symlinks)
+and `binary_sha256` with the pinned executable. A matching tool name or version alone does not prove
+identity. If metadata differs or cannot be verified, use a correctly scoped server or the pinned CLI
+for supported checks; otherwise report blocked with expected and observed identities. Never use an
+inherited debug server for a release-pinned run, or stop another client's inherited server.
+
+Count in-flight setup calls against the caller's wall-clock budget (default setup limit: 5 minutes).
+The caller must monitor delegated setup independently: a subagent waiting inside an MCP call cannot
+enforce its own deadline. At 60 seconds without boot completion, inspect device state and interrupt
+the stalled agent/call; do not wait for a client tool timeout or completion notification. Never start
+a retry while an earlier mutation is unresolved. Bound CLI setup processes with an external timeout.
+Limit each `device_boot` attempt to 60 seconds, cancel your own stalled invocation, inspect device
+state and retry at most once within the remaining budget. Never start a duplicate boot while the
+first call is unresolved. If cancellation is unavailable, notify the caller at the deadline and
+report the pending call. Stop at the setup deadline, including during recovery, and mark unchecked
+screens as not evaluated; do not wait silently for a hung call to return.
+
+Simulator boot stages and failures are logged to macOS unified logging (subsystem `amoo`, categories
+`SimctlRunner` and `DriverToolExecutor`), independently of session creation. Inspect them with
+`log show --info --last 5m --style compact --predicate 'subsystem == "amoo"'`. MCP progress tokens receive
+stage notifications and 10-second heartbeats; `session_startup_status` retains recent boot stages
+for clients without progress display. A timeout ends the wait; the simulator may still finish booting,
+so inspect state before retrying.

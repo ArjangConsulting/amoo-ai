@@ -107,6 +107,7 @@ let package = Package(
         .target(
             name: "ProcessRunner",
             dependencies: [
+                "AmooLogging",
                 "AmooTelemetry",
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
                 "AmooCore",
