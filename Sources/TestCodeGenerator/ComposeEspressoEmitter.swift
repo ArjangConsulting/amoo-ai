@@ -27,17 +27,19 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         let shared = useTestCommons
             || TestHelperRendering.imports(for: test.testContext).contains(Self.sharedHelpersImport)
         let needsScrollHelper = !shared && operations.contains { Self.isUnscopedScroll($0) }
-        let body = try operations.indices
-            .map { index -> String in
-                let next = index + 1 < operations.count ? operations[index + 1] : nil
-                return try Self.statement(
-                    for: operations[index],
-                    next: next,
-                    context: test.testContext,
-                    useTestCommons: shared
-                )
-            }
-            .joined(separator: "\n")
+        let body = try Self.$tagExpressions.withValue(test.testContext?.selectorExpressions ?? [:]) {
+            try operations.indices
+                .map { index -> String in
+                    let next = index + 1 < operations.count ? operations[index + 1] : nil
+                    return try Self.statement(
+                        for: operations[index],
+                        next: next,
+                        context: test.testContext,
+                        useTestCommons: shared
+                    )
+                }
+                .joined(separator: "\n")
+        }
         // Statements sit inside `ActivityScenario.launch { }`, one level deeper than they are
         // emitted. Mirrors EspressoEmitter's launchedBody.
         let launchedBody = body.split(separator: "\n", omittingEmptySubsequences: false)
@@ -404,6 +406,17 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             + "composeTestRule.onAllNodes(\(matcher)).fetchSemanticsNodes().isEmpty() }"
     }
 
+    /// The context's `selectorExpressions` for the test being emitted: recorded test tag to the
+    /// repository's own constant (`"home.title"` to `TestTags.Home.title`). Task-local because every
+    /// statement builder is static and reaches the matcher several calls down.
+    @TaskLocal static var tagExpressions: [String: String] = [:]
+
+    /// A mapped tag is emitted as the repository's expression, so a renamed tag breaks the build
+    /// instead of the test run. An unmapped one stays the recorded string literal.
+    private static func testTag(_ id: String) -> String {
+        tagExpressions[id] ?? literal(id)
+    }
+
     /// Every selector field is a constraint, so the node must satisfy all of them, and sit below the
     /// `parent_id` node when one is given.
     private static func semanticsMatcher(
@@ -414,7 +427,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
     ) throws -> String {
         var constraints: [String] = []
         if let id = operation.arguments[idKey] {
-            constraints.append("hasTestTag(\(literal(id)))")
+            constraints.append("hasTestTag(\(testTag(id)))")
         }
         if let label = operation.arguments[labelKey] {
             constraints.append("hasContentDescription(\(literal(label)))")
@@ -428,7 +441,7 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
             )
         }
         if let parent = operation.arguments["parent_id"], !parent.isEmpty {
-            constraints.append("hasAnyAncestor(hasTestTag(\(literal(parent))))")
+            constraints.append("hasAnyAncestor(hasTestTag(\(testTag(parent))))")
         }
         return constraints.joined(separator: " and ")
     }

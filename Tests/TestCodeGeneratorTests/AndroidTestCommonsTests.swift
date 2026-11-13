@@ -133,6 +133,24 @@ final class AndroidTestCommonsTests: XCTestCase {
         XCTAssertFalse(shared.contains("private fun "))
     }
 
+    func testComposeSelectorsUseTheRepositoryTagCatalogAndKeepUnmappedTagsLiteral() throws {
+        let context = StudioTestContext(
+            imports: ["com.example.app.TestTags"],
+            selectorExpressions: ["submit": "TestTags.Checkout.submit"]
+        )
+
+        let source = try ComposeEspressoEmitter()
+            .generate(makeTest(operations: composeOperations, context: context)).source
+
+        XCTAssertTrue(source.contains("import com.example.app.TestTags"))
+        XCTAssertTrue(source.contains("hasTestTag(TestTags.Checkout.submit)"))
+        XCTAssertFalse(source.contains("hasTestTag(\"submit\")"))
+        XCTAssertTrue(source.contains("hasTestTag(\"spinner\")"))
+        // The catalog is scoped to one emit; a later test without a context sees none of it.
+        let standalone = try ComposeEspressoEmitter().generate(makeTest(operations: composeOperations)).source
+        XCTAssertTrue(standalone.contains("hasTestTag(\"submit\")"))
+    }
+
     func testTheDeviceImportDoesNotOptTheComposeEmitterIn() throws {
         let context = StudioTestContext(imports: [deviceImport])
 

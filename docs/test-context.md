@@ -58,6 +58,9 @@ fields are kept). The plan's embedded `testContext` is what `amoo generate test`
     "app.task_list.row.chore": "AppUIAutomationID.task.chore"
   },
 
+  // Compose exports apply the same map to test tags: a recorded tag listed here is emitted as
+  // `hasTestTag(<expression>)` (add the catalog's import to `imports`); unmapped tags stay literals.
+  // The Views Espresso emitter does not use it, since its ids resolve by resource entry name.
   // Optional lookup template for mapped ids. Default keeps the standalone XCUITest shape:
   //   "app.descendants(matching: .any)[{{id}}]"
   "idLookupTemplate": "app.element(id: {{id}})",
