@@ -52,6 +52,8 @@ struct UsageReport: Codable, Equatable {
         var repeatedCalls = 0
         var compactCalls = 0
         var surfaces: [String: Int] = [:]
+        /// Failed calls by machine code. Optional so a baseline written before the field still decodes.
+        var failureCauses: [String: Int]?
     }
 
     struct RPCUsage: Codable, Equatable {

@@ -104,6 +104,7 @@ enum UsageTraceReader {
                 callID: span.attributes[TelemetryAttribute.callID],
                 milliseconds: span.durationMs,
                 failed: span.failed,
+                errorCode: span.attributes[TelemetryAttribute.errorType],
                 responseBytes: span.int(TelemetryAttribute.responseBytes),
                 textBytes: span.int(TelemetryAttribute.responseTextBytes),
                 inlineImageBytes: inline ? span.int(TelemetryAttribute.imageBytes) : 0,
@@ -174,6 +175,7 @@ enum UsageLedgerReader {
         let startedAt: String
         let status: String
         let metrics: [String: Int]
+        let errorCode: String?
     }
 
     static func read(directory: URL, since: Date?, runID: String?) -> [Entry] {
@@ -202,6 +204,7 @@ enum UsageLedgerReader {
                 callID: entry.callID,
                 milliseconds: entry.metrics["elapsed_ms", default: 0],
                 failed: entry.status == "failed",
+                errorCode: entry.errorCode,
                 responseBytes: entry.metrics["wire_response_bytes", default: 0],
                 textBytes: entry.metrics["text_payload_bytes", default: 0],
                 inlineImageBytes: imageBytes,
@@ -222,6 +225,7 @@ struct ToolSample {
     var callID: String?
     var milliseconds: Int
     var failed: Bool
+    var errorCode: String?
     var responseBytes: Int
     var textBytes: Int
     var inlineImageBytes: Int
@@ -252,6 +256,11 @@ struct ToolSample {
                 usage.repeatedCalls += sample.repeated ? 1 : 0
                 usage.compactCalls += sample.compact ? 1 : 0
                 usage.surfaces[sample.surface, default: 0] += 1
+                if sample.failed {
+                    // An entry older than the code field still counts, as a cause nobody recorded.
+                    usage.failureCauses = (usage.failureCauses ?? [:])
+                        .merging([sample.errorCode ?? "unrecorded": 1], uniquingKeysWith: +)
+                }
             }
             return usage
         }.sorted { $0.totalMs > $1.totalMs }

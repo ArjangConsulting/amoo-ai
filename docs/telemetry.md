@@ -51,7 +51,9 @@ It joins, from local files only:
 - **Tool latency and payloads** from `execute_tool` spans, merged with the run ledger
   (`sessions/runs/`) for calls recorded before spans existed (spans carry the ledger's
   `amoo.call.id`, so nothing is counted twice): calls, failures, p50/p95, response bytes, inline
-  versus saved screenshots, compact-mode adoption, surface (`mcp`/`cli`/`flow`).
+  versus saved screenshots, compact-mode adoption, surface (`mcp`/`cli`/`flow`). Failed calls are
+  broken down per tool by machine code (`startup_failed`, `session_not_found`, …) under "Failure
+  causes"; ledger entries written before the code was recorded count as `unrecorded`.
 - **Where the time goes** inside calls: companion RPCs with device time (`amoo-server-ms`) versus
   transport overhead, device-queue waits, hierarchy reads, subprocesses (`exec adb shell`, …) and
   startup phases.

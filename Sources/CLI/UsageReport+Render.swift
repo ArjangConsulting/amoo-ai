@@ -108,6 +108,14 @@ extension UsageReport {
                 ]
             }
         ))
+        let failing = tools.filter { $0.failures > 0 }.sorted { $0.failures > $1.failures }.prefix(10)
+        if !failing.isEmpty {
+            lines.append("")
+            lines.append("Failure causes")
+            for tool in failing {
+                lines.append("  \(tool.tool): \(Self.top(tool.failureCauses ?? [:]))")
+            }
+        }
         if !rpcs.isEmpty {
             lines.append("")
             lines.append("Companion RPCs")
