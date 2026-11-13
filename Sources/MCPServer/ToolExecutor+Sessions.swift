@@ -68,8 +68,8 @@ extension DriverToolExecutor {
             return .error("fresh_install=true requires build_path; no app data was removed.")
         }
         let testName = arguments["test_name"]
-        let contextJSON: String?
-        do { contextJSON = try Self.contextSnapshot(arguments, platform: platform) } catch {
+        let (contextJSON, contextWarning): (String?, String?)
+        do { (contextJSON, contextWarning) = try Self.startupContext(arguments, platform: platform) } catch {
             return .error("Invalid context: \(error)")
         }
         let launch = Self.launchConfiguration(arguments: arguments, contextJSON: contextJSON)
@@ -137,9 +137,10 @@ extension DriverToolExecutor {
             ])
             var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
                 + " device \(session.deviceID)."
-            if let contentionWarning {
-                summary["warnings"] = .array([.string(contentionWarning)])
-                text += "\n⚠️ \(contentionWarning)"
+            let warnings = [contextWarning, contentionWarning].compactMap(\.self)
+            if !warnings.isEmpty {
+                summary["warnings"] = .array(warnings.map(Value.string))
+                text += warnings.map { "\n⚠️ \($0)" }.joined()
             }
             return .success(text, structuredContent: .object(summary))
         } catch {

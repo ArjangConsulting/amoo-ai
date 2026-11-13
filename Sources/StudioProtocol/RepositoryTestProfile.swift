@@ -56,7 +56,7 @@ public enum RepositoryTestProfile {
         while true {
             let file = root.appendingPathComponent("amoo.md")
             if FileManager.default.fileExists(atPath: file.path),
-               let block = try select(blocks(in: file), platform: platform) {
+               let block = try select(blocks(in: file, requiringFence: false), platform: platform) {
                 layers.append(block)
             }
             if isRepositoryBoundary(root) || root.path == "/" {
@@ -69,7 +69,7 @@ public enum RepositoryTestProfile {
                 .appendingPathComponent("amoo.md").standardizedFileURL
             let known = layers.contains { $0.file == file }
             if !known, FileManager.default.fileExists(atPath: file.path),
-               let block = try select(blocks(in: file), platform: platform) {
+               let block = try select(blocks(in: file, requiringFence: false), platform: platform) {
                 layers.insert(block, at: 0)
             }
         }
@@ -146,7 +146,9 @@ public enum RepositoryTestProfile {
         }
     }
 
-    private static func blocks(in file: URL) throws -> [Block] {
+    /// `requiringFence` is for a file the caller named. Discovery passes `false`: an `amoo.md` that only
+    /// holds prose guidance for agents is a valid file that contributes no context layer.
+    private static func blocks(in file: URL, requiringFence: Bool = true) throws -> [Block] {
         let data = try Data(contentsOf: file)
         if file.pathExtension == "json" {
             return try [Block(data, in: file)]
@@ -161,7 +163,9 @@ public enum RepositoryTestProfile {
             try blocks.append(Block(Data(text[start.upperBound ..< end.lowerBound].utf8), in: file))
             remaining = end.upperBound ..< text.endIndex
         }
-        guard !blocks.isEmpty else { throw ProfileError("No amoo-context fence in \(file.path).") }
+        guard !blocks.isEmpty || !requiringFence else {
+            throw ProfileError("No amoo-context fence in \(file.path).")
+        }
         return blocks
     }
 
