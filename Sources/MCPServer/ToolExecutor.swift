@@ -168,7 +168,14 @@ public actor DriverToolExecutor: ToolExecutor {
             )
         }
         guard await session.isActive else {
-            throw ToolExecutionError(code: "session_closed", message: "Session is closed. Start a new session.")
+            let idle = await manager.wasEndedForInactivity(sessionID)
+            throw ToolExecutionError(
+                code: "session_closed",
+                message: idle
+                    ? "Session was ended after its idle limit to release the device (AMOO_SESSION_IDLE_MINUTES)."
+                    + " Its recording is saved. Call start_session again; the companion stays warm."
+                    : "Session is closed. Start a new session."
+            )
         }
         return session.driver
     }

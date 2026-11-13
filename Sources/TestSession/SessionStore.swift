@@ -78,12 +78,28 @@ public struct FileSessionStore: SessionStore {
         if let override = ProcessInfo.processInfo.environment["AMOO_SESSIONS_DIR"],
            !override.isEmpty {
             root = URL(fileURLWithPath: override, isDirectory: true)
+        } else if Self.isRunningTests {
+            // In-process tests reach this default through the CLI entry points. Their deliberate
+            // failures must not land in the developer's own store and skew `amoo usage report`.
+            root = FileManager.default.temporaryDirectory
+                .appending(
+                    path: "amoo-test-sessions-\(ProcessInfo.processInfo.processIdentifier)",
+                    directoryHint: .isDirectory
+                )
         } else {
             root = FileManager.default
                 .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appending(path: "Amoo/sessions", directoryHint: .isDirectory)
         }
     }
+
+    /// True inside an XCTest or Swift Testing runner (`xctest`, `<Package>PackageTests.xctest`,
+    /// `swiftpm-testing-helper`).
+    static let isRunningTests: Bool = {
+        let name = ProcessInfo.processInfo.processName
+        return name == "xctest" || name.hasSuffix(".xctest") || name == "swiftpm-testing-helper"
+            || NSClassFromString("XCTestCase") != nil
+    }()
 
     public func directory(for sessionID: String) -> URL {
         let component = Self.validSessionID(sessionID) ? sessionID : "invalid-session-id"
@@ -166,6 +182,48 @@ public struct FileSessionStore: SessionStore {
 
     public func recordingHealth(sessionID: String) async -> String {
         await health.get(sessionID)
+    }
+
+    /// Frees what nothing reads any more: the app copy a session installed from (kept for a while as
+    /// evidence, and the bulk of the store), and run-ledger entries older than any report window.
+    /// Reports, plans and flows stay. Returns the number of directories removed.
+    @discardableResult
+    public func prune(
+        snapshotsOlderThan snapshotAge: TimeInterval = Self.snapshotRetention(),
+        ledgerOlderThan ledgerAge: TimeInterval = 30 * 86400,
+        now: Date = Date()
+    ) -> Int {
+        let manager = FileManager.default
+        let keys: [URLResourceKey] = [.contentModificationDateKey]
+        func expired(_ url: URL, age: TimeInterval) -> Bool {
+            guard age > 0,
+                  let modified = (try? url.resourceValues(forKeys: Set(keys)))?.contentModificationDate
+            else { return false }
+            return now.timeIntervalSince(modified) > age
+        }
+        var removed = 0
+        for entry in (try? manager.contentsOfDirectory(at: root, includingPropertiesForKeys: keys)) ?? []
+            where Self.validSessionID(entry.lastPathComponent) {
+            let build = entry.appending(path: "build", directoryHint: .isDirectory)
+            if manager.fileExists(atPath: build.path), expired(build, age: snapshotAge),
+               (try? manager.removeItem(at: build)) != nil {
+                removed += 1
+            }
+        }
+        let runs = root.appending(path: "runs", directoryHint: .isDirectory)
+        for run in (try? manager.contentsOfDirectory(at: runs, includingPropertiesForKeys: keys)) ?? []
+            where expired(run, age: ledgerAge) && (try? manager.removeItem(at: run)) != nil {
+            removed += 1
+        }
+        return removed
+    }
+
+    /// `AMOO_SNAPSHOT_RETENTION_DAYS` (default 3; 0 keeps every snapshot).
+    public static func snapshotRetention(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> TimeInterval {
+        let days = environment["AMOO_SNAPSHOT_RETENTION_DAYS"].flatMap(Double.init) ?? 3
+        return max(0, days) * 86400
     }
 
     private static func validSessionID(_ id: String) -> Bool {

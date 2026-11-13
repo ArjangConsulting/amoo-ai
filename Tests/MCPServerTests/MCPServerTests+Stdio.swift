@@ -160,6 +160,12 @@ extension MCPServerTests {
             process.arguments = ["mcp", "serve"]
             var environment = ProcessInfo.processInfo.environment
             environment["AMOO_MCP_DIAGNOSTICS"] = diagnostics ? "1" : nil
+            // The spawned server records sessions, the run ledger and traces. Left on the default
+            // store, these deliberate failures show up in the developer's own `amoo usage report`.
+            let store = FileManager.default.temporaryDirectory.appending(path: "amoo-stdio-tests-\(getpid())")
+            environment["AMOO_SESSIONS_DIR"] = store.path
+            environment["AMOO_RUNTIME_DIR"] = store.appending(path: "runtimes").path
+            addTeardownBlock { try? FileManager.default.removeItem(at: store) }
             process.environment = environment
 
             let stdin = Pipe()

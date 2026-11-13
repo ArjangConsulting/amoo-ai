@@ -22,6 +22,14 @@ private struct ReliabilityBootstrapper: SessionBootstrapper {
 
 private struct ReliabilityNoopDriver: PlatformDriver {}
 
+private actor ReleaseCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
+    }
+}
+
 private actor HeldSessionStore: SessionStore {
     let root: URL
     var hold = false
@@ -67,6 +75,39 @@ private actor HeldSessionStore: SessionStore {
 }
 
 final class SessionReliabilityTests: XCTestCase {
+    func testIdleSessionIsEndedAndReleasesItsDeviceWhileAnActiveOneStays() async throws {
+        let released = ReleaseCounter()
+        let manager = SessionManager(
+            bootstrapper: ReliabilityBootstrapper(cancelBeforeReturning: false) { await released.increment() },
+            idleLimit: .seconds(60)
+        )
+        let idle = try await manager.startSession(appID: "com.example", platform: .ios)
+        let busy = try await manager.startSession(appID: "com.example", platform: .ios)
+
+        let none = await manager.endIdleSessions(now: .now + .seconds(30))
+        XCTAssertEqual(none, [])
+        // Resolving a session is what a tool call does, so it restarts that session's clock.
+        try await Task.sleep(for: .milliseconds(20))
+        _ = await manager.session(busy.id)
+        let ended = await manager.endIdleSessions(now: .now + .seconds(60) - .milliseconds(10))
+
+        XCTAssertEqual(ended, [idle.id])
+        let idleActive = await idle.isActive
+        let busyActive = await busy.isActive
+        XCTAssertFalse(idleActive)
+        XCTAssertTrue(busyActive)
+        let count = await released.value
+        XCTAssertEqual(count, 1)
+        let reason = await manager.wasEndedForInactivity(idle.id)
+        XCTAssertTrue(reason)
+    }
+
+    func testIdleLimitComesFromTheEnvironmentAndZeroDisablesIt() {
+        XCTAssertEqual(SessionManager.idleLimitFromEnvironment([:]), .seconds(1800))
+        XCTAssertEqual(SessionManager.idleLimitFromEnvironment(["AMOO_SESSION_IDLE_MINUTES": "5"]), .seconds(300))
+        XCTAssertNil(SessionManager.idleLimitFromEnvironment(["AMOO_SESSION_IDLE_MINUTES": "0"]))
+    }
+
     func testCancelledBootstrapCleansUpWithoutPublishingSession() async {
         let cleaned = expectation(description: "bootstrap resources released")
         let manager = SessionManager(bootstrapper: ReliabilityBootstrapper(cancelBeforeReturning: true, cleanup: {

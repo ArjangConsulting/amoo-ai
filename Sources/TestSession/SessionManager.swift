@@ -32,14 +32,26 @@ public actor SessionManager {
     private static let flushActionThreshold = 10
     private static let flushInterval: TimeInterval = 5
 
+    /// A session nobody has called for this long is ended, which releases its device and companion.
+    /// An agent that stops without `end_session` otherwise holds both until its server exits.
+    let idleLimit: Swift.Duration?
+    let idleCheckInterval: Swift.Duration
+    var lastActivity: [String: ContinuousClock.Instant] = [:]
+    var idleEnded = Set<String>()
+    var idleReaper: Task<Void, Never>?
+
     public init(
         bootstrapper: any SessionBootstrapper,
         idGenerator: @escaping @Sendable () -> String = { UUID().uuidString },
-        store: (any SessionStore)? = nil
+        store: (any SessionStore)? = nil,
+        idleLimit: Swift.Duration? = nil,
+        idleCheckInterval: Swift.Duration = .seconds(30)
     ) {
         self.bootstrapper = bootstrapper
         self.idGenerator = idGenerator
         self.store = store
+        self.idleLimit = idleLimit
+        self.idleCheckInterval = idleCheckInterval
     }
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
@@ -139,12 +151,17 @@ public actor SessionManager {
             }
         )
         sessions[id] = session
+        lastActivity[id] = .now
+        startIdleReaperIfNeeded()
         await flush(id)
         return session
     }
 
+    /// Looking a session up counts as activity: every tool call that names a session resolves it here.
     public func session(_ id: String) -> TestSession? {
-        sessions[id]
+        guard let session = sessions[id] else { return nil }
+        lastActivity[id] = .now
+        return session
     }
 
     public func endSession(_ id: String, force: Bool = false) async throws {
@@ -333,6 +350,8 @@ public actor SessionManager {
         }
         await drainPendingWrites()
         sessions.removeAll()
+        idleReaper?.cancel()
+        idleReaper = nil
         flushTimers.values.forEach { $0.cancel() }
         flushTimers.removeAll()
     }
