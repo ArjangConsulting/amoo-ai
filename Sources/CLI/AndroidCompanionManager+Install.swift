@@ -1,4 +1,5 @@
 import AdbKit
+import AmooCore
 import AmooLogging
 import Foundation
 import SwiftyShell
@@ -21,10 +22,12 @@ extension AndroidCompanionManager {
     func installAPKs(
         config: AndroidCompanionConfig,
         appApkPath: String,
-        testApkPath: String
+        testApkPath: String,
+        force: Bool = false
     ) async throws {
         let device = config.serial ?? "default device"
-        let apiLevel = await deviceAPILevel(config: config)
+        let state = await deviceInstallState(config: config)
+        let apiLevel = state.apiLevel
         logger.info(
             "Installing Android companion APKs",
             context: "action=install device=\(device) apiLevel=\(apiLevel.map(String.init) ?? "unknown")"
@@ -37,7 +40,15 @@ extension AndroidCompanionManager {
                 diagnosis.message(label: "companion", serial: config.serial, apiLevel: apiLevel, output: "")
             )
         }
+        let packages = ["app": "com.amoo.companion", "test": "com.amoo.companion.test"]
         for (label, apkPath) in [("app", appApkPath), ("test", testApkPath)] {
+            // The device already holds these exact bytes: installing them again changes nothing and
+            // is most of a warm start. `force` reinstalls regardless.
+            if !force, let package = packages[label], let installed = state.installed[package],
+               installed == sha256Hex(ofRegularFile: apkPath) {
+                logger.info("Android companion APK already installed", context: "action=install label=\(label)")
+                continue
+            }
             var failure = try await runInstall(config: config, apkPath: apkPath)
             if let output = failure,
                AndroidInstallDiagnosis.diagnose(output: output, apiLevel: apiLevel).reinstallFixes {
@@ -63,14 +74,35 @@ extension AndroidCompanionManager {
         logger.info("Installed Android companion APKs", context: "action=install device=\(device)")
     }
 
-    /// The device's `ro.build.version.sdk`, or `nil` when it cannot be read.
-    func deviceAPILevel(config: AndroidCompanionConfig) async -> Int? {
+    /// One round trip for everything an install decision needs: the API level on the first line,
+    /// then `<package> <sha256>` for each companion package already on the device.
+    static let installStateCommand = "getprop ro.build.version.sdk; "
+        + "for p in com.amoo.companion com.amoo.companion.test; do "
+        + "f=$(pm path $p 2>/dev/null | head -1 | cut -d: -f2); "
+        + #"[ -n "$f" ] && echo "$p $(sha256sum "$f" 2>/dev/null | cut -d" " -f1)"; "#
+        + "done; true"
+
+    /// The device's `ro.build.version.sdk` (`nil` when unreadable) and the SHA-256 of each installed
+    /// companion APK. A device without `sha256sum`, or without the packages, reports none installed.
+    func deviceInstallState(config: AndroidCompanionConfig) async -> (apiLevel: Int?, installed: [String: String]) {
         let result = try? await Adb(context: shellContext)
             .serial(config.serial)
-            .getprop("ro.build.version.sdk")
+            .shell(Self.installStateCommand)
             .run()
             .processResult
-        return result.flatMap { Int($0.stdout.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        return Self.parseInstallState(result?.stdout ?? "")
+    }
+
+    static func parseInstallState(_ output: String) -> (apiLevel: Int?, installed: [String: String]) {
+        let lines = output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        var installed: [String: String] = [:]
+        for line in lines.dropFirst() {
+            let fields = line.split(separator: " ")
+            // A SHA-256 is 64 hex digits; anything else is an error message, not a digest.
+            guard fields.count == 2, fields[1].count == 64, fields[1].allSatisfy(\.isHexDigit) else { continue }
+            installed[String(fields[0])] = String(fields[1]).lowercased()
+        }
+        return (lines.first.flatMap { Int($0) }, installed)
     }
 
     /// One `adb install -r`. The result is adb's combined output when it exited non-zero, and `nil`

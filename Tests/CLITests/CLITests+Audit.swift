@@ -1,3 +1,4 @@
+import AmooCore
 import AuditEngine
 @testable import CLI
 import Foundation
@@ -92,6 +93,44 @@ extension CLITests {
         XCTAssertEqual(commands.last?.prefix(5), ["adb", "-s", "emulator-5554", "install", "-r"])
     }
 
+    func testAndroidCompanionInstallSkipsAnAPKTheDeviceAlreadyHoldsUnlessForced() async throws {
+        let companionDir = try makeTemporaryDirectory()
+        try createAndroidAPKFixtures(at: companionDir)
+        let manager = AndroidCompanionManager()
+        let apks = manager.apkPaths(companionDir: companionDir, useBundled: false)
+        let appHash = try XCTUnwrap(sha256Hex(ofRegularFile: apks.app))
+        let state = "35\ncom.amoo.companion \(appHash)\ncom.amoo.companion.test \(String(repeating: "0", count: 64))\n"
+        func install(force: Bool) async -> [[String]] {
+            let runner = MockCLIProcessRunner(results: [
+                .success(.init(exitCode: 0, stdout: state, stderr: "")),
+                .success(.init(exitCode: 0, stdout: "Success", stderr: "")),
+                .success(.init(exitCode: 0, stdout: "Success", stderr: ""))
+            ])
+            let result = await runAndroidCompanionInstall(
+                options: CompanionCommandOptions(
+                    action: .install,
+                    platform: .android,
+                    deviceID: "emulator-5554",
+                    companionDir: companionDir,
+                    force: force
+                ),
+                processRunner: runner,
+                currentDirectory: companionDir
+            )
+            XCTAssertEqual(result.exitCode, 0, result.output)
+            return await runner.recordedCommands().filter { $0.contains("install") }
+        }
+
+        let warm = await install(force: false)
+        XCTAssertEqual(warm.count, 1)
+        XCTAssertEqual(warm.first?.last, apks.test)
+        let forced = await install(force: true)
+        XCTAssertEqual(forced.count, 2)
+        let parsed = AndroidCompanionManager.parseInstallState("35\ncom.amoo.companion sha256sum: not found\n")
+        XCTAssertEqual(parsed.apiLevel, 35)
+        XCTAssertEqual(parsed.installed, [:])
+    }
+
     func testRunAndroidCompanionInstallRemovesItsOwnPackagesOnceAfterASignatureClash() async throws {
         let companionDir = try makeTemporaryDirectory()
         try createAndroidAPKFixtures(at: companionDir)
@@ -176,7 +215,8 @@ extension CLITests {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertEqual(result.output, "")
         XCTAssertEqual(commands.count, 3)
-        XCTAssertEqual(commands[0][0 ... 2], ["adb", "shell", "getprop"])
+        XCTAssertEqual(commands[0][0 ... 1], ["adb", "shell"])
+        XCTAssertTrue(commands[0][2].hasPrefix("getprop ro.build.version.sdk;"), commands[0][2])
         XCTAssertEqual(commands[1][0 ... 2], ["adb", "install", "-r"])
         XCTAssertEqual(commands[2][0 ... 2], ["adb", "install", "-r"])
     }
