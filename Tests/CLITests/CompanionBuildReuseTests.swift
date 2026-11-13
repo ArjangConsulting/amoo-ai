@@ -31,6 +31,27 @@ final class CompanionBuildReuseTests: XCTestCase {
         }
     }
 
+    func testOnlyHostSourcesTheCompanionCompilesInvalidateItsCache() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let directory = scratch.url.appending(path: "CompanionApps/iOS")
+        let core = scratch.url.appending(path: "Sources/AmooCore")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: core, withIntermediateDirectories: true)
+        try "    sources:\n      - path: Sources\n      - path: ../../Sources/AmooCore/Geometry.swift\n"
+            .write(to: directory.appending(path: "project.yml"), atomically: true, encoding: .utf8)
+        try Data("compiled".utf8).write(to: core.appending(path: "Geometry.swift"))
+        let config = CompanionConfig(companionDir: directory.path, deviceUDID: "sim")
+        let manager = CompanionManager()
+        let built = manager.currentSourceFingerprint(config: config)
+
+        try Data("host only".utf8).write(to: core.appending(path: "BuildInfo.swift"))
+        XCTAssertEqual(manager.currentSourceFingerprint(config: config), built)
+
+        try Data("changed".utf8).write(to: core.appending(path: "Geometry.swift"))
+        XCTAssertNotEqual(manager.currentSourceFingerprint(config: config), built)
+    }
+
     func testSimulatorBuildSigningIsExplicitAndPhysicalProductsAreExcluded() async throws {
         let runner = MockCLIProcessRunner(results: [.success(.init(exitCode: 0, stdout: "", stderr: ""))])
         let manager = CompanionManager(processRunner: runner)
