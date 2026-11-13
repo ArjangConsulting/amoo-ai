@@ -210,7 +210,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
         try await withSpinner("Installing Android companion APKs") {
-            try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
+            try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk, force: force)
         }
         print(styled("Android companion installed successfully.", .green))
     }
@@ -274,7 +274,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         await StartupProgress.report("Installing Android companion APKs")
         print("Installing Android companion APKs...")
         try await withSpinner("Installing Android companion APKs") {
-            try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk)
+            try await self.installAPKs(config: config, appApkPath: appApk, testApkPath: testApk, force: force)
         }
 
         // Always clear a stale instance before (re)launching. We only reach here because the
