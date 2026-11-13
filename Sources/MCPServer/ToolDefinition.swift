@@ -104,24 +104,30 @@ public struct ToolDefinition: Sendable {
         ])
     }
 
+    /// Output objects stay open. A schema-validating client rejects the whole result of a successful
+    /// call over one undeclared field, so a closed output schema turns every added diagnostic field
+    /// into an outage; arguments stay closed because a misspelled one must not be silently ignored.
     private func outputSchemaValue() -> Value? {
         guard let outputSchema else { return nil }
         return .object([
             "type": .string("object"),
-            "properties": .object(outputSchema.properties.mapValues(toolPropertyValue)),
-            "required": .array(outputSchema.required.map { .string($0) }),
-            "additionalProperties": .bool(false)
+            "properties": .object(outputSchema.properties.mapValues { toolPropertyValue($0, closed: false) }),
+            "required": .array(outputSchema.required.map { .string($0) })
         ])
     }
 }
 
 private func toolPropertyValue(_ property: ToolInputProperty) -> Value {
+    toolPropertyValue(property, closed: true)
+}
+
+private func toolPropertyValue(_ property: ToolInputProperty, closed: Bool) -> Value {
     var fields: [String: Value] = [
         "type": .string(property.type),
         "description": .string(property.description)
     ]
     if let items = property.items {
-        fields["items"] = itemsSchemaValue(items)
+        fields["items"] = itemsSchemaValue(items, closed: closed)
     }
     if let values = property.values, !values.isEmpty {
         fields[property.valuesAreExhaustive ? "enum" : "examples"] = .array(values.map { .string($0) })
@@ -129,17 +135,20 @@ private func toolPropertyValue(_ property: ToolInputProperty) -> Value {
     return .object(fields)
 }
 
-private func itemsSchemaValue(_ schema: ToolItemsSchema) -> Value {
+private func itemsSchemaValue(_ schema: ToolItemsSchema, closed: Bool) -> Value {
     switch schema {
     case let .scalar(type):
-        .object(["type": .string(type)])
+        return .object(["type": .string(type)])
     case let .object(properties, required):
-        .object([
+        var fields: [String: Value] = [
             "type": .string("object"),
-            "properties": .object(properties.mapValues(toolPropertyValue)),
-            "required": .array(required.map { .string($0) }),
-            "additionalProperties": .bool(false)
-        ])
+            "properties": .object(properties.mapValues { toolPropertyValue($0, closed: closed) }),
+            "required": .array(required.map { .string($0) })
+        ]
+        if closed {
+            fields["additionalProperties"] = .bool(false)
+        }
+        return .object(fields)
     }
 }
 

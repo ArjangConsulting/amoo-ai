@@ -117,8 +117,8 @@ final class MCPServerTests: XCTestCase {
         let outputSchema = try XCTUnwrap(tool.outputSchema)
         XCTAssertTrue(outputSchema.description.contains("confidence"))
         XCTAssertTrue(outputSchema.description.contains("suggestedActions"))
-        XCTAssertTrue(outputSchema.description.contains("additionalProperties"))
-        XCTAssertTrue(outputSchema.description.contains("false"))
+        // Arguments are closed; results stay open so an added field cannot fail a validating client.
+        XCTAssertFalse(outputSchema.description.contains("additionalProperties"))
     }
 
     func testArrayOutputPropertyEmitsItemsSchema() throws {

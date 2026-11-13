@@ -8,10 +8,14 @@ enum ToolContracts {
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func enrich(_ definition: ToolDefinition) -> ToolDefinition {
         var definition = definition
+        // These three arguments sit on nearly every tool, so their wording is paid for some eighty
+        // times in `tools/list`. The full contract is stated once, where a caller first meets it.
         definition.properties["run_id"] = .init(
             type: "string",
-            description: "Caller UUID (e.g. 550e8400-e29b-41d4-a716-446655440000) for telemetry across startup,"
+            description: definition.name == "start_session"
+                ? "Caller UUID (e.g. 550e8400-e29b-41d4-a716-446655440000) for telemetry across startup,"
                 + " recovery and abandoned sessions; any other format is rejected as invalid_argument"
+                : "Run UUID from start_session; a non-UUID is rejected"
         )
         if definition.name.hasPrefix("webview_") {
             definition.properties["platform"] = .init(type: "string", description: "Override inspector platform")
@@ -19,9 +23,11 @@ enum ToolContracts {
         if definition.properties["session_id"] != nil {
             definition.properties["response_mode"] = .init(
                 type: "string",
-                description: "Default compacts element rows; compact also shortens the text and omits"
+                description: ["find_elements", "tap_element", "describe_screen"].contains(definition.name)
+                    ? "Default compacts element rows; compact also shortens the text and omits"
                     + " default-valued tap_element fields; full keeps semantics and bounds."
-                    + " Assertions retain identical proof fields",
+                    + " Assertions retain identical proof fields"
+                    : "compact shortens the result; full keeps semantics and bounds",
                 values: ["full", "compact"]
             )
         }
