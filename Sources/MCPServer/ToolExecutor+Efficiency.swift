@@ -37,7 +37,7 @@ extension DriverToolExecutor {
         var textResult = result
         textResult.image = nil
         await runTelemetry.finish(
-            call, failed: result.isError,
+            call, failed: result.isError, errorCode: Self.errorCode(result),
             sessionID: arguments["session_id"] ?? result.structuredContent?.objectValue?["session_id"]?.stringValue,
             metrics: [
                 "elapsed_ms": Self.elapsedMilliseconds(since: started),
@@ -97,11 +97,17 @@ extension DriverToolExecutor {
                 attributes[TelemetryAttribute.repeatedCall] = true
             }
         }
-        if result.isError {
-            let code = fields["code"]?.stringValue ?? fields["failure_kind"]?.stringValue ?? "tool_error"
+        if let code = errorCode(result) {
             span.attributes[TelemetryAttribute.errorType] = code
             span.setStatus(SpanStatus(code: .error, message: code))
         }
+    }
+
+    /// The machine code of a failed result, shared by the span and the run ledger; nil on success.
+    static func errorCode(_ result: ToolResult) -> String? {
+        guard result.isError else { return nil }
+        let fields = result.structuredContent?.objectValue ?? [:]
+        return fields["code"]?.stringValue ?? fields["failure_kind"]?.stringValue ?? "tool_error"
     }
 
     func measureOperation(

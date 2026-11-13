@@ -20,6 +20,9 @@ public actor RunTelemetryStore {
         var sessionID: String?
         var status = "unfinished"
         var metrics: [String: Int] = [:]
+        /// The failure's machine code (`session_not_found`, `startup_failed`), so a report can say why
+        /// calls failed and not only how many. Absent on success and in entries older than the field.
+        var errorCode: String?
     }
 
     struct Snapshot: Sendable {
@@ -62,9 +65,12 @@ public actor RunTelemetryStore {
         save(entry)
     }
 
-    func finish(_ call: RunCallIdentity, failed: Bool, sessionID: String?, metrics: [String: Int]) {
+    func finish(
+        _ call: RunCallIdentity, failed: Bool, errorCode: String? = nil, sessionID: String?, metrics: [String: Int]
+    ) {
         guard var entry = entries[call.callID] else { return }
         entry.status = failed ? "failed" : "completed"
+        entry.errorCode = failed ? errorCode : nil
         entry.finishedAt = Date().ISO8601Format()
         entry.sessionID = sessionID ?? entry.sessionID
         entry.metrics.merge(metrics, uniquingKeysWith: +)

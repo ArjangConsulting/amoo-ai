@@ -141,6 +141,35 @@ final class UsageReportTests: XCTestCase {
         XCTAssertTrue(built.renderText(baseline: nil).contains("Generated tests: 1 plans"))
     }
 
+    func testFailuresAreBrokenDownByCauseIncludingEntriesWithoutACode() async throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let run = scratch.url.appending(path: "runs/0037D5F4-3285-49E2-AC8F-65924E4C8105")
+        try FileManager.default.createDirectory(at: run, withIntermediateDirectories: true)
+        let calls = [
+            ("a", "failed", #","errorCode":"startup_failed""#), ("b", "failed", #","errorCode":"startup_failed""#),
+            ("c", "failed", #","errorCode":"invalid_argument""#), ("d", "failed", ""), ("e", "completed", "")
+        ]
+        for (call, status, code) in calls {
+            let entry = #"{"runID":"0037D5F4-3285-49E2-AC8F-65924E4C8105","callID":"\#(call)","tool":"start_session","#
+                + #""startedAt":"2026-11-07T10:00:00Z","status":"\#(status)","metrics":{"elapsed_ms":40}\#(code)}"#
+            try Data(entry.utf8).write(to: run.appending(path: "\(call).json"))
+        }
+        let options = try UsageReportOptions.parse([
+            "--sessions-dir", scratch.url.path, "--telemetry-dir", scratch.url.appending(path: "none").path,
+            "--transcripts", "none"
+        ])
+
+        let report = await buildUsageReport(options)
+
+        let tool = try XCTUnwrap(report.tools.first { $0.tool == "start_session" })
+        XCTAssertEqual(tool.failures, 4)
+        XCTAssertEqual(tool.failureCauses, ["startup_failed": 2, "invalid_argument": 1, "unrecorded": 1])
+        let text = report.renderText(baseline: nil)
+        XCTAssertTrue(text.contains("Failure causes"), text)
+        XCTAssertTrue(text.contains("start_session: startup_failed 2, invalid_argument 1, unrecorded 1"), text)
+    }
+
     func testSpansAndLedgerMergeWithoutDoubleCounting() async throws {
         let scratch = try TemporaryDirectory()
         defer { try? scratch.remove() }
