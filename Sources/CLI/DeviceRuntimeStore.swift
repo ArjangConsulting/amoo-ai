@@ -191,6 +191,27 @@ struct DeviceRuntimeStore: Sendable {
         return runtime
     }
 
+    /// Removes companion logs of runtimes that ended more than `age` ago. Every `env up` leaves one
+    /// behind and nothing else deletes them. Returns the number removed.
+    @discardableResult
+    func pruneLogs(olderThan age: TimeInterval = 14 * 86400, now: Date = Date()) -> Int {
+        let live = Set(allIncludingExpired().map(\.id))
+        let keys: Set<URLResourceKey> = [.contentModificationDateKey]
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: Array(keys)
+        )) ?? []
+        var removed = 0
+        for file in files where file.pathExtension == "log"
+            && !live.contains(file.deletingPathExtension().lastPathComponent) {
+            guard let modified = (try? file.resourceValues(forKeys: keys))?.contentModificationDate,
+                  now.timeIntervalSince(modified) > age,
+                  (try? FileManager.default.removeItem(at: file)) != nil
+            else { continue }
+            removed += 1
+        }
+        return removed
+    }
+
     /// Log file for a runtime's long-lived companion process.
     func logURL(runtimeID: String) -> URL {
         directory.appendingPathComponent("\(runtimeID).log")

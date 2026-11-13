@@ -1,4 +1,5 @@
 import AmooCore
+import AmooLogging
 import AndroidDriver
 import CompanionProtocol
 import Foundation
@@ -157,7 +158,15 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             androidCompanionManager: androidCM,
             serverPort: options.explicitPort
         )
-        let sessionManager = SessionManager(bootstrapper: bootstrapper, store: FileSessionStore())
+        let store = FileSessionStore()
+        let sessionManager = SessionManager(
+            bootstrapper: bootstrapper, store: store, idleLimit: SessionManager.idleLimitFromEnvironment()
+        )
+        // Off the startup path: a client waits on `initialize`, not on housekeeping.
+        Task.detached(priority: .background) {
+            let removed = store.prune() + DeviceRuntimeStore().pruneLogs()
+            AmooLogger.forType(FileSessionStore.self).info("Pruned stale store entries", context: "removed=\(removed)")
+        }
         let executor = DriverToolExecutor(
             driver: driver,
             sessionManager: sessionManager,

@@ -9,6 +9,37 @@ final class SessionStoreTests: XCTestCase {
         try TemporaryDirectory().url
     }
 
+    func testPruneRemovesOldSnapshotsAndLedgerRunsButKeepsReportsAndRecentData() throws {
+        let root = try makeTempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = FileManager.default
+        let old = Date(timeIntervalSinceNow: -10 * 86400)
+        func make(_ path: String, modified: Date?) throws -> URL {
+            let url = root.appending(path: path, directoryHint: .isDirectory)
+            try manager.createDirectory(at: url, withIntermediateDirectories: true)
+            if let modified {
+                try manager.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
+            }
+            return url
+        }
+        let oldBuild = try make("old-session/build", modified: old)
+        let newBuild = try make("new-session/build", modified: nil)
+        let report = root.appending(path: "old-session/report.json")
+        try Data("{}".utf8).write(to: report)
+        let oldRun = try make("runs/old-run", modified: Date(timeIntervalSinceNow: -40 * 86400))
+        let newRun = try make("runs/new-run", modified: old)
+
+        let removed = FileSessionStore(root: root).prune(snapshotsOlderThan: 3 * 86400)
+
+        XCTAssertEqual(removed, 2)
+        XCTAssertFalse(manager.fileExists(atPath: oldBuild.path))
+        XCTAssertFalse(manager.fileExists(atPath: oldRun.path))
+        XCTAssertTrue(manager.fileExists(atPath: newBuild.path))
+        XCTAssertTrue(manager.fileExists(atPath: newRun.path))
+        XCTAssertTrue(manager.fileExists(atPath: report.path))
+        XCTAssertEqual(FileSessionStore(root: root).prune(snapshotsOlderThan: 0, ledgerOlderThan: 0), 0)
+    }
+
     func testFileStoreRoundTripsAReport() async throws {
         let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -68,6 +99,19 @@ final class SessionStoreTests: XCTestCase {
         }
         let store = FileSessionStore()
         XCTAssertEqual(store.root.path, "/tmp/amoo-env-override")
+    }
+
+    func testTheDefaultStoreInsideATestRunnerIsNotTheUsersStore() {
+        let previous = ProcessInfo.processInfo.environment["AMOO_SESSIONS_DIR"]
+        unsetenv("AMOO_SESSIONS_DIR")
+        defer {
+            if let previous {
+                setenv("AMOO_SESSIONS_DIR", previous, 1)
+            }
+        }
+        let root = FileSessionStore().root.path
+        XCTAssertFalse(root.contains("Application Support"), root)
+        XCTAssertTrue(root.contains("amoo-test-sessions-"), root)
     }
 
     // MARK: - SessionManager persistence

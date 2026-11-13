@@ -57,9 +57,9 @@ Prepare cold builds with companion_warm/companion_status while doing independent
 
 Run `amoo env list --json` before selecting a device, then inspect MCP `list_devices`
 lease metadata when using MCP. Choose a free device; never take one leased by another runtime.
-Listings are advisory: acquisition can still lose a race. Process leases end with their session
-and have no fixed expiry. Keep one caller-generated UUID `run_id` across startup and recovery,
-for example `550e8400-e29b-41d4-a716-446655440000`.
+Listings are advisory: acquisition can still lose a race. Process leases end with their session; one
+left idle 30 minutes is ended to free its device (`session_closed` says so: start again). `run_id`
+must be a UUID kept across startup and recovery, for example `550e8400-e29b-41d4-a716-446655440000`.
 
 Callers use the agent's versioned JSON report contract; do not request a replacement format.
 Bundle all checks for one screen into one delegation, since even blocked runs incur startup
