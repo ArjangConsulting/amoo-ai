@@ -61,6 +61,29 @@ extension DriverToolExecutor {
         return json
     }
 
+    /// The context a session starts with. One the caller named must be right, so its error is thrown.
+    /// One found by walking up from the working directory is not the caller's to fix mid-run: it
+    /// costs the profile and a warning, never the session.
+    static func startupContext(
+        _ arguments: [String: String],
+        platform: Platform?,
+        discoveryDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) throws -> (json: String?, warning: String?) {
+        do {
+            let json = try contextSnapshot(arguments, platform: platform, discoveryDirectory: discoveryDirectory)
+            return (json, nil)
+        } catch {
+            let explicit = [arguments["context_json"], arguments["context_path"]].contains { $0?.isEmpty == false }
+            guard !explicit else { throw error }
+            return (
+                nil,
+                "Ignored the discovered amoo.md context: \(error) The session uses only explicit"
+                    + " launch_args/environment and generated tests will be standalone;"
+                    + " fix the file or pass context_path."
+            )
+        }
+    }
+
     private static func encodedContext(_ context: StudioTestContext) throws -> String {
         guard let json = try String(bytes: JSONEncoder().encode(context), encoding: .utf8) else {
             throw CocoaError(.fileWriteInapplicableStringEncoding)

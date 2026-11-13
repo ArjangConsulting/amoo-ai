@@ -58,7 +58,11 @@ final class InitTestProfileTests: XCTestCase {
         ```
         """.write(to: profile, atomically: true, encoding: .utf8)
         XCTAssertEqual(try RepositoryTestProfile.discover(from: child)?.baseClass, "JotUITestCase")
+        // Prose-only guidance is a valid amoo.md: it contributes no context, and naming it still fails.
         try "No bindings".write(to: profile, atomically: true, encoding: .utf8)
+        XCTAssertNil(try RepositoryTestProfile.discover(from: child))
+        XCTAssertThrowsError(try RepositoryTestProfile.load(profile))
+        try "```amoo-context\n{\"baseClass\":".write(to: profile, atomically: true, encoding: .utf8)
         XCTAssertThrowsError(try RepositoryTestProfile.discover(from: child))
     }
 }

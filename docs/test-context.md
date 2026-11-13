@@ -276,7 +276,10 @@ repository inherits the orchestrator's shared bindings and overrides only what i
 no block for the requested platform adds nothing. Recording snapshots its bindings into the session. A discovered Swift harness
 is marked `targetPlatform: "ios"` so it is not automatically applied to Android recordings or exports. An embedded plan context
 wins over automatic discovery; explicit context arguments win over both. `--context` and
-`context_path` also accept the Markdown profile. Malformed profiles report an error.
+`context_path` also accept the Markdown profile. A malformed profile named this way is an error. A
+discovered one never blocks a recording: an `amoo.md` with no `amoo-context` fence is prose guidance and
+adds no context, and a discovered block that cannot be read is reported in `start_session`'s `warnings`
+while the session starts without it.
 
 For a harness that owns and launches its application, add these bindings:
 

@@ -267,4 +267,24 @@ extension MCPServerTests {
         XCTAssertEqual(plan.testContext?.baseClass, "AppUITestCase")
         XCTAssertEqual(plan.testContext?.selectorExpressions["app.tab.home"], "AppIDs.home.tab")
     }
+
+    func testADiscoveredProfileThatCannotBeReadCostsAWarningWhileANamedOneFails() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let profile = scratch.url.appendingPathComponent("amoo.md")
+        try "```amoo-context\n{\"baseClass\":".write(to: profile, atomically: true, encoding: .utf8)
+
+        let discovered = try DriverToolExecutor.startupContext([:], platform: .ios, discoveryDirectory: scratch.url)
+        XCTAssertNil(discovered.json)
+        XCTAssertTrue(discovered.warning?.contains("Ignored the discovered amoo.md context") == true)
+        XCTAssertThrowsError(try DriverToolExecutor.startupContext(
+            ["context_path": profile.path], platform: .ios, discoveryDirectory: scratch.url
+        ))
+
+        // Prose-only guidance is not a context at all, so it is not worth a warning either.
+        try "# Notes for agents".write(to: profile, atomically: true, encoding: .utf8)
+        let prose = try DriverToolExecutor.startupContext([:], platform: .ios, discoveryDirectory: scratch.url)
+        XCTAssertNil(prose.json)
+        XCTAssertNil(prose.warning)
+    }
 }

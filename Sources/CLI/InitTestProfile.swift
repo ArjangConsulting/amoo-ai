@@ -123,6 +123,8 @@ func saveInitTestProfile(at root: URL, platform: Platform? = nil) throws {
         let ios: StudioTestContext?
         let existingAndroid: StudioTestContext?
         do {
+            // Reading the file itself is strict; discovery treats a prose-only file as no context.
+            _ = try RepositoryTestProfile.declaredPlatforms(in: output)
             ios = try RepositoryTestProfile.discover(from: root, platform: .ios)
             existingAndroid = try RepositoryTestProfile.discover(from: root, platform: .android)
         } catch { return }
