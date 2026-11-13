@@ -18,9 +18,8 @@ extension CompanionManager {
             root.appendingPathComponent("sign-simulator-products.py"),
             root.appendingPathComponent("HostApp", isDirectory: true),
             root.appendingPathComponent("Sources", isDirectory: true),
-            root.appendingPathComponent("../../Sources/AmooCore", isDirectory: true).standardizedFileURL,
             root.appendingPathComponent("../../Protos", isDirectory: true).standardizedFileURL
-        ]
+        ] + sharedSources(root: root)
         // Only the Mac build's own host app; listing it for iOS would invalidate every iOS build once.
         if config.isMac {
             locations.append(root.appendingPathComponent("MacHostApp", isDirectory: true))
@@ -37,6 +36,22 @@ extension CompanionManager {
             }
         }
         return String(hash, radix: 16)
+    }
+
+    /// The host-package files `project.yml` compiles into the companion. Hashing the whole of
+    /// `Sources/AmooCore` instead made any host-only edit there cost a companion rebuild on the next
+    /// start. Falls back to that directory when the manifest names none, so a change is never missed.
+    func sharedSources(root: URL) -> [URL] {
+        let manifest = (try? String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)) ?? ""
+        let listed = manifest.split(separator: "\n").compactMap { line -> URL? in
+            let entry = line.trimmingCharacters(in: .whitespaces)
+            guard entry.hasPrefix("- path: ../../") || entry.hasPrefix("path: ../../") else { return nil }
+            let path = entry.drop { $0 != ":" }.dropFirst().trimmingCharacters(in: .whitespaces)
+            return root.appendingPathComponent(path).standardizedFileURL
+        }
+        return listed.isEmpty
+            ? [root.appendingPathComponent("../../Sources/AmooCore", isDirectory: true).standardizedFileURL]
+            : listed
     }
 
     func sourceFiles(at locations: [URL]) -> [URL] {
