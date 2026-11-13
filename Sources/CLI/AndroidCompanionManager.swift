@@ -238,6 +238,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
            await isCompanionReady(host: config.host, port: config.port) {
             print("Android companion already running on port \(config.port) for"
                 + " \(config.serial ?? "default device").")
+            adopt(config: config)
             return
         }
 
@@ -456,12 +457,16 @@ final class AndroidCompanionManager: @unchecked Sendable {
     }
 
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
-        let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
+        let started = Date()
+        let deadline = started.addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {
             if await isCompanionReady(host: host, port: port) {
                 return
             }
-            try await Task.sleep(for: .milliseconds(500))
+            // A warm launch is ready within a few seconds, so poll tightly there; a cold one takes
+            // long enough that the coarser interval costs nothing.
+            let early = Date().timeIntervalSince(started) < 10
+            try await Task.sleep(for: .milliseconds(early ? 100 : 500))
         }
 
         let logPath = Self.launchLogPath(port: port)

@@ -151,6 +151,8 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
 
         // Wire up session management so `start_session` can boot devices,
         // build/launch the companion, install + launch the app on demand.
+        // A companion outlives its server by the same idle window it outlives its session.
+        let lingerSeconds = CompanionManager.idleShutdownSeconds()
         let iOSCM = CompanionManager()
         let androidCM = AndroidCompanionManager()
         let bootstrapper = DefaultSessionBootstrapper(
@@ -182,15 +184,15 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             try await serveMCP(server: server, output: protocolOutput)
         } catch {
             await sessionManager.closeAll()
-            await iOSCM.shutdown()
-            await androidCM.shutdown()
+            await iOSCM.handOff(lingerSeconds: lingerSeconds)
+            await androidCM.handOff(lingerSeconds: lingerSeconds)
             await companion.shutdown()
             throw error
         }
 
         await sessionManager.closeAll()
-        await iOSCM.shutdown()
-        await androidCM.shutdown()
+        await iOSCM.handOff(lingerSeconds: lingerSeconds)
+        await androidCM.handOff(lingerSeconds: lingerSeconds)
         await companion.shutdown()
         return CLIResult(output: "", exitCode: 0)
     } catch {

@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import ProcessRunner
 import SwiftyShell
+import Synchronization
 
 /// Per-device lifecycle: sessions on different emulators run concurrently, so state is keyed by serial.
 extension AndroidCompanionManager {
@@ -21,6 +22,42 @@ extension AndroidCompanionManager {
         }
         await clearStaleCompanion(config: entry.config)
     }
+
+    /// Takes responsibility for a healthy companion an earlier amoo left running, so this manager ends
+    /// it or hands it on. One a live `amoo companion start` / `amoo env up` registered stays theirs.
+    func adopt(config: AndroidCompanionConfig, registry: CompanionRegistry = CompanionRegistry()) {
+        guard tracked(serial: config.serial) == nil,
+              !registry.entries().contains(where: { $0.platform == "android" && $0.port == config.port })
+        else { return }
+        CompanionLingerStore().claim(platform: "android", port: config.port)
+        setTracked(RunningCompanion(process: nil, config: config))
+    }
+
+    /// Called as the server exits. Healthy companions are left running for `lingerSeconds` with a
+    /// detached reaper so the next server reuses them; the rest are stopped as before.
+    func handOff(lingerSeconds: Double, hooks: CompanionLingerHooks = .live) async {
+        let entries = stateLock.withLock { Array(running.values) }
+        for entry in entries {
+            let config = entry.config
+            guard await isCompanionReady(host: config.host, port: config.port),
+                  await leaveCompanionRunning(
+                      platform: "android",
+                      deviceID: config.serial ?? "",
+                      port: config.port,
+                      seconds: lingerSeconds,
+                      hooks: hooks
+                  )
+            else { continue }
+            // The `am instrument -w` client is parked, not released: releasing it ends the instrumentation.
+            if let process = entry.process {
+                Self.handedOffRunners.withLock { $0.append(process) }
+            }
+            stateLock.withLock { _ = running.removeValue(forKey: Self.stateKey(config.serial)) }
+        }
+        await shutdown()
+    }
+
+    private static let handedOffRunners = Mutex<[any SpawnedProcess]>([])
 
     static func stateKey(_ serial: String?) -> String {
         serial ?? ""

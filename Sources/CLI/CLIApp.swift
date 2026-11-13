@@ -262,6 +262,10 @@ public struct CLIApp {
         if isHelpRequest(remaining) {
             return CLIResult(output: renderCompanionHelp(), exitCode: 0)
         }
+        // Internal: the detached process a server leaves behind to end a companion nobody picked up.
+        if remaining.first == "reap" {
+            return await runCompanionReap(arguments: Array(remaining.dropFirst()))
+        }
         switch parseCompanionCommandOptions(args: remaining) {
         case let .failure(error):
             return CLIResult(output: error.description, exitCode: 64)
