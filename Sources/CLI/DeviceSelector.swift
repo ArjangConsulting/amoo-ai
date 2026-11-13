@@ -429,7 +429,7 @@ struct PlatformDeviceSelector {
         _ = try? await processRunner.run(["open", "-a", "Simulator"])
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
         do {
-            _ = try await SimulatorManager(shell: context).boot(simulator.udid, timeout: .seconds(30))
+            try await SimulatorBootRecovery.boot(simulator.udid, shell: context, timeout: .seconds(30))
             return BootedDevice(udid: simulator.udid, name: simulator.name, osVersion: simulator.osVersion)
         } catch MobileKitError.timedOut {
             throw DeviceSelectionError.startupTimedOut("Timed out waiting for iOS simulator \(simulator.name) to boot.")

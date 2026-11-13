@@ -77,8 +77,32 @@ public struct SimctlRunner: SimctlRunning {
 
     // MARK: - Device Lifecycle
 
-    /// Waits at most 60 seconds for boot, honoring shorter context and request deadlines.
+    /// Waits at most 60 seconds for boot, honoring shorter context and request deadlines. A named
+    /// simulator that misses the window is shut down and booted once more, since a wedged boot
+    /// recovers from a restart and not from a longer wait.
     public func bootStatus(device: String = "booted") async throws {
+        do {
+            try await bootStatusAttempt(device: device)
+        } catch {
+            let recoverable = error is ProcessRunnerError || error is ShellError
+            let hasBudget = OperationDeadline.current.map { ContinuousClock.now < $0 } ?? true
+            guard recoverable, device != "booted", !Task.isCancelled, hasBudget else {
+                await StartupProgress.report("Simulator boot failed or timed out; inspect device state before retrying")
+                throw error
+            }
+            Self.logger.info("Restarting simulator after a failed boot", context: "stage=boot_recovery")
+            await StartupProgress.report("Simulator did not finish booting; shutting it down and booting again")
+            try? await simulators.shutdown(device, timeout: OperationDeadline.remaining(cappedAt: .seconds(30)))
+            do {
+                try await bootStatusAttempt(device: device)
+            } catch {
+                await StartupProgress.report("Simulator boot failed twice; inspect device state before retrying")
+                throw error
+            }
+        }
+    }
+
+    private func bootStatusAttempt(device: String) async throws {
         try Task.checkCancellation()
         if let deadline = OperationDeadline.current, ContinuousClock.now >= deadline {
             throw OperationDeadline.DeadlineExceeded()
@@ -92,7 +116,6 @@ public struct SimctlRunner: SimctlRunning {
             await StartupProgress.report("Simulator boot completed")
         } catch {
             Self.logger.error("Simulator boot failed", error: error, context: "stage=bootstatus")
-            await StartupProgress.report("Simulator boot failed or timed out; inspect device state before retrying")
             throw error
         }
     }

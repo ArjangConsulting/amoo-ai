@@ -67,9 +67,10 @@ extension CompanionManager {
         await StartupProgress.report("Booting iOS simulator")
         // Bounded: an unresponsive simulator must surface as an error, not wedge the startup
         // (and the build error behind it, since `ensureRunning` joins this task on every exit).
+        // One that misses the window is shut down and booted once more before that error.
         let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: processRunner))
         do {
-            _ = try await SimulatorManager(shell: context).boot(config.deviceUDID, timeout: .seconds(300))
+            try await SimulatorBootRecovery.boot(config.deviceUDID, shell: context)
         } catch {
             throw CompanionError.launchFailed("Simulator boot readiness failed: \(error)")
         }

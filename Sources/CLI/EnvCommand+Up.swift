@@ -238,9 +238,10 @@ func simulatorBootFailure(exitCode: Int32?, stderr: String?) -> String? {
 
 private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
-    let waitSeconds = readyTimeoutSeconds ?? 300
+    // Per attempt: a simulator that misses it is shut down and booted once more.
+    let waitSeconds = readyTimeoutSeconds ?? 60
     do {
-        try await SimulatorManager(shell: context).boot(udid, timeout: .seconds(waitSeconds))
+        try await SimulatorBootRecovery.boot(udid, shell: context, timeout: .seconds(waitSeconds))
     } catch let MobileKitError.commandFailed(command, exitCode, output)
         where command.last == udid && command.contains("boot") {
         // A missing runtime image ("The iOS 27.0 simulator runtime is not available") can never boot;
@@ -254,7 +255,8 @@ private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws
             )
     } catch MobileKitError.timedOut {
         throw EnvError
-            .noDevice("Simulator \(udid) did not finish booting: no `simctl bootstatus` result within \(waitSeconds)s")
+            .noDevice("Simulator \(udid) did not finish booting: no `simctl bootstatus` result within \(waitSeconds)s,"
+                + " also after a shutdown and a second boot")
     }
 }
 
