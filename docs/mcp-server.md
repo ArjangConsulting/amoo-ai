@@ -271,7 +271,7 @@ On Android, `start_session` and `amoo companion install` compare the SHA-256 of 
 the one the device already has and skip the `adb install` when they match; `--force` reinstalls. A
 device without `sha256sum` always installs.
 
-A simulator that is not ready 60 seconds after boot is shut down and booted once more, since a wedged
+A simulator that is not ready five minutes after boot is shut down and booted once more, since a wedged
 boot recovers from a restart and not from a longer wait. A boot that `simctl` refuses (unknown device,
 missing runtime) is not retried.
 

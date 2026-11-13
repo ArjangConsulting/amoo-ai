@@ -239,7 +239,7 @@ func simulatorBootFailure(exitCode: Int32?, stderr: String?) -> String? {
 private func bootSimulator(udid: String, readyTimeoutSeconds: Int?) async throws {
     let context = ShellContext(executor: ProcessRunnerCommandExecutor(processRunner: SystemProcessRunner()))
     // Per attempt: a simulator that misses it is shut down and booted once more.
-    let waitSeconds = readyTimeoutSeconds ?? 60
+    let waitSeconds = readyTimeoutSeconds ?? 300
     do {
         try await SimulatorBootRecovery.boot(udid, shell: context, timeout: .seconds(waitSeconds))
     } catch let MobileKitError.commandFailed(command, exitCode, output)
