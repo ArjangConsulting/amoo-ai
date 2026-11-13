@@ -257,6 +257,37 @@ itself after `AMOO_COMPANION_IDLE_SECONDS` (default 120; `0` stops it at once) w
 on that simulator. `end_session stop_companion=true` stops it now, which is what to do before an XCTest
 run on the same simulator, since two XCTest runners share a device badly (the second swallows taps).
 
+The same window applies when the server itself exits. Each delegated agent runs its own
+`amoo mcp serve`, so stopping the companion with the server made every run pay the launch again. A
+server now leaves a healthy simulator or emulator companion running, records it as
+`linger-<platform>-<port>.record` in the companion registry, and starts a detached
+`amoo companion reap` that stops it once the window ends. The next server on that device takes the
+companion over instead of launching one, and the earlier reaper stands down. The
+reaper also stands down while a session holds the device. With `AMOO_COMPANION_IDLE_SECONDS=0`, on a
+physical device or a Mac, or when the reaper cannot be started, the companion stops with the server as
+before.
+
+On Android, `start_session` and `amoo companion install` compare the SHA-256 of each companion APK with
+the one the device already has and skip the `adb install` when they match; `--force` reinstalls. A
+device without `sha256sum` always installs.
+
+A simulator that is not ready 60 seconds after boot is shut down and booted once more, since a wedged
+boot recovers from a restart and not from a longer wait. A boot that `simctl` refuses (unknown device,
+missing runtime) is not retried.
+
+### Session lifetime and store retention
+
+A session nobody has called for `AMOO_SESSION_IDLE_MINUTES` (default 30; `0` disables) is ended by the
+server: the app is terminated, the device lease is released and the companion's idle timer starts, exactly
+as for `end_session`. An agent that stops without ending its session therefore cannot hold a simulator
+until its client exits. The recording is saved; a later call with that ID gets `session_closed` naming
+the idle limit, and `amoo generate plan --report` still compiles the report.
+
+At startup the server prunes, in the background, what nothing reads any more: `<session>/build`
+snapshots older than `AMOO_SNAPSHOT_RETENTION_DAYS` (default 3; `0` keeps them), run-ledger entries
+older than 30 days, and logs of ended `env up` runtimes older than 14 days. Reports, plans and flows
+are never pruned.
+
 If an `amoo mcp serve` is killed mid-session, its companion is left running with no owner. The next
 `start_session` on that simulator adopts it when it still answers, and retires it when it does not —
 only a runner whose parent process is gone is touched, never one another live amoo is using.
@@ -573,6 +604,7 @@ validates the app identifier and executable for `.app` bundles, checks archive s
 APK/IPA files, compares source/copy fingerprints, and installs from the snapshot. An incomplete
 or changing build fails with `startup_stage=artifact_snapshot`. `artifact_snapshot` in the startup
 response and `artifactSnapshot` in the persisted report identify the installed copy and SHA-256.
+The copy itself is removed after the snapshot retention window; the path and digest stay in the report.
 Concurrent builds can continue after the snapshot is complete.
 
 Screenshots report `capture_suspect` for nearly black, white, transparent or uniform frames, plus
