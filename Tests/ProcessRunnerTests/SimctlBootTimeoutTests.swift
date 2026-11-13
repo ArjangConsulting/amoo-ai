@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import ProcessRunner
 import SwiftyShell
+import Synchronization
 import XCTest
 
 #if os(macOS)
@@ -57,7 +58,9 @@ final class SimctlBootTimeoutTests: XCTestCase {
 
     func testStalledBootSubprocessTimesOutPromptly() async throws {
         let executor = MockExecutor { command, _ in
-            try await Command("/bin/sh")
+            // The stalled boot is restarted once: only the readiness wait stalls, not the shutdown.
+            guard command.arguments.contains("bootstatus") else { return ShellOutput(exitCode: 0) }
+            return try await Command("/bin/sh")
                 .args(["-c", "printf booting; exec /bin/sleep 10"])
                 .timeout(XCTUnwrap(command.timeoutOverride))
                 .run()
@@ -72,6 +75,50 @@ final class SimctlBootTimeoutTests: XCTestCase {
             XCTAssertEqual(duration, .milliseconds(100))
             XCTAssertEqual(output.stdout, "booting")
             XCTAssertLessThan(start.duration(to: .now), .seconds(3))
+        }
+        XCTAssertEqual(executor.recordedCommands.map(\.arguments), [
+            ["simctl", "bootstatus", "SIM", "-b"], ["simctl", "shutdown", "SIM"], ["simctl", "bootstatus", "SIM", "-b"]
+        ])
+    }
+
+    func testAWedgedSimulatorIsShutDownAndBootsOnTheSecondAttempt() async throws {
+        let waits = Mutex(0)
+        let executor = MockExecutor { command, _ in
+            guard command.arguments.contains("bootstatus") else { return ShellOutput(exitCode: 0) }
+            let attempt = waits.withLock { count -> Int in
+                count += 1
+                return count
+            }
+            return ShellOutput(
+                stderr: attempt == 1 ? "launchd_sim did not respond" : "",
+                exitCode: attempt == 1 ? 1 : 0
+            )
+        }
+
+        try await SimulatorBootRecovery.boot("SIM", shell: ShellContext(executor: executor))
+
+        XCTAssertEqual(executor.recordedCommands.map(\.arguments), [
+            ["simctl", "boot", "SIM"], ["simctl", "bootstatus", "SIM", "-b"], ["simctl", "shutdown", "SIM"],
+            ["simctl", "boot", "SIM"], ["simctl", "bootstatus", "SIM", "-b"]
+        ])
+        XCTAssertEqual(executor.recordedCommands[1].timeoutOverride, .seconds(60))
+    }
+
+    func testARefusedBootIsNotRetriedAndTheImplicitBootedDeviceIsNotRestarted() async throws {
+        let refused = MockExecutor { _, _ in ShellOutput(stderr: "Invalid device: SIM", exitCode: 148) }
+        do {
+            try await SimulatorBootRecovery.boot("SIM", shell: ShellContext(executor: refused))
+            XCTFail("An unknown device cannot boot")
+        } catch {
+            XCTAssertEqual(refused.recordedCommands.map(\.arguments), [["simctl", "boot", "SIM"]])
+        }
+
+        let failing = MockExecutor { _, _ in ShellOutput(stderr: "failed", exitCode: 1) }
+        do {
+            try await SimctlRunner(context: ShellContext(executor: failing)).bootStatus(device: "booted")
+            XCTFail("The wait deliberately fails")
+        } catch {
+            XCTAssertEqual(failing.recordedCommands.map(\.arguments), [["simctl", "bootstatus", "booted", "-b"]])
         }
     }
 }
