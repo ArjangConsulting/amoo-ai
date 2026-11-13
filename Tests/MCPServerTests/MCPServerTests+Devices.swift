@@ -435,12 +435,29 @@ extension MCPServerTests {
         XCTAssertTrue(result.content.contains("saved to"))
     }
 
+    func testTakeScreenshotCreatesAMissingOutputFolder() async throws {
+        let server = MCPServer(executor: DriverToolExecutor(driver: MockDriver()))
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let path = scratch.url.appendingPathComponent("evidence/run-1/shot.png").path
+
+        let result = await server.execute(toolName: "take_screenshot", arguments: ["output": path])
+
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))
+    }
+
     func testTakeScreenshotWriteFailureKeepsRequiredStructuredFields() async throws {
         let driver = MockDriver()
         let executor = DriverToolExecutor(driver: driver)
         let server = MCPServer(executor: executor)
 
-        let path = NSTemporaryDirectory() + "amoo-missing-\(UUID().uuidString)/shot.png"
+        // A regular file where the folder should be: a missing folder is created instead of failing.
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let blocker = scratch.url.appendingPathComponent("not-a-folder")
+        try Data().write(to: blocker)
+        let path = blocker.appendingPathComponent("shot.png").path
         let result = await server.execute(toolName: "take_screenshot", arguments: ["output": path])
 
         XCTAssertTrue(result.isError)
