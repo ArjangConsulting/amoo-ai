@@ -101,7 +101,7 @@ final class SimctlBootTimeoutTests: XCTestCase {
             ["simctl", "boot", "SIM"], ["simctl", "bootstatus", "SIM", "-b"], ["simctl", "shutdown", "SIM"],
             ["simctl", "boot", "SIM"], ["simctl", "bootstatus", "SIM", "-b"]
         ])
-        XCTAssertEqual(executor.recordedCommands[1].timeoutOverride, .seconds(60))
+        XCTAssertEqual(executor.recordedCommands[1].timeoutOverride, .seconds(300))
     }
 
     func testARefusedBootIsNotRetriedAndTheImplicitBootedDeviceIsNotRestarted() async throws {

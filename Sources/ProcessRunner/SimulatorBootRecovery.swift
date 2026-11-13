@@ -8,13 +8,13 @@ import SwiftyShell
 
 /// Boots a simulator with a bounded wait and recovers one that does not come up.
 ///
-/// A healthy simulator boots in well under a minute. One that is still not ready by then is wedged
-/// (a stuck `launchd_sim`, a data migration that never ends), and waiting longer has never helped:
-/// shutting it down and booting again does. Callers therefore get an answer within about two
-/// attempts instead of a wait measured in minutes.
+/// A first boot after creating a simulator or updating a runtime can take minutes, so one attempt
+/// waits as long as a boot always has here. One that is still not ready by then is wedged (a stuck
+/// `launchd_sim`, a data migration that never ends), and waiting longer has never helped: shutting
+/// it down and booting again does.
 public enum SimulatorBootRecovery {
     /// The longest one attempt waits for `simctl bootstatus`.
-    public static let attemptTimeout: Swift.Duration = .seconds(60)
+    public static let attemptTimeout: Swift.Duration = .seconds(300)
 
     private static let logger = AmooLogger.forType(Self.self)
 
