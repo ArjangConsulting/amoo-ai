@@ -320,6 +320,10 @@ extension DriverToolExecutor {
         if let output {
             let url = URL(fileURLWithPath: (output as NSString).expandingTildeInPath)
             do {
+                // An evidence folder the caller has not made yet must not cost the capture.
+                try FileManager.default.createDirectory(
+                    at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+                )
                 try data.write(to: url)
                 fields["saved_path"] = .string(url.path)
                 savedNote = " — saved to \(url.path)"
