@@ -92,8 +92,7 @@ extension ToolDefinition {
         var copy = self
         copy.properties["session_id"] = ToolInputProperty(
             type: "string",
-            description: "Optional session id; routes this call to that session's driver"
-                + " and records it in the session's action history"
+            description: "Session id from start_session; routes and records this call"
         )
         if [
             "find_elements",
