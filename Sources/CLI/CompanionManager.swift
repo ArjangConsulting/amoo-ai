@@ -136,6 +136,9 @@ final class CompanionManager: @unchecked Sendable {
     let stateLock = NSLock()
     /// Pending stops for idle companions, keyed by device UDID. See `scheduleIdleShutdown`.
     var pendingIdleShutdowns: [String: Task<Void, Never>] = [:]
+    /// Companions an earlier amoo left running that a session here reused, keyed by device UDID. This
+    /// manager did not launch them, but it took them over and so must end them. See `CompanionManager+HandOff.swift`.
+    var adopted: [String: CompanionConfig] = [:]
     private let shellContext: ShellContext
     let processRunner: any ProcessRunner
 
@@ -221,6 +224,7 @@ final class CompanionManager: @unchecked Sendable {
         if !force, !sourcesChanged, await isCompanionReady(host: config.host, port: config.port) {
             if own == nil {
                 try await refuseOtherSimulatorsCompanion(config: config, processRunner: processRunner)
+                adopt(config: config)
             }
             await StartupProgress.report("Reusing the iOS companion running on port \(config.port); not rebuilt")
             print("Companion already running on port \(config.port).")
@@ -455,12 +459,16 @@ final class CompanionManager: @unchecked Sendable {
     }
 
     private func waitUntilReachable(host: String, port: Int, timeoutSeconds: Int) async throws {
-        let deadline = Date().addingTimeInterval(Double(timeoutSeconds))
+        let started = Date()
+        let deadline = started.addingTimeInterval(Double(timeoutSeconds))
         while Date() < deadline {
             if await isCompanionReady(host: host, port: port) {
                 return
             }
-            try await Task.sleep(for: .milliseconds(500))
+            // A warm launch is ready within a few seconds, so poll tightly there; a cold one takes
+            // long enough that the coarser interval costs nothing.
+            let early = Date().timeIntervalSince(started) < 10
+            try await Task.sleep(for: .milliseconds(early ? 100 : 500))
         }
         let logPath = Self.launchLogPath(port: port)
         if let log = try? String(contentsOfFile: logPath, encoding: .utf8), !log.isEmpty {

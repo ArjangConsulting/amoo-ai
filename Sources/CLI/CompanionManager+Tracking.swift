@@ -78,15 +78,19 @@ extension CompanionManager {
     /// Stops the companion for `deviceUDID` after `seconds` of no new session on it. A later
     /// `ensureRunning` for the same device cancels the pending stop.
     func scheduleIdleShutdown(deviceUDID: String, after seconds: Double) {
-        guard tracked(deviceUDID: deviceUDID) != nil else { return }
+        guard tracked(deviceUDID: deviceUDID) != nil || adoptedConfig(deviceUDID: deviceUDID) != nil else { return }
         if seconds <= 0 {
-            Task { await shutdown(deviceUDID: deviceUDID) }
+            Task {
+                await shutdown(deviceUDID: deviceUDID)
+                await stopAdopted(deviceUDID: deviceUDID)
+            }
             return
         }
         let task = Task { [weak self] in
             try? await Task.sleep(for: .seconds(seconds))
             guard !Task.isCancelled, let self else { return }
             await shutdown(deviceUDID: deviceUDID)
+            await stopAdopted(deviceUDID: deviceUDID)
         }
         let previous = stateLock.withLock { () -> Task<Void, Never>? in
             defer { pendingIdleShutdowns[deviceUDID] = task }
