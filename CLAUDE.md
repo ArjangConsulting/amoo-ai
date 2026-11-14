@@ -7,7 +7,7 @@ running Claude Code in this repo.
 
 - **Skills**: the user-facing amoo plugin lives in `plugins/amoo/` — the `amoo` and
   `device-verifier` subagents plus the `driving-amoo` (drive a device / record a session that
-  generates a good test) and `device-verifier` skills. `skills/` holds contributor skills
+  generates a good test), `device-verifier`, `ios-accessibility` and `android-accessibility` skills. `skills/` holds contributor skills
   (`ios-accessibility`, `ios-simulator`, `android-*`, …). Prefer invoking the relevant skill over
   re-deriving its workflow. After editing `plugins/amoo/agents/*.md`, run `make plugin`. `MCPInstructionsAlignmentTests` keeps the MCP `initialize`
   instructions and `plugins/amoo/skills/driving-amoo/SKILL.md` in sync — update both together.

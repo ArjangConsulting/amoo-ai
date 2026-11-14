@@ -19,11 +19,16 @@ it (`CLAUDE.md` for Claude Code); everything here applies regardless of which ag
 
 ```bash
 swift build
-swift test                 # XCTest, ~1500 case executions across ~15 bundles; a clean run is ~1–2 min
-make lint                  # swiftformat --lint  +  swiftlint --strict   (both, they enforce different rules)
-make format                # swiftformat, run twice (not idempotent here — see scripts/ci/format.sh)
-make check                 # format + lint + test — the pre-commit gate
-make release-local          # rebuild .build/release/amoo (what an MCP client pointed at a checkout runs); prints `amoo version`
+# XCTest, ~1500 case executions across ~15 bundles; a clean run is ~1–2 min
+swift test
+# swiftformat --lint  +  swiftlint --strict   (both, they enforce different rules)
+make lint
+# swiftformat, run twice (not idempotent here — see scripts/ci/format.sh)
+make format
+# format + lint + test — the pre-commit gate
+make check
+# rebuild .build/release/amoo (what an MCP client pointed at a checkout runs); prints `amoo version`
+make release-local
 ```
 
 Every code contribution must pass `make lint` before it is committed or submitted for review. Run
@@ -34,8 +39,10 @@ The companion apps are **not** covered by `swift build` — they build through X
 verify them separately after changing anything under `CompanionApps/`:
 
 ```bash
-make companion-ios-build       # xcodegen + xcodebuild build-for-testing
-make companion-android-build   # gradle assembleDebug assembleAndroidTest
+# xcodegen + xcodebuild build-for-testing
+make companion-ios-build
+# gradle assembleDebug assembleAndroidTest
+make companion-android-build
 ```
 
 ### Verifying the Linux build locally
@@ -136,13 +143,13 @@ rather than `FAIL`, so simulator-only setups still pass.
 | Tool | Install | Needed for |
 | --- | --- | --- |
 | `protoc` | `brew install protobuf` | `make protos` (regenerating `Sources/Protos/Generated`) and the iOS companion's `generate-protos.sh`. **Not** needed for `swift build` / `swift test`. |
-| **JDK 17–26** | `brew install --cask temurin@21` | Android companion. The range is the intersection of AGP 9.3 (17+) and Gradle 9.5 (17–26; 27+ unsupported). A JDK outside it fails partway through the build with errors naming neither Java nor the JDK. `make companion-android-build` and `amoo companion` resolve a supported JDK themselves (`scripts/android-jdk.sh` / `Sources/CLI/AndroidJDK.swift`); `JAVA_HOME` only needs setting for a non-standard install location. Do **not** commit `gradle/gradle-daemon-jvm.properties` — it pins and silently downloads one JDK, overriding that resolution. |
+| **JDK 17–26** | `brew install --cask temurin@21` | Android companion. The range is the intersection of what the pinned AGP and Gradle accept (versions in `CompanionApps/Android/build.gradle.kts` and `gradle/wrapper/gradle-wrapper.properties`). A JDK outside it fails partway through the build with errors naming neither Java nor the JDK. `make companion-android-build` and `amoo companion` resolve a supported JDK themselves (`scripts/android-jdk.sh` / `Sources/CLI/AndroidJDK.swift`); `JAVA_HOME` only needs setting for a non-standard install location. Do **not** commit `gradle/gradle-daemon-jvm.properties` — it pins and silently downloads one JDK, overriding that resolution. |
 | `iproxy` | `brew install libimobiledevice` | **Physical iOS devices only.** USB tunnel to the companion (`devicectl` has no port forwarding, unlike `adb forward`). Ships in `libusbmuxd`, pulled in as a dependency of `libimobiledevice`. |
 | `kotlinc` | `brew install kotlin` | **Optional, test-only.** Real-compiles generated Espresso code, standalone and KotlinTestCommons modes, in `GeneratedCodeCompileTests`. Missing → those tests `XCTSkip`. Also needs a resolved Espresso/JUnit/Hamcrest classpath from `Tooling/espresso-classpath/resolve.sh` (runs `gradle`, network on first run, then caches to `$TMPDIR/amoo-espresso-classpath`). The Swift-side `swiftc -typecheck` check needs only Xcode. |
 
 ### Android build stack
 
-AGP 9.3 / Gradle 9.5 with AGP's built-in Kotlin (no `org.jetbrains.kotlin.android` plugin, no `android.newDsl` /
+AGP 9 / Gradle 9 with AGP's built-in Kotlin (no `org.jetbrains.kotlin.android` plugin, no `android.newDsl` /
 `android.builtInKotlin` shims). Read [`docs/android-build.md`](docs/android-build.md) before editing
 `CompanionApps/Android/*.gradle.kts`.
 
