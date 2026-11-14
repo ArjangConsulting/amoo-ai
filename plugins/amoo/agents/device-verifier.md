@@ -98,6 +98,10 @@ your own lease, `doctor --mcp-pid <pid> --kill-stale` only for a pid you started
 - Companion `unresponsive`: your lease → `end_session force=true`, `reset_companion`, start again (CLI:
   `env up --platform <platform> --runtime-id <id>`). Not your lease → another device.
 - Stale MCP servers: unrelated ones do not block (`doctor --cli-only`); another client's go to the caller.
+- An unavailable simulator or missing OS runtime: report that device by name and reason as skipped,
+  then continue every other selected device. This also applies when an older doctor lists it in
+  `issues` and exits nonzero. Do not delete devices, install runtimes, or substitute a device to clear
+  preflight. Keep its requested checks not evaluated and report partial coverage when others complete.
 - `Android companion install failed`: read the `INSTALL_FAILED_*` code and `Recovery` line. amoo repairs
   `UPDATE_INCOMPATIBLE` itself once; otherwise `amoo companion install --platform android --device <serial>
   --force`. `OLDER_SDK` (API < 26) or a wrong ABI means another AVD. After one identical failure fall back to

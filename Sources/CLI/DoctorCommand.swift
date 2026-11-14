@@ -97,7 +97,7 @@ func renderDoctorHelp() -> String {
     One-shot health check for agents and humans: this CLI's build, running `amoo mcp serve`
     processes (flagging ones older than their binary), the adb server, devices (physical ones
     flagged — amoo never auto-selects them), companion listeners, and device runtimes.
-    Also flags simulator runtimes (and the simulators on them) that simctl reports as unavailable.
+    Unavailable simulator runtimes and their devices are advisory notes; they do not block healthy devices.
     --kill-stale   SIGTERM matching stale MCP servers after rechecking identity, then refresh the report.
                    Without --mcp-pid, affects every stale MCP server across clients.
     --mcp-pid PID  Check only this MCP server for staleness; --kill-stale stops only this PID.
@@ -164,12 +164,20 @@ func runDoctor(
         cliOnly: options.cliOnly,
         deviceLocks: doctorDeviceLocks(store: store)
     )
-    report.issues = await doctorIssues(report) + doctorDeviceLockIssues(report) + runtimeProblems
+    let unavailableSimulators = await runtimeProblems
+    applyDoctorDiagnostics(&report, simulatorRuntimeProblems: unavailableSimulators)
+    return report
+}
+
+func applyDoctorDiagnostics(_ report: inout DoctorReport, simulatorRuntimeProblems: [String]) {
+    report.issues = doctorIssues(report) + doctorDeviceLockIssues(report)
     report.notes = report.devices.filter(\.physical).map { device in
         "Physical \(device.platform) device \(device.id) is connected. amoo never auto-selects it; "
             + "always pass an explicit simulator/emulator id."
-    } + doctorDeviceLockNotes(report) + doctorUnresponsiveCompanionNotes(report)
-    let unrelated = report.mcpServers.filter { $0.stale && !options.includesMCPServer($0.pid) }
+    } + doctorDeviceLockNotes(report) + doctorUnresponsiveCompanionNotes(report) + simulatorRuntimeProblems
+    let unrelated = report.mcpServers.filter {
+        $0.stale && (report.cliOnly || (report.mcpPID != nil && report.mcpPID != $0.pid))
+    }
     if !unrelated.isEmpty {
         report.notes.append(
             "Unrelated stale MCP server pid(s) \(unrelated.map { String($0.pid) }.joined(separator: ", ")) "
@@ -177,7 +185,6 @@ func runDoctor(
         )
     }
     report.ok = report.issues.isEmpty
-    return report
 }
 
 func doctorIssues(_ report: DoctorReport) -> [String] {

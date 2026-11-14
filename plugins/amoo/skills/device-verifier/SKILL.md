@@ -131,6 +131,11 @@ recheck its new PID. Routine cleanup of your own server is part of setup unless 
 leave unrelated clients running. If reconnect is unavailable, use controlled CLI for supported
 checks after releasing prior ownership. On older binaries, unrelated stale MCP warnings alone
 do not block fresh CLI work. Missing doctor or unresolved relevant issues block setup.
+An unavailable simulator or missing OS runtime affects only that device, even when older doctor
+output lists it in `issues` and exits nonzero. Report the device by name and reason as skipped,
+continue every other selected simulator/emulator, and keep its requested checks not evaluated.
+Do not delete devices, install runtimes, or substitute devices to clear preflight. Completed checks
+on other devices establish partial coverage when a requested device was skipped.
 Never invoke unlisted commands or silently change the binary.
 
 With MCP, `start_session` owns the device; pass session_id on each call and always end_session.

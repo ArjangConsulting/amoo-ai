@@ -122,6 +122,11 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
   code and `Recovery` line; amoo repairs `UPDATE_INCOMPATIBLE` once, otherwise try another AVD or API level
   (prefer API 35) unless the caller pinned it. Another client's holder or companion goes back to the caller.
   The full table is in driving-amoo `references/execution-modes.md`, "Device claims and companion failures".
+- An unavailable simulator or missing OS runtime does not block other selected devices, even when
+  an older doctor puts it in `issues` and exits nonzero. Report the unavailable device by name and
+  reason as skipped, then continue every other selected simulator/emulator. Do not delete devices,
+  install runtimes, or substitute a device just to clear preflight. Preserve requested checks on a
+  skipped device as not evaluated; completed checks on other devices still count toward a partial run.
 - Sign in only with `credential="<profile>#<field>"` (profiles in the project's `amoo.config.json`) on
   `fill_field`/`set_text`; amoo types the value and you never see it. Prefer a mock profile, then a
   keychain profile; with neither, report `blocked: no credentials`. Never invent an account, ask for a

@@ -46,6 +46,12 @@ Follow [preflight recovery](references/execution-modes.md#recover) to reconnect 
 stale server, use supported CLI work, or report a remaining blocker. Never kill other clients
 merely to clear doctor; unscoped `--kill-stale` stops stale servers across clients.
 
+Unavailable simulators and missing OS runtimes are advisory for other selected devices, including
+on older binaries that list them in `issues` and exit nonzero. Report each unavailable selected
+device by name and reason as skipped, preserve its requested checks as not evaluated, and continue
+every other selected simulator/emulator. Do not delete devices, install runtimes, or substitute
+devices to clear preflight. Report partial coverage when some requested devices were skipped.
+
 For MCP, call `start_session` with app_id, platform, and a device_hint when multiple devices
 are available. It ensures the device/companion is ready, installs build_path if supplied,
 and launches the app. Pass the returned session_id on every later device call. An invalid or

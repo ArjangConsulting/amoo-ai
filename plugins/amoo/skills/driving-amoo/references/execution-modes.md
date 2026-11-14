@@ -124,6 +124,11 @@ flag only for an explicitly requested clean store.
 ### Preflight and stale MCP servers
 
 1. Inspect `issues`, `cli.binary`, and `mcp_servers` from the pinned binary's doctor output.
+   Unavailable simulator inventory or a missing OS runtime affects only that device, even when
+   an older doctor puts it in `issues` and exits nonzero. Report an unavailable selected device
+   by name and reason as skipped, keep its checks not evaluated, and continue all other selected
+   simulators/emulators. Do not delete devices, install runtimes, or silently substitute devices.
+   A skipped requested device means partial coverage when checks on other devices complete.
    A stale MCP process runs an older executable after a rebuild; its presence does not make a
    fresh CLI process or another MCP connection stale. Old checkout/Trash paths may also indicate
    a client configuration that needs correcting. Do not infer ownership from the binary path alone.

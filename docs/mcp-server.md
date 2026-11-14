@@ -305,7 +305,13 @@ Run `amoo doctor --json` to inspect the machine. For CLI verification, use
 `amoo doctor --cli-only --json`: unrelated stale MCP servers stay visible but do not fail preflight.
 For MCP, get this connection's PID from `dev.amoo/build` metadata or its staleness warning, then
 run `amoo doctor --mcp-pid <pid> --json`. Other clients' stale servers do not fail that check.
-A missing selected PID fails with reconnect guidance. Neither scope suppresses runtime issues.
+A missing selected PID fails with reconnect guidance. Neither scope suppresses unhealthy managed
+runtimes. Unavailable simulator runtimes and their devices appear in `notes`; unused inventory
+does not fail preflight or prevent work on a healthy simulator or emulator. Selecting an
+unavailable simulator still fails with its boot error.
+Agents report unavailable requested devices as skipped with their reason and continue on the
+remaining selected simulators/emulators. Requested checks on skipped devices stay not evaluated,
+so the run reports partial coverage when other devices complete.
 Legacy initialization, modern discovery, and tool-result `dev.amoo/build` metadata include
 `doctor_arguments`, plus `stale_cleanup_arguments` only when that server is stale. These are
 argument arrays to pass to the selected absolute executable, not shell commands. Stale tool
