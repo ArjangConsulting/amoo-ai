@@ -54,8 +54,41 @@ final class DoctorRecoveryTests: XCTestCase {
         var report = makeReport(servers: [server(pid: 123, stale: true)])
         report.runtimes = [runtime]
         report.cliOnly = true
-        XCTAssertEqual(doctorIssues(report).count, 1)
-        XCTAssertTrue(doctorIssues(report)[0].contains("unresponsive"))
+
+        applyDoctorDiagnostics(&report, simulatorRuntimeProblems: ["iPhone Duo cannot boot."])
+
+        XCTAssertFalse(report.ok)
+        XCTAssertEqual(report.issues.count, 1)
+        XCTAssertTrue(report.issues[0].contains("unresponsive"))
+    }
+
+    func testUnavailableSimulatorInventoryIsAdvisoryForCLIPreflight() throws {
+        var report = makeReport(servers: [server(pid: 123, stale: true)])
+        report.cliOnly = true
+        let problem = "iPhone Duo cannot boot: runtime profile not found."
+
+        applyDoctorDiagnostics(&report, simulatorRuntimeProblems: [problem])
+
+        XCTAssertTrue(report.ok)
+        XCTAssertTrue(report.issues.isEmpty)
+        XCTAssertTrue(report.notes.contains(problem))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(renderJSON(report).utf8)) as? [String: Any])
+        XCTAssertEqual(json["ok"] as? Bool, true)
+        XCTAssertTrue((json["notes"] as? [String])?.contains(problem) == true)
+        XCTAssertTrue(humanDoctorSummary(report).contains(problem))
+    }
+
+    func testUnavailableSimulatorNotesDoNotHideOwnedMCPFailure() {
+        var report = makeReport(servers: [server(pid: 123, stale: true), server(pid: 456, stale: true)])
+        report.mcpPID = 123
+        let problem = "iPhone Duo cannot boot: runtime profile not found."
+
+        applyDoctorDiagnostics(&report, simulatorRuntimeProblems: [problem])
+
+        XCTAssertFalse(report.ok)
+        XCTAssertTrue(report.issues.contains { $0.contains("Stale MCP server pid 123") })
+        XCTAssertFalse(report.issues.contains { $0.contains("Stale MCP server pid 456") })
+        XCTAssertTrue(report.notes.contains(problem))
     }
 
     func testCleanupSignalsOnlySelectedStaleServerAfterReinspection() async throws {
