@@ -98,13 +98,15 @@ public enum QueryTools {
                 ),
                 "return_image": .init(
                     type: "boolean",
-                    description: "Also return the image inline; default false. Inline images cost image"
-                        + " tokens on this and every later turn."
+                    description: "Also return the image inline; default false unless the project's"
+                        + " amoo.config.json screenshots.return_image says so. The file is saved either way."
+                        + " Inline images cost image tokens on this and every later turn."
                 ),
                 "scale": .init(
                     type: "number",
                     description: "Fraction of native pixels per side in (0, 1]; keeps the aspect ratio."
-                        + " Omitted: 1 / screen density (402x874 on a 3x iPhone), scaled on the device."
+                        + " Omitted: 1 / screen density (402x874 on a 3x iPhone), scaled on the device,"
+                        + " times the project's amoo.config.json screenshots.scale."
                         + " 1 keeps native pixels."
                 ),
                 "settle_timeout_ms": .init(

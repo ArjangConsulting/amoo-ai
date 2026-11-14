@@ -113,14 +113,18 @@ successful compact `tap_element` also omits fields that hold their default: a mi
 `unverified`, a missing `target_state` means unavailable and a missing `element_label` means empty.
 The session report still records every field.
 
-`run_steps` retains its default stop-on-error behavior and twenty-step limit. Its default
+`run_steps` keeps its twenty-step limit. A batch of only assertions and screenshots runs every step
+by default, so one failed check does not hide the others; a batch with any action stops at its first
+failure, since later steps would act on the wrong screen. `continue_on_error` overrides either
+default, never converts an error into success, and is echoed in the result. Its default
 `result_mode=compact` includes assertion proof, error classifications, screenshot paths and
-dimensions. `result_mode=full` retains full structured results and content. Set
-`continue_on_error=true` only for independent steps; it never converts an error into success.
+dimensions. `result_mode=full` retains full structured results and content.
 Batch results distinguish attempted, successful, failed and unattempted operations.
 
-Screenshots are saved to a file (`output`, or a temporary file reported as `saved_path`) and return
-no inline image unless `return_image=true`. They default to one image pixel per point (iOS) or
+Screenshots are always saved to a file (`output`, or a temporary file reported as `saved_path`, even
+when the image is also returned) and return no inline image unless `return_image=true` or the
+project's [`screenshots`](credentials.md#screenshot-defaults) defaults say so; a project `scale`
+shrinks the default capture further. They default to one image pixel per point (iOS) or
 density-independent pixel (Android), scaled on the device; `scale` (a fraction of native pixels,
 `1` for native) overrides it. Results report actual decoded dimensions, `image_scale`, saved paths,
 byte counts and scaling status (`applied_on_device`, `applied`, `not_requested`, `unavailable`).

@@ -22,6 +22,14 @@ It asks only for what you did not pass as flags, defaulting from what it can see
    `--owner <label>` to customize it.
 5. **AI clients** — offers to set up the amoo subagents and skills (see below).
 
+After you confirm the plan, it asks two **screenshot** questions, starting from the project's current
+choice: the size (standard 1 pixel per point, half, or quarter) and whether agents get the image
+inline or only the saved file's path. A changed answer is written to
+[`amoo.config.json`](credentials.md#screenshot-defaults) as project defaults; an unchanged one writes
+nothing. `--screenshot-scale <0..1>` and `--screenshot-inline` / `--screenshot-path-only` answer them,
+headless too (`--yes` alone keeps the current choice). The managed `AGENTS.md` block records the
+result in a `Screenshots:` line.
+
 When `--app` is explicitly supplied, it also asks for the app ID if omitted, defaulting from the
 iOS app's `Info.plist`. When an app ID is supplied or collected, it asks whether to launch the app.
 Without an app, setup skips installation and launch. Saved artifact paths are never selected

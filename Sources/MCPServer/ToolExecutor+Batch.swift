@@ -21,7 +21,10 @@ extension DriverToolExecutor {
         var results: [Value] = []
         var completed = 0
         var failed = 0
-        let keepGoing = boolArgument(arguments["continue_on_error"]) == true
+        // Read-only checks are independent, so one failure should not hide the rest; a batch with
+        // any action stops by default, since later steps would act on the wrong screen.
+        let keepGoing = boolArgument(arguments["continue_on_error"])
+            ?? prepared.allSatisfy { Self.readOnlyBatchTools.contains($0.0) }
         for (index, step) in prepared.enumerated() {
             try Task.checkCancellation()
             let result = await executeOrdered(toolName: step.0, arguments: step.1)
@@ -42,7 +45,8 @@ extension DriverToolExecutor {
             }
         }
         let fields: [String: Value] = [
-            "results": .array(results), "completed": .int(completed), "failed": .int(failed),
+            "continue_on_error": .bool(keepGoing), "results": .array(results), "completed": .int(completed),
+            "failed": .int(failed),
             "attempted": .int(results.count), "unattempted": .int(steps.count - results.count),
             "dispatch_is_proof": .bool(false)
         ]
@@ -51,6 +55,12 @@ extension DriverToolExecutor {
             isError: failed > 0, structuredContent: .object(fields)
         )
     }
+
+    /// Batch steps that observe without changing the app: an assertion-only batch continues past failures.
+    static let readOnlyBatchTools: Set = [
+        "assert_visible", "assert_absent", "assert_enabled", "assert_value", "assert_selected", "assert_checked",
+        "assert_state_description", "assert_screen_changed", "take_screenshot"
+    ]
 
     private func prepareBatch(_ steps: [BatchStep], sessionID: String) throws -> [(String, [String: String])] {
         let allowed: Set = [
@@ -73,6 +83,10 @@ extension DriverToolExecutor {
                     code: "invalid_argument",
                     message: "Batch take_screenshot steps save to a file; omit return_image."
                 )
+            }
+            if step.tool == "take_screenshot" {
+                // Batch rows carry evidence paths, never images, whatever the project default.
+                values["return_image"] = "false"
             }
             values["session_id"] = sessionID
             _ = try ToolRequest(name: step.tool, arguments: values)

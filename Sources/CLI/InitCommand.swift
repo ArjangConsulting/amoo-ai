@@ -68,6 +68,7 @@ func renderInitHelp() -> String {
                      [--framework native|react-native|flutter|kmp] [--repo <dir>]
                      [--dry-run] [--yes] [--save|--no-save] [--agents-file <path>]
                      [--client <name>]... [--skills|--no-skills]
+                     [--screenshot-scale <0..1>] [--screenshot-inline|--screenshot-path-only]
                      [--non-interactive] [--json]
            amoo init device [--manifest <path>] --device <id> [--json] <tool> [key=value ...]
            amoo init down [--manifest <path>] [--shutdown] [--json]
@@ -88,6 +89,10 @@ func renderInitHelp() -> String {
     In a terminal it also asks whether agents need to sign in, and if so runs `amoo credentials add`
     to save a test account (mock in amoo.config.json, real in the macOS Keychain). The saved block and
     the summary say whether sign-in profiles exist; add more any time with `amoo credentials add`.
+
+    It also asks the screenshot size (a fraction of 1 pixel per point) and whether agents get the image
+    inline or just the saved file's path; captures are always saved. The choice is a project default in
+    amoo.config.json that a call's scale/return_image overrides; the --screenshot-* flags skip the question.
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.

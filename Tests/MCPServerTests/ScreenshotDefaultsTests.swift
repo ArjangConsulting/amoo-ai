@@ -5,6 +5,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 @testable import MCPServer
+import StudioProtocol
 import UniformTypeIdentifiers
 import XCTest
 
@@ -97,7 +98,56 @@ final class ScreenshotDefaultsTests: XCTestCase {
         let fields = try XCTUnwrap(result.structuredContent?.objectValue)
         XCTAssertEqual(fields["width_pixels"]?.intValue, 100)
         XCTAssertEqual(fields["scaling_status"], .string("applied"))
-        XCTAssertNil(fields["saved_path"])
+        // An inline image is saved too, so a later turn can reread it without another capture.
+        let saved = try XCTUnwrap(fields["saved_path"]?.stringValue)
+        defer { try? FileManager.default.removeItem(atPath: saved) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: saved))
+    }
+
+    func testProjectScaleShrinksTheSavedFileAndInlineImage() async throws {
+        let driver = CaptureDriver(scalesOnDevice: true)
+        let executor = DriverToolExecutor(
+            driver: driver, screenshotPolicy: { ScreenshotPolicy(scale: 0.5, returnImage: true) }
+        )
+        let result = await executor.execute(toolName: "take_screenshot", arguments: ["settle_timeout_ms": "0"])
+        XCTAssertFalse(result.isError, result.content)
+        XCTAssertNotNil(result.image)
+        let fields = try XCTUnwrap(result.structuredContent?.objectValue)
+        let saved = try XCTUnwrap(fields["saved_path"]?.stringValue)
+        defer { try? FileManager.default.removeItem(atPath: saved) }
+        XCTAssertEqual(fields["width_pixels"]?.intValue, 50)
+        XCTAssertEqual(fields["height_pixels"]?.intValue, 100)
+        XCTAssertEqual(fields["image_scale"]?.doubleValue ?? 0, 1.0 / 6, accuracy: 0.001)
+    }
+
+    func testCallArgumentsOverrideTheProjectPolicy() async throws {
+        let driver = CaptureDriver(scalesOnDevice: true)
+        let executor = DriverToolExecutor(
+            driver: driver, screenshotPolicy: { ScreenshotPolicy(scale: 0.25, returnImage: true) }
+        )
+        let result = await executor.execute(
+            toolName: "take_screenshot", arguments: ["settle_timeout_ms": "0", "scale": "1", "return_image": "false"]
+        )
+        XCTAssertNil(result.image)
+        let fields = try XCTUnwrap(result.structuredContent?.objectValue)
+        defer { fields["saved_path"]?.stringValue.map { try? FileManager.default.removeItem(atPath: $0) } }
+        XCTAssertEqual(fields["width_pixels"]?.intValue, 300)
+    }
+
+    func testPruneRemovesOnlyStaleSessionFolders() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "amoo-prune-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let stale = root.appending(path: "stale")
+        let fresh = root.appending(path: "fresh")
+        for folder in [stale, fresh] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: -2 * 86400)], ofItemAtPath: stale.path
+        )
+        XCTAssertEqual(DriverToolExecutor.pruneScratchScreenshots(root: root), 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fresh.path))
     }
 
     func testExplicitScaleOneKeepsNativePixels() async throws {

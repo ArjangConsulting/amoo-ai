@@ -3,7 +3,8 @@ public enum BatchTools {
     public static let definitions = [ToolDefinition(
         name: "run_steps",
         description: "Run 1–20 known actions, assertions, or screenshot observations in one managed session."
-            + " Stops on first failure and returns compact step summaries. For transient UI, put"
+            + " A batch of only assertions/screenshots runs every step; one with an action stops on its"
+            + " first failure. Returns compact step summaries. For transient UI, put"
             + " take_screenshot immediately after the action with output, return_image=false, and"
             + " settle_timeout_ms=0. Set check_effect=false on a triggering tap_element to skip post-tap"
             + " hierarchy reads; a coordinate tap from fresh geometry also avoids foreground-app observation."
@@ -12,7 +13,9 @@ public enum BatchTools {
         properties: [
             "session_id": .init(type: "string", description: "Active managed session"),
             "continue_on_error": .init(
-                type: "boolean", description: "Continue independent checks after errors; default false"
+                type: "boolean",
+                description: "Continue after a failed step. Default true when every step is an assertion or"
+                    + " screenshot, false when any step is an action"
             ),
             "result_mode": .init(
                 type: "string", description: "compact (default) retains proof and evidence paths; full retains details",

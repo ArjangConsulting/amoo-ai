@@ -516,7 +516,9 @@ stable while paging and restart if it changes. Hierarchy output defaults to 200 
 explicit truncation marker. Truncated output cannot establish absence. Prefer `get_screen_context`
 and scoped queries over screenshots. `take_screenshot` saves to `saved_path` (or `output`) without an
 inline image by default, at one pixel per point/dp; pass `return_image=true` only when the model must
-see pixels, since an inline image is re-read on every later turn. Use available local tools such as Python/ffmpeg for pixel diffs,
+see pixels, since an inline image is re-read on every later turn. A project's
+[`screenshots`](credentials.md#screenshot-defaults) defaults in `amoo.config.json` (set by `amoo init`)
+can shrink that size or turn inline images on; a call's own `scale`/`return_image` wins. Use available local tools such as Python/ffmpeg for pixel diffs,
 bounds or centroids, and view only a small crop when visual interpretation is necessary. For a transient state, batch the action and an immediate
 `take_screenshot` with `settle_timeout_ms=0` in one `run_steps` call. Set `check_effect=false` on
 a triggering `tap_element` to skip its post-tap hierarchy reads. For tighter timing, use a

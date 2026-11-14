@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/maniramezan/mobile-testing/docs/amoo-config.schema.json",
   "title": "amoo.config.json",
-  "description": "Project configuration for amoo: credential profiles an agent signs in with by reference.",
+  "description": "Project configuration for amoo: credential profiles an agent signs in with by reference, and screenshot defaults.",
   "type": "object",
   "required": ["version"],
   "properties": {
@@ -11,6 +11,25 @@
       "type": "object",
       "propertyNames": { "pattern": "^[^#]+$" },
       "additionalProperties": { "$ref": "#/$defs/profile" }
+    },
+    "screenshots": {
+      "type": "object",
+      "description": "Agent screenshot defaults; a call's own scale or return_image wins. Captures are always saved to a file.",
+      "additionalProperties": false,
+      "properties": {
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 1,
+          "description": "Image size relative to one pixel per point (iOS) or dp (Android), for the saved file and any inline image."
+        },
+        "return_image": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also return the image inline when a take_screenshot call does not say."
+        }
+      }
     }
   },
   "$defs": {

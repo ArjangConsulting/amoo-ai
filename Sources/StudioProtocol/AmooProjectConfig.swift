@@ -10,16 +10,24 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
 
     public var version: Int
     public var profiles: [String: CredentialProfile]
+    /// Screenshot size and delivery defaults for agents; nil keeps `ScreenshotPolicy.standard`.
+    public var screenshots: ScreenshotPolicy?
 
-    public init(version: Int = supportedVersion, profiles: [String: CredentialProfile] = [:]) {
+    public init(
+        version: Int = supportedVersion,
+        profiles: [String: CredentialProfile] = [:],
+        screenshots: ScreenshotPolicy? = nil
+    ) {
         self.version = version
         self.profiles = profiles
+        self.screenshots = screenshots
     }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(Int.self, forKey: .version)
         profiles = try container.decodeIfPresent([String: CredentialProfile].self, forKey: .profiles) ?? [:]
+        screenshots = try container.decodeIfPresent(ScreenshotPolicy.self, forKey: .screenshots)
     }
 
     /// The nearest `amoo.config.json` at or above `directory`, stopping at the repository root.
@@ -60,9 +68,10 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
     }
 
     /// `inner` wins: profiles and their fields merge by name, a profile's `apps` list is replaced, and
-    /// its launch requirements merge by key.
+    /// its launch requirements merge by key. An inner screenshot policy replaces the outer one.
     func overlaid(by inner: Self) -> Self {
         var result = self
+        result.screenshots = inner.screenshots ?? screenshots
         for (name, profile) in inner.profiles {
             guard let outer = result.profiles[name] else {
                 result.profiles[name] = profile
@@ -126,6 +135,7 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
         if version != Self.supportedVersion {
             problems.append("version \(version) is not supported (expected \(Self.supportedVersion))")
         }
+        problems += screenshots?.validationProblems() ?? []
         for (name, profile) in profiles.sorted(by: { $0.key < $1.key }) {
             if name.isEmpty || name.contains("#") {
                 problems.append("profile name '\(name)' must be non-empty and must not contain '#'")
