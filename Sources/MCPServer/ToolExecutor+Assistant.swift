@@ -2,6 +2,7 @@ import AmooCore
 import AuditEngine
 import Foundation
 import MCP
+import StudioProtocol
 import TestSession
 
 extension DriverToolExecutor {
@@ -185,6 +186,8 @@ extension DriverToolExecutor {
         driver: any PlatformDriver,
         arguments: [String: String]
     ) async throws -> ToolResult {
+        // Project defaults from amoo.config.json; the call's own scale and return_image win.
+        let policy = screenshotPolicy()
         let requestedFormat = ImageFormat(parsing: arguments["format"])
         let settleTimeout = min(
             arguments["settle_timeout_ms"].flatMap(Int.init) ?? Self.defaultScreenshotSettleMilliseconds,
@@ -222,8 +225,14 @@ extension DriverToolExecutor {
             (screenshot.density ?? screenshot.geometry?.scale).flatMap { $0 > 1 ? 1 / $0 : nil }
         }
         let scaledData = ScreenshotScaler.scaled(originalData, by: hostScale, format: actualFormat)
-        let data = scaledData ?? originalData
-        let imageScale = screenshot.appliedScale ?? (scaledData == nil ? 1 : hostScale ?? 1)
+        var data = scaledData ?? originalData
+        var imageScale = screenshot.appliedScale ?? (scaledData == nil ? 1 : hostScale ?? 1)
+        // A project scale below one shrinks the default capture further, for the file and any inline image.
+        if explicitScale == nil, policy.scale < 1,
+           let reduced = ScreenshotScaler.scaled(data, by: policy.scale, format: actualFormat) {
+            data = reduced
+            imageScale *= policy.scale
+        }
         let scalingStatus = screenshot.appliedScale != nil ? "applied_on_device"
             : ScreenshotScaler.scalingStatus(requested: hostScale, scaled: scaledData)
 
@@ -309,14 +318,12 @@ extension DriverToolExecutor {
 
         var savedNote = ""
         fields.merge(Self.screenshotDimensionFields(data), uniquingKeysWith: { _, actual in actual })
-        let returnImage = boolArgument(arguments["return_image"]) == true
-        // Saved by default: the path costs a few tokens and the client reads the file only when it
-        // needs pixels, instead of carrying an image through every later turn.
+        let returnImage = boolArgument(arguments["return_image"]) ?? policy.returnImage
+        // Always saved, inline or not: the path costs a few tokens and the client reads the file only
+        // when it needs pixels again, instead of carrying an image through every later turn. Scratch
+        // captures live in a per-session temp folder that `amoo mcp serve` prunes once stale.
         let output = arguments["output"].flatMap { $0.isEmpty ? nil : $0 }
-            ?? (returnImage ? nil : Self.scratchScreenshotPath(
-                sessionID: arguments["session_id"],
-                format: actualFormat
-            ))
+            ?? Self.scratchScreenshotPath(sessionID: arguments["session_id"], format: actualFormat)
         if let output {
             let url = URL(fileURLWithPath: (output as NSString).expandingTildeInPath)
             do {
@@ -370,6 +377,29 @@ extension DriverToolExecutor {
         let suffix = UUID().uuidString.prefix(6)
         let ext = format == .jpeg ? "jpg" : "png"
         return directory.appending(path: "\(stamp)-\(suffix).\(ext)").path
+    }
+
+    /// Removes session folders under `$TMPDIR/amoo-screenshots` untouched for `age`, returning how many
+    /// went. Callers that need a capture beyond a session pass `output`.
+    @discardableResult
+    public static func pruneScratchScreenshots(
+        olderThan age: TimeInterval = 86400,
+        root: URL = FileManager.default.temporaryDirectory.appending(path: "amoo-screenshots"),
+        now: Date = Date()
+    ) -> Int {
+        let fileManager = FileManager.default
+        guard let folders = try? fileManager.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return 0 }
+        var removed = 0
+        for folder in folders {
+            let modified = (try? folder.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            if now.timeIntervalSince(modified) > age, (try? fileManager.removeItem(at: folder)) != nil {
+                removed += 1
+            }
+        }
+        return removed
     }
 
     static let defaultScreenshotSettleMilliseconds = 1500

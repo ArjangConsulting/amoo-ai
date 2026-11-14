@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import StudioProtocol
 
 /// Where `amoo init` last found things, recorded in the repo's `AGENTS.md` so the next run (and any
 /// agent reading the file) starts from the same places. Only locations are stored: never device ids
@@ -36,7 +37,8 @@ func portableInitPath(_ path: String, relativeTo base: String, home: String = NS
 func renderInitLocationsBlock(
     _ saved: InitSavedLocations,
     relativeTo base: String,
-    signIn: InitSignInStatus? = nil
+    signIn: InitSignInStatus? = nil,
+    screenshots: ScreenshotPolicy? = nil
 ) -> String {
     var lines = [
         blockStart,
@@ -77,6 +79,9 @@ func renderInitLocationsBlock(
         )
     if let signIn {
         lines.append(signIn.agentsLine(relativeTo: base))
+    }
+    if let screenshots {
+        lines.append(screenshotsAgentsLine(screenshots))
     }
     lines.append("- Prepare devices: `amoo init` (guided) or `amoo init --help`")
     lines.append(blockEnd)
@@ -153,7 +158,12 @@ func saveInitLocations(_ saved: InitSavedLocations, agentsFile: String) throws {
         }
     }
     let signIn = InitSignInStatus.inspect(root: URL(fileURLWithPath: base))
-    let block = renderInitLocationsBlock(merged, relativeTo: base, signIn: signIn)
+    let block = renderInitLocationsBlock(
+        merged,
+        relativeTo: base,
+        signIn: signIn,
+        screenshots: ScreenshotPolicy.resolve(from: URL(fileURLWithPath: base))
+    )
     let updated = upsertInitBlock(into: existing, block: block)
     try updated.write(toFile: agentsFile, atomically: true, encoding: .utf8)
 }

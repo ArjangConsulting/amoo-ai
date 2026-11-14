@@ -6,6 +6,7 @@ import Foundation
 import IOSDriver
 import MCPServer
 import ProcessRunner
+import StudioProtocol
 import TestSession
 #if canImport(Darwin)
 import Darwin
@@ -165,10 +166,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             bootstrapper: bootstrapper, store: store, idleLimit: SessionManager.idleLimitFromEnvironment()
         )
         // Off the startup path: a client waits on `initialize`, not on housekeeping.
-        Task.detached(priority: .background) {
-            let removed = store.prune() + DeviceRuntimeStore().pruneLogs()
-            AmooLogger.forType(FileSessionStore.self).info("Pruned stale store entries", context: "removed=\(removed)")
-        }
+        Task.detached(priority: .background) { pruneMCPHousekeeping(store: store) }
         let executor = DriverToolExecutor(
             driver: driver,
             sessionManager: sessionManager,
@@ -176,6 +174,7 @@ func runMCPServeCommand(options: MCPServeOptions) async -> CLIResult {
             webInspector: makeWebInspecting(processRunner: SystemProcessRunner()),
             defaultPlatform: options.platform,
             credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
+            screenshotPolicy: { ScreenshotPolicy.resolve() },
             runTelemetry: .persistent()
         )
         let server = MCPServer(executor: executor, sessionManager: sessionManager, profile: profile)
@@ -266,4 +265,10 @@ private func serveMCP(server: MCPServer, output: FileHandle) async throws {
         signals.finish()
     }
     try await serving.value
+}
+
+/// Removes stale session records, runtime logs and scratch screenshot folders.
+private func pruneMCPHousekeeping(store: FileSessionStore) {
+    let removed = store.prune() + DeviceRuntimeStore().pruneLogs() + DriverToolExecutor.pruneScratchScreenshots()
+    AmooLogger.forType(FileSessionStore.self).info("Pruned stale store entries", context: "removed=\(removed)")
 }

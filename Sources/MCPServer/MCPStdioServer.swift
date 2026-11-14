@@ -51,11 +51,11 @@ public struct MCPStdioServer: Sendable {
     blocked=none completed. Dispatch is not a postcondition. Inspect after timeout before retrying.
     masked_change cannot prove equality; record_value=fixture only for non-sensitive data.
     Sign in with credential=<profile>#<field>, never a password; return blocked: results.
-    run_steps result_mode=compact for known sequences; continue_on_error=true only for independent steps.
+    run_steps result_mode=compact for known sequences; assert-only batches run every step.
     Keep run_id across attempts; get_run_telemetry measures bytes/calls, not tokens. response_mode=compact.
 
-    Screenshots save to saved_path at 1px/point (default return_image=false); inline only when
-    pixels matter; scale=native fraction; analyze pixels locally.
+    Screenshots save to saved_path at 1px/point x project scale (default return_image=false);
+    inline only when pixels matter; scale=native fraction; analyze pixels locally.
     Transient UI: run_steps action + take_screenshot (settle_timeout_ms=0);
     tap_element expect_id waits for the result; check_effect=false skips effect reads.
     Check capture_suspect/screen_state/foreground/viewport.

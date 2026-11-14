@@ -47,6 +47,29 @@ final class BatchExecutionTests: XCTestCase {
         XCTAssertEqual(calls, ["tap:1.0,2.0"])
     }
 
+    func testAssertionOnlyBatchRunsEveryStepByDefault() async throws {
+        let manager = SessionManager(bootstrapper: MockSessionBootstrapper())
+        let session = try await manager.startSession(appID: "app", platform: .ios)
+        let executor = DriverToolExecutor(driver: MockDriver(), sessionManager: manager)
+        let steps = """
+        [{"tool":"assert_value","arguments":{"id":"content","expected":"Ready","timeout_ms":1}},
+         {"tool":"assert_value","arguments":{"id":"content","expected":"Done","timeout_ms":1}}]
+        """
+        let result = await executor.execute(
+            toolName: "run_steps", arguments: ["session_id": session.id, "steps": steps]
+        )
+        let fields = try XCTUnwrap(result.structuredContent?.objectValue)
+        XCTAssertEqual(fields["continue_on_error"], .bool(true))
+        XCTAssertEqual(fields["attempted"], .int(2))
+        XCTAssertEqual(fields["unattempted"], .int(0))
+
+        let stopped = await executor.execute(
+            toolName: "run_steps",
+            arguments: ["session_id": session.id, "steps": steps, "continue_on_error": "false"]
+        )
+        XCTAssertEqual(stopped.structuredContent?.objectValue?["attempted"], .int(1))
+    }
+
     func testNestedBatchIsRejectedBeforeAnyMutation() async throws {
         let manager = SessionManager(bootstrapper: MockSessionBootstrapper())
         let session = try await manager.startSession(appID: "app", platform: .ios)

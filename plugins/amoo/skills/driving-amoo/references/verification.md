@@ -29,7 +29,8 @@ try a stable ID or scoped text, and inspect the relevant saved screenshot before
 blocked. A content error does not block independent navigation; verify those controls separately.
 
 Use bounded `find_elements`, `response_mode=compact`, and `run_steps result_mode=compact` for known
-sequences. Use `continue_on_error=true` only when later steps are independent of earlier success.
+sequences. Batch independent assertions together: an assertion-only batch runs every step by default,
+while a batch with an action stops at its first failure (`continue_on_error` overrides either).
 Keep decision-dependent steps separate. Save screenshots with `output`, `return_image=false`, and
 an appropriate `scale`; inspect relevant screenshots for visual/layout checks. Screen tokens detect
 semantic changes, not pixel equivalence; incremental hierarchy diffs are not advertised. Reuse the

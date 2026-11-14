@@ -87,6 +87,26 @@ outer one. `amoo config validate` lists every file it layered. Schema:
 `amoo config validate [--path <file>] [--json]` checks the file without reading any value;
 `amoo credentials add` writes it for you.
 
+### Screenshot defaults
+
+The same file holds the project's screenshot defaults, which `amoo init` asks for (or sets from
+`--screenshot-scale` and `--screenshot-inline` / `--screenshot-path-only`):
+
+```json
+{ "version": 1, "screenshots": { "scale": 0.5, "return_image": false } }
+```
+
+| Key | Meaning |
+| --- | --- |
+| `screenshots.scale` | Image size relative to one pixel per point (iOS) or dp (Android), in (0, 1]; default `1`. It sizes the saved file and any inline image. `0.5` keeps a quarter of the pixels. |
+| `screenshots.return_image` | Whether `take_screenshot` also returns the image inline when the call does not say; default `false` (file path only). |
+
+Every capture is saved to a file either way: the call's `output`, or a per-session folder under
+`$TMPDIR/amoo-screenshots` that `amoo mcp serve` prunes after a day. These are defaults, not a
+block: a call's own `scale` or `return_image` wins, and `run_steps` never returns images inline. The
+MCP server and `amoo device` read the value at capture time; checked-in `amoo flow` runs ignore it.
+The nearer config's `screenshots` section replaces an outer one.
+
 ## Using a credential
 
 ```text

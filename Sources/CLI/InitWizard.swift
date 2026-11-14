@@ -30,6 +30,10 @@ struct InitRequest: Equatable {
     /// AI clients to also install the amoo subagents/skills for (`--client`); `--no-skills` opts out.
     var clients: [AgentClient] = []
     var skills: Bool?
+    /// `--screenshot-scale`: the project's screenshot size as a fraction of one pixel per point.
+    var screenshotScale: Double?
+    /// `--screenshot-inline` / `--screenshot-path-only`: whether captures also return the image.
+    var screenshotInline: Bool?
 
     /// Required inputs still absent, phrased as the flag that supplies each.
     var missing: [String] {
@@ -104,6 +108,18 @@ func parseInitRequest(_ args: [String]) throws -> InitRequest {
     }
     request.save = save ? true : (noSave ? false : nil)
     request.agentsFile = try flags.value("--agents-file")
+    if let raw = try flags.value("--screenshot-scale") {
+        guard let scale = Double(raw), scale > 0, scale <= 1 else {
+            throw EnvCommandParseError.usage("--screenshot-scale must be a number in (0, 1], got '\(raw)'.")
+        }
+        request.screenshotScale = scale
+    }
+    let inline = flags.take("--screenshot-inline")
+    let pathOnly = flags.take("--screenshot-path-only")
+    guard !(inline && pathOnly) else {
+        throw EnvCommandParseError.usage("--screenshot-inline and --screenshot-path-only are mutually exclusive.")
+    }
+    request.screenshotInline = inline ? true : (pathOnly ? false : nil)
     while let raw = try flags.value("--client") {
         request
             .clients += try parseAgentList(raw, all: AgentClient.allCases, flag: "--client") {

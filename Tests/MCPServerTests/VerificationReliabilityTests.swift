@@ -204,14 +204,15 @@ final class VerificationReliabilityTests: XCTestCase {
              {"tool":"assert_checked","arguments":{"id":"settings","check_id":"checked","timeout_ms":50}}]
             """
         ]
-        let stopped = await executor.execute(toolName: "run_steps", arguments: arguments)
+        let stopped = await executor.execute(
+            toolName: "run_steps", arguments: arguments.merging(["continue_on_error": "false"]) { _, value in value }
+        )
         XCTAssertTrue(stopped.isError)
         let before = await manager.report(for: id)
         XCTAssertEqual(before?.verification?.completedChecks, 1)
         XCTAssertEqual(before?.verification?.checks[1].outcome, .untested)
-        let result = await executor.execute(
-            toolName: "run_steps", arguments: arguments.merging(["continue_on_error": "true"]) { _, value in value }
-        )
+        // An assertion-only batch continues past a failure without being asked to.
+        let result = await executor.execute(toolName: "run_steps", arguments: arguments)
         XCTAssertTrue(result.isError)
         XCTAssertEqual(result.structuredContent?.objectValue?["attempted"], .int(3))
         let report = await manager.report(for: id)

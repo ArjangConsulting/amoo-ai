@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import StudioProtocol
 import SwiftyTerminal
 
 /// Host seams for the guided flow; tests replace all of them.
@@ -142,9 +143,16 @@ private func runCompletedInit(
             return cancelledResult
         }
         saveLocations = save
-        if offerSignIn, !complete.assumeYes {
-            await offerSignInAccount(appID: plan.options.environment.appID, agentsFile: agentsFile, runtime: runtime)
-        }
+    }
+    // A project setting, independent of the devices: saved before setup so a failed device keeps it.
+    let screenshotNote = offerSignIn ? settleInitScreenshots(
+        complete,
+        interactive: interactive,
+        root: URL(fileURLWithPath: agentsFile).deletingLastPathComponent(),
+        prompter: runtime.prompter
+    ) : nil
+    if interactive, offerSignIn, !complete.assumeYes {
+        await offerSignInAccount(appID: plan.options.environment.appID, agentsFile: agentsFile, runtime: runtime)
     }
     let result = await runInit(
         plan.options,
@@ -157,7 +165,7 @@ private func runCompletedInit(
         save: saveLocations,
         interactive: interactive,
         agentsFile: agentsFile
-    )
+    ).appendingNote(screenshotNote)
 }
 
 /// Asks whether agents need to sign in, and runs `amoo credentials add` if so. Declining, cancelling

@@ -39,6 +39,9 @@ public actor DriverToolExecutor: ToolExecutor {
     let defaultPlatform: Platform?
     /// Resolves `credential` references; the default finds `amoo.config.json` and has no keychain.
     let credentialResolver: CredentialResolver
+    /// The project's screenshot defaults, read at capture time so an edit to `amoo.config.json` applies
+    /// to the next capture. Defaults to `standard`; `amoo mcp serve` / `amoo device` read the project config.
+    let screenshotPolicy: @Sendable () -> ScreenshotPolicy
     /// Every secret this executor has resolved, scrubbed from every later result it returns.
     var credentialRedactor = ArtifactRedactor()
     /// The last app amoo launched per session id (`default` without one), for the credential gate.
@@ -52,8 +55,10 @@ public actor DriverToolExecutor: ToolExecutor {
         defaultPlatform: Platform? = nil,
         defaultDeviceID: String? = nil,
         credentialResolver: CredentialResolver = CredentialResolver(),
+        screenshotPolicy: @escaping @Sendable () -> ScreenshotPolicy = { .standard },
         runTelemetry: RunTelemetryStore = RunTelemetryStore()
     ) {
+        self.screenshotPolicy = screenshotPolicy
         self.runTelemetry = runTelemetry
         let configuredRun = ProcessInfo.processInfo.environment["AMOO_RUN_ID"]
         telemetryRunID = configuredRun.flatMap { UUID(uuidString: $0) != nil ? $0 : nil } ?? UUID().uuidString

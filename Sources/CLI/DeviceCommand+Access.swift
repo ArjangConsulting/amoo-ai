@@ -4,6 +4,7 @@ import CompanionProtocol
 import IOSDriver
 import MCPServer
 import ProcessRunner
+import StudioProtocol
 
 extension DeviceCommandOptions {
     func acquireDeviceAccess(store: DeviceRuntimeStore = DeviceRuntimeStore()) throws -> DeviceAccessLock? {
@@ -19,6 +20,7 @@ func makeDeviceToolExecutor(_ options: DeviceCommandOptions, driver: any Platfor
         defaultPlatform: options.platform,
         defaultDeviceID: options.deviceID,
         credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
+        screenshotPolicy: { ScreenshotPolicy.resolve() },
         runTelemetry: .persistent()
     )
 }
