@@ -29,7 +29,7 @@ dependencies {
     espressoClasspath("androidx.compose.foundation:foundation")
     espressoClasspath("androidx.activity:activity-compose:1.12.3")
     espressoClasspath("junit:junit:4.13.2")
-    espressoClasspath("androidx.test.uiautomator:uiautomator:2.4.0")
+    espressoClasspath("androidx.test.uiautomator:uiautomator:2.4.1")
     // KotlinTestCommons publishes Android AARs. The JVM-only Gradle variant of the same coordinates
     // would not contain the Espresso, UiAutomator, or Compose-rule helpers generated tests call.
     listOf("core", "device", "compose").forEach { module ->
