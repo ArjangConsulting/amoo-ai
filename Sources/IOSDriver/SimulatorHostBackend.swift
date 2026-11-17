@@ -270,7 +270,7 @@ extension SimulatorHostBackend {
         }
         value = value.trimmingCharacters(in: .whitespaces)
         // Remove surrounding quotes
-        if value.hasPrefix("\"") && value.hasSuffix("\"") {
+        if value.hasPrefix("\""), value.hasSuffix("\"") {
             value = String(value.dropFirst().dropLast())
         }
         return value.isEmpty ? nil : value
