@@ -270,5 +270,5 @@ private func serveMCP(server: MCPServer, output: FileHandle) async throws {
 /// Removes stale session records, runtime logs and scratch screenshot folders.
 private func pruneMCPHousekeeping(store: FileSessionStore) {
     let removed = store.prune() + DeviceRuntimeStore().pruneLogs() + DriverToolExecutor.pruneScratchScreenshots()
-    AmooLogger.forType(FileSessionStore.self).info("Pruned stale store entries", context: "removed=\(removed)")
+    AmooLogger.forType(FileSessionStore.self).debug("Pruned stale store entries", context: "removed=\(removed)")
 }
