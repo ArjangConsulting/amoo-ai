@@ -73,7 +73,8 @@ struct AnthropicAgentModel: StudioAgentModel {
         var body: [String: StudioJSON] = [
             "model": .string(http.provider.model),
             "system": .string(system),
-            "max_tokens": .int(4096),
+            // Thinking counts toward max_tokens on current Claude models; a low cap truncates tool calls.
+            "max_tokens": .int(32000),
             "stream": .bool(true),
             "messages": .array(Self.wire(messages))
         ]
