@@ -18,8 +18,7 @@ In an orchestrator, every amoo.md up to the repo root applies (nearer wins) and 
 
 ## Discover once, verify complete coverage
 
-Cache `get_capabilities` or `amoo capabilities --command device --platform <platform>` per binary/runtime.
-Prefer typed MCP or CLI `--arguments-json @arguments.json`; preserve `--runtime-id` during recovery.
+Cache `get_capabilities` or `amoo capabilities --command device --platform <platform>` per binary/runtime. Prefer typed MCP or CLI `--arguments-json @arguments.json`; preserve `--runtime-id` during recovery.
 Read [verification contracts](references/verification.md) for startup receipts, selector recovery,
 required check IDs, derived pass/fail/partial/blocked results, compact queries/batches and measured costs.
 Unsupported state and gesture dispatch cannot prove a check. Inspect saved screenshots for layout checks.
@@ -30,14 +29,12 @@ Set up the amoo subagents and skills for an AI client with `amoo agent install` 
 it asks which clients and where; scripts pass `--client <name> --json`). `amoo init` offers the same
 step. Existing files are preserved unless `--force`; preview with `--dry-run`.
 
-Use installed amoo, or swift build then absolute .build/debug/amoo for MCP and CLI/subagents.
-Install local agents with that same --binary path.
+Use installed amoo, or swift build then absolute .build/debug/amoo for MCP and CLI/subagents; install local agents with that same --binary path.
 Shell aliases such as amoo-debug do not select spawned MCP processes. Reconnect a running
 MCP server after rebuilding to load the new executable. Release builds are for release verification.
 
-Before device work, [verify pinned MCP identity and enforce boot deadlines](references/execution-modes.md#routing-and-startup-deadlines).
-
-Before device work, check that binary's --version, --help, and doctor --help; select a scope below.
+Before device work, [verify pinned MCP identity and enforce boot deadlines](references/execution-modes.md#routing-and-startup-deadlines),
+then check that binary's --version, --help, and doctor --help; select a scope below.
 Doctor is mandatory preflight for both transports. A nonzero exit starts recovery; inspect
 issues before declaring blocked. For CLI work, use `doctor --cli-only --json` when listed in help.
 For MCP, `dev.amoo/build` supplies this connection's PID and `doctor_arguments`; otherwise use its warning,
@@ -91,10 +88,8 @@ assertions, which can share a compact `run_steps` batch with the tap.
 Use MCP for interactive inspection and managed recordings; use controlled CLI for checked-in flows
 and probes. Subagents acquire their own device ownership and use their available transport.
 For who should drive and how to delegate, read [execution modes](references/execution-modes.md)
-before CLI interaction or delegation. It covers version checks, runtime acquisition, cleanup,
-and transport limitations.
-MCP `start_session` owns the device until `end_session`; it needs no separate CLI runtime.
-Never use a second transport to bypass an ownership conflict.
+before CLI interaction or delegation. It covers version checks, runtime acquisition, cleanup, and transport limitations.
+MCP `start_session` owns the device until `end_session`; it needs no separate CLI runtime. Never use a second transport to bypass an ownership conflict.
 
 One companion serves one device; use matching per-device ports for several simulators.
 
@@ -151,8 +146,7 @@ Drag with source id/label and to_id/to_label; pinch scale zooms. Assert the app 
 
 For unlabeled controls, image coordinates, or reusing geometry across taps, read
 [coordinate guidance](references/coordinates.md) — a coordinate read before any tap is stale
-after it; re-query before and after each one rather than chaining blind taps.
-An unlabeled control can still be located by an unfiltered find_elements query.
+after it; re-query before and after each one rather than chaining blind taps. An unlabeled control can still be located by an unfiltered find_elements query.
 
 Use record_value=fixture only for non-sensitive test data; typed values are recorded redacted. Sign in
 only with `credential="<profile>#<field>"`, never a typed password: read [sign-in](references/credentials.md).
@@ -168,9 +162,7 @@ in CI with a pinned binary; any missing or differing file fails the check.
 ## Finish the requested task
 
 End managed sessions with end_session. Report the assertions and relevant evidence; inspection
-or debugging does not require generated test code.
-
-Reuse checked-in amoo flow files; verify exported tests when code generation is requested.
+or debugging does not require generated test code. Reuse checked-in amoo flow files; verify exported tests when code generation is requested.
 
 **Canonical workflow:** `start_session` → drive and assert → `end_session` → inspect plan.json
 and warnings → `amoo generate test`. `compile_session_to_plan` is an optional preview, never a
