@@ -55,8 +55,8 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
 
 Run `amoo env list --json` before selecting a device, then inspect MCP `list_devices`
 lease metadata when using MCP. Choose a free device; never take one leased by another runtime.
-Listings are advisory: acquisition can still lose a race. Process leases end with their session
-and have no fixed expiry. Keep one caller-generated UUID `run_id` across startup and recovery,
+Listings are advisory: acquisition can still lose a race. Process leases end with their session; one
+idle `AMOO_SESSION_IDLE_MINUTES` (default 30) is ended (`session_closed`: start again). Keep one caller-generated UUID `run_id` across startup and recovery,
 for example `550e8400-e29b-41d4-a716-446655440000`.
 
 Callers use the agent's versioned JSON report contract; do not request a replacement format.
