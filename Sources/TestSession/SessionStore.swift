@@ -94,11 +94,12 @@ public struct FileSessionStore: SessionStore {
     }
 
     /// True inside an XCTest or Swift Testing runner (`xctest`, `<Package>PackageTests.xctest`,
-    /// `swiftpm-testing-helper`).
+    /// `swiftpm-testing-helper`, or the per-target `<Target>-test-runner` the swiftbuild backend
+    /// uses on Linux, where `NSClassFromString` cannot find XCTest classes).
     static let isRunningTests: Bool = {
         let name = ProcessInfo.processInfo.processName
         return name == "xctest" || name.hasSuffix(".xctest") || name == "swiftpm-testing-helper"
-            || NSClassFromString("XCTestCase") != nil
+            || name.hasSuffix("-test-runner") || NSClassFromString("XCTestCase") != nil
     }()
 
     public func directory(for sessionID: String) -> URL {
