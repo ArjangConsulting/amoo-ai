@@ -26,7 +26,17 @@ claude plugin marketplace add ArjangConsulting/amoo-ai
 claude plugin install amoo-live@amoo
 ```
 
-From a checkout, there are two ways to start it:
+A mod loads only in sessions where it is installed or passed with `--plugin-dir`; a plain `claude`
+started in this checkout does not pick it up from `plugins/`. To have it in every session while
+developing, install it from the checkout. It is then read from this folder, so `/reload-plugins`
+picks up edits:
+
+```bash
+claude plugin marketplace add /path/to/this/checkout
+claude plugin install amoo-live@amoo
+```
+
+To start a single session with it from a checkout instead:
 
 ```bash
 make amoo-live         # mirror with the amoo on PATH (the Homebrew install)
@@ -46,6 +56,10 @@ once per conversation. `/amoo-live` opens it at any width and runs immediately d
 The mirror starts after the terminal pane is drawn, so widening the terminal also works.
 
 ## Sessions and controls
+
+The mod follows tools from an MCP server named `amoo`, the amoo plugin's server, or a suffixed name
+such as `amoo-debug` or `amoo-release`, including calls a subagent makes. A server under any other
+name is not followed.
 
 Each action is routed by its explicit `session_id`; calls without one are not assigned to the
 selected session. Starting a session selects it. Buttons above the view select other devices and

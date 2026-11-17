@@ -20,7 +20,9 @@ export function updateView($: EngineInterface, change: (state: AmooLiveView) => 
   return update($, view, change)
 }
 
-const AMOO_TOOL = /^mcp__(?:plugin_amoo_)?amoo__([a-z_]+)$/
+// Matches the server as `amoo`, as the amoo plugin's, and under a suffixed name such as `amoo-debug`
+// or `amoo-release`, which subagents that carry their own amoo server use.
+const AMOO_TOOL = /^mcp__(?:plugin_amoo_)?amoo(?:-[a-z0-9]+)*__([a-z_]+)$/
 const STARTED = /Started session (\S+) for (\S+) on (ios|android) device (\S+?)\.(?:\s|$)/
 
 export function amooToolName(tool: string): string | undefined {

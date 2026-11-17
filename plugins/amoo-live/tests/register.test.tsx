@@ -7,7 +7,10 @@ import { mockUI, PANE, STARTED_TEXT } from './fixtures'
 test('recognises amoo tools from a configured server and from the amoo plugin', () => {
   expect(amooToolName('mcp__amoo__tap_element')).toBe('tap_element')
   expect(amooToolName('mcp__plugin_amoo_amoo__start_session')).toBe('start_session')
+  expect(amooToolName('mcp__amoo-debug__start_session')).toBe('start_session')
+  expect(amooToolName('mcp__amoo-release__end_session')).toBe('end_session')
   expect(amooToolName('mcp__other__tap_element')).toBeUndefined()
+  expect(amooToolName('mcp__amoom__tap_element')).toBeUndefined()
   expect(amooToolName('Bash')).toBeUndefined()
 })
 
