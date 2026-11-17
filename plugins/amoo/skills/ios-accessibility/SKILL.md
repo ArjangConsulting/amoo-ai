@@ -63,8 +63,8 @@ state, capture time, app/build, OS, locale, observed text size and evidence path
 truncated or empty tree is incomplete evidence. Existence, visibility and hittability differ.
 
 The `audit_accessibility` output is a label/frame/testability heuristic, not a native audit.
-Latest local builds also expose `audit_accessibility_native` for iOS and `test_voiceover` for
-iOS 27+. Inspect the installed schema before calling them. Native audits take explicit
+If the installed schema lists `audit_accessibility_native` (iOS) or `test_voiceover` (iOS 27+),
+use them; inspect that schema before calling either. Native audits take explicit
 categories; VoiceOver traversal takes 1–30 forward/backward moves and restores enabled state.
 For continuous forward/backward checks, use a single `phases` JSON array (up to six phases,
 30 total moves), rather than separate calls that may reset focus on restoration. Execution,
@@ -75,7 +75,7 @@ explicitly authorized, and known session secrets are always redacted.
 Capture original/restored state and execution errors. Neither command establishes whole-app
 conformance or successful control activation. Older companions/OSes may be unsupported.
 
-Latest builds expose `assert_accessibility_journey` for authored iOS 27 checkpoints:
+If the installed schema lists `assert_accessibility_journey`, use it for authored iOS 27 checkpoints:
 exact exported name/role/state, bounded speech order and current-speech recovery after a
 verified transition. Inspect its installed schema and the repository's
 [journey contract](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/accessibility-journeys.md).

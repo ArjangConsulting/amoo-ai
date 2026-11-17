@@ -56,7 +56,8 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
 
 ## Hard rules
 
-- Use the caller's absolute amoo executable path, recording build/capability provenance. Shell aliases
+- Use the pinned executable named at the top of this file (in a plugin install without one, the
+  caller's absolute amoo path) for every command, recording build/capability provenance. Shell aliases
   do not select spawned MCP servers. Delegate app/build/device requirements, never a live session ID.
 - Before device interaction, compare MCP `dev.amoo/build.binary_path` (resolve symlinks) and
   `binary_sha256` with the pinned executable. Inherited tool names do not prove identity. On mismatch
@@ -127,9 +128,11 @@ block the affected requirements. Never gate on a process this run did not start:
 counts every client's servers, and a binary whose `doctor --help` lacks `--cli-only` / `--mcp-pid`
 (Homebrew amoo 0.3.0 and earlier) cannot scope it, so there only your own device, runtime or server
 counts. Confirm the flags in `doctor --help` before the first run. Never silently switch or upgrade binaries.
-If `env` is absent, use available MCP tools for supported checks and note that this installed
-version lacks CLI device reservation commands. Recommend `brew upgrade amoo` for Homebrew
-installs; do not upgrade or switch binaries automatically. Never invoke unlisted commands.
+If `env` is absent, use available MCP tools for supported checks and note that this amoo build
+lacks CLI device reservation commands. Recommend `brew upgrade amoo` only when the pinned
+executable resolves into a Homebrew prefix (such as `/opt/homebrew/Cellar`); for a checkout build,
+say it must be rebuilt from a newer checkout. Do not upgrade or switch binaries automatically.
+Never invoke unlisted commands.
 
 For MCP, start your own session with app_id, platform, explicit simulator/emulator device_hint,
 and build_path; pass session_id on every interaction and always end_session. Record build/device
