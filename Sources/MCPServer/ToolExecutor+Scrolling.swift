@@ -29,7 +29,10 @@ extension DriverToolExecutor {
     /// Scrolls until the element is on screen, reversing once if the content ends first.
     ///
     /// Without it, reaching a below-the-fold row meant guessing a `scroll` distance and re-querying
-    /// by hand. "On screen" is the companion's own visibility verdict for the element, so a row
+    /// by hand. A target the hierarchy already holds off screen (lists keep rows near the viewport)
+    /// is scrolled to directly, by its measured offset; one the hierarchy does not hold yet is paged
+    /// toward, a viewport fraction at a time. "On screen" is the companion's own visibility verdict for the element, so
+    /// a row
     /// clipped by the viewport counts as not yet there. So does a row under a bottom bar or
     /// other overlay, which the companion still reports as visible but a tap would miss. If scrolling
     /// never frees it, the covered row is still returned, as it was before that check. An attempt
@@ -46,15 +49,19 @@ extension DriverToolExecutor {
             direction = parsed
         }
         let maxAttempts = min(max(arguments["max_attempts"].flatMap(Int.init) ?? 8, 1), 50)
-        let distance = arguments["distance"].flatMap(Double.init) ?? 300
+        let distance = arguments["distance"].flatMap(Double.init)
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
+        let viewport = await screenViewport(driver: driver)
 
-        var reversed = false
+        let initialDirection = direction
+        var reversedAfter: Int?
         var coveredMatch: (element: ElementInfo, scrolls: Int)?
+        var before: ScreenLayout?
         for attempt in 0 ... maxAttempts {
-            if let found = try await resolveElement(
+            let found = try await resolveElement(
                 selector: selector, driver: driver, appID: appID, pick: .first, missingIsNil: true
-            ), found.isVisible, found.isEnabled {
+            )
+            if let found, found.isVisible, found.isEnabled {
                 if await isCoveredOnScreen(found, driver: driver, appID: appID) {
                     coveredMatch = (found, attempt)
                 } else {
@@ -62,22 +69,121 @@ extension DriverToolExecutor {
                 }
             }
             guard attempt < maxAttempts else { break }
-            let before = await screenFingerprint(driver: driver, appID: appID)
-            try await driver.scroll(direction: direction, distance: distance)
-            let after = await screenFingerprint(driver: driver, appID: appID)
-            if let before, before == after {
-                guard !reversed else {
+            // One read is enough before the first scroll: a screen still moving then can only read as
+            // "moved", which delays detecting an end by a scroll; it never fakes one.
+            if attempt == 0 {
+                before = await screenLayout(driver: driver, appID: appID)
+            }
+            let move = Self.nextScroll(
+                toward: found.flatMap { $0.isVisible ? nil : $0 },
+                paging: direction,
+                maximum: distance,
+                viewport: viewport
+            )
+            try await driver.scroll(direction: move.direction, distance: move.distance)
+            let after = await settledScreenLayout(driver: driver, appID: appID)
+            if let before, let after, !after.contentMoved(since: before) {
+                guard reversedAfter == nil else {
                     return scrollToElementGaveUp(
                         "reached both ends without finding the element.", coveredMatch: coveredMatch
                     )
                 }
-                reversed = true
+                reversedAfter = attempt + 1
                 direction = direction.opposite
             }
+            before = after
         }
+        let trail = Self.scrollTrail(from: initialDirection, reversedAfter: reversedAfter)
         return scrollToElementGaveUp(
-            "element not on screen after \(maxAttempts) scroll(s).", coveredMatch: coveredMatch
+            "element not on screen after \(maxAttempts) scroll(s)\(trail).", coveredMatch: coveredMatch
         )
+    }
+
+    /// Share of the viewport one paging scroll travels: most of a screen, with enough overlap that a
+    /// row clipped at one edge is whole after the scroll.
+    static let pageFraction = 0.6
+
+    /// Paging distance when the viewport is unknown.
+    static let fallbackScrollDistance = 300.0
+
+    /// The next scroll: straight at a `target` the hierarchy places off screen, by the distance
+    /// between its centre and the viewport's, or a page in `direction` when there is no target.
+    /// Either is capped at one page and at `maximum`, the caller's `distance`.
+    static func nextScroll(
+        toward target: ElementInfo?,
+        paging direction: Direction,
+        maximum: Double?,
+        viewport: Rect?
+    ) -> (direction: Direction, distance: Double) {
+        let vertical = direction == .up || direction == .down
+        var page = viewport.map { (vertical ? $0.height : $0.width) * pageFraction } ?? fallbackScrollDistance
+        if let maximum {
+            page = min(page, maximum)
+        }
+        guard let frame = target?.frame, let viewport else { return (direction, page) }
+        let offset = vertical ? frame.centre.y - viewport.centre.y : frame.centre.x - viewport.centre.x
+        let travel = min(abs(offset), page)
+        guard travel >= minimumGestureDistance else { return (direction, page) }
+        let toward: Direction = vertical ? (offset > 0 ? .down : .up) : (offset > 0 ? .right : .left)
+        return (toward, travel)
+    }
+
+    /// The screen in the units element frames and scroll distances share: points on iOS, pixels on
+    /// Android (its frames and swipes are both in pixels, so dp are scaled back up). Best effort: an
+    /// unknown screen pages a fixed distance and never jumps.
+    func screenViewport(driver: any PlatformDriver) async -> Rect? {
+        await Self.withinBudget(milliseconds: 2000) {
+            guard let screen = try? await driver.screenGeometry(),
+                  screen.widthPoints > 0, screen.heightPoints > 0 else { return nil }
+            let framesPerUnit = await (try? driver.elementGeometry())?.framesPerUnit ?? 1
+            return Rect(
+                x: 0,
+                y: 0,
+                width: screen.widthPoints * framesPerUnit,
+                height: screen.heightPoints * framesPerUnit
+            )
+        }
+    }
+
+    /// Where the scrolling went, so a miss says whether either end of the content was ever reached.
+    static func scrollTrail(from direction: Direction, reversedAfter: Int?) -> String {
+        guard let reversedAfter else {
+            return " (all \(direction.rawValue); the content never stopped moving, so no end was detected)"
+        }
+        return " (\(direction.rawValue) reached its end after \(reversedAfter), then \(direction.opposite.rawValue))"
+    }
+
+    /// How long a scroll may keep the screen moving before its fingerprint is taken as it stands.
+    static let scrollSettleBudgetMilliseconds = 1200
+
+    /// The pause between two fingerprint reads while waiting for a scroll to settle.
+    static let scrollSettlePollMilliseconds = 120
+
+    /// The screen layout once two consecutive reads show no movement, or the last read when the
+    /// budget runs out.
+    ///
+    /// A read taken right after the finger lifts catches the list mid-flight: at either end, iOS
+    /// rubber-bands the content past the edge and animates it back, and Android stretches and
+    /// relaxes it. Compared unsettled, a scroll that hit the end never looked like "nothing moved",
+    /// so `scroll_to_element` never reversed and spent every attempt pushing against the end of
+    /// a SwiftUI List whose target sat the other way.
+    func settledScreenLayout(driver: any PlatformDriver, appID: String?) async -> ScreenLayout? {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .milliseconds(Self.scrollSettleBudgetMilliseconds))
+        var readStarted = clock.now
+        var previous = await screenLayout(driver: driver, appID: appID)
+        while clock.now < deadline {
+            // Reads are the spacing: on a device one takes about a quarter of a second, which is
+            // already longer than the poll interval, so only a faster read waits out the rest.
+            try? await Task.sleep(until: readStarted.advanced(by: .milliseconds(Self.scrollSettlePollMilliseconds)))
+            readStarted = clock.now
+            let current = await screenLayout(driver: driver, appID: appID)
+            if let previous, let current, !current.contentMoved(since: previous) {
+                return current
+            }
+            previous = current
+        }
+        return previous
     }
 
     /// The result when scrolling cannot do better: a row that was visible but covered is still
@@ -139,14 +245,12 @@ extension DriverToolExecutor {
         return .success("Swiped \(direction.rawValue) by \(distance) pts from [\(matched.id)] \(matched.label)")
     }
 
-    /// What is on screen, as ids, labels and vertical positions. Scrolling moves the positions, so two
-    /// equal fingerprints mean the content did not move. The screen *summary* cannot stand in: on
-    /// Android it holds only status-bar text, which never changes while a list scrolls.
-    func screenFingerprint(driver: any PlatformDriver, appID: String?) async -> String? {
+    /// What is on screen, as ids, labels and positions, for telling whether a scroll moved anything.
+    /// The screen *summary* cannot stand in: on Android it holds only status-bar text, which never
+    /// changes while a list scrolls.
+    func screenLayout(driver: any PlatformDriver, appID: String?) async -> ScreenLayout? {
         guard let elements = try? await driver.findElements(ElementSelector(), appID: appID) else { return nil }
-        return elements.prefix(300)
-            .map { "\($0.id)|\($0.label)|\(geometryNumber($0.frame?.y ?? -1))|\(geometryNumber($0.frame?.x ?? -1))" }
-            .joined(separator: "\n")
+        return ScreenLayout(elements.prefix(300))
     }
 
     /// Hides the keyboard using one unambiguous, explicitly named dismissal button.
@@ -205,5 +309,48 @@ extension Direction {
         case .left: .right
         case .right: .left
         }
+    }
+}
+
+/// Where each element sat on one read of the screen, keyed by id, label and occurrence.
+struct ScreenLayout: Equatable {
+    /// Points an element may shift without counting as moved: layout rounding, not scrolling.
+    static let tolerance = 2.0
+
+    /// Elements that must move, or appear or vanish, before the content counts as moved. A scroll
+    /// shifts every row it carries; a control animating its own press or selection state shifts
+    /// only itself and its label, and must not read as an endless scroll.
+    static let movedElementThreshold = 3
+
+    let positions: [String: Point]
+
+    init(_ elements: some Sequence<ElementInfo>) {
+        var positions: [String: Point] = [:]
+        var occurrences: [String: Int] = [:]
+        for element in elements {
+            let base = "\(element.id)|\(element.label)"
+            let occurrence = occurrences[base, default: 0]
+            occurrences[base] = occurrence + 1
+            positions["\(base)|\(occurrence)"] = Point(x: element.frame?.x ?? -1, y: element.frame?.y ?? -1)
+        }
+        self.positions = positions
+    }
+
+    /// Whether enough of the screen changed between `earlier` and this read to call it a scroll.
+    /// The threshold drops to the element count on a screen with fewer elements than it.
+    func contentMoved(since earlier: Self) -> Bool {
+        var changed = 0
+        for (key, point) in positions {
+            guard let previous = earlier.positions[key] else {
+                changed += 1
+                continue
+            }
+            if abs(point.x - previous.x) > Self.tolerance || abs(point.y - previous.y) > Self.tolerance {
+                changed += 1
+            }
+        }
+        changed += earlier.positions.keys.count(where: { positions[$0] == nil })
+        let needed = min(Self.movedElementThreshold, max(1, max(positions.count, earlier.positions.count)))
+        return changed >= needed
     }
 }
