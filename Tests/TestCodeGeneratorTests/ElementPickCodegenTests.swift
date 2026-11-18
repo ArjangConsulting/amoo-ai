@@ -23,19 +23,48 @@ final class ElementPickCodegenTests: XCTestCase {
         return try XCUITestEmitter().generate(test).source
     }
 
-    func testScrollToElementLoopsSwipesUntilHittableThenWaits() throws {
+    func testScrollToElementCallsTheLiveAlgorithmHelperThenWaits() throws {
         let code = try source([
             .init(
                 id: "op-1",
                 tool: "scroll_to_element",
-                arguments: ["id": "row.far", "direction": "down", "max_attempts": "5"]
+                arguments: ["id": "row.far", "direction": "down", "max_attempts": "5", "distance": "120"]
             )
         ])
-        XCTAssertTrue(code.contains("for _ in 0 ..< 5 where !"), code)
-        XCTAssertTrue(code.contains(".isHittable { app.swipeUp() }"), "scrolling down swipes up:\n\(code)")
-        let loop = try XCTUnwrap(code.range(of: "app.swipeUp()"))
-        let wait = try XCTUnwrap(code.range(of: "waitForHittability(", range: loop.upperBound ..< code.endIndex))
-        XCTAssertLessThan(loop.lowerBound, wait.lowerBound)
+        let call = try XCTUnwrap(
+            code.range(of: #"scrollToElement(farRow, direction: "down", maxAttempts: 5, maximumDistance: 120.0)"#),
+            code
+        )
+        let wait = try XCTUnwrap(code.range(of: "waitForHittability(", range: call.upperBound ..< code.endIndex))
+        XCTAssertLessThan(call.lowerBound, wait.lowerBound)
+        XCTAssertTrue(code.contains("private func scrollToElement("), "the helper ships with the test:\n\(code)")
+        XCTAssertTrue(code.contains("withVelocity: .slow"), "a slow drag, not a flinging swipe:\n\(code)")
+        XCTAssertFalse(code.contains("swipeUp()"), code)
+    }
+
+    func testScrollToElementHelperIsOmittedWhenUnusedOrBoundByTheContext() throws {
+        let tap = try source([.init(id: "op-1", tool: "tap_element", arguments: ["id": "row"])])
+        XCTAssertFalse(tap.contains("scrollToElement"), tap)
+
+        let bound = try source(
+            [.init(id: "op-1", tool: "scroll_to_element", arguments: ["id": "row.far", "max_attempts": "4"])],
+            context: StudioTestContext(waitBindings: [
+                "scrollToElement": "app.scrollVerticallyUntilHittable({{element}}, maxAttempts: {{attempts}})"
+            ])
+        )
+        XCTAssertTrue(bound.contains("app.scrollVerticallyUntilHittable(farRow, maxAttempts: 4)"), bound)
+        XCTAssertFalse(bound.contains("private func scrollToElement("), bound)
+    }
+
+    func testABareLabelUsesTheRepositoryLabelExpression() throws {
+        let context = StudioTestContext(labelExpressions: ["Settings": #"app.tabButton("Settings")"#])
+        let code = try source([
+            .init(id: "op-1", tool: "tap_element", arguments: ["label": "Settings", "first": "true"]),
+            .init(id: "op-2", tool: "tap_element", arguments: ["label": "Settings", "index": "1"]),
+            .init(id: "op-3", tool: "tap_element", arguments: ["label": "Settings", "parent_id": "sheet"])
+        ], context: context)
+        XCTAssertEqual(code.components(separatedBy: #"app.tabButton("Settings")"#).count - 1, 1, code)
+        XCTAssertTrue(code.contains(".element(boundBy: 1)"), "an index pick keeps the query:\n\(code)")
     }
 
     func testASwipeOnAPickedElementKeepsThePickInTheQuery() throws {

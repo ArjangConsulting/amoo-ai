@@ -25,6 +25,15 @@ extension XCUITestEmitter {
             )
         }
         let scope = scopeQuery(operation, context: context)
+        // A bare label the repository looks up through its own helper; the helper owns the match.
+        var picksByIndex = false
+        if case .index = pick {
+            picksByIndex = true
+        }
+        if let label, id == nil, contains == nil, scope.isAny, !picksByIndex,
+           let expression = context?.labelExpressions[label] {
+            return expression
+        }
         // A lone id keeps the subscript form: one XCUIElement that fails on duplicates, exactly as
         // the live resolver reports `ambiguous_selector`. Anything combined, scoped or picked is a
         // matching query that can be narrowed.

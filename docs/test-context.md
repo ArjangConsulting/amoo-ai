@@ -301,6 +301,7 @@ For a harness that owns and launches its application, add these bindings:
   "timeoutExpressions": {"default": "UITestConstants.timeout"},
   "assertionBindings": {},
   "relaunchHelper": "relaunchApplication()",
+  "relaunchResetEnvironmentKeys": ["JOT_UI_TEST_RESET_STATE"],
   "selectorExpressions": {"app.tab.habits": "JotUIAutomationID.Tab.habits"},
   "idLookupTemplate": "app.element(id: {{id}})"
 }
@@ -320,9 +321,26 @@ Document onboarding, initial reset, language, persistence, and relative calendar
 profile. Apply the appropriate factory expression and relative catalog mappings for the scenario;
 the deterministic compiler cannot infer relative date intent from a literal recorded date.
 Adjacent successful `device_terminate_app` / `device_launch_app` calls for the session app,
-without launch overrides, compile to `relaunch_application`. Generation requires `relaunchHelper`
-and emits that call, preserving harness state rules. Failed pairs, other app IDs, and custom launch
-configuration remain excluded for review. Authored plans may also use `relaunch_application`.
+without launch overrides, compile to `relaunch_application`. On iOS and macOS, where launching replaces
+a running process, a later `device_launch_app` alone does too. A relaunch may also repeat the session's
+launch arguments and drop environment keys from its launch environment (a second launch without
+`APP_RESET_STATE`, to check persistence): it compiles to `relaunch_application` with
+`without_environment` naming the dropped keys. Generation requires `relaunchHelper` and emits that
+call, preserving harness state rules; a relaunch that dropped keys also needs each one listed in
+`relaunchResetEnvironmentKeys`, the keys that only reset stored state. Failed pairs, other app IDs, and
+any other launch change remain excluded for review. Authored plans may also use `relaunch_application`.
+
+`labelExpressions` maps an exact recorded label to the repository's own lookup, for controls the
+repository finds by label through a helper, such as tab-bar buttons whose identifiers never reach the
+button: `{"Settings": "app.tabButton(\"Settings\")"}`. It applies to a selector that is that label
+alone, unscoped, without an `index`.
+
+`scroll_to_element` exports as a call to a generated `scrollToElement` helper that works as the live
+tool does: it drags straight toward an element the hierarchy already holds, otherwise pages 60% of the
+screen in the recorded direction, reverses once at the end of the content, and drags slowly with a
+hold so the list stops where the finger does. Bind `scrollToElement` in `waitBindings` to use the
+repository's own helper instead; the template receives `{{element}}`, `{{direction}}` (a string
+literal), `{{attempts}}` and `{{distance}}` (`nil` when none was recorded).
 
 Export provenance is stored in a `provenance/` directory beside the input plan, outside the exported
 Swift/Kotlin directory. Keep input plans and recordings in tool storage. Compile and run generated

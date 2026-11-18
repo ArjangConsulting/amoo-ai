@@ -217,10 +217,18 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public let assertionBindings: [String: String]
     /// Repository-owned call that relaunches without resetting stored state.
     public let relaunchHelper: String?
+    /// Launch-environment keys that reset stored state on launch, such as `JOT_UI_TEST_RESET_STATE`.
+    /// A recorded later launch whose environment drops only these keys is a relaunch that keeps state,
+    /// and becomes a call to `relaunchHelper`; one that drops any other key stays excluded.
+    public let relaunchResetEnvironmentKeys: [String]
     public let helpers: [Helper]
     /// Raw recorded accessibility IDs mapped to a repository-owned Swift/Kotlin identifier
     /// expression, e.g. `{"uuid": "AppUIAutomationID.task.chore"}`.
     public let selectorExpressions: [String: String]
+    /// Exact recorded labels mapped to a repository-owned lookup, e.g. `{"Settings": "app.tabButton(\"Settings\")"}`,
+    /// for controls the repository finds by label through its own helper (tab-bar buttons whose
+    /// identifiers never reach the button). Used for a selector that is that label alone, unscoped.
+    public let labelExpressions: [String: String]
     /// Optional expression template for mapped IDs, e.g. `app.element(id: {{id}})`. The default
     /// keeps the standalone XCUITest lookup shape.
     public let idLookupTemplate: String?
@@ -245,6 +253,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         harnessLaunchesApp: Bool = false,
         helpers: [Helper] = [],
         selectorExpressions: [String: String] = [:],
+        labelExpressions: [String: String] = [:],
         idLookupTemplate: String? = nil,
         requiredIdiom: Idiom? = nil,
         harnessOwnsApp: Bool = false,
@@ -253,6 +262,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         timeoutExpressions: [String: String] = [:],
         assertionBindings: [String: String] = [:],
         relaunchHelper: String? = nil,
+        relaunchResetEnvironmentKeys: [String] = [],
         targetPlatform: Platform? = nil,
         repo: String? = nil,
         launchArguments: [String] = [],
@@ -264,16 +274,19 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
         self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
+        self.labelExpressions = labelExpressions
         self.requiredIdiom = requiredIdiom
         self.harnessOwnsApp = harnessOwnsApp; self.factoryOverride = factoryOverride
         self.waitBindings = waitBindings; self.timeoutExpressions = timeoutExpressions
         self.assertionBindings = assertionBindings; self.relaunchHelper = relaunchHelper
+        self.relaunchResetEnvironmentKeys = relaunchResetEnvironmentKeys
     }
 
     private enum CodingKeys: String, CodingKey {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
         case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
         case assertionBindings, relaunchHelper, targetPlatform, repo, launchArguments, launchEnvironment
+        case relaunchResetEnvironmentKeys, labelExpressions
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -289,6 +302,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         helpers = try container.decodeIfPresent([Helper].self, forKey: .helpers) ?? []
         selectorExpressions = try container.decodeIfPresent([String: String].self, forKey: .selectorExpressions) ?? [:]
         idLookupTemplate = try container.decodeIfPresent(String.self, forKey: .idLookupTemplate)
+        labelExpressions = try container.decodeIfPresent([String: String].self, forKey: .labelExpressions) ?? [:]
         requiredIdiom = try container.decodeIfPresent(Idiom.self, forKey: .requiredIdiom)
         harnessOwnsApp = try container.decodeIfPresent(Bool.self, forKey: .harnessOwnsApp) ?? false
         factoryOverride = try container.decodeIfPresent(String.self, forKey: .factoryOverride)
@@ -296,11 +310,14 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         timeoutExpressions = try container.decodeIfPresent([String: String].self, forKey: .timeoutExpressions) ?? [:]
         assertionBindings = try container.decodeIfPresent([String: String].self, forKey: .assertionBindings) ?? [:]
         relaunchHelper = try container.decodeIfPresent(String.self, forKey: .relaunchHelper)
+        relaunchResetEnvironmentKeys = try container.decodeIfPresent(
+            [String].self, forKey: .relaunchResetEnvironmentKeys
+        ) ?? []
         launchArguments = try container.decodeIfPresent([String].self, forKey: .launchArguments) ?? []
         launchEnvironment = try container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
     }
 
-    /// Omits the two launch fields while they are empty, so contexts written before they existed
+    /// Omits the launch fields and the reset keys while they are empty, so contexts written before they existed
     /// (and plans embedding one) keep their exact serialized form.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -325,6 +342,12 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         }
         if !launchEnvironment.isEmpty {
             try container.encode(launchEnvironment, forKey: .launchEnvironment)
+        }
+        if !labelExpressions.isEmpty {
+            try container.encode(labelExpressions, forKey: .labelExpressions)
+        }
+        if !relaunchResetEnvironmentKeys.isEmpty {
+            try container.encode(relaunchResetEnvironmentKeys, forKey: .relaunchResetEnvironmentKeys)
         }
     }
 
