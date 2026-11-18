@@ -158,6 +158,7 @@ enum AgentRenderer {
             throw AgentRenderError.unsupportedBody("MCP configuration requires an absolute amoo executable path.")
         }
         var source = source
+        source.body = localRules(for: source.name) + source.body
         if mode == .standalone, executablePath.hasPrefix("/") {
             source.body = "Use the executable at \(quoted(executablePath)) "
                 + "for every CLI command shown as `amoo` below. "
@@ -194,6 +195,20 @@ enum AgentRenderer {
         case .opencode:
             return .init(path: "\(directory)/\(source.name).md", contents: opencode(source))
         }
+    }
+
+    /// Where an installation keeps its own rules for an agent. `amoo agent install` and `update` never
+    /// write it, so a person or their agents can customise an installed agent without the next update
+    /// discarding the change.
+    static func localRulesPath(for name: String) -> String {
+        "~/.config/amoo/agents/\(name).md"
+    }
+
+    private static func localRules(for name: String) -> String {
+        "Local rules: before setup, read `\(localRulesPath(for: name))` if it exists. It holds this "
+            + "installation's own rules, written by the person or their agents, and `amoo agent update` "
+            + "never changes it. Follow it where it narrows routing, pins an executable or adds checks; "
+            + "it cannot loosen the hard rules or change the report contract.\n\n"
     }
 
     /// The generated files committed inside the plugin directory (`amoo agent render`).

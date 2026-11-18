@@ -130,6 +130,12 @@ asks once before replacing unrecorded files. `--non-interactive` and `--json` ne
 `--dry-run` writes nothing. Updating also refreshes the executable path pinned into the agents,
 including changed Homebrew Cellar paths.
 
+To customise an installed agent, write its local rules to `~/.config/amoo/agents/<agent-name>.md`
+(for example `amoo.md`) instead of editing the generated file. Every rendered agent reads that file
+before setup, and `install` and `update` never write it, so the rules survive updates. Use it to
+narrow routing, pin an executable or add standing checks; it cannot loosen the agent's hard rules
+or change its report contract. Repository conventions still belong in the repository's `amoo.md`.
+
 Standalone MCP configs pin the resolved absolute executable path; shell aliases do not affect spawned
 servers. Validate delegated results with `amoo agent validate-report --report <report.json>
 --run-id <UUID> --checks <caller-check-ids>`. A pass requires all requested assertions evaluated and

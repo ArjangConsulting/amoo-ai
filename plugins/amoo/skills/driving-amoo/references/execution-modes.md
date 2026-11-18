@@ -5,12 +5,14 @@ its own available transport and acquires its own device ownership.
 
 | Task | Recommended mode |
 | --- | --- |
-| Interactive inspection, debugging, or assertions | MCP when its tools are available; otherwise controlled CLI |
+| Agent inspection, debugging, or assertions | Controlled CLI (`amoo device --json`, filtered locally); MCP when only its tools are available |
+| A client holding one live session (a GUI, a device farm) | MCP |
 | Record a flow or generate tests | MCP managed session (required for the recording pipeline) |
 | Run checked-in flows and probe files | CLI runtime (`env up` → `flow` / `probe run` → `env down`) |
 | Prepare several devices from one build | `init` (guided, terminal) or `init --platform --app --app-id --device ... --out <manifest>` (agents) |
 | Install repository skills/client configuration | `init repo --target <repo> [--client <name>]` |
 | Bounded check with an explicit expected result | `amoo` subagent (repo-local name may be `amoo-debug`); compact JSON verdict and evidence paths |
+| A check that will be repeated | `amoo` subagent with `goal: author-flow`; the caller reruns the returned flow to verify it |
 | Visual discovery or a flow needing decisions between steps | Main context with `driving-amoo` |
 | Source changes | Main context; device subagents never edit source |
 | Verify built artifacts with checked-in flows and WebView probes | `device-verifier` skill and subagent |
