@@ -202,6 +202,10 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 with: "            TestCommonsXCUI.attachDiagnostics(of: app, to: self)"
             )
         }
+        if body.contains("scrollToElement("), test.testContext?.waitBindings["scrollToElement"] == nil,
+           let helpers = source.range(of: "    private func replaceText(") {
+            source.insert(contentsOf: Self.scrollToElementHelper, at: helpers.lowerBound)
+        }
         source = Self.applyingHarness(to: source, context: test.testContext)
         return StudioTestExportResult(fileName: "\(className).swift", source: source + "\n")
     }
@@ -391,9 +395,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             return "\(indent)pressBack()"
 
         case .relaunchApplication:
-            guard let call = context?.relaunchHelper else {
-                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "relaunchHelper")
-            }
+            let call = try TestCodeGeneratorRelaunch.call(for: operation, context: context)
             lookups.removeAll()
             return "\(indent)\(call)"
         }

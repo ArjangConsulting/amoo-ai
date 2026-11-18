@@ -390,9 +390,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 + "in an instrumented test if needed"
 
         case .relaunchApplication:
-            guard let call = context?.relaunchHelper else {
-                throw TestCodeGeneratorError.missingArgument(tool: operation.tool, argument: "relaunchHelper")
-            }
+            let call = try TestCodeGeneratorRelaunch.call(for: operation, context: context)
             return "        \(call)"
 
         case .pressBack:

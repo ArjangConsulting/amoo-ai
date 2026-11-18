@@ -50,7 +50,9 @@ extension XCUITestEmitter {
             if trimmed.isEmpty {
                 continue
             }
-            let isWait = trimmed.hasPrefix("waitForHittability(") || trimmed.hasPrefix("waitForExistence(")
+            // A context may bind the waits to its own helpers (`TestCommonsXCUI.waitForHittability(`),
+            // so any adjacent repeat of a wait call collapses, not only the generated helpers' names.
+            let isWait = trimmed.contains("waitForHittability(") || trimmed.contains("waitForExistence(")
             if isWait, kept.last == line {
                 continue
             }

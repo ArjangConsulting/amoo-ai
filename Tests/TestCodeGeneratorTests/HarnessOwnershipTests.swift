@@ -63,6 +63,22 @@ final class HarnessOwnershipTests: XCTestCase {
         XCTAssertFalse(source.contains("app.terminate()"))
     }
 
+    func testARelaunchThatDroppedEnvironmentNeedsThoseKeysDeclaredAsResets() throws {
+        let test = StudioAuthoredTest(
+            formatVersion: 1, name: "Persistence", description: "", platform: .ios,
+            steps: [], compiledPlan: .init(compiler: "test", compilerVersion: "1", toolOperations: [
+                .init(id: "1", tool: "relaunch_application", arguments: ["without_environment": "APP_RESET_STATE"])
+            ])
+        )
+        let undeclared = StudioTestContext(relaunchHelper: "relaunchApplication()")
+        XCTAssertThrowsError(try XCUITestEmitter().generate(test.replacingTestContext(undeclared)))
+        let declared = StudioTestContext(
+            relaunchHelper: "relaunchApplication()", relaunchResetEnvironmentKeys: ["APP_RESET_STATE"]
+        )
+        let source = try XCUITestEmitter().generate(test.replacingTestContext(declared)).source
+        XCTAssertTrue(source.contains("        relaunchApplication()"), source)
+    }
+
     func testAssertionBindingPreservesExpectedValueAndTimeoutConstant() throws {
         let test = StudioAuthoredTest(
             formatVersion: 1, name: "Assertions", description: "", platform: .ios,
