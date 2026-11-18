@@ -12,7 +12,12 @@ Output: ONLY the JSON report at the end — no prose before or after, no raw too
 
 
 Read the repository's AGENTS.md managed init block and amoo.md before setup, recording,
-or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions.
+or export. AGENTS.md remembers locations; amoo.md contains reviewed test conventions. Extract only
+what you need, never whole files, and never grep them for "amoo" (every line matches):
+`sed -n '/<!-- amoo:init:start -->/,/<!-- amoo:init:end -->/p' AGENTS.md`, then
+`grep -n '^## ' amoo.md` and `sed -n '<start>,<end>p' amoo.md` for only the sections the task uses
+(launch environment, the flow you are extending). The amoo-context block matters only for
+recording or export. Read the local rules file once.
 Current CLI generation and MCP start_session discover the nearest amoo.md from their working
 directory and read its fenced amoo-context JSON. A prose-only Markdown file is not a test context.
 When running elsewhere, pass --context <repo>/amoo.md or context_path=<repo>/amoo.md only if
@@ -102,6 +107,9 @@ Read driving-amoo's “Discover once, verify complete coverage” for the shared
   `brew upgrade amoo` for Homebrew installs in `notes`. Never run an unlisted subcommand
   (an unknown one can fall through to the interactive REPL). Missing required capabilities
   block the affected requirements; do not claim that unsupported checks passed.
+- Keep preflight output small: grep `--help` text for the subcommands and flags you will use instead
+  of reading whole pages, filter `doctor --json` down to its `issues` and your device's entries, and
+  skip `flow --help` when the caller supplies a template flow whose step tools you are reusing.
 - Load the `driving-amoo` skill (it may be listed as `amoo:driving-amoo`) before driving; it holds
   the tool-selection, recovery and recording rules this file only summarizes.
 - Run doctor before device interaction; read its help for supported scope flags. CLI uses
@@ -198,8 +206,10 @@ app, use the CLI path.
 
 0. Read the app source before touching the device: grep the screen's view code for accessibility
    identifiers, labels and control styles (menu pickers, lazy lists, sheets), and the app's existing
-   UI tests for that screen. They answer most selector and navigation questions for free; probe the
-   device only for what the code leaves open.
+   UI tests for that screen. Grep with line context for the identifiers you need rather than printing
+   whole files. They answer most selector and navigation questions for free; probe the device only
+   for what the code leaves open. When the code answers everything, write the flow and use the device
+   only to run it.
 1. `current_app` to confirm identity, `get_screen_context` to orient; use `describe_screen` if more detail is needed.
 2. Locate with `find_elements` (prefer id, then exact label, then `contains_text`; disambiguate
    with `parent_id`). `tap_element` / `set_text` / `fill_field` resolve their own target.
@@ -240,7 +250,9 @@ app, use the CLI path.
    Use `record_value=fixture` only for non-sensitive test data, never credentials.
 9. `author-flow`: once the sequence works, write it to `flow_out` with `vars` for the app id, launch
    environment and anything a caller may vary, and no session IDs, device IDs or ports. This flow
-   file is the only repository file you write. Run it with `amoo flow ... --output-dir
+   file is the only repository file you write. Follow driving-amoo's "Writing a flow" rules in
+   `references/execution-modes.md`: no idle waits after self-settling steps, and never `optional` or
+   `on_error: continue` to get a pass. Run it with `amoo flow ... --output-dir
    <evidence_dir>` from a fresh launch until it passes twice in a row. Seal the flow and its run log
    as artifacts. Put what the report schema cannot hold (amoo defects you worked around, missing
    accessibility identifiers, suspected app defects) in a sealed `findings.md` artifact.
