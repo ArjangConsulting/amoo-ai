@@ -59,8 +59,20 @@ enum FastTapSynthesizer {
         try await synthesize(event: event)
     }
 
-    /// One finger's path: down at `start`, held for `hold`, moved to `end` in ~60Hz steps over
-    /// `travel` (skipped when `end` is nil), held for `settle`, then lifted.
+    /// One finger's path: down at `start`, held for `hold`, moved to `end` over `travel` (skipped
+    /// when `end` is nil), held for `settle`, then lifted.
+    ///
+    /// testmanagerd interpolates between the points it is given at 60Hz, in real time. Points it
+    /// is given one frame apart are not: it delivered all of them at a single instant, so the
+    /// app saw the finger teleport and flung. A 300-point `scroll` carried a SwiftUI List most of
+    /// its length, and a 2-second `swipe` arrived in 0ms. Waypoints are therefore sparse.
+    ///
+    /// A path that rests at `end` (`settle` > 0: `scroll`, `drag`, `pinch`) eases out through
+    /// waypoints about `waypointInterval` apart, arriving at zero speed the way a finger does
+    /// before it holds. UIKit measures the release from the last samples that moved and ignores
+    /// the motionless hold, so a constant-speed path was released at full speed and still flung
+    /// about twice its distance. A path that lifts straight away (`swipe`) moves at constant speed,
+    /// since a flick is what it means.
     private static func makePath(
         from start: CGPoint,
         to end: CGPoint?,
@@ -73,20 +85,31 @@ enum FastTapSynthesizer {
         if let end {
             try move(path: path, to: start, at: offset)
             let duration = max(travel, 0.01)
-            let steps = max(2, Int(duration / 0.016))
-            for step in 1 ... steps {
-                let fraction = Double(step) / Double(steps)
+            let waypoints = settle > 0 ? max(1, Int(duration / waypointInterval)) : 1
+            for waypoint in 1 ... waypoints {
+                let time = Double(waypoint) / Double(waypoints)
+                let fraction = settle > 0 ? easedOut(time) : time
                 let point = CGPoint(
                     x: start.x + (end.x - start.x) * fraction,
                     y: start.y + (end.y - start.y) * fraction
                 )
-                try move(path: path, to: point, at: offset + duration * fraction)
+                try move(path: path, to: point, at: offset + duration * time)
             }
             offset += duration
         }
         offset += settle
         try lift(path: path, at: offset)
         return path
+    }
+
+    /// The spacing of an eased path's waypoints: several frames, so testmanagerd interpolates
+    /// between them instead of collapsing them (one frame, 16ms, collapsed; 50ms is delivered).
+    private static let waypointInterval: TimeInterval = 0.05
+
+    /// Cubic ease-out: full speed at the start, zero at the end.
+    static func easedOut(_ time: Double) -> Double {
+        let remaining = 1 - time
+        return 1 - remaining * remaining * remaining
     }
 
     private static func move(path: NSObject, to point: CGPoint, at offset: TimeInterval) throws {
