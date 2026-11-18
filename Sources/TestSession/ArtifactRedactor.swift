@@ -33,9 +33,18 @@ public struct ArtifactRedactor: Sendable {
         secrets.isEmpty
     }
 
+    /// Secrets shorter than this are redacted only as whole words. A substring match on a short
+    /// value such as `hi` rewrote ordinary report text (`hitRegion`, `this`) into nonsense.
+    static let substringRedactionMinimumLength = 6
+
     public func redact(_ value: String) -> String {
         secrets.sorted { $0.count > $1.count }.reduce(value) { result, secret in
-            result.replacingOccurrences(of: secret, with: "<redacted>")
+            guard secret.count < Self.substringRedactionMinimumLength else {
+                return result.replacingOccurrences(of: secret, with: "<redacted>")
+            }
+            let pattern = "(?<![\\p{L}\\p{N}])" + NSRegularExpression.escapedPattern(for: secret)
+                + "(?![\\p{L}\\p{N}])"
+            return result.replacingOccurrences(of: pattern, with: "<redacted>", options: .regularExpression)
         }
     }
 
