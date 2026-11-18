@@ -84,8 +84,20 @@ public enum QueryTools {
             name: "take_screenshot",
             description: "Capture a screenshot of the current screen and save it to a file (saved_path)."
                 + " By default no image is returned: read the file only when you need pixels."
-                + " Images default to one pixel per point (iOS) or dp (Android).",
+                + " Images default to one pixel per point (iOS) or dp (Android)."
+                + " For a question about one control, pass id, label or contains_text to crop to it.",
             properties: [
+                "id": .init(type: "string", description: "Crop to the element with this accessibility identifier"),
+                "label": .init(type: "string", description: "Crop to the element with this exact label"),
+                "contains_text": .init(type: "string", description: "Crop to the element containing this text"),
+                "parent_id": .init(type: "string", description: "Only match the crop element inside this ancestor"),
+                "index": .init(type: "string", description: "0-based pick among several crop matches"),
+                "first": .init(type: "string", description: "true to take the first of several crop matches"),
+                "padding": .init(
+                    type: "string",
+                    description: "Margin kept around the cropped element, in points (iOS) or dp (Android)."
+                        + " Defaults to 8."
+                ),
                 "format": .init(
                     type: "string",
                     description: "Image format: png or jpeg. Defaults to png. Best-effort —"
@@ -154,7 +166,16 @@ public enum QueryTools {
                         description: "Whether two consecutive frames matched before settle_timeout_ms;"
                             + " omitted when settle_timeout_ms=0"
                     ),
-                    "settle_frames": .init(type: "integer", description: "Frames captured while settling")
+                    "settle_frames": .init(type: "integer", description: "Frames captured while settling"),
+                    "crop_element": .init(type: "string", description: "Id or label of the element cropped to"),
+                    "crop_origin_points": .init(
+                        type: "object",
+                        description: "Top-left of the crop in gesture points; add image coordinates divided by scale"
+                    ),
+                    "crop_pixels": .init(
+                        type: "object",
+                        description: "The crop's x, y, width and height in the uncropped image's pixels"
+                    )
                 ],
                 required: ["byte_count", "format"]
             )
