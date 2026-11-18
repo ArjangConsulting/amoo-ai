@@ -196,12 +196,8 @@ public enum SessionPlanCompiler {
             )
         }
 
-        if action.toolName == "assert_accessibility_journey" {
-            return ProcessedAction(
-                operation: nil,
-                step: nil,
-                warnings: [unsupportedJourneyAssertion(index: index, action: action)]
-            )
+        if let warning = unsupportedAccessibilityAssertion(index: index, action: action) {
+            return ProcessedAction(operation: nil, step: nil, warnings: [warning])
         }
 
         // Legacy reports may mark audits as test steps; observations never become assertions.

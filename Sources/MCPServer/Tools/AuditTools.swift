@@ -60,6 +60,11 @@ public enum AuditTools {
                     description: "Comma-separated contrast,elementDetection,hitRegion,sufficientElementDescription,"
                         + "dynamicType,textClipped,trait,duplicateSpeakableText,editableContentDescription."
                         + " Defaults to platform categories."
+                ),
+                "fail_on_issues": .init(
+                    type: "boolean",
+                    description: "Make this an assertion: the call fails unless the audit ran and found no issues."
+                        + " Use in flows; default false reports findings without failing."
                 )
             ],
             required: ["app_id"]

@@ -18,6 +18,30 @@ extension SessionPlanCompiler {
         )
     }
 
+    /// The excluded warning for an accessibility assertion generated tests cannot reproduce: an
+    /// authored journey, or a native audit recorded with `fail_on_issues`. Nil for any other action.
+    static func unsupportedAccessibilityAssertion(index: Int, action: SessionAction) -> SessionPlanWarning? {
+        if action.toolName == "assert_accessibility_journey" {
+            return unsupportedJourneyAssertion(index: index, action: action)
+        }
+        if action.toolName == "audit_accessibility_native", action.intent == .assertion {
+            return unsupportedAuditAssertion(index: index, action: action)
+        }
+        return nil
+    }
+
+    /// A native audit recorded with `fail_on_issues` is an expectation the generated test does not
+    /// reproduce yet, so it is reported as excluded rather than dropped as an observation.
+    static func unsupportedAuditAssertion(index: Int, action: SessionAction) -> SessionPlanWarning {
+        SessionPlanWarning(
+            kind: .excluded,
+            actionIndex: index,
+            toolName: action.toolName,
+            reason: "Native accessibility audit assertion (fail_on_issues) is not exported to generated"
+                + " tests yet; run it from the flow, or add performAccessibilityAudit to the test by hand."
+        )
+    }
+
     /// Selector-based element actions the recorder stores id-only. A matching `find_elements`
     /// observation still carries the element's label and type, which is what the code generator
     /// needs to name a readable local variable — the id stays the selector.

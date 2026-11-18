@@ -81,6 +81,11 @@ and preserves versioned structured `diagnosticEvidence` on the action. Speech is
 names as `notApplicable` even in older reports, before inspection-to-assertion heuristics. They do
 not create assertions or excluded steps. Review their coverage/verdict/cleanup in the source report.
 
+The exception is `audit_accessibility_native` called with `fail_on_issues=true`. That call fails
+unless the audit ran and found no issues, records with intent `assertion` (even when it failed), and
+compiles to an `excluded` warning: generated tests do not reproduce the audit yet, so it cannot
+disappear as an observation.
+
 `assert_accessibility_journey` is an authored assertion, not an observation. Its structured
 checkpoint evidence is retained with the action; speech remains opt-in. Compilation produces
 an `excluded` warning even for a failed journey, so unsupported export cannot silently remove
