@@ -132,10 +132,15 @@ set_dock_autohide() {
 }
 
 # The hosted runner's display is too short for Calculator's bottom row, even with the Dock hidden.
+# A verified foreground launch can still precede the window reaching System Events, so wait for it.
 move_calculator_up() {
-  osascript <<'APPLESCRIPT'
+  osascript <<'APPLESCRIPT' || fail "Calculator's window could not be moved"
 tell application "System Events"
   tell process "Calculator"
+    repeat 40 times
+      if (count of windows) > 0 then exit repeat
+      delay 0.25
+    end repeat
     set {windowX, windowY} to position of front window
     set position of front window to {windowX, windowY - 32}
   end tell

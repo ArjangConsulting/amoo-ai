@@ -127,7 +127,8 @@ extension MCPServerTests {
         }
 
         XCTAssertTrue(stdoutText.contains("suggest_test_actions"))
-        XCTAssertTrue(harness.errorOutput.data().isEmpty)
+        let stderrText = String(bytes: harness.errorOutput.data(), encoding: .utf8) ?? ""
+        XCTAssertTrue(stderrText.isEmpty, stderrText)
 
         let objects = try lines.compactMap {
             try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]

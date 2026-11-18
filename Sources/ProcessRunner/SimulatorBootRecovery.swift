@@ -1,4 +1,3 @@
-#if os(macOS)
 import AmooCore
 import AmooLogging
 import Foundation
@@ -65,4 +64,3 @@ public enum SimulatorBootRecovery {
         }
     }
 }
-#endif

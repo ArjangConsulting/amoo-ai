@@ -113,7 +113,9 @@ struct StudioChatServiceTests {
 
     @Test("Anthropic chat uses its native request and response format")
     func anthropicRequest() async throws {
-        let transport = ChatTransport(response: #"{"content":[{"text":"Anthropic reply"}]}"#)
+        let thinking = #"{"type":"thinking","thinking":"","signature":"sig"}"#
+        let text = #"{"type":"text","text":"Anthropic reply"}"#
+        let transport = ChatTransport(response: #"{"content":["# + thinking + "," + text + "]}")
         let service = LiveStudioChatService(
             transport: transport,
             environment: { $0 == "ANTHROPIC_KEY" ? "secret" : nil }

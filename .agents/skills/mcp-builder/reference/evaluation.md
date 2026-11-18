@@ -596,7 +596,7 @@ If many evaluations fail:
 ### Timeout Issues
 
 If tasks are timing out:
-- Use a more capable model (e.g., `claude-3-7-sonnet-20250219`)
+- Try a different model with `-m`
 - Check if tools are returning too much data
 - Verify pagination is working correctly
 - Consider simplifying complex questions

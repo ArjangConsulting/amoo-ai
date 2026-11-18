@@ -650,7 +650,8 @@ public struct LiveStudioChatService: StudioChatServing {
         if provider.kind == .anthropic {
             body["messages"] = messages
             body["system"] = testContext
-            body["max_tokens"] = 4096
+            // Thinking counts toward max_tokens on current Claude models, so leave room beyond the reply.
+            body["max_tokens"] = 16000
         } else {
             body["messages"] = [["role": "system", "content": testContext]] + messages
         }
@@ -668,7 +669,11 @@ public struct LiveStudioChatService: StudioChatServing {
         let content: String? = if provider.kind == .ollama {
             (object?["message"] as? [String: Any])?["content"] as? String
         } else if provider.kind == .anthropic {
-            (object?["content"] as? [[String: Any]])?.first?["text"] as? String
+            // Current Claude models can open the reply with a `thinking` block, so read only `text` blocks.
+            (object?["content"] as? [[String: Any]])?
+                .filter { $0["type"] as? String == "text" }
+                .compactMap { $0["text"] as? String }
+                .joined()
         } else {
             ((object?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])?["content"] as? String
         }
