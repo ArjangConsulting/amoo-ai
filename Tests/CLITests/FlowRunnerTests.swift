@@ -85,6 +85,49 @@ final class FlowRunnerTests: XCTestCase {
         XCTAssertFalse(result.succeeded, "a continued failure still fails the run")
     }
 
+    /// A step whose outcome does not matter to the check neither stops nor fails the run.
+    func testAFailedOptionalStepIsReportedButDoesNotFailTheRun() async throws {
+        let executor = RecordingExecutor(failing: ["dismiss_keyboard"])
+        let result = await runFlowSteps(
+            flow([.init(tool: "dismiss_keyboard", optional: true), .init(tool: "press_back")]),
+            executor: executor, context: context()
+        )
+
+        XCTAssertEqual(result.passed, 1)
+        XCTAssertEqual(result.failed, 0)
+        XCTAssertEqual(result.optionalFailed, 1)
+        XCTAssertTrue(result.succeeded)
+        XCTAssertTrue(result.lines.first?.contains("(optional)") == true, "\(result.lines)")
+
+        let decoded = try JSONDecoder().decode(TestFlow.Step.self, from: Data(#"{"tool": "x", "optional": true}"#.utf8))
+        XCTAssertTrue(decoded.optional)
+        let written = try String(bytes: JSONEncoder().encode(TestFlow.Step(tool: "x")), encoding: .utf8)
+        XCTAssertFalse(written?.contains("optional") == true, "only steps that set it carry it")
+    }
+
+    /// A tap whose outcome the next step asserts skips its own after-tap read; any other tap, or one
+    /// that chose a check, keeps it.
+    func testATapFollowedByAnAssertionLeavesTheEffectCheckToTheAssertion() async {
+        let executor = RecordingExecutor()
+        _ = await runFlowSteps(
+            flow([
+                .init(tool: "tap_element", arguments: ["id": "a"]),
+                .init(tool: "assert_visible", arguments: ["id": "b"]),
+                .init(tool: "tap_element", arguments: ["id": "c"]),
+                .init(tool: "press_back"),
+                .init(tool: "tap_element", arguments: ["id": "d", "check_effect": "true"]),
+                .init(tool: "wait_for", arguments: ["id": "e"]),
+                .init(tool: "tap_element", arguments: ["id": "f"]),
+                .init(tool: "wait_for", arguments: ["idle": "true"]),
+                .init(tool: "tap_element", arguments: ["id": "g"]),
+                .init(tool: "scroll_to_element", arguments: ["id": "h"])
+            ]),
+            executor: executor, context: context()
+        )
+        let taps = await executor.calls.filter { $0.tool == "tap_element" }
+        XCTAssertEqual(taps.map { $0.arguments["check_effect"] }, ["false", nil, "true", nil, "false"])
+    }
+
     func testFlowLevelContinueAppliesToEveryStep() async {
         let executor = RecordingExecutor(failing: ["tap_element"])
         let result = await runFlowSteps(

@@ -64,6 +64,13 @@ The manifest is an ownership credential, not an MCP session. To record, release 
 Do not transfer a CLI runtime to MCP or rebuild the app per device. Companion builds may
 still occur when companion products are missing or changed. Check help first on older binaries.
 
+Writing a flow: `scroll_to_element`, `tap_element` and `screenshot` steps already wait for the screen to
+settle, so do not add `wait_for` with `idle` after them or before a screenshot; it only adds calls. Use
+`wait_for` with an `id` for an element that appears later, and `idle` only before a raw pixel comparison.
+Let `scroll_to_element` choose its distance. `"optional": true` is only for a step whose outcome does
+not matter to the check, never to make a failing check pass on some devices; a step that fails every
+run on a device is a bug to root-cause. `"on_error": "continue"` keeps going but still fails the run.
+
 For a single device or selection by runtime/model/AVD, `env up` remains available:
 
 ```sh
