@@ -602,7 +602,10 @@ These properties are independent of selected state and editable value. Missing p
 returns `state_property_unsupported`.
 
 `audit_accessibility_native` supports Google ATF on Android and Apple native audits on iOS, with
-explicit per-category coverage and optional `output` PNG highlights. `test_talkback` observes
+explicit per-category coverage and optional `output` PNG highlights. Its reply names up to five
+issues (category, label, id, frame); `structuredContent.issues` keeps every one. By default it reports
+findings without failing; `fail_on_issues=true` makes it an assertion that fails unless the audit
+ran and found no issues, which is how a flow step fails on an accessibility regression. `test_talkback` observes
 keyboard focus traversal and actual synthesis requests; `assert_talkback_speech` additionally requires
 one JSON speech expectation per move. Both restore original service/TTS settings. TalkBack capture
 is silent and does not verify audible output or touch gestures. See

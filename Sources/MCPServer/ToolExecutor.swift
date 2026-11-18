@@ -219,7 +219,7 @@ public actor DriverToolExecutor: ToolExecutor {
                 : Self.credentialRecordedArguments(arguments),
             result: toolName == "open_url" ? "Opened URL (query values redacted)" : recordedResult,
             isError: result.isError,
-            intent: sessionIntent(toolName: toolName, isError: result.isError),
+            intent: sessionIntent(toolName: toolName, arguments: arguments, isError: result.isError),
             observedElements: result.observedElements,
             diagnosticEvidence: diagnosticEvidence(toolName: toolName, arguments: arguments, result: result)
         )
@@ -230,7 +230,11 @@ public actor DriverToolExecutor: ToolExecutor {
         await manager.persist(sessionID)
     }
 
-    private func sessionIntent(toolName: String, isError: Bool) -> SessionAction.Intent {
+    private func sessionIntent(toolName: String, arguments: [String: String], isError: Bool) -> SessionAction.Intent {
+        // An audit that fails on issues is an expectation, not an observation, even when it failed.
+        if toolName == "audit_accessibility_native", boolArgument(arguments["fail_on_issues"]) == true {
+            return .assertion
+        }
         if Self.diagnosticTools.contains(toolName) {
             return .diagnostic
         }

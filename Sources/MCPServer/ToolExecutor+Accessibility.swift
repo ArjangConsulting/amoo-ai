@@ -99,15 +99,43 @@ extension DriverToolExecutor {
                 report.provenance["annotation_output_status"] = "unavailable: no correlated highlight was produced"
             }
         }
+        let failOnIssues = toolName == "audit_accessibility_native" && boolArgument(arguments["fail_on_issues"]) == true
         return try ToolResult(
             content: "\(report.provider): execution=\(report.executionStatus), verdict=\(report.verdict),"
                 + " cleanup=\(report.cleanupStatus). \(report.issues.count) issue(s),"
-                + " \(report.utterances.count) observed utterance(s). \(report.error ?? "")",
+                + " \(report.utterances.count) observed utterance(s). \(report.error ?? "")"
+                + Self.issueSummary(report.issues),
             isError: report.executionStatus != "succeeded" || ["failed", "unknown"].contains(report.cleanupStatus)
-                || (toolName == "assert_talkback_speech" && report.verdict != "pass"),
+                || (toolName == "assert_talkback_speech" && report.verdict != "pass")
+                || (failOnIssues && report.verdict != "pass"),
             structuredContent: Value(report),
             image: highlight
         )
+    }
+
+    /// The most issues listed in the text reply; the structured report keeps every one.
+    static let summarizedIssueLimit = 5
+
+    /// One line per issue naming the element, so a reader can act without the structured report.
+    static func issueSummary(_ issues: [AccessibilityInspection.Issue]) -> String {
+        guard !issues.isEmpty else { return "" }
+        let lines = issues.prefix(summarizedIssueLimit).map { issue -> String in
+            var target: [String] = []
+            if let label = issue.label, !label.isEmpty {
+                target.append("label \"\(label)\"")
+            }
+            if let id = issue.elementID, !id.isEmpty {
+                target.append("id \(id)")
+            }
+            if let frame = issue.frame {
+                target.append("at (\(Int(frame.x)), \(Int(frame.y)), \(Int(frame.width))x\(Int(frame.height)))")
+            }
+            let element = target.isEmpty ? "unnamed element" : target.joined(separator: " ")
+            return "- \(issue.category): \(element): \(issue.description)"
+        }
+        let more = issues.count > summarizedIssueLimit
+            ? ["- \(issues.count - summarizedIssueLimit) more in structuredContent.issues"] : []
+        return "\n" + (lines + more).joined(separator: "\n")
     }
 
     private func inspectionPhases(arguments: [String: String], operation: String) throws -> [VoiceOverPhase] {
