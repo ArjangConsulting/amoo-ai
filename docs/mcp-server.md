@@ -224,7 +224,11 @@ resolves from the flow's `"vars"`, then `--var name=value`, then the process env
 credentials do not enter source control. Argument values may be JSON strings, numbers or booleans.
 The runner stops at the first failed action or assertion and prints the verified result for every
 completed step; a step (or the whole flow) with `"on_error": "continue"`, or `--continue-on-error`,
-keeps going and the exit code is still 1 if anything failed. `"repeat": N` runs a step N times.
+keeps going and the exit code is still 1 if anything failed. A step with `"optional": true` is
+reported when it fails but never stops the flow or fails the run; use it only for a step whose outcome
+does not matter to the check, never to make a failing check pass on some devices. `"repeat": N` runs a step N times. `scroll_to_element`, `tap_element`
+and `screenshot` steps already wait for the screen to settle, so a `wait_for` with `idle` after them only
+adds calls; a `tap_element` whose next step is an assertion or `wait_for` skips its own after-tap read.
 See [`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format.
 
 Flow-only steps cover what used to need a shell loop:

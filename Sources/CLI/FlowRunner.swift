@@ -45,6 +45,8 @@ struct FlowRunResult: Equatable {
     var lines: [String] = []
     var passed = 0
     var failed = 0
+    /// Optional steps that failed: reported, but not failures of the run.
+    var optionalFailed = 0
     /// Whether the run ended early on a failed step with `on_error: stop`.
     var stopped = false
 
@@ -87,13 +89,17 @@ func runFlowSteps(
     context: FlowRunContext
 ) async -> FlowRunResult {
     var result = FlowRunResult()
-    for (index, step) in flow.steps.enumerated() {
+    for (index, original) in flow.steps.enumerated() {
+        let step = withoutRedundantEffectCheck(original, next: flow.steps.dropFirst(index + 1).first)
         let label = step.name ?? step.tool
         let policy = step.onError ?? flow.onError
         for repetition in 0 ..< max(1, step.repeatCount ?? 1) {
             let suffix = (step.repeatCount ?? 1) > 1 ? " [\(repetition + 1)/\(step.repeatCount ?? 1)]" : ""
             let outcome = await runFlowStep(step, number: index + 1, executor: executor, context: context)
-            if outcome.isError {
+            if outcome.isError, step.optional {
+                result.optionalFailed += 1
+                result.lines.append("– \(index + 1). \(label)\(suffix) (optional): \(outcome.content)")
+            } else if outcome.isError {
                 result.failed += 1
                 result.lines.append("✗ \(index + 1). \(label)\(suffix): \(outcome.content)")
                 if policy == .stop {
@@ -107,6 +113,23 @@ func runFlowSteps(
         }
     }
     return result
+}
+
+/// `step` with `check_effect: false` when it is a `tap_element` that leaves the choice open and the
+/// next step verifies the outcome itself (an assertion, `wait_for`, or a `scroll_to_element` that fails
+/// when the tap did not open its screen). The tap's own effect check
+/// re-reads the hierarchy until the screen changes, about half a second per tap, only to report what
+/// that next step proves anyway. The check that the tap would not land on something covering the
+/// target still runs.
+func withoutRedundantEffectCheck(_ step: TestFlow.Step, next: TestFlow.Step?) -> TestFlow.Step {
+    guard step.tool == "tap_element", step.arguments["check_effect"] == nil,
+          step.arguments["effect_timeout_ms"] == nil, let next,
+          next.tool.hasPrefix("assert_") || next.tool == "scroll_to_element"
+          || (next.tool == FlowPseudoTool.waitFor && next.arguments["idle"] == nil)
+    else { return step }
+    var lighter = step
+    lighter.arguments["check_effect"] = "false"
+    return lighter
 }
 
 private func runFlowStep(

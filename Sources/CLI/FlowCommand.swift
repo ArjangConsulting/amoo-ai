@@ -69,23 +69,28 @@ struct FlowStep: Codable, Equatable {
     var onError: TestFlow.OnError?
     /// Runs the step this many times in a row (default once).
     var repeatCount: Int?
+    /// A step whose outcome does not matter to the check: its failure is reported and the flow
+    /// continues, but it does not fail the run. Never a way to make a failing check pass.
+    var optional: Bool
 
     init(
         name: String? = nil,
         tool: String,
         arguments: [String: String] = [:],
         onError: TestFlow.OnError? = nil,
-        repeatCount: Int? = nil
+        repeatCount: Int? = nil,
+        optional: Bool = false
     ) {
         self.name = name
         self.tool = tool
         self.arguments = arguments
         self.onError = onError
         self.repeatCount = repeatCount
+        self.optional = optional
     }
 
     enum CodingKeys: String, CodingKey {
-        case name, tool, arguments
+        case name, tool, arguments, optional
         case onError = "on_error"
         case repeatCount = "repeat"
     }
@@ -100,6 +105,20 @@ struct FlowStep: Codable, Equatable {
         arguments = scalars.mapValues(\.text)
         onError = try container.decodeIfPresent(TestFlow.OnError.self, forKey: .onError)
         repeatCount = try container.decodeIfPresent(Int.self, forKey: .repeatCount)
+        optional = try container.decodeIfPresent(Bool.self, forKey: .optional) ?? false
+    }
+
+    /// Written flows carry `optional` only on the steps that set it.
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encode(tool, forKey: .tool)
+        try container.encode(arguments, forKey: .arguments)
+        try container.encodeIfPresent(onError, forKey: .onError)
+        try container.encodeIfPresent(repeatCount, forKey: .repeatCount)
+        if optional {
+            try container.encode(optional, forKey: .optional)
+        }
     }
 }
 
@@ -142,6 +161,8 @@ func renderFlowHelp() -> String {
     stay out of the file. Argument values can be JSON strings, numbers or booleans.
     Execution stops on the first failed action or assertion unless the step (or the flow) sets
     "on_error": "continue", or --continue-on-error is passed; the exit code is still 1 if any step failed.
+    A step with "optional": true is reported when it fails but never stops the flow or fails the
+    run; use it only for a step whose outcome does not matter to the check.
 
     Flow-only steps:
       {"tool": "wait", "arguments": {"duration_ms": 500}}
