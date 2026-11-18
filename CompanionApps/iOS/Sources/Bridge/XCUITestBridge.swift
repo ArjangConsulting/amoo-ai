@@ -581,7 +581,8 @@ final class XCUITestBridge: @unchecked Sendable {
         toX: Double,
         toY: Double,
         durationSeconds: TimeInterval,
-        holdSeconds: TimeInterval
+        holdSeconds: TimeInterval,
+        settleSeconds: TimeInterval = XCUITestBridge.dropSettleSeconds
     ) async {
         defer { invalidateSnapshotCache() }
         if await touchOnSecondaryDisplay(
@@ -589,7 +590,7 @@ final class XCUITestBridge: @unchecked Sendable {
             to: CGPoint(x: toX, y: toY),
             hold: holdSeconds,
             travel: durationSeconds,
-            settle: Self.dropSettleSeconds
+            settle: settleSeconds
         ) {
             return
         }
@@ -598,7 +599,7 @@ final class XCUITestBridge: @unchecked Sendable {
             to: CGPoint(x: toX, y: toY),
             hold: holdSeconds,
             travel: durationSeconds,
-            settle: Self.dropSettleSeconds
+            settle: settleSeconds
         ) {
             return
         }
@@ -629,7 +630,7 @@ final class XCUITestBridge: @unchecked Sendable {
 
     /// Brief dwell at the destination before lifting, giving drop targets a chance to
     /// register the drag finishing over them.
-    private static let dropSettleSeconds: TimeInterval = 0.2
+    static let dropSettleSeconds: TimeInterval = 0.2
 
     /// Spreads (`scale` > 1, zoom in) or pinches (`scale` < 1, zoom out) two fingers around
     /// (`x`, `y`), inside `bounds` (the pinched element's frame) when given, else inside the target.
@@ -740,7 +741,11 @@ final class XCUITestBridge: @unchecked Sendable {
             toX: centre.x + unitX * travel / 2,
             toY: centre.y + unitY * travel / 2,
             durationSeconds: 0.4,
-            holdSeconds: 0.05
+            holdSeconds: 0.05,
+            // The eased path already arrives at rest, so a scroll lifts after a short hold; the
+            // 0.2-second dwell is for drop targets, and cost every scroll_to_element step a fifth
+            // of a second per gesture.
+            settleSeconds: 0.05
         )
         #endif
     }
@@ -896,17 +901,27 @@ final class XCUITestBridge: @unchecked Sendable {
         // `typeText`/`clearText` no-op when nothing resolves as a text input. Without this check
         // a tap that landed on a static label would still report the field as filled.
         guard let textInput = resolvedTextInput() else { return .fieldNotFound }
-        let before = (textInput.value as? String) ?? ""
-        clearText(characterCount: nil)
-        typeText(text)
+        let before = enteredText(of: textInput)
+        // The tap that found the field focused it, so an empty field takes the text straight away.
+        // Resolving the field and tapping it again for the clear and again for the typing, each
+        // through a public query that waits for the app to idle, made one set_text about 4 seconds.
+        // Text already there needs the caret moved to its end before it is deleted.
+        // Deletes and text go in one typeText call: each call has a fixed round trip of its own, which
+        // made a one-character value into a prefilled field slower than eleven into an empty one.
+        let keyboard = gestureTarget()
+        let delete = XCUIKeyboardKey.delete.rawValue
+        if !before.isEmpty {
+            await placeCaretAtEnd(of: textInput)
+        }
+        keyboard.typeText(String(repeating: delete, count: before.count) + text)
         var after = (textInput.value as? String) ?? ""
         if textInput.elementType != .secureTextField, after != text {
             // The clear deletes as many characters as the field read back, from the caret. When the
             // caret sat left of the existing text, or the field reformats what it holds, that left
             // some of it behind and the new text landed beside it ("0" + "8" → "08"). One retry
             // that over-deletes — extra deletes on an empty field are harmless — settles it.
-            clearText(characterCount: max(after.count, before.count) + 4)
-            typeText(text)
+            await placeCaretAtEnd(of: textInput)
+            keyboard.typeText(String(repeating: delete, count: max(after.count, before.count) + 4) + text)
             after = (textInput.value as? String) ?? ""
         }
         // A secure field reports a mask rather than what was typed, so an exact match is not
@@ -914,6 +929,26 @@ final class XCUITestBridge: @unchecked Sendable {
         let accepted = after == text ||
             (textInput.elementType == .secureTextField && !text.isEmpty && !after.isEmpty && after != before)
         return accepted ? .set : .valueNotAccepted
+    }
+
+    /// Taps just inside the trailing edge of `field`, so deletes start from the end of its text.
+    /// Through the synthesized tap `tap_element` uses: the public coordinate tap waited for the app
+    /// to go idle first, which made a one-character `set_text` into a prefilled field take longer
+    /// than an eleven-character one into an empty field.
+    private func placeCaretAtEnd(of field: XCUIElement) async {
+        let frame = field.frame.standardized
+        guard !frame.isNull, !frame.isEmpty else {
+            focusForTextEntry(field)
+            return
+        }
+        await tapWithoutCacheInvalidation(x: frame.maxX - 8, y: frame.midY)
+    }
+
+    /// What the user has typed into `field`: XCUITest reports an empty field's placeholder as its
+    /// value, which is not text to delete.
+    private func enteredText(of field: XCUIElement) -> String {
+        let value = (field.value as? String) ?? ""
+        return value == field.placeholderValue ? "" : value
     }
 
     // MARK: - Navigation
@@ -1624,6 +1659,16 @@ final class XCUITestBridge: @unchecked Sendable {
 
     private func resolvedTextInput() -> XCUIElement? {
         let target = gestureTarget()
+        // The field just tapped, looked up by its identifier: one query per input type, instead of
+        // enumerating every text input and reading each one's identifier over IPC.
+        if let id = lastTappedElementID {
+            for inputs in [target.textFields, target.textViews, target.secureTextFields] {
+                let field = inputs.matching(identifier: id).firstMatch
+                if field.exists {
+                    return field
+                }
+            }
+        }
         let candidates = textInputCandidates(in: target)
 
         if let id = lastTappedElementID,
