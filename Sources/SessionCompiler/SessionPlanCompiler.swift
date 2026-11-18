@@ -399,7 +399,12 @@ public enum SessionPlanCompiler {
 
         let retries = retryRuns(report.actions, interval: interval)
         let processed = processActions(
-            report.actions, retries: retries, interval: interval, appID: report.appID, platform: platform
+            report.actions,
+            retries: retries,
+            interval: interval,
+            appID: report.appID,
+            platform: platform,
+            session: SessionLaunch(arguments: report.launchArguments, environment: report.launchEnvironment)
         )
         let toolOperations = annotatePresetOptionTaps(processed.compactMap(\.operation))
         let steps = processed.compactMap(\.step)

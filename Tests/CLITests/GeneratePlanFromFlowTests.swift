@@ -63,6 +63,50 @@ final class GeneratePlanFromFlowTests: XCTestCase {
         )
     }
 
+    /// A flow's own `vars` reach the plan as `amoo flow` would run them; environment-only names,
+    /// where credentials live, stay as written and never land in generated code.
+    func testFlowVarsResolveAndRepeatsExpandButEnvironmentNamesStayLiteral() throws {
+        let test = try plan(from: """
+        {
+          "platform": "ios",
+          "vars": { "app_id": "com.example.jot", "theme": "Jungle" },
+          "steps": [
+            { "tool": "device_launch_app", "arguments": { "app_id": "${app_id}" } },
+            { "tool": "tap_element", "arguments": { "label": "${theme}", "first": "true" } },
+            { "tool": "scroll", "arguments": { "direction": "down" }, "repeat": 2 },
+            { "tool": "set_text", "arguments": { "id": "password", "value": "${AMOO_TEST_PASSWORD}" } }
+          ]
+        }
+        """)
+        let operations = try XCTUnwrap(test.compiledPlan?.toolOperations)
+        XCTAssertEqual(test.requirements?.appId, "com.example.jot")
+        XCTAssertEqual(operations.first?.arguments["label"], "Jungle")
+        XCTAssertEqual(operations.filter { $0.tool == "scroll" }.count, 2)
+        XCTAssertEqual(operations.last?.arguments["value"], "${AMOO_TEST_PASSWORD}")
+    }
+
+    /// The first launch configures the test; a later one that only drops the reset key is a
+    /// relaunch that keeps state, as `calendar-layout-persists` needs.
+    func testASecondLaunchWithoutTheResetKeyCompilesToARelaunch() throws {
+        let test = try plan(from: """
+        {
+          "platform": "ios",
+          "steps": [
+            { "tool": "device_launch_app",
+              "arguments": { "app_id": "com.example.jot", "environment": "AUTOMATED=1,RESET_STATE=1" } },
+            { "tool": "tap_element", "arguments": { "id": "layout.horizontal" } },
+            { "tool": "device_launch_app",
+              "arguments": { "app_id": "com.example.jot", "environment": "AUTOMATED=1" } },
+            { "tool": "assert_selected", "arguments": { "id": "layout.horizontal", "expected": "true" } }
+          ]
+        }
+        """)
+        let operations = try XCTUnwrap(test.compiledPlan?.toolOperations)
+        XCTAssertEqual(operations.map(\.tool), ["tap_element", "relaunch_application", "assert_selected"])
+        XCTAssertEqual(operations[1].arguments["without_environment"], "RESET_STATE")
+        XCTAssertEqual(test.requirements?.launchEnvironment, ["AUTOMATED": "1", "RESET_STATE": "1"])
+    }
+
     func testRejectsAnEmptyFlowAndAnUnknownPlatform() throws {
         let empty = try runGeneratePlanCommand(options: GeneratePlanOptions(
             flowPath: writeFlow(#"{"platform":"ios","steps":[]}"#), outputDirectory: nil, contextPath: nil,

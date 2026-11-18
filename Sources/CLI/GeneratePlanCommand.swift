@@ -115,19 +115,46 @@ func parseGeneratePlanOptions(args: [String]) throws -> GeneratePlanOptions {
     )
 }
 
+/// `value` with each `${name}` that `variables` defines replaced; other references are kept as written.
+func resolvingFlowVariables(in value: String, from variables: [String: String]) -> String {
+    var output = ""
+    var rest = Substring(value)
+    while let open = rest.range(of: "${"), let close = rest[open.upperBound...].firstIndex(of: "}") {
+        let name = String(rest[open.upperBound ..< close])
+        output += rest[..<open.lowerBound]
+        output += variables[name] ?? String(rest[open.lowerBound ... close])
+        rest = rest[rest.index(after: close)...]
+    }
+    return output + rest
+}
+
 /// Turns a hand-written flow into the session report a recording of it would have produced, so the
-/// one deterministic compiler serves both. A `device_launch_app` step becomes the report's app id and
-/// launch configuration (a recording keeps those on the report, not as a step); every other step is
-/// an action. Steps are spaced apart so the compiler's retry-collapse never merges two deliberate,
+/// one deterministic compiler serves both. The first `device_launch_app` step becomes the report's app
+/// id and launch configuration (a recording keeps those on the report, not as a step); every other
+/// step, a later launch included, is an action. Steps are spaced apart so the compiler's retry-collapse never merges
+/// two deliberate,
 /// identical taps.
+///
+/// `${name}` references to the flow's own `vars` are resolved, as `amoo flow` resolves them, and a
+/// step with `repeat` contributes one action per run. References to anything else stay literal: the
+/// environment is where credentials live, and they must never be written into a generated test.
 func sessionReport(fromFlow flow: TestFlow, name: String) -> SessionReport {
     var appID = ""
     var launchArguments: [String] = []
     var launchEnvironment: [String: String] = [:]
     var actions: [SessionAction] = []
     let start = Date(timeIntervalSince1970: 0)
-    for step in flow.steps {
-        if step.tool == "device_launch_app" || step.tool == "start_session" {
+    let steps = flow.steps.flatMap { step in
+        var resolved = step
+        resolved.arguments = step.arguments.mapValues { resolvingFlowVariables(in: $0, from: flow.vars) }
+        return Array(repeating: resolved, count: max(1, step.repeatCount ?? 1))
+    }
+    var launched = false
+    for step in steps {
+        // The first launch is the session's configuration; a later one is a step, as in a recording,
+        // so the compiler can tell a state-preserving relaunch from a reconfigured one.
+        if (step.tool == "device_launch_app" && launched == false) || step.tool == "start_session" {
+            launched = true
             appID = step.arguments["app_id"] ?? appID
             launchArguments = step.arguments["launch_args"]
                 .map { $0.split(separator: ",").map(String.init) } ?? launchArguments
