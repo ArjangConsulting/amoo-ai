@@ -41,6 +41,49 @@ final class AssertionDiagnosticsTests: XCTestCase {
         XCTAssertEqual(fields?["device_health"], .string("unconfirmed"))
     }
 
+    /// Answers its first `fastReads` queries at once with no match, then takes two seconds per query.
+    private actor SlowingDriver: PlatformDriver {
+        private let fastReads: Int
+        private var reads = 0
+
+        init(fastReads: Int) {
+            self.fastReads = fastReads
+        }
+
+        func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+            try await findElements(selector, appID: nil)
+        }
+
+        func findElements(_: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+            reads += 1
+            if reads > fastReads {
+                try await Task.sleep(for: .seconds(2))
+            }
+            return []
+        }
+
+        func getScreenContext() async throws -> ScreenContext {
+            ScreenContext(summary: "settings")
+        }
+    }
+
+    func testATimeoutDuringALaterPollIsAMismatchNotADeviceProblem() async {
+        let result = await DriverToolExecutor(driver: SlowingDriver(fastReads: 1)).execute(
+            toolName: "assert_visible", arguments: ["id": "jot.settings.data.import", "timeout_ms": "300"]
+        )
+        let fields = result.structuredContent?.objectValue
+        XCTAssertTrue(result.isError)
+        XCTAssertEqual(fields?["failure_kind"], .string("assertion_mismatch"), result.content)
+        XCTAssertEqual(fields?["companion_health"], .string("responded"))
+    }
+
+    func testAFirstPollThatNeverAnswersIsStillAnObservationFailure() async {
+        let result = await DriverToolExecutor(driver: SlowingDriver(fastReads: 0)).execute(
+            toolName: "assert_visible", arguments: ["id": "jot.settings.data.import", "timeout_ms": "300"]
+        )
+        XCTAssertEqual(result.structuredContent?.objectValue?["failure_kind"], .string("observation_failed"))
+    }
+
     func testTimedOutGestureDoesNotClaimItWasNeverDispatched() async {
         let executor = DriverToolExecutor(driver: MockDriver())
         let result = await executor.executionFailureDiagnostics(

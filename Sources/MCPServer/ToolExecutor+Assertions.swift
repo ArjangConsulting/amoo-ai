@@ -255,15 +255,20 @@ extension DriverToolExecutor {
             }
             let match: ElementInfo?
             do {
-                match = try await OperationDeadline.read(until: deadline) {
+                match = try await OperationDeadline.read(until: firstReadDeadline(deadline)) {
                     try await self.resolveElement(
                         selector: selector, driver: driver, appID: appID, pick: pick, missingIsNil: kind == .absent
                     )
                 }
+                noteReadCompleted()
             } catch is CancellationError {
                 throw CancellationError()
             } catch let error as ToolExecutionError {
                 throw error
+            } catch is OperationDeadline.DeadlineExceeded where reads > 0 {
+                // The timeout landed while a later poll was in flight. Earlier polls completed and
+                // did not match, so this is a mismatch, not a device that stopped answering.
+                break
             } catch {
                 return assertionFailure(
                     kind: kind, arguments: arguments, lastMatch: lastMatch, reads: reads,
