@@ -20,6 +20,8 @@ public actor DriverToolExecutor: ToolExecutor {
     var sessionRuns: [String: String] = [:]
     /// The previous mutating call per session, to flag identical back-to-back repeats.
     var lastMutatingCall: [String: (signature: String, count: Int)] = [:]
+    /// Set by a verified launch until a read completes; see `firstReadDeadline(_:)`.
+    var awaitingFirstReadAfterLaunch = false
     private let operationQueue = DeviceOperationQueue()
     private var defaultDeviceKey: String?
     private let defaultDeviceID: String?

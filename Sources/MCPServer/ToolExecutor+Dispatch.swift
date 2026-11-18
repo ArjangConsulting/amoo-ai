@@ -131,6 +131,9 @@ extension DriverToolExecutor {
             var fields = result.structuredContent?.objectValue ?? [:]
             fields["launch"] = try Value(receipt)
             fields["target_app_id"] = .string(appID)
+            if !result.isError {
+                awaitingFirstReadAfterLaunch = true
+            }
             result.structuredContent = .object(fields)
             return result
 
@@ -327,13 +330,9 @@ extension DriverToolExecutor {
             }
             let appID = queryScopeAppID(arguments: arguments, driver: driver)
             let pick = try ElementPick.parse(arguments)
-            let deadline = ContinuousClock.now + .milliseconds(max(
-                1,
-                arguments["timeout_ms"].flatMap(Int.init) ?? 5000
-            ))
-            guard let matched = try await OperationDeadline.read(until: deadline, operation: {
-                try await self.resolveElement(selector: selector, driver: driver, appID: appID, pick: pick)
-            }) else {
+            guard let matched = try await resolveTapTarget(
+                selector, pick: pick, arguments: arguments, driver: driver, appID: appID
+            ) else {
                 throw ToolExecutionError(
                     code: "element_not_found", message: "tap_element failed: no element matched the selector",
                     extra: ["dispatch_status": .string("not_dispatched"), "failure_kind": .string("selector_miss")]
