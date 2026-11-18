@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
@@ -36,6 +37,18 @@ class UIAutomatorBridge {
 
         /** Dwell at the destination before lifting, so drop targets see the drag finish. */
         const val DROP_SETTLE_MS = 200L
+
+        /** Travel time of a scroll's eased drag, matching the iOS companion. */
+        const val SCROLL_DURATION_MS = 400
+
+        /**
+         * Rest before a scroll lifts. Longer than VelocityTracker's 40 ms stopped-pointer window,
+         * so the release carries no velocity and the list stops where the finger did.
+         */
+        const val SCROLL_SETTLE_MS = 60L
+
+        /** A scroll never travels more than this share of the screen, matching the iOS companion. */
+        const val SCROLL_MAX_EXTENT = 0.7
 
         /**
          * How far up the tree to look for a clickable ancestor. Compose nests a matched semantics
@@ -219,7 +232,8 @@ class UIAutomatorBridge {
             to = toX.toFloat() to toY.toFloat(),
             durationMs = durationMs,
             holdMs = holdMs.toLong(),
-            settleMs = DROP_SETTLE_MS
+            settleMs = DROP_SETTLE_MS,
+            eased = false
         )
 
     /**
@@ -229,14 +243,16 @@ class UIAutomatorBridge {
      * Moves are injected without waiting for the app to consume each one. A synchronous move
      * returns only after the app's next frame, so on a busy emulator every 10 ms step cost a
      * frame (about 0.4 s) and a one-second drag overran the RPC deadline. The press and the
-     * release stay synchronous, so the gesture has finished when this returns.
+     * release stay synchronous, so the gesture has finished when this returns. [eased] slows the
+     * finger into the destination, so the release carries no fling velocity.
      */
     private fun injectPath(
         from: Pair<Float, Float>,
         to: Pair<Float, Float>,
         durationMs: Int,
         holdMs: Long,
-        settleMs: Long
+        settleMs: Long,
+        eased: Boolean
     ): Boolean {
         val downTime = SystemClock.uptimeMillis()
         if (!injectFingerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, from.first, from.second)) {
@@ -248,7 +264,8 @@ class UIAutomatorBridge {
         }
         val steps = (durationMs / MOVE_INTERVAL_MS).coerceAtLeast(1)
         for (step in 1..steps) {
-            val progress = step.toFloat() / steps
+            val time = step.toFloat() / steps
+            val progress = if (eased) easedOut(time) else time
             val x = from.first + (to.first - from.first) * progress
             val y = from.second + (to.second - from.second) * progress
             if (!injectFingerEvent(MotionEvent.ACTION_MOVE, downTime, SystemClock.uptimeMillis(), x, y, sync = false)) {
@@ -258,6 +275,11 @@ class UIAutomatorBridge {
         }
         SystemClock.sleep(settleMs)
         return injectFingerEvent(MotionEvent.ACTION_UP, downTime, SystemClock.uptimeMillis(), to.first, to.second)
+    }
+
+    private fun easedOut(time: Float): Float {
+        val remaining = 1f - time
+        return 1f - remaining * remaining * remaining
     }
 
     /**
@@ -280,18 +302,34 @@ class UIAutomatorBridge {
         return if (delivered) null else "pinch input injection was rejected"
     }
 
+    /**
+     * Drags the content [distance] pixels so that [direction] comes into view, from a path
+     * centred on the screen, and stops it there.
+     *
+     * `UiDevice.swipe` crossed the distance in 100 ms and lifted while still moving, so the list
+     * travelled about half the requested distance. This eases the finger to a stop, rests and
+     * lifts, and adds the touch slop a list consumes before it starts to move.
+     */
     fun scroll(direction: Direction, distance: Int): Boolean {
-        val (w, h) = device.displayWidth to device.displayHeight
-        val cx = w / 2
-        val cy = h / 2
-        val steps = 20
-
-        return when (direction) {
-            Direction.UP -> device.swipe(cx, cy, cx, cy + distance, steps)
-            Direction.DOWN -> device.swipe(cx, cy, cx, cy - distance, steps)
-            Direction.LEFT -> device.swipe(cx, cy, cx + distance, cy, steps)
-            Direction.RIGHT -> device.swipe(cx, cy, cx - distance, cy, steps)
+        val (width, height) = device.displayWidth to device.displayHeight
+        val (unitX, unitY) = when (direction) {
+            Direction.UP -> 0 to 1
+            Direction.DOWN -> 0 to -1
+            Direction.LEFT -> 1 to 0
+            Direction.RIGHT -> -1 to 0
         }
+        val extent = if (unitX != 0) width else height
+        val slop = ViewConfiguration.get(instrumentation.targetContext).scaledTouchSlop
+        val travel = minOf(distance.coerceAtLeast(1) + slop, (extent * SCROLL_MAX_EXTENT).roundToInt()).toFloat()
+        val (centreX, centreY) = width / 2f to height / 2f
+        return injectPath(
+            from = centreX - unitX * travel / 2 to centreY - unitY * travel / 2,
+            to = centreX + unitX * travel / 2 to centreY + unitY * travel / 2,
+            durationMs = SCROLL_DURATION_MS,
+            holdMs = 0,
+            settleMs = SCROLL_SETTLE_MS,
+            eased = true
+        )
     }
 
     fun swipeInDirection(
