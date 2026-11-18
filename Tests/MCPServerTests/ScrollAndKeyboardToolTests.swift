@@ -86,6 +86,185 @@ final class ScrollAndKeyboardToolTests: XCTestCase {
         XCTAssertTrue(scrolls.contains(.up), "it reversed after the content ended: \(scrolls)")
     }
 
+    /// An iOS list that rubber-bands: the first read after any scroll catches the content mid-flight,
+    /// including a scroll pushed against an end that leaves the content where it was. A control can
+    /// animate its own press state on every read, as Jot's calendar-layout option did under the finger.
+    private actor BouncingListDriver: PlatformDriver {
+        private let rowVisibleAt: Int
+        private let lastOffset: Int
+        private let pulsingControl: Bool
+        private(set) var scrolls: [Direction] = []
+        private var offset = 0
+        private var midFlightReads = 0
+        private var reads = 0
+
+        init(rowVisibleAt: Int, lastOffset: Int, pulsingControl: Bool = false) {
+            self.rowVisibleAt = rowVisibleAt
+            self.lastOffset = lastOffset
+            self.pulsingControl = pulsingControl
+        }
+
+        func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+            try await findElements(selector, appID: nil)
+        }
+
+        func findElements(_ selector: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+            reads += 1
+            var drift = 0.0
+            if midFlightReads > 0 {
+                midFlightReads -= 1
+                drift = 37
+            }
+            let top = Double(1200 - offset * 300) + drift
+            var elements = (0 ..< 6).map { row in
+                ElementInfo(
+                    id: "row.\(row)", label: "Row \(row)", type: .cell,
+                    frame: Rect(x: 0, y: top - 1000 + Double(row) * 50, width: 100, height: 40)
+                )
+            }
+            elements.append(ElementInfo(
+                id: "", label: "Health", type: .staticText,
+                frame: Rect(x: 0, y: top, width: 100, height: 40),
+                isVisible: offset >= rowVisibleAt
+            ))
+            if pulsingControl {
+                let height = reads.isMultiple(of: 2) ? 102.0 : 108.0
+                elements.append(ElementInfo(
+                    id: "layout.vertical", label: "Vertical", type: .button,
+                    frame: Rect(x: 0, y: 579 - height / 2, width: 117, height: height)
+                ))
+            }
+            guard let text = selector.containsText else { return elements }
+            return elements.filter { $0.label.contains(text) }
+        }
+
+        func scroll(direction: Direction, distance _: Double) async throws {
+            scrolls.append(direction)
+            midFlightReads = 1
+            switch direction {
+            case .up: offset = max(0, offset - 1)
+            case .down: offset = min(lastOffset, offset + 1)
+            default: break
+            }
+        }
+
+        func getScreenContext() async throws -> ScreenContext {
+            ScreenContext(summary: "offset \(offset)")
+        }
+    }
+
+    func testReversesAtAnEndWhileTheListIsStillBouncing() async {
+        let driver = BouncingListDriver(rowVisibleAt: 3, lastOffset: 5)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element",
+            arguments: ["contains_text": "Health", "direction": "up", "max_attempts": "6"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let scrolls = await driver.scrolls
+        XCTAssertEqual(scrolls, [.up, .down, .down, .down])
+    }
+
+    func testOneControlAnimatingItsOwnStateDoesNotHideTheEnd() async {
+        let driver = BouncingListDriver(rowVisibleAt: 99, lastOffset: 5, pulsingControl: true)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element",
+            arguments: ["contains_text": "Missing", "direction": "up", "max_attempts": "3"]
+        )
+        XCTAssertTrue(result.content.contains("up reached its end after 1, then down"), result.content)
+        let scrolls = await driver.scrolls
+        XCTAssertEqual(scrolls, [.up, .down, .down])
+    }
+
+    /// A 440x956 screen over 3000 points of content. The target row sits in the hierarchy at its
+    /// content position whether or not it is on screen, as list rows near the viewport do.
+    private actor LongListDriver: PlatformDriver {
+        private let targetContentY: Double?
+        private(set) var scrolls: [(Direction, Double)] = []
+        private var contentOffset = 0.0
+
+        init(targetContentY: Double?) {
+            self.targetContentY = targetContentY
+        }
+
+        func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+            try await findElements(selector, appID: nil)
+        }
+
+        func findElements(_ selector: ElementSelector, appID _: String?) async throws -> [ElementInfo] {
+            var elements = (0 ..< 5).map { row in
+                ElementInfo(
+                    id: "filler.\(row)", label: "Filler \(row)", type: .cell,
+                    frame: Rect(x: 0, y: Double(row) * 200 - contentOffset, width: 440, height: 44)
+                )
+            }
+            if let targetContentY {
+                let y = targetContentY - contentOffset
+                elements.append(ElementInfo(
+                    id: "target", label: "Target", type: .cell,
+                    frame: Rect(x: 0, y: y, width: 440, height: 44),
+                    isVisible: y + 44 > 0 && y < 956
+                ))
+            }
+            guard let id = selector.id else { return elements }
+            return elements.filter { $0.id == id }
+        }
+
+        func scroll(direction: Direction, distance: Double) async throws {
+            scrolls.append((direction, distance))
+            switch direction {
+            case .down: contentOffset = min(3000 - 956, contentOffset + distance)
+            case .up: contentOffset = max(0, contentOffset - distance)
+            default: break
+            }
+        }
+
+        func screenGeometry() async throws -> ScreenSize {
+            ScreenSize(widthPoints: 440, heightPoints: 956, widthPixels: 1320, heightPixels: 2868, scale: 3)
+        }
+
+        func getScreenContext() async throws -> ScreenContext {
+            ScreenContext(summary: "offset \(contentOffset)")
+        }
+    }
+
+    func testScrollsStraightToATargetTheHierarchyAlreadyHolds() async {
+        let driver = LongListDriver(targetContentY: 1570)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element", arguments: ["id": "target", "direction": "up"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let scrolls = await driver.scrolls
+        XCTAssertEqual(scrolls.map(\.0), [.down, .down], "the hierarchy said below, so up was never tried")
+        XCTAssertEqual(scrolls.first?.1 ?? 0, 956 * 0.6, accuracy: 0.01, "capped at a page")
+        XCTAssertEqual(scrolls.last?.1 ?? 0, 1592 - 573.6 - 478, accuracy: 0.01, "then exactly the rest")
+    }
+
+    func testPagesMostOfAScreenWhenTheTargetIsNotInTheHierarchy() async {
+        let driver = LongListDriver(targetContentY: nil)
+        _ = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element", arguments: ["id": "target", "max_attempts": "2"]
+        )
+        let distances = await driver.scrolls.map(\.1)
+        XCTAssertEqual(distances, [956 * 0.6, 956 * 0.6])
+    }
+
+    func testAnExplicitDistanceCapsEveryScroll() async {
+        let driver = LongListDriver(targetContentY: 1300)
+        _ = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element", arguments: ["id": "target", "distance": "120", "max_attempts": "3"]
+        )
+        let distances = await driver.scrolls.map(\.1)
+        XCTAssertEqual(distances, [120, 120, 120])
+    }
+
+    func testGiveUpSaysWhetherItEverFoundAnEnd() async {
+        let driver = ScrollingDriver(scrollsNeeded: 99)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "scroll_to_element", arguments: ["id": "row", "max_attempts": "2"]
+        )
+        XCTAssertTrue(result.content.contains("no end was detected"), result.content)
+    }
+
     /// A bottom bar floats over the list: the companion calls the row visible, a tap would hit the bar.
     private actor ToolbarCoveredDriver: PlatformDriver {
         private let scrollsUntilClear: Int

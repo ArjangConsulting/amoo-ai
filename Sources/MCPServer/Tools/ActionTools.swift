@@ -123,15 +123,19 @@ public enum ActionTools {
         ToolDefinition(
             name: "scroll_to_element",
             description: "Scroll until an element is on screen and tappable, then stop. Matches by id, label,"
-                + " or contains_text; scrolls down by default, and reverses once it reaches the end of the"
-                + " content. Fails with the number of attempts when the element never appears.",
+                + " or contains_text. A target the hierarchy already holds off screen is scrolled to directly;"
+                + " otherwise it pages down by default, and reverses once it reaches the end of the content."
+                + " Fails with the number of attempts when the element never appears.",
             properties: [
                 "id": .init(type: "string", description: "Accessibility identifier of the element"),
                 "label": .init(type: "string", description: "Exact accessibility label of the element"),
                 "contains_text": .init(type: "string", description: "Partial text to match in the element label"),
                 "direction": .init(type: "string", description: "First scroll direction. Defaults to down."),
                 "max_attempts": .init(type: "string", description: "Scroll gestures to try. Defaults to 8."),
-                "distance": .init(type: "string", description: "Finger travel per scroll in points. Defaults to 300.")
+                "distance": .init(
+                    type: "string",
+                    description: "Most finger travel per scroll in points. Defaults to 60% of the screen."
+                )
             ]
         ),
         ToolDefinition(
