@@ -107,18 +107,57 @@ enum ScreenshotScaler {
         context.interpolationQuality = .medium
         context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         guard let resized = context.makeImage() else { return nil }
+        return encoded(resized, format: format)
+        #else
+        return nil
+        #endif
+    }
 
+    /// Crops the image to `region`, in image pixels from the top-left corner, clamped to the image.
+    ///
+    /// Returns the encoded crop and the region actually kept, or `nil` when nothing of the region is
+    /// on the image or the platform cannot decode it.
+    static func cropped(
+        _ data: Data,
+        to region: PixelRegion,
+        format: ImageFormat
+    ) -> (data: Data, region: PixelRegion)? {
+        #if canImport(CoreGraphics) && canImport(ImageIO)
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return nil }
+        let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let kept = CGRect(x: region.x, y: region.y, width: region.width, height: region.height)
+            .intersection(bounds)
+        guard !kept.isNull, kept.width >= 1, kept.height >= 1,
+              let crop = image.cropping(to: kept),
+              let output = encoded(crop, format: format)
+        else { return nil }
+        return (output, PixelRegion(x: Int(kept.minX), y: Int(kept.minY), width: crop.width, height: crop.height))
+        #else
+        return nil
+        #endif
+    }
+
+    #if canImport(CoreGraphics) && canImport(ImageIO)
+    private static func encoded(_ image: CGImage, format: ImageFormat) -> Data? {
         let type: CFString = format == .jpeg ? UTType.jpeg.identifier as CFString
             : UTType.png.identifier as CFString
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(output, type, 1, nil) else {
             return nil
         }
-        CGImageDestinationAddImage(destination, resized, nil)
+        CGImageDestinationAddImage(destination, image, nil)
         guard CGImageDestinationFinalize(destination) else { return nil }
         return output as Data
-        #else
-        return nil
-        #endif
     }
+    #endif
+}
+
+/// A rectangle in whole image pixels, origin at the top-left corner.
+struct PixelRegion: Equatable {
+    let x: Int
+    let y: Int
+    let width: Int
+    let height: Int
 }

@@ -276,6 +276,7 @@ extension DriverToolExecutor {
         // — which lands off-screen and still reports success.
         var geometryNote = ""
         var scaleAuditNote = ""
+        var pixelsPerPoint = (screenshot.density ?? screenshot.geometry?.scale).map { $0 * imageScale }
         if let viewport = fields["viewport"]?.objectValue,
            let screenScale = viewport["scale"]?.doubleValue, screenScale > 0,
            let widthPixels = viewport["width_pixels"]?.doubleValue,
@@ -305,6 +306,7 @@ extension DriverToolExecutor {
             fields["width_points"] = .double(widthPoints)
             fields["height_points"] = .double(heightPoints)
             fields["scale"] = .double(imagePixelsPerPoint)
+            pixelsPerPoint = imagePixelsPerPoint
             geometryNote = " — image is \(geometryNumber(imageWidth))x\(geometryNumber(imageHeight))px;"
                 + " gestures take points (\(geometryNumber(widthPoints))"
                 + "x\(geometryNumber(heightPoints))),"
@@ -314,6 +316,14 @@ extension DriverToolExecutor {
             } else {
                 geometryNote += "; unit=pixels expects native screenshot pixels"
             }
+        }
+
+        if let crop = try await screenshotCrop(
+            data, format: actualFormat, pixelsPerPoint: pixelsPerPoint, arguments: arguments, driver: driver
+        ) {
+            data = crop.data
+            fields.merge(crop.fields, uniquingKeysWith: { _, crop in crop })
+            geometryNote = crop.note
         }
 
         var savedNote = ""

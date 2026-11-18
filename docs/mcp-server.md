@@ -529,7 +529,10 @@ inline image by default, at one pixel per point/dp; pass `return_image=true` onl
 see pixels, since an inline image is re-read on every later turn. A project's
 [`screenshots`](credentials.md#screenshot-defaults) defaults in `amoo.config.json` (set by `amoo init`)
 can shrink that size or turn inline images on; a call's own `scale`/`return_image` wins. Use available local tools such as Python/ffmpeg for pixel diffs,
-bounds or centroids, and view only a small crop when visual interpretation is necessary. For a transient state, batch the action and an immediate
+bounds or centroids, and view only a small crop when visual interpretation is necessary. To look at one
+control, pass its `id`, `label` or `contains_text` (with `parent_id`, `index` or `first` as for a tap):
+the saved image is cut to that element plus `padding` points (default 8), and `crop_origin_points`
+maps a position in the crop back to gesture points. For a transient state, batch the action and an immediate
 `take_screenshot` with `settle_timeout_ms=0` in one `run_steps` call. Set `check_effect=false` on
 a triggering `tap_element` to skip its post-tap hierarchy reads. For tighter timing, use a
 coordinate `tap` from freshly queried geometry to avoid its foreground-app observation too.

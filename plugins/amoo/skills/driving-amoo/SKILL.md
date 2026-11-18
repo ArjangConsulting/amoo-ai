@@ -138,7 +138,8 @@ returns as soon as it shows, with expected_effect_met, instead of polling for an
 Prefer compact queries and semantic assertions. For transient UI, batch the action and immediate
 screenshot with return_image=false and settle_timeout_ms=0; use check_effect=false on the tap.
 Screenshots save to `saved_path` without an inline image by default, at one pixel per point/dp;
-read the file only when pixels matter and analyze pixels locally. Delegated captures use
+read the file only when pixels matter and analyze pixels locally. For a question about one control,
+pass its id or label to take_screenshot to crop to it. Delegated captures use
 output=<path> return_image=false; return selected thumbnails or contact-sheet paths for review.
 Pause playback for stable checks and reuse recorded navigation. Check capture_suspect and device
 state; retain get_run_telemetry with one run_id across every attempt. See [verification](references/verification.md).
