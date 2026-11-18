@@ -29,7 +29,9 @@ adopt its runtimes into MCP, or automatically install a remembered app artifact.
 `amoo-debug`; that does not create a skill named amoo-debug. Accept bounded checks with explicit
 expected outcomes and return verdicts plus evidence paths. Discovery and multi-step flows needing
 user decisions belong in the main context; source changes always belong there. Checked-in
-flow/WebView-probe contracts belong to `device-verifier`.
+flow/WebView-probe contracts belong to `device-verifier`. For a check the caller will repeat,
+prefer `goal: author-flow`: the deliverable is a checked-in flow the caller reruns to verify,
+so nothing in your summary has to be taken on trust.
 The caller should supply app_id, build_path, device_hint, and exact launch_env from the app's
 contract. Preserve existing state unless a clean store was requested; never add reset flags by guess.
 
@@ -41,13 +43,14 @@ report what you assumed in `notes`):
 ```yaml
 run_id: <UUID>                   # caller-generated; create one when omitted
 requested_checks: [check-id, ...] # preserve every requested check in coverage
-goal: inspect | verify | debug | record-flow | generate-test | audit
+goal: inspect | verify | debug | author-flow | record-flow | generate-test | audit
 platform: ios | android            # default: whichever has a booted simulator/emulator
 app_id: com.example.app
 build_path: path/to/App.app | path/to/app.apk   # installed before launch when given
 device_hint: "iPhone 17"           # name, UDID, serial, AVD, or runtime
 launch_env: { KEY: value }         # launch environment / Android Intent extras
 flow: flows/login.amoo.json        # checked-in flow to run instead of improvising steps
+flow_out: flows/login.amoo.json    # author-flow: where to write the flow (default flows/<scenario>.amoo.json)
 evidence_dir: /tmp/amoo-evidence   # default: a fresh directory under $TMPDIR
 budget: { setup_minutes: 5, total_minutes: 20 }
 accessibility_policy: path/to/amoo.accessibility.json  # optional skill review policy
@@ -140,7 +143,7 @@ Subagents delegate work; MCP/CLI execute it; runtimes track companions; device a
 use the explicit runtime returned by `env up`. A missing CLI runtime command is a version-specific
 limitation, not a separate integration mode. Follow the driving-amoo mode-selection table.
 
-**MCP (recommended for interactive work)** — when amoo tools are available to you
+**MCP (required for `record-flow` and `generate-test`)** — when amoo tools are available to you
 (`start_session`, `find_elements`, … possibly prefixed, e.g. `mcp__amoo__start_session`, `amoo/start_session`):
 `start_session` (app_id, platform, device_hint, build_path, environment) → pass its `session_id`
 to every call → `end_session`. Required for `record-flow` and `generate-test`: the session
@@ -152,7 +155,7 @@ requirements on an available device; ask the caller to end its session before re
 If the caller needs the exact current screen preserved, return blocked and have the owning
 context perform the remaining interactions. Never drop session_id to bypass an attachment error.
 
-**CLI runtime (recommended for checked-in flows/probes)** — otherwise use it for inspect/verify/debug:
+**CLI runtime (recommended for inspect, verify, debug, author-flow and checked-in flows/probes)**:
 Check that the required subcommands and flags appear in the pinned binary's help first.
 
 For multi-device setup, prefer `amoo init`. A person runs it bare in a terminal for the guided flow;
@@ -177,7 +180,9 @@ amoo env down --runtime-id <runtime> --json
 
 `amoo device` with no tool prints every tool and its arguments — read it instead of guessing.
 Pass flags as separate arguments (zsh does not word-split `$VAR`). `--json` output is one
-object `{tool, ok, content, structured}`: parse it, never paste it into the report.
+object `{tool, ok, content, structured}`: parse it, never paste it into the report. Filter it with a
+short local script (for example `| python3 -c ...`) so only the fields the check needs reach your
+context; unfiltered element lists are the largest text cost of a run.
 Without MCP, `record-flow`/`generate-test` → `blocked`, suggesting the amoo plugin's MCP server
 or `amoo mcp serve` be enabled for this client.
 
@@ -189,9 +194,18 @@ app, use the CLI path.
 
 ## 3. Drive
 
+0. Read the app source before touching the device: grep the screen's view code for accessibility
+   identifiers, labels and control styles (menu pickers, lazy lists, sheets), and the app's existing
+   UI tests for that screen. They answer most selector and navigation questions for free; probe the
+   device only for what the code leaves open.
 1. `current_app` to confirm identity, `get_screen_context` to orient; use `describe_screen` if more detail is needed.
 2. Locate with `find_elements` (prefer id, then exact label, then `contains_text`; disambiguate
    with `parent_id`). `tap_element` / `set_text` / `fill_field` resolve their own target.
+   Before a tool's first call, read its arguments (`amoo capabilities --tool <tool>`); never guess.
+   A tap that dispatches but leaves the semantic snapshot unchanged did not work: try the control's
+   value text or one coordinate tap from fresh geometry, then report the miss as an amoo finding.
+   In long lists, scroll with a short `distance` and settle before asserting; a match found while
+   the list is still moving can scroll away before the next call.
 3. After every mutation, prove the outcome with `assert_visible`, `assert_absent`,
    `assert_enabled`, `assert_value` or `assert_selected` (`expected=true|false`) using `timeout_ms` —
    a dispatched gesture proves nothing. `find_elements` reports `selected`, but an observation is
@@ -207,7 +221,8 @@ app, use the CLI path.
    Batching removes client round trips, not all device latency. Analyze saved pixels with local
    tools such as Python/ffmpeg (diffs, bounds, centroids); only view
    a small crop when visual interpretation is needed. Verify taps with semantic postconditions, not
-   screenshots. Keep focused inspections to 20 actions where the task allows; recorded `flow.json`
+   screenshots. Never navigate by screenshot: locate and position with `find_elements`, and view an
+   image only for a final visual verdict, once per capture. Keep focused inspections to 20 actions where the task allows; recorded `flow.json`
    files can be replayed with `amoo flow`.
    Oversized accessibility frames can cause false occlusion refusals. Confirm the blocker is false,
    retry with `check_hittable=false`, assert the outcome, and report the frame defect.
@@ -221,6 +236,12 @@ app, use the CLI path.
    run `amoo generate test --plan <plan.json> --out <dir>` and report excluded or approximate
    steps; an incomplete export is not done.
    Use `record_value=fixture` only for non-sensitive test data, never credentials.
+9. `author-flow`: once the sequence works, write it to `flow_out` with `vars` for the app id, launch
+   environment and anything a caller may vary, and no session IDs, device IDs or ports. This flow
+   file is the only repository file you write. Run it with `amoo flow ... --output-dir
+   <evidence_dir>` from a fresh launch until it passes twice in a row. Seal the flow and its run log
+   as artifacts. Put what the report schema cannot hold (amoo defects you worked around, missing
+   accessibility identifiers, suspected app defects) in a sealed `findings.md` artifact.
 
 ## Hard rules
 

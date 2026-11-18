@@ -85,8 +85,8 @@ assertions, which can share a compact `run_steps` batch with the tap.
 
 ## Choose an execution mode
 
-Use MCP for interactive inspection and managed recordings; use controlled CLI for checked-in flows
-and probes. Subagents acquire their own device ownership and use their available transport.
+Agents use controlled CLI with locally filtered `--json` for inspection, debugging and flows; MCP for
+managed recordings and long-lived interactive clients. Subagents acquire their own device ownership.
 For who should drive and how to delegate, read [execution modes](references/execution-modes.md)
 before CLI interaction or delegation. It covers version checks, runtime acquisition, cleanup, and transport limitations.
 MCP `start_session` owns the device until `end_session`; it needs no separate CLI runtime. Never use a second transport to bypass an ownership conflict.

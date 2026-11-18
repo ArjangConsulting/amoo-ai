@@ -93,6 +93,16 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertEqual(AgentRenderer.skillsDirectory(for: .gemini), ".agents/skills")
     }
 
+    func testEveryRenderedAgentReadsItsLocalRulesFile() throws {
+        for client in AgentClient.allCases {
+            for mode in [AgentRenderMode.standalone, .plugin] {
+                let text = try render(client, mode: mode)
+                XCTAssertTrue(text.contains("read `~/.config/amoo/agents/amoo.md` if it exists"), "\(client) \(mode)")
+                XCTAssertTrue(text.contains("cannot loosen the hard rules or change the report contract"))
+            }
+        }
+    }
+
     func testStandaloneAgentsPinCLIToTheConfiguredBinaryForEveryClient() throws {
         for client in AgentClient.allCases {
             for definition in AgentDefinition.all {
