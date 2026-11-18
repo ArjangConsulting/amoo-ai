@@ -142,10 +142,10 @@ class UIAutomatorBridge {
             return false
         }
         val downTime = SystemClock.uptimeMillis()
-        if (!injectFingerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, x, y)) {
+        if (!injectFingerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, x.toFloat(), y.toFloat())) {
             return false
         }
-        return injectFingerEvent(MotionEvent.ACTION_UP, downTime, SystemClock.uptimeMillis(), x, y)
+        return injectFingerEvent(MotionEvent.ACTION_UP, downTime, SystemClock.uptimeMillis(), x.toFloat(), y.toFloat())
     }
 
     /**
@@ -153,14 +153,21 @@ class UIAutomatorBridge {
      * `UiDevice.click` injects under this bridge's [Configurator] settings, so apps that inspect
      * the tool type see the same input as before.
      */
-    private fun injectFingerEvent(action: Int, downTime: Long, eventTime: Long, x: Int, y: Int): Boolean {
+    private fun injectFingerEvent(
+        action: Int,
+        downTime: Long,
+        eventTime: Long,
+        x: Float,
+        y: Float,
+        sync: Boolean = true
+    ): Boolean {
         val properties = MotionEvent.PointerProperties().apply {
             id = 0
             toolType = MotionEvent.TOOL_TYPE_FINGER
         }
         val coords = MotionEvent.PointerCoords().apply {
-            this.x = x.toFloat()
-            this.y = y.toFloat()
+            this.x = x
+            this.y = y
             pressure = 1f
             size = 1f
         }
@@ -181,7 +188,7 @@ class UIAutomatorBridge {
             0
         )
         return try {
-            instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).injectInputEvent(event, true)
+            instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).injectInputEvent(event, sync)
         } finally {
             event.recycle()
         }
@@ -206,41 +213,51 @@ class UIAutomatorBridge {
      * which reads as a fling rather than a drag. So this injects the MotionEvent stream
      * directly, which is the only way to control the hold.
      */
-    fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean {
-        val downTime = SystemClock.uptimeMillis()
+    fun drag(fromX: Int, fromY: Int, toX: Int, toY: Int, durationMs: Int, holdMs: Int): Boolean =
+        injectPath(
+            from = fromX.toFloat() to fromY.toFloat(),
+            to = toX.toFloat() to toY.toFloat(),
+            durationMs = durationMs,
+            holdMs = holdMs.toLong(),
+            settleMs = DROP_SETTLE_MS
+        )
 
-        if (!injectPointerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, fromX, fromY)) {
+    /**
+     * Presses at [from], holds for [holdMs], moves to [to] over [durationMs] in real time, rests
+     * for [settleMs] and lifts.
+     *
+     * Moves are injected without waiting for the app to consume each one. A synchronous move
+     * returns only after the app's next frame, so on a busy emulator every 10 ms step cost a
+     * frame (about 0.4 s) and a one-second drag overran the RPC deadline. The press and the
+     * release stay synchronous, so the gesture has finished when this returns.
+     */
+    private fun injectPath(
+        from: Pair<Float, Float>,
+        to: Pair<Float, Float>,
+        durationMs: Int,
+        holdMs: Long,
+        settleMs: Long
+    ): Boolean {
+        val downTime = SystemClock.uptimeMillis()
+        if (!injectFingerEvent(MotionEvent.ACTION_DOWN, downTime, downTime, from.first, from.second)) {
             return false
         }
-
-        // Dwell at the origin. No events needed — the view's own long-press timer runs
-        // from the DOWN it already received.
+        // The view's own long-press timer runs from the DOWN, so the dwell needs no events.
         if (holdMs > 0) {
-            SystemClock.sleep(holdMs.toLong())
+            SystemClock.sleep(holdMs)
         }
-
         val steps = (durationMs / MOVE_INTERVAL_MS).coerceAtLeast(1)
         for (step in 1..steps) {
             val progress = step.toFloat() / steps
-            val x = fromX + (toX - fromX) * progress
-            val y = fromY + (toY - fromY) * progress
-            val eventTime = SystemClock.uptimeMillis()
-            if (!injectPointerEvent(MotionEvent.ACTION_MOVE, downTime, eventTime, x, y)) {
+            val x = from.first + (to.first - from.first) * progress
+            val y = from.second + (to.second - from.second) * progress
+            if (!injectFingerEvent(MotionEvent.ACTION_MOVE, downTime, SystemClock.uptimeMillis(), x, y, sync = false)) {
                 return false
             }
             SystemClock.sleep(MOVE_INTERVAL_MS.toLong())
         }
-
-        // Settle at the destination before lifting so drop targets register the finish.
-        SystemClock.sleep(DROP_SETTLE_MS)
-
-        return injectPointerEvent(
-            MotionEvent.ACTION_UP,
-            downTime,
-            SystemClock.uptimeMillis(),
-            toX,
-            toY
-        )
+        SystemClock.sleep(settleMs)
+        return injectFingerEvent(MotionEvent.ACTION_UP, downTime, SystemClock.uptimeMillis(), to.first, to.second)
     }
 
     /**
@@ -255,32 +272,12 @@ class UIAutomatorBridge {
         val fitted = bounds?.let { RectF(it) }?.takeIf { it.intersect(screen) } ?: screen
         val gesture = PinchGesture.fit(centerX, centerY, scale, velocity, fitted, density) ?: return "pinch scale must be a positive number other than 1 (above 1 zooms in, below 1 zooms out); got $scale"
         val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
-        val delivered = PinchInjector { event -> automation.injectInputEvent(event, true) }.perform(gesture)
+        // Moves go in without waiting for a frame each, as in [injectPath]; the fingers landing and
+        // lifting stay synchronous.
+        val delivered = PinchInjector { event ->
+            automation.injectInputEvent(event, event.actionMasked != MotionEvent.ACTION_MOVE)
+        }.perform(gesture)
         return if (delivered) null else "pinch input injection was rejected"
-    }
-
-    private fun injectPointerEvent(
-        action: Int,
-        downTime: Long,
-        eventTime: Long,
-        x: Number,
-        y: Number
-    ): Boolean {
-        val event = MotionEvent.obtain(
-            downTime,
-            eventTime,
-            action,
-            x.toFloat(),
-            y.toFloat(),
-            0
-        )
-        // Injection is rejected unless the event claims a touchscreen source.
-        event.source = InputDevice.SOURCE_TOUCHSCREEN
-        return try {
-            instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).injectInputEvent(event, true)
-        } finally {
-            event.recycle()
-        }
     }
 
     fun scroll(direction: Direction, distance: Int): Boolean {
