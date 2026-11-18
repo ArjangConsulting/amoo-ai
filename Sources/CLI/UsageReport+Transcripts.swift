@@ -10,7 +10,18 @@ import Foundation
 /// result minus the context and output of the turn that issued the call is what the results in
 /// between added. That growth is shared among the results in the gap by their size, and the
 /// "carried" cost multiplies it by every later turn that re-reads it (mostly as cache reads).
+///
+/// The client also injects context in that gap that no result carries: a skill loaded in the
+/// same turn arrives as its body, the skill and agent listings and MCP instructions. A share is
+/// therefore capped at a small multiple of the result's own size, and the rest stays unattributed;
+/// otherwise a 23-byte `amoo --version` issued next to a skill load was charged 30k tokens.
 enum UsageTranscriptReader {
+    /// A result is charged at most this multiple of its estimated size, which covers a tokenizer
+    /// denser than four characters per token.
+    static let maximumShareMultiple = 2
+    /// Added to the cap for the per-result wrapper (`tool_result` framing, ids).
+    static let maximumShareOverhead = 100
+
     struct ToolUse {
         var id: String
         /// The amoo tool this client call reached, or nil for any other tool.
@@ -247,7 +258,8 @@ enum UsageTranscriptReader {
         let laterTurns = max(0, turns.count - index - 1)
         for (offset, (use, size)) in gap.enumerated() {
             guard let tool = use.amooTool else { continue }
-            let share = measured > 0 ? measured * estimates[offset] / estimateTotal : estimates[offset]
+            let proportional = measured > 0 ? measured * estimates[offset] / estimateTotal : estimates[offset]
+            let share = min(proportional, estimates[offset] * maximumShareMultiple + maximumShareOverhead)
             let imageTokens = size.imageTokens
             tokens.amooToolResults += 1
             tokens.amooResultTokens += share

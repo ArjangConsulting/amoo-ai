@@ -78,9 +78,10 @@ final class UsageReportTests: XCTestCase {
     }
 
     func testTranscriptAttributesMeasuredContextGrowthAndReReads() throws {
+        let summary = String(repeating: "Screenshot captured. ", count: 80)
         let lines = [
             #"{"type":"assistant","timestamp":"2026-11-07T10:00:00.000Z","message":{"id":"m1","usage":{"input_tokens":10,"cache_read_input_tokens":1000,"cache_creation_input_tokens":0,"output_tokens":50},"content":[{"type":"tool_use","id":"t1","name":"mcp__amoo__take_screenshot","input":{}},{"type":"tool_use","id":"t2","name":"Read","input":{}}]}}"#,
-            #"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":[{"type":"text","text":"Screenshot captured"}]},{"type":"tool_result","tool_use_id":"t2","content":"x"}]}}"#,
+            #"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":[{"type":"text","text":"\#(summary)"}]},{"type":"tool_result","tool_use_id":"t2","content":"x"}]}}"#,
             #"{"type":"assistant","timestamp":"2026-11-07T10:00:05.000Z","message":{"id":"m2","usage":{"input_tokens":10,"cache_read_input_tokens":1050,"cache_creation_input_tokens":600,"output_tokens":5},"content":[]}}"#,
             #"{"type":"assistant","timestamp":"2026-11-07T10:00:09.000Z","message":{"id":"m3","usage":{"input_tokens":10,"cache_read_input_tokens":1700,"cache_creation_input_tokens":0,"output_tokens":5},"content":[]}}"#
         ]
@@ -102,6 +103,26 @@ final class UsageReportTests: XCTestCase {
         XCTAssertGreaterThan(screenshot.tokens, 400)
         XCTAssertLessThanOrEqual(screenshot.tokens, 600)
         XCTAssertEqual(screenshot.carriedTokens, screenshot.tokens * 2)
+    }
+
+    func testContextInjectedBesideATinyResultIsNotChargedToIt() throws {
+        let lines = [
+            #"{"type":"assistant","timestamp":"2026-11-07T10:00:00.000Z","message":{"id":"m1","usage":{"input_tokens":10,"cache_read_input_tokens":48000,"cache_creation_input_tokens":0,"output_tokens":50},"content":[{"type":"tool_use","id":"t1","name":"Skill","input":{}},{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"amoo --version"}}]}}"#,
+            #"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"Launching skill"},{"type":"tool_result","tool_use_id":"t2","content":"0.4.0+38.gfbb41fa45034"}]}}"#,
+            #"{"type":"assistant","timestamp":"2026-11-07T10:00:05.000Z","message":{"id":"m2","usage":{"input_tokens":10,"cache_read_input_tokens":48060,"cache_creation_input_tokens":32000,"output_tokens":5},"content":[]}}"#
+        ]
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        let file = scratch.url.appending(path: "session.jsonl")
+        try Data(lines.joined(separator: "\n").utf8).write(to: file)
+
+        var report = UsageReport(generatedAt: "now", window: .init(), sources: .init())
+        UsageTranscriptReader.aggregate(files: [file], since: nil, into: &report)
+        let version = try XCTUnwrap(report.tokens?.byTool.first { $0.tool == "cli --version" })
+        // A skill loaded in the same turn grew the context by 32k; the result itself is ~6 tokens.
+        XCTAssertGreaterThan(version.tokens, 0)
+        let cap = 6 * UsageTranscriptReader.maximumShareMultiple + UsageTranscriptReader.maximumShareOverhead
+        XCTAssertLessThanOrEqual(version.tokens, cap)
     }
 
     func testSessionsCountRetriesAndPlansClassifyWarnings() async throws {
