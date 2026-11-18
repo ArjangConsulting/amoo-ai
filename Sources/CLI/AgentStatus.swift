@@ -81,7 +81,7 @@ func probeAgentStatus(
         for file in try agentInstallPlan(selected, assetsRoot: assetsRoot) {
             let disk = try readAgentFile(file.destination)
             let hash = stamp?.files[AgentInstallStamp.relativePath(file.destination, root: options.root)]
-            let state: AgentFileState = if disk == file.contents {
+            let state: AgentFileState = if let disk, agentFileMatches(disk, rendered: file.contents, scope: options.scope) {
                 .current
             } else if let disk {
                 hash.map { sha256Hex(disk) == $0 ? .outdated : .edited } ?? .unrecorded

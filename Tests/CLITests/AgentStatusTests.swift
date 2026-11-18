@@ -42,6 +42,26 @@ final class AgentStatusTests: XCTestCase {
         XCTAssertEqual(legacy.files.first { $0.path == missing.destination.path }?.state, .missing)
     }
 
+    func testProjectFilesIgnoreAnotherMachinesExecutablePinButUserFilesDoNot() throws {
+        let root = try makeScratchDirectory().url
+        var project = options(at: root)
+        project.clients = [.opencode]
+        XCTAssertEqual(runAgentInstall(project, assetsRoot: pluginRoot).exitCode, 0)
+        project.executablePath = "/ci/runner/amoo"
+        XCTAssertTrue(probeAgentStatus(project, assetsRoot: pluginRoot).current, "CI's path is not drift")
+        XCTAssertTrue(agentFileMatches(
+            Data("A\n\nUse the executable at \"/a/amoo\" for every CLI command.\n\nB".utf8),
+            rendered: Data("A\n\nUse the executable at \"/b/amoo\" for every CLI command.\n\nB".utf8),
+            scope: .project
+        ))
+        XCTAssertFalse(agentFileMatches(
+            Data("A\n\nUse the executable at \"/a/amoo\" for every CLI command.\n\nB".utf8),
+            rendered: Data("A\n\nUse the executable at \"/b/amoo\" for every CLI command.\n\nB".utf8),
+            scope: .user
+        ), "A moved executable stays outdated at user scope so update refreshes it")
+        XCTAssertFalse(agentFileMatches(Data("A\n\nB".utf8), rendered: Data("A\n\nC".utf8), scope: .project))
+    }
+
     func testUpdateRewritesOutdatedAndMissingButPreservesEditsAndTheirStamp() throws {
         let root = try makeScratchDirectory().url
         var options = options(at: root)

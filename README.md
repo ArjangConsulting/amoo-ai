@@ -122,7 +122,9 @@ Installs write `.amoo-install.json` in the scope root (repository or home direct
 project agent files: its per-file hashes distinguish untouched older files from local edits.
 `agent status` inspects this directory and your home directory by default; `--target`, `--user`,
 and `--client` narrow the check. It reports `current`, `missing`, `outdated`, `edited`, or
-`unrecorded` and exits 1 for any drift. `--json` provides the file states for CI.
+`unrecorded` and exits 1 for any drift. `--json` provides the file states for CI. For project
+installs, which are committed and shared, the paragraph pinning one machine's executable is not
+compared, so a teammate's or CI runner's different amoo path is not reported as drift.
 
 `agent update` replaces outdated and missing files and refreshes the stamp. It preserves edited
 files and differing legacy files without an install hash. Use `--force` to replace them; a terminal
