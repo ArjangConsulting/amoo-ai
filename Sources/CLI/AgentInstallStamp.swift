@@ -96,7 +96,7 @@ func writeAgentFiles(
         for file in files {
             let existing = try readAgentFile(file.destination)
             let action: String
-            if existing == file.contents {
+            if let existing, agentFileMatches(existing, rendered: file.contents, scope: options.scope) {
                 action = "unchanged"
             } else if !shouldWrite(file, existing) {
                 report.files.append(.init(path: file.destination.path, action: skippedAction(file)))
@@ -122,6 +122,26 @@ func writeAgentFiles(
         logger.error("AI client install failed", error: error, context: "root=\(options.root.path)")
         throw error
     }
+}
+
+/// Whether an installed file already matches its render.
+///
+/// Project-scope files are committed and shared across machines, so the paragraph that pins one
+/// machine's amoo executable (`Use the executable at "…"`) is ignored there: a teammate's or CI's
+/// different path is not template drift. User-scope files compare exactly, so `update` still
+/// refreshes a moved executable.
+func agentFileMatches(_ disk: Data, rendered: Data, scope: AgentScope) -> Bool {
+    guard disk != rendered else { return true }
+    guard scope == .project,
+          let diskText = String(data: disk, encoding: .utf8),
+          let renderedText = String(data: rendered, encoding: .utf8) else { return false }
+    return withoutExecutablePin(diskText) == withoutExecutablePin(renderedText)
+}
+
+private func withoutExecutablePin(_ text: String) -> String {
+    var paragraphs = text.components(separatedBy: "\n\n")
+    paragraphs.removeAll { $0.hasPrefix("Use the executable at \"") }
+    return paragraphs.joined(separator: "\n\n")
 }
 
 func readAgentFile(_ url: URL) throws -> Data? {
