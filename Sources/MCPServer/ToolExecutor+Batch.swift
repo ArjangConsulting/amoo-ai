@@ -71,10 +71,17 @@ extension DriverToolExecutor {
             "assert_screen_changed"
         ]
         return try steps.map { step -> (String, [String: String]) in
-            guard allowed.contains(step.tool), step.arguments["session_id"] == nil else {
+            guard step.arguments["session_id"] == nil else {
                 throw ToolExecutionError(
                     code: "invalid_argument",
-                    message: "Unsupported batch step or session override."
+                    message: "Batch step \(step.tool) passes session_id; steps run in the batch's own session."
+                )
+            }
+            guard allowed.contains(step.tool) else {
+                throw ToolExecutionError(
+                    code: "invalid_argument",
+                    message: "run_steps does not accept \(step.tool); call it on its own. Batch steps: "
+                        + allowed.sorted().joined(separator: ", ") + "."
                 )
             }
             var values = step.arguments.mapValues { $0.stringValue ?? $0.description }
