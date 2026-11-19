@@ -63,7 +63,7 @@ func renderAgentHelp() -> String {
              --client         claude, cursor, codex, copilot, gemini, opencode, or all (default);
                               repeat or comma-separate to pick several
              --agent          amoo, device-verifier, or all (default)
-             --binary         absolute MCP binary path (default: this executable); shell aliases do not apply
+             --binary         absolute amoo path the agents pin (default: this executable); no shell aliases
              --dry-run        report what would change and write nothing
              --force          replace files that differ (local edits are otherwise kept)
 
@@ -74,8 +74,7 @@ func renderAgentHelp() -> String {
                gemini    .gemini/agents/<name>.md
                opencode  .opencode/agents/<name>.md         (user: ~/.config/opencode/agents/)
 
-             Where the client allows it, the amoo agent starts its own `amoo mcp serve`, so the
-             main session never loads amoo's tools. Plugin installs (see README) need none of this.
+             The agents drive devices with the amoo CLI; plugin installs (see README) need none of this.
 
     status   Compares installed files with the bundled version; exits 1 for any drift.
              By default inspects installed clients in this directory and your home directory.

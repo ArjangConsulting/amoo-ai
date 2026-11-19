@@ -29,8 +29,6 @@ struct AgentDefinition: Equatable, Sendable {
     var name: String
     /// Skill directories under the plugin's `skills/` that the agent relies on.
     var skills: [String]
-    /// Start `amoo mcp serve` for this subagent only, where the client supports it.
-    var scopedMCP: Bool
     /// Agents deliberately pin no model: the delegating agent picks the cheapest capable one per spawn
     /// (see `references/execution-modes.md`), and a pinned alias would go stale and override that choice.
     /// Claude Code `tools` allowlist; nil inherits the caller's tools.
@@ -40,7 +38,6 @@ struct AgentDefinition: Equatable, Sendable {
     static let amoo = Self(
         name: "amoo",
         skills: ["driving-amoo", "ios-accessibility", "android-accessibility"],
-        scopedMCP: true,
         claudeTools: nil,
         claudeDisallowedTools: "Edit, NotebookEdit"
     )
@@ -48,7 +45,6 @@ struct AgentDefinition: Equatable, Sendable {
     static let deviceVerifier = Self(
         name: "device-verifier",
         skills: ["driving-amoo", "device-verifier"],
-        scopedMCP: false,
         claudeTools: "Bash, Read, Write, Glob, Grep",
         claudeDisallowedTools: nil
     )
@@ -153,44 +149,35 @@ enum AgentRenderer {
         executablePath: String = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? ""
     ) throws -> RenderedAgentFile {
         let directory = agentDirectory(for: client, scope: scope)
-        let mcp = definition.scopedMCP && mode == .standalone
-        guard !mcp || executablePath.hasPrefix("/") else {
-            throw AgentRenderError.unsupportedBody("MCP configuration requires an absolute amoo executable path.")
-        }
         var source = source
         source.body = localRules(for: source.name) + source.body
         if mode == .standalone, executablePath.hasPrefix("/") {
             source.body = "Use the executable at \(quoted(executablePath)) "
                 + "for every CLI command shown as `amoo` below. "
-                + "Use this absolute path rather than PATH or shell aliases. "
-                + "This also pins MCP: before device interaction, compare this connection's "
-                + "`dev.amoo/build.binary_path` (resolving symlinks) and `binary_sha256` with that executable. "
-                + "Inherited MCP tools are not trusted by name. If identity differs or cannot be verified, "
-                + "do not use that server for device work; use the pinned CLI for supported checks "
-                + "or report blocked with expected and observed identities.\n\n" + source.body
+                + "Use this absolute path rather than PATH or shell aliases.\n\n" + source.body
         }
         switch client {
         case .claude:
             return .init(
                 path: "\(directory)/\(source.name).md",
-                contents: claude(source, definition, mcp: mcp, executable: executablePath)
+                contents: claude(source, definition)
             )
         case .cursor:
             return .init(path: "\(directory)/\(source.name).md", contents: cursor(source))
         case .codex:
             return try .init(
                 path: "\(directory)/\(source.name).toml",
-                contents: codex(source, mcp: mcp, executable: executablePath)
+                contents: codex(source)
             )
         case .copilot:
             return .init(
                 path: "\(directory)/\(source.name).agent.md",
-                contents: copilot(source, mcp: mcp, executable: executablePath)
+                contents: copilot(source)
             )
         case .gemini:
             return .init(
                 path: "\(directory)/\(source.name).md",
-                contents: gemini(source, mcp: mcp, executable: executablePath)
+                contents: gemini(source)
             )
         case .opencode:
             return .init(path: "\(directory)/\(source.name).md", contents: opencode(source))
@@ -221,27 +208,13 @@ enum AgentRenderer {
 
     // MARK: - Per-client formats
 
-    private static func claude(
-        _ source: AgentSource,
-        _ definition: AgentDefinition,
-        mcp: Bool,
-        executable: String
-    ) -> String {
+    private static func claude(_ source: AgentSource, _ definition: AgentDefinition) -> String {
         var lines = ["name: \(source.name)", "description: \(quoted(source.description))"]
         let optional = [
             definition.claudeTools.map { "tools: \($0)" },
             definition.claudeDisallowedTools.map { "disallowedTools: \($0)" }
         ]
         lines += optional.compactMap(\.self)
-        if mcp {
-            lines += [
-                "mcpServers:",
-                "  - amoo:",
-                "      type: stdio",
-                "      command: \(quoted(executable))",
-                "      args: [\"mcp\", \"serve\"]"
-            ]
-        }
         return markdown(frontmatter: lines, body: source.body)
     }
 
@@ -252,57 +225,33 @@ enum AgentRenderer {
         )
     }
 
-    private static func codex(_ source: AgentSource, mcp: Bool, executable: String) throws -> String {
+    private static func codex(_ source: AgentSource) throws -> String {
         guard !source.body.contains("'''") else {
             throw AgentRenderError.unsupportedBody(
                 "agents/\(source.name).md: the body contains ''' and cannot be a TOML literal string."
             )
         }
-        var lines = [
+        let lines = [
             "name = \(quoted(source.name))",
             "description = \(quoted(source.description))",
             "developer_instructions = '''",
             source.body + "'''"
         ]
-        if mcp {
-            // A cold companion build inside start_session outlasts Codex's default tool timeout.
-            lines += [
-                "",
-                "[mcp_servers.amoo]",
-                "command = \(quoted(executable))",
-                "args = [\"mcp\", \"serve\"]",
-                "tool_timeout_sec = 900"
-            ]
-        }
         return lines.joined(separator: "\n") + "\n"
     }
 
-    private static func copilot(_ source: AgentSource, mcp: Bool, executable: String) -> String {
-        var lines = ["name: \(source.name)", "description: \(quoted(source.description))"]
-        if mcp {
-            lines += [
-                "mcp-servers:",
-                "  amoo:",
-                "    type: local",
-                "    command: \(quoted(executable))",
-                "    args: [\"mcp\", \"serve\"]",
-                "    tools: [\"*\"]"
-            ]
-        }
-        return markdown(frontmatter: lines, body: source.body)
+    private static func copilot(_ source: AgentSource) -> String {
+        markdown(frontmatter: ["name: \(source.name)", "description: \(quoted(source.description))"], body: source.body)
     }
 
-    private static func gemini(_ source: AgentSource, mcp: Bool, executable: String) -> String {
+    private static func gemini(_ source: AgentSource) -> String {
         // The defaults (10 minutes, 30 turns) are too short for a cold companion build.
-        var lines = [
+        let lines = [
             "name: \(source.name)",
             "description: \(quoted(source.description))",
             "timeout_mins: 30",
             "max_turns: 80"
         ]
-        if mcp {
-            lines += ["mcpServers:", "  amoo:", "    command: \(quoted(executable))", "    args: [\"mcp\", \"serve\"]"]
-        }
         return markdown(frontmatter: lines, body: source.body)
     }
 

@@ -36,13 +36,13 @@ final class AgentRendererTests: XCTestCase {
         }
     }
 
-    func testClaudeScopesTheMCPServerToTheSubagent() throws {
+    func testClaudeStartsNoMCPServer() throws {
         let text = try render(.claude)
         XCTAssertTrue(text.hasPrefix("---\nname: amoo\ndescription: \"Drives \\\"devices\\\": iOS and Android.\"\n"))
         XCTAssertFalse(text.contains("\nmodel:"))
         XCTAssertTrue(text.contains("disallowedTools: Edit, NotebookEdit"))
-        XCTAssertTrue(text
-            .contains("mcpServers:\n  - amoo:\n      type: stdio\n      command: \"/tmp/local amoo/amoo\""))
+        XCTAssertFalse(text.contains("mcpServers"))
+        XCTAssertFalse(text.contains("MCP"))
         XCTAssertTrue(text.hasSuffix("Do the thing.\n"))
     }
 
@@ -52,15 +52,12 @@ final class AgentRendererTests: XCTestCase {
         XCTAssertFalse(text.contains("mcpServers"))
     }
 
-    func testCodexIsTOMLWithALiteralInstructionsBlockAndScopedServer() throws {
+    func testCodexIsTOMLWithALiteralInstructionsBlock() throws {
         let text = try render(.codex)
         XCTAssertTrue(text.contains("name = \"amoo\"\n"))
         XCTAssertTrue(text.contains("developer_instructions = '''\nUse the executable"))
         XCTAssertTrue(text.contains("Do the thing.\n'''\n"))
-        XCTAssertTrue(text
-            .contains("[mcp_servers.amoo]\ncommand = \"/tmp/local amoo/amoo\"\nargs = [\"mcp\", \"serve\"]"))
-        let tableStart = try XCTUnwrap(text.range(of: "[mcp_servers.amoo]")).lowerBound
-        XCTAssertLessThan(try XCTUnwrap(text.range(of: "developer_instructions")).lowerBound, tableStart)
+        XCTAssertFalse(text.contains("mcp_servers"))
     }
 
     func testCodexRejectsABodyThatWouldEndTheLiteralString() {
@@ -70,12 +67,11 @@ final class AgentRendererTests: XCTestCase {
     }
 
     func testCopilotGeminiCursorAndOpenCodeFormats() throws {
-        XCTAssertTrue(try render(.copilot).contains("mcp-servers:\n  amoo:\n    type: local"))
-        XCTAssertFalse(try render(.copilot, mode: .plugin).contains("mcp-servers"))
+        XCTAssertFalse(try render(.copilot).contains("mcp-servers"))
 
         let gemini = try render(.gemini)
         XCTAssertTrue(gemini.contains("timeout_mins: 30"))
-        XCTAssertTrue(gemini.contains("mcpServers:\n  amoo:\n    command: \"/tmp/local amoo/amoo\""))
+        XCTAssertFalse(gemini.contains("mcpServers"))
 
         XCTAssertFalse(try render(.cursor).contains("model:"), "Cursor pins no model")
 
@@ -114,19 +110,16 @@ final class AgentRendererTests: XCTestCase {
                 ).contents
                 XCTAssertTrue(text.contains("Use the executable at \"/tmp/local amoo/.build/debug/amoo\""))
                 XCTAssertTrue(text.contains("rather than PATH or shell aliases"))
-                XCTAssertTrue(text.contains("This also pins MCP"))
-                XCTAssertTrue(text.contains("`dev.amoo/build.binary_path`"))
-                XCTAssertTrue(text.contains("`binary_sha256`"))
-                XCTAssertTrue(text.contains("Inherited MCP tools are not trusted by name"))
+                XCTAssertFalse(text.contains("MCP"))
             }
         }
         XCTAssertFalse(try render(.copilot, mode: .plugin).contains("Use the executable at"))
     }
 
-    func testRejectsRelativeMCPBinary() {
-        XCTAssertThrowsError(try AgentRenderer.render(
-            source, definition: .amoo, for: .codex, executablePath: "amoo"
-        ))
+    /// With no MCP server to start, a relative executable is no longer an error; it just is not pinned.
+    func testRelativeBinaryIsNotPinned() throws {
+        let text = try AgentRenderer.render(source, definition: .amoo, for: .codex, executablePath: "amoo").contents
+        XCTAssertFalse(text.contains("Use the executable at"))
     }
 
     func testQuotedEscapesControlCharacters() {

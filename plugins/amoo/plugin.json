@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "amoo",
   "version": "0.2.0",
-  "description": "Drive and verify iOS simulators and Android emulators from any AI agent: the amoo subagent, the driving-amoo and device-verifier skills, and the amoo MCP server. Requires the amoo CLI (brew install arjangconsulting/tap/amoo).",
+  "description": "Drive and verify iOS simulators and Android emulators from any AI agent: the amoo subagent and the driving-amoo and device-verifier skills. Requires the amoo CLI (brew install arjangconsulting/tap/amoo).",
   "author": { "name": "Arjang Consulting" },
   "homepage": "https://github.com/ArjangConsulting/amoo-ai",
   "repository": "https://github.com/ArjangConsulting/amoo-ai",

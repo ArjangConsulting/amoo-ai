@@ -232,7 +232,6 @@ jobs:
             CompanionApps/Android \
             release-toolchain.txt \
             release-dependencies.json \
-            scripts/install-mcp.sh \
             plugins/amoo
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'amoo'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'plugins/amoo/agents/amoo.md'
@@ -243,7 +242,6 @@ jobs:
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep 'CompanionApps/iOS/prebuilt/macosx/Products/.*xctestrun$'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'CompanionApps/Android/prebuilt/app-debug.apk'
-          tar -tzf "amoo-${VERSION}-macos-universal.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-macos-universal.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -331,13 +329,11 @@ jobs:
             CompanionApps/Android \
             release-toolchain.txt \
             release-dependencies.json \
-            scripts/install-mcp.sh \
             plugins/amoo
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'amoo'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'plugins/amoo/agents/amoo.md'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/gradlew'
           tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'CompanionApps/Android/prebuilt/app-debug.apk'
-          tar -tzf "amoo-${VERSION}-linux-static.tar.gz" | grep -qx 'scripts/install-mcp.sh'
           echo "TARBALL=amoo-${VERSION}-linux-static.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
