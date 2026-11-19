@@ -1,5 +1,6 @@
 import AmooCore
 import Foundation
+import MCP
 import MCPServer
 
 // MARK: - Step execution
@@ -40,9 +41,30 @@ struct FlowRunContext: Sendable {
     }
 }
 
+/// One step's result, as `report.json` records it.
+struct FlowStepRecord: Encodable, Equatable {
+    var number: Int
+    var name: String
+    var tool: String
+    /// 1-based, for a step with `repeat`.
+    var repetition: Int?
+    /// `passed`, `failed` or `optional_failed`.
+    var status: String
+    var elapsedMilliseconds: Int
+    var message: String
+    /// The tool's structured result: for a failed assertion, its `failure_kind` and last observed state.
+    var result: Value?
+
+    enum CodingKeys: String, CodingKey {
+        case number, name, tool, repetition, status, message, result
+        case elapsedMilliseconds = "elapsed_ms"
+    }
+}
+
 /// The outcome of every step a flow ran.
 struct FlowRunResult: Equatable {
     var lines: [String] = []
+    var steps: [FlowStepRecord] = []
     var passed = 0
     var failed = 0
     /// Optional steps that failed: reported, but not failures of the run.
@@ -95,7 +117,18 @@ func runFlowSteps(
         let policy = step.onError ?? flow.onError
         for repetition in 0 ..< max(1, step.repeatCount ?? 1) {
             let suffix = (step.repeatCount ?? 1) > 1 ? " [\(repetition + 1)/\(step.repeatCount ?? 1)]" : ""
+            let started = ContinuousClock.now
             let outcome = await runFlowStep(step, number: index + 1, executor: executor, context: context)
+            result.steps.append(FlowStepRecord(
+                number: index + 1,
+                name: label,
+                tool: step.tool,
+                repetition: (step.repeatCount ?? 1) > 1 ? repetition + 1 : nil,
+                status: !outcome.isError ? "passed" : step.optional ? "optional_failed" : "failed",
+                elapsedMilliseconds: milliseconds(since: started),
+                message: outcome.content,
+                result: outcome.structuredContent
+            ))
             if outcome.isError, step.optional {
                 result.optionalFailed += 1
                 result.lines.append("– \(index + 1). \(label)\(suffix) (optional): \(outcome.content)")

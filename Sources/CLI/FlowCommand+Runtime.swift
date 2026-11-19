@@ -75,3 +75,94 @@ func flowCompanionPort(_ flow: inout TestFlow, platform: Platform, overrides: Fl
     }
     return port
 }
+
+/// What `amoo flow --output-dir` writes to `report.json`: every step with its status, timing and
+/// structured result, so a failed run can be read without probing the device again.
+struct FlowReport: Encodable {
+    var flow: String
+    var platform: String
+    var deviceID: String?
+    var port: Int
+    var amooCommit = AmooBuildInfo.current.sourceCommit
+    var passed: Int
+    var failed: Int
+    var optionalFailed: Int
+    var stopped: Bool
+    var elapsedMilliseconds: Int
+    var steps: [FlowStepRecord]
+
+    init(
+        flow: String,
+        platform: String,
+        deviceID: String?,
+        port: Int,
+        result: FlowRunResult,
+        elapsedMilliseconds: Int
+    ) {
+        self.flow = flow
+        self.platform = platform
+        self.deviceID = deviceID
+        self.port = port
+        passed = result.passed
+        failed = result.failed
+        optionalFailed = result.optionalFailed
+        stopped = result.stopped
+        self.elapsedMilliseconds = elapsedMilliseconds
+        steps = result.steps
+    }
+
+    init(flow path: String, platform: Platform, flow: TestFlow, port: Int, result: FlowRunResult) {
+        self.init(
+            flow: path,
+            platform: platform.rawValue,
+            deviceID: flow.deviceID,
+            port: port,
+            result: result,
+            elapsedMilliseconds: 0
+        )
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case flow, platform, port, passed, failed, stopped, steps
+        case deviceID = "device_id"
+        case amooCommit = "amoo_commit"
+        case optionalFailed = "optional_failed"
+        case elapsedMilliseconds = "elapsed_ms"
+    }
+}
+
+/// Writes `report`, timed from `started`, to `<directory>/report.json`.
+func writeFlowReport(_ report: FlowReport, started: ContinuousClock.Instant, to directory: URL) -> String {
+    var report = report
+    report.elapsedMilliseconds = milliseconds(since: started)
+    return writeFlowReport(report, to: directory)
+}
+
+/// Writes `report` to `<directory>/report.json` and returns the line saying where, or why not.
+func writeFlowReport(_ report: FlowReport, to directory: URL) -> String {
+    let url = directory.appending(path: "report.json")
+    do {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        try encoder.encode(report).write(to: url, options: .atomic)
+        return "Report: \(url.path)"
+    } catch {
+        logger.error("Could not write flow report", error: error, context: "path=\(url.path)")
+        return "Report not written: \(error)"
+    }
+}
+
+extension FlowRunContext {
+    /// The context for one run of `flow`: its `vars`, the device as `${device}`, then `--var`.
+    init(flow: TestFlow, overrides: FlowOverrides) {
+        var variables = flow.vars
+        variables["device"] = flow.deviceID ?? "booted"
+        variables.merge(overrides.variables) { _, override in override }
+        self.init(
+            variables: variables,
+            outputDirectory: overrides.outputDirectory.map { URL(fileURLWithPath: $0) },
+            defaultOnError: overrides.continueOnError ? .continue : flow.onError
+        )
+    }
+}
