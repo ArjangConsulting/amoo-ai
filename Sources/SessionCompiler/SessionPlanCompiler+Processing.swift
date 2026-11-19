@@ -4,6 +4,7 @@ import StudioProtocol
 import TestSession
 
 extension SessionPlanCompiler {
+    // swiftlint:disable function_body_length - one ordered pass; each step depends on the one before.
     /// Throws when the recorded session names a platform that is neither iOS nor Android. A session
     /// is written by our own recorder, so that means a corrupt or hand-edited report — guessing a
     /// platform there would generate a test for the wrong OS.
@@ -77,12 +78,18 @@ extension SessionPlanCompiler {
                     gaps: gapsByIndex[offset] ?? []
                 )
             ))
+            if let postcondition = tapPostcondition(effectiveAction) {
+                let next = nextAction(after: offset)
+                processed.append(process(index: offset, action: postcondition, next: next, retry: .single(interval)))
+            }
             if invalidatesRecordedGeometry(action.toolName) {
                 recentElements = []
             }
         }
         return processed
     }
+
+    // swiftlint:enable function_body_length
 
     /// The `relaunch_application` that the action at `offset` (with the next one, for a
     /// terminate/launch pair) amounts to, or `nil` when it is not a relaunch of the session's launch.
@@ -164,5 +171,41 @@ extension SessionPlanCompiler {
         )
         guard environment.allSatisfy({ session.environment[$0.key] == $0.value }) else { return nil }
         return session.environment.keys.filter { environment[$0] == nil }.sorted()
+    }
+
+    /// The assertion a tap's `expect_id` / `expect_label` / `expect_contains_text` amounts to.
+    ///
+    /// A tap with an expectation waits on the device for that element, so it is the tap's
+    /// postcondition. Compiling only the tap dropped it: a flow written the recommended way, with
+    /// `expect_*` instead of a separate assertion, generated a test that tapped and checked nothing.
+    static func tapPostcondition(_ action: SessionAction) -> SessionAction? {
+        guard action.toolName == "tap_element", !action.isError else { return nil }
+        let selectorKeys = ["id", "label", "contains_text"]
+        var arguments: [String: String] = [:]
+        for key in selectorKeys {
+            if let value = action.arguments["expect_\(key)"], !value.isEmpty {
+                arguments[key] = value
+            }
+        }
+        guard !arguments.isEmpty else { return nil }
+        if let timeout = action.arguments["expect_timeout_ms"] {
+            arguments["timeout_ms"] = timeout
+        }
+        let absent = action.arguments["expect_absent"] == "true"
+        return SessionAction(
+            timestamp: action.timestamp,
+            toolName: absent ? "assert_absent" : "assert_visible",
+            arguments: arguments,
+            result: "",
+            isError: false,
+            intent: .testStep
+        )
+    }
+}
+
+extension SessionPlanCompiler.RetryContext {
+    /// The context of an action that was performed once.
+    static func single(_ interval: TimeInterval) -> Self {
+        Self(count: 1, interval: interval, gaps: [])
     }
 }

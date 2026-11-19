@@ -34,6 +34,10 @@ public enum SessionPlanQualityReview {
                         "Visible-copy selector depends on locale; prefer a stable accessibility identifier."
                     ))
                 }
+                // A tap with `expect_*` carries its own postcondition, which compiles to an assertion.
+                if SessionPlanCompiler.tapPostcondition(action) != nil {
+                    lastMutation = nil
+                }
             }
         }
         if let index = lastMutation {
