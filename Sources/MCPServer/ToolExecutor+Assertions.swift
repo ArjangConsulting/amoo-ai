@@ -143,11 +143,7 @@ extension DriverToolExecutor {
         guard let lastFrontmost else {
             return unverified
         }
-        return ToolResult(
-            content: "device_launch_app failed: frontmost app is \(lastFrontmost), expected \(appID)",
-            isError: true,
-            structuredContent: .object(["app_id": .string(appID), "verified": .bool(false)])
-        )
+        return await launchMismatch(appID: appID, frontmost: lastFrontmost, driver: driver)
     }
 
     func executeSetText(
