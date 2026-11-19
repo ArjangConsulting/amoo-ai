@@ -255,6 +255,8 @@ actor MockRPCClient: CompanionRPCClient {
     var setTextRequest: Amoo_SetTextRequest?
     var waitForElementRequest: Amoo_WaitForElementRequest?
     var waitForElementFound = true
+    var hitTestRequest: Amoo_HitTestRequest?
+    var hitTestAnswer: Result<Amoo_HitTestVerdict, any Error> = .success(.hittable)
     var actionCalls: [String] = []
 
     func startSession(_ request: Amoo_StartSessionRequest) async throws -> Amoo_StartSessionResponse {

@@ -191,6 +191,29 @@ actor CompanionServiceProvider: Amoo_CompanionService.SimpleServiceProtocol {
         return tapped ? successResponse() : failResponse("Element not found or not hittable")
     }
 
+    func hitTest(
+        request: Amoo_HitTestRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_HitTestResponse {
+        let frame = request.hasFrame
+            ? CGRect(x: request.frame.x, y: request.frame.y, width: request.frame.width, height: request.frame.height)
+            : nil
+        let outcome = await touch.hitTest(
+            id: request.id,
+            label: request.label,
+            frame: frame,
+            bundleID: request.appID.isEmpty ? nil : request.appID,
+            candidateBundleIDs: request.candidateBundleIds
+        )
+        var response = Amoo_HitTestResponse()
+        response.verdict = switch outcome {
+        case .hittable: .hittable
+        case .notHittable: .notHittable
+        case .unresolved: .unresolved
+        }
+        return response
+    }
+
     // MARK: - Gestures
 
     func swipe(

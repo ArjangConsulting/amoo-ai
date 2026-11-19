@@ -123,9 +123,9 @@ mandatory when you already have a reliable selector. Mutations require one match
 when repeated controls share labels, and `index=<n>` or `first=true` when matches are exact
 duplicates (iPadOS tab bars list each tab twice). `find_elements` hides scroll bars and
 decorative text unless `include_noise=true`. `tap_element` refuses a target a keyboard or sheet
-covers, or one off-screen (`check_hittable`). This hierarchy-based heuristic can misread oversized
-accessibility frames as occlusion. After confirming a false blocker, retry with check_hittable=false
-and verify the intended outcome; keep the frame defect in the report. A semantic_change result
+covers, or one off-screen (`check_hittable`). A block seen only in the hierarchy is put to the
+device hit test first; "may not receive" means it stayed unconfirmed. If the target is drawn on top
+(an overlay or floating button), retry with check_hittable=false and assert the intended outcome. A semantic_change result
 compares accessibility snapshots; it does not prove a business outcome or identical pixels. Pass `port` to
 `start_session` when sessions run on several simulators at once.
 

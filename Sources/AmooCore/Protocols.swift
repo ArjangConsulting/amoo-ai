@@ -140,6 +140,10 @@ public protocol AccessibilityProvider: Sendable {
     /// How `ElementInfo.frame` coordinates relate to density-independent units, or `nil` when
     /// the driver cannot establish it. Size heuristics must not guess a unit.
     func elementGeometry() async throws -> ElementGeometry?
+    /// Whether the platform's own hit test sends a tap on `element` to it, or `.unsupported` when
+    /// the driver cannot ask. Frame overlap in a hierarchy snapshot cannot establish paint order,
+    /// so this is the evidence a suspected occlusion is confirmed or dismissed with.
+    func hitTest(_ element: ElementInfo, appID: String?) async throws -> HitTestVerdict
 }
 
 public extension AccessibilityProvider {

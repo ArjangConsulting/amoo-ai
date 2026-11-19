@@ -1,3 +1,5 @@
+import Foundation
+
 /// Handles touch-related gRPC requests by delegating to XCUITestBridge.
 ///
 /// Points arrive relative to the display the companion reports on and are moved into the global
@@ -35,6 +37,24 @@ final class TouchHandler: @unchecked Sendable {
             id: id,
             label: label,
             containsText: containsText,
+            bundleID: bundleID,
+            candidateBundleIDs: candidateBundleIDs
+        )
+    }
+
+    /// XCUITest's hit test for one element; `frame` arrives in display space like every point.
+    func hitTest(
+        id: String,
+        label: String,
+        frame: CGRect?,
+        bundleID: String?,
+        candidateBundleIDs: [String]
+    ) async -> XCUITestBridge.HitTestOutcome {
+        let origin = await bridge.displayOrigin()
+        return await bridge.hitTest(
+            id: id,
+            label: label,
+            frame: frame?.offsetBy(dx: origin.x, dy: origin.y),
             bundleID: bundleID,
             candidateBundleIDs: candidateBundleIDs
         )

@@ -32,6 +32,8 @@ public protocol CompanionClient: Sendable {
     func doubleTap(at point: Point) async throws
     func longPress(at point: Point, duration: Duration) async throws
     func tapElement(_ selector: ElementSelector, appID: String?, candidateBundleIDs: [String]) async throws
+    /// Whether the companion's platform hit test sends a tap on `element` to it.
+    func hitTest(_ element: ElementInfo, appID: String?, candidateBundleIDs: [String]) async throws -> HitTestVerdict
 
     // Gestures
     func swipe(from: Point, to: Point, duration: Duration) async throws
@@ -115,6 +117,10 @@ public extension CompanionClient {
     func tapReportingForeground(at point: Point) async throws -> String? {
         try await tap(at: point)
         return nil
+    }
+
+    func hitTest(_: ElementInfo, appID _: String?, candidateBundleIDs _: [String]) async throws -> HitTestVerdict {
+        .unsupported
     }
 
     func pressBackReportingForeground() async throws -> String? {

@@ -391,6 +391,7 @@ extension DriverToolExecutor {
                     effect: checks.effect,
                     appID: appID,
                     hittabilityChecked: preflight.hittabilityChecked,
+                    dismissedBlock: preflight.dismissedBlock,
                     expectation: expectation,
                     expectationPresentBeforeTap: presentBeforeTap
                 ),

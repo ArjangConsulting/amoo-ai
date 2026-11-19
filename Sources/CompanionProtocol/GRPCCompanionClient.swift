@@ -22,6 +22,7 @@ package protocol CompanionRPCClient: Sendable {
     func doubleTap(_ request: Amoo_TapRequest) async throws -> Amoo_ActionResponse
     func longPress(_ request: Amoo_LongPressRequest) async throws -> Amoo_ActionResponse
     func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse
+    func hitTest(_ request: Amoo_HitTestRequest) async throws -> Amoo_HitTestResponse
 
     // Gestures
     func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse
@@ -83,6 +84,10 @@ package extension CompanionRPCClient {
     func setText(_: Amoo_SetTextRequest) async throws -> Amoo_ActionResponse {
         throw AmooError.notImplemented("setText RPC")
     }
+
+    func hitTest(_: Amoo_HitTestRequest) async throws -> Amoo_HitTestResponse {
+        throw AmooError.notImplemented("hitTest RPC")
+    }
 }
 
 // MARK: - GeneratedCompanionRPCClient
@@ -129,6 +134,10 @@ package struct GeneratedCompanionRPCClient: CompanionRPCClient {
 
     package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
         try await client.tapElement(request)
+    }
+
+    package func hitTest(_ request: Amoo_HitTestRequest) async throws -> Amoo_HitTestResponse {
+        try await client.hitTest(request)
     }
 
     package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {
@@ -614,6 +623,10 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     package func tapElement(_ request: Amoo_TapElementRequest) async throws -> Amoo_ActionResponse {
         try await connectedClient.tapElement(request, options: Self.gestureCallOptions)
+    }
+
+    package func hitTest(_ request: Amoo_HitTestRequest) async throws -> Amoo_HitTestResponse {
+        try await idempotent { try await self.connectedClient.hitTest(request, options: Self.gestureCallOptions) }
     }
 
     package func swipe(_ request: Amoo_SwipeRequest) async throws -> Amoo_ActionResponse {

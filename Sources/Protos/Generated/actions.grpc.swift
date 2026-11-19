@@ -111,6 +111,19 @@ public enum Amoo_CompanionService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "HitTest" metadata.
+        public enum HitTest: Sendable {
+            /// Request type for "HitTest".
+            public typealias Input = Amoo_HitTestRequest
+            /// Response type for "HitTest".
+            public typealias Output = Amoo_HitTestResponse
+            /// Descriptor for "HitTest".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "amoo.v1.CompanionService"),
+                method: "HitTest",
+                type: .unary
+            )
+        }
         /// Namespace for "Swipe" metadata.
         public enum Swipe: Sendable {
             /// Request type for "Swipe".
@@ -458,6 +471,7 @@ public enum Amoo_CompanionService: Sendable {
             DoubleTap.descriptor,
             LongPress.descriptor,
             TapElement.descriptor,
+            HitTest.descriptor,
             Swipe.descriptor,
             SwipeInDirection.descriptor,
             Scroll.descriptor,
@@ -615,6 +629,26 @@ extension Amoo_CompanionService {
             request: GRPCCore.StreamingServerRequest<Amoo_TapElementRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse>
+
+        /// Handle the "HitTest" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+        /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+        /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Amoo_HitTestRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Amoo_HitTestResponse` messages.
+        func hitTest(
+            request: GRPCCore.StreamingServerRequest<Amoo_HitTestRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Amoo_HitTestResponse>
 
         /// Handle the "Swipe" method.
         ///
@@ -1131,6 +1165,26 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse>
 
+        /// Handle the "HitTest" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+        /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+        /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_HitTestRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A response containing a single `Amoo_HitTestResponse` message.
+        func hitTest(
+            request: GRPCCore.ServerRequest<Amoo_HitTestRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.ServerResponse<Amoo_HitTestResponse>
+
         /// Handle the "Swipe" method.
         ///
         /// > Source IDL Documentation:
@@ -1644,6 +1698,26 @@ extension Amoo_CompanionService {
             context: GRPCCore.ServerContext
         ) async throws -> Amoo_ActionResponse
 
+        /// Handle the "HitTest" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+        /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+        /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+        ///
+        /// - Parameters:
+        ///   - request: A `Amoo_HitTestRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A `Amoo_HitTestResponse` to respond with.
+        func hitTest(
+            request: Amoo_HitTestRequest,
+            context: GRPCCore.ServerContext
+        ) async throws -> Amoo_HitTestResponse
+
         /// Handle the "Swipe" method.
         ///
         /// > Source IDL Documentation:
@@ -2128,6 +2202,17 @@ extension Amoo_CompanionService.StreamingServiceProtocol {
             }
         )
         router.registerHandler(
+            forMethod: Amoo_CompanionService.Method.HitTest.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_HitTestRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_HitTestResponse>(),
+            handler: { request, context in
+                try await self.hitTest(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
             forMethod: Amoo_CompanionService.Method.Swipe.descriptor,
             deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_SwipeRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Amoo_ActionResponse>(),
@@ -2490,6 +2575,17 @@ extension Amoo_CompanionService.ServiceProtocol {
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Amoo_ActionResponse> {
         let response = try await self.tapElement(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func hitTest(
+        request: GRPCCore.StreamingServerRequest<Amoo_HitTestRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Amoo_HitTestResponse> {
+        let response = try await self.hitTest(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -2870,6 +2966,19 @@ extension Amoo_CompanionService.SimpleServiceProtocol {
     ) async throws -> GRPCCore.ServerResponse<Amoo_ActionResponse> {
         return GRPCCore.ServerResponse<Amoo_ActionResponse>(
             message: try await self.tapElement(
+                request: request.message,
+                context: context
+            ),
+            metadata: [:]
+        )
+    }
+
+    public func hitTest(
+        request: GRPCCore.ServerRequest<Amoo_HitTestRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.ServerResponse<Amoo_HitTestResponse> {
+        return GRPCCore.ServerResponse<Amoo_HitTestResponse>(
+            message: try await self.hitTest(
                 request: request.message,
                 context: context
             ),
@@ -3364,6 +3473,31 @@ extension Amoo_CompanionService {
             deserializer: some GRPCCore.MessageDeserializer<Amoo_ActionResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_ActionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "HitTest" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+        /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+        /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_HitTestRequest` message.
+        ///   - serializer: A serializer for `Amoo_HitTestRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_HitTestResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        func hitTest<Result>(
+            request: GRPCCore.ClientRequest<Amoo_HitTestRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_HitTestRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_HitTestResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_HitTestResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "Swipe" method.
@@ -4124,6 +4258,42 @@ extension Amoo_CompanionService {
             try await self.client.unary(
                 request: request,
                 descriptor: Amoo_CompanionService.Method.TapElement.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "HitTest" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+        /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+        /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Amoo_HitTestRequest` message.
+        ///   - serializer: A serializer for `Amoo_HitTestRequest` messages.
+        ///   - deserializer: A deserializer for `Amoo_HitTestResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func hitTest<Result>(
+            request: GRPCCore.ClientRequest<Amoo_HitTestRequest>,
+            serializer: some GRPCCore.MessageSerializer<Amoo_HitTestRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Amoo_HitTestResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_HitTestResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Amoo_CompanionService.Method.HitTest.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -5135,6 +5305,37 @@ extension Amoo_CompanionService.ClientProtocol {
         )
     }
 
+    /// Call the "HitTest" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+    /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+    /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Amoo_HitTestRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func hitTest<Result>(
+        request: GRPCCore.ClientRequest<Amoo_HitTestRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_HitTestResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.hitTest(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Amoo_HitTestRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Amoo_HitTestResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "Swipe" method.
     ///
     /// > Source IDL Documentation:
@@ -6030,6 +6231,41 @@ extension Amoo_CompanionService.ClientProtocol {
             metadata: metadata
         )
         return try await self.tapElement(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "HitTest" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Asks the platform's own hit test whether a tap on an element would reach it. The host's
+    /// > frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+    /// > in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func hitTest<Result>(
+        _ message: Amoo_HitTestRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Amoo_HitTestResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Amoo_HitTestRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.hitTest(
             request: request,
             options: options,
             onResponse: handleResponse
