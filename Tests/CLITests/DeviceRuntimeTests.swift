@@ -284,6 +284,21 @@ final class DeviceRuntimeEndpointTests: XCTestCase {
         )
     }
 
+    /// The runtime's platform used to reset the port to that platform's default, discarding an
+    /// explicit `--port`: an Android runtime with `--port 22095` dialled 22088.
+    func testExplicitPortSurvivesAdoptingTheRuntimesPlatform() throws {
+        let store = DeviceRuntimeStore.temporary()
+        var runtime = try store.start(platform: .android, deviceID: "emulator-5554", deviceName: "Pixel", owner: "t")
+        runtime.port = 22095
+        runtime = try store.refresh(runtime)
+        let parsed = try options(args: ["--runtime-id", runtime.id, "--port", "22095", "current_app"])
+
+        let adopted = try parsed.applyingRuntime(store: store, environment: [:]).get()
+
+        XCTAssertEqual(adopted.platform, .android)
+        XCTAssertEqual(adopted.port, 22095)
+    }
+
     func testRuntimeAloneSuppliesItsPlatformWhenNoneWasGiven() throws {
         let store = DeviceRuntimeStore.temporary()
         var runtime = try store.start(platform: .android, deviceID: "emulator-5554", deviceName: "Pixel", owner: "t")
