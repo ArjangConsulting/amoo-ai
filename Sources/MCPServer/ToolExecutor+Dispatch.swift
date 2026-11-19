@@ -442,13 +442,15 @@ extension DriverToolExecutor {
             let current = try await driver.currentApp()
             let target = current.targetBundleID.isEmpty ? "(unbound)" : current.targetBundleID
             let frontmost = current.bundleID.isEmpty ? "(unknown)" : current.bundleID
-            return .success(
-                "frontmost=\(frontmost) target=\(target)",
-                structuredContent: .object([
-                    "bundle_id": .string(current.bundleID),
-                    "target_bundle_id": .string(current.targetBundleID)
-                ])
-            )
+            var fields: [String: Value] = [
+                "bundle_id": .string(current.bundleID), "target_bundle_id": .string(current.targetBundleID)
+            ]
+            var text = "frontmost=\(frontmost) target=\(target)"
+            if let dialog = await blockingSystemDialog(frontmost: current.bundleID, driver: driver) {
+                fields["blocking_dialog"] = dialog.value
+                text += "\n\(dialog.sentence)."
+            }
+            return .success(text, structuredContent: .object(fields))
 
         case "set_target_app":
             let bundleID = arguments["bundle_id"]
