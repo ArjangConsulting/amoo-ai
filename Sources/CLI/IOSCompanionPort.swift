@@ -67,5 +67,4 @@ enum IOSCompanionPort {
 }
 
 /// Explains how to move a session's companion off a port that something else holds.
-let companionPortAdvice = "Pass `port` to start_session, or start the server with"
-    + " `amoo mcp serve --port <free-port>`, to use a different port."
+let companionPortAdvice = "Pass `--port <free-port>` to `amoo env up` to use a different port."
