@@ -276,6 +276,7 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         var flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: fileURL))
         flow.deviceID = overrides.deviceID ?? flow.deviceID
         flow.port = overrides.port ?? flow.port
+        try adoptPresentedRuntime(&flow, overrides: overrides)
         let access = try acquireRuntimeDeviceAccess(deviceID: flow.deviceID, runtimeID: overrides.runtimeID)
         defer { access?.release() }
         guard let platform = Platform(rawValue: flow.platform.lowercased()) else {
@@ -285,15 +286,7 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
             return FlowOutcome(output: "Flow has no steps: \(fileURL.path)", exitCode: 64)
         }
 
-        let port: Int = if platform == .android {
-            try await resolveAndroidCompanionPort(deviceID: flow.deviceID, explicitPort: flow.port)
-        } else if let explicit = flow.port {
-            explicit
-        } else if !overrides.devices.isEmpty || overrides.variables["device"] != nil, let udid = flow.deviceID {
-            IOSCompanionPort.derived(forUDID: udid)
-        } else {
-            CompanionConfig.defaultPort
-        }
+        let port = try await flowCompanionPort(&flow, platform: platform, overrides: overrides)
         let companion = try GRPCCompanionClient.makeLive(
             connection: CompanionConnection(host: "127.0.0.1", port: port)
         )
