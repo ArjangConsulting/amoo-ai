@@ -219,7 +219,9 @@ app, use the CLI path.
 3. After every mutation, prove the outcome with `assert_visible`, `assert_absent`,
    `assert_enabled`, `assert_value` or `assert_selected` (`expected=true|false`) using `timeout_ms` —
    a dispatched gesture proves nothing. `find_elements` reports `selected`, but an observation is
-   not an assertion: assert every selection the test must keep.
+   not an assertion: assert every selection the test must keep. A check of the form "X appears
+   when Y" also asserts X is absent in the default state, before Y; if that state is not checked,
+   list it under "Not covered" in `findings.md` as a risk, not a footnote.
    Compare screens with `get_screen_context` → `assert_screen_changed from_token=…`.
 4. Results are paged: follow `next_offset` while `has_more`; a truncated list never proves
    absence — use `assert_absent`.
