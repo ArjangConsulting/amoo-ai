@@ -95,10 +95,28 @@ extension DriverToolExecutor {
         fields["failure_kind"] = fields["failure_kind"]
             ?? .string(fields["observed"] == .null ? "selector_miss" : "assertion_mismatch")
         fields["device_health"] = .string("unconfirmed")
+        let observed = fields["observed"].flatMap { $0 == .null ? nil : Self.plain($0) } ?? "no matching element"
+        let target = fields["selector"].flatMap(Self.plain) ?? "the element"
+        let property = fields["property"].flatMap(Self.plain) ?? "state"
+        let wanted = fields["expected"].flatMap(Self.plain) ?? "?"
         return ToolResult(
-            content: "Native state assertion did not complete successfully; see expected and last observed state.",
+            content: "Native state assertion did not match \(target): expected \(property) \(wanted),"
+                + " last observed \(observed).",
             isError: true, structuredContent: .object(fields)
         )
+    }
+}
+
+extension DriverToolExecutor {
+    /// A scalar `Value` as plain text for a one-line message.
+    static func plain(_ value: Value) -> String? {
+        switch value {
+        case let .string(text): "\"\(text)\""
+        case let .bool(flag): String(flag)
+        case let .int(number): String(number)
+        case let .double(number): String(number)
+        default: nil
+        }
     }
 }
 
