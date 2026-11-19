@@ -121,7 +121,9 @@ func runFlowSteps(
         for repetition in 0 ..< max(1, step.repeatCount ?? 1) {
             let suffix = (step.repeatCount ?? 1) > 1 ? " [\(repetition + 1)/\(step.repeatCount ?? 1)]" : ""
             let started = ContinuousClock.now
-            let outcome = await runFlowStep(step, number: index + 1, executor: executor, context: context)
+            let outcome = await failingUnmetExpectation(
+                runFlowStep(step, number: index + 1, executor: executor, context: context)
+            )
             result.steps.append(FlowStepRecord(
                 number: index + 1,
                 name: label,
@@ -149,6 +151,20 @@ func runFlowSteps(
         }
     }
     return result
+}
+
+/// `outcome` as a failure when it is a tap whose `expect_*` was not met.
+///
+/// `tap_element` reports an unmet expectation without failing, because the tap was dispatched and a
+/// caller that retried an error could tap a toggle back. A flow has no such caller: the expectation
+/// is its postcondition, and passing the step let a flow go on to fail one step later with a
+/// misleading "no element matched".
+func failingUnmetExpectation(_ outcome: ToolResult) -> ToolResult {
+    guard !outcome.isError, var fields = outcome.structuredContent?.objectValue,
+          fields["expected_effect_met"] == .bool(false)
+    else { return outcome }
+    fields["failure_kind"] = .string("expectation_not_met")
+    return ToolResult(content: outcome.content, isError: true, structuredContent: .object(fields))
 }
 
 /// `step` with `check_effect: false` when it is a `tap_element` that leaves the choice open and the
