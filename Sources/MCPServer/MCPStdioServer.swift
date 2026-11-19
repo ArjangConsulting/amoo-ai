@@ -35,8 +35,8 @@ public struct MCPStdioServer: Sendable {
     and launches app_id. Pass session_id later; never bypass closed-ID errors.
     Live IDs belong to this MCP server process. Each agent starts its own session; delegate app/build/device,
     not IDs. companion_warm/companion_status prebuild; session_startup_status polls, never duplicate starts.
-    Launch/terminate/reinstall through Amoo. Inspect startup.launch fresh_process/environment_delivery;
-    delivery, foreground identity, semantic readiness and render readiness are separate facts.
+    Launch/terminate/reinstall via Amoo. Check startup.launch fresh_process/environment_delivery,
+    arguments_delivery; delivery, foreground app, semantic and render readiness are separate facts.
     Check recording_health: saved=durable, pending=writing, failed=artifact risk. Always end_session.
 
     Orient: current_app/get_screen_context; describe_screen for detail. Scope find_elements;

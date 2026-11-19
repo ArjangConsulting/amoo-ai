@@ -128,13 +128,13 @@ extension DriverToolExecutor {
             }
             summary["recording_health"] = await .string(manager.recordingHealth(for: session.id))
             summary["launch_config_source"] = .string(launch.source)
-            summary["startup"] = try session.startup.map(Value.init) ?? .object([
-                "installation": .string("unknown"), "launch": .object([
-                    "environment_delivery": .string("unknown"), "fresh_process": .null,
-                    "app_id": .string(appID), "environment_keys": .array(environment.keys.sorted().map(Value.string))
-                ]),
-                "semantic_readiness": .string("unverified"), "render_readiness": .string("unverified")
-            ])
+            let unknownLaunch = AppLaunchReceipt(
+                appID: appID, freshProcess: nil, environmentDelivery: "unknown",
+                environmentKeys: Array(environment.keys), argumentCount: launchArgs.count
+            )
+            summary["startup"] = try Value(session.startup ?? AppStartupState(
+                installation: "unknown", launch: unknownLaunch, semanticReadiness: "unverified"
+            ))
             var text = "Started session \(session.id) for \(session.appID) on \(session.platform.rawValue)"
                 + " device \(session.deviceID)."
             let warnings = [contextWarning, contentionWarning].compactMap(\.self)
@@ -150,8 +150,8 @@ extension DriverToolExecutor {
                 structuredContent: .object([
                     "code": .string("startup_failed"), "app_id": .string(appID),
                     "startup_stage": .string((error as? any SessionStartupFailure)?.startupStage ?? "unknown"),
-                    "environment_delivery": .string("unverified"), "semantic_readiness": .string("unverified"),
-                    "render_readiness": .string("unverified")
+                    "environment_delivery": .string("unverified"), "arguments_delivery": .string("unverified"),
+                    "semantic_readiness": .string("unverified"), "render_readiness": .string("unverified")
                 ])
             )
         }

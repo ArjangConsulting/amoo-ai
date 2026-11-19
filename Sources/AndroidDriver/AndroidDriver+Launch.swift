@@ -13,7 +13,9 @@ public extension AndroidDriver {
         return AppLaunchReceipt(
             appID: appID, freshProcess: true,
             environmentDelivery: environment.isEmpty ? "not_requested" : "intent_extras",
-            environmentKeys: Array(environment.keys)
+            environmentKeys: Array(environment.keys),
+            argumentsDelivery: arguments.isEmpty ? "not_requested" : "intent_extras",
+            argumentCount: arguments.count
         )
     }
 }

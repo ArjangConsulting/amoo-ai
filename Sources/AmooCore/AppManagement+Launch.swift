@@ -17,7 +17,12 @@ public extension AppManagement {
     ) async throws -> AppLaunchReceipt {
         try await launchApp(appID: appID, arguments: arguments, environment: environment)
         return AppLaunchReceipt(
-            appID: appID, freshProcess: nil, environmentDelivery: "unknown", environmentKeys: Array(environment.keys)
+            appID: appID,
+            freshProcess: nil,
+            environmentDelivery: "unknown",
+            environmentKeys: Array(environment.keys),
+            argumentsDelivery: "unknown",
+            argumentCount: arguments.count
         )
     }
 }

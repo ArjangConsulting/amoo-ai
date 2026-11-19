@@ -13,7 +13,9 @@ public extension IOSDriver {
         return AppLaunchReceipt(
             appID: appID, freshProcess: true,
             environmentDelivery: environment.isEmpty ? "not_requested" : "process_environment",
-            environmentKeys: Array(environment.keys)
+            environmentKeys: Array(environment.keys),
+            argumentsDelivery: arguments.isEmpty ? "not_requested" : "process_arguments",
+            argumentCount: arguments.count
         )
     }
 }
