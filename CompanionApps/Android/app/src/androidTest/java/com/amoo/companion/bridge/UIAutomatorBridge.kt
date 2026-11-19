@@ -821,8 +821,14 @@ class UIAutomatorBridge {
         into: MutableList<NodeRecord>
     ) {
         check(!io.grpc.Context.current().isCancelled) { "Hierarchy capture cancelled before completion" }
-        check(depth <= MAX_TREE_DEPTH && into.size < 10_000 && SystemClock.uptimeMillis() < deadline) {
-            "Hierarchy capture incomplete: traversal depth, node count, or time limit exceeded"
+        // Each limit is named, with how far the walk got: only the time limit is worth retrying
+        // (an animating screen slows every node read), while depth and size are properties of the tree.
+        check(depth <= MAX_TREE_DEPTH) {
+            "Hierarchy capture incomplete: depth limit $MAX_TREE_DEPTH exceeded after ${into.size} nodes"
+        }
+        check(into.size < 10_000) { "Hierarchy capture incomplete: node limit 10000 exceeded" }
+        check(SystemClock.uptimeMillis() < deadline) {
+            "Hierarchy capture incomplete: time limit exceeded after ${into.size} nodes"
         }
         val record = node.toRecord(nearestClickable, parent, path, capture)
         into.add(record)
