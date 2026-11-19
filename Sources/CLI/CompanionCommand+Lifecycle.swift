@@ -20,6 +20,7 @@ func holdCompanion(
     runnerExit: @escaping @Sendable () async -> Void = { await CompanionSignalWaiter.never() },
     runnerUnavailable: @escaping @Sendable () async -> Void = { await CompanionSignalWaiter.never() },
     maxRestarts: Int = 3,
+    stableAfter: Duration = .seconds(120),
     signals: CompanionSignalWaiter = CompanionSignalWaiter()
 ) async throws {
     let starting = Task { try await start() }
@@ -49,6 +50,7 @@ func holdCompanion(
     var restarts = 0
     while true {
         let generation = UUID()
+        let runningSince = ContinuousClock.now
         let watcher = Task {
             await runnerExit()
             if !Task.isCancelled {
@@ -65,6 +67,12 @@ func holdCompanion(
         watcher.cancel()
         healthWatcher.cancel()
         guard event != .signal else { break }
+        // `maxRestarts` bounds a runner that keeps dying, not a long session's lifetime: a runner
+        // that served for `stableAfter` before it died starts the count again. Otherwise one bench
+        // session used up all three restarts over hours and the next death ended the companion.
+        if ContinuousClock.now - runningSince >= stableAfter {
+            restarts = 0
+        }
         restarts += 1
         guard restarts <= maxRestarts else {
             await shutdown()
