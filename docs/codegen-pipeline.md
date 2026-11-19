@@ -72,6 +72,14 @@ amoo's own lifecycle tools (`start_session`, `end_session`, `compile_session_to_
 A recorded `compile_session_to_plan` still carries a useful `test_name` / `test_description`;
 `SessionPlanCompiler.compile` recovers those when the report itself lacks them.
 
+## A tap's expectation is its postcondition
+
+`tap_element` with `expect_id` / `expect_label` / `expect_contains_text` waits on the device for that
+element, so `SessionPlanCompiler.tapPostcondition` compiles it as a second operation after the tap:
+`assert_visible`, or `assert_absent` with `expect_absent=true`, carrying `expect_timeout_ms` as
+`timeout_ms`. The assertion-quality review counts it, so a flow that ends on such a tap gets no
+"final mutation has no following semantic assertion" warning.
+
 ## Diagnostic audit and speech evidence
 
 `audit_app`, `audit_security`, `audit_accessibility`, `audit_accessibility_native` and
