@@ -11,7 +11,7 @@ extension DriverToolExecutor {
 
     func executeStartSession(arguments: [String: String]) async throws -> ToolResult {
         guard sessionManager != nil else {
-            return .error("Session management not configured. Run `amoo mcp serve` to enable.")
+            return .error(Self.noSessionsMessage)
         }
         guard let appID = arguments["app_id"] else {
             return .error("Missing required argument: app_id")

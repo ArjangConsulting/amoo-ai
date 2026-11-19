@@ -64,3 +64,10 @@ extension DriverToolExecutor {
         return ToolResult(content: message, isError: true, structuredContent: .object(fields))
     }
 }
+
+extension DriverToolExecutor {
+    /// Why `start_session` has nothing to start from the CLI, and what to use instead.
+    static let noSessionsMessage = "Sessions need a long-lived process, and `amoo device` runs one call per"
+        + " process. Lease a device with `amoo env up --json`, drive it with `amoo device --runtime-id <id> <tool>`,"
+        + " and record a reusable sequence as a flow (`amoo flow`, `amoo generate plan --from-flow`)."
+}
