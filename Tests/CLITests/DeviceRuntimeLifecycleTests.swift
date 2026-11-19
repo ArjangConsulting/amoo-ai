@@ -168,7 +168,6 @@ final class DeviceRuntimeLifecycleTests: XCTestCase {
         let report = DoctorReport(
             ok: false,
             cli: .init(version: "test"),
-            mcpServers: [],
             adbServerRunning: false,
             devices: [],
             companions: [],

@@ -80,38 +80,10 @@ final class DeviceAccessHolderTests: XCTestCase {
         XCTAssertTrue(doctorDeviceLocks(store: store).isEmpty)
     }
 
-    func testDoctorTiesAStaleServerToTheDeviceItHolds() {
-        let lock = DoctorDeviceLock(
-            device: "emulator-5554",
-            pid: 42,
-            command: "amoo mcp serve",
-            acquiredAt: Date(),
-            holderRunning: true,
-            lockPath: "/tmp/lock"
-        )
-        let stale = DoctorMCPServer(pid: 42, binary: "/test/amoo", arguments: "amoo mcp serve", stale: true)
-        let report = DoctorReport(
-            ok: true,
-            cli: .init(version: "test"),
-            mcpServers: [stale],
-            adbServerRunning: false,
-            devices: [],
-            companions: [],
-            runtimes: [],
-            issues: [],
-            notes: [],
-            deviceLocks: [lock]
-        )
-        XCTAssertEqual(doctorDeviceLockIssues(report).count, 1)
-        XCTAssertTrue(doctorDeviceLockIssues(report)[0].contains("--mcp-pid 42 --kill-stale"))
-        XCTAssertTrue(doctorDeviceLockNotes(report).isEmpty)
-    }
-
     func testDoctorNamesTheSafeRecoveryForAnUnresponsiveCompanion() {
         let report = DoctorReport(
             ok: true,
             cli: .init(version: "test"),
-            mcpServers: [],
             adbServerRunning: false,
             devices: [],
             companions: [

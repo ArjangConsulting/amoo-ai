@@ -149,17 +149,9 @@ final class IOSSessionCodegenRegressionTests: XCTestCase {
         assertAcceptanceCriteria(source)
     }
 
-    /// The MCP `initialize` instructions promise that `find_elements` + a coordinate gesture yields
-    /// an element-scoped `groceriesTaskRow.swipeLeft()`. Prove the generator actually emits that
-    /// identifier for the documented input, so the example can't rot.
-    func testMCPInstructionsElementScopedSwipeExampleMatchesGeneratorOutput() throws {
-        let rowGestureInstruction = MCPStdioServer.instructions
-            .split(separator: "\n")
-            .first { $0.contains("Resolve rows") }
-        XCTAssertNotNil(rowGestureInstruction)
-        XCTAssertTrue(rowGestureInstruction?.contains("swipe_in_direction") == true)
-        XCTAssertTrue(rowGestureInstruction?.contains("element_id") == true)
-
+    /// `find_elements` + a row gesture with `element_id` must yield an element-scoped
+    /// `groceriesTaskRow.swipeLeft()`, the shape the driving guidance recommends.
+    func testElementScopedSwipeCompilesToARowGesture() throws {
         let test = StudioAuthoredTest(
             formatVersion: 1,
             name: "Delete Groceries",

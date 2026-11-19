@@ -173,17 +173,6 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(text, "Suggested actions")
     }
 
-    func testStringifyArgumentValueHandlesAllCases() {
-        XCTAssertEqual(stringifyArgumentValue(.null), "")
-        XCTAssertEqual(stringifyArgumentValue(.bool(true)), "true")
-        XCTAssertEqual(stringifyArgumentValue(.bool(false)), "false")
-        XCTAssertEqual(stringifyArgumentValue(.int(42)), "42")
-        XCTAssertEqual(stringifyArgumentValue(.double(1.5)), "1.5")
-        XCTAssertEqual(stringifyArgumentValue(.string("hello")), "hello")
-        XCTAssertEqual(stringifyArgumentValue(.array([.string("a"), .int(1)])), #"["a",1]"#)
-        XCTAssertEqual(stringifyArgumentValue(.object(["k": .string("v")])), #"{"k":"v"}"#)
-    }
-
     func testHealthPassThrough() {
         let server = MCPServer()
         XCTAssertEqual(server.health(), "ok")

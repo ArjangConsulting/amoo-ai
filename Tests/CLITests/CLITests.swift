@@ -173,7 +173,7 @@ final class CLITests: XCTestCase {
         XCTAssertEqual(result.exitCode, 0)
         XCTAssertTrue(result.output.contains("Commands:"))
         XCTAssertTrue(result.output.contains("amoo device"))
-        XCTAssertTrue(result.output.contains("mcp serve"))
+        XCTAssertFalse(result.output.contains("mcp serve"))
         XCTAssertTrue(result.output.contains("studio serve"))
         XCTAssertFalse(result.output.contains("amoo ai"))
     }
@@ -228,15 +228,13 @@ final class CLITests: XCTestCase {
         XCTAssertTrue(result.output.contains("Usage: amoo audit"))
     }
 
-    func testMCPSubcommandShortHelpReturnsMCPHelp() async {
-        let app = CLIApp()
-        let result = await app.run(args: ["mcp", "-h"])
+    /// An AI client still configured with `amoo mcp serve` is told the server is gone and what to use.
+    func testMCPCommandExplainsThatTheServerIsGone() async {
+        let result = await CLIApp().run(args: ["mcp", "serve"])
 
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(
-            result.output,
-            "Usage: amoo mcp serve [--platform ios|android|macos] [--port <port>] [--device <id>]"
-        )
+        XCTAssertEqual(result.exitCode, 64)
+        XCTAssertTrue(result.output.contains("no longer runs an MCP server"), result.output)
+        XCTAssertTrue(result.output.contains("amoo device --runtime-id"), result.output)
     }
 
     func testPreflightSubcommandHelpFlagReturnsPreflightHelp() async {
@@ -248,79 +246,10 @@ final class CLITests: XCTestCase {
     }
 
     func testNestedHelpAfterSubcommandActionReturnsSubcommandHelp() async {
-        let app = CLIApp()
-        let result = await app.run(args: ["mcp", "serve", "--help"])
+        let result = await CLIApp().run(args: ["env", "up", "--help"])
 
         XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(
-            result.output,
-            "Usage: amoo mcp serve [--platform ios|android|macos] [--port <port>] [--device <id>]"
-        )
-    }
-
-    func testMCPServeOptionsDefaultsToIOS() {
-        let parsed = parseMCPServeOptions(args: [])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.platform, .ios)
-        XCTAssertEqual(options.port, 22087)
-        XCTAssertEqual(options.deviceID, "booted")
-    }
-
-    func testMCPServeOptionsParsesAndroid() {
-        let parsed = parseMCPServeOptions(args: [
-            "--platform",
-            "android",
-            "--port",
-            "22099",
-            "--device",
-            "emulator-5554"
-        ])
-        guard case let .success(options) = parsed else {
-            return XCTFail("Expected parser success")
-        }
-
-        XCTAssertEqual(options.platform, .android)
-        XCTAssertEqual(options.port, 22099)
-        XCTAssertEqual(options.deviceID, "emulator-5554")
-    }
-
-    func testMCPServeOptionsRejectsUnknownPlatform() {
-        let parsed = parseMCPServeOptions(args: ["--platform", "web"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Unknown platform 'web'. Expected 'ios', 'android' or 'macos'.")
-    }
-
-    func testMCPServeOptionsRejectsInvalidPort() {
-        let parsed = parseMCPServeOptions(args: ["--port", "not-a-port"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Invalid port 'not-a-port'. Expected a number.")
-    }
-
-    func testMCPServeOptionsRejectsMissingOptionValue() {
-        let parsed = parseMCPServeOptions(args: ["--device"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Missing value for --device.")
-    }
-
-    func testMCPServeOptionsRejectsUnknownFlag() {
-        let parsed = parseMCPServeOptions(args: ["--transport", "http"])
-        guard case let .failure(error) = parsed else {
-            return XCTFail("Expected parser failure")
-        }
-
-        XCTAssertEqual(error.description, "Unknown option '--transport'.")
+        XCTAssertTrue(result.output.contains("Usage: amoo env"), result.output)
     }
 }
 

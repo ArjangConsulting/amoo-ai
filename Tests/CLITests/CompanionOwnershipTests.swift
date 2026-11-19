@@ -95,11 +95,8 @@ final class CompanionOwnershipTests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, 1)
         XCTAssertTrue(result.output.contains("attached to simulator \(iPad), not \(iPhone)"), result.output)
-        XCTAssertTrue(
-            result.output.contains("amoo companion start --platform ios --device \(iPhone) --port"),
-            result.output
-        )
-        XCTAssertTrue(result.output.contains("amoo device --device \(iPhone) --port"), result.output)
+        XCTAssertTrue(result.output.contains("amoo env up --platform ios --device \(iPhone)"), result.output)
+        XCTAssertTrue(result.output.contains("amoo device --runtime-id"), result.output)
     }
 
     func testDeviceCommandDoesNotResolveOwnershipForAndroid() async {

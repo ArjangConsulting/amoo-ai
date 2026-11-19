@@ -11,67 +11,6 @@ import Darwin
 import Glibc
 #endif
 
-// MARK: - MCP servers
-
-struct MCPServerRow: Equatable {
-    var pid: Int32
-    var startedAt: Date?
-    var arguments: String
-}
-
-/// `ps -axo pid=,lstart=,args=` rows that are `amoo … mcp serve`.
-func parseMCPServerRows(_ psOutput: String) -> [MCPServerRow] {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "EEE MMM d HH:mm:ss yyyy"
-    return psOutput.split(whereSeparator: \.isNewline).compactMap { line in
-        let fields = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
-        // pid + 5 lstart fields + argv
-        guard fields.count > 7, let pid = Int32(fields[0]) else { return nil }
-        let argv = fields[6...]
-        guard let executable = argv.first,
-              URL(fileURLWithPath: executable).lastPathComponent == "amoo",
-              argv.dropFirst().starts(with: ["mcp", "serve"])
-        else { return nil }
-        let started = formatter.date(from: fields[1 ... 5].joined(separator: " "))
-        return MCPServerRow(pid: pid, startedAt: started, arguments: argv.joined(separator: " "))
-    }
-}
-
-/// Executable path per pid from `lsof -a -d txt -Fpn -p …` (the first `txt` file is the binary).
-func parseLsofExecutables(_ output: String) -> [Int32: String] {
-    var result: [Int32: String] = [:]
-    var current: Int32?
-    for line in output.split(whereSeparator: \.isNewline) {
-        if line.hasPrefix("p") {
-            current = Int32(line.dropFirst())
-        } else if line.hasPrefix("n"), let pid = current, result[pid] == nil {
-            result[pid] = String(line.dropFirst())
-        }
-    }
-    return result
-}
-
-func mcpServerProcesses(processRunner: any ProcessRunner) async -> [DoctorReport.MCPServerProcess] {
-    guard let ps = try? await processRunner.run(["/bin/ps", "-axo", "pid=,lstart=,args="]) else { return [] }
-    let rows = parseMCPServerRows(ps.stdout)
-    guard !rows.isEmpty else { return [] }
-    let pids = rows.map { String($0.pid) }.joined(separator: ",")
-    let lsof = try? await processRunner.run(["/usr/sbin/lsof", "-a", "-d", "txt", "-Fpn", "-p", pids])
-    let binaries = parseLsofExecutables(lsof?.stdout ?? "")
-    return rows.map { row in
-        let binary = binaries[row.pid]
-        let modified = binary
-            .flatMap { (try? FileManager.default.attributesOfItem(atPath: $0))?[.modificationDate] as? Date }
-        let stale = if let modified, let started = row.startedAt {
-            modified > started
-        } else {
-            false
-        }
-        return .init(pid: row.pid, startedAt: row.startedAt, binary: binary, arguments: row.arguments, stale: stale)
-    }
-}
-
 // MARK: - Devices
 
 func isADBServerRunning(processRunner: any ProcessRunner) async -> Bool {
@@ -226,43 +165,4 @@ func simulatorRuntimeProblems(processRunner: any ProcessRunner) async -> [String
     #else
     return []
     #endif
-}
-
-// MARK: - Stale MCP servers
-
-/// Revalidates process identity before SIGTERM; a selected PID limits cleanup to one client.
-func killStaleMCPServers(
-    _ servers: [DoctorMCPServer],
-    mcpPID: Int32? = nil,
-    processRunner: any ProcessRunner = SystemProcessRunner(),
-    terminate: (Int32) -> Bool = terminateStaleMCPServer
-) async -> [Int32] {
-    let own = getpid()
-    let logger = AmooLogger.forType(DoctorReport.self)
-    logger.info("Rechecking MCP process identities", context: "action=recover-mcp state=inspecting")
-    let current = await mcpServerProcesses(processRunner: processRunner)
-    logger.info(
-        "MCP process identities rechecked",
-        context: "action=recover-mcp state=inspected count=\(current.count)"
-    )
-    return servers.filter { server in
-        server.stale && server.pid > 0 && server.pid != own && (mcpPID == nil || mcpPID == server.pid)
-            && server.startedAt != nil && server.binary != nil && current.contains(server)
-            && terminate(server.pid)
-    }.map(\.pid)
-}
-
-func terminateStaleMCPServer(_ pid: Int32) -> Bool {
-    let logger = AmooLogger.forType(DoctorReport.self)
-    logger.info("Stopping stale MCP server", context: "action=recover-mcp state=stopping pid=\(pid)")
-    guard kill(pid, SIGTERM) == 0 else {
-        logger.error(
-            "Failed to stop stale MCP server",
-            error: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO),
-            context: "action=recover-mcp state=failed pid=\(pid)"
-        )
-        return false
-    }
-    logger.info("Sent SIGTERM to stale MCP server", context: "action=recover-mcp state=signalled pid=\(pid)")
-    return true
 }

@@ -95,10 +95,7 @@ func companionMismatchMessage(port: Int, requested: String, owner: String) -> St
     """
     The companion on port \(port) is attached to simulator \(owner), not \(requested). \
     Every query and gesture would reach \(owner) while reporting success.
-    To target \(requested), stop that companion, or run one for it on a free port and use that port:
-      amoo companion start --platform ios --device \(requested) --port <free-port> --app <bundle-id>
-      amoo device --device \(requested) --port <free-port> <tool> ...
-    From an MCP client, pass `port` to start_session instead, or start the server with \
-    `amoo mcp serve --port <free-port>`.
+    To target \(requested), lease it with `amoo env up --platform ios --device \(requested) --json` and \
+    pass the runtime it prints: `amoo device --runtime-id <id> <tool> ...`.
     """
 }

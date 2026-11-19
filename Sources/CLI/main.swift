@@ -22,11 +22,7 @@ let telemetry = AmooTelemetry.bootstrap(.fromEnvironment(
 ))
 let command = TelemetryNaming.command(arguments) ?? "help"
 let result = await TelemetryCallContext.$current.withValue(TelemetryCallContext(surface: "cli")) {
-    // A long-lived MCP server gets one span per request instead of one span for its lifetime.
-    if command.hasPrefix("mcp") {
-        return await CLIApp().run(args: arguments)
-    }
-    return await withSpan("amoo \(command)") { span in
+    await withSpan("amoo \(command)") { span in
         let result = await CLIApp().run(args: arguments)
         span.attributes[TelemetryAttribute.processExitCode] = Int(result.exitCode)
         if result.exitCode != 0 {

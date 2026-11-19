@@ -77,21 +77,11 @@ final class IOSCompanionPortTests: XCTestCase {
         XCTAssertEqual(port, IOSCompanionPort.derived(forUDID: iPhone))
     }
 
-    func testMCPServeRemembersWhetherThePortWasExplicit() {
-        guard case let .success(implicit) = parseMCPServeOptions(args: []),
-              case let .success(explicit) = parseMCPServeOptions(args: ["--port", "24100"])
-        else { return XCTFail("Expected parser success") }
-        XCTAssertNil(implicit.explicitPort)
-        XCTAssertEqual(implicit.port, 22087)
-        XCTAssertEqual(explicit.explicitPort, 24100)
-        XCTAssertEqual(explicit.port, 24100)
-    }
-
-    func testMismatchMessageTellsMCPClientsHowToPickAFreePort() {
+    func testMismatchMessageNamesTheLeaseThatTargetsTheDevice() {
         let message = companionMismatchMessage(port: 22087, requested: iPhone, owner: iPad)
         XCTAssertTrue(message.contains("attached to simulator \(iPad), not \(iPhone)"), message)
-        XCTAssertTrue(message.contains("pass `port` to start_session"), message)
-        XCTAssertTrue(message.contains("amoo mcp serve --port <free-port>"), message)
+        XCTAssertTrue(message.contains("amoo env up --platform ios --device \(iPhone)"), message)
+        XCTAssertFalse(message.contains("mcp"), message)
     }
 }
 
