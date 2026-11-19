@@ -4,6 +4,7 @@ import CompanionProtocol
 import Foundation
 import IOSDriver
 import MCPServer
+import StudioProtocol
 
 /// A reusable device flow: the JSON a checked-in `*.amoo.json` file holds.
 struct TestFlow: Codable, Equatable {
@@ -293,13 +294,16 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         openCompanion = companion
         let driver = await makeFlowDriver(platform: platform, deviceID: flow.deviceID, companion: companion)
 
-        let context = FlowRunContext(flow: flow, overrides: overrides)
+        var context = FlowRunContext(flow: flow, overrides: overrides)
+        let screenshotPolicy = ScreenshotPolicy.resolve(from: fileURL.deletingLastPathComponent())
+        context.screenshotPolicy = screenshotPolicy
         if overrides.continueOnError {
             flow.onError = .continue
         }
         let executor = DriverToolExecutor(
             driver: driver,
             credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
+            screenshotPolicy: { screenshotPolicy },
             runTelemetry: .persistent()
         )
         let started = ContinuousClock.now

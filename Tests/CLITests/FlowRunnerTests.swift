@@ -2,6 +2,7 @@
 @testable import CLI
 import Foundation
 import MCPServer
+import StudioProtocol
 import XCTest
 
 /// The flow runner's own behaviour — waits, screenshots, `on_error`, variables, multi-device
@@ -233,6 +234,30 @@ final class FlowRunnerTests: XCTestCase {
         XCTAssertEqual(shot.tool, "take_screenshot")
         XCTAssertEqual(shot.arguments["return_image"], "false")
         XCTAssertTrue(shot.arguments["output"]?.hasSuffix("/shots/02-day-detail-sheet.png") == true, "\(shot)")
+    }
+
+    /// Flow captures kept native pixels even when the project asked for smaller ones, so an agent
+    /// viewing a flow screenshot paid full-resolution image tokens.
+    func testScreenshotScaleFollowsTheProjectAndTheStep() async throws {
+        let scratch = try makeScratchDirectory()
+        func scale(policy: ScreenshotPolicy, step: [String: String] = [:]) async throws -> String? {
+            let executor = RecordingExecutor()
+            var context = context(output: scratch.url)
+            context.screenshotPolicy = policy
+            _ = await runFlowSteps(
+                flow([.init(tool: "screenshot", arguments: step)]),
+                executor: executor,
+                context: context
+            )
+            let calls = await executor.calls
+            return try XCTUnwrap(calls.last).arguments["scale"]
+        }
+        let native = try await scale(policy: .standard)
+        XCTAssertEqual(native, "1", "no project setting keeps native pixels for baselines")
+        let projectScaled = try await scale(policy: ScreenshotPolicy(scale: 0.33))
+        XCTAssertNil(projectScaled, "the project's scale is left to take_screenshot to apply")
+        let stepScaled = try await scale(policy: ScreenshotPolicy(scale: 0.33), step: ["scale": "0.5"])
+        XCTAssertEqual(stepScaled, "0.5")
     }
 
     func testScreenshotWithoutAnOutputDirectoryExplainsWhatToPass() async {
