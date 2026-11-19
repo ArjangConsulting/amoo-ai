@@ -108,34 +108,58 @@ extension DriverToolExecutor {
             isError: report.executionStatus != "succeeded" || ["failed", "unknown"].contains(report.cleanupStatus)
                 || (toolName == "assert_talkback_speech" && report.verdict != "pass")
                 || (failOnIssues && report.verdict != "pass"),
-            structuredContent: Value(report),
+            structuredContent: Self.compactingIssues(Value(report)),
             image: highlight
         )
     }
 
-    /// The most issues listed in the text reply; the structured report keeps every one.
+    /// The most issue lines in the text reply; the structured report keeps every issue.
     static let summarizedIssueLimit = 5
+    /// The most elements named on one grouped line.
+    static let groupedElementLimit = 3
 
-    /// One line per issue naming the element, so a reader can act without the structured report.
+    /// One line per kind of issue, naming the elements at fault, so a reader can act without the
+    /// structured report. Issues sharing a category and description share a line: nine contrast
+    /// findings with the same wording are one finding on nine elements.
     static func issueSummary(_ issues: [AccessibilityInspection.Issue]) -> String {
         guard !issues.isEmpty else { return "" }
-        let lines = issues.prefix(summarizedIssueLimit).map { issue -> String in
-            var target: [String] = []
-            if let label = issue.label, !label.isEmpty {
-                target.append("label \"\(label)\"")
+        var groups: [(key: String, issues: [AccessibilityInspection.Issue])] = []
+        for issue in issues {
+            let key = issue.category + "\u{0}" + issue.description
+            if let index = groups.firstIndex(where: { $0.key == key }) {
+                groups[index].issues.append(issue)
+            } else {
+                groups.append((key, [issue]))
             }
-            if let id = issue.elementID, !id.isEmpty {
-                target.append("id \(id)")
-            }
-            if let frame = issue.frame {
-                target.append("at (\(Int(frame.x)), \(Int(frame.y)), \(Int(frame.width))x\(Int(frame.height)))")
-            }
-            let element = target.isEmpty ? "unnamed element" : target.joined(separator: " ")
-            return "- \(issue.category): \(element): \(issue.description)"
         }
-        let more = issues.count > summarizedIssueLimit
-            ? ["- \(issues.count - summarizedIssueLimit) more in structuredContent.issues"] : []
+        let shown = groups.prefix(summarizedIssueLimit)
+        let lines = shown.map { group -> String in
+            let first = group.issues[0]
+            guard group.issues.count > 1 else {
+                return "- \(first.category): \(elementName(first)): \(first.description)"
+            }
+            let names = group.issues.prefix(groupedElementLimit).map(elementName).joined(separator: "; ")
+            let rest = group.issues.count - groupedElementLimit
+            return "- \(first.category) ×\(group.issues.count): \(first.description): \(names)"
+                + (rest > 0 ? " (+\(rest) more)" : "")
+        }
+        let hidden = groups.dropFirst(summarizedIssueLimit).reduce(0) { $0 + $1.issues.count }
+        let more = hidden > 0 ? ["- \(hidden) more in structuredContent.issues"] : []
         return "\n" + (lines + more).joined(separator: "\n")
+    }
+
+    private static func elementName(_ issue: AccessibilityInspection.Issue) -> String {
+        var target: [String] = []
+        if let label = issue.label, !label.isEmpty {
+            target.append("label \"\(label)\"")
+        }
+        if let id = issue.elementID, !id.isEmpty {
+            target.append("id \(id)")
+        }
+        if let frame = issue.frame {
+            target.append("at (\(Int(frame.x)), \(Int(frame.y)), \(Int(frame.width))x\(Int(frame.height)))")
+        }
+        return target.isEmpty ? "unnamed element" : target.joined(separator: " ")
     }
 
     private func inspectionPhases(arguments: [String: String], operation: String) throws -> [VoiceOverPhase] {

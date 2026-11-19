@@ -165,7 +165,7 @@ enum NativeAccessibilityInspector {
             info.id = snapshot.identifier
             info.label = snapshot.label
             info.value = snapshot.value as? String ?? ""
-            info.type = String(describing: snapshot.elementType)
+            info.type = snapshot.elementType.amooTypeName
             info.isEnabled = snapshot.isEnabled
             info.isSelected = snapshot.isSelected
             let frame = snapshot.frame
