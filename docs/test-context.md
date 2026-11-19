@@ -13,16 +13,12 @@ rewritten only when the recorded accessibility id is listed in `selectorExpressi
 
 | Path | How |
 | --- | --- |
-| CLI, at generate time | `amoo generate test --plan plan.json --context test-context.json` |
-| CLI, at recompile time | `amoo generate plan --report report.json --context test-context.json --out out/` |
-| MCP, at session start | `start_session` with `context_path` (a file path) or `context_json` (inline) |
-| MCP, at compile time | `compile_session_to_plan` with `context_path` / `context_json` |
+| At plan time | `amoo generate plan --from-flow flow.amoo.json --context test-context.json --out out/` |
+| At recompile time | `amoo generate plan --report report.json --context test-context.json --out out/` |
+| At generate time | `amoo generate test --plan plan.json --context test-context.json` |
 
-A context supplied through MCP is **persisted with the session**, so a later `end_session`
-auto-compile and `amoo generate test` reuse it without a CLI-only `--context` override. An explicit
-`compile_session_to_plan` context refines whatever `start_session` seeded (set fields win; unset
-fields are kept). The plan's embedded `testContext` is what `amoo generate test` reads; a
-`--context` flag on that command still overrides it.
+The plan's embedded `testContext` is what `amoo generate test` reads; a `--context` flag on that
+command still overrides it.
 
 ## Schema
 
@@ -40,7 +36,14 @@ fields are kept). The plan's embedded `testContext` is what `amoo generate test`
 
   // true when the base class or app factory already launches the app, so the generated
   // setUp must not launch it a second time. Declared, never inferred from `baseClass`.
+  // With `factoryOverride`, the flow's launch arguments and environment are applied in the
+  // generated `makeApplication()` override instead, since the harness launches what it returns.
   "harnessLaunchesApp": true,
+
+  // true to override the base class's synchronous setUpWithError / tearDownWithError instead of
+  // XCTest's async setUp() / tearDown(), the default for a custom base class. Declare it when the
+  // harness's async UI-test teardown traps; the base class's lifecycle must be @MainActor.
+  "synchronousLifecycle": true,
 
   // Reusable helpers. A helper is emitted ONLY for an operation whose planner explicitly
   // bound it (or whose call shape `amoo generate test` could match to it). `{{arg}}`

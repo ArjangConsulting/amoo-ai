@@ -63,7 +63,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         // pair, so for a custom base the setup and teardown work lives there and the base class's
         // own `setUpWithError` / `tearDownWithError` keep running untouched. A plain `XCTestCase`
         // base overrides the synchronous pair directly, as before.
-        let customBase = baseClass != "XCTestCase"
+        let customBase = baseClass != "XCTestCase" && test.testContext?.synchronousLifecycle != true
         let setUpBody = "        continueAfterFailure = false\(idiomGuard)\(launch)"
         let lifecycle = customBase
             ? """
@@ -206,7 +206,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
            let helpers = source.range(of: "    private func replaceText(") {
             source.insert(contentsOf: Self.scrollToElementHelper, at: helpers.lowerBound)
         }
-        source = Self.applyingHarness(to: source, context: test.testContext)
+        source = Self.applyingHarness(to: source, context: test.testContext, requirements: test.requirements)
         return StudioTestExportResult(fileName: "\(className).swift", source: source + "\n")
     }
 

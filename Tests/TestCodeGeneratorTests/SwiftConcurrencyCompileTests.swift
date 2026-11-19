@@ -145,6 +145,35 @@ final class SwiftConcurrencyCompileTests: XCTestCase {
         try CompileVerification.verifySwiftCompiles(source + Self.isolatedOwningBase, swiftVersion: 6)
     }
 
+    /// A harness whose async UI-test teardown traps declares `synchronousLifecycle`; the recorded
+    /// launch environment then goes into `makeApplication()`, which the harness launches.
+    func testSynchronousLifecycleWithRecordedLaunchCompilesUnderSwift6() throws {
+        let context = StudioTestContext(
+            baseClass: "OwningUITestCase",
+            harnessLaunchesApp: true,
+            harnessOwnsApp: true,
+            factoryOverride: "super.makeApplication()",
+            synchronousLifecycle: true
+        )
+        let test = StudioAuthoredTest(
+            formatVersion: 1, name: "Concurrency Flow", description: "", platform: .ios,
+            steps: [.init(id: "step-1", instruction: "Tap", expected: "Tapped")],
+            requirements: StudioTestRequirements(
+                launchArguments: ["-AppleLanguages", "(en)"],
+                launchEnvironment: ["UI_TEST_PROFILE": "clean-home"]
+            ),
+            testContext: context,
+            compiledPlan: .init(compiler: "ai", compilerVersion: "1", toolOperations: Self.operations)
+        )
+        let source = try XCUITestEmitter().generate(test).source
+        XCTAssertTrue(source.contains("override func setUpWithError() throws"), source)
+        XCTAssertFalse(source.contains("setUp() async"), source)
+        XCTAssertTrue(source.contains("app.launchEnvironment[\"UI_TEST_PROFILE\"] = \"clean-home\""), source)
+        XCTAssertTrue(source.contains("app.launchArguments += [\"-AppleLanguages\", \"(en)\"]"), source)
+        XCTAssertFalse(source.contains("app.launch()"), "the harness launches")
+        try CompileVerification.verifySwiftCompiles(source + Self.isolatedOwningBase, swiftVersion: 6)
+    }
+
     func testIdLookupTemplateAndSelectorExpressionsCompileUnderSwift6() throws {
         let context = StudioTestContext(
             selectorExpressions: ["day": "AppID.day", "form": "AppID.form"],
