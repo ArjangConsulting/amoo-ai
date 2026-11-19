@@ -68,6 +68,31 @@ final class CompanionHoldTests: XCTestCase {
         XCTAssertEqual(shutdowns, 1)
     }
 
+    /// Each runner here serves for longer than `stableAfter`, so every death is a first restart
+    /// and the companion outlives more deaths than `maxRestarts`.
+    func testARunnerThatServedForAWhileStartsTheRestartCountAgain() async throws {
+        let counter = Counter()
+        let signals = CompanionSignalWaiter(signals: [])
+        try await holdCompanion(
+            start: { await counter.start() },
+            announce: {},
+            shutdown: { await counter.shutdown() },
+            runnerExit: {
+                try? await Task.sleep(for: .milliseconds(30))
+                if await counter.exit() <= 3 {
+                    return
+                }
+                signals.finish()
+                await CompanionSignalWaiter.never()
+            },
+            maxRestarts: 1,
+            stableAfter: .milliseconds(10),
+            signals: signals
+        )
+        let starts = await counter.starts
+        XCTAssertEqual(starts, 4)
+    }
+
     func testSignalShutsDownWithoutRestarting() async throws {
         let counter = Counter()
         let signals = CompanionSignalWaiter(signals: [])
