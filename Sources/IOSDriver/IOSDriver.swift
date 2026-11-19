@@ -277,6 +277,16 @@ public actor IOSDriver: PlatformDriver {
         return try await companion.findElements(selector, appID: appID, candidateBundleIDs: [])
     }
 
+    public func hitTest(_ element: ElementInfo, appID: String?) async throws -> HitTestVerdict {
+        guard let appID, !appID.isEmpty else {
+            let context = try await appQueryContext()
+            return try await companion.hitTest(
+                element, appID: context.appID, candidateBundleIDs: context.candidateBundleIDs
+            )
+        }
+        return try await companion.hitTest(element, appID: appID, candidateBundleIDs: [])
+    }
+
     public func getViewHierarchy(appID: String?) async throws -> ViewNode {
         guard let appID, !appID.isEmpty else { return try await getViewHierarchy() }
         return try await companion.getViewHierarchy(appID: appID, candidateBundleIDs: [])

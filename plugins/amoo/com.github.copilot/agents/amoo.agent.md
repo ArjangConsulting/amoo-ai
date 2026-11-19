@@ -236,8 +236,9 @@ app, use the CLI path.
    screenshots. Never navigate by screenshot: locate and position with `find_elements`, and view an
    image only for a final visual verdict, once per capture. Keep focused inspections to 20 actions where the task allows; recorded `flow.json`
    files can be replayed with `amoo flow`.
-   Oversized accessibility frames can cause false occlusion refusals. Confirm the blocker is false,
-   retry with `check_hittable=false`, assert the outcome, and report the frame defect.
+   `tap_element` confirms a suspected occlusion with the device hit test. A "may not receive"
+   refusal is unconfirmed: if the target is drawn on top (an overlay or floating button), retry with
+   `check_hittable=false`, assert the outcome, and report the refusal as an amoo finding.
 6. WebViews: `webview_dom` / `webview_eval` (debug builds with inspection enabled).
 7. Audits: `audit_accessibility`, `audit_security`, `audit_app`, `highlight_a11y_issues`.
    For accessibility review, load only `ios-accessibility` or `android-accessibility` for the

@@ -95,6 +95,28 @@ package actor CompanionServiceHandler: Amoo_CompanionService.SimpleServiceProtoc
         return actionResponse(success: true)
     }
 
+    package func hitTest(
+        request: Amoo_HitTestRequest,
+        context _: ServerContext
+    ) async throws -> Amoo_HitTestResponse {
+        let frame = request.hasFrame
+            ? Rect(x: request.frame.x, y: request.frame.y, width: request.frame.width, height: request.frame.height)
+            : nil
+        let verdict = try await companion.hitTest(
+            ElementInfo(id: request.id, label: request.label, frame: frame),
+            appID: request.appID.isEmpty ? nil : request.appID,
+            candidateBundleIDs: request.candidateBundleIds
+        )
+        var response = Amoo_HitTestResponse()
+        response.verdict = switch verdict {
+        case .hittable: .hittable
+        case .notHittable: .notHittable
+        case .unresolved: .unresolved
+        case .unsupported: .unspecified
+        }
+        return response
+    }
+
     // MARK: - Gestures
 
     package func swipe(

@@ -25,6 +25,54 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+public nonisolated enum Amoo_HitTestVerdict: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+
+  /// A tap at the element's hit point reaches the element or one of its descendants.
+  case hittable // = 1
+
+  /// Something else receives a tap at the element's hit point.
+  case notHittable // = 2
+
+  /// No single live element matched, so nothing was hit-tested.
+  case unresolved // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .hittable
+    case 2: self = .notHittable
+    case 3: self = .unresolved
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .hittable: return 1
+    case .notHittable: return 2
+    case .unresolved: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Amoo_HitTestVerdict] = [
+    .unspecified,
+    .hittable,
+    .notHittable,
+    .unresolved,
+  ]
+
+}
+
 /// Named for the device, as UIDeviceOrientation is: LANDSCAPE_LEFT is the device turned
 /// counter-clockwise (top edge on the left), which is Android's Surface.ROTATION_90.
 public nonisolated enum Amoo_Orientation: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -220,6 +268,49 @@ public nonisolated struct Amoo_TapElementRequest: Sendable {
   public init() {}
 
   fileprivate var _selector: Amoo_ElementSelector? = nil
+}
+
+public nonisolated struct Amoo_HitTestRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The element's identifier and label, both matched exactly; an empty one is not constrained.
+  public var id: String = String()
+
+  public var label: String = String()
+
+  /// The frame the host resolved, which picks one element among duplicates.
+  public var frame: Amoo_Rect {
+    get {_frame ?? Amoo_Rect()}
+    set {_frame = newValue}
+  }
+  /// Returns true if `frame` has been explicitly set.
+  public var hasFrame: Bool {self._frame != nil}
+  /// Clears the value of `frame`. Subsequent reads from it will return its default value.
+  public mutating func clearFrame() {self._frame = nil}
+
+  public var appID: String = String()
+
+  public var candidateBundleIds: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _frame: Amoo_Rect? = nil
+}
+
+public nonisolated struct Amoo_HitTestResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var verdict: Amoo_HitTestVerdict = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 public nonisolated struct Amoo_SwipeRequest: Sendable {
@@ -671,6 +762,10 @@ public nonisolated struct Amoo_PressKeyRequest: Sendable {
 
 fileprivate nonisolated let _protobuf_package = "amoo.v1"
 
+nonisolated extension Amoo_HitTestVerdict: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0HIT_TEST_VERDICT_UNSPECIFIED\0\u{1}HIT_TEST_VERDICT_HITTABLE\0\u{1}HIT_TEST_VERDICT_NOT_HITTABLE\0\u{1}HIT_TEST_VERDICT_UNRESOLVED\0")
+}
+
 nonisolated extension Amoo_Orientation: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ORIENTATION_UNSPECIFIED\0\u{1}ORIENTATION_PORTRAIT\0\u{1}ORIENTATION_PORTRAIT_UPSIDE_DOWN\0\u{1}ORIENTATION_LANDSCAPE_LEFT\0\u{1}ORIENTATION_LANDSCAPE_RIGHT\0")
 }
@@ -961,6 +1056,90 @@ nonisolated extension Amoo_TapElementRequest: SwiftProtobuf.Message, SwiftProtob
     if lhs._selector != rhs._selector {return false}
     if lhs.appID != rhs.appID {return false}
     if lhs.candidateBundleIds != rhs.candidateBundleIds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_HitTestRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HitTestRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{1}frame\0\u{3}app_id\0\u{3}candidate_bundle_ids\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.label) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._frame) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.appID) }()
+      case 5: try { try decoder.decodeRepeatedStringField(value: &self.candidateBundleIds) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.label.isEmpty {
+      try visitor.visitSingularStringField(value: self.label, fieldNumber: 2)
+    }
+    try { if let v = self._frame {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if !self.appID.isEmpty {
+      try visitor.visitSingularStringField(value: self.appID, fieldNumber: 4)
+    }
+    if !self.candidateBundleIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.candidateBundleIds, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_HitTestRequest, rhs: Amoo_HitTestRequest) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.label != rhs.label {return false}
+    if lhs._frame != rhs._frame {return false}
+    if lhs.appID != rhs.appID {return false}
+    if lhs.candidateBundleIds != rhs.candidateBundleIds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Amoo_HitTestResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HitTestResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}verdict\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.verdict) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.verdict != .unspecified {
+      try visitor.visitSingularEnumField(value: self.verdict, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Amoo_HitTestResponse, rhs: Amoo_HitTestResponse) -> Bool {
+    if lhs.verdict != rhs.verdict {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

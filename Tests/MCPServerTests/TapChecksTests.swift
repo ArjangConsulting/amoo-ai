@@ -361,6 +361,8 @@ actor TapCheckDriver: PlatformDriver {
     /// What a companion that reports the foreground with an action returns; `nil` models one that does not.
     private let reportedForeground: String?
     private(set) var currentAppReads = 0
+    private let hitTestVerdict: HitTestVerdict
+    private(set) var hitTests = 0
 
     struct Wait: Equatable {
         var id: String?
@@ -383,8 +385,10 @@ actor TapCheckDriver: PlatformDriver {
         digests: Bool = false,
         waitTimesOut: Bool = false,
         missingIDs: Set<String> = [],
-        reportedForeground: String? = nil
+        reportedForeground: String? = nil,
+        hitTestVerdict: HitTestVerdict = .unsupported
     ) {
+        self.hitTestVerdict = hitTestVerdict
         self.reportedForeground = reportedForeground
         self.missingIDs = missingIDs
         self.waitTimesOut = waitTimesOut
@@ -445,6 +449,11 @@ actor TapCheckDriver: PlatformDriver {
 
     func isKeyboardVisible() async throws -> Bool {
         keyboardVisible
+    }
+
+    func hitTest(_: ElementInfo, appID _: String?) async throws -> HitTestVerdict {
+        hitTests += 1
+        return hitTestVerdict
     }
 
     func getViewHierarchy(appID _: String?) async throws -> ViewNode {

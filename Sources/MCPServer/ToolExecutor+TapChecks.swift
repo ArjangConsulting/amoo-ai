@@ -2,27 +2,6 @@ import AmooCore
 import MCP
 import Tracing
 
-/// Why a tap would not reach the element it was aimed at.
-enum TapBlock: Equatable {
-    /// The tap point lies outside the app's visible window.
-    case offScreen(Point)
-    /// Another control is painted over the tap point.
-    case covered(by: String)
-    /// A container that clips its content (tab bar, scroll view, sheet) ends before the tap point.
-    case clipped(by: String)
-
-    var explanation: String {
-        switch self {
-        case let .offScreen(point):
-            "its tap point (\(geometryNumber(point.x)), \(geometryNumber(point.y))) is outside the visible screen"
-        case let .covered(blocker):
-            "it is covered by \(blocker)"
-        case let .clipped(container):
-            "it lies outside \(container), which clips it"
-        }
-    }
-}
-
 /// Decides, from one hierarchy snapshot, whether a tap at `point` would land on `target`.
 ///
 /// `tap_element` reports "verified" once it has resolved a visible, enabled element, which says
@@ -220,6 +199,8 @@ extension DriverToolExecutor {
         /// The hierarchy read for the check, kept as the "before" picture for the effect check.
         var hierarchy: ViewNode?
         var hittabilityChecked = false
+        /// Set when the frame check suspected a block that the device hit test then dismissed.
+        var dismissedBlock: TapBlock?
     }
 
     /// Reads the hierarchy once and refuses a tap that would miss `matched`.
@@ -261,11 +242,15 @@ extension DriverToolExecutor {
         guard checked, let point,
               let block = TapHittability.block(for: matched, at: point, in: hierarchy)
         else { return TapPreflight(refusal: nil, hierarchy: hierarchy, hittabilityChecked: checked) }
+        let verdict = block.isInferredFromTreeOrder
+            ? await confirmBlock(on: matched, driver: driver, appID: appID)
+            : .notHittable
+        if verdict == .hittable {
+            return TapPreflight(refusal: nil, hierarchy: hierarchy, hittabilityChecked: true, dismissedBlock: block)
+        }
         let name = preferredElementName(label: matched.label, id: matched.id) ?? matched.id
         let refusal = ToolResult.error(
-            "\(gesture.tool) failed: '\(name)' would not receive the \(gesture.noun) because \(block.explanation)."
-                + " Dismiss the overlay (keyboard, sheet) or scroll the element into view, then retry,"
-                + " or pass check_hittable=false to \(gesture.noun) the point anyway."
+            Self.blockedTapMessage(name: name, block: block, verdict: verdict, gesture: gesture)
         )
         return TapPreflight(refusal: refusal, hierarchy: hierarchy)
     }
@@ -393,6 +378,8 @@ extension DriverToolExecutor {
         var effect: HierarchyCheck
         var appID: String?
         var hittabilityChecked = false
+        /// A block the frame check suspected and the device hit test dismissed.
+        var dismissedBlock: TapBlock?
         var expectation: TapExpectation?
         /// For an absence expectation: whether the element was on screen before the tap.
         var expectationPresentBeforeTap: Bool?
@@ -439,6 +426,12 @@ extension DriverToolExecutor {
         }
         if !context.hittabilityChecked {
             notes.append("Hittability was not checked.")
+        }
+        if let dismissed = context.dismissedBlock {
+            fields["hit_test"] = .string(HitTestVerdict.hittable.rawValue)
+            notes.append(
+                "Frame overlap suggested \(dismissed.explanation); the device hit test found the element on top."
+            )
         }
         if let (foregroundFields, note) = await foregroundOutcome(context, driver: driver) {
             fields.merge(foregroundFields, uniquingKeysWith: { _, new in new })

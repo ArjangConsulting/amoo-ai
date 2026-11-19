@@ -356,11 +356,15 @@ With `expect_absent`, the element is read before the tap; if it was already gone
 `already_satisfied` and `expected_effect_met` is omitted, because waiting proves nothing. A companion that does not
 advertise `query.waitForElement.absent` is polled from the host instead. `check_effect` is skipped when an expectation is given.
 Pixel changes and app postconditions remain unverified; unchanged semantics do not prove identical screenshots.
-Occlusion is inferred from accessibility frames and traversal order, not a native hit test. An
-oversized frame can cause a false refusal even when the target receives real taps. Confirm that
-the reported blocker is false before retrying with `check_hittable=false`, assert the intended
-outcome, and report the frame defect for investigation in the app. A successful override alone
-does not establish which layer supplied the incorrect geometry.
+Occlusion is first inferred from accessibility frames and traversal order, which cannot see paint
+order: a SwiftUI `.overlay` can come before the list it floats over in the accessibility tree, so the
+rows read as covering it. A covered or clipped block found that way is put to the companion's
+`HitTest` RPC (XCUITest `isHittable` on iOS) before the tap is refused. When the device finds the
+target on top, the tap proceeds and the result carries `hit_test: "hittable"` and a note naming the
+dismissed blocker. When it agrees, the refusal says so. When no hit test is available (Android, a
+companion that predates the RPC) or it cannot resolve the element, the refusal says the target "may
+not receive" the tap. If it is drawn on top, retry with `check_hittable=false` and assert the
+intended outcome. An off-screen tap point is plain geometry and is refused without a hit test.
 `scroll`'s direction names where to scroll (`down` reveals content below; `swipe_in_direction`
 names the finger's direction instead). `scroll_to_element` scrolls until a target is on screen, and exports
 (a swipe-until-hittable loop in XCUITest, `scrollTo()` in Espresso, `performScrollTo()` in Compose);

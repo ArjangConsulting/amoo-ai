@@ -1038,6 +1038,62 @@ final class XCUITestBridge: @unchecked Sendable {
         return false
     }
 
+    /// What XCUITest's own hit test said about one element.
+    enum HitTestOutcome {
+        case hittable
+        case notHittable
+        case unresolved
+    }
+
+    /// Whether a tap at the element's hit point reaches it, by XCUITest's `isHittable`.
+    ///
+    /// The host suspects occlusion from frame overlap and tree order, which cannot see paint order:
+    /// a SwiftUI `.overlay` can come before the list it floats over in the accessibility tree.
+    /// `isHittable` asks the accessibility hit test which element is actually on top at that point.
+    /// It is a few round trips, so the host asks only when its own check found a block.
+    ///
+    /// `id` and `label` must both match exactly where given; `frame` picks one among duplicates.
+    func hitTest(
+        id: String,
+        label: String,
+        frame: CGRect?,
+        bundleID: String? = nil,
+        candidateBundleIDs: [String] = []
+    ) -> HitTestOutcome {
+        var predicates: [NSPredicate] = []
+        if !id.isEmpty {
+            predicates.append(NSPredicate(format: "identifier == %@", id))
+        }
+        if !label.isEmpty {
+            predicates.append(NSPredicate(format: "label == %@", label))
+        }
+        guard !predicates.isEmpty else { return .unresolved }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        for app in searchOrder(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs) {
+            let candidates = app.descendants(matching: .any).matching(predicate).allElementsBoundByIndex
+            guard !candidates.isEmpty else { continue }
+            guard let element = Self.closest(candidates.prefix(Self.maxHitTestCandidates), to: frame) else {
+                return .unresolved
+            }
+            return element.isHittable ? .hittable : .notHittable
+        }
+        return .unresolved
+    }
+
+    /// How many same-named elements `hitTest` compares frames across before giving up.
+    private static let maxHitTestCandidates = 8
+
+    /// The candidate whose frame matches `frame` within a point; the only candidate when there is
+    /// one and no frame to compare.
+    private static func closest(_ candidates: ArraySlice<XCUIElement>, to frame: CGRect?) -> XCUIElement? {
+        guard let frame else { return candidates.count == 1 ? candidates.first : nil }
+        return candidates.first { candidate in
+            let other = candidate.frame
+            return abs(other.minX - frame.minX) < 1 && abs(other.minY - frame.minY) < 1
+                && abs(other.width - frame.width) < 1 && abs(other.height - frame.height) < 1
+        }
+    }
+
     func getViewHierarchy(bundleID: String? = nil, candidateBundleIDs: [String] = []) -> ViewNodeSnapshot {
         let target = resolvedTargetApp(bundleID: bundleID, candidateBundleIDs: candidateBundleIDs)
         let viewport = visibleViewport(for: target)

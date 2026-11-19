@@ -21,6 +21,10 @@ service CompanionService {
   rpc DoubleTap (TapRequest) returns (ActionResponse);
   rpc LongPress (LongPressRequest) returns (ActionResponse);
   rpc TapElement (TapElementRequest) returns (ActionResponse);
+  // Asks the platform's own hit test whether a tap on an element would reach it. The host's
+  // frame-overlap check cannot see paint order (a SwiftUI overlay can precede the list it covers
+  // in the accessibility tree), so it confirms a suspected occlusion here before refusing a tap.
+  rpc HitTest (HitTestRequest) returns (HitTestResponse);
 
   // Gesture actions
   rpc Swipe (SwipeRequest) returns (ActionResponse);
@@ -107,6 +111,30 @@ message TapElementRequest {
   ElementSelector selector = 1;
   string app_id = 2;
   repeated string candidate_bundle_ids = 3;
+}
+
+message HitTestRequest {
+  // The element's identifier and label, both matched exactly; an empty one is not constrained.
+  string id = 1;
+  string label = 2;
+  // The frame the host resolved, which picks one element among duplicates.
+  Rect frame = 3;
+  string app_id = 4;
+  repeated string candidate_bundle_ids = 5;
+}
+
+enum HitTestVerdict {
+  HIT_TEST_VERDICT_UNSPECIFIED = 0;
+  // A tap at the element's hit point reaches the element or one of its descendants.
+  HIT_TEST_VERDICT_HITTABLE = 1;
+  // Something else receives a tap at the element's hit point.
+  HIT_TEST_VERDICT_NOT_HITTABLE = 2;
+  // No single live element matched, so nothing was hit-tested.
+  HIT_TEST_VERDICT_UNRESOLVED = 3;
+}
+
+message HitTestResponse {
+  HitTestVerdict verdict = 1;
 }
 
 // Gesture messages
