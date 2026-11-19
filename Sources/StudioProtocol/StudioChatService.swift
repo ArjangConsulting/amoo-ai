@@ -240,6 +240,12 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public let launchArguments: [String]
     /// Launch environment `start_session` applies beneath an explicit `environment`.
     public let launchEnvironment: [String: String]
+    /// `true` to override the base class's synchronous `setUpWithError` / `tearDownWithError` rather
+    /// than XCTest's async `setUp()` / `tearDown()`. The async pair is the default for a custom base
+    /// class because it is main-actor isolated; a harness whose async UI-test teardown traps (it runs
+    /// off the main thread before the first `@MainActor` XCUI call) declares this instead, with a
+    /// base class whose lifecycle methods are main-actor isolated.
+    public let synchronousLifecycle: Bool
 
     public enum Idiom: String, Codable, Equatable, Sendable {
         case phone
@@ -266,11 +272,13 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         targetPlatform: Platform? = nil,
         repo: String? = nil,
         launchArguments: [String] = [],
-        launchEnvironment: [String: String] = [:]
+        launchEnvironment: [String: String] = [:],
+        synchronousLifecycle: Bool = false
     ) {
         self.targetPlatform = targetPlatform
         self.repo = repo
         self.launchArguments = launchArguments; self.launchEnvironment = launchEnvironment
+        self.synchronousLifecycle = synchronousLifecycle
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
         self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
@@ -286,7 +294,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
         case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
         case assertionBindings, relaunchHelper, targetPlatform, repo, launchArguments, launchEnvironment
-        case relaunchResetEnvironmentKeys, labelExpressions
+        case relaunchResetEnvironmentKeys, labelExpressions, synchronousLifecycle
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -315,6 +323,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         ) ?? []
         launchArguments = try container.decodeIfPresent([String].self, forKey: .launchArguments) ?? []
         launchEnvironment = try container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
+        synchronousLifecycle = try container.decodeIfPresent(Bool.self, forKey: .synchronousLifecycle) ?? false
     }
 
     /// Omits the launch fields and the reset keys while they are empty, so contexts written before they existed
@@ -348,6 +357,9 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         }
         if !relaunchResetEnvironmentKeys.isEmpty {
             try container.encode(relaunchResetEnvironmentKeys, forKey: .relaunchResetEnvironmentKeys)
+        }
+        if synchronousLifecycle {
+            try container.encode(synchronousLifecycle, forKey: .synchronousLifecycle)
         }
     }
 

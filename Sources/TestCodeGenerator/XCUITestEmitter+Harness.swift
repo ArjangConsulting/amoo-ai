@@ -78,7 +78,11 @@ extension XCUITestEmitter {
         return String(Double(operation.arguments["timeout_ms"].flatMap(Int64.init) ?? 5000) / 1000)
     }
 
-    static func applyingHarness(to source: String, context: StudioTestContext?) -> String {
+    static func applyingHarness(
+        to source: String,
+        context: StudioTestContext?,
+        requirements: StudioTestRequirements? = nil
+    ) -> String {
         guard let context else { return source }
         var source = source
         if let timeout = context.timeoutExpressions["default"] {
@@ -97,13 +101,10 @@ extension XCUITestEmitter {
         }
         if let expression = context.factoryOverride,
            let insertion = source.range(of: "    override func setUp") {
-            source.insert(contentsOf: """
-                override func makeApplication() -> XCUIApplication {
-                    \(expression)
-                }
-
-
-            """, at: insertion.lowerBound)
+            source.insert(
+                contentsOf: Self.factoryOverrideSource(expression, context: context, requirements: requirements),
+                at: insertion.lowerBound
+            )
         }
         for helper in context.waitBindings.keys {
             if let start = source.range(of: "    private func \(helper)("),
@@ -112,5 +113,46 @@ extension XCUITestEmitter {
             }
         }
         return source
+    }
+
+    /// The `makeApplication()` override, configuring the recorded launch when the harness launches.
+    ///
+    /// When the harness launches the app, the emitter's own launch lines never run, so the flow's
+    /// launch environment (a mock-server URL, a UI-test profile) was dropped and the generated test
+    /// ran against whatever the harness defaults to. The override is where the harness builds the
+    /// app it then launches, so the recorded configuration goes there, added to the harness's own.
+    static func factoryOverrideSource(
+        _ expression: String,
+        context: StudioTestContext,
+        requirements: StudioTestRequirements?
+    ) -> String {
+        var configuration: [String] = []
+        if context.harnessLaunchesApp, let requirements {
+            if !requirements.launchArguments.isEmpty {
+                let joined = requirements.launchArguments.map(literal).joined(separator: ", ")
+                configuration.append("        app.launchArguments += [\(joined)]")
+            }
+            for (key, value) in requirements.launchEnvironment.sorted(by: { $0.key < $1.key }) {
+                configuration.append("        app.launchEnvironment[\(literal(key))] = \(literal(value))")
+            }
+        }
+        guard !configuration.isEmpty else {
+            return """
+                override func makeApplication() -> XCUIApplication {
+                    \(expression)
+                }
+
+
+            """
+        }
+        return """
+            override func makeApplication() -> XCUIApplication {
+                let app = \(expression)
+        \(configuration.joined(separator: "\n"))
+                return app
+            }
+
+
+        """
     }
 }
