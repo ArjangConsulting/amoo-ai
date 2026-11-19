@@ -153,15 +153,16 @@ final class AgentInstallTests: XCTestCase {
             ] {
                 let file = try XCTUnwrap(files.first { $0.destination == target.appendingPathComponent(path) })
                 let text = try XCTUnwrap(String(bytes: file.contents, encoding: .utf8))
-                XCTAssertTrue(text.contains("--cli-only"), "\(client): \(path)")
-                XCTAssertTrue(text.contains("--mcp-pid"), "\(client): \(path)")
+                XCTAssertTrue(text.contains("Recover"), "\(client): \(path)")
+                XCTAssertFalse(text.contains("--mcp-pid"), "\(client): \(path)")
             }
             let agent = try XCTUnwrap(files.first {
                 $0.destination.path.contains("/agents/device-verifier.")
             })
             let text = try XCTUnwrap(String(bytes: agent.contents, encoding: .utf8))
-            XCTAssertTrue(text.contains("--mcp-pid"), "\(client)")
-            XCTAssertTrue(text.contains("--cli-only"), "\(client)")
+            XCTAssertTrue(text.contains("amoo doctor --json"), "\(client)")
+            XCTAssertTrue(text.contains("env up --platform <p> --runtime-id"), "\(client)")
+            XCTAssertFalse(text.contains("MCP"), "\(client)")
         }
     }
 

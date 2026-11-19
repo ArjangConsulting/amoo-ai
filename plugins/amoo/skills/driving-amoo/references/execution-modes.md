@@ -1,256 +1,86 @@
-## Choose an execution mode
+## Who drives
 
-Subagents delegate work; MCP and CLI execute it; runtime records track companions and access locks protect device control. A subagent chooses
-its own available transport and acquires its own device ownership.
-
-| Task | Recommended mode |
+| Task | Who and how |
 | --- | --- |
-| Agent inspection, debugging, or assertions | Controlled CLI (`amoo device --json`, filtered locally); MCP when only its tools are available |
-| A client holding one live session (a GUI, a device farm) | MCP |
-| Record a flow or generate tests | MCP managed session (required for the recording pipeline) |
-| Run checked-in flows and probe files | CLI runtime (`env up` → `flow` / `probe run` → `env down`) |
-| Prepare several devices from one build | `init` (guided, terminal) or `init --platform --app --app-id --device ... --out <manifest>` (agents) |
-| Install repository skills/client configuration | `init repo --target <repo> [--client <name>]` |
-| Bounded check with an explicit expected result | `amoo` subagent (repo-local name may be `amoo-debug`); compact JSON verdict and evidence paths |
-| A check that will be repeated | `amoo` subagent with `goal: author-flow`; the caller reruns the returned flow to verify it |
-| Visual discovery or a flow needing decisions between steps | Main context with `driving-amoo` |
-| Source changes | Main context; device subagents never edit source |
+| Inspection, debugging, assertions | `amoo device --runtime-id <id> --json <tool>`, output filtered locally |
+| A check that will be repeated | `amoo` subagent with `goal: author-flow`; the caller reruns the returned flow |
+| Bounded check with an explicit expected result | `amoo` subagent (repo-local name may be `amoo-debug`) |
+| Run checked-in flows and probe files | `env up` → `amoo flow` / `amoo probe run` → `env down` |
+| Generate a test | Author a flow, then `amoo generate plan --from-flow` → `amoo generate test` |
+| Prepare several devices from one build | `amoo init --platform --app --app-id --device ... --out <manifest> --json` |
 | Verify built artifacts with checked-in flows and WebView probes | `device-verifier` skill and subagent |
+| Visual discovery, decisions between steps, source changes | Main context with `driving-amoo` |
 
-`driving-amoo` is a skill to load; `amoo` and repo-local `amoo-debug` are subagents to delegate to.
-Do not try to load amoo-debug as a skill. Pass app_id, build_path, device_hint, and exact
-launch_env from the app's setup contract. Include reset flags only for a requested clean store.
-Do not delegate a flow that needs a question answered midway; keep it in the main context.
+`driving-amoo` is a skill; `amoo` and `amoo-debug` are subagents. Pass app_id, build_path,
+device_hint and the exact launch_env from the app's setup contract; add reset flags only for a
+requested clean store. Delegate on the cheapest model that reliably does bounded device work, chosen
+on each spawn; retry on a stronger one only when the cheaper one blocks or returns an unusable report.
 
-**Model cost.** Bounded device checks are tool-driven and need little reasoning, so delegate them on
-the cheapest model your client offers that can reliably do the job. The delegating agent chooses it on
-every spawn (Claude Code: the Agent tool's `model` parameter, which overrides the agent file; Codex: the
-spawn's model and reasoning effort; Cursor: the model the parent names when it launches the subagent) and does not wait to be told. The shipped agent files pin no model
-name, so nothing goes stale. Retry on a stronger model only when the cheaper one blocks or returns an
-unusable report. Users can still pin one in their own agent file, or force one for every subagent with
-`CLAUDE_CODE_SUBAGENT_MODEL` plus `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`.
+## Runtimes
 
-Check the pinned binary's `--version` and `--help` before choosing CLI commands. Read subcommand
-help for required flags; never call an unlisted command (older binaries may enter the REPL).
-Run doctor before either transport. Inspect `doctor --help`: CLI work uses
-`amoo doctor --cli-only --json`; MCP uses `amoo doctor --mcp-pid <this-server-pid> --json`.
-A nonzero exit starts the [recovery procedure](#recover), rather than immediately blocking the task.
-Missing doctor or an unresolved issue affecting the selected transport/target blocks that work.
-Do not stop unrelated clients to clear a machine-wide diagnostic.
-If `env` is absent, report "this installed version lacks CLI device reservation commands" and
-recommend `brew upgrade amoo` for Homebrew installs. Use available MCP managed sessions for
-supported checks; missing CLI commands do not mean Amoo has no device ownership. If a required
-flow/probe or reporting capability is unavailable, mark that requirement blocked instead of
-claiming an equivalent run. Do not upgrade or switch the caller's binary automatically.
-
-For CLI simulator/emulator interaction, acquire ownership before driving:
-
-For multi-device setup, build once externally and reuse the identical artifact. A person runs bare
-`amoo init` for the guided flow; agents (no terminal) must pass `--platform`, `--app`, `--app-id` and
-`--device`, and get every missing input listed at once. `AGENTS.md` may hold the app/manifest locations
-under `## amoo init`.
+A runtime is your lease on one simulator or emulator and its companion. Take one before driving and
+release it on success and failure:
 
 ```sh
-amoo init repo --target /path/to/repo --client codex --client claude --json
-amoo init --platform ios --app /path/to/Jot.app --app-id com.example.jot \
-  --device <phone-udid> --device <tablet-udid> --launch --out /tmp/amoo-init.json --json  # add --dry-run to validate only
-amoo init device --manifest /tmp/amoo-init.json --device <phone-udid> --json current_app
-amoo init down --manifest /tmp/amoo-init.json --json
-```
-
-Read `results[]` even when exit status is 1: successes remain controlled until cleanup. Each
-entry carries its device, runtime_id, port, companion_pid, log, app identity/hash and install/launch
-status. Use those runtime_id/device/port fields directly for `amoo flow` or `probe run`.
-The manifest is an ownership credential, not an MCP session. To record, release it with
-`init down`, then start_session on each selected device with the same prebuilt build_path.
-Do not transfer a CLI runtime to MCP or rebuild the app per device. Companion builds may
-still occur when companion products are missing or changed. Check help first on older binaries.
-
-Writing a flow: `scroll_to_element`, `tap_element` and `screenshot` steps already wait for the screen to
-settle, so do not add `wait_for` with `idle` after them or before a screenshot; it only adds calls. Use
-`wait_for` with an `id` for an element that appears later, and `idle` only before a raw pixel comparison.
-Let `scroll_to_element` choose its distance. `"optional": true` is only for a step whose outcome does
-not matter to the check, never to make a failing check pass on some devices; a step that fails every
-run on a device is a bug to root-cause. `"on_error": "continue"` keeps going but still fails the run.
-
-For a single device or selection by runtime/model/AVD, `env up` remains available:
-
-```sh
-amoo env up --platform ios --device <udid> --app-id <bundle-id> --owner amoo-agent --json
-# Keep runtime, device and port from the result; add --app <build> when installation is needed.
-amoo device --platform ios --device <device> --port <port> --runtime-id <runtime> device_launch_app app_id=<bundle-id>
-amoo device --platform ios --device <device> --port <port> --runtime-id <runtime> current_app
+amoo env up --platform ios --device <udid> [--app <build>] --app-id <bundle-id> --owner amoo-agent --json
+amoo device --runtime-id <runtime> --json device_launch_app app_id=<bundle-id>
+amoo flow <file.amoo.json> --runtime-id <runtime> --output-dir <evidence>
 amoo env down --runtime-id <runtime> --json
 ```
 
-For Android, use `--platform android` and the emulator serial. Always release in cleanup,
-including on failure. For MCP, `start_session` acquires device ownership and `end_session`
-releases it; no separate `env up` or CLI runtime token is needed. Never use a second transport
-to bypass an ownership conflict. Physical devices use explicit IDs and the companion setup below;
-`env up` is only for simulators/emulators.
+`--runtime-id` (or `AMOO_RUNTIME_ID`) supplies the platform, device and port; an explicit `--device`
+or `--port` still wins. Android uses `--platform android` with an emulator serial or `--avd <name>`.
+`env up` reports `timings_ms` and `companion.phases` (whether the build and install were reused).
+`env up --runtime-id <id>` reuses a healthy runtime and recovers an unhealthy one, keeping its identity;
+a reused runtime keeps its running companion, so after a companion change use `env down` then `env up`.
+Physical devices take explicit IDs and their own setup; `env up` is only for simulators and emulators.
+
+For several devices, build once and `amoo init` (`--dry-run` validates first). Read every entry of
+`results[]` even when the exit status is 1, use its `runtime_id` for `device`/`flow`, and clean up with
+`amoo init down --manifest <path> --json`.
+
+## Writing a flow
+
+`tap_element`, `scroll_to_element` and `screenshot` steps already wait for the screen to settle; do not
+add `wait_for` with `idle` after them. Use `wait_for` with an `id` for an element that appears later.
+Give every state-changing tap its postcondition with `expect_id` / `expect_label` (`expect_absent=true`
+for one that goes away): the flow fails that step when it is not met. `"optional": true` is only for a
+step whose outcome does not matter, never to make a failing check pass on some devices; `"on_error":
+"continue"` keeps going but still fails the run. Put the app id and launch environment in `vars`, never
+device IDs or ports. `--output-dir` gets `report.json` with every step's status, timing and last
+observed state.
 
 ## Iterate without rebuilding
 
-Every device call should answer in about a second; a slower one is an amoo bug worth reporting,
-not something to wait out. Most of a slow loop is rebuilding what has not changed:
-
-- **Reuse pre-booted devices.** Start from a simulator/emulator that is already booted with the
-  app installed; relaunch with `device_launch_app` rather than rebooting, reinstalling or
-  rebuilding. `amoo env up` reuses a running AVD/simulator and its installed app.
-- Keep one companion running per device across app rebuilds. `companion start` rebuilds it only
-  when companion sources change.
-- Rebuild the app only after its source changes. A hang, crash, or flaky result is re-run on the
-  existing build: `device_launch_app` always starts a fresh process. A reinstall keeps the app's
-  data and restored state; uninstall first when a run must start clean.
-- For XCTest suites, `xcodebuild build-for-testing` once, then run each attempt with
-  `test-without-building -only-testing:<Target>/<Suite>/<test>()` (Swift Testing needs the `()`).
-
-## Shared machines and agents
-
-For several devices, build the app once externally, then `amoo init` (guided in a terminal; agents pass
-`--platform --app --app-id --device ... --out <manifest> --json`, validate with `--dry-run`). Each device gets
-its own runtime, companion and port from that one artifact; never rebuild per device. `AGENTS.md` may record
-the app and manifest locations under `## amoo init`. Commands, manifest use, cleanup and the recording
-hand-off (stop CLI runtimes, then MCP `start_session`) are described above.
-
-Live session IDs are local to one MCP server process; a separate agent server cannot attach.
-Delegate app/build/device requirements, then start_session in the receiving context on an available
-device. The owner must end_session before its device is reused. To preserve the exact current
-screen, keep driving in the owning context. Never drop session_id after an attachment error.
-
-Other sessions may be driving devices on the same Mac. `amoo env up --platform <p> [--avd|--runtime
---model] --app <build> --app-id <id> --json` starts a runtime on a simulator/emulator (never a physical one),
-starts its companion on a free port in the background, and returns `runtime`, `device`, `port`;
-pass `--runtime-id` (or `AMOO_RUNTIME_ID`) to `amoo device`/`flow`/`probe run`, and `amoo env down --runtime-id`
-when done. For a bounded assertion, delegate to the `amoo` subagent (some repositories call it
-`amoo-debug`); load `driving-amoo` as a skill. For checked-in flow/probe contracts, use the
-`device-verifier` skill and subagent. Keep discovery, judgment between steps, and source edits in
-the main context. Pass app_id, build_path, device_hint, and the exact launch_env; enable a reset
-flag only for an explicitly requested clean store.
+Each device call should answer in about a second; a slower one is worth reporting. Start from a
+booted device with the app installed and relaunch with `device_launch_app`, which always starts a fresh
+process. Rebuild the app only after its source changes; a reinstall keeps app data, so uninstall
+through amoo first when a run must start clean. For XCTest suites, `build-for-testing` once, then
+`test-without-building -only-testing:<Target>/<Suite>/<test>()`.
 
 ## Recover
 
-### Preflight and stale MCP servers
+Read the error text: amoo names the cause and the command that fixes it. Never bulk-kill.
 
-1. Inspect `issues`, `cli.binary`, and `mcp_servers` from the pinned binary's doctor output.
-   Unavailable simulator inventory or a missing OS runtime affects only that device, even when
-   an older doctor puts it in `issues` and exits nonzero. Report an unavailable selected device
-   by name and reason as skipped, keep its checks not evaluated, and continue all other selected
-   simulators/emulators. Do not delete devices, install runtimes, or silently substitute devices.
-   A skipped requested device means partial coverage when checks on other devices complete.
-   A stale MCP process runs an older executable after a rebuild; its presence does not make a
-   fresh CLI process or another MCP connection stale. Old checkout/Trash paths may also indicate
-   a client configuration that needs correcting. Do not infer ownership from the binary path alone.
-2. For CLI work, run `amoo doctor --cli-only --json` when supported. This retains MCP inventory
-   but excludes its staleness from the exit status. Resolve remaining target/runtime issues.
-   Binaries without scope flags (Homebrew amoo 0.3.0 and earlier) cannot scope doctor: bare
-   `doctor` counts every client's servers, so never gate on it. Read its output only for issues on
-   your own device, runtime or server; another client's stale or unresponsive server or companion
-   never blocks. Check `doctor --help` for the flags up front. Do not silently switch/upgrade binaries.
-3. For MCP, get this connection's PID from initialization/tool-result `dev.amoo/build` metadata,
-   or the explicit PID in its staleness warning. Current servers supply `doctor_arguments` and,
-   only when stale, `stale_cleanup_arguments` as argument arrays. Run them with the selected
-   absolute binary as separate arguments, never shell-evaluate metadata. Match the connection's
-   binary to the caller's selected build.
-   If metadata is unavailable, use the client's MCP diagnostics; never guess from a list of PIDs.
-   Reconnect/restart this client's amoo MCP connection using the selected absolute binary path.
-   End your reachable sessions first; after reconnecting, old session IDs cannot be reused.
-4. If the client cannot stop its stale server, and its PID is positively identified as yours,
-   use `amoo doctor --mcp-pid <pid> --kill-stale --json` when supported. Routine cleanup of your
-   own server is part of setup unless the caller forbids it; another client's server needs its
-   owner's authorization. The command rechecks identity before SIGTERM, allowing normal session
-   and companion cleanup. It does not reconnect the client. A nonzero exit may mean the selected
-   server has stopped and needs reconnecting; read the refreshed report and cleanup note.
-   Never use `pkill`, `killall`, or unscoped `doctor --kill-stale` as routine recovery.
-5. Rerun doctor with the reconnected server's new PID before using MCP. If client reconnect is
-   unavailable, continue supported inspection/verification through a fresh CLI runtime only after
-   releasing your previous ownership. Preserve required checked-in flows/probes and reporting.
-   Recording/generation that requires MCP remains blocked until reconnect; report only the
-   affected requirements, exact PID/path/error, attempted recovery, and the required client action.
+| Signal | A subagent may | Return to the caller |
+| --- | --- | --- |
+| `deviceClaimed`, holder `pid N (cmd) since T` | Holder no longer running: retry once. Your own runtime: `env down --runtime-id`. Otherwise pick another device | Holder alive and not yours; a device the caller pinned |
+| Runtime `unresponsive` or `stale` (`amoo env list`, `amoo doctor --json`) | `amoo env up --platform <p> --runtime-id <id>` | Someone else's runtime |
+| A launch reports a system dialog in front (`blocking_dialog`) | Tap one of its buttons by id (`aerr_wait`, `aerr_close`), then relaunch | Repeated ANRs on the same device |
+| The companion's own app is in front | `amoo env up --runtime-id <id>` | — |
+| `Android companion install failed` with `INSTALL_FAILED_*` | Follow its `Recovery` line; amoo already retried `UPDATE_INCOMPATIBLE` once. Otherwise another AVD on API 35 | A caller-pinned AVD or API level |
+| Connection error | Read `$TMPDIR/companion-launch-<port>.log`, then `env up --runtime-id <id>` once | Two identical failures |
 
-Always release your sessions/runtimes on success and failure. `end_session` releases the device;
-`end_session stop_companion=true` also stops its warm companion immediately. Otherwise the companion
-idles out (default 120 seconds). MCP stdin closure and SIGTERM perform server cleanup. A server whose executable was replaced exits
-by itself once it holds no session and has no request in flight (set `AMOO_MCP_KEEP_STALE=1` to
-keep it); the client must then reconnect. A busy server keeps running the old code, and builds
-before this behavior keep running until stopped. Do not
-terminate a healthy server merely because its task ended; let its client manage the connection.
+After a timeout, inspect state before repeating a mutation: it may already have run. Launch,
+terminate and reinstall the app only through amoo (`device_install_app`, `device_launch_app`,
+`device_terminate_app`); raw `simctl`/`adb` app lifecycle desyncs the companion. `device_launch_app`
+binds the launched app as the target; for an app that is already running, call `set_target_app` first.
+Never use `--force` on a claim, `pkill`, or raw `adb install`.
 
-### Device claims and companion failures
+## Deadlines
 
-Recover from the signal, not by bulk-killing. None of these needs unscoped `--kill-stale`, and other
-clients' servers never need stopping to free a device you can replace.
-
-| Signal | Likely cause | A subagent may | Return to the caller |
-| --- | --- | --- | --- |
-| `deviceClaimed`; the holder reads `pid N (cmd) since T` | Another session holds the device | Holder **no longer running**: retry once, amoo discards the orphaned claim. Holder is your own session or runtime: `end_session` / `env down --runtime-id`. Otherwise pick another device (`list_devices`, or `env up --avd <other>`) | Holder alive and not yours; a device the caller pinned |
-| `doctor` lists `device_locks` or a note naming a stale server | The holder, and which stale MCP server it is | Read-only. Holder is a stale server **you** started: `doctor --mcp-pid <that pid> --kill-stale`, then reconnect | Holder is another client's server |
-| Companion `unresponsive` (doctor `companions` / `runtimes`) | Companion accepts connections but does not serve | Your lease: `end_session force=true`, `reset_companion`, `start_session`. CLI: `amoo env up --platform <platform> --runtime-id <id>` preserves identity. Not your lease: use another device | A companion another client owns |
-| Stale MCP servers in `mcp_servers` | Rebuilt binary after start | Unrelated ones do not block; use `--cli-only`. Yours: reconnect | Servers you did not start |
-| `Android companion install failed` with an `INSTALL_FAILED_*` code | Read the `Likely cause` and `Recovery` lines in the error | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` / `VERSION_DOWNGRADE`: amoo already removed its own companion packages and retried once; if it persists, `amoo companion install --platform android --device <serial> --force` | Two identical failures on different AVDs |
-| `INSTALL_FAILED_OLDER_SDK`, or an API level below 26 | Device older than the companion's minimum | Use an AVD on API 26 or newer | A caller-pinned AVD |
-| `INSTALL_FAILED_NO_MATCHING_ABIS`, `INSUFFICIENT_STORAGE`, `USER_RESTRICTED` | Wrong CPU image, full `/data`, or blocked USB installs | Use another AVD (arm64-v8a on Apple silicon); cold-boot with data wiped for storage | Physical-device restrictions |
-
-An emulator that ran both a checkout build and the Homebrew release carries a companion signed with a
-different debug key; that is the usual `UPDATE_INCOMPATIBLE`, not an API-level problem.
-
-When a companion install fails, fall back to another AVD or API level: `emulator -list-avds`, prefer an
-API 35 image, `env up --avd <other>`, `env down` the failed runtime, and record the switch in `notes`. If the
-caller pinned the AVD or API level, report `blocked` with the error text instead. Never use raw `adb install`,
-`--force` on a claim, `pkill`, or an unscoped `--kill-stale`.
-
-### Connection failures
-
-For client-level `Transport closed`, capture MCP stderr with AMOO_MCP_DIAGNOSTICS=1 and compare
-amoo doctor --json before/after. A missing session is a tool error, not proof the transport closed.
-
-A connection error may mean a stopped companion, disconnected device, or wedged test runtime.
-Read the returned error code and device/session state. Follow the reported companion-start
-command when applicable; preserve session_id and target identity. Do not blindly repeat a
-mutation after timeout: inspect the postcondition first, because it may already have executed.
-
-Once a session is live, launch/terminate/reinstall the app-under-test only through amoo tools
-(`device_install_app`, `device_launch_app`) — never raw `simctl`/`adb`. The companion survives a
-reinstall; the app is left not running, so launch it before querying it again. If a device tool
-fails with a connection error, read `$TMPDIR/companion-launch-<port>.log`, then restart the
-companion; `companion_status` can briefly still report ready, so it is not proof the channel works.
-
-`device_launch_app` binds the launched app as the target. To drive an app that is already running,
-call `set_target_app` first: with no target bound, the iOS companion reports `com.apple.springboard`
-as frontmost even while another app is on screen.
-
-System crash and ANR dialogs (for example "Bluetooth keeps stopping") can be absent from the
-accessibility tree. When `current_app` or a screenshot shows one over the app, dismiss it with a
-coordinate `tap` read from a saved screenshot, then re-check `current_app`. Likewise, if TalkBack
-reports that app focus is unavailable, the error names the foreground app; a TalkBack
-notification or setup prompt there needs dismissing before retrying.
-
-Use the documented system scope for permission prompts. Do not guess that an app's controls
-are system UI merely because their labels contain words such as time or settings.
-For WebViews, read [the transport prerequisites](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/webview-introspection.md).
-
-## Routing and startup deadlines
-
-Before device interaction, compare this connection's `dev.amoo/build.binary_path` (resolve symlinks)
-and `binary_sha256` with the pinned executable. A matching tool name or version alone does not prove
-identity. If metadata differs or cannot be verified, use a correctly scoped server or the pinned CLI
-for supported checks; otherwise report blocked with expected and observed identities. Never use an
-inherited debug server for a release-pinned run, or stop another client's inherited server.
-
-Count in-flight setup calls against the caller's wall-clock budget (default setup limit: 5 minutes).
-The caller must monitor delegated setup independently: a subagent waiting inside an MCP call cannot
-enforce its own deadline. At 60 seconds without boot completion, inspect device state and interrupt
-the stalled agent/call; do not wait for a client tool timeout or completion notification. Never start
-a retry while an earlier mutation is unresolved. Bound CLI setup processes with an external timeout.
-Limit each `device_boot` attempt to 60 seconds, cancel your own stalled invocation, inspect device
-state and retry at most once within the remaining budget. Never start a duplicate boot while the
-first call is unresolved. If cancellation is unavailable, notify the caller at the deadline and
-report the pending call. Stop at the setup deadline, including during recovery, and mark unchecked
-screens as not evaluated; do not wait silently for a hung call to return.
-
-Simulator boot stages and failures are logged to macOS unified logging (subsystem `amoo`, categories
-`SimctlRunner` and `DriverToolExecutor`), independently of session creation. Inspect them with
-`log show --info --last 5m --style compact --predicate 'subsystem == "amoo"'`. MCP progress tokens receive
-stage notifications and 10-second heartbeats; `session_startup_status` retains recent boot stages
-for clients without progress display. A timeout ends the wait; the simulator may still finish booting,
-so inspect state before retrying.
+Count in-flight setup calls against the caller's budget (default setup limit: 5 minutes). Bound each
+CLI setup process with an external timeout, give a `device_boot` attempt 60 seconds, inspect device
+state and retry at most once. Never start a duplicate boot while the first is unresolved. Stop at the
+deadline and mark unchecked screens as not evaluated. Boot stages are logged to unified logging:
+`log show --info --last 5m --style compact --predicate 'subsystem == "amoo"'`.
