@@ -19,6 +19,9 @@ public enum ProcessRunnerError: Error, Sendable, Equatable {
     case nonZeroExit(command: String, exitCode: Int32, stderr: String)
     case unsupportedPlatform
     case unsupportedPipeline
+    /// A device command (such as `adb … am force-stop`) did not answer in time: the device or its
+    /// tool server stopped responding, which is not what the calling step was about.
+    case deviceUnresponsive(operation: String, seconds: Int)
 }
 
 extension ProcessRunnerError: LocalizedError {
@@ -36,6 +39,10 @@ extension ProcessRunnerError: LocalizedError {
             "This operation is not supported on the current platform."
         case .unsupportedPipeline:
             "This process runner does not support command pipelines."
+        case let .deviceUnresponsive(operation, seconds):
+            "The device did not respond: \(operation) did not finish within \(seconds)s. The simulator or"
+                + " emulator (or its simctl/adb) is unresponsive, not the app. Recover the runtime with"
+                + " `amoo env up --platform <p> --runtime-id <id>`; cold-boot an emulator whose adb stays unresponsive."
         }
     }
 }
