@@ -32,7 +32,9 @@ final class AgentStatusTests: XCTestCase {
         let status = probeAgentStatus(options, assetsRoot: pluginRoot)
         XCTAssertEqual(status.files.first { $0.path == missing.destination.path }?.state, .missing)
         XCTAssertEqual(status.files.first { $0.path == edited.destination.path }?.state, .edited)
-        XCTAssertEqual(status.files.first { $0.path.hasSuffix("/agents/amoo.md") }?.state, .outdated)
+        // Binary drift alone leaves the agent current: status ignores the executable pin in a project
+        // install, and the MCP server block that also carried the path is gone.
+        XCTAssertEqual(status.files.first { $0.path.hasSuffix("/agents/amoo.md") }?.state, .current)
         XCTAssertTrue(status.files.contains { $0.state == .current })
         XCTAssertFalse(status.current)
         try FileManager.default.removeItem(at: AgentInstallStamp.url(in: root))
@@ -218,12 +220,11 @@ final class AgentStatusTests: XCTestCase {
         XCTAssertFalse(dryRun.output.contains("updated"))
         XCTAssertEqual(try AgentInstallStamp.read(in: root)?.binary, recorded.path)
         options.binaryGiven = true
-        XCTAssertFalse(probeAgentStatus(options, assetsRoot: pluginRoot).current)
+        XCTAssertEqual(probeAgentStatus(options, assetsRoot: pluginRoot).binary, "/debug/bin/amoo")
         try FileManager.default.removeItem(at: recorded)
         options.binaryGiven = false
         XCTAssertEqual(probeAgentStatus(options, assetsRoot: pluginRoot).binary, "/debug/bin/amoo")
-        XCTAssertTrue(runAgentUpdate(options, assetsRoot: pluginRoot).output.contains("updated"))
-        XCTAssertEqual(try AgentInstallStamp.read(in: root)?.binary, "/debug/bin/amoo")
+        XCTAssertEqual(runAgentUpdate(options, assetsRoot: pluginRoot).exitCode, 0)
     }
 
     func testAgentFlagNarrowsStatusAndUpdate() throws {

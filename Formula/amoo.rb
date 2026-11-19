@@ -21,7 +21,6 @@ class Amoo < Formula
   def install
     bin.install "amoo"
     prefix.install "CompanionApps"
-    (share/"amoo").install "scripts/install-mcp.sh"
     # The amoo plugin: subagents + skills that `amoo agent install` renders for each AI client,
     # and that `gemini extensions link` / local marketplaces can point at directly.
     (share/"amoo/plugins").install "plugins/amoo"
@@ -42,7 +41,6 @@ class Amoo < Formula
   test do
     assert_match "Usage: amoo <command> [options]", shell_output("#{bin}/amoo --help")
     assert_match(/\A\d+\.\d+\.\d+/, shell_output("#{bin}/amoo --version"))
-    assert_path_exists share/"amoo/install-mcp.sh"
     assert_path_exists share/"amoo/plugins/amoo/agents/amoo.md"
     assert_path_exists prefix/"CompanionApps/Android/gradlew"
     assert_path_exists prefix/"CompanionApps/Android/prebuilt/app-debug.apk"

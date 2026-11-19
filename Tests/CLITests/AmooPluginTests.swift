@@ -39,12 +39,19 @@ final class AmooPluginTests: XCTestCase {
         )
     }
 
-    func testMCPConfigsStartTheAmooServerFromPath() throws {
+    /// amoo is CLI-only: no manifest may start an MCP server, or a client would launch a command
+    /// that no longer exists.
+    func testNoManifestStartsAnMCPServer() throws {
+        for path in [
+            "plugin.json",
+            ".claude-plugin/plugin.json",
+            ".cursor-plugin/plugin.json",
+            "gemini-extension.json"
+        ] {
+            XCTAssertNil(try json(path, in: pluginRoot)["mcpServers"], path)
+        }
         for path in ["mcp.json", ".mcp.json"] {
-            let servers = try XCTUnwrap(json(path, in: pluginRoot)["mcpServers"] as? [String: Any], path)
-            let amoo = try XCTUnwrap(servers["amoo"] as? [String: Any], path)
-            XCTAssertEqual(amoo["command"] as? String, "amoo")
-            XCTAssertEqual(amoo["args"] as? [String], ["mcp", "serve"])
+            XCTAssertFalse(FileManager.default.fileExists(atPath: pluginRoot.appending(path: path).path), path)
         }
     }
 
