@@ -9,10 +9,12 @@ struct AgentInstallStamp: Codable {
     var binary: String
     var clients: [String] = []
     var agents: [String] = []
+    /// `client:agent` pairs left out (`--skip`); empty in records written before it existed.
+    var skipped: [String] = []
     var files: [String: String] = [:]
 
     enum CodingKeys: String, CodingKey {
-        case schema, binary, clients, agents, files
+        case schema, binary, clients, agents, files, skipped
         case amooVersion = "amoo_version"
     }
 
@@ -62,6 +64,9 @@ struct AgentInstallStamp: Codable {
         binary = options.executablePath
         clients = Set(clients + options.clients.map(\.rawValue)).sorted()
         agents = Set(agents + options.agents).sorted()
+        if options.skippedGiven {
+            skipped = options.skipped.sorted()
+        }
         files.merge(hashes) { _, new in new }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -146,4 +151,31 @@ private func withoutExecutablePin(_ text: String) -> String {
 
 func readAgentFile(_ url: URL) throws -> Data? {
     do { return try Data(contentsOf: url) } catch CocoaError.fileReadNoSuchFile { return nil }
+}
+
+extension AgentInstallStamp {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schema = try container.decode(Int.self, forKey: .schema)
+        amooVersion = try container.decode(String.self, forKey: .amooVersion)
+        binary = try container.decode(String.self, forKey: .binary)
+        clients = try container.decodeIfPresent([String].self, forKey: .clients) ?? []
+        agents = try container.decodeIfPresent([String].self, forKey: .agents) ?? []
+        skipped = try container.decodeIfPresent([String].self, forKey: .skipped) ?? []
+        files = try container.decodeIfPresent([String: String].self, forKey: .files) ?? [:]
+    }
+
+    /// Writes `skipped` only when something is left out, so existing records keep their bytes.
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schema, forKey: .schema)
+        try container.encode(amooVersion, forKey: .amooVersion)
+        try container.encode(binary, forKey: .binary)
+        try container.encode(clients, forKey: .clients)
+        try container.encode(agents, forKey: .agents)
+        if !skipped.isEmpty {
+            try container.encode(skipped, forKey: .skipped)
+        }
+        try container.encode(files, forKey: .files)
+    }
 }

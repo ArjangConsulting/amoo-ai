@@ -19,6 +19,7 @@ struct AgentStatusReport: Encodable {
     var availableVersion = AmooVersion.current
     var clients: [AgentClient] = []
     var agents: [String] = []
+    var skipped: [String] = []
     var files: [File] = []
     var error: String?
     var installationFound = false
@@ -53,6 +54,7 @@ func probeAgentStatus(
         let stamp = try AgentInstallStamp.read(in: options.root, discardUnreadable: options.force)
         var selected = options
         selected.executablePath = AgentInstallStamp.resolvedBinary(options, stamp: stamp)
+        selected.skipped = options.skippedGiven ? options.skipped : Set(stamp?.skipped ?? [])
         let installedClients = try AgentClient.allCases.filter { client in
             if stamp?.clients.contains(client.rawValue) == true {
                 return true
@@ -77,6 +79,7 @@ func probeAgentStatus(
         report.binary = selected.executablePath
         report.clients = selected.clients
         report.agents = selected.agents
+        report.skipped = selected.skipped.sorted()
         report.installedVersion = stamp?.amooVersion
         for file in try agentInstallPlan(selected, assetsRoot: assetsRoot) {
             let disk = try readAgentFile(file.destination)

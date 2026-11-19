@@ -18,6 +18,10 @@ struct AgentInstallOptions: Equatable {
     /// Whether `--agent` / `--binary` were passed; `status` and `update` keep the recorded values otherwise.
     var agentsGiven = false
     var binaryGiven = false
+    /// `client:agent` pairs whose agent file is not installed for that client (its skills still are),
+    /// such as `claude:amoo` where a user-wide Claude `amoo` agent should not be shadowed.
+    var skipped: Set<String> = []
+    var skippedGiven = false
     var executablePath: String = Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? ""
 
     /// The directory agent paths are relative to.
@@ -63,6 +67,8 @@ func renderAgentHelp() -> String {
              --client         claude, cursor, codex, copilot, gemini, opencode, or all (default);
                               repeat or comma-separate to pick several
              --agent          amoo, device-verifier, or all (default)
+             --skip           <client>:<agent> to leave out for that client, e.g. claude:amoo;
+                              recorded, so later updates keep leaving it out
              --binary         absolute amoo path the agents pin (default: this executable); no shell aliases
              --dry-run        report what would change and write nothing
              --force          replace files that differ (local edits are otherwise kept)
@@ -128,17 +134,20 @@ func agentInstallPlan(_ options: AgentInstallOptions, assetsRoot: URL) throws ->
         let text = try String(contentsOf: assetsRoot.appendingPathComponent(path), encoding: .utf8)
         let source = try AgentSource(parsing: text, file: path)
         for client in options.clients {
-            let rendered = try AgentRenderer.render(
-                source,
-                definition: definition,
-                for: client,
-                scope: options.scope,
-                executablePath: options.executablePath
-            )
-            add(.init(
-                destination: options.root.appendingPathComponent(rendered.path),
-                contents: Data(rendered.contents.utf8)
-            ))
+            // A skipped agent loses only its own file: the skills stay, since another agent may use them.
+            if !options.skipped.contains("\(client.rawValue):\(definition.name)") {
+                let rendered = try AgentRenderer.render(
+                    source,
+                    definition: definition,
+                    for: client,
+                    scope: options.scope,
+                    executablePath: options.executablePath
+                )
+                add(.init(
+                    destination: options.root.appendingPathComponent(rendered.path),
+                    contents: Data(rendered.contents.utf8)
+                ))
+            }
             for skill in definition.skills {
                 let skillRoot = assetsRoot.appendingPathComponent("skills/\(skill)")
                 let destinationRoot = options.root
@@ -260,6 +269,11 @@ func parseAgentInstallOptions(_ args: [String]) throws -> AgentInstallOptions {
         options.agents = agents
         options.agentsGiven = true
     }
+    let skipped = try takeAgentSkips(&flags)
+    if !skipped.isEmpty {
+        options.skipped = Set(skipped)
+        options.skippedGiven = true
+    }
     if let path = try flags.value("--binary") {
         guard path.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: path) else {
             throw EnvCommandParseError.usage("--binary requires an absolute path to an executable.")
@@ -333,4 +347,27 @@ func agentUsageError(_ error: any Error) -> CLIResult {
         return CLIResult(output: "\(error)", exitCode: 64)
     }
     return CLIResult(output: message + "\n\n" + renderAgentHelp(), exitCode: 64)
+}
+
+/// Every `--skip` value, comma-separated or repeated.
+func takeAgentSkips(_ flags: inout EnvFlagReader) throws -> [String] {
+    var skipped: [String] = []
+    while let raw = try flags.value("--skip") {
+        skipped += try raw.split(separator: ",").map { try parseAgentSkip(String($0)) }
+    }
+    return skipped
+}
+
+/// `claude:amoo` → itself, after checking both halves name a known client and agent.
+func parseAgentSkip(_ raw: String) throws -> String {
+    let parts = raw.trimmingCharacters(in: .whitespaces).split(separator: ":").map(String.init)
+    guard parts.count == 2, AgentClient(rawValue: parts[0]) != nil,
+          AgentDefinition.all.contains(where: { $0.name == parts[1] })
+    else {
+        throw EnvCommandParseError.usage(
+            "--skip takes <client>:<agent>, e.g. claude:amoo (clients: "
+                + AgentClient.allCases.map(\.rawValue).joined(separator: ", ") + "), got '\(raw)'."
+        )
+    }
+    return parts.joined(separator: ":")
 }
