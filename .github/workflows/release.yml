@@ -210,8 +210,8 @@ jobs:
         run: |
           test "$(./amoo --version)" = "${RELEASE_VERSION}"
           ./amoo --help >/dev/null
-          python3 scripts/ci/mcp-smoke.py ./amoo --arch arm64
-          python3 scripts/ci/mcp-smoke.py ./amoo --arch x86_64
+          python3 scripts/ci/cli-smoke.py ./amoo --arch arm64
+          python3 scripts/ci/cli-smoke.py ./amoo --arch x86_64
           swift --version > release-toolchain.txt
           cp Package.resolved release-dependencies.json
 
@@ -308,7 +308,7 @@ jobs:
         run: |
           test "$(.build/release/amoo --version)" = "${RELEASE_VERSION}"
           .build/release/amoo --help >/dev/null
-          python3 scripts/ci/mcp-smoke.py .build/release/amoo
+          python3 scripts/ci/cli-smoke.py .build/release/amoo
           swift --version > release-toolchain.txt
           cp Package.resolved release-dependencies.json
 

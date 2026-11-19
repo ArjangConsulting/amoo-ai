@@ -83,9 +83,9 @@ jobs:
         timeout-minutes: 20
         run: swift build -c release --product amoo --disable-index-store
 
-      - name: Release MCP regression gate
+      - name: Release CLI regression gate
         timeout-minutes: 5
-        run: python3 scripts/ci/mcp-smoke.py .build/release/amoo
+        run: python3 scripts/ci/cli-smoke.py .build/release/amoo
 
       - name: Check agent install round trip
         timeout-minutes: 5
