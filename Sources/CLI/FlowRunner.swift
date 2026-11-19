@@ -2,6 +2,7 @@ import AmooCore
 import Foundation
 import MCP
 import MCPServer
+import StudioProtocol
 
 // MARK: - Step execution
 
@@ -25,6 +26,8 @@ struct FlowRunContext: Sendable {
     var environment: [String: String]
     var outputDirectory: URL?
     var defaultOnError: TestFlow.OnError
+    /// The project's `screenshots` defaults, from the `amoo.config.json` above the flow file.
+    var screenshotPolicy = ScreenshotPolicy.standard
     /// Time source for waits, injectable so tests do not sleep.
     var sleep: @Sendable (Swift.Duration) async -> Void = { try? await Task.sleep(for: $0) }
 
@@ -267,9 +270,13 @@ private func runFlowScreenshot(
     var forwarded = arguments.filter { $0.key != "name" }
     forwarded["output"] = file.path
     forwarded["return_image"] = "false"
-    // Flow captures are checked-in evidence and `shots diff` baselines; keep native pixels unless
-    // the step sets its own scale.
-    forwarded["scale"] = forwarded["scale"] ?? "1"
+    // Flow captures are checked-in evidence and `shots diff` baselines, so they keep native pixels
+    // unless the step sets its own scale or the project set `screenshots.scale`, which then sizes
+    // them like every other capture. A full-resolution capture an agent then views costs it full
+    // image tokens.
+    if forwarded["scale"] == nil, context.screenshotPolicy.scale == 1 {
+        forwarded["scale"] = "1"
+    }
     let result = await executor.execute(toolName: "take_screenshot", arguments: forwarded)
     return result.isError ? result : .success("Saved \(file.path)")
 }
