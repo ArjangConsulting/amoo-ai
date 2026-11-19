@@ -1,6 +1,9 @@
 import AmooCore
+import AmooLogging
 import MCP
 import Tracing
+
+private let expectationLogger = AmooLogger.forType(TapExpectation.self)
 
 /// What a caller expects the screen to show once a tap lands.
 ///
@@ -90,23 +93,33 @@ extension DriverToolExecutor {
         _ expectation: TapExpectation,
         driver: any PlatformDriver
     ) async -> (fields: [String: Value], note: String) {
+        var waitError: String?
         let status = await awaitExpectation(
             expectation, presentBeforeTap: context.expectationPresentBeforeTap, driver: driver
-        )
+        ) { waitError = $0 }
         var fields: [String: Value] = ["expectation_status": .string(status.rawValue)]
         if let met = status.effectMet {
             fields["expected_effect_met"] = .bool(met)
         }
-        return (fields, expectationNote(status, expectation))
+        var note = expectationNote(status, expectation)
+        if let waitError {
+            // Without it an unverified expectation could not be told apart from a driver that has no wait.
+            fields["expectation_error"] = .string(waitError)
+            note += " (\(waitError))"
+        }
+        return (fields, note)
     }
 
     /// Waits on the device for the expectation and classifies the outcome.
     func awaitExpectation(
         _ expectation: TapExpectation,
         presentBeforeTap: Bool? = nil,
-        driver: any PlatformDriver
+        driver: any PlatformDriver,
+        onError: (String) -> Void = { _ in }
     ) async -> TapExpectationStatus {
-        await (try? withSpan("tap.expect") { span in
+        var failure: String?
+        defer { failure.map(onError) }
+        return await (try? withSpan("tap.expect") { span in
             span.attributes["amoo.expectation.kind"] = expectation.absent ? "absent" : "present"
             let timeout = Duration(milliseconds: expectation.timeoutMilliseconds)
             do {
@@ -123,6 +136,12 @@ extension DriverToolExecutor {
             } catch AmooError.timeout {
                 return TapExpectationStatus.notMet
             } catch {
+                failure = String(describing: error)
+                expectationLogger.error(
+                    "Tap expectation could not be checked",
+                    error: error,
+                    context: "action=tap.expect absent=\(expectation.absent)"
+                )
                 return TapExpectationStatus.unverified
             }
         }) ?? .unverified
