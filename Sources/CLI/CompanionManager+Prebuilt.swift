@@ -3,10 +3,23 @@ import Foundation
 import MobileDevices
 import ProcessRunner
 import SwiftyShell
+import SwiftyTerminal
 
 extension CompanionManager: IOSCompanionManaging {}
 
 extension CompanionManager {
+    /// Compiles the companion, records the `build` phase, and returns the new `.xctestrun`.
+    func buildRecordingPhase(config: CompanionConfig) async throws -> String? {
+        let phaseStart = ContinuousClock.now
+        await StartupProgress.report("Building iOS companion (in parallel with simulator boot)")
+        print("Companion sources changed or no build exists. Building (this may take a moment)...")
+        try await withSpinner("Building companion app") {
+            try await buildForTesting(config: config)
+        }
+        CompanionStartPhases.shared.record("build", outcome: "built", since: phaseStart)
+        return findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config)
+    }
+
     /// Xcode omits the UI-test group's entitlement from the generated simulator executable.
     func signSimulatorProducts(config: CompanionConfig) async throws {
         guard !config.isPhysicalDevice, !config.isMac else { return }

@@ -42,11 +42,13 @@ extension AndroidCompanionManager {
         }
         let packages = ["app": "com.amoo.companion", "test": "com.amoo.companion.test"]
         for (label, apkPath) in [("app", appApkPath), ("test", testApkPath)] {
+            let phaseStart = ContinuousClock.now
             // The device already holds these exact bytes: installing them again changes nothing and
             // is most of a warm start. `force` reinstalls regardless.
             if !force, let package = packages[label], let installed = state.installed[package],
                installed == sha256Hex(ofRegularFile: apkPath) {
                 logger.info("Android companion APK already installed", context: "action=install label=\(label)")
+                CompanionStartPhases.shared.record("install.\(label)", outcome: "reused", since: phaseStart)
                 continue
             }
             var failure = try await runInstall(config: config, apkPath: apkPath)
@@ -70,6 +72,7 @@ extension AndroidCompanionManager {
                     diagnosis.message(label: label, serial: config.serial, apiLevel: apiLevel, output: output)
                 )
             }
+            CompanionStartPhases.shared.record("install.\(label)", outcome: "installed", since: phaseStart)
         }
         logger.info("Installed Android companion APKs", context: "action=install device=\(device)")
     }

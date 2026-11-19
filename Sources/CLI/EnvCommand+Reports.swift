@@ -32,6 +32,40 @@ struct EnvAppReport: Codable, Equatable {
     }
 }
 
+/// Where `env up` spent its time, in milliseconds.
+struct EnvUpTimings: Codable, Equatable {
+    /// Resolving the device, including a boot when `device.booted_by_env` is true.
+    var device: Int?
+    /// From spawning `amoo companion start` until the companion answered gRPC; `companion.phases`
+    /// breaks it down.
+    var companion: Int?
+    /// Installing and launching the app, when `--app` / `--app-id` asked for it.
+    var app: Int?
+    var total: Int
+}
+
+/// What the companion start did, read from the phases the child process recorded.
+struct EnvCompanionReport: Codable, Equatable {
+    /// `built` (compiled now), `cached` (an earlier build of the same sources), `prebuilt`
+    /// (bundled with the distribution), or `nil` when a running companion was reused.
+    var build: String?
+    /// Android: `installed` when either companion APK was (re)installed, `reused` when the device
+    /// already held both. iOS has no separate step: xcodebuild installs the runner during `launch`.
+    var install: String?
+    /// `reused` (a companion was already serving the port) or `launched`.
+    var runner: String?
+    var phases: [CompanionStartPhase]
+
+    init(phases: [CompanionStartPhase]) {
+        self.phases = phases
+        build = phases.last { $0.name == "build" }?.outcome
+        let installs = phases.filter { $0.name.hasPrefix("install.") }
+        install = installs.isEmpty ? nil : installs.contains { $0.outcome == "installed" } ? "installed" : "reused"
+        runner = phases.contains { $0.name == "runner" } ? "reused"
+            : phases.contains { $0.name == "launch" } ? "launched" : nil
+    }
+}
+
 struct EnvUpReport: Codable {
     var ok: Bool
     var runtimeID: String?
@@ -47,9 +81,12 @@ struct EnvUpReport: Codable {
     var state: DeviceRuntimeState?
     var recovered: Bool?
     var recoveryMilliseconds: Int?
+    var companion: EnvCompanionReport?
+    var timings: EnvUpTimings?
 
     enum CodingKeys: String, CodingKey {
-        case ok, state, platform, device, port, app, log, error, recovered
+        case ok, state, platform, device, port, app, log, error, recovered, companion
+        case timings = "timings_ms"
         case recoveryMilliseconds = "recovery_ms"
         case runtimeID = "runtime_id"
         case companionPID = "companion_pid"

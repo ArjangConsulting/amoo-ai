@@ -204,6 +204,7 @@ final class CompanionManager: @unchecked Sendable {
         print(styled("Companion ready.", .bold, .green))
     }
 
+    // swiftlint:disable function_body_length - one linear startup lifecycle, timed phase by phase.
     /// Ensures the companion is running. Builds and launches it if necessary.
     func ensureRunning(config: CompanionConfig, force: Bool = false) async throws {
         if force {
@@ -211,9 +212,12 @@ final class CompanionManager: @unchecked Sendable {
         }
         cancelIdleShutdown(deviceUDID: config.deviceUDID)
         await StartupProgress.report("Checking iOS companion")
+        let phases = CompanionStartPhases.shared
+        var phaseStart = ContinuousClock.now
         let bundled = hasBundledProducts(config: config)
         let sourcesChanged = sourcesChanged(config: config, bundled: bundled)
         let own = tracked(deviceUDID: config.deviceUDID)
+        phases.record("check", outcome: sourcesChanged ? "sources_changed" : "unchanged", since: phaseStart)
         if config.isPhysicalDevice, own?.config == config, !force, !sourcesChanged {
             print("Companion already running on physical device \(config.deviceUDID).")
             return
@@ -228,6 +232,7 @@ final class CompanionManager: @unchecked Sendable {
             }
             await StartupProgress.report("Reusing the iOS companion running on port \(config.port); not rebuilt")
             print("Companion already running on port \(config.port).")
+            phases.record("runner", outcome: "reused", since: phaseStart)
             return
         }
 
@@ -247,19 +252,19 @@ final class CompanionManager: @unchecked Sendable {
         // `force` restarts and reinstalls; it only recompiles when there are no bundled products
         // to reinstall (a release install cannot compile in its read-only prefix).
         if (force && !bundled) || sourcesChanged || xctestrunPath == nil {
-            await StartupProgress.report("Building iOS companion (in parallel with simulator boot)")
-            print("Companion sources changed or no build exists. Building (this may take a moment)...")
-            try await withSpinner("Building companion app") {
-                try await buildForTesting(config: config)
-            }
-            xctestrunPath = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config)
+            xctestrunPath = try await buildRecordingPhase(config: config)
+        } else {
+            phases.record("build", outcome: bundled ? "prebuilt" : "cached", since: .now)
         }
 
         guard let testrun = xctestrunPath else {
             throw CompanionError.buildFailed("No .xctestrun found after build.")
         }
 
+        phaseStart = .now
         try await simulatorReady
+        phases.record("simulator", outcome: "ready", since: phaseStart)
+        phaseStart = .now
         let launchTestRun = try await signedTestRunIfNeeded(testrun, config: config)
         await StartupProgress.report("Launching iOS companion; Xcode may take several minutes")
         print("Starting companion on port \(config.port)...")
@@ -278,8 +283,12 @@ final class CompanionManager: @unchecked Sendable {
                 timeoutSeconds: config.readyTimeoutSeconds
             )
         }
+        // xcodebuild installs the runner app as part of this launch; it cannot be split out.
+        phases.record("launch", outcome: "launched", since: phaseStart)
         print(styled("Companion ready.", .bold, .green))
     }
+
+    // swiftlint:enable function_body_length
 
     /// Returns once the runner this manager spawned exits, reporting its exit code and log.
     /// Never returns when this process spawned none — it is only attached to another process's
@@ -330,7 +339,7 @@ final class CompanionManager: @unchecked Sendable {
         })?.path
     }
 
-    private func buildForTesting(config: CompanionConfig) async throws {
+    func buildForTesting(config: CompanionConfig) async throws {
         #if os(macOS)
         let buildLock = try await CompanionBuildLock.acquire(directory: config.companionDir + "/build")
         defer { buildLock.release() }
