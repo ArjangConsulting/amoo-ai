@@ -665,11 +665,15 @@ class UIAutomatorBridge {
             return false
         }
 
-        if (text != null && text != elementText && text != contentDescription) {
+        if (text != null && (element.labelMergedUp || text != elementText && text != contentDescription &&
+                text != element.label && text !in element.mergedLabels)
+        ) {
             return false
         }
 
-        if (containsText != null && !elementText.contains(containsText) && !contentDescription.contains(containsText)) {
+        if (containsText != null && (element.labelMergedUp || !elementText.contains(containsText) &&
+                !contentDescription.contains(containsText) && !element.label.contains(containsText))
+        ) {
             return false
         }
 
@@ -721,7 +725,8 @@ class UIAutomatorBridge {
         val scrollBounds: Rect?,
         val scrollReference: String,
         val id: String,
-        val label: String,
+        /** `var` so [mergeOwnedLabels] can give a label-less clickable node its descendants' text. */
+        var label: String,
         val value: String,
         val type: String,
         /** Kept alongside [label]: an element can carry both text and a content description, and
@@ -743,7 +748,14 @@ class UIAutomatorBridge {
          * carrying the text is not the one that is clickable.
          */
         val clickableAncestor: NodeRecord? = null
-    )
+    ) {
+        /** The descendant labels [label] was merged from; a label selector may name any one of them. */
+        var mergedLabels: List<String> = emptyList()
+
+        /** Set on a descendant whose label now speaks for its clickable owner, so a label selector
+         *  resolves to the one control rather than to both it and its icon. */
+        var labelMergedUp = false
+    }
 
     private fun currentElements(appId: String? = null): List<NodeRecord> {
         return hierarchyCapture.read {
@@ -806,8 +818,34 @@ class UIAutomatorBridge {
             for (root in roots) root.recycleQuietly()
             for (window in windows) runCatching { window.recycle() }
         }
+        mergeOwnedLabels(out)
         Log.i(LOG_TAG, "hierarchy_complete roots=${roots.size} nodes=${out.size} elapsed_ms=${SystemClock.elapsedRealtime() - started}")
         return out
+    }
+
+    /**
+     * Gives a clickable node with no text or description of its own the labels of the descendants
+     * it owns, the way TalkBack and Compose's merged semantics announce it.
+     *
+     * The standard Compose pattern, `IconButton(Modifier.testTag(id)) { Icon(contentDescription = "Play") }`,
+     * puts the id on the clickable node and the description on its child. The tagged node was reported
+     * with an empty label, so a selector naming both id and label never matched on Android while the
+     * same selector worked on iOS, where XCUITest merges them. A descendant inside a nested clickable
+     * belongs to that one instead.
+     */
+    private fun mergeOwnedLabels(records: List<NodeRecord>) {
+        val owned = records
+            .filter { it.label.isNotBlank() && it.clickableAncestor != null && !it.isClickable }
+            .groupBy { it.clickableAncestor?.reference.orEmpty() }
+        for (record in records) {
+            if (!record.isClickable || record.label.isNotBlank()) continue
+            val children = owned[record.reference].orEmpty()
+            val parts = children.map { it.label }.distinct()
+            if (parts.isEmpty()) continue
+            record.label = parts.joinToString(", ")
+            record.mergedLabels = parts
+            for (child in children) child.labelMergedUp = true
+        }
     }
 
     private fun collectRecords(
