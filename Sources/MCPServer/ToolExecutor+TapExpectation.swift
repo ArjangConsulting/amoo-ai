@@ -102,12 +102,42 @@ extension DriverToolExecutor {
             fields["expected_effect_met"] = .bool(met)
         }
         var note = expectationNote(status, expectation)
+        if status == .notMet, let nearest = await nearestCandidate(for: expectation, driver: driver) {
+            fields["expectation_nearest"] = .string(nearest)
+            note += " Nearest on screen: \(nearest)."
+        }
         if let waitError {
             // Without it an unverified expectation could not be told apart from a driver that has no wait.
             fields["expectation_error"] = .string(waitError)
             note += " (\(waitError))"
         }
         return (fields, note)
+    }
+
+    /// What the screen shows instead of an unmet expectation, from one bounded query.
+    ///
+    /// "Not observed" alone could not tell "the element never appeared" from "it appeared with a
+    /// different label". For an appearance, look for the same id with any label, or else the label
+    /// as text; for a disappearance, name what is still there.
+    func nearestCandidate(for expectation: TapExpectation, driver: any PlatformDriver) async -> String? {
+        let selector = expectation.selector
+        let query: ElementSelector? = if expectation.absent {
+            selector
+        } else if let id = selector.id, selector.label != nil || selector.containsText != nil {
+            ElementSelector(id: id)
+        } else if let text = selector.label ?? selector.containsText, selector.id == nil {
+            ElementSelector(containsText: text)
+        } else {
+            nil
+        }
+        guard let query else { return nil }
+        let found = await Self.withinBudget(milliseconds: 2000) {
+            try? await driver.findElements(query)
+        }
+        guard let element = found?.first(where: \.isVisible) ?? found?.first else { return nil }
+        let value = element.isSecureTextEntry ? "" : element.value.map { " value=\"\($0)\"" } ?? ""
+        let more = (found?.count ?? 0) > 1 ? " (+\((found?.count ?? 1) - 1) more)" : ""
+        return "[\(element.id)] \(element.label) visible=\(element.isVisible)\(value)\(more)"
     }
 
     /// Waits on the device for the expectation and classifies the outcome.
