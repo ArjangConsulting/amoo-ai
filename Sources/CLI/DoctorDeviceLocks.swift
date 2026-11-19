@@ -63,19 +63,12 @@ func doctorDeviceLockIssues(_ report: DoctorReport) -> [String] {
             return "Device \(lock.device) is locked by a process that outlived pid \(lock.pid) "
                 + "(\(lock.command)); the next amoo start on it discards the lock, or remove \(lock.lockPath)."
         }
-        if report.mcpServers.contains(where: { $0.pid == lock.pid && $0.stale }) {
-            return "Device \(lock.device) is held by stale MCP server pid \(lock.pid); "
-                + "`amoo doctor --mcp-pid \(lock.pid) --kill-stale` releases it."
-        }
         return nil
     }
 }
 
 func doctorDeviceLockNotes(_ report: DoctorReport) -> [String] {
-    report.deviceLocks.filter { lock in
-        lock.holderRunning && !report.mcpServers.contains { $0.pid == lock.pid && $0.stale }
-    }
-    .map { lock in
+    report.deviceLocks.filter(\.holderRunning).map { lock in
         "Device \(lock.device) is in use by pid \(lock.pid) (\(lock.command)) since "
             + "\(ISO8601DateFormatter().string(from: lock.acquiredAt)); end that session to free it."
     }

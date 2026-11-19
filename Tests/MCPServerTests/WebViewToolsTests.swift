@@ -139,23 +139,3 @@ final class WebViewToolsTests: XCTestCase {
         XCTAssertEqual(first["content"]?.stringValue, "<html></html>")
     }
 }
-
-final class MCPStalenessTests: XCTestCase {
-    func testStaleServerPrefixesToolResultsWithARestartWarning() throws {
-        let scratch = try TemporaryDirectory()
-        defer { try? scratch.remove() }
-        let binary = try scratch.write(Data("v1".utf8), named: "amoo")
-        let info = AmooBuildInfo.capture(executableURL: binary)
-
-        let fresh = MCPStdioServer.annotatingStaleness(.success("ok"), buildInfo: info)
-        XCTAssertEqual(fresh.content, "ok")
-
-        try FileManager.default.setAttributes(
-            [.modificationDate: Date().addingTimeInterval(120)],
-            ofItemAtPath: binary.path
-        )
-        let stale = MCPStdioServer.annotatingStaleness(.success("ok"), buildInfo: info)
-        XCTAssertTrue(stale.content.hasPrefix("⚠️ Stale amoo"), stale.content)
-        XCTAssertTrue(stale.content.hasSuffix("ok"))
-    }
-}

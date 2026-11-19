@@ -115,7 +115,7 @@ public struct CLIApp {
         case "flow": return await handleFlowCommand(remaining: remaining)
         case "audit": return await handleAuditCommand(remaining: remaining)
         case "chat": return await handleChatCommand(remaining: remaining)
-        case "mcp": return await handleMCPCommand(remaining: remaining)
+        case "mcp": return CLIResult(output: mcpRemovedMessage, exitCode: 64)
         case "studio": return await handleStudioCommand(remaining: remaining)
         case "generate": return handleGenerateCommand(remaining: remaining)
         case "env": return await handleEnvCommand(remaining: remaining)
@@ -348,11 +348,11 @@ public struct CLIApp {
         }
     }
 
-    private func handleMCPCommand(remaining: [String]) async -> CLIResult {
-        if isHelpRequest(remaining) {
-            return CLIResult(output: renderMCPHelp(), exitCode: 0)
-        }
-        return await runMCPCommand(args: remaining)
+    /// `amoo mcp serve` is gone; an AI client configured with it gets this instead of the help.
+    private var mcpRemovedMessage: String {
+        "amoo no longer runs an MCP server: the CLI is its only interface. Drive devices with"
+            + " `amoo device --runtime-id <id> --json <tool>` and `amoo flow`, after `amoo env up`."
+            + " Remove the amoo MCP server from this client's configuration."
     }
 }
 
@@ -393,7 +393,7 @@ func renderCLIHelp() -> String {
       shots montage|diff ...       Contact sheet / baseline diff of a screenshot folder
       version                      Show the version, source commit and build time of this binary
       preflight [--platform ...]   Check local tooling and environment
-      doctor [--json] [--cli-only | --mcp-pid <pid>] [--kill-stale]  Health check and scoped MCP recovery
+      doctor [--json]              Health check of this CLI, devices, companions and runtimes
       device ...                   Run a device tool against iOS or Android
       capabilities ...             Query installed tool schemas, assertion support and runtime identity as JSON
       companion ...                Build or install a companion app
@@ -408,17 +408,16 @@ func renderCLIHelp() -> String {
       generate plan ...            Recompile a recorded session report into plan.json
       generate test ...            Emit a standalone XCUITest/Espresso test from a plan
       audit ...                    Run app audit rules
-      chat                         Interactive AI chat (Ollama + MCP tools)
-      mcp serve                    Run the local MCP stdio server for AI clients
+      chat                         Interactive AI chat (Ollama + amoo tools)
       studio serve                 Run the Studio JSON-RPC service over stdio
 
     Shortcuts:
       amoo --help                  Show top-level help
-      amoo --tools                 List MCP tool names only (comma-separated)
+      amoo --tools                 List tool names only (comma-separated)
 
     Guidance:
       Run 'amoo <command>' without enough arguments to see command-specific usage.
-      Examples: 'amoo device', 'amoo companion', 'amoo mcp serve'
+      Examples: 'amoo device', 'amoo companion', 'amoo env'
     """
 }
 

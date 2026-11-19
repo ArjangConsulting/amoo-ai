@@ -119,23 +119,7 @@ final class ProbeCommandTests: XCTestCase {
 }
 
 final class DoctorParsingTests: XCTestCase {
-    func testFindsOnlyAmooMCPServers() {
-        let ps = """
-          69683 Wed Sep 23 12:28:12 2026     /x/.build/release/amoo mcp serve --platform ios
-          28531 Thu Sep 24 13:57:17 2026     amoo mcp serve
-          73522 Thu Sep 24 02:01:54 2026     /x/amoo device --platform android describe_screen
-          29817 Thu Sep 24 16:19:54 2026     /Apps/disclaimer --pgroup -- /opt/amoo mcp serve
-        """
-        let rows = parseMCPServerRows(ps)
-        XCTAssertEqual(rows.map(\.pid), [69683, 28531])
-        XCTAssertNotNil(rows.first?.startedAt)
-    }
-
-    func testLsofParsers() {
-        XCTAssertEqual(
-            parseLsofExecutables("p10\nn/bin/amoo\nn/usr/lib/dyld\np11\nn/opt/amoo\n"),
-            [10: "/bin/amoo", 11: "/opt/amoo"]
-        )
+    func testCompanionListenerParser() {
         let listeners = parseCompanionListeners(
             "p1\ncadb\nn127.0.0.1:22093\np2\ncAmooCompa\nn127.0.0.1:22090\np3\ncnode\nn*:3000\n",
             ports: 22080 ... 22199

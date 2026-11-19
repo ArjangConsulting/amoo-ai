@@ -51,26 +51,6 @@ final class ReviewBoundaryTests: XCTestCase {
         XCTAssertTrue(calls.isEmpty)
     }
 
-    func testRequestCancellationLeavesRuntimeUsable() async throws {
-        let scratch = try TemporaryDirectory()
-        defer { try? scratch.remove() }
-        let outputURL = try scratch.write(Data(), named: "output")
-        let output = try FileHandle(forWritingTo: outputURL)
-        defer { try? output.close() }
-        let runtime = MCPRequestRuntime(output: output)
-        let accepted = await runtime.submit(id: "slow") {
-            do { try await Task.sleep(for: .seconds(30)) } catch { return Data("cancelled\n".utf8) }
-            return Data("unexpected\n".utf8)
-        }
-        XCTAssertTrue(accepted)
-        await runtime.cancel(id: "slow")
-        try await runtime.drain()
-        let nextAccepted = await runtime.submit(id: "next") { Data("next\n".utf8) }
-        XCTAssertTrue(nextAccepted)
-        try await runtime.drain()
-        XCTAssertEqual(try String(contentsOf: outputURL, encoding: .utf8), "cancelled\nnext\n")
-    }
-
     func testCancelledDeviceOperationDoesNotMutate() async {
         let queue = DeviceOperationQueue()
         let task = Task {
