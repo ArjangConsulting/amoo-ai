@@ -2,10 +2,14 @@ import AmooCore
 import MCP
 
 extension DriverToolExecutor {
-    /// A hierarchy capture that ran out of time rather than one that cannot succeed: the depth and
-    /// node limits are properties of the tree, so they are not retried.
+    /// A read that ran out of time rather than one that cannot succeed: a capture past the
+    /// companion's walk limit, or a query RPC past its deadline. The depth and node limits are
+    /// properties of the tree, so they are not retried.
     static func isSlowCapture(_ error: any Error) -> Bool {
         let text = String(describing: error)
+        if text.contains("RPC timed out before completing") {
+            return true
+        }
         return text.contains("Hierarchy capture incomplete")
             && !text.contains("depth limit") && !text.contains("node limit")
     }

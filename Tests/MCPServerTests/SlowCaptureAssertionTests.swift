@@ -30,6 +30,20 @@ final class SlowCaptureAssertionTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ContinuousClock.now - started, .milliseconds(700))
     }
 
+    /// The other shape of the same slowness: the query RPC ran past its own deadline.
+    func testQueryPastItsRPCDeadlineIsRetried() async {
+        let driver = SlowCaptureDriver(
+            failures: 1,
+            error: AmooError.commandFailed(
+                command: "findElements", output: "deadlineExceeded: \"RPC timed out before completing\""
+            )
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "assert_visible", arguments: ["id": "home.top_bar", "timeout_ms": "5000"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+    }
+
     func testStructuralLimitIsNotRetried() async {
         let driver = SlowCaptureDriver(
             failures: .max,
