@@ -216,4 +216,9 @@ struct DeviceRuntimeStore: Sendable {
     func logURL(runtimeID: String) -> URL {
         directory.appendingPathComponent("\(runtimeID).log")
     }
+
+    /// Where the companion start this runtime spawned records its phases (`CompanionStartPhases`).
+    func companionPhasesURL(runtimeID: String) -> URL {
+        directory.appendingPathComponent("\(runtimeID).phases.json")
+    }
 }

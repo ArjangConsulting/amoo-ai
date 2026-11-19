@@ -63,14 +63,19 @@ struct EnvUpDependencies {
     }
 }
 
+// swiftlint:disable:next function_body_length - one linear lifecycle: resolve, lease, start, prepare, report.
 func runEnvUp(
     _ options: EnvUpOptions,
     store: DeviceRuntimeStore = DeviceRuntimeStore(),
     dependencies: EnvUpDependencies = EnvUpDependencies()
 ) async -> CLIResult {
     var report = EnvUpReport(ok: false, platform: options.platform.rawValue)
+    let started = ContinuousClock.now
+    var timings = EnvUpTimings(total: 0)
     let finish: (Int32) -> CLIResult = { code in
-        CLIResult(output: options.json ? renderJSON(report) : report.humanSummary, exitCode: code)
+        timings.total = milliseconds(since: started)
+        report.timings = timings
+        return CLIResult(output: options.json ? renderJSON(report) : report.humanSummary, exitCode: code)
     }
     let store = options.ttlMinutes.map {
         DeviceRuntimeStore(
@@ -87,8 +92,10 @@ func runEnvUp(
     store.reapExpired()
 
     let device: EnvDeviceReport
+    var phaseStart = ContinuousClock.now
     do {
         device = try await dependencies.resolve(options, store)
+        timings.device = milliseconds(since: phaseStart)
     } catch {
         report.error = "\(error)"
         return finish(1)
@@ -113,11 +120,18 @@ func runEnvUp(
     report.runtimeID = runtime.id
 
     do {
+        phaseStart = .now
+        defer { report.companion = readCompanionPhases(store: store, runtimeID: runtime.id) }
         runtime = try await dependencies.start(options, runtime, store)
+        timings.companion = milliseconds(since: phaseStart)
         report.port = runtime.port
         report.companionPID = runtime.companionPID
         report.log = store.logURL(runtimeID: runtime.id).path
+        phaseStart = .now
         try await dependencies.prepare(options, runtime, &report.app)
+        if report.app != nil {
+            timings.app = milliseconds(since: phaseStart)
+        }
     } catch {
         report.error = "\(error)"
         report.log = store.logURL(runtimeID: runtime.id).path
@@ -132,6 +146,19 @@ func runEnvUp(
     report.ok = true
     report.state = .running
     return finish(0)
+}
+
+/// Whole milliseconds since `start`.
+func milliseconds(since start: ContinuousClock.Instant) -> Int {
+    let elapsed = ContinuousClock.now - start
+    return Int(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
+}
+
+/// What the spawned companion start recorded, consumed once: the report carries it from here.
+private func readCompanionPhases(store: DeviceRuntimeStore, runtimeID: String) -> EnvCompanionReport? {
+    let path = store.companionPhasesURL(runtimeID: runtimeID).path
+    defer { try? FileManager.default.removeItem(atPath: path) }
+    return CompanionStartPhases.read(path: path).map(EnvCompanionReport.init(phases:))
 }
 
 // MARK: - Device resolution
@@ -300,7 +327,13 @@ private func startRuntimeCompanion(
     }
     let log = store.logURL(runtimeID: runtime.id).path
     FileManager.default.createFile(atPath: log, contents: nil)
-    let pid = try await DetachedProcess.spawn(arguments, logPath: log, environment: ["AMOO_RUNTIME_ID": runtime.id])
+    let phases = store.companionPhasesURL(runtimeID: runtime.id).path
+    try? FileManager.default.removeItem(atPath: phases)
+    let pid = try await DetachedProcess.spawn(
+        arguments,
+        logPath: log,
+        environment: ["AMOO_RUNTIME_ID": runtime.id, CompanionStartPhases.environmentKey: phases]
+    )
 
     runtime.port = port
     runtime.companionPID = pid

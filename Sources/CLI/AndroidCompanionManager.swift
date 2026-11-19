@@ -220,11 +220,14 @@ final class AndroidCompanionManager: @unchecked Sendable {
     /// the instrumentation runner, and waits for the gRPC port — only as needed.
     func ensureRunning(config: AndroidCompanionConfig, force: Bool = false) async throws {
         await StartupProgress.report("Checking Android companion")
+        let phases = CompanionStartPhases.shared
+        var phaseStart = ContinuousClock.now
         let bundled = usesBundledAPKs(config: config)
         let sourcesChanged = !config.buildPrepared &&
             (config.buildMode == .rebuild ||
                 (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
         let requiresReplacement = config.installPreparedBuild || sourcesChanged
+        phases.record("check", outcome: sourcesChanged ? "sources_changed" : "unchanged", since: phaseStart)
         if force {
             if tracked(serial: config.serial) == nil {
                 await clearStaleCompanion(config: config)
@@ -239,6 +242,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             print("Android companion already running on port \(config.port) for"
                 + " \(config.serial ?? "default device").")
             adopt(config: config)
+            phases.record("runner", outcome: "reused", since: phaseStart)
             return
         }
 
@@ -264,12 +268,16 @@ final class AndroidCompanionManager: @unchecked Sendable {
             throw AndroidCompanionError
                 .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
         }
+        phaseStart = .now
         if needsBuild {
             await StartupProgress.report("Building Android companion")
             print("Android companion sources changed or no build exists. Building (this may take a moment)...")
             try await withSpinner("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
+            phases.record("build", outcome: "built", since: phaseStart)
+        } else {
+            phases.record("build", outcome: bundled ? "prebuilt" : "cached", since: phaseStart)
         }
 
         await StartupProgress.report("Installing Android companion APKs")
@@ -281,11 +289,14 @@ final class AndroidCompanionManager: @unchecked Sendable {
         // Always clear a stale instance before (re)launching. We only reach here because the
         // companion is not already serving, so anything still holding the port is dead and would
         // otherwise wedge the launch below.
+        phaseStart = .now
         print("Clearing any stale Android companion on port \(config.port)...")
         await clearStaleCompanion(config: config)
 
         print("Forwarding 127.0.0.1:\(config.port) → device:\(config.port)...")
         try await forwardPort(config: config)
+        phases.record("prepare", outcome: "forwarded", since: phaseStart)
+        phaseStart = .now
 
         await StartupProgress.report("Launching Android companion instrumentation")
         print("Starting Android companion instrumentation on port \(config.port)...")
@@ -305,6 +316,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
                 )
             }
         }
+        phases.record("launch", outcome: "launched", since: phaseStart)
         print(styled("Android companion ready.", .bold, .green))
     }
 
