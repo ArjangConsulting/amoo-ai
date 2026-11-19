@@ -63,6 +63,9 @@ class UIAutomatorBridge {
         /** Quiescence wait before reading the hierarchy, so a mid-transition frame is not captured. */
         const val WAIT_FOR_IDLE_MS = 2_000L
 
+        /** How long `setText` waits for a field to show the value it was given. */
+        const val SET_TEXT_SETTLE_MS = 1_000L
+
         const val LOG_TAG = "AmooCompanion"
 
         /** Matches any application package, used to force a full multi-window root walk. */
@@ -396,16 +399,37 @@ class UIAutomatorBridge {
         // query issued after every action.
         val candidates = uiObjectTree().filter { uiMatches(it, resourceId, label, containsText) }
         // Ambiguous selectors must not mutate an arbitrary node.
-        val target = candidates.singleOrNull() ?: return false
+        val target = candidates.singleOrNull()
+        if (target == null) {
+            Log.w(LOG_TAG, "set_text no_single_target candidates=${candidates.size}")
+            return false
+        }
         val secure = currentElements().filter { matches(it, resourceId, label, containsText) }
             .singleOrNull()?.isSecureTextEntry == true
         val before = target.text.orEmpty()
         target.click()
         target.text = value
-        val after = target.text.orEmpty()
-        // Password fields report masks, but their content still has to change.
-        return after == value || (secure && value.isNotEmpty() && after.isNotEmpty() && after != before)
+        // A Compose field shows the new value on its next recomposition, so the first read can
+        // still return the old text; give it a moment before calling the entry rejected.
+        val deadline = SystemClock.uptimeMillis() + SET_TEXT_SETTLE_MS
+        var after = runCatching { target.text.orEmpty() }.getOrDefault("")
+        while (!setTextAccepted(value, before, after, secure) && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(50)
+            after = runCatching { target.text.orEmpty() }.getOrDefault("")
+        }
+        val accepted = setTextAccepted(value, before, after, secure)
+        // Lengths only: the value may be a secret.
+        Log.i(
+            LOG_TAG,
+            "set_text accepted=$accepted secure=$secure class=${runCatching { target.className }.getOrNull()} " +
+                "valueLength=${value.length} beforeLength=${before.length} afterLength=${after.length}"
+        )
+        return accepted
     }
+
+    /** Password fields report masks, but their content still has to change. */
+    private fun setTextAccepted(value: String, before: String, after: String, secure: Boolean): Boolean =
+        after == value || (secure && value.isNotEmpty() && after.isNotEmpty() && after != before)
 
     // -- Navigation --
 
