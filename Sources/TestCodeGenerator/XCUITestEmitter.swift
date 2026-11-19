@@ -65,29 +65,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         // base overrides the synchronous pair directly, as before.
         let customBase = baseClass != "XCTestCase" && test.testContext?.synchronousLifecycle != true
         let setUpBody = "        continueAfterFailure = false\(idiomGuard)\(launch)"
-        let lifecycle = customBase
-            ? """
-            override func setUp() async throws {
-                    try await super.setUp()
-            \(setUpBody)
-                }
-
-                override func tearDown() async throws {
-            \(Self.failureAttachments)
-                    try await super.tearDown()
-                }
-            """
-            : """
-            override func setUpWithError() throws {
-                    try super.setUpWithError()
-            \(setUpBody)
-                }
-
-                override func tearDownWithError() throws {
-            \(Self.failureAttachments)
-                    try super.tearDownWithError()
-                }
-            """
+        let lifecycle = Self.lifecycleSource(customBase: customBase, context: test.testContext, setUpBody: setUpBody)
         // Only a test that asserts selection carries the wait for it.
         let selectionHelper = body.contains("waitForSelection(") ? Self.selectionHelper : ""
 
@@ -195,12 +173,14 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
             """
             source.replaceSubrange(start.lowerBound ..< end.lowerBound, with: wrappers)
-            let attachmentStart = source.range(of: "            let screenshot = XCTAttachment")!
-            let attachmentEnd = source.range(of: "            add(hierarchy)")!
-            source.replaceSubrange(
-                attachmentStart.lowerBound ..< attachmentEnd.upperBound,
-                with: "            TestCommonsXCUI.attachDiagnostics(of: app, to: self)"
-            )
+            // No teardown override (a harness that owns the app attaches its own) means no block to replace.
+            if let attachmentStart = source.range(of: "            let screenshot = XCTAttachment"),
+               let attachmentEnd = source.range(of: "            add(hierarchy)") {
+                source.replaceSubrange(
+                    attachmentStart.lowerBound ..< attachmentEnd.upperBound,
+                    with: "            TestCommonsXCUI.attachDiagnostics(of: app, to: self)"
+                )
+            }
         }
         if body.contains("scrollToElement("), test.testContext?.waitBindings["scrollToElement"] == nil,
            let helpers = source.range(of: "    private func replaceText(") {

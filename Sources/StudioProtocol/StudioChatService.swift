@@ -240,11 +240,11 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public let launchArguments: [String]
     /// Launch environment `start_session` applies beneath an explicit `environment`.
     public let launchEnvironment: [String: String]
-    /// `true` to override the base class's synchronous `setUpWithError` / `tearDownWithError` rather
-    /// than XCTest's async `setUp()` / `tearDown()`. The async pair is the default for a custom base
-    /// class because it is main-actor isolated; a harness whose async UI-test teardown traps (it runs
-    /// off the main thread before the first `@MainActor` XCUI call) declares this instead, with a
-    /// base class whose lifecycle methods are main-actor isolated.
+    /// `true` to override the base class's synchronous `setUpWithError` (and, unless the harness owns
+    /// the app, `tearDownWithError`) rather than XCTest's async `setUp()` / `tearDown()`. The async
+    /// pair is the default for a custom base class because it is main-actor isolated; a harness whose
+    /// async UI-test teardown traps declares this instead. A harness that owns the app attaches its own
+    /// failure diagnostics, so no teardown override is emitted and its lifecycle may be nonisolated.
     public let synchronousLifecycle: Bool
 
     public enum Idiom: String, Codable, Equatable, Sendable {

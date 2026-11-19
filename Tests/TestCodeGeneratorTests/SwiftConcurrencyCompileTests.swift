@@ -168,11 +168,56 @@ final class SwiftConcurrencyCompileTests: XCTestCase {
         let source = try XCUITestEmitter().generate(test).source
         XCTAssertTrue(source.contains("override func setUpWithError() throws"), source)
         XCTAssertFalse(source.contains("setUp() async"), source)
+        XCTAssertFalse(source.contains("tearDownWithError"), "the owning harness attaches its own diagnostics")
         XCTAssertTrue(source.contains("app.launchEnvironment[\"UI_TEST_PROFILE\"] = \"clean-home\""), source)
         XCTAssertTrue(source.contains("app.launchArguments += [\"-AppleLanguages\", \"(en)\"]"), source)
         XCTAssertFalse(source.contains("app.launch()"), "the harness launches")
         try CompileVerification.verifySwiftCompiles(source + Self.isolatedOwningBase, swiftVersion: 6)
+        try CompileVerification.verifySwiftCompiles(source + Self.nonisolatedLifecycleOwningBase, swiftVersion: 6)
     }
+
+    /// A project on TestCommonsXCUI gets its diagnostics helper swapped into the teardown, which a
+    /// synchronous owning harness does not have: generation used to crash on the missing block.
+    func testSynchronousOwningHarnessOnTestCommonsGeneratesWithoutATeardown() throws {
+        let context = StudioTestContext(
+            imports: ["TestCommonsXCUI"],
+            baseClass: "OwningUITestCase",
+            harnessLaunchesApp: true,
+            harnessOwnsApp: true,
+            factoryOverride: "super.makeApplication()",
+            synchronousLifecycle: true
+        )
+        let source = try generate(context: context)
+        XCTAssertFalse(source.contains("tearDown"), source)
+        XCTAssertFalse(source.contains("attachDiagnostics"), source)
+    }
+
+    /// A main-actor base class whose lifecycle methods are `nonisolated`, so it can run its own
+    /// setup synchronously, the shape of a harness whose async UI-test teardown traps.
+    private static let nonisolatedLifecycleOwningBase = """
+
+    @MainActor
+    class OwningUITestCase: XCTestCase {
+        var app: XCUIApplication!
+
+        func makeApplication() -> XCUIApplication {
+            XCUIApplication()
+        }
+
+        override nonisolated func setUpWithError() throws {
+            try super.setUpWithError()
+            nonisolated(unsafe) let testCase = self
+            MainActor.assumeIsolated {
+                testCase.app = testCase.makeApplication()
+                testCase.app.launch()
+            }
+        }
+
+        override nonisolated func tearDownWithError() throws {
+            try super.tearDownWithError()
+        }
+    }
+    """
 
     func testIdLookupTemplateAndSelectorExpressionsCompileUnderSwift6() throws {
         let context = StudioTestContext(

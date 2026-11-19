@@ -221,6 +221,19 @@ final class RepeatedWaitCollapseTests: XCTestCase {
         XCTAssertTrue(collapsed.hasSuffix("close.tap()"))
     }
 
+    /// A tap expectation's wait, then the next tap's own wait on the same element, differ only in
+    /// timeout; the first (explicit) one is kept.
+    func testAnExpectationWaitThenATapWaitOfTheSameElementWaitsOnce() {
+        let body = """
+                waitForHittability(dangerousRow, named: "dangerousRow", timeout: 15.0)
+                waitForHittability(dangerousRow, named: "dangerousRow", timeout: 5.0)
+                dangerousRow.tap()
+        """
+        let collapsed = XCUITestEmitter.collapsingRepeatedWaits(body)
+        XCTAssertEqual(collapsed.components(separatedBy: "waitForHittability(").count - 1, 1, collapsed)
+        XCTAssertTrue(collapsed.contains("timeout: 15.0"), collapsed)
+    }
+
     func testDifferentOrNonAdjacentWaitsAreKept() {
         let body = """
                 waitForHittability(a, named: "a", timeout: 5.0)
