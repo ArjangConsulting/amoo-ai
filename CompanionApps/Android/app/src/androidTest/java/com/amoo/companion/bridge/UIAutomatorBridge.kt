@@ -685,8 +685,10 @@ class UIAutomatorBridge {
             return contentDescription
         }
 
-        val resourceEntry = resourceName.substringAfterLast(':', resourceName).substringAfterLast('/')
-        return resourceEntry.replace('_', '-')
+        // Reported exactly as the app spells it, so one id works in app source, flows and generated
+        // tests. This used to turn `_` into `-`, which made `exampleapp.auth.form.email_field`
+        // unreachable by its own name.
+        return resourceName.substringAfterLast(':', resourceName).substringAfterLast('/')
     }
 
     /**
