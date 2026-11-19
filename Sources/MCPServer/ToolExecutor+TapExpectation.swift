@@ -102,9 +102,16 @@ extension DriverToolExecutor {
             fields["expected_effect_met"] = .bool(met)
         }
         var note = expectationNote(status, expectation)
-        if status == .notMet, let nearest = await nearestCandidate(for: expectation, driver: driver) {
-            fields["expectation_nearest"] = .string(nearest)
-            note += " Nearest on screen: \(nearest)."
+        if status == .notMet {
+            if let nearest = await nearestCandidate(for: expectation, driver: driver) {
+                fields["expectation_nearest"] = .string(nearest)
+                note += " Nearest on screen: \(nearest)."
+            } else if !expectation.absent {
+                // Nothing like it in the capture: the usual causes are a row past the fold and a
+                // window the companion cannot read, which a probe would otherwise have to rule out.
+                note += " Nothing similar is on screen: it may be off-screen (try scroll_to_element) or in a"
+                    + " window the companion cannot read, such as a dialog outside the app's tagged root."
+            }
         }
         if let waitError {
             // Without it an unverified expectation could not be told apart from a driver that has no wait.
