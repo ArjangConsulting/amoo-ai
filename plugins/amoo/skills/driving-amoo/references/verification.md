@@ -12,8 +12,9 @@ file is an object such as `{"label":"Account settings","limit":12,"response_mode
 Do not concatenate selectors into shell commands. Validation errors name the argument and example;
 correct the invocation before retrying. Do not restart a session to fix an argument or selector.
 
-Supply exact launch configuration at startup. Check `startup.launch.fresh_process` and
-`environment_delivery` (or `launch` on `device_launch_app`); unknown delivery is missing evidence.
+Supply exact launch configuration at startup. Check `startup.launch.fresh_process`,
+`environment_delivery` and `arguments_delivery` (or `launch` on `device_launch_app`); unknown delivery
+is missing evidence.
 iOS uses process environment; Android uses Intent extras, requiring app support. Host delivery does
 not establish that the app consumed a flag. Installation, foreground identity, semantic readiness
 and rendered readiness are separate results. A reused process cannot acquire a new environment.

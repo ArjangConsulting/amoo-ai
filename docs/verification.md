@@ -46,8 +46,8 @@ ownership credentials. The historical `--lease` spelling is rejected.
 
 `start_session.startup` separates installation, launch receipt, semantic readiness and rendered
 readiness. `device_launch_app.launch` returns the same launch receipt, and `env up.app` retains it.
-Receipts contain the app identity, `fresh_process`, environment delivery mechanism and key names;
-they do not expose environment values. Standard iOS launches replace the running process and
+Receipts contain the app identity, `fresh_process`, environment delivery mechanism and key names,
+and `arguments_delivery` with `argument_count`; they do not expose environment or argument values. Standard iOS launches replace the running process and
 deliver process environment. Configured Android launches force-stop before starting and deliver
 Intent extras, including argument-only launches. App support is required to consume those extras.
 Unknown providers report null fresh-process status and unknown delivery. Host delivery does not
