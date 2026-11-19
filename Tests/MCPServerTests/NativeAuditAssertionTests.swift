@@ -82,13 +82,32 @@ final class NativeAuditAssertionTests: XCTestCase {
         )
     }
 
-    func testTheReplyListsAtMostFiveIssues() {
-        let issue = AccessibilityInspection.Issue(
-            category: "contrast", description: "Low contrast", details: "", elementID: nil, label: "Save"
-        )
-        let summary = DriverToolExecutor.issueSummary(Array(repeating: issue, count: 7))
+    func testTheReplyListsAtMostFiveKindsOfIssue() {
+        let issues = (0 ..< 7).map { index in
+            AccessibilityInspection.Issue(
+                category: "contrast", description: "Low contrast \(index)", details: "", elementID: nil, label: "Save"
+            )
+        }
+        let summary = DriverToolExecutor.issueSummary(issues)
         XCTAssertEqual(summary.split(separator: "\n").count, 6)
         XCTAssertTrue(summary.contains("2 more in structuredContent.issues"), summary)
+    }
+
+    /// Nine contrast findings worded the same are one finding on nine elements.
+    func testIssuesOfOneKindShareALine() {
+        let issues = (0 ..< 9).map { index in
+            AccessibilityInspection.Issue(
+                category: "contrast",
+                description: "Contrast nearly passed",
+                details: "",
+                elementID: nil,
+                label: "Row \(index)"
+            )
+        }
+        let summary = DriverToolExecutor.issueSummary(issues)
+        XCTAssertEqual(summary.split(separator: "\n").count, 1, summary)
+        XCTAssertTrue(summary.contains("- contrast ×9: Contrast nearly passed: label \"Row 0\""), summary)
+        XCTAssertTrue(summary.contains("(+6 more)"), summary)
     }
 }
 
