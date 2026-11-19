@@ -40,9 +40,10 @@ command still overrides it.
   // generated `makeApplication()` override instead, since the harness launches what it returns.
   "harnessLaunchesApp": true,
 
-  // true to override the base class's synchronous setUpWithError / tearDownWithError instead of
-  // XCTest's async setUp() / tearDown(), the default for a custom base class. Declare it when the
-  // harness's async UI-test teardown traps; the base class's lifecycle must be @MainActor.
+  // true to override the base class's synchronous setUpWithError (and tearDownWithError, unless
+  // `harnessOwnsApp`, whose harness attaches its own failure diagnostics) instead of XCTest's async
+  // setUp() / tearDown(), the default for a custom base class. Declare it when the harness's async
+  // UI-test teardown traps.
   "synchronousLifecycle": true,
 
   // Reusable helpers. A helper is emitted ONLY for an operation whose planner explicitly

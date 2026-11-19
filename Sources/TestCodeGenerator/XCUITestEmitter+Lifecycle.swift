@@ -56,9 +56,27 @@ extension XCUITestEmitter {
             if isWait, kept.last == line {
                 continue
             }
+            // A tap expectation's wait followed by the next tap's own wait on the same element differ
+            // only in timeout; the first one already proved it, with the longer, explicit timeout.
+            if isWait, let previous = kept.last, let target = waitTarget(trimmed),
+               waitTarget(previous.trimmingCharacters(in: .whitespaces)) == target {
+                continue
+            }
             kept.append(line)
         }
         return kept.joined(separator: "\n")
+    }
+
+    /// The wait helper a line calls and the element it waits on: `waitForHittability(row, …)` →
+    /// `("waitForHittability", "row")`.
+    static func waitTarget(_ line: String) -> String? {
+        for helper in ["waitForHittability(", "waitForExistence("] {
+            guard let call = line.range(of: helper) else { continue }
+            let rest = line[call.upperBound...]
+            let element = rest.prefix { $0 != "," && $0 != ")" }.trimmingCharacters(in: .whitespaces)
+            return element.isEmpty ? nil : helper + element
+        }
+        return nil
     }
 
     static func launchConfiguration(for test: StudioAuthoredTest) -> String {
@@ -72,5 +90,42 @@ extension XCUITestEmitter {
             lines.append("        app.launchEnvironment[\(literal(key))] = \(literal(value))")
         }
         return lines.isEmpty ? "" : lines.joined(separator: "\n") + "\n"
+    }
+
+    /// The setUp / tearDown overrides for the generated class; see `generate` for why a custom base
+    /// class gets the async pair by default.
+    static func lifecycleSource(customBase: Bool, context: StudioTestContext?, setUpBody: String) -> String {
+        customBase
+            ? """
+            override func setUp() async throws {
+                    try await super.setUp()
+            \(setUpBody)
+                }
+
+                override func tearDown() async throws {
+            \(failureAttachments)
+                    try await super.tearDown()
+                }
+            """
+            : context?.synchronousLifecycle == true && context?.harnessOwnsApp == true
+            // A harness that owns the app attaches its own failure diagnostics, and its lifecycle may be
+            // nonisolated, where an override cannot touch the main-actor `app`: no teardown override.
+            ? """
+            override func setUpWithError() throws {
+                    try super.setUpWithError()
+            \(setUpBody)
+                }
+            """
+            : """
+            override func setUpWithError() throws {
+                    try super.setUpWithError()
+            \(setUpBody)
+                }
+
+                override func tearDownWithError() throws {
+            \(failureAttachments)
+                    try super.tearDownWithError()
+                }
+            """
     }
 }
