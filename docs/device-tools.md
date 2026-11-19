@@ -1,21 +1,25 @@
-# MCP For Local AI
+# Device tools
 
-Machine-readable discovery, startup receipts, required coverage and measured compact execution are
-documented in [AI-driven verification](verification.md).
+What `amoo device <tool>` and `amoo flow` do, tool by tool. Machine-readable discovery, launch
+receipts, required coverage and measured execution are in [AI-driven verification](verification.md).
 
-Amoo exposes AI-facing automation through MCP, implemented in Swift over the standard `stdio` transport.
-The CLI does not configure or run an AI provider; local AI clients provide the reasoning and call Amoo tools.
+amoo is a CLI. It does not run an AI provider: an agent (or a person, or a script) leases a device and
+calls tools, and amoo answers each call with one JSON object.
 
 ## Prerequisites
 
-Use `start_session` for managed sessions. It resolves the device, prepares the companion,
-installs an optional `build_path`, and launches the target app. A companion does not need to be
-running before the MCP server starts. Pass the returned `session_id` on subsequent calls.
+```bash
+amoo env up --platform ios --device <udid> --app-id <bundle-id> --json
+amoo device --runtime-id <runtime> --json <tool> key=value ...
+amoo env down --runtime-id <runtime> --json
+```
 
-For legacy calls without `session_id`, prepare the default companion yourself. Its host endpoint
-is `127.0.0.1:22087` for iOS or `127.0.0.1:22088` for Android. Physical devices need USB forwarding.
-Both companions bind IPv4 loopback. Remote network exposure is not a supported deployment mode;
-there is no remote authentication/TLS layer. See [prerequisites](prerequisites.md).
+`env up` leases a simulator or emulator, starts its companion on a free port, and prints the
+`runtime_id`; `--runtime-id` (or `AMOO_RUNTIME_ID`) then supplies the platform, device and port to
+`amoo device` and `amoo flow`. `amoo device` with no tool lists every tool and its arguments, and
+`amoo capabilities --tool <tool>` prints one schema. Both companions bind IPv4 loopback; remote network
+exposure is not a supported deployment mode. Physical devices need USB forwarding; see
+[prerequisites](prerequisites.md).
 
 Install the CLI with `brew install arjangconsulting/tap/amoo`; no source checkout is required.
 
@@ -50,7 +54,7 @@ saving while preserving installed apps and their data. The flag rejects already 
 `set_posture posture=closed|half_opened|opened` changes a foldable emulator's hinge posture
 and waits for Android's committed device state. `set_display_preset preset=phone|unfolded|tablet`
 changes a resizable emulator's display, verifying the dimensions and density advertised by that
-emulator. Both tools accept `session_id` and are also available through `amoo device` and flows.
+emulator. Both tools are available through `amoo device` and in flows.
 Re-query elements after each transition because the layout, active display, and coordinates can change.
 
 These controls use the [Android emulator console commands](https://developer.android.com/blog/posts/emulator-control-for-adaptive-app-development).
@@ -64,152 +68,6 @@ capture or no window root is available, the companion makes up to three complete
 with a short backoff for window registration. Exhausted retries remain an error rather than an
 empty element list, so absence assertions cannot pass on an incomplete tree.
 
-## Start the server manually
-
-```bash
-amoo mcp serve
-```
-
-By default this targets the iOS companion on port `22087`. For Android or custom ports:
-
-```bash
-amoo mcp serve --platform android --port 22088
-```
-
-That port is the server's default driver for calls without a `session_id`. `start_session` picks its
-own companion port per device, so sessions on different simulators or emulators can run at once:
-the `port` argument of `start_session` wins, then an explicit `--port` of `amoo mcp serve`, then a
-companion already listening on `22087` for that same simulator, and otherwise a stable port derived
-from the simulator's UDID (`23000-23999`; Android emulators keep their `22088+` block). If something
-else holds the port, `start_session` fails naming the process; pass a free `port` to move off it.
-
-The server speaks JSON-RPC over `stdio` and exits cleanly when the client closes
-stdin. It supports both stateless MCP `2026-07-28` requests and the legacy
-`initialize` flow used by MCP `2025-11-25` clients.
-
-## Connecting an MCP client
-
-There are two ways to register amoo with an AI client: run the installer script (recommended once
-amoo is installed via Homebrew or built locally), or copy the config snippet for your client by
-hand. Neither runs automatically — installing amoo (via `brew install` or `swift build`) never
-touches another application's configuration on its own; you always trigger this yourself.
-
-### Option A: installer (recommended)
-
-From a Homebrew installation, run from any directory:
-
-```bash
-bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh"
-bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --client claude-code
-bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --client all --platform android
-bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --dry-run
-bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh" --uninstall --client cursor
-```
-
-From a source checkout, use `scripts/install-mcp.sh` with the same options. Older Homebrew
-packages without the script can use the manual configuration below.
-
-Registration is user-wide: Claude Code uses `--scope user`, and the other clients use their
-home-directory configuration files. This makes amoo available across projects for your account.
-Uninstall removes the user-wide entry. Existing project-local entries are left intact and may
-override it; remove an old Claude Code local entry from that project with
-`claude mcp remove --scope local amoo` if you previously used the old installer.
-See [Claude Code's scope documentation](https://code.claude.com/docs/en/mcp).
-
-Binary resolution prefers `--bin`, then `amoo` on `PATH` (including Homebrew), then
-`brew --prefix amoo`, then a release build in this checkout. The registered path is absolute.
-It only ever edits the one `mcpServers.amoo` (or `mcp_servers.amoo`) entry
-in each client's user config and previews the change before touching
-anything (`--dry-run` shows the diff and stops there). Pass `--bin /path/to/amoo` to point at a
-specific binary (e.g. a debug build).
-
-Supported clients: `claude-code`, `claude-desktop`, `codex`, `cursor`, `windsurf`.
-
-### Option B: manual config
-
-Each client reads its own config file. In all of them, `command` should point at the installed
-`amoo` binary — with Homebrew that's `$(brew --prefix amoo)/bin/amoo` (typically
-`/opt/homebrew/bin/amoo` on Apple Silicon or `/usr/local/bin/amoo` on Intel); resolve it with:
-
-```bash
-AMOO_BIN="$(brew --prefix amoo)/bin/amoo"
-```
-
-Building from source instead, point `command` at the absolute path to `.build/release/amoo` after `swift build -c
-release`, or use `swift run --package-path /absolute/path/to/amoo amoo mcp serve` if you don't want
-a separate build step (slower startup, rebuilds on every launch).
-
-**Claude Code** — no config file to hand-edit; use the CLI:
-
-```bash
-claude mcp add --scope user amoo -- "$AMOO_BIN" mcp serve --platform ios
-```
-
-**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "amoo": {
-      "command": "/opt/homebrew/bin/amoo",
-      "args": ["mcp", "serve", "--platform", "ios"]
-    }
-  }
-}
-```
-
-**Codex** — `~/.codex/config.toml` (TOML, not JSON):
-
-```toml
-[mcp_servers.amoo]
-command = "/opt/homebrew/bin/amoo"
-args = ["mcp", "serve", "--platform", "ios"]
-```
-
-**Cursor** — `~/.cursor/mcp.json` (same shape as Claude Desktop):
-
-```json
-{
-  "mcpServers": {
-    "amoo": {
-      "command": "/opt/homebrew/bin/amoo",
-      "args": ["mcp", "serve", "--platform", "ios"]
-    }
-  }
-}
-```
-
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json` (same shape as Claude Desktop):
-
-```json
-{
-  "mcpServers": {
-    "amoo": {
-      "command": "/opt/homebrew/bin/amoo",
-      "args": ["mcp", "serve", "--platform", "ios"]
-    }
-  }
-}
-```
-
-For Android instead of iOS, use `--platform android` in any of the snippets above. Restart the
-client (or reload its MCP connections) after adding or changing the entry.
-
-## Inspect the server during development
-
-```bash
-npx @modelcontextprotocol/inspector amoo mcp serve
-```
-
-Useful assistant-facing tools include:
-
-- `describe_screen`
-- `suggest_test_actions`
-- `find_element_by_description`
-- `analyze_ai_testability`
-
-Use `analyze_ai_testability` to understand what developers can improve for better AI-driven testing: labels, identifiers, duplicate controls, hidden enabled elements, and missing primary actions.
-
 ## Reusable test flows
 
 Keep deterministic smoke tests in a checked-in `*.amoo.json` file and run the whole sequence over
@@ -219,7 +77,7 @@ one companion connection:
 amoo flow Examples/sign-in.amoo.json
 ```
 
-Each step names a normal device/MCP tool. `${name}` in an argument value (anywhere in the string)
+Each step names a normal device tool. `${name}` in an argument value (anywhere in the string)
 resolves from the flow's `"vars"`, then `--var name=value`, then the process environment, so
 credentials do not enter source control. Argument values may be JSON strings, numbers or booleans.
 The runner stops at the first failed action or assertion and prints the verified result for every
@@ -253,88 +111,6 @@ port, state, device and app, and `amoo companion stop --port N` / `--device UDID
 exactly those (never `pkill`, which also stops other sessions' companions). A process that restarts
 its runner now reclaims the port the old runner app left bound instead of failing with "owned by
 another companion process".
-
-### Companion lifetime in an MCP server
-
-A session's companion stays warm after `end_session` — starting one is the slow part — and stops
-itself after `AMOO_COMPANION_IDLE_SECONDS` (default 120; `0` stops it at once) with no new session
-on that simulator. `end_session stop_companion=true` stops it now, which is what to do before an XCTest
-run on the same simulator, since two XCTest runners share a device badly (the second swallows taps).
-
-The same window applies when the server itself exits. Each delegated agent runs its own
-`amoo mcp serve`, so stopping the companion with the server made every run pay the launch again. A
-server now leaves a healthy simulator or emulator companion running, records it as
-`linger-<platform>-<port>.record` in the companion registry, and starts a detached
-`amoo companion reap` that stops it once the window ends. The next server on that device takes the
-companion over instead of launching one, and the earlier reaper stands down. The
-reaper also stands down while a session holds the device. With `AMOO_COMPANION_IDLE_SECONDS=0`, on a
-physical device or a Mac, or when the reaper cannot be started, the companion stops with the server as
-before.
-
-On Android, `start_session` and `amoo companion install` compare the SHA-256 of each companion APK with
-the one the device already has and skip the `adb install` when they match; `--force` reinstalls. A
-device without `sha256sum` always installs.
-
-A simulator that is not ready five minutes after boot is shut down and booted once more, since a wedged
-boot recovers from a restart and not from a longer wait. A boot that `simctl` refuses (unknown device,
-missing runtime) is not retried.
-
-### Session lifetime and store retention
-
-A session nobody has called for `AMOO_SESSION_IDLE_MINUTES` (default 30; `0` disables) is ended by the
-server: the app is terminated, the device lease is released and the companion's idle timer starts, exactly
-as for `end_session`. An agent that stops without ending its session therefore cannot hold a simulator
-until its client exits. The recording is saved; a later call with that ID gets `session_closed` naming
-the idle limit, and `amoo generate plan --report` still compiles the report.
-
-At startup the server prunes, in the background, what nothing reads any more: `<session>/build`
-snapshots older than `AMOO_SNAPSHOT_RETENTION_DAYS` (default 3; `0` keeps them), run-ledger entries
-older than 30 days, and logs of ended `env up` runtimes older than 14 days. Reports, plans and flows
-are never pruned.
-
-If an `amoo mcp serve` is killed mid-session, its companion is left running with no owner. The next
-`start_session` on that simulator adopts it when it still answers, and retires it when it does not —
-only a runner whose parent process is gone is touched, never one another live amoo is using.
-`reset_companion` does the same on demand for a wedged companion, and `companion_status` with a
-`session_id` probes that session's connection (`rpc_ms`, foreground app) instead of the build state.
-
-### Recovering a stale MCP server
-
-Rebuilding or upgrading amoo replaces the executable on disk; an MCP client with an open
-connection keeps running the old process. Normal stdin closure, SIGINT, and SIGTERM close sessions
-and stop server-owned companions. A force kill or crash may leave orphaned companions for the next
-session to reclaim. A stale process is not necessarily orphaned: its client may still be using it.
-
-Run `amoo doctor --json` to inspect the machine. For CLI verification, use
-`amoo doctor --cli-only --json`: unrelated stale MCP servers stay visible but do not fail preflight.
-For MCP, get this connection's PID from `dev.amoo/build` metadata or its staleness warning, then
-run `amoo doctor --mcp-pid <pid> --json`. Other clients' stale servers do not fail that check.
-A missing selected PID fails with reconnect guidance. Neither scope suppresses unhealthy managed
-runtimes. Unavailable simulator runtimes and their devices appear in `notes`; unused inventory
-does not fail preflight or prevent work on a healthy simulator or emulator. Selecting an
-unavailable simulator still fails with its boot error.
-Agents report unavailable requested devices as skipped with their reason and continue on the
-remaining selected simulators/emulators. Requested checks on skipped devices stay not evaluated,
-so the run reports partial coverage when other devices complete.
-Legacy initialization, modern discovery, and tool-result `dev.amoo/build` metadata include
-`doctor_arguments`, plus `stale_cleanup_arguments` only when that server is stale. These are
-argument arrays to pass to the selected absolute executable, not shell commands. Stale tool
-responses also display scoped recovery commands for clients that hide metadata. Both MCP
-startup protocols explain reconnecting and supported CLI fallback before declaring blocked.
-
-End your reachable sessions, then reconnect this client's amoo MCP server using the selected
-absolute binary path. If the client cannot stop its stale process, use
-`amoo doctor --mcp-pid <pid> --kill-stale --json` for a positively identified server you own.
-Cleanup rechecks its PID, start time, executable and arguments before SIGTERM and refreshes the
-report afterward. A signal is not proof of exit; inspect the refreshed issues. Reconnect and rerun
-doctor with the new PID before MCP work; previous session IDs cannot be reused.
-
-Unscoped `doctor --kill-stale` retains machine-wide cleanup for explicitly authorized maintenance;
-agents should use scoped cleanup for their own connection. Do not use `pkill` or `killall`.
-If reconnecting is unavailable, a fresh controlled CLI runtime can perform supported verification
-after prior ownership is released. Required MCP recording remains blocked until reconnecting.
-Read `doctor --help` before using scope flags with older binaries. With an older doctor, inspect
-the issues: unrelated stale MCP warnings alone do not block a fresh CLI run.
 
 ### Tap safety and scrolling
 
@@ -409,71 +185,26 @@ amoo shots diff baseline/ shots/ --out diffs/  # per-file same / CHANGED / MISSI
 fails a file when more than `--threshold` (0.1%) of its pixels changed; `--out` writes a red overlay
 of each failing file. Both need CoreGraphics, so they run on macOS only.
 
-## Generating tests from a recorded session
+## Generating tests from a flow
 
-The canonical workflow is `start_session` → drive the app → `end_session` → inspect `plan.json` →
-`amoo generate test`. `end_session` **already** compiles the recorded history and writes
-`plan.json` + `flow.json`; `compile_session_to_plan` is an optional preview you can call earlier,
-while the session is still open, and it does not change the plan `end_session` writes. `amoo
-generate test --plan` turns that plan into a standalone XCUITest / Espresso file.
-
-amoo's own lifecycle calls (`start_session`, `end_session`, `compile_session_to_plan`,
-`get_session_report`, …) are never recorded as app-under-test steps, so a complete app-interaction
-recording generates without `--allow-incomplete` and with no trailing `XCTFail` — not even when an
-explicit `compile_session_to_plan` preceded `end_session`.
-
-To make the generated file fit a host test target — its base class, launch/assertion helpers, and
-identifier catalog — pass an **app-owned test context**. Agents can supply it at session or compile
-time (`start_session` / `compile_session_to_plan` accept `context_path` or `context_json`), and it
-is persisted with the session so an `end_session` recompile keeps it. See
-[`docs/test-context.md`](test-context.md) for the schema.
-
-Offline, recompile a recorded `report.json` without re-running the server:
-
-```bash
-amoo generate plan --report report.json --context test-context.json --out out/
-amoo generate test --plan out/plan.json
-```
-
-To author a plan with no recording at all, compile the same `*.amoo.json` flow `amoo flow` runs:
+Author the sequence as a flow, then compile and generate:
 
 ```bash
 amoo generate plan --from-flow Examples/sign-in.amoo.json --test-name SignIn --out out/
-amoo generate test --plan out/plan.json
+amoo generate test --plan out/plan.json --out out/
 ```
+
+A tap's `expect_id` / `expect_label` compiles to the assertion that follows it. To make the generated
+file fit a host test target (its base class, launch and assertion helpers, identifier catalog), pass
+an app-owned test context with `--context`; see [`docs/test-context.md`](test-context.md). A recorded
+`report.json` from an earlier release still recompiles with `amoo generate plan --report`.
 
 ## Efficient and reliable clients
 
-### Diagnosing a closed transport
-
-Set `AMOO_MCP_DIAGNOSTICS=1` in the MCP client's server environment and capture server stderr.
-Keep stdout exclusively for JSON-RPC. Diagnostics contain a timestamp, server PID, and lifecycle
-event; they omit request arguments and app content. Default operation emits no lifecycle logs.
-
-- `started`: the stdio loop began.
-- `stdin_eof`: all client input writers closed; outstanding requests are draining.
-- `requests_drained`: the stdio loop returned normally; CLI session/companion cleanup follows.
-- `input_oversized_frame` or `input_error`: the input loop failed.
-- `output_error`: writing a response failed, for example because the client closed its read pipe.
-  The CLI ignores SIGPIPE and immediately enters cleanup, even when client input stays open.
-
-A fatal signal inside `amoo mcp serve` (a Swift runtime abort, a trap, a segfault) is also recorded in
-`~/Library/Logs/amoo/mcp-serve-crash.log` (`AMOO_CRASH_LOG` overrides) and on stderr, so a client
-that only reports "Connection closed" leaves a trace.
-
-Collect `amoo doctor --json` before and after a reproduction, the exact failing tool and timestamp,
-and the client's MCP logs/exit status. A missing session should return `session_not_found` while a
-subsequent `ping` still succeeds. Separate MCP server processes cannot attach to each other's live
-session IDs; disk reports preserve history, not a live driver. Delegate app/build/device requirements
-and expected assertions, and start a session in the receiving context on an available device.
-End the owning session before reusing its device; keep exact current-screen work with the owner.
-
 ### Reducing calls without weakening verification
 
-Set `AMOO_TOOL_PROFILE=drive`, `record`, or `audit` in the MCP process environment to advertise a
-smaller task-specific catalog; `all` preserves the full catalog. Tool names and contracts remain
-stable. Load `plugins/amoo/skills/driving-amoo/SKILL.md` first and its recording/coordinate references only when
-needed. Contributor skills are not required to operate the device.
+Load `plugins/amoo/skills/driving-amoo/SKILL.md` first and its references only when needed.
+Contributor skills are not required to operate the device.
 
 `describe_screen` derives context, actionable elements, and `screen_token` from a single hierarchy
 observation. Tokens detect changes in labels, values, geometry, visibility, and tree order within
@@ -524,7 +255,7 @@ Espresso/Compose emitters refuse a hand-written one.
 compiled into an assertion. When a recorded observation read a selected state, the plan carries a
 `selected_state_not_asserted` warning naming the action and the state, so the gap is visible.
 
-`find_elements`, `list_apps`, `list_sessions`, and `get_session_report` default to 50 results;
+`find_elements` and `list_apps` default to 50 results;
 use `limit` and `next_offset` while `has_more` is true. Offsets query live state, so keep the screen
 stable while paging and restart if it changes. Hierarchy output defaults to 200 nodes with an
 explicit truncation marker. Truncated output cannot establish absence. Prefer `get_screen_context`
@@ -546,41 +277,19 @@ so it does not guarantee capture within a subsecond window. Reusable determinist
 sequences can use `amoo flow` to avoid a model round trip per action. Keep focused inspections
 within 20 actions where practical without dropping required checks.
 
-`end_session` returns `flow_path` and `plan_path` when artifact compilation succeeds. Inspect
-the plan warnings before replay: screenshots may be omitted and coordinate actions may not
-translate into generated tests. These warnings can be expected for an inspection-only session;
-they are distinct from `recording_health`, which reports whether the recording was saved.
-
-Requests execute independently across devices and serialize per device within one server process.
-Cancellation notifications propagate to outstanding request tasks. RPC deadlines and bounded input
-frames prevent indefinite client work; device-side cancellation may finish later. Production
-session bootstrap holds an OS file lock until session cleanup, rejecting a second MCP process on
-the same device as well as conflicting environment runtimes. Queued calls cancel promptly; an active
-mutation keeps its place until its backend stops. Recovery calls have reserved request capacity.
-
-Output runs on a separate worker with a 16 MiB queue limit and a five-second write deadline.
-EOF allows two seconds for pending responses, then cancels remaining requests before session
-cleanup. SIGTERM follows the same cleanup path. Assertions propagate their remaining monotonic
-deadline into RPCs and subprocesses; a late read cannot turn an expired assertion into success.
+Calls serialize per device: a lease taken by `amoo env up` holds an OS file lock, so a second process
+cannot drive the same device, and a call that times out may still finish on the device.
 Required hittability inspection must succeed before a tap; best-effort taps report
 `hittability_checked=false` when inspection was unavailable (omitted under `response_mode=compact`,
 where a missing field means `false`).
 
-Reports flush after ten pending actions or five seconds of idle time, and at orderly shutdown.
-Pending writes coalesce per session, and session listings use lightweight summaries. The persisted
-report remains a complete snapshot; very long recordings still have snapshot rewrite costs.
-An abrupt crash can lose the pending batch. `get_session_report` and `end_session` expose
-`recording_health`: saved, pending, failed, unknown (no observed write), or disabled. A device action
-can succeed while persistence fails; `saved` covers the latest queued generation, not an older write; check this field before claiming the recording is durable. Known entered secrets and sensitive launch metadata
-are redacted across recorded arguments, results, and observed selectors. `record_value=fixture`
-explicitly preserves non-sensitive sample text for generation. Redacted values require runtime
-bindings before complete test export. Screenshots can still contain sensitive pixels: choose
+Known entered secrets and sensitive launch metadata are redacted in tool results. Screenshots can still contain sensitive pixels: choose
 appropriate fixture data. Do not put secrets in test names or app-owned context files.
 
 Audit results describe the inspected screen and include per-rule evidence coverage. No findings
 is not a whole-app security certification; deep-link validation requires scenario evidence.
 
-For a short known sequence, `run_steps` accepts an active `session_id` and an array of up to 20
+For a short known sequence, `run_steps` accepts an array of up to 20
 `{"tool":"…","arguments":{…}}` objects, including `take_screenshot` observations. Actions,
 assertions and observations execute in order under the same device queue, stop at the first failure,
 and each attempted step is recorded once. Screenshot steps save to a file
@@ -591,12 +300,9 @@ Use normal discovery calls to decide the sequence first; batch responses contain
 
 ### Testing a release executable
 
-Run `python3 scripts/ci/mcp-smoke.py /absolute/path/to/amoo` before distributing a build. It checks
-initialization, device discovery, request IDs, recovery after a tool error, EOF, output disconnect,
-and SIGTERM without booting or driving a device. `--fatal-signal` also validates the preallocated
-fatal-signal diagnostic in a child process. Release artifacts include the compiler version and
-dependency lockfile; use initialization's `dev.amoo/build` metadata to identify the running binary.
-
+Run `python3 scripts/ci/cli-smoke.py /absolute/path/to/amoo [--arch arm64|x86_64]` before distributing a
+build. It runs `version`, the tool listing, a schema lookup and a device-free flow on the exact binary,
+so a crash only the release compiler produces fails before a user's first call.
 
 ### Android accessibility state and diagnostics
 
@@ -621,12 +327,8 @@ render readiness. Transport failures remain environment failures, not app assert
 
 ## Capture and run reliability
 
-`start_session` snapshots an explicit build into `<session>/build/` before device startup. It
-validates the app identifier and executable for `.app` bundles, checks archive signatures for
-APK/IPA files, compares source/copy fingerprints, and installs from the snapshot. An incomplete
-or changing build fails with `startup_stage=artifact_snapshot`. `artifact_snapshot` in the startup
-response and `artifactSnapshot` in the persisted report identify the installed copy and SHA-256.
-The copy itself is removed after the snapshot retention window; the path and digest stay in the report.
+`device_install_app` validates the artifact before installing: the app identifier and executable for
+`.app` bundles, archive signatures for APK/IPA files. An invalid artifact fails before device work.
 Concurrent builds can continue after the snapshot is complete.
 
 Screenshots report `capture_suspect` for nearly black, white, transparent or uniform frames, plus
@@ -640,12 +342,10 @@ Action responses and recorded diagnostic evidence carry `outcome_status`: `dispa
 change do not establish the requested app outcome. Missing selectors include bounded, ranked
 accessible candidates with roles, preserving parent scope and the original assertion constraints.
 
-Use one caller UUID as `run_id` across all attempts, or set `AMOO_RUN_ID` across CLI/MCP processes.
-Managed sessions inherit the startup run UUID. `get_run_telemetry` aggregates every tool request,
-including validation failures, failed startup, recovery and unfinished calls. Persistent tool
-telemetry lives under the configured session root's `runs/` directory. The snapshot excludes its
-own report request; unfinished requests can be active or abandoned. Check `recording_health`
-before trusting completeness. Counts cover instrumented device-tool requests, not shell commands.
+Use one caller UUID as `run_id` across all attempts, or set `AMOO_RUN_ID` across CLI processes.
+`amoo usage report` aggregates every tool request,
+including validation failures, recovery and unfinished calls; persistent tool telemetry lives under
+the session root's `runs/` directory. Counts cover instrumented device-tool requests, not shell commands.
 Text payload bytes exclude image blocks; wire response bytes include base64 and JSON overhead.
 Inline image bytes/pixels and saved evidence bytes/pixels are separate. `model_token_usage=null`
 means no model-provider token usage is available; none is inferred from bytes or pixels.
@@ -656,25 +356,17 @@ stable content is needed, and replay recorded navigation flows for repeatable se
 
 ### Clean verification starts and setup failures
 
-`start_session` preserves app data when installing `build_path`. Use `fresh_install=true`
-with an explicit artifact to uninstall the existing app before reinstalling under the same
-exclusive device lease. Artifact validation precedes removal. This clears app-local data;
-iOS Keychain and remote account state can survive. Missing artifacts and invalid booleans fail
-before device work. Uninstall failures stop startup instead of silently reusing dirty data.
+Installing over an existing app preserves its data. To start clean, `device_uninstall_app` before
+`device_install_app`; this clears app-local data, but iOS Keychain and remote account state can survive.
 
-MCP `list_devices` includes a nullable `lease` with owner, runtimeID and expiresAt. Runtime
-leases have an expiry; process locks have no fixed expiry. CLI `env list --json` already exposes
-owner and expires_at for runtime records. Listings are advisory; startup checks ownership again.
+`amoo env list --json` shows each runtime's owner, `expires_at` and `expired`. Listings are advisory;
+`env up` checks ownership again.
 
 Explicit assertions accept `precondition=true`. A mismatch records `preconditionFailed`, which
 leaves that requirement incomplete and derives blocked/partial coverage. A passing setup assertion
 alone does not complete a requirement. A later behavior assertion supplies its actual verdict.
 
-`get_verification_report` includes run-wide `usage`, session `wall_time_seconds` and provenance.
-The usage snapshot excludes the report request itself; elapsed_ms sums request durations and is
-not wall time for concurrent calls. Token usage is null. Device OS is read at startup; locale from
-launch configuration is labeled with its source. Device locale and companion build fingerprint
-remain explicitly unavailable because the companion protocol does not expose them.
+
 
 `tap_element` includes bounded `target_state` observations (selected, checked, state_description,
 value) after dispatch with effect checks enabled. Missing or ambiguous targets return null.

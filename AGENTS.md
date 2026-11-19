@@ -1,8 +1,8 @@
 # amoo
 
 AI-driven mobile testing framework: drivers and libraries for automating tests on iOS and Android
-simulators/emulators and real devices. Local AI integration is exposed through MCP via
-`amoo mcp serve`. See `Instruction.md` for the original vision and `Architecture.md` for the
+simulators/emulators and real devices. AI agents drive it through the CLI (`amoo env up`,
+`amoo device --runtime-id <id> --json <tool>`, `amoo flow`); there is no MCP server. See `Instruction.md` for the original vision and `Architecture.md` for the
 module map, protocol hierarchy, and companion-app design.
 
 This file is the shared instruction set for any coding agent. Tool-specific notes live alongside
@@ -12,7 +12,7 @@ it (`CLAUDE.md` for Claude Code); everything here applies regardless of which ag
 
 - **Primary language**: Swift (Swift tools 6.2, macOS 15+). Other languages where appropriate.
 - **Communication**: gRPC (language-agnostic) between host drivers and the on-device companions.
-- **AI integration**: MCP stdio server + skills (`skills/`), for external local AI clients.
+- **AI integration**: the CLI plus the plugin's agents and skills (`plugins/amoo`); `skills/` holds contributor skills.
 - **Platforms**: iOS (simulators + devices), Android (emulators + devices), at feature parity.
 
 ## Build & Test
@@ -27,7 +27,7 @@ make lint
 make format
 # format + lint + test — the pre-commit gate
 make check
-# rebuild .build/release/amoo (what an MCP client pointed at a checkout runs); prints `amoo version`
+# rebuild .build/release/amoo (what an installed agent pinned to a checkout runs); prints `amoo version`
 make release-local
 ```
 
@@ -110,10 +110,10 @@ lists, live command output, tables/alerts and the REPL line editor come from
 
 ## Recording → plan → generated-test pipeline
 
-The session-recording and code-generation path (MCP tool calls → `report.json` →
-`compile_session_to_plan` → `plan.json` → `amoo generate test` → an XCUITest/Espresso file) is
-mapped in **[`docs/codegen-pipeline.md`](docs/codegen-pipeline.md)** — read it before changing
-`SessionPlanCompiler`, the emitters, `ToolExecutor` recording, or the MCP `initialize` instructions.
+The code-generation path (a flow, or an older recorded `report.json` → `amoo generate plan` →
+`plan.json` → `amoo generate test` → an XCUITest/Espresso file) is mapped in
+**[`docs/codegen-pipeline.md`](docs/codegen-pipeline.md)** — read it before changing
+`SessionPlanCompiler`, the emitters, or `ToolExecutor` recording.
 App-owned generated-test context (base class, helpers, id catalog) is in
 [`docs/test-context.md`](docs/test-context.md).
 

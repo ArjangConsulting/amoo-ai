@@ -6,7 +6,7 @@
 
 > **Working on a specific subsystem?** The recording → plan → generated-test path has its own map:
 > [`docs/codegen-pipeline.md`](docs/codegen-pipeline.md). App-owned generated-test context:
-> [`docs/test-context.md`](docs/test-context.md). MCP server usage: [`docs/mcp-server.md`](docs/mcp-server.md).
+> [`docs/test-context.md`](docs/test-context.md). Device tool usage: [`docs/device-tools.md`](docs/device-tools.md).
 > Contributor build/lint/test conventions: [`AGENTS.md`](AGENTS.md).
 
 ## Design Principles
@@ -17,7 +17,7 @@
 4. **AI-first data model** — View hierarchy, element descriptors, and screen context are structured for LLM consumption (token-efficient, semantic, deterministic first).
 5. **Clear host/device split** — Host owns lifecycle/orchestration/policy; companion owns UI interaction/accessibility/screen context on-device.
 6. **gRPC contract-first** — Host-to-companion communication uses gRPC. Proto files are the source of truth for Swift and Kotlin codegen.
-7. **Versioned contracts** — Swift public protocols, proto contracts, and MCP tool schemas follow semantic versioning and compatibility rules.
+7. **Versioned contracts** — Swift public protocols, proto contracts, and device tool schemas follow semantic versioning and compatibility rules.
 8. **Quality gates by default** — Lint, formatting, tests, and coverage thresholds are enforced in CI for every PR.
 
 ---
@@ -95,9 +95,9 @@ amoo/
 │   │   ├── DeviceService.swift          #   gRPC service implementation
 │   │   └── ServiceConfig.swift          #   Server configuration
 │   │
-│   ├── MCPServer/                       # Module 7: MCP server (exposes drivers as AI tools)
-│   │   ├── MCPServer.swift              #   MCP protocol implementation
-│   │   └── Tools/                       #   MCP tool definitions
+│   ├── MCPServer/                       # Module 7: tool executor behind `amoo device` / `amoo flow`
+│   │   ├── MCPServer.swift              #   tool catalog and dispatch (the name predates the CLI-only design)
+│   │   └── Tools/                       #   tool definitions and argument schemas
 │   │       ├── DeviceTools.swift
 │   │       ├── ActionTools.swift
 │   │       └── QueryTools.swift
@@ -475,7 +475,7 @@ Both companions follow the same pattern: a long-running session on-device hostin
 ### Communication Flow
 
 ```
-Host (Swift CLI/gRPC/MCP)
+Host (Swift CLI/gRPC)
     │
     ▼
 PlatformDriver (IOSDriver or AndroidDriver)
@@ -517,8 +517,7 @@ launch) and records the results in a `0600` manifest that `init device` / `init 
 terminal both commands run a prompt-driven flow (SwiftyTerminal's `Prompting`); `--json`, `--non-interactive`, `--client`
 or a missing TTY make them fully flag-driven. The flow can record the app and manifest *locations* (never
 device or runtime ids) in the repo's `AGENTS.md`, and install the amoo subagents and skills for the AI
-clients you pick. Details: `docs/init.md`. Init is not a recording transport: only MCP `start_session`
-records.
+clients you pick. Details: `docs/init.md`. Init prepares devices; a reusable sequence is a checked-in flow (`amoo flow`).
 
 ## Modularity Boundaries
 
@@ -546,7 +545,7 @@ CLI ──► PlatformDriver protocol
 **Tomorrow**: Apple ships a new tool. We write `NewToolRunner` conforming to the same `DeviceControl` protocol. Change one line in `IOSDriver` init. Nothing else is affected.
 
 **Today**: Companion uses gRPC over `GRPCCompanionClient`.
-**Tomorrow**: We want WebSockets. Write `WebSocketCompanionClient` conforming to `CompanionClient`. Swap at init. Drivers, CLI, MCP — all unchanged.
+**Tomorrow**: We want WebSockets. Write `WebSocketCompanionClient` conforming to `CompanionClient`. Swap at init. Drivers and CLI — all unchanged.
 
 ---
 
@@ -603,7 +602,7 @@ Host-owned operations (install/uninstall/launch/terminate/permissions/location/d
 
 ### Contract versioning rules
 
-- SemVer is required for proto schema, Swift public APIs, and MCP tool schemas.
+- SemVer is required for proto schema, Swift public APIs, and device tool schemas.
 - Additive changes are backward compatible.
 - Breaking changes require a major version and a migration note.
 - Companion and host must perform version compatibility checks on session start.
@@ -635,7 +634,7 @@ Host-owned operations (install/uninstall/launch/terminate/permissions/location/d
 | Permissions | simctl / adb | — |
 | Location simulation | simctl / adb | — |
 | Appearance/settings | simctl / adb | — |
-| Audit orchestration + report generation | CLI / MCP / Audit engine | Companion provides evidence context |
+| Audit orchestration + report generation | CLI / Audit engine | Companion provides evidence context |
 
 ---
 
@@ -724,7 +723,7 @@ Scoring policy:
 
 ### Execution flow
 
-1. CLI/MCP `audit` command resolves app target + policy profile.
+1. CLI `audit` command resolves app target + policy profile.
 2. Host driver performs preflight and lifecycle setup.
 3. Companion collects dynamic context (hierarchy, interactables, screen context).
 4. Audit engine runs selected rule packs in parallel-safe groups.
@@ -805,4 +804,4 @@ CI quality gates are mandatory:
 | 8 | AuditEngine target + v1 rule packs + report schema | Swift | Phase 6, 7 |
 | 9 | CLI + REPL + preflight environment checks + audit command | Swift | Phase 8 |
 | 10 | gRPC host service layer + audit report APIs | Swift | Phase 9 |
-| 11 | MCP stdio server + assistant-facing tools for local AI clients | Swift | Phase 10 |
+| 11 | Assistant-facing device tools (`amoo device`, `amoo flow`); the MCP stdio server was removed | Swift | Phase 10 |
