@@ -39,6 +39,30 @@ final class FlowReportTests: XCTestCase {
         XCTAssertEqual(result.steps.last?.result?.objectValue?["failure_kind"], .string("assertion_mismatch"))
     }
 
+    /// A tap whose expected element never showed passed its step, and the flow failed one step
+    /// later with a misleading "no element matched".
+    func testATapWhoseExpectationWasNotMetFailsTheStep() {
+        let tap = ToolResult.success(
+            "Tap dispatched.\nExpected 'sign_in_button' to appear within 15000ms: not observed.",
+            structuredContent: .object(["expected_effect_met": .bool(false), "expectation_status": .string("not_met")])
+        )
+        let failed = failingUnmetExpectation(tap)
+        XCTAssertTrue(failed.isError)
+        XCTAssertEqual(failed.structuredContent?.objectValue?["failure_kind"], .string("expectation_not_met"))
+        XCTAssertTrue(failed.content.contains("not observed"), failed.content)
+
+        let met = ToolResult.success("ok", structuredContent: .object(["expected_effect_met": .bool(true)]))
+        XCTAssertFalse(failingUnmetExpectation(met).isError)
+        let inconclusive = ToolResult.success(
+            "ok",
+            structuredContent: .object(["expectation_status": .string("unverified")])
+        )
+        XCTAssertFalse(
+            failingUnmetExpectation(inconclusive).isError,
+            "an expectation that could not be judged is not a failure"
+        )
+    }
+
     func testWritesTheReportIntoTheOutputDirectory() async throws {
         let scratch = try makeScratchDirectory()
         let result = await run([.init(tool: "tap_element"), .init(tool: "assert_value")])
