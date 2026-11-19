@@ -53,6 +53,33 @@ final class DeviceRuntimeLifecycleTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.fileURL(deviceID: runtime.deviceID).path))
     }
 
+    /// A lapsed lease whose companion still answers read `state=running`, while `--runtime-id`
+    /// already refused it as expired.
+    func testListMarksAnExpiredLeaseWhoseCompanionStillAnswers() async throws {
+        let store = try DeviceRuntimeStore(directory: makeScratchDirectory().url, ttl: 60)
+        var runtime = try store.start(
+            platform: AmooCore.Platform.android,
+            deviceID: "emulator-5554",
+            deviceName: nil,
+            owner: "bench",
+            now: Date().addingTimeInterval(-120)
+        )
+        runtime.port = 22093
+        runtime.companionPID = 4242
+        _ = try store.refresh(runtime, now: Date().addingTimeInterval(-120))
+        let health = DeviceRuntimeHealth(processMatches: { _, _ in true }, isReady: { _ in true })
+
+        let json = await runEnvList(json: true, store: store, health: health)
+        let entry = try XCTUnwrap(
+            (JSONSerialization.jsonObject(with: Data(json.output.utf8)) as? [String: [[String: Any]]])?["runtimes"]?
+                .first
+        )
+        XCTAssertEqual(entry["expired"] as? Bool, true)
+        let human = await runEnvList(json: false, store: store, health: health)
+        XCTAssertTrue(human.output.contains("expired="), human.output)
+        XCTAssertFalse(human.output.contains("expires="), human.output)
+    }
+
     func testStoppingByDeviceUsesAccessLockAndCanCleanExpiredRuntime() async throws {
         let store = try DeviceRuntimeStore(directory: makeScratchDirectory().url, ttl: 60)
         let runtime = try store.start(

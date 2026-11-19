@@ -174,9 +174,12 @@ private struct EnvListEntry: Encodable {
     var state: DeviceRuntimeState
     var owner: String?
     var expiresAt: Date
+    /// The lease lapsed. Its companion may still answer, so `state` can read `running`, but
+    /// `--runtime-id` no longer grants control; `env up --runtime-id` renews or recovers it.
+    var expired: Bool
 
     enum CodingKeys: String, CodingKey {
-        case platform, device, name, port, owner
+        case platform, device, name, port, owner, expired
         case runtimeID = "runtime_id"
         case companionPID = "companion_pid"
         case state
@@ -200,7 +203,8 @@ func runEnvList(
             companionPID: runtime.companionPID,
             state: runtime.state,
             owner: runtime.owner,
-            expiresAt: runtime.expiresAt
+            expiresAt: runtime.expiresAt,
+            expired: runtime.isExpired()
         )
     }
     if json {
@@ -212,7 +216,7 @@ func runEnvList(
         "\(entry.runtimeID)  \(entry.platform)  \(entry.device)  \(entry.name ?? "-")"
             + "  port=\(entry.port.map(String.init) ?? "-")"
             + "  state=\(entry.state.rawValue)  owner=\(entry.owner ?? "-")"
-            + "  expires=\(format.string(from: entry.expiresAt))"
+            + "  \(entry.expired ? "expired" : "expires")=\(format.string(from: entry.expiresAt))"
     }
     return CLIResult(output: lines.joined(separator: "\n"), exitCode: 0)
 }
