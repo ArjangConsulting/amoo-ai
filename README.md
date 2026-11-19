@@ -4,7 +4,7 @@ Swift-first mobile testing infrastructure for iOS and Android, with:
 
 - protocol-based drivers
 - gRPC companion communication
-- CLI and MCP surfaces
+- a CLI for people, scripts and AI agents
 - deterministic automation first, AI workflows second
 
 ## Repo Layout
@@ -30,36 +30,25 @@ For iOS, use macOS 15+ with Xcode and an installed simulator runtime:
 ```bash
 brew install protobuf xcodegen
 amoo preflight --platform ios
-amoo mcp serve
+amoo env up --platform ios --app-id <bundle-id> --json
+amoo device --runtime-id <runtime> --json current_app
+amoo env down --runtime-id <runtime> --json
 ```
 
 For physical iOS devices, also install `libimobiledevice`. For Android, install a supported
-JDK (17–26) and Android SDK, then run:
+JDK (17–26) and Android SDK, then use `--platform android`:
 
 ```bash
 brew install --cask temurin@21
 amoo preflight --platform android
-amoo mcp serve --platform android
+amoo env up --platform android --avd <name> --app-id <package> --json
 ```
 
-To let an AI drive a managed session, register amoo with your client. The Homebrew package
-includes an installer you can run from any project:
-
-```bash
-bash "$(brew --prefix amoo)/share/amoo/install-mcp.sh"
-```
-
-It detects Claude Code, Claude Desktop, Codex, Cursor, and Windsurf, asks before writing,
-and registers amoo in your user configuration for use across projects. For manual Claude Code
-setup (also works with older packages without the installer):
-
-```bash
-claude mcp add --scope user amoo -- "$(brew --prefix amoo)/bin/amoo" mcp serve --platform ios
-```
-
-Then call `start_session` with `platform` and `app_id`, keeping the returned `session_id` on every
-device call. See the [MCP guide](docs/mcp-server.md) for per-client config snippets, installer
-options, and smaller tool profiles, and [prerequisites](docs/prerequisites.md) for platform tooling.
+`amoo env up` leases a simulator or emulator and starts its companion; pass the `runtime_id` it prints
+to `amoo device` and `amoo flow`, and release it with `amoo env down`. `amoo device` with no tool lists
+every tool and its arguments. Reusable sequences are checked-in flows (`amoo flow <file.amoo.json>`),
+which `amoo generate plan --from-flow` and `amoo generate test` turn into XCUITest or Espresso tests.
+See the [tool guide](docs/device-tools.md) and [prerequisites](docs/prerequisites.md).
 
 ## Use amoo from any AI agent
 
@@ -71,7 +60,8 @@ use amoo:
 - **The `device-verifier` subagent.** It runs a contract-driven verification with checked-in
   probes.
 - **The `driving-amoo` and `device-verifier` skills.**
-- **The amoo MCP server.**
+
+The agents drive devices with the amoo CLI, so the plugin needs no server.
 
 Every route below needs the `amoo` CLI itself, installed with Homebrew (see [Install](#install)).
 
@@ -84,8 +74,8 @@ Every route below needs the `amoo` CLI itself, installed with Homebrew (see [Ins
 | Cursor, OpenCode, anything else | `amoo agent install --user --client cursor` (or `opencode`, …) |
 | Any Agent Skills host | `npx skills add ArjangConsulting/amoo-ai --skill driving-amoo` (skills only) |
 
-The plugin registers its own amoo MCP server. If you previously registered amoo with
-`install-mcp.sh` or `claude mcp add`, remove that entry so the tools are not listed twice.
+amoo no longer runs an MCP server. If you registered one (`install-mcp.sh`, `claude mcp add`, a plugin
+from an older release), remove that entry: `amoo mcp serve` now only prints how to use the CLI.
 
 In Claude Code, the optional **`amoo-live`** mod (`claude plugin install amoo-live@amoo`) adds a
 live pane while an agent drives a device. It shows a mirror of the device (in Ghostty and kitty),
@@ -99,7 +89,7 @@ for your AI clients (Claude Code, Cursor, Codex, Copilot, Gemini, OpenCode). Age
 instead, for example `amoo init --platform ios --device <phone> --device <tablet> --out <manifest>
 --json`. An explicit `--app <absolute-build-path> --app-id <id>` optionally installs an existing
 artifact during setup. See [initialization and manifest usage](docs/init.md), including the AI
-client step, validation, cleanup and MCP recording.
+client step, validation and cleanup.
 
 To install without a marketplace, use `amoo agent install`. It writes the subagents in each
 client's native format, plus the skills they rely on. Guided installs choose a scope first, skip the
@@ -138,8 +128,9 @@ before setup, and `install` and `update` never write it, so the rules survive up
 narrow routing, pin an executable or add standing checks; it cannot loosen the agent's hard rules
 or change its report contract. Repository conventions still belong in the repository's `amoo.md`.
 
-Standalone MCP configs pin the resolved absolute executable path; shell aliases do not affect spawned
-servers. Validate delegated results with `amoo agent validate-report --report <report.json>
+Installed agents pin the resolved absolute executable path; shell aliases do not apply. To leave one
+client's agent out, for example a project Claude `amoo` agent that would shadow your own user-wide one,
+pass `--skip claude:amoo`; it is recorded, so later updates keep leaving it out. Validate delegated results with `amoo agent validate-report --report <report.json>
 --run-id <UUID> --checks <caller-check-ids>`. A pass requires all requested assertions evaluated and
 passed, complete coverage and resolved cleanup. Detailed evidence stays in local referenced files.
 
@@ -150,10 +141,8 @@ Cursor's parent names when it launches a subagent), and the
 choice overrides the agent file. To pin a model yourself instead, add `model:` to the Claude agent
 file or `model` / `model_reasoning_effort` to the Codex one; `amoo agent update` keeps such edits.
 
-Where the client allows it, these standalone agents start `amoo mcp serve` for the subagent
-alone. Your main session then never loads amoo's tool catalog, and the subagent uses the same
-tools through `amoo device … --json` when MCP is unavailable. Existing files that differ are
-kept unless you pass `--force`.
+The agents drive devices through `amoo device … --json` and `amoo flow`, so your main session never
+loads a tool catalog. Existing files that differ are kept unless you pass `--force`.
 
 For repositories checking in installed agents and skills, pin the Amoo version in CI and check
 for drift without writing files:
@@ -164,8 +153,8 @@ python3 .agents/skills/driving-amoo/scripts/check-install.py --client opencode -
 
 The helper runs `amoo agent install --dry-run --json` and fails for any action other than
 `unchanged`, including missing files and preserved local edits. Use `--amoo /absolute/path/to/amoo`
-to select the pinned CLI and `--binary /absolute/path/to/amoo` when the installed MCP config pins
-a different executable. For Claude installs the helper lives under `.claude/skills/` instead.
+to select the pinned CLI and `--binary /absolute/path/to/amoo` when the installed agents pin a
+different executable. For Claude installs the helper lives under `.claude/skills/` instead.
 `amoo agent status --target . --client opencode` is the richer successor to this helper.
 Refresh with `amoo agent update --target . --client opencode`, review any preserved files, then rerun
 the check. Upstream CI verifies a fresh installation round trip for all clients; consumer repos
@@ -185,10 +174,9 @@ make lint
 The user guides use `amoo` for the installed CLI. When developing from this checkout, substitute
 `swift run amoo` or the absolute path to `.build/debug/amoo`.
 
-To register your local debug build across projects and pin subagent CLI calls to it:
+To pin your user-wide subagents to your local debug build:
 
 ```bash
-scripts/install-mcp.sh --bin "$PWD/.build/debug/amoo"
 .build/debug/amoo agent install --user --client codex --binary "$PWD/.build/debug/amoo"
 ```
 
@@ -208,7 +196,7 @@ scripts/run-e2e-android.sh
 - [Prerequisites](docs/prerequisites.md) — external tooling, install steps, `make` targets
 - [Physical iOS Devices](docs/physical-ios-devices.md) — `iproxy`, pairing, provisioning, current constraints
 - [macOS](docs/macos.md) — driving apps on this Mac's desktop (experimental): setup, geometry, limits
-- [MCP For Local AI](docs/mcp-server.md) — running the MCP server, client config, reusable test flows
+- [Device tools](docs/device-tools.md) — what `amoo device` and `amoo flow` do, tool by tool
 - [Telemetry](docs/telemetry.md) — local OpenTelemetry traces (on by default, `AMOO_TELEMETRY_LOCAL=0` to turn off), OTLP export, `amoo usage report`
 - [Amoo Studio](https://github.com/maniramezan/amoo-studio) — Compose desktop client
 - [Studio protocol](docs/studio.md) — Swift service and GUI integration boundary

@@ -6,11 +6,11 @@
 running Claude Code in this repo.
 
 - **Skills**: the user-facing amoo plugin lives in `plugins/amoo/` — the `amoo` and
-  `device-verifier` subagents plus the `driving-amoo` (drive a device / record a session that
+  `device-verifier` subagents plus the `driving-amoo` (drive a device / author a flow that
   generates a good test), `device-verifier`, `ios-accessibility` and `android-accessibility` skills. `skills/` holds contributor skills
   (`ios-accessibility`, `ios-simulator`, `android-*`, …). Prefer invoking the relevant skill over
-  re-deriving its workflow. After editing `plugins/amoo/agents/*.md`, run `make plugin`. `MCPInstructionsAlignmentTests` keeps the MCP `initialize`
-  instructions and `plugins/amoo/skills/driving-amoo/SKILL.md` in sync — update both together.
+  re-deriving its workflow. After editing `plugins/amoo/agents/*.md`, run `make plugin`. amoo is CLI-only: there is no MCP server, so guidance names
+  `amoo device` / `amoo flow` commands, never MCP tools or sessions.
 - **Auto-memory**: recurring, hard-won facts about this repo are in the project memory index
   (`MEMORY.md`). Check it before deep dives; add to it when you learn something non-obvious that
   isn't already captured by the code, `AGENTS.md`, or `Architecture.md`.
