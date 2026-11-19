@@ -375,13 +375,25 @@ private func verifyCompanionOwner(platform: Platform, port: Int, deviceID: Strin
 func stopProcess(pid: Int32?, graceSeconds: Double = 20) {
     guard let pid, pid > 0, kill(pid, 0) == 0 else { return }
     kill(-pid, SIGTERM)
-    let deadline = Date().addingTimeInterval(graceSeconds)
-    while Date() < deadline, kill(pid, 0) == 0 {
-        Thread.sleep(forTimeInterval: 0.25)
-    }
-    if kill(pid, 0) == 0 {
-        kill(-pid, SIGKILL)
-    }
+    guard !waitForProcessExit(pid, seconds: graceSeconds) else { return }
+    kill(-pid, SIGKILL)
+    // Returning straight after SIGKILL let the caller's `kill(pid, 0)` still see the dying process,
+    // so `env down` reported "Could not stop the companion process" and an immediate retry worked.
+    _ = waitForProcessExit(pid, seconds: 5)
+}
+
+/// Whether `pid` exits within `seconds`. A child of this process is reaped as it goes, because
+/// an unreaped zombie still answers `kill(pid, 0)`.
+func waitForProcessExit(_ pid: Int32, seconds: Double) -> Bool {
+    let deadline = Date().addingTimeInterval(seconds)
+    repeat {
+        var status: Int32 = 0
+        if waitpid(pid, &status, WNOHANG) == pid || kill(pid, 0) != 0 {
+            return true
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    return false
 }
 
 // MARK: - Orphaned processes
