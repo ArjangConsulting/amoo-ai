@@ -1,107 +1,59 @@
-## Record a session that generates a good test
+## Author a flow that generates a good test
 
-A session that "passed" is not the deliverable — the deliverable is a plan that
-`amoo generate test` turns into a readable, complete test. The MCP `initialize`
-instructions carry the same list (kept in sync by `MCPInstructionsAlignmentTests`);
-follow it whether you drive amoo through MCP or the CLI.
+A flow that passed is not the deliverable: the deliverable is a plan that `amoo generate test` turns
+into a readable, complete test.
 
-**Canonical workflow:** `start_session` → drive the app under test → `end_session`
-(which compiles the history and writes `plan.json`) → inspect `plan.json` and its
-warnings → `amoo generate test`. `compile_session_to_plan` is an *optional
-preview* you may run while the session is still open; it is never a required step.
+**Workflow:** write the working sequence as a flow (`*.amoo.json`) → run it with `amoo flow` until it
+passes twice → `amoo generate plan --from-flow <flow> --out <dir>` → read `plan.json` and its warnings →
+`amoo generate test --plan <dir>/plan.json --out <dir>`.
 
-1. **Start from deterministic launch state.** If the caller gave you launch
-   arguments or environment (skip-onboarding, reset-state, a mock-server URL),
-   pass them to `start_session` / `amoo companion start`. The plan records
-   them under `requirements` and the generated test replays them in `setUp`. Don't
-   tap through onboarding you were handed a flag to skip.
-2. **Resolve every target semantically before acting.** `describe_screen` to
-   orient, `find_elements id=…` / `contains_text=…` to confirm the specific
-   element, then act with `tap_element` / `set_text` / `swipe_in_direction`.
-   Selector priority: accessibility id → visible label → text filter → (last
-   resort) coordinates.
-3. **List-row gestures — one canonical workflow.** For a tap or swipe on one row
-   of a list (SwiftUI `.swipeActions`, per-row buttons): `find_elements` for the
-   row, then call `swipe_in_direction` with that row's `element_id` (preferred) or
-   `element_label`. The companion fails rather than guessing on an ambiguous
-   id/label, the recorded step keeps the row's identity, and the compiler emits an
-   element-scoped gesture — `groceriesTaskRow.swipeLeft()`, not `app.swipeLeft()`.
-   Only when the row has no stable id or label, fall back to a coordinate
-   `swipe`/`tap`: the recorder binds it to the element you just resolved
-   (`SessionAction.gestureTarget` / `observedElements`) so codegen still recovers
-   the row. Never read coordinates off a screenshot (pixels vs points).
-   **Drag and drop / pinch.** `drag` takes the dragged element as
-   `id`/`label`/`contains_text` (+ `parent_id`, `index`/`first`) and the drop
-   target with the same keys prefixed `to_`. It holds 800ms at the source so the
-   item lifts (`hold_ms` to change it), then moves over `duration_ms`. `pinch`
-   takes `scale` (above 1 zooms in, below 1 zooms out) on an element, or on the
-   whole app when given no element and no point. Both compile to element-scoped
-   steps — `card.press(forDuration:thenDragTo:)`, `map.pinch(withScale:velocity:)`
-   — only when every end was an element; a coordinate end is excluded. Assert
-   the outcome afterwards (the card is in the new column, the zoom label changed).
-4. **Verify every mutation with an explicit semantic assertion.** After a delete,
-   `assert_absent` (or `find_elements` + count) on a text/label. After an
-   add, `assert_visible` the new element. An unverified mutation compiles to an
-   action with nothing asserting on it. A selection (a date, a row, a tab) is asserted with
-   `assert_selected expected=true|false` — it reads the selected trait, fails when the element is
-   absent even for `expected=false`, and is the only call that becomes an `.isSelected` check. Do
-   not rely on `find_elements` printing `selected`: an observation is never turned into an
-   assertion, and the plan warns `selected_state_not_asserted` when one was left unasserted.
-   Selector fields are constraints — `id`, `label` and `contains_text` must **all** match, so
-   `assert_visible id=… contains_text="Range end"` checks both.
-5. **End the session, then read the plan warnings before generating.**
-   `end_session` already compiles the recorded history and writes `plan.json` —
-   there is no separate `compile_session_to_plan` step in the canonical flow (it
-   is an optional preview you can call earlier, while the session is still open,
-   and it does not change the plan `end_session` writes). Inspect `plan.json` and
-   every `compiledPlan.warnings` entry; each carries a `category` (`inspection_omitted`,
-   `observation_approximated`, `selected_state_not_asserted`, `assertion_preserved`,
-   `assertion_weakened`, `assertion_unsupported`, `action_excluded`,
-   `selector_constraint_discarded`) plus the action index, selector and state. An `excluded` / incomplete-plan warning
-   means a required **app-under-test** action was dropped: treat that as a
-   **failed** codegen result, not a finished test. Fix the recording (add an
-   identifier, drive through an addressable ancestor, re-record) rather than
-   reaching for `--allow-incomplete`. amoo's own lifecycle calls
-   (`start_session`, `end_session`, `compile_session_to_plan`,
-   `get_session_report`) are never recorded as app actions and never emit a
-   trailing `XCTFail` for uncompiled work.
-6. **Review the generated variable names and markers.** Names come from labels and
-   inferred roles; a UUID/hash/record-id-derived name, or an
-   `XCTFail("Uncompiled required action …")`, means the plan was incomplete — go
-   back to step 5. Give the test a descriptive name from the requested flow with
-   `amoo generate test --test-name "…"`.
-7. **Report back** the plan path, the generated file path, every compiled-plan
-   warning, and any limitation (mock server required, transient system-UI steps,
-   approximate selectors). If you passed `--allow-incomplete`, say which steps are
-   missing and why.
+1. **Start from deterministic launch state.** Put the caller's launch arguments and environment
+   (skip-onboarding, reset-state, a mock-server URL) on the flow's `device_launch_app` step. The plan
+   records them under `requirements` and the generated test replays them in `setUp`. Don't tap through
+   onboarding you were handed a flag to skip.
+2. **Resolve every target semantically.** Selector priority: accessibility id → visible label → text
+   filter → (last resort) coordinates. Selector fields are constraints: `id`, `label` and
+   `contains_text` must **all** match.
+3. **List-row gestures.** For a swipe or tap on one row, give `swipe_in_direction` that row's
+   `element_id` (preferred) or `element_label`. The compiler then emits an element-scoped gesture,
+   `groceriesTaskRow.swipeLeft()`, not `app.swipeLeft()`. Never read coordinates off a screenshot.
+   `drag` takes the source as `id`/`label` and the target with `to_` keys; `pinch` takes `scale`. Both
+   compile to element-scoped steps only when every end was an element. Assert the outcome afterwards.
+4. **Verify every mutation explicitly.** After a delete, `assert_absent`; after an add,
+   `assert_visible`. A selection is asserted with `assert_selected expected=true|false`, the only step
+   that becomes an `.isSelected` check: an observation is never turned into an assertion. A tap's
+   `expect_id` / `expect_label` is a postcondition too: keep it, and check the generated test waits for it.
+5. **Read the plan warnings before generating.** Each `compiledPlan.warnings` entry carries a
+   `category` (`inspection_omitted`, `observation_approximated`, `selected_state_not_asserted`,
+   `assertion_preserved`, `assertion_weakened`, `assertion_unsupported`, `action_excluded`,
+   `selector_constraint_discarded`) plus the step, selector and state. An `excluded` /
+   incomplete-plan warning means a required app action was dropped: treat that as a **failed**
+   codegen result. Fix the flow (add an identifier, drive through an addressable ancestor) rather than
+   reaching for `--allow-incomplete`.
+6. **Review the generated names and markers.** A UUID- or hash-derived name, or an
+   `XCTFail("Uncompiled required action …")`, means the plan was incomplete: go back to step 5. Name
+   the test after the requested flow with `--test-name "…"`.
+7. **Report back** the flow, plan and generated file paths, every compiled-plan warning, and any
+   limitation (mock server required, approximate selectors). If you passed `--allow-incomplete`, say
+   which steps are missing and why.
 
 ### Acceptance scenario
 
 > *Skip onboarding, open Tasks, delete Groceries, add Groceries, generate XCTest.*
 
-A correct run of that request looks like:
-
-- Session started with the app's skip-onboarding / reset-state launch environment
-  (not tapped through).
-- `find_elements` resolves the "Groceries" task-list row **before** the
-  swipe; the recorded `swipe_in_direction` carries that row's `element_id`.
-- Generated code contains `groceriesTaskRow.swipeLeft()` (or `groceriesRow`) —
-  **never** a UUID-derived name like `a40fb286E7ca…Row`.
-- Two identically-labelled elements with different roles get distinct semantic
-  names (a catalog row `groceriesTaskRow` vs a picker option
-  `groceriesPresetOption`), never `groceries` / `groceries2`.
+- The flow launches with the app's skip-onboarding / reset-state environment (not tapped through).
+- The swipe on the "Groceries" row carries that row's `element_id`; the generated code contains
+  `groceriesTaskRow.swipeLeft()`, never a UUID-derived name.
+- Two identically labelled elements with different roles get distinct semantic names
+  (`groceriesTaskRow` vs `groceriesPresetOption`), never `groceries` / `groceries2`.
 - `setUp` sets `app.launchEnvironment[...]` for each provided flag.
-- A delete assertion (`assert_absent` / `waitForAbsence` on "Groceries")
-  and an add assertion (`assert_visible` / `waitForHittability` on "Groceries").
-- No `--allow-incomplete` — and if the agent used it, an explicit note of which
-  steps are missing and why.
-
-`IOSSessionCodegenRegressionTests` locks this in end-to-end.
+- A delete assertion (`waitForAbsence` on "Groceries") and an add assertion.
+- No `--allow-incomplete`, or an explicit note of which steps are missing and why.
 
 ## Export tests: `generate test` emits a skeleton, not a finished test
 
-Use `amoo generate test --plan path/to/test.amootest` to turn a compiled Studio
-plan into a standalone XCUITest or Espresso test. Generated code has no run-time
+Use `amoo generate test --plan path/to/plan.json` to turn a compiled plan into a
+standalone XCUITest or Espresso test. Generated code has no run-time
 dependency on amoo — but it is a **skeleton**. A repo-aware finalize pass is
 expected before you commit it:
 
@@ -117,10 +69,8 @@ expected before you commit it:
 `test-context.json` gives generation the host's `baseClass`, `appFactory`,
 `harnessLaunchesApp`, `imports`, reusable `helpers`, and a `selectorExpressions`
 id catalog — see [`docs/test-context.md`](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/test-context.md). Supply it
-at generate time (`--context`), when recompiling a report
-(`amoo generate plan --report report.json --context … --out …`), or through MCP at
-`start_session` / `compile_session_to_plan` (`context_path` / `context_json`,
-persisted with the session so an `end_session` recompile keeps it).
+at plan time (`amoo generate plan --from-flow <flow> --context … --out …`) or at generate
+time (`--context`).
 
 ### Triage the compiled-plan warnings
 
@@ -138,46 +88,6 @@ Steps the compiler could tell were system UI or a dismissable overlay carry
 `transient: true`. If your build runs in a test/mock mode that suppresses those
 prompts, drop the transient steps during finalize.
 
-### Repeated taps: a tunable guess, with the evidence attached
-
-Several identical taps close together are read as one person hammering an
-unresponsive button, and collapse into a single guarded step. If they were
-cumulative instead — a stepper, a quantity field, a keypad — the plan says 1 where
-the recording said N. `flow.json` always keeps every tap.
-
-**Why this can't be decided automatically.** Telling the two apart means knowing
-whether the app responded to the first tap, and nothing a session records answers
-that: `tap_element`'s recorded result is `Tapped verified element [id] label`,
-built from the element tapped, so it is byte-identical whether the screen changed
-or not. Timing is a proxy, and the populations overlap — a PIN entered quickly is
-faster than a slow retry. So the window is a **default to tune per app**, not a
-constant to trust.
-
-Tune it with `retry_tap_interval_ms` on `compile_session_to_plan`, or
-`AMOO_RETRY_TAP_INTERVAL_MS` for every compile. **Default is 300ms**, deliberately
-below the ~450ms `tap_element` round-trip: an agent's taps are ~0.5s apart no matter
-what it intends, so a larger window would collapse deliberate repeats on transport
-latency alone. Measured against a sample app, taps requested 0.05s apart recorded at
-0.576s and 0.678s — the same intent landing either side of a 600ms window.
-
-The practical effect is that collapsing is **opt-in for agent-driven recordings**:
-nothing is folded away silently, and you raise the window when you know a run was a
-retry loop. A human driving a recorder directly can still produce genuine sub-300ms
-hammering, which the default still catches.
-
-- A hammered button kept as N steps → **raise** it.
-- A deliberate repeat wrongly collapsed → **lower** it.
-
-You don't have to guess at the value. Every run of 2+ identical taps is reported in
-`retryRunObservations` with its gaps and whether it collapsed — including the runs
-the window *rejected*, which are exactly the evidence for raising it. The text
-summary lists the kept runs inline. Compile a few real sessions, look at where the
-two clusters fall, and pick a value that separates them for this app.
-
-A run whose taps are not uniformly fast is left intact rather than partially
-collapsed: mixed cadence is ambiguous, and a partial collapse would change the tap
-count on a guess.
-
 ## Repo-agnostic gotchas worth knowing before you finalize
 
 - **Merged accessibility hides children.** `.accessibilityElement(children: .combine)`
@@ -190,7 +100,7 @@ count on a guess.
   visible title and flag it `approximate`; a copy or locale change will break it.
 - **Automated-test mode may block live network.** A project can hard-block
   outbound network in test mode. An un-mocked end-to-end plan cannot "just run
-  against staging" — if the session used a mock-server base URL (or
+  against staging" — if the flow used a mock-server base URL (or
   `requirements` names one), the generated test needs that mock running, and the
   plan should say so.
 

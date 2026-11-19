@@ -16,7 +16,7 @@ works inside `run_steps` steps too.
 
 - **The app and launch environment.** A profile lists the apps it may be typed into and the launch
   environment amoo must have sent (`requires_launch_env`, `*` = key present). amoo checks its own
-  record of the launch (`start_session` or `device_launch_app`), never what you claim. With the CLI,
+  record of the launch (`device_launch_app` or `env up --launch`), never what you claim. With the CLI,
   pass `--runtime-id` so the launch is remembered between `amoo device` calls.
 - **Secrets only into secure fields.** A `secret` field fills only a password field. `type_text`
   refuses a secret because it cannot check the focused field; use `fill_field` with the field's id.

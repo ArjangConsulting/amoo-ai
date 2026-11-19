@@ -1,102 +1,43 @@
-## Discover once, verify complete coverage
+## Verify complete coverage
 
-Use the pinned binary's `amoo capabilities --command device --platform <platform>` or MCP
-`get_capabilities` once per binary/runtime. Query `tool=<name>` (CLI `--tool <name>`) only for an
-unfamiliar operation. Cache the version, identity and schema; rediscover after a binary change or
-provider change. Older binaries without discovery fall back to their own help. `--runtime-id` and
-`AMOO_RUNTIME_ID` identify controlled CLI runtimes; `--lease` is not a device flag.
+Read a tool's schema once per binary with `amoo capabilities --tool <name>`; `amoo device` with no tool
+lists them all. For selectors containing spaces use `--arguments-json @args.json`, for example
+`{"label":"Account settings","limit":12}`; never concatenate selectors into shell commands. A
+validation error names the argument: fix the call rather than retrying it.
 
-Prefer typed MCP arguments. For CLI selectors containing spaces, use an argv array or
-`amoo device --runtime-id <id> --json find_elements --arguments-json @arguments.json`, where the
-file is an object such as `{"label":"Account settings","limit":12,"response_mode":"compact"}`.
-Do not concatenate selectors into shell commands. Validation errors name the argument and example;
-correct the invocation before retrying. Do not restart a session to fix an argument or selector.
+**Launch.** Pass the exact launch configuration on `device_launch_app` (or `env up --launch`). Its
+`launch` receipt reports `fresh_process`, `environment_delivery` and `arguments_delivery`; unknown
+delivery is missing evidence. iOS delivers process environment and arguments; Android delivers Intent
+extras, which the app must read. Delivery does not prove the app consumed a flag, and a reused process
+cannot acquire a new environment.
 
-Supply exact launch configuration at startup. Check `startup.launch.fresh_process`,
-`environment_delivery` and `arguments_delivery` (or `launch` on `device_launch_app`); unknown delivery
-is missing evidence.
-iOS uses process environment; Android uses Intent extras, requiring app support. Host delivery does
-not establish that the app consumed a flag. Installation, foreground identity, semantic readiness
-and rendered readiness are separate results. A reused process cannot acquire a new environment.
-For an owned stale/unresponsive CLI runtime, retry `env up --platform <platform> --runtime-id <id>`;
-include the build only when reinstalling. This preserves runtime identity and data. Do not release
-ownership merely to recover a companion. A managed MCP session still follows its scoped recovery.
+**Checks.** Derive the result from every requested check: `fail` if an observed requirement failed;
+`pass` only if every one passed; `partial` if some completed and coverage is missing; `blocked` if none
+completed. Unsupported native state is blocked coverage, never a pass. A gesture's dispatch is not an
+assertion. Use `precondition=true` on setup assertions: a mismatch blocks coverage rather than proving
+a product defect. A selector miss returns nearby candidates: confirm the target, try a stable ID or
+scoped text, and look at the saved screenshot before calling navigation blocked. A content error does
+not block independent navigation.
 
-Declare every required check in `start_session checks` and attach `check_id` to explicit assertions.
-Read `get_verification_report` before closing and retain its per-check evidence. Unsupported native
-state is blocked coverage, not a failed element lookup or a pass. Successful gesture dispatch is
-not an assertion. A selector miss returns identity and bounded available controls: confirm the target,
-try a stable ID or scoped text, and inspect the relevant saved screenshot before declaring navigation
-blocked. A content error does not block independent navigation; verify those controls separately.
+**Assertion results.** A failed assertion says what it last observed (`[id] label visible=… value=…`).
+`tap_element` with `expect_*` reports `expected_effect_met` and `expectation_status` (`met`, `not_met`,
+`already_satisfied`, `unverified` with `expectation_error`); in a flow an unmet expectation fails the
+step. `set_text` reports `exact`, `masked_change` or `unverified`; a masked change cannot prove a
+secret's value.
 
-Use bounded `find_elements`, `response_mode=compact`, and `run_steps result_mode=compact` for known
-sequences. Batch independent assertions together: an assertion-only batch runs every step by default,
-while a batch with an action stops at its first failure (`continue_on_error` overrides either).
-Keep decision-dependent steps separate. Save screenshots with `output`, `return_image=false`, and
-an appropriate `scale`; inspect relevant screenshots for visual/layout checks. Screen tokens detect
-semantic changes, not pixel equivalence; incremental hierarchy diffs are not advertised. Reuse the
-same runtime/session during ordinary queries and app reinstall. Metrics report response bytes,
-image dimensions, client calls, operations, setup/recovery milliseconds and completed checks.
-Report measured values; do not infer model-token savings. The caller chooses the cheapest reliable
-model per spawn; exploratory navigation and screenshot interpretation still require adequate reasoning.
+**Cost.** Prefer `get_screen_context` and scoped `find_elements` to full trees or screenshots. Batch a
+known sequence of actions and assertions with `run_steps` (up to 20 steps, stops on failure); keep
+decision-dependent steps separate. Keep one `run_id` (or `AMOO_RUN_ID`) across attempts; `amoo usage
+report` aggregates calls, bytes and timings. Report measured values; do not infer token savings.
 
-Derive overall status from all required checks: `fail` if an observed requirement failed; `pass`
-only if every required check passed; `partial` if some checks completed and coverage remains missing;
-`blocked` if no requested check completed. Retain blocked and untested reasons and evidence per check.
-In the compact AgentRunReport version 2 transport, passed/failed checks are assertions and blocked/
-untested checks remain in `coverage.notEvaluated` with explicit reasons. Use `verdict=notAssessed`
-for partial coverage. Never report overall pass for an incomplete run.
+**Screenshots.** Save with `output=<path>`; images are not returned inline unless asked for. Return
+selected thumbnails or an `amoo shots montage <dir>` contact sheet for review. Pause playback before
+stable captures. Treat `capture_suspect=true` as inconclusive, and read `screen_state`,
+`foreground_app_id` and the viewport before diagnosing rendering. After a fold or display change,
+assert the app state: a verified hinge transition does not verify the app. For transient UI, take the
+screenshot with `settle_timeout_ms=0` straight after the tap (`check_effect=false` on that tap), then
+assert the eventual outcome; use a cold fixture when cached data would skip a loading state.
 
-Keep one caller UUID in `run_id` across every attempt, or set `AMOO_RUN_ID` before starting each
-CLI/MCP process. Successful sessions inherit their startup run UUID. Call `get_run_telemetry`
-with that UUID to aggregate failed startup, recovery and unfinished calls across sessions and
-processes. The current report request is excluded from its snapshot; subsequent reports include it.
-`unfinished_calls` includes active requests and requests abandoned by a terminated process.
-`recording_health=incomplete` means the totals may omit unreadable or unwritten records.
-Text payload bytes exclude image blocks; wire response bytes include encoding overhead and
-base64 images. Inline image bytes/pixels and saved evidence bytes/pixels are separate measurements,
-not token estimates. `model_token_usage=null` means the device tool has no provider token usage.
-
-Delegated checks default to `output=<path> return_image=false`. Return selected thumbnail or
-contact-sheet paths for review; use `amoo shots montage <evidence-dir>` to combine saved captures.
-Inspect every screenshot needed to assess layout. Pause playback through an app control before
-stable inspections unless motion is the requirement, and replay supplied recorded navigation flows.
-Treat `capture_suspect=true` as inconclusive image evidence. Check capture_analysis, foreground_app_id,
-screen_state and viewport together, then recover the device or recapture before diagnosing rendering.
-Pixel analysis may be unavailable on hosts without an image decoder; that is never a clean capture verdict.
-After a fold or display change, read posture, viewport, lock and foreground identity together and
-assert the requested app state. A verified hinge transition does not verify the app or unlock the screen.
-Reports preserve `outcome_status`: `dispatched`, `target_state_confirmed`, `target_state_mismatch`,
-or `inconclusive`. Explicit assertions or exact field readback confirm target state; required coverage still needs authored assertions. Selector-miss candidates
-are nearby text matches within the requested parent scope, with roles; a subtitle may expose one
-action per word instead of a sentence-level label. These suggestions never weaken the assertion.
-
-Quality and latency come first; keep semantic postconditions when reducing model calls. Prefer
-get_screen_context and scoped find_elements to full trees or screenshots, and use semantic
-postconditions rather than a screenshot after a tap. For transient UI, put the action and an immediate
-take_screenshot in one run_steps call with output, return_image=false, and settle_timeout_ms=0.
-Use check_effect=false on a triggering tap_element so its post-tap hierarchy reads do not consume
-the capture window. For tighter timing, use a coordinate tap from freshly queried geometry to avoid
-tap_element's foreground-app observation too. Capture first, then assert the eventual outcome;
-batching removes client round trips but cannot guarantee a subsecond capture. Use a cold fixture
-when cached data would skip the loading state.
-Save screenshots without inline images; analyze pixels locally with available Python/ffmpeg tools
-(diffs, bounds, centroids), and view only a small crop when visual interpretation is necessary. Keep focused
-inspections to 20 actions where the task allows, and reuse a recorded flow.json via amoo flow rather
-than re-driving it. Use run_steps for
-known action/assertion/observation sequences (up to 20 steps, stops on failure); inspect between
-steps that need a new decision. Prefer scoped queries over full trees. Configure AMOO_TOOL_PROFILE
-as drive, record, or audit before MCP startup to load a smaller task-specific tool catalog.
-
-Drag and drop with `drag` (source `id`/`label`, target `to_id`/`to_label`); zoom with `pinch`
-`scale=2` (in) or `0.5` (out) on an element, or with no target for the whole app. Coordinate ends
-work live but are excluded from generated tests.
-
-A dispatched gesture does not prove a business outcome. Verify mutations with the relevant
-semantic assertion. `set_text` reports exact, masked_change, or unverified; a masked change
-cannot prove the secret's exact value. Use a subsequent app-level result where appropriate.
-
-Screenshot output includes pixels, gesture points, and scale. Use a modest scale for visual
-inspection. Delegated checks default to output=<path> return_image=false; return selected thumbnail
-or contact-sheet paths for review. Pause playback for stable checks and reuse recorded navigation.
-Check capture_suspect and device state; retain get_run_telemetry with one run_id across every attempt.
+**Gestures.** `drag` takes a source (`id`/`label`) and target (`to_id`/`to_label`); `pinch` takes
+`scale` (2 in, 0.5 out) on an element or the whole app. Coordinate ends work live but are excluded from
+generated tests. Verify every mutation with the relevant assertion.
