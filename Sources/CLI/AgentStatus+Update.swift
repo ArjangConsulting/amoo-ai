@@ -17,6 +17,7 @@ func runAgentUpdate(
     var selected = options
     selected.clients = status.clients
     selected.agents = status.agents
+    selected.skipped = Set(status.skipped)
     selected.executablePath = status.binary ?? options.executablePath
     let states = Dictionary(uniqueKeysWithValues: status.files.map { ($0.path, $0.state) })
     do {
