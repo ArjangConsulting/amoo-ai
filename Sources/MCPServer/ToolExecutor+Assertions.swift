@@ -235,7 +235,8 @@ extension DriverToolExecutor {
         case value
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
+    // One poll loop that classifies each read: a match, a mismatch, a slow capture, or a failure.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func executeElementAssertion(
         kind: ElementAssertionKind,
         selector: ElementSelector,
@@ -249,6 +250,7 @@ extension DriverToolExecutor {
         let started = ContinuousClock.now
         var lastMatch: ElementInfo?
         var reads = 0
+        var lastSlowCapture: String?
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
@@ -269,6 +271,9 @@ extension DriverToolExecutor {
                 // The timeout landed while a later poll was in flight. Earlier polls completed and
                 // did not match, so this is a mismatch, not a device that stopped answering.
                 break
+            } catch where Self.isSlowCapture(error) && ContinuousClock.now < deadline {
+                lastSlowCapture = await Self.pauseAfterSlowCapture(error, deadline: deadline)
+                continue
             } catch {
                 return assertionFailure(
                     kind: kind, arguments: arguments, lastMatch: lastMatch, reads: reads,
@@ -300,7 +305,7 @@ extension DriverToolExecutor {
 
         return assertionFailure(
             kind: kind, arguments: arguments, lastMatch: lastMatch, reads: reads,
-            started: started, observationError: nil
+            started: started, observationError: reads == 0 ? lastSlowCapture : nil
         )
     }
 
@@ -409,56 +414,6 @@ extension DriverToolExecutor {
             hash &*= 1_099_511_628_211
         }
         return String(hash, radix: 16)
-    }
-
-    func executeAssertVisible(
-        description: String,
-        timeoutMS: Int,
-        driver: any PlatformDriver
-    ) async throws -> ToolResult {
-        let deadline = ContinuousClock.now + .milliseconds(max(1, timeoutMS))
-        let lowered = description.lowercased()
-        var lastScreenSummary = ""
-        repeat {
-            if Task.isCancelled {
-                return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
-            }
-            if let context = try? await OperationDeadline.read(
-                until: deadline,
-                operation: { try await driver.getScreenContext() }
-            ) {
-                lastScreenSummary = context.summary
-            }
-            if let match = try await OperationDeadline.read(until: deadline, operation: {
-                try await self.findFirstNavigableElement(query: description, driver: driver)
-            }) {
-                return .success(
-                    "Visible: '\(preferredElementName(label: match.label, id: match.id) ?? match.id)'",
-                    structuredContent: .object([
-                        "passed": .bool(true),
-                        "element_id": .string(match.id),
-                        "element_label": .string(match.label),
-                        "element_type": .string(match.type?.rawValue ?? ""),
-                        "screen_summary": .string(lastScreenSummary)
-                    ])
-                )
-            }
-            try? await Task.sleep(until: min(deadline, .now + .milliseconds(500)), clock: .continuous)
-        } while ContinuousClock.now < deadline
-        return ToolResult(
-            content: """
-            assert_visible failed: no element matched '\(description)' within \(timeoutMS)ms.
-            Current screen: \(lastScreenSummary)
-            """,
-            isError: true,
-            structuredContent: .object([
-                "passed": .bool(false),
-                "failure_kind": .string("assertion_mismatch"),
-                "query": .string(description),
-                "query_lowercased": .string(lowered),
-                "screen_summary": .string(lastScreenSummary)
-            ])
-        )
     }
 
     // MARK: - Intent tool helpers
