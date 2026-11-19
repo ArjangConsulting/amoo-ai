@@ -23,6 +23,30 @@ final class TapExpectationErrorTests: XCTestCase {
     }
 }
 
+extension TapExpectationErrorTests {
+    /// "Not observed" could not tell an element that never appeared from one that appeared with a
+    /// different label; the nearest match by id now says which.
+    func testUnmetExpectationNamesTheSameIdWithItsActualLabel() async {
+        let driver = TapCheckDriver(
+            target: TapChecksTests.addButton,
+            hierarchy: TapChecksTests().screen(),
+            waitTimesOut: true
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element",
+            arguments: ["id": "add", "expect_id": "add", "expect_label": "Done", "expect_timeout_ms": "200"]
+        )
+        let fields = result.structuredContent?.objectValue
+        XCTAssertEqual(fields?["expectation_status"], .string("not_met"))
+        XCTAssertEqual(
+            fields?["expectation_nearest"]?.stringValue?.hasPrefix("[add] Add entry"),
+            true,
+            "\(fields ?? [:])"
+        )
+        XCTAssertTrue(result.content.contains("Nearest on screen: [add] Add entry"), result.content)
+    }
+}
+
 private actor FailingWaitDriver: PlatformDriver {
     private let play = ElementInfo(
         id: "play", label: "Play", type: .button, frame: Rect(x: 10, y: 10, width: 40, height: 40)
