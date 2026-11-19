@@ -20,4 +20,20 @@ public extension AndroidDriver {
     }
 }
 
+extension AndroidDriver: AppCompiling {
+    /// `cmd package compile -m <mode> -f <appID>`; the forced recompile runs even when ART already
+    /// considers the app compiled enough.
+    public func compileApp(appID: String, mode: String) async throws -> String {
+        let serial = activeSerial.map { ["-s", $0] } ?? []
+        let result = try await adb.run(
+            serial + ["shell", "cmd", "package", "compile", "-m", mode, "-f", appID], timeoutSeconds: 600
+        )
+        let output = (result.stdout + result.stderr).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard result.exitCode == 0, !output.lowercased().contains("failure") else {
+            throw AmooError.commandFailed(command: "cmd package compile", output: output)
+        }
+        return output
+    }
+}
+
 // swiftlint:enable multiline_arguments

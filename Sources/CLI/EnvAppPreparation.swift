@@ -43,7 +43,12 @@ func prepareEnvApp(_ options: EnvUpOptions, runtime: DeviceRuntime, app: inout E
 
     if let path = options.appPath {
         guard FileManager.default.fileExists(atPath: path) else { throw EnvError.appFailed("No app at \(path).") }
-        _ = try await run("device_install_app", ["path": path])
+        var install = ["path": path]
+        if let compile = options.compile, let appID = options.appID {
+            install["compile"] = compile
+            install["app_id"] = appID
+        }
+        _ = try await run("device_install_app", install)
         app?.installed = true
     }
     if let appID = options.appID {
