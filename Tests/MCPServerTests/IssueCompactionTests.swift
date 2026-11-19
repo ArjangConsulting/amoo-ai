@@ -39,6 +39,19 @@ final class IssueCompactionTests: XCTestCase {
         XCTAssertEqual(compacted?["verdict"], .string("fail"))
     }
 
+    /// Compact mode replaced every tool's text with "<tool>: ok"; for an audit that text is the
+    /// grouped findings, so an agent had to read the structured report to learn them.
+    func testCompactModeKeepsAnAuditsFindingsText() async {
+        let executor = DriverToolExecutor(driver: MockDriver())
+        let compact = ["response_mode": "compact"]
+        let audit = ToolResult.success("2 issue(s)\n- contrast ×2: Low contrast", structuredContent: .object([:]))
+        let compactAudit = await executor.compactResult(audit, tool: "audit_accessibility_native", arguments: compact)
+        XCTAssertEqual(compactAudit.content, audit.content)
+        let tap = ToolResult.success("Tapped", structuredContent: .object([:]))
+        let compactTap = await executor.compactResult(tap, tool: "tap_element", arguments: compact)
+        XCTAssertEqual(compactTap.content, "tap_element: ok")
+    }
+
     func testASingleIssueIsLeftAlone() {
         let report: Value = .object(["issues": .array([issue("Only")])])
         XCTAssertEqual(DriverToolExecutor.compactingIssues(report), report)

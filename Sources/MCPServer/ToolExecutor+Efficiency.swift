@@ -161,12 +161,18 @@ extension DriverToolExecutor {
         guard mode != "full", let fields = original.structuredContent?.objectValue else { return original }
         var result = original
         result.structuredContent = .object(Self.compactElementRows(fields))
-        if mode == "compact", !original.isError {
+        if mode == "compact", !original.isError, !Self.findingTools.contains(tool) {
             result.recordedContent = original.recordedContent ?? original.content
             result.content = "\(tool): ok"
         }
         return result
     }
+
+    /// Tools whose text is their findings: a grouped summary of a few hundred bytes. Compact mode keeps
+    /// it, or an agent would have to read the structured report, many times larger, to learn the same.
+    static let findingTools: Set = [
+        "audit_accessibility", "audit_accessibility_native", "audit_security", "audit_app"
+    ]
 
     /// `tap_element` fields omitted under `response_mode=compact` while they hold these values. They
     /// are the same on nearly every tap (`hittability_checked` is always false on Android, whose

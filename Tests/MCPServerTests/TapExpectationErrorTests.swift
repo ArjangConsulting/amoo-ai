@@ -47,6 +47,24 @@ extension TapExpectationErrorTests {
     }
 }
 
+extension TapExpectationErrorTests {
+    /// With nothing similar in the capture, the note names the usual causes instead of leaving a probe to find them.
+    func testUnmetExpectationWithNothingSimilarSuggestsWhereItCouldBe() async {
+        let driver = TapCheckDriver(
+            target: TapChecksTests.addButton,
+            hierarchy: TapChecksTests().screen(),
+            waitTimesOut: true,
+            missingIDs: ["sheet"]
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "tap_element",
+            arguments: ["id": "add", "expect_id": "sheet", "expect_label": "Done", "expect_timeout_ms": "200"]
+        )
+        XCTAssertNil(result.structuredContent?.objectValue?["expectation_nearest"])
+        XCTAssertTrue(result.content.contains("may be off-screen"), result.content)
+    }
+}
+
 private actor FailingWaitDriver: PlatformDriver {
     private let play = ElementInfo(
         id: "play", label: "Play", type: .button, frame: Rect(x: 10, y: 10, width: 40, height: 40)
