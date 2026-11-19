@@ -293,14 +293,7 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         openCompanion = companion
         let driver = await makeFlowDriver(platform: platform, deviceID: flow.deviceID, companion: companion)
 
-        var variables = flow.vars
-        variables["device"] = flow.deviceID ?? "booted"
-        variables.merge(overrides.variables) { _, override in override }
-        let context = FlowRunContext(
-            variables: variables,
-            outputDirectory: overrides.outputDirectory.map { URL(fileURLWithPath: $0) },
-            defaultOnError: overrides.continueOnError ? .continue : flow.onError
-        )
+        let context = FlowRunContext(flow: flow, overrides: overrides)
         if overrides.continueOnError {
             flow.onError = .continue
         }
@@ -309,12 +302,17 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
             credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
             runTelemetry: .persistent()
         )
+        let started = ContinuousClock.now
         let result = await runFlowSteps(flow, executor: executor, context: context)
 
         await companion.shutdown()
         openCompanion = nil
+        let report = context.outputDirectory.map { directory in
+            let report = FlowReport(flow: fileURL.path, platform: platform, flow: flow, port: port, result: result)
+            return writeFlowReport(report, started: started, to: directory)
+        }
         return FlowOutcome(
-            output: result.lines.joined(separator: "\n"),
+            output: (result.lines + [report].compactMap(\.self)).joined(separator: "\n"),
             exitCode: result.succeeded ? 0 : 1,
             passed: result.passed,
             failed: result.failed
