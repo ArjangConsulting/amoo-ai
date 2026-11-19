@@ -105,7 +105,10 @@ extension DeviceCommandOptions {
         if platformIsDefault, held.amooPlatform != platform {
             adopted.platform = held.amooPlatform
             adopted.platformIsDefault = false
-            adopted.port = defaultPort(for: held.amooPlatform)
+            // An explicit `--port` is never replaced; only the iOS default it was parsed with is.
+            if portIsDefault {
+                adopted.port = defaultPort(for: held.amooPlatform)
+            }
         }
         guard held.amooPlatform == adopted.platform else {
             return .failure(.wrongPlatform(held, requested: platform))
