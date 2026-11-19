@@ -58,7 +58,14 @@ public enum DeviceTools {
             name: "device_install_app",
             description: "Install an app on the device from a local path (.app or .apk)",
             properties: [
-                "path": .init(type: "string", description: "Local file path to the app bundle (.app) or APK (.apk)")
+                "path": .init(type: "string", description: "Local file path to the app bundle (.app) or APK (.apk)"),
+                "compile": .init(
+                    type: "string",
+                    description: "Android only, opt-in: after installing, run `cmd package compile -m <mode> -f`"
+                        + " (verify, speed-profile, speed or everything) so the first cold start does not"
+                        + " inflate dex on the main thread. Needs app_id; reported as compile {mode, ms}."
+                ),
+                "app_id": .init(type: "string", description: "The installed package, required with compile.")
             ],
             required: ["path"]
         ),

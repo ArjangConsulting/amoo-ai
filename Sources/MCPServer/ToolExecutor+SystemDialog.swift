@@ -71,3 +71,52 @@ extension DriverToolExecutor {
         + " process. Lease a device with `amoo env up --json`, drive it with `amoo device --runtime-id <id> <tool>`,"
         + " and record a reusable sequence as a flow (`amoo flow`, `amoo generate plan --from-flow`)."
 }
+
+extension DriverToolExecutor {
+    /// The `compile=<mode>` request of `device_install_app`, checked before anything is installed:
+    /// `nil` when the call did not ask for it.
+    func compileRequest(
+        arguments: [String: String],
+        driver: any PlatformDriver
+    ) throws -> CompileRequest? {
+        guard let mode = arguments["compile"], !mode.isEmpty else { return nil }
+        guard ["verify", "speed-profile", "speed", "everything"].contains(mode) else {
+            throw ToolExecutionError(
+                code: "invalid_argument", message: "compile must be verify, speed-profile, speed or everything."
+            )
+        }
+        guard let appID = arguments["app_id"], !appID.isEmpty else {
+            throw ToolExecutionError(code: "invalid_argument", message: "compile needs app_id: the installed package.")
+        }
+        guard let compiler = driver as? any AppCompiling else {
+            throw ToolExecutionError(
+                code: "unsupported", message: "compile is Android-only: this platform has no ahead-of-time step."
+            )
+        }
+        return CompileRequest(mode: mode, appID: appID, compiler: compiler)
+    }
+
+    /// Runs a checked compile request and reports `{mode, ms}`.
+    func compileInstalledApp(_ request: CompileRequest) async throws -> Value {
+        let logger = AmooLogger.forType(Self.self)
+        let started = ContinuousClock.now
+        logger.info("Compiling installed app", context: "mode=\(request.mode) app=\(request.appID)")
+        do {
+            _ = try await request.compiler.compileApp(appID: request.appID, mode: request.mode)
+        } catch {
+            logger.error("Compiling installed app failed", error: error, context: "mode=\(request.mode)")
+            throw error
+        }
+        let elapsed = started.duration(to: .now).components
+        let milliseconds = Int(elapsed.seconds * 1000 + elapsed.attoseconds / 1_000_000_000_000_000)
+        logger.info("Compiled installed app", context: "mode=\(request.mode) ms=\(milliseconds)")
+        return .object(["mode": .string(request.mode), "ms": .int(milliseconds)])
+    }
+}
+
+/// A checked `compile=<mode>` request of `device_install_app`.
+struct CompileRequest {
+    var mode: String
+    var appID: String
+    var compiler: any AppCompiling
+}

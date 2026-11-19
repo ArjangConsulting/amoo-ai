@@ -32,6 +32,8 @@ struct EnvUpOptions: Equatable {
     var launch = false
     /// Android recovery: start the named offline AVD without loading or saving snapshots.
     var coldBoot = false
+    /// Android: the `cmd package compile` mode to run after installing `--app`.
+    var compile: String?
     var owner: String?
     var ttlMinutes: Int?
     var readyTimeoutSeconds: Int?
@@ -73,6 +75,7 @@ func renderEnvHelp() -> String {
              [--runtime-id <id>]                      reuse an owned, running runtime
              [--port <n>]                             default: first free 22093+
              [--app <path.apk|path.app>] [--app-id <id>] [--launch]
+         [--compile verify|speed-profile|speed]     Android: compile the app after installing it
              [--owner <label>] [--ttl <minutes>] [--ready-timeout <secs>] [--json]
              Later calls can use --runtime-id <id> or AMOO_RUNTIME_ID.
 
@@ -125,6 +128,7 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
     options.appID = try flags.value("--app-id")
     options.launch = flags.take("--launch")
     options.coldBoot = flags.take("--cold-boot")
+    options.compile = try flags.value("--compile")
     options.owner = try flags.value("--owner")
     options.ttlMinutes = try flags.int("--ttl")
     options.readyTimeoutSeconds = try flags.int("--ready-timeout")
@@ -132,6 +136,9 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
     try flags.finish()
     if options.launch, options.appID == nil {
         throw EnvCommandParseError.usage("--launch needs --app-id.")
+    }
+    if options.compile != nil, platform != .android || options.appPath == nil || options.appID == nil {
+        throw EnvCommandParseError.usage("--compile is Android-only and needs --app and --app-id.")
     }
     if platform == .ios, options.avd != nil {
         throw EnvCommandParseError.usage("--avd is Android-only; use --runtime/--model for iOS.")

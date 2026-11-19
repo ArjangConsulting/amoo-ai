@@ -97,11 +97,15 @@ extension DriverToolExecutor {
             let contention = await foreignBuildDetector.contentionWarning(
                 deviceID: try? driver.deviceInfo().id
             )
+            let compile = try compileRequest(arguments: arguments, driver: driver)
             try await driver.installApp(path: path)
             var fields: [String: Value] = [
                 "installation": .string("installed"), "path": .string(path),
                 "launch": .string("not_requested"), "data_policy": .string("preserved")
             ]
+            if let compile {
+                fields["compile"] = try await compileInstalledApp(compile)
+            }
             if let contention {
                 fields["warnings"] = .array([.string(contention)])
             }
