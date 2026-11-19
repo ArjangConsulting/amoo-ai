@@ -106,7 +106,7 @@ private fun HomeScreen(deepLink: String?, onNavigate: (Screen) -> Unit) {
             text = "Compose Fixture Home",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier
-                .testTag("fixture_home_title")
+                .testTag("fixture-home-title")
                 .semantics { contentDescription = "fixture-home-title" }
         )
         Text(
@@ -116,19 +116,19 @@ private fun HomeScreen(deepLink: String?, onNavigate: (Screen) -> Unit) {
         Button(
             onClick = { onNavigate(Screen.DETAILS) },
             modifier = Modifier
-                .testTag("fixture_open_details")
+                .testTag("fixture-open-details")
                 .semantics { contentDescription = "fixture-open-details" }
         ) { Text("Open Details") }
         Button(
             onClick = { onNavigate(Screen.TEXT_INPUT) },
             modifier = Modifier
-                .testTag("fixture_open_text")
+                .testTag("fixture-open-text")
                 .semantics { contentDescription = "fixture-open-text" }
         ) { Text("Open Text Input") }
         Button(
             onClick = { onNavigate(Screen.GESTURE) },
             modifier = Modifier
-                .testTag("fixture_open_gesture")
+                .testTag("fixture-open-gesture")
                 .semantics { contentDescription = "fixture-open-gesture" }
         ) { Text("Open Gesture Lab") }
         // Deliberately disabled: gives assert_enabled something that must fail when pointed here,
@@ -137,7 +137,7 @@ private fun HomeScreen(deepLink: String?, onNavigate: (Screen) -> Unit) {
             onClick = {},
             enabled = false,
             modifier = Modifier
-                .testTag("fixture_disabled_action")
+                .testTag("fixture-disabled-action")
                 .semantics { contentDescription = "fixture-disabled-action" }
         ) { Text("Disabled Action") }
     }
@@ -154,7 +154,7 @@ private fun DetailsScreen(onBack: () -> Unit) {
         Button(
             onClick = onBack,
             modifier = Modifier
-                .testTag("fixture_details_back_top")
+                .testTag("fixture-details-back-top")
                 .semantics { contentDescription = "fixture-details-back-top" }
         ) { Text("Back") }
         Text(
@@ -168,20 +168,20 @@ private fun DetailsScreen(onBack: () -> Unit) {
                 text = "Fixture row $index",
                 modifier = Modifier
                     .heightIn(min = 48.dp)
-                    .testTag("fixture_detail_row_$index")
+                    .testTag("fixture-detail-row-$index")
                     .semantics { contentDescription = "fixture-detail-row-$index" }
             )
         }
         Text(
             text = "Details tail marker",
             modifier = Modifier
-                .testTag("fixture_details_tail")
+                .testTag("fixture-details-tail")
                 .semantics { contentDescription = "fixture-details-tail" }
         )
         Button(
             onClick = onBack,
             modifier = Modifier
-                .testTag("fixture_details_back")
+                .testTag("fixture-details-back")
                 .semantics { contentDescription = "fixture-details-back" }
         ) { Text("Back") }
     }
@@ -201,19 +201,19 @@ private fun TextInputScreen(onBack: () -> Unit) {
             onValueChange = { value = it },
             placeholder = { Text("Hello from the fixture app") },
             modifier = Modifier
-                .testTag("fixture_text_input")
+                .testTag("fixture-text-input")
                 .semantics { contentDescription = "fixture-text-input" }
         )
         Text(
             text = "Echo: $value",
             modifier = Modifier
-                .testTag("fixture_text_echo")
+                .testTag("fixture-text-echo")
                 .semantics { contentDescription = "fixture-text-echo" }
         )
         Button(
             onClick = onBack,
             modifier = Modifier
-                .testTag("fixture_text_back")
+                .testTag("fixture-text-back")
                 .semantics { contentDescription = "fixture-text-back" }
         ) { Text("Back") }
     }
@@ -232,13 +232,13 @@ private fun GestureScreen(onBack: () -> Unit) {
             onClick = { taps += 1 },
             modifier = Modifier
                 .heightIn(min = 200.dp)
-                .testTag("fixture_gesture_pad")
+                .testTag("fixture-gesture-pad")
                 .semantics { contentDescription = "fixture-gesture-pad" }
         ) { Text("Gesture Pad") }
         Text(
             text = "Tap count: $taps",
             modifier = Modifier
-                .testTag("fixture_tap_count")
+                .testTag("fixture-tap-count")
                 .semantics { contentDescription = "fixture-tap-count" }
         )
         DragDropRow()
@@ -246,7 +246,7 @@ private fun GestureScreen(onBack: () -> Unit) {
         Button(
             onClick = onBack,
             modifier = Modifier
-                .testTag("fixture_gesture_back")
+                .testTag("fixture-gesture-back")
                 .semantics { contentDescription = "fixture-gesture-back" }
         ) { Text("Back") }
     }
@@ -277,7 +277,7 @@ private fun DragDropRow() {
                 .dragAndDropSource { _ ->
                     DragAndDropTransferData(ClipData.newPlainText("fixture", "fixture-card"))
                 }
-                .testTag("fixture_drag_source")
+                .testTag("fixture-drag-source")
                 .semantics { contentDescription = "fixture-drag-source" }
         ) { Text("Drag Card") }
         Box(
@@ -287,14 +287,14 @@ private fun DragDropRow() {
                 .height(100.dp)
                 .background(Color(0xFFBBF7D0))
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = target)
-                .testTag("fixture_drop_zone")
+                .testTag("fixture-drop-zone")
                 .semantics { contentDescription = "fixture-drop-zone" }
         ) { Text(if (dropState == "dropped") "Dropped" else "Drop Zone") }
     }
     Text(
         text = "Drop state: $dropState",
         modifier = Modifier
-            .testTag("fixture_drop_state")
+            .testTag("fixture-drop-state")
             .semantics { contentDescription = "fixture-drop-state" }
     )
 }
@@ -318,13 +318,13 @@ private fun PinchTarget() {
             .height(180.dp)
             .background(Color(0xFFCCFBF1))
             .transformable(state)
-            .testTag("fixture_pinch_target")
+            .testTag("fixture-pinch-target")
             .semantics { contentDescription = "fixture-pinch-target" }
     ) { Text("Pinch Target") }
     Text(
         text = "Last pinch: $lastPinch",
         modifier = Modifier
-            .testTag("fixture_pinch_state")
+            .testTag("fixture-pinch-state")
             .semantics { contentDescription = "fixture-pinch-state" }
     )
 }
