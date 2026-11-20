@@ -2,12 +2,12 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    /// WebView / DOM introspection MCP tools. Split from `+MCP.swift` to keep that file under the
+    /// WebView / DOM introspection tools. Split from `+Tools.swift` to keep that file under the
     /// length limit.
-    static let mcpWebViewCommands: [CommandCoverage] = [
+    static let toolWebViewCommands: [CommandCoverage] = [
         .init(
             name: "webview_eval",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -16,7 +16,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "webview_dom",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,

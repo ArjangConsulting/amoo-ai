@@ -2,7 +2,7 @@ import AmooCore
 import Foundation
 
 public enum CommandChannel: String, Sendable, CaseIterable {
-    case mcp
+    case tool
     case cli
 }
 
@@ -90,24 +90,24 @@ public enum CommandCoverageMatrix {
         )
     ]
 
-    public static var publicMCPToolNames: [String] {
-        mcpCommands.map(\.name)
+    public static var publicToolNames: [String] {
+        toolCommands.map(\.name)
     }
 
     public static var releaseBlockingToolNames: [String] {
-        mcpCommands
+        toolCommands
             .filter { $0.releaseTier == .blocking && $0.kind == .deterministic }
             .map(\.name)
     }
 
     public static var aiToolNames: [String] {
-        mcpCommands
+        toolCommands
             .filter { $0.kind == .ai }
             .map(\.name)
     }
 
     public static func coverage(for name: String) -> CommandCoverage? {
-        (mcpCommands + cliCommands).first(where: { $0.name == name })
+        (toolCommands + cliCommands).first(where: { $0.name == name })
     }
 
     static let allPlatforms: Set<Platform> = [.ios, .android]

@@ -4,11 +4,11 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    static let mcpCommands: [CommandCoverage] = mcpBaseCommands + mcpCompanionCommands + mcpWebViewCommands +
-        mcpInteractionCommands + [
+    static let toolCommands: [CommandCoverage] = toolBaseCommands + toolCompanionCommands + toolWebViewCommands +
+        toolInteractionCommands + [
             .init(
                 name: "run_steps",
-                channel: .mcp,
+                channel: .tool,
                 kind: .deterministic,
                 releaseTier: .informational,
                 platforms: allPlatforms,
@@ -17,43 +17,43 @@ public extension CommandCoverageMatrix {
             )
         ]
 
-    /// Companion-lifecycle MCP tools (long-lived hosts only, `amoo studio serve`). Split from `+MCP.swift` to keep that
+    /// Companion-lifecycle tools (long-lived hosts only, `amoo studio serve`). Split from `+Tools.swift` to keep that
     /// file under the length limit.
-    static let mcpCompanionCommands: [CommandCoverage] = [
+    static let toolCompanionCommands: [CommandCoverage] = [
         .init(
-            name: "device_wake", channel: .mcp, kind: .deterministic,
+            name: "device_wake", channel: .tool, kind: .deterministic,
             releaseTier: .informational, platforms: [.android], fixtureScreen: .environment,
             expectedAssertion: "display reports awake or locked without bypassing the lock screen"
         ),
         .init(
-            name: "set_posture", channel: .mcp, kind: .deterministic,
+            name: "set_posture", channel: .tool, kind: .deterministic,
             releaseTier: .informational, platforms: [.android], fixtureScreen: .environment,
             expectedAssertion: "foldable emulator commits the requested hinge posture"
         ),
         .init(
-            name: "set_display_preset", channel: .mcp, kind: .deterministic,
+            name: "set_display_preset", channel: .tool, kind: .deterministic,
             releaseTier: .informational, platforms: [.android], fixtureScreen: .environment,
             expectedAssertion: "resizable emulator reports the preset's advertised dimensions and density"
         ),
         .init(
-            name: "assert_talkback_speech", channel: .mcp, kind: .deterministic,
+            name: "assert_talkback_speech", channel: .tool, kind: .deterministic,
             releaseTier: .informational, platforms: [.android], fixtureScreen: .audit,
             expectedAssertion: "explicit speech expectations compare to actual synthesis input"
                 + " with restoration verified"
         ),
         .init(
-            name: "test_talkback", channel: .mcp, kind: .deterministic,
+            name: "test_talkback", channel: .tool, kind: .deterministic,
             releaseTier: .informational, platforms: [.android], fixtureScreen: .audit,
             expectedAssertion: "actual TalkBack focus and synthesis requests are observed with settings restored"
         ),
         .init(
-            name: "assert_accessibility_journey", channel: .mcp, kind: .deterministic,
+            name: "assert_accessibility_journey", channel: .tool, kind: .deterministic,
             releaseTier: .informational, platforms: [.ios], fixtureScreen: .audit,
             expectedAssertion: "authored failures retain target/transition evidence and evaluated coverage"
         ),
         .init(
             name: "audit_accessibility_native",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -62,7 +62,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "test_voiceover",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: [.ios],
@@ -71,7 +71,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "press_key",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -80,7 +80,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "set_orientation",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -89,7 +89,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "companion_warm",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -98,7 +98,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "session_startup_status",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -107,7 +107,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "companion_status",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -116,7 +116,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "reset_companion",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,

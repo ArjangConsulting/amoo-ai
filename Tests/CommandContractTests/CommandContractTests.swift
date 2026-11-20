@@ -3,18 +3,18 @@ import CommandContract
 import XCTest
 
 final class CommandContractTests: XCTestCase {
-    func testCoverageMatrixMatchesPublicMCPToolCatalog() {
+    func testCoverageMatrixMatchesPublicToolCatalog() {
         let server = ToolCatalog()
 
         XCTAssertEqual(
             Set(server.toolNames()),
-            Set(CommandCoverageMatrix.publicMCPToolNames),
-            "Every public MCP tool must declare contract coverage."
+            Set(CommandCoverageMatrix.publicToolNames),
+            "Every public tool must declare contract coverage."
         )
     }
 
     func testAllPublicCoverageEntriesHaveAssertions() {
-        for coverage in CommandCoverageMatrix.mcpCommands + CommandCoverageMatrix.cliCommands {
+        for coverage in CommandCoverageMatrix.toolCommands + CommandCoverageMatrix.cliCommands {
             XCTAssertFalse(coverage.expectedAssertion.isEmpty, "Missing assertion for \(coverage.name)")
         }
     }
@@ -41,9 +41,9 @@ final class CommandContractTests: XCTestCase {
         }
     }
 
-    func testCoverageLooksUpBothMCPAndCLICommandsByName() throws {
-        let mcpCoverage = try XCTUnwrap(CommandCoverageMatrix.coverage(for: "tap"))
-        XCTAssertEqual(mcpCoverage.channel, .mcp)
+    func testCoverageLooksUpBothToolAndCLICommandsByName() throws {
+        let toolCoverage = try XCTUnwrap(CommandCoverageMatrix.coverage(for: "tap"))
+        XCTAssertEqual(toolCoverage.channel, .tool)
 
         let cliCoverage = try XCTUnwrap(CommandCoverageMatrix.coverage(for: "preflight"))
         XCTAssertEqual(cliCoverage.channel, .cli)

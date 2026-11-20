@@ -3,27 +3,27 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    /// Scrolling and keyboard helpers, plus the selected-state assertion. Split from `+MCP.swift` to keep that file
+    /// Scrolling and keyboard helpers, plus the selected-state assertion. Split from `+Tools.swift` to keep that file
     /// under the length limit.
-    static let mcpInteractionCommands: [CommandCoverage] = [
+    static let toolInteractionCommands: [CommandCoverage] = [
         .init(
-            name: "get_capabilities", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            name: "get_capabilities", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .environment,
             expectedAssertion: "installed schemas, binary identity and provider assertion support are queryable"
         ),
         .init(
-            name: "get_run_telemetry", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            name: "get_run_telemetry", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .environment,
             expectedAssertion: "Counts failed, unfinished and completed requests across a caller run UUID."
         ),
         .init(
-            name: "get_verification_report", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            name: "get_verification_report", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .home,
             expectedAssertion: "every required check retains outcome, reason and evidence; status is derived"
         ),
         .init(
             name: "drag",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -32,7 +32,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "pinch",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -40,23 +40,23 @@ public extension CommandCoverageMatrix {
             expectedAssertion: "pinching the gesture lab's zoom target out and in changes its reported scale"
         ),
         .init(
-            name: "device_health", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            name: "device_health", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .home,
             expectedAssertion: "independent transport probes distinguish connectivity from app semantic readiness"
         ),
         .init(
-            name: "assert_checked", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            name: "assert_checked", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: [.android], fixtureScreen: .home,
             expectedAssertion: "an existing checkable control's checked property equals expected"
         ),
         .init(
-            name: "assert_state_description", channel: .mcp, kind: .deterministic, releaseTier: .informational,
+            name: "assert_state_description", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: [.android], fixtureScreen: .home,
             expectedAssertion: "native state description matches independently of text/value"
         ),
         .init(
             name: "assert_selected",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -65,7 +65,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "scroll_to_element",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -74,7 +74,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "dismiss_keyboard",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
