@@ -217,7 +217,9 @@ final class AndroidCompanionManager: @unchecked Sendable {
         let sourcesChanged = !config.buildPrepared && config.buildMode == .rebuild
         let stale = !sourcesChanged && isBuildStale(config: config)
         // A newer build than the one on the device (after `amoo companion build`) replaces a running one.
-        let newerBuild = await installedCompanionIsOutdated(config: config)
+        let identity = await buildIdentity(config: config)
+        phases.recordIdentity(identity)
+        let newerBuild = identity.installedSHA256 != nil && identity.alreadyInstalled == false
         let requiresReplacement = config.installPreparedBuild || sourcesChanged || newerBuild
         phases.record("check", outcome: sourcesChanged ? "rebuild" : stale ? "stale" : "current", since: phaseStart)
         if stale {
@@ -396,6 +398,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             throw AndroidCompanionError.buildFailed(message)
         }
         try writeSourceFingerprint(config: config, fingerprint: fingerprint)
+        CompanionSourceCommit.record(companionDir: config.companionDir, directory: config.companionDir + "/app/build")
     }
 
     /// Force-stops both companion packages and drops the TCP forward, so a companion left behind

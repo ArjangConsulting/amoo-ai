@@ -97,6 +97,7 @@ companion-ios-build: companion-ios-protos companion-ios-project
 		-destination 'generic/platform=iOS Simulator' \
 		-derivedDataPath build 2>&1 | tee build/companion-ios-build.log
 	python3 CompanionApps/iOS/sign-simulator-products.py CompanionApps/iOS/build/Build/Products
+	git rev-parse HEAD > CompanionApps/iOS/build/source-commit
 
 companion-android-build:
 	@JDK="$$(./scripts/android-jdk.sh)"; \
@@ -107,6 +108,7 @@ companion-android-build:
 	fi; \
 	echo "Using JAVA_HOME=$$JDK"; \
 	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :app:assembleDebug :app:assembleAndroidTest
+	git rev-parse HEAD > CompanionApps/Android/app/build/source-commit
 
 companion-build: companion-ios-build companion-android-build
 

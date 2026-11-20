@@ -50,14 +50,21 @@ extension AndroidCompanionManager {
         print("Android companion built.")
     }
 
-    /// Whether the device holds a different companion than the APKs a start would install, so a
-    /// running companion is replaced after `amoo companion build`. Unknown install state is not outdated.
-    func installedCompanionIsOutdated(config: AndroidCompanionConfig) async -> Bool {
-        let paths = apkPaths(companionDir: config.companionDir, useBundled: usesBundledAPKs(config: config))
-        guard let expected = sha256Hex(ofRegularFile: paths.test),
-              let installed = await deviceInstallState(config: config).installed["com.amoo.companion.test"]
-        else { return false }
-        return installed != expected
+    /// The build a start installs and what the device already holds. A different digest replaces a
+    /// running companion after `amoo companion build`; unknown install state is not outdated.
+    func buildIdentity(config: AndroidCompanionConfig) async -> CompanionBuildIdentity {
+        let bundled = usesBundledAPKs(config: config)
+        let paths = apkPaths(companionDir: config.companionDir, useBundled: bundled)
+        let commitDirectory = bundled ? config.companionDir + "/prebuilt" : config.companionDir + "/app/build"
+        return await CompanionBuildIdentity(
+            source: bundled ? "prebuilt" : "local",
+            path: paths.test,
+            builtAt: CompanionBuildIdentity.timestamp(of: paths.test),
+            sourceCommit: CompanionSourceCommit.read(directory: commitDirectory),
+            stale: isBuildStale(config: config),
+            sha256: sha256Hex(ofRegularFile: paths.test),
+            installedSHA256: deviceInstallState(config: config).installed["com.amoo.companion.test"]
+        )
     }
 }
 

@@ -55,9 +55,17 @@ struct EnvCompanionReport: Codable, Equatable {
     /// `reused` (a companion was already serving the port) or `launched`.
     var runner: String?
     var phases: [CompanionStartPhase]
+    /// Which build the start used and what the device held; nil when a running companion was reused.
+    var buildIdentity: CompanionBuildIdentity?
 
-    init(phases: [CompanionStartPhase]) {
+    enum CodingKeys: String, CodingKey {
+        case build, install, runner, phases
+        case buildIdentity = "build_identity"
+    }
+
+    init(phases: [CompanionStartPhase], buildIdentity: CompanionBuildIdentity? = nil) {
         self.phases = phases
+        self.buildIdentity = buildIdentity
         build = phases.last { $0.name == "build" }?.outcome
         let installs = phases.filter { $0.name.hasPrefix("install.") }
         install = installs.isEmpty ? nil : installs.contains { $0.outcome == "installed" } ? "installed" : "reused"
@@ -105,6 +113,9 @@ struct EnvUpReport: Codable {
             "Use it: export AMOO_RUNTIME_ID=\(runtimeID)  (or pass --runtime-id \(runtimeID))",
             "Stop: amoo env down --runtime-id \(runtimeID)"
         ]
+        if let identity = companion?.buildIdentity {
+            lines.append(identity.summary)
+        }
         if let app {
             lines.append("App \(app.id ?? app.path ?? "?"): installed=\(app.installed) launched=\(app.launched)")
         }
