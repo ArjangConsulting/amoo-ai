@@ -306,7 +306,8 @@ extension TestCodeGeneratorTests {
         XCTAssertTrue(source.contains("@RunWith(AndroidJUnit4::class)"))
         XCTAssertTrue(source.contains(#"onNode(hasTestTag("submit")).assertIsDisplayed().performClick()"#))
         XCTAssertTrue(source.contains(
-            #"composeTestRule.onAllNodes(hasContentDescription("Loading")).fetchSemanticsNodes().isEmpty() }"#
+            #"composeTestRule.onAllNodes((hasText("Loading") or hasContentDescription("Loading")))"#
+                + #".fetchSemanticsNodes().isEmpty() }"#
         ))
         XCTAssertFalse(source.contains("assertIsNotDisplayed()"))
         // scroll is the last step here — no follow-up target, so the distance-based fallback.
@@ -389,7 +390,7 @@ extension TestCodeGeneratorTests {
         // No timeout_ms on the second step falls back to the shared default.
         XCTAssertTrue(source.contains(
             #"composeTestRule.waitUntil(timeoutMillis = 5000L) { composeTestRule"#
-                + #".onAllNodes(hasContentDescription("New Videos"))"#
+                + #".onAllNodes((hasText("New Videos") or hasContentDescription("New Videos")))"#
                 + #".fetchSemanticsNodes().isNotEmpty() }"#
         ))
     }

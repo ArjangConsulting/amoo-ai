@@ -110,15 +110,22 @@ extension EspressoEmitter {
         return (sorted + (contextImports.isEmpty ? [] : [contextImports])).joined(separator: "\n")
     }
 
-    static let standaloneLaunch = """
-            val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val launchIntent = requireNotNull(
-                targetContext.packageManager.getLaunchIntentForPackage(targetContext.packageName)
-            ) { "No launcher activity found for ${targetContext.packageName}" }
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
-
-            ActivityScenario.launch<Activity>(launchIntent).use {
-    """
+    /// The launch with the recording's launch environment as string extras, the way `device_launch_app`
+    /// delivered it, so the test runs against the configuration the flow was recorded with.
+    static func standaloneLaunch(environment: [String: String]) -> String {
+        let extras = environment.sorted { $0.key < $1.key }
+            .map { "        launchIntent.putExtra(\(literal($0.key)), \(literal($0.value)))\n" }
+            .joined()
+        return """
+                val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+                val launchIntent = requireNotNull(
+                    targetContext.packageManager.getLaunchIntentForPackage(targetContext.packageName)
+                ) { "No launcher activity found for ${targetContext.packageName}" }
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        \(extras)
+                ActivityScenario.launch<Activity>(launchIntent).use {
+        """
+    }
 
     static let sharedLaunch = "        launchTargetApp().use {"
 }

@@ -277,7 +277,7 @@ final class SelectedAssertionCodegenTests: XCTestCase {
             source
                 .contains(
                     // swiftlint:disable:next line_length
-                    #"hasTestTag("day.10") and hasContentDescription("Friday") and hasAnyAncestor(hasTestTag("month.oct"))"#
+                    #"hasTestTag("day.10") and (hasText("Friday") or hasContentDescription("Friday")) and hasAnyAncestor(hasTestTag("month.oct"))"#
                 ),
             source
         )

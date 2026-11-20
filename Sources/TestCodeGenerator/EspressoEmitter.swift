@@ -98,7 +98,8 @@ public struct EspressoEmitter: StudioCodeEmitting {
                 contextImports: contextImports
             )
             : Self.standaloneImports(importFragments)
-        let launchBlock = shared ? Self.sharedLaunch : Self.standaloneLaunch
+        let launchBlock = shared ? Self.sharedLaunch
+            : Self.standaloneLaunch(environment: test.requirements?.launchEnvironment ?? [:])
 
         let source = """
         \(importBlock)
@@ -460,7 +461,7 @@ public struct EspressoEmitter: StudioCodeEmitting {
         return milliseconds
     }
 
-    private static func literal(_ value: String) -> String {
+    static func literal(_ value: String) -> String {
         var escaped = value
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
