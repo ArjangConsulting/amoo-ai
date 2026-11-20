@@ -6,7 +6,7 @@ one enabled service; the original enabled state is verified and restored once at
 Android and older companions return unsupported, with no passing coverage.
 
 Pass requires successful execution, every requested expectation evaluated and passing, and
-untruncated evidence. The MCP call also fails when cleanup is unresolved. Reports keep
+untruncated evidence. The tool call also fails when cleanup is unresolved. Reports keep
 execution, assertion verdict, coverage and cleanup separate. A confirmed expectation failure
 remains a failure even if later checkpoints are not evaluated. These are authored task checks,
 not automatically inferred violations or whole-app conformance.

@@ -1,7 +1,7 @@
 # Telemetry (OpenTelemetry)
 
-amoo records **OpenTelemetry traces** for every CLI command, MCP request, tool call, companion RPC
-and subprocess. The data is standard OTLP, so you can analyze it locally with `amoo usage report`
+amoo records **OpenTelemetry traces** for every CLI command, tool call, companion RPC and
+subprocess. The data is standard OTLP, so you can analyze it locally with `amoo usage report`
 or send it to any OpenTelemetry backend (Jaeger, Honeycomb, Grafana Tempo, Datadog, the
 Collector, …) next to your AI client's own telemetry.
 
@@ -79,8 +79,6 @@ names and normalized error messages — never arguments, screen content or trans
 - **CLI from an agent's shell:** amoo reads W3C `TRACEPARENT`/`TRACESTATE` from the environment, so
   `amoo …` run by an agent whose tool spans export a `TRACEPARENT` (Claude Code does for Bash
   subprocesses) appears as a child of that tool call.
-- **MCP:** a `traceparent` (and optional `tracestate`) string in a request's `params._meta` makes
-  the `tools/call …` span a child of the client's trace.
 - **Claude Code:** set `CLAUDE_CODE_ENABLE_TELEMETRY=1` with the same OTLP endpoint. Claude Code
   exports token usage (`claude_code.token.usage`, `api_request` events with input/output/cache
   tokens, attributed to subagents via `agent.name`) and `tool_result` events
@@ -90,14 +88,13 @@ names and normalized error messages — never arguments, screen content or trans
 
 ## What is recorded
 
-Span names and attributes follow the OpenTelemetry MCP, GenAI (`execute_tool`), RPC and process
+Span names and attributes follow the OpenTelemetry GenAI (`execute_tool`), RPC and process
 semantic conventions; amoo-specific measurements use `amoo.*`.
 
 | Span | Kind | Key attributes |
 | --- | --- | --- |
-| `amoo <command>` (CLI root, not for `mcp serve`) | internal | `process.exit.code` |
-| `tools/call <tool>`, `tools/list`, … (one per MCP request) | server | `mcp.method.name`, `gen_ai.tool.name`, `jsonrpc.request.id`, `mcp.protocol.version`, `amoo.client.name` |
-| `execute_tool <tool>` (every surface: MCP, CLI, flows) | internal | `amoo.client` (`mcp`/`cli`/`flow`), `amoo.run.id`, `amoo.session.id`, `amoo.response.bytes`, `amoo.response.text_bytes`, `amoo.image.inline/bytes/width/height/scale`, `amoo.elements.observed`, `amoo.response.mode`, `amoo.call.repeated`, `error.type` |
+| `amoo <command>` (CLI root) | internal | `process.exit.code` |
+| `execute_tool <tool>` (`amoo device`, flows, Studio) | internal | `amoo.client` (`cli`), `amoo.run.id`, `amoo.session.id`, `amoo.response.bytes`, `amoo.response.text_bytes`, `amoo.image.inline/bytes/width/height/scale`, `amoo.elements.observed`, `amoo.response.mode`, `amoo.call.repeated`, `error.type` |
 | `device_queue.wait` | internal | time a call waited for its device |
 | `amoo.CompanionService/<Method>` | client | `rpc.system=grpc`, `rpc.service`, `rpc.method`, `rpc.grpc.status_code`, `amoo.companion.server_ms` (companion's own handling time, from the `amoo-server-ms` trailer) |
 | `hierarchy.read` | internal | tap-check reads |

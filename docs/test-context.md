@@ -364,9 +364,9 @@ repository.
 
 A single amoo.md may contain two fenced amoo-context objects, one with targetPlatform ios and one
 with targetPlatform android. Multiple blocks must declare distinct platforms. CLI generation selects
-using the plan/report platform; MCP uses the session platform. Explicit Markdown paths follow the
+using the plan/report platform; a Studio session uses its own platform. Explicit Markdown paths follow the
 same selection rules. Single-block legacy JSON and Markdown contexts remain supported; an explicitly
-wrong platform is rejected, including inline MCP context and embedded export context.
+wrong platform is rejected, including inline session context and embedded export context.
 
 Android discovery reads Kotlin and Java instrumentation sources in androidTest/androidInstrumentedTest.
 It records Espresso, Compose and UI Automator usage plus source excerpts for imports, inheritance,

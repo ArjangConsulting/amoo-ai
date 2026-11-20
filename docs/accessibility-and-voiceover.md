@@ -333,7 +333,7 @@ explicit app/task assertions and review. Keep providers replaceable and local ev
    Prioritize the six core rule families. Qualify raw hint/trait availability separately from
    computed semantics and speech; route unsupported contextual checks to skill/LLM review with
    evidence, not an automatic violation or pass.
-3. **Contract and flows:** wire shared protocol, iOS driver, CLI, MCP, recording/assertion
+3. **Contract and flows:** wire shared protocol, iOS driver, CLI device tools, recording/assertion
    support, documentation, and amoo subagent skill guidance. Follow the command-contract and
    codegen-pipeline guides. Build the companion separately; run unit/protocol integration
    tests, lint, and amoo-only device qualification. Add Android routes without implying parity.
@@ -410,9 +410,9 @@ multi-phase traversal still need runtime qualification. The broader roadmap abov
 - Inspection output separates `executionStatus`, `verdict`, coverage, truncation and `cleanupStatus`.
   VoiceOver speech capture remains `notAssessed`; native verdicts require completed category coverage.
   Cleanup errors preserve the traversal's execution status and partial evidence independently.
-- `amoo agent install --binary /absolute/path/to/amoo` pins the executable in generated standalone
-  MCP configs (default: the running executable's resolved absolute path). Shell aliases do not apply.
-  MCP responses expose host build metadata for legacy and modern protocols. Inspection provenance
+- `amoo agent install --binary /absolute/path/to/amoo` pins the executable in generated agents
+  (default: the running executable's resolved absolute path). Shell aliases do not apply.
+  `amoo capabilities` and `amoo version` expose host build metadata. Inspection provenance
   includes advertised companion capabilities and the actual companion executable SHA-256.
   Session-installed app artifacts are fingerprinted before/after installation; configured launch locale
   is separate from an externally unavailable observed app UI locale. Shared plugin manifests stay portable; use a
@@ -424,8 +424,8 @@ multi-phase traversal still need runtime qualification. The broader roadmap abov
 - `test_voiceover phases='[{"steps":5,"direction":"forward"},{"steps":5,"direction":"backward"}]'`
   keeps one VoiceOver service enabled across phases and restores it once at the end. Bounds are
   six phases and 30 total moves. Capability negotiation rejects older companions before traversal,
-  with explicit rebuild/OS remediation. `start_session.owner` explicitly identifies the owning MCP process; delegate
-  app/build/device requirements, never a live session ID.
+  with explicit rebuild/OS remediation. A runtime is owned by the process that
+  leased it with `amoo env up`; delegate app/build/device requirements, never a runtime you hold.
 
 The original recommendations motivating this slice were:
 

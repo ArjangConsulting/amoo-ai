@@ -1,20 +1,17 @@
 # Companion startup
 
 Stopped amoo archives include prebuilt iOS simulator and unsigned physical-device test products,
-and both Android companion APKs. `start_session` selects a device, prepares the companion, launches
-the installed app under test (or installs `build_path` first), and returns a session ID.
+and both Android companion APKs. `amoo env up` selects a device, prepares the companion, optionally
+installs and launches the app under test (`--app`, `--app-id`), and returns a runtime ID.
 
 ## Progress
 
-Clients can pass `_meta.progressToken` on the MCP `tools/call` request to receive
-`notifications/progress`. Updates describe selection, boot, build, installation, launch, and API
-readiness. Silent waits send a heartbeat every ten seconds with elapsed time. The progress counter
-counts notifications; it is not a percentage or an estimate of time remaining.
-
-Clients that cannot display progress notifications can call `session_startup_status` concurrently.
-It reports the recent startup stages, elapsed time, and whether startup is still pending, ready, or
-failed. Relay this information to the user; do not issue a duplicate `start_session` while waiting.
-Progress support follows the [MCP progress contract](https://ts.sdk.modelcontextprotocol.io/v2/servers/logging-progress-cancellation).
+`amoo env up` returns once the companion answers. Its `--json` report says what the companion start
+did (`companion.phases`: `check`, `build`, `install.app`, `install.test`, each with an outcome such
+as `cached` or `reused`) and how long each step took (`timings_ms`); the companion log path is in
+`log`. A Studio session reports its startup through
+`session_startup_status`: recent stages, elapsed time, and whether it is pending, ready or failed.
+Relay that to the user; do not start a second runtime while the first is still starting.
 
 ## Build modes
 
@@ -44,7 +41,7 @@ Amoo does not compile the app under test; `build_path` supplies an already built
 ## Physical iOS devices
 
 Prebuilt device products need signing for the user's development team and device. Configure these
-variables in the amoo MCP server's environment:
+variables in the environment of the shell that runs `amoo env up`:
 
 - `AMOO_IOS_SIGNING_IDENTITY`: a development signing certificate available in the keychain.
 - `AMOO_IOS_HOST_PROFILE`: the development provisioning profile for `com.amoo.companion`.
