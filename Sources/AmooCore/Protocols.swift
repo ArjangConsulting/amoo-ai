@@ -219,6 +219,7 @@ public protocol PlatformDriver:
     ScreenCapture,
     AccessibilityProvider,
     DeviceConfigurator,
+    DisplaySettingConfigurator,
     AIContextProvider,
     InspectionCapabilityProviding,
     Sendable {

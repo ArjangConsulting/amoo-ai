@@ -170,7 +170,7 @@ extension DriverToolExecutor {
     /// Tools whose text is their findings: a grouped summary of a few hundred bytes. Compact mode keeps
     /// it, or an agent would have to read the structured report, many times larger, to learn the same.
     static let findingTools: Set = [
-        "audit_accessibility", "audit_accessibility_native", "audit_security", "audit_app"
+        "audit_accessibility", "audit_accessibility_native", "audit_security", "audit_app", "check_accessibility"
     ]
 
     /// `tap_element` fields omitted under `response_mode=compact` while they hold these values. They

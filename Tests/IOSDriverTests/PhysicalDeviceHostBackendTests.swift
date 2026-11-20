@@ -6,6 +6,18 @@ import ProcessRunner
 import XCTest
 
 final class PhysicalDeviceHostBackendTests: XCTestCase {
+    func testDisplaySettingsAreUnsupportedBecauseDevicectlCannotReadThem() async {
+        let backend = PhysicalDeviceHostBackend(devicectl: MockDeviceCtlRunner())
+        do {
+            _ = try await backend.displaySetting(device: "phone", setting: .appearance)
+            XCTFail("devicectl cannot read appearance, so a check must not change it")
+        } catch let AmooError.unsupportedCapability(key, _) {
+            XCTAssertEqual(key, "config.appearance")
+        } catch {
+            XCTFail("Unexpected \(error)")
+        }
+    }
+
     func testAppLifecycleUsesPhysicalDeviceAndReinstallDoesNotUninstall() async throws {
         let devicectl = MockDeviceCtlRunner()
         let driver = IOSDriver.physicalDevice(

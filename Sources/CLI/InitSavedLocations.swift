@@ -38,7 +38,8 @@ func renderInitLocationsBlock(
     _ saved: InitSavedLocations,
     relativeTo base: String,
     signIn: InitSignInStatus? = nil,
-    screenshots: ScreenshotPolicy? = nil
+    screenshots: ScreenshotPolicy? = nil,
+    accessibility: AccessibilityCheckResolution = .notConfigured
 ) -> String {
     var lines = [
         blockStart,
@@ -77,12 +78,11 @@ func renderInitLocationsBlock(
         .append(
             "- Before recording or export, review `amoo.md` against existing tests and complete uncertain bindings."
         )
-    if let signIn {
-        lines.append(signIn.agentsLine(relativeTo: base))
-    }
-    if let screenshots {
-        lines.append(screenshotsAgentsLine(screenshots))
-    }
+    lines += [
+        signIn?.agentsLine(relativeTo: base),
+        screenshots.map(screenshotsAgentsLine),
+        accessibilityAgentsLine(accessibility)
+    ].compactMap(\.self)
     lines.append("- Prepare devices: `amoo init` (guided) or `amoo init --help`")
     lines.append(blockEnd)
     return lines.joined(separator: "\n")
@@ -162,7 +162,8 @@ func saveInitLocations(_ saved: InitSavedLocations, agentsFile: String) throws {
         merged,
         relativeTo: base,
         signIn: signIn,
-        screenshots: ScreenshotPolicy.resolve(from: URL(fileURLWithPath: base))
+        screenshots: ScreenshotPolicy.resolve(from: URL(fileURLWithPath: base)),
+        accessibility: AccessibilityCheckResolution.resolve(from: URL(fileURLWithPath: base))
     )
     let updated = upsertInitBlock(into: existing, block: block)
     try updated.write(toFile: agentsFile, atomically: true, encoding: .utf8)

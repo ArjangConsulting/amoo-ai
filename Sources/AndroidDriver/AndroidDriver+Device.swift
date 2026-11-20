@@ -38,6 +38,45 @@ public extension AndroidDriver {
         return reported
     }
 
+    func displaySetting(_ setting: DisplaySetting) async throws -> String {
+        let command = setting.androidReadCommand
+        let output = try await adb.run(adbArgs() + ["shell"] + command).stdout
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Self.displaySettingValue(setting, output: output) else {
+            throw AmooError.commandFailed(command: command.joined(separator: " "), output: output)
+        }
+        return value
+    }
+
+    func setDisplaySetting(_ setting: DisplaySetting, to value: String) async throws -> String {
+        guard let canonical = setting.canonicalValue(value, for: .android) else {
+            throw AmooError.commandFailed(
+                command: "set \(setting.rawValue)", output: "'\(value)' is not a value Android accepts."
+            )
+        }
+        _ = try await adb.run(adbArgs() + ["shell"] + setting.androidWriteCommand(canonical))
+        return try await displaySetting(setting)
+    }
+
+    /// Parses what Android prints for a setting. A key that was never written reads `null`, which
+    /// is the platform default; `cmd uimode night` answers `Night mode: yes|no|auto`.
+    static func displaySettingValue(_ setting: DisplaySetting, output: String) -> String? {
+        switch setting {
+        case .appearance:
+            guard let mode = output.split(separator: ":").last?.trimmingCharacters(in: .whitespaces) else {
+                return nil
+            }
+            return ["yes": "dark", "no": "light", "auto": "auto"][mode.lowercased()]
+        case .textSize:
+            if output == "null" || output.isEmpty {
+                return "1.0"
+            }
+            return Double(output).map { String($0) }
+        case .increaseContrast:
+            return ["1": "enabled", "0": "disabled", "null": "disabled", "": "disabled"][output]
+        }
+    }
+
     /// Element frames are screen pixels. The active display density accounts for resizable presets;
     /// `wm density` is a fallback when active display information is unavailable. dp = px * 160 / dpi.
     func elementGeometry() async throws -> ElementGeometry? {
@@ -121,6 +160,27 @@ extension KeyModifier {
         case .shift: "KEYCODE_SHIFT_LEFT"
         case .option: "KEYCODE_ALT_LEFT"
         case .control: "KEYCODE_CTRL_LEFT"
+        }
+    }
+}
+
+private extension DisplaySetting {
+    var androidReadCommand: [String] {
+        switch self {
+        case .appearance: ["cmd", "uimode", "night"]
+        case .textSize: ["settings", "get", "system", "font_scale"]
+        case .increaseContrast: ["settings", "get", "secure", "high_text_contrast_enabled"]
+        }
+    }
+
+    func androidWriteCommand(_ value: String) -> [String] {
+        switch self {
+        case .appearance:
+            ["cmd", "uimode", "night", ["dark": "yes", "light": "no"][value] ?? "auto"]
+        case .textSize:
+            ["settings", "put", "system", "font_scale", value]
+        case .increaseContrast:
+            ["settings", "put", "secure", "high_text_contrast_enabled", value == "enabled" ? "1" : "0"]
         }
     }
 }

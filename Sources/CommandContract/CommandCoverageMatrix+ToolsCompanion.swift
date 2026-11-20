@@ -52,6 +52,11 @@ public extension CommandCoverageMatrix {
             expectedAssertion: "authored failures retain target/transition evidence and evaluated coverage"
         ),
         .init(
+            name: "check_accessibility", channel: .tool, kind: .deterministic,
+            releaseTier: .informational, platforms: [.ios, .android], fixtureScreen: .audit,
+            expectedAssertion: "opted-in checks run per configuration and display settings are restored"
+        ),
+        .init(
             name: "audit_accessibility_native",
             channel: .tool,
             kind: .deterministic,

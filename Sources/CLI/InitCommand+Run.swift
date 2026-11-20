@@ -151,6 +151,12 @@ private func runCompletedInit(
         root: URL(fileURLWithPath: agentsFile).deletingLastPathComponent(),
         prompter: runtime.prompter
     ) : nil
+    let accessibilityNote = offerSignIn ? settleInitAccessibility(
+        complete,
+        interactive: interactive,
+        root: URL(fileURLWithPath: agentsFile).deletingLastPathComponent(),
+        prompter: runtime.prompter
+    ) : nil
     if interactive, offerSignIn, !complete.assumeYes {
         await offerSignInAccount(appID: plan.options.environment.appID, agentsFile: agentsFile, runtime: runtime)
     }
@@ -165,7 +171,7 @@ private func runCompletedInit(
         save: saveLocations,
         interactive: interactive,
         agentsFile: agentsFile
-    ).appendingNote(screenshotNote)
+    ).appendingNote(screenshotNote).appendingNote(accessibilityNote)
 }
 
 /// Asks whether agents need to sign in, and runs `amoo credentials add` if so. Declining, cancelling

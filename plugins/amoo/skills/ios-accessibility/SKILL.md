@@ -37,6 +37,17 @@ suppressions no longer suppress; retain suppressed findings and their original o
 Record the effective policy and scope with the report. `mobile-extended` adds
 `A11Y-CONTRAST`, `A11Y-TARGET-SIZE` and `A11Y-ANNOUNCEMENT`; their support is backend-dependent.
 
+## Project-selected checks
+
+When `amoo.config.json` has an `accessibility` section, the project chose its checks in `amoo init`.
+Run `check_accessibility app_id=<id>` on every screen in the journey. It audits those checks at default
+settings and again in each opted-in configuration (dark mode, largest text, increased contrast), and it
+restores the settings. Do not add checks the project left out. Exclude a finding only when it is a
+false positive or the user accepts it: use `exclude_elements=<check>:<element id or label>` or
+`exclude_checks=<check>` with `exclude_reason`, then report each exclusion. Excluded and unsupported
+checks never count as passed. Without the section the tool refuses; ask before opting the project in.
+Contract: [accessibility checks](https://github.com/ArjangConsulting/amoo-ai/blob/main/docs/accessibility-checks.md).
+
 ## Core audit rules
 
 | Rule | Evaluate | Conditional standards mapping |

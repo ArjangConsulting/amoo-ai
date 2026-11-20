@@ -34,6 +34,10 @@ struct InitRequest: Equatable {
     var screenshotScale: Double?
     /// `--screenshot-inline` / `--screenshot-path-only`: whether captures also return the image.
     var screenshotInline: Bool?
+    /// `--accessibility-checks`: the checks `check_accessibility` runs; nil asks (terminal) or keeps.
+    var accessibilityChecks: [AccessibilityCheckPolicy.Check]?
+    /// `--accessibility-configurations`: the display settings the checks are repeated in.
+    var accessibilityConfigurations: [AccessibilityCheckPolicy.Configuration]?
 
     /// Required inputs still absent, phrased as the flag that supplies each.
     var missing: [String] {
@@ -120,6 +124,16 @@ func parseInitRequest(_ args: [String]) throws -> InitRequest {
         throw EnvCommandParseError.usage("--screenshot-inline and --screenshot-path-only are mutually exclusive.")
     }
     request.screenshotInline = inline ? true : (pathOnly ? false : nil)
+    if let raw = try flags.value("--accessibility-checks") {
+        request.accessibilityChecks = try parseInitAccessibilityList(
+            raw, flag: "--accessibility-checks", as: AccessibilityCheckPolicy.Check.self
+        )
+    }
+    if let raw = try flags.value("--accessibility-configurations") {
+        request.accessibilityConfigurations = try parseInitAccessibilityList(
+            raw, flag: "--accessibility-configurations", as: AccessibilityCheckPolicy.Configuration.self
+        )
+    }
     while let raw = try flags.value("--client") {
         request
             .clients += try parseAgentList(raw, all: AgentClient.allCases, flag: "--client") {

@@ -59,6 +59,8 @@ struct InitManifest: Codable {
     }
 }
 
+// The help text is one literal; splitting it would only scatter the usage.
+// swiftlint:disable:next function_body_length
 func renderInitHelp() -> String {
     """
     Usage: amoo init                      guided setup (asks for anything not given)
@@ -69,6 +71,7 @@ func renderInitHelp() -> String {
                      [--dry-run] [--yes] [--save|--no-save] [--agents-file <path>]
                      [--client <name>]... [--skills|--no-skills]
                      [--screenshot-scale <0..1>] [--screenshot-inline|--screenshot-path-only]
+                     [--accessibility-checks <list|all|none>] [--accessibility-configurations <list|all|none>]
                      [--non-interactive] [--json]
            amoo init device [--manifest <path>] --device <id> [--json] <tool> [key=value ...]
            amoo init down [--manifest <path>] [--shutdown] [--json]
@@ -93,6 +96,11 @@ func renderInitHelp() -> String {
     It also asks the screenshot size (a fraction of 1 pixel per point) and whether agents get the image
     inline or just the saved file's path; captures are always saved. The choice is a project default in
     amoo.config.json that a call's scale/return_image overrides; the --screenshot-* flags skip the question.
+
+    It then asks which accessibility checks `check_accessibility` runs on each screen (names, target_size,
+    contrast, text_clipping, text_scaling, traits, element_detection) and which configurations to repeat
+    them in (dark_mode, large_text, increase_contrast). Nothing is checked unless chosen; the choice is
+    saved in amoo.config.json. --accessibility-checks and --accessibility-configurations skip the question.
 
     In a terminal it also offers to set up the amoo subagents and skills for your AI clients (Claude
     Code, Cursor, Codex, Copilot, Gemini, OpenCode), using the same picker as `amoo agent install`.

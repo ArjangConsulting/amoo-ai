@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/maniramezan/mobile-testing/docs/amoo-config.schema.json",
   "title": "amoo.config.json",
-  "description": "Project configuration for amoo: credential profiles an agent signs in with by reference, and screenshot defaults.",
+  "description": "Project configuration for amoo: credential profiles an agent signs in with by reference, screenshot defaults, and opted-in accessibility checks.",
   "type": "object",
   "required": ["version"],
   "properties": {
@@ -28,6 +28,24 @@
           "type": "boolean",
           "default": false,
           "description": "Also return the image inline when a take_screenshot call does not say."
+        }
+      }
+    },
+    "accessibility": {
+      "type": "object",
+      "description": "Accessibility checks the project opted in to; check_accessibility runs exactly these. A name left out is opted out. Set by amoo init.",
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "type": "object",
+          "propertyNames": { "enum": ["names", "target_size", "contrast", "text_clipping", "text_scaling", "traits", "element_detection"] },
+          "additionalProperties": { "type": "boolean" }
+        },
+        "configurations": {
+          "type": "object",
+          "description": "Display settings the checks are repeated in after the default pass; each is restored afterwards.",
+          "propertyNames": { "enum": ["dark_mode", "large_text", "increase_contrast"] },
+          "additionalProperties": { "type": "boolean" }
         }
       }
     }

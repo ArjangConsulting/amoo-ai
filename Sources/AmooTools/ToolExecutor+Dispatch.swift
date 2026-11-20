@@ -530,6 +530,9 @@ extension DriverToolExecutor {
         case "assert_accessibility_journey":
             return try await executeAccessibilityJourney(driver: driver, arguments: arguments)
 
+        case "check_accessibility":
+            return try await executeAccessibilityCheck(driver: driver, arguments: arguments)
+
         case "audit_accessibility_native", "test_voiceover", "test_talkback", "assert_talkback_speech":
             return try await executeAccessibilityInspection(driver: driver, arguments: arguments, toolName: toolName)
 

@@ -69,7 +69,11 @@ state unless a clean store was requested; never add reset flags by guess.
    overlay or floating button), retry with `check_hittable=false`, assert the outcome, and record it.
 6. Screenshots: save with `output=<evidence path>`, never `return_image=true`; view one only for a final
    visual verdict. Pause playback through an app control before stable captures.
-7. Audits: `audit_accessibility`, `audit_security`, `audit_app`. For accessibility review, load only the
+7. Audits: `audit_accessibility`, `audit_security`, `audit_app`. When the project's `amoo.config.json`
+   has an `accessibility` section (the AGENTS.md block says so), run `check_accessibility app_id=<id>` on
+   each screen you verify; it runs the opted-in checks in every opted-in configuration and restores the
+   settings. Exclude only reported false positives, with `exclude_elements=<check>:<id>` and an
+   `exclude_reason`, and list each exclusion in your report. For accessibility review, load only the
    selected platform's `ios-accessibility` or `android-accessibility` skill and honor the supplied policy.
 8. WebViews: `webview_dom` / `webview_eval` (debug builds with inspection enabled).
 9. `author-flow`: write the working sequence to `flow_out` with `vars` for the app id and launch

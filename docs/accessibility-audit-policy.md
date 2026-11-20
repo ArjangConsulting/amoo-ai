@@ -6,6 +6,10 @@ and automatically inferred journey checkpoints remain proposed. Native audits an
 journeys are available; supplying this file does not configure those providers or change the
 existing heuristic rules of `audit_accessibility`.
 
+The project-selected checks that the CLI enforces today live in `amoo.config.json` and run through
+`check_accessibility`; see [accessibility checks](accessibility-checks.md). This document's rule catalog
+remains the richer review contract that the skills interpret.
+
 ## Standards and evaluation
 
 Use [WCAG 2.2](https://www.w3.org/TR/WCAG22/) for success criteria and A/AA/AAA conformance

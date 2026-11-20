@@ -9,7 +9,9 @@ public struct DiagnosticEvidence: Codable, Sendable, Equatable {
         "analyze_ai_testability", "highlight_a11y_issues", "suggest_test_actions"
     ]
 
-    public static let structuredToolNames = toolNames.union(["assert_accessibility_journey", "assert_talkback_speech"])
+    public static let structuredToolNames = toolNames.union([
+        "assert_accessibility_journey", "assert_talkback_speech", "check_accessibility"
+    ])
 
     public let schemaVersion: Int
     public let speechRetained: Bool

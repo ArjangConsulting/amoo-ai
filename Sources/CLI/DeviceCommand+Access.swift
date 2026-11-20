@@ -21,6 +21,7 @@ func makeDeviceToolExecutor(_ options: DeviceCommandOptions, driver: any Platfor
         defaultDeviceID: options.deviceID,
         credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
         screenshotPolicy: { ScreenshotPolicy.resolve() },
+        accessibilityPolicy: { AccessibilityCheckResolution.resolve() },
         runTelemetry: .persistent()
     )
 }

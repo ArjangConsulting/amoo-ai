@@ -43,6 +43,9 @@ public actor DriverToolExecutor: ToolExecutor {
     /// The project's screenshot defaults, read at capture time so an edit to `amoo.config.json` applies
     /// to the next capture. Defaults to `standard`; `amoo studio serve` / `amoo device` read the project config.
     let screenshotPolicy: @Sendable () -> ScreenshotPolicy
+    /// The project's opted-in accessibility checks, read per call like `screenshotPolicy`. Defaults to
+    /// `notConfigured`, so `check_accessibility` refuses until a project opts in.
+    let accessibilityPolicy: @Sendable () -> AccessibilityCheckResolution
     /// Every secret this executor has resolved, scrubbed from every later result it returns.
     var credentialRedactor = ArtifactRedactor()
     /// The last app amoo launched per session id (`default` without one), for the credential gate.
@@ -57,9 +60,11 @@ public actor DriverToolExecutor: ToolExecutor {
         defaultDeviceID: String? = nil,
         credentialResolver: CredentialResolver = CredentialResolver(),
         screenshotPolicy: @escaping @Sendable () -> ScreenshotPolicy = { .standard },
+        accessibilityPolicy: @escaping @Sendable () -> AccessibilityCheckResolution = { .notConfigured },
         runTelemetry: RunTelemetryStore = RunTelemetryStore()
     ) {
         self.screenshotPolicy = screenshotPolicy
+        self.accessibilityPolicy = accessibilityPolicy
         self.runTelemetry = runTelemetry
         let configuredRun = ProcessInfo.processInfo.environment["AMOO_RUN_ID"]
         telemetryRunID = configuredRun.flatMap { UUID(uuidString: $0) != nil ? $0 : nil } ?? UUID().uuidString
@@ -233,6 +238,9 @@ public actor DriverToolExecutor: ToolExecutor {
     private func sessionIntent(toolName: String, arguments: [String: String], isError: Bool) -> SessionAction.Intent {
         // An audit that fails on issues is an expectation, not an observation, even when it failed.
         if toolName == "audit_accessibility_native", boolArgument(arguments["fail_on_issues"]) == true {
+            return .assertion
+        }
+        if toolName == "check_accessibility" {
             return .assertion
         }
         if Self.diagnosticTools.contains(toolName) {

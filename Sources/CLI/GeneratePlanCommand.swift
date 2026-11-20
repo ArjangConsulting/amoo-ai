@@ -206,7 +206,7 @@ private let flowStepSpacingSeconds = 5.0
 /// Mirrors how the recorder classifies a live call: queries are diagnostics, `assert_*` are
 /// assertions, everything else is a step to reproduce.
 private func flowIntent(forTool tool: String, arguments: [String: String]) -> SessionAction.Intent {
-    if tool.hasPrefix("assert_")
+    if tool.hasPrefix("assert_") || tool == "check_accessibility"
         || (tool == "audit_accessibility_native" && boolFlowArgument(arguments["fail_on_issues"]) == true) {
         return .assertion
     }

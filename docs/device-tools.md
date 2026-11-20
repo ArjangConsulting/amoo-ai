@@ -319,6 +319,12 @@ stateDescription with exactly one of `expected` or `contains`; empty expected te
 These properties are independent of selected state and editable value. Missing provider support
 returns `state_property_unsupported`.
 
+`check_accessibility` runs the checks the project opted in to in `amoo.config.json` (via `amoo init`),
+once at default display settings and again in each opted-in configuration (dark mode, largest text,
+increased contrast), then restores every setting. It fails unless every check the platform can run
+passed; `exclude_checks` / `exclude_elements` with `exclude_reason` leave false positives out of one
+call. See [accessibility checks](accessibility-checks.md).
+
 `audit_accessibility_native` supports Google ATF on Android and Apple native audits on iOS, with
 explicit per-category coverage and optional `output` PNG highlights. Its reply names up to five
 issues (category, label, id, frame); `structuredContent.issues` keeps every one. By default it reports

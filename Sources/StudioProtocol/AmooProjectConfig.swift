@@ -12,15 +12,19 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
     public var profiles: [String: CredentialProfile]
     /// Screenshot size and delivery defaults for agents; nil keeps `ScreenshotPolicy.standard`.
     public var screenshots: ScreenshotPolicy?
+    /// The accessibility checks the project opted in to; nil means none, so `check_accessibility` refuses.
+    public var accessibility: AccessibilityCheckPolicy?
 
     public init(
         version: Int = supportedVersion,
         profiles: [String: CredentialProfile] = [:],
-        screenshots: ScreenshotPolicy? = nil
+        screenshots: ScreenshotPolicy? = nil,
+        accessibility: AccessibilityCheckPolicy? = nil
     ) {
         self.version = version
         self.profiles = profiles
         self.screenshots = screenshots
+        self.accessibility = accessibility
     }
 
     public init(from decoder: any Decoder) throws {
@@ -28,6 +32,7 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
         version = try container.decode(Int.self, forKey: .version)
         profiles = try container.decodeIfPresent([String: CredentialProfile].self, forKey: .profiles) ?? [:]
         screenshots = try container.decodeIfPresent(ScreenshotPolicy.self, forKey: .screenshots)
+        accessibility = try container.decodeIfPresent(AccessibilityCheckPolicy.self, forKey: .accessibility)
     }
 
     /// The nearest `amoo.config.json` at or above `directory`, stopping at the repository root.
@@ -68,10 +73,14 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
     }
 
     /// `inner` wins: profiles and their fields merge by name, a profile's `apps` list is replaced, and
-    /// its launch requirements merge by key. An inner screenshot policy replaces the outer one.
+    /// its launch requirements merge by key. An inner screenshot policy replaces the outer one;
+    /// accessibility checks merge name by name.
     func overlaid(by inner: Self) -> Self {
         var result = self
         result.screenshots = inner.screenshots ?? screenshots
+        if let innerChecks = inner.accessibility {
+            result.accessibility = accessibility?.overlaid(by: innerChecks) ?? innerChecks
+        }
         for (name, profile) in inner.profiles {
             guard let outer = result.profiles[name] else {
                 result.profiles[name] = profile
@@ -136,6 +145,7 @@ public struct AmooProjectConfig: Codable, Equatable, Sendable {
             problems.append("version \(version) is not supported (expected \(Self.supportedVersion))")
         }
         problems += screenshots?.validationProblems() ?? []
+        problems += accessibility?.validationProblems() ?? []
         for (name, profile) in profiles.sorted(by: { $0.key < $1.key }) {
             if name.isEmpty || name.contains("#") {
                 problems.append("profile name '\(name)' must be non-empty and must not contain '#'")

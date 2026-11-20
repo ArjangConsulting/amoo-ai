@@ -30,6 +30,13 @@ nothing. `--screenshot-scale <0..1>` and `--screenshot-inline` / `--screenshot-p
 headless too (`--yes` alone keeps the current choice). The managed `AGENTS.md` block records the
 result in a `Screenshots:` line.
 
+It then asks which **accessibility checks** `check_accessibility` runs on each screen and which
+configurations (dark mode, largest text, increased contrast) to repeat them in. Nothing is pre-selected;
+declining in a project that never opted in writes nothing. `--accessibility-checks <list|all|none>` and
+`--accessibility-configurations <list|all|none>` answer headless. The choice lives in `amoo.config.json`,
+and the `AGENTS.md` block gets an `Accessibility:` line telling agents to run the checks. See
+[accessibility checks](accessibility-checks.md).
+
 When `--app` is explicitly supplied, it also asks for the app ID if omitted, defaulting from the
 iOS app's `Info.plist`. When an app ID is supplied or collected, it asks whether to launch the app.
 Without an app, setup skips installation and launch. Saved artifact paths are never selected
