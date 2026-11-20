@@ -133,12 +133,15 @@ extension CommandContractE2ETests {
         let effectiveReadyLabel = Self
             .platform == .android ? readyLabel ?? androidLabelFallback(for: readyID) : readyLabel
         let readyNeedles = [readyID, effectiveReadyLabel].compactMap(\.self)
+        let launcherSelector = Self.platform == .ios
+            ? ["id": launcherID, "label": effectiveLauncherLabel]
+            : ["id": launcherID]
 
         func prepareHome() async -> ToolResult {
             await resetFixtureApp(on: server)
         }
 
-        let launcherByID = await server.execute(toolName: "find_elements", arguments: ["id": launcherID])
+        let launcherByID = await server.execute(toolName: "find_elements", arguments: launcherSelector)
         let launcherByLabel = await server.execute(
             toolName: "find_elements",
             arguments: ["label": effectiveLauncherLabel]
@@ -150,10 +153,7 @@ extension CommandContractE2ETests {
         }
 
         if Self.platform == .ios {
-            let reveal = await server.execute(
-                toolName: "scroll_to_element",
-                arguments: ["id": launcherID]
-            )
+            let reveal = await server.execute(toolName: "scroll_to_element", arguments: launcherSelector)
             guard !reveal.isError else { return reveal }
         }
 
@@ -168,7 +168,7 @@ extension CommandContractE2ETests {
             launcherByLabel: launcherByLabel
         )
 
-        let openByID = await server.execute(toolName: "tap_element", arguments: ["id": launcherID])
+        let openByID = await server.execute(toolName: "tap_element", arguments: launcherSelector)
         guard !openByID.isError else {
             if Self.platform == .ios {
                 return openByID
@@ -289,11 +289,12 @@ extension CommandContractE2ETests {
                 arguments: ["label": "Open", "scope": "system"]
             )
             XCTAssertFalse(accepted.isError, accepted.content)
-            let dismissed = await server.execute(
-                toolName: "assert_absent",
-                arguments: ["label": "Open", "scope": "system", "timeout_ms": "10000"]
+            _ = try await waitUntil(
+                timeout: .seconds(10),
+                pollInterval: .milliseconds(200),
+                operation: { try await driver.findElements(.init(label: "Open"), appID: systemAppID) },
+                matching: \.isEmpty
             )
-            XCTAssertFalse(dismissed.isError, dismissed.content)
         }
     }
 

@@ -22,10 +22,8 @@ extension CommandContractE2ETests {
         )
         XCTAssertFalse(detailsReady.isError, detailsReady.content)
 
-        let beforeScroll = await server.execute(
-            toolName: "find_elements",
-            arguments: ["id": "fixture-detail-row-29"]
-        )
+        let tailQuery = ["id": "fixture-detail-row-29", "response_mode": "full"]
+        let beforeScroll = await server.execute(toolName: "find_elements", arguments: tailQuery)
         XCTAssertFalse(beforeScroll.isError)
         let initiallyVisible = beforeScroll.structuredContent?.objectValue?["elements"]?.arrayValue?
             .contains { $0.objectValue?["visible"] == .bool(true) } ?? false
@@ -37,10 +35,7 @@ extension CommandContractE2ETests {
         for _ in 0 ..< 8 {
             let scroll = await server.execute(toolName: "scroll", arguments: ["direction": "down", "distance": "500"])
             XCTAssertFalse(scroll.isError, scroll.content)
-            let afterScroll = await server.execute(
-                toolName: "find_elements",
-                arguments: ["id": "fixture-detail-row-29"]
-            )
+            let afterScroll = await server.execute(toolName: "find_elements", arguments: tailQuery)
             XCTAssertFalse(afterScroll.isError, afterScroll.content)
             if afterScroll.structuredContent?.objectValue?["elements"]?.arrayValue?
                 .contains(where: { $0.objectValue?["visible"] == .bool(true) }) == true {
