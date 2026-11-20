@@ -193,9 +193,14 @@ func runAgentInstall(_ options: AgentInstallOptions, assetsRoot: URL? = agentAss
         return agentInstallResult(report, json: options.json)
     }
     do {
+        var selected = options
+        if !selected.skippedGiven {
+            let stamp = try AgentInstallStamp.read(in: options.root, discardUnreadable: options.force)
+            selected.skipped = Set(stamp?.skipped ?? [])
+        }
         report = try writeAgentFiles(
-            agentInstallPlan(options, assetsRoot: assetsRoot),
-            options: options,
+            agentInstallPlan(selected, assetsRoot: assetsRoot),
+            options: selected,
             shouldWrite: { _, existing in existing == nil || options.force },
             skippedAction: { _ in "skipped (differs; use --force)" }
         )

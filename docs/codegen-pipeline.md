@@ -1,15 +1,15 @@
 # Recording → plan → generated test
 
 How a driven session becomes a standalone XCUITest / Espresso file. Read this before touching
-`SessionPlanCompiler`, the emitters, session recording in `ToolExecutor`, or the MCP `initialize`
-instructions — the logic is spread across several modules and two tool vocabularies, and the
+`SessionPlanCompiler`, the emitters, or session recording in `ToolExecutor`. The logic is spread
+across several modules and two tool vocabularies, and the
 connections are not obvious from any single file.
 
 ## Data flow
 
 ```mermaid
 flowchart TD
-    A["MCP tool calls\n(tap_element, find_elements, assert_absent, …)\nwith session_id"] --> B
+    A["Recorded tool calls\n(tap_element, find_elements, assert_absent, …)\nwith session_id"] --> B
     B["DriverToolExecutor.execute\n→ recordIfNeeded"] -->|"one SessionAction per call\n(control-plane calls skipped)"| C
     C["TestSession.actions\n(+ FileSessionStore → report.json)"] --> D
     D["SessionPlanCompiler.compile(report:)"] --> E["CompileSessionToPlanResult"]
@@ -20,7 +20,7 @@ flowchart TD
     I --> J["StudioTestExportResult\n= a .swift / .kt file"]
 ```
 
-Entry points that drive this offline (no `amoo mcp serve`):
+Entry points for compiling and exporting tests:
 
 - `amoo generate plan --report report.json [--context …] --out dir/` — step D only
   (`Sources/CLI/GeneratePlanCommand.swift`). `--from-flow flow.amoo.json` replaces `--report` to
@@ -28,12 +28,9 @@ Entry points that drive this offline (no `amoo mcp serve`):
   (a `device_launch_app` step supplies the app id and launch configuration) and compiled the same way.
 - `amoo generate test --plan plan.json [--context …]` — steps H–I
   (`Sources/CLI/GenerateCommand.swift`).
-- MCP `end_session` — step D on session close, writing `plan.json` + `flow.json` via
-  `SessionArtifactWriter`. This is the canonical path: an agent ends the session, then inspects
-  and generates.
-- MCP `compile_session_to_plan` — the same step D, but callable while the session is still open.
-  An *optional preview*; it does not change the plan `end_session` writes, and (like every
-  lifecycle call) it is never recorded as an app step.
+- The session-backed executor used by Studio runs step D at `end_session`, writing `plan.json` and
+  `flow.json` through `SessionArtifactWriter`. `compile_session_to_plan` previews the same compilation
+  while the session is still open. Lifecycle calls stay out of the application steps.
 
 ## Who owns what
 
@@ -41,19 +38,19 @@ Entry points that drive this offline (no `amoo mcp serve`):
 | --- | --- | --- |
 | Record a tool call as a `SessionAction` | `MCPServer` — `ToolExecutor.recordIfNeeded` | Skips `controlPlaneTools`. Assigns `SessionAction.Intent` (`testStep` / `assertion` / `diagnostic` / `failedProbe` / `recovery`). Redacts secret args. Persists versioned diagnostic evidence for audits and traversal; speech retention is opt-in. |
 | Session state + persistence | `TestSession` — `TestSession`, `SessionManager`, `SessionStore`, `SessionReport` | `report.json` date handling: `SessionReport.makeJSONEncoder()/makeJSONDecoder()` **only**. |
-| Compile a report into a plan | `MCPServer` — `SessionPlanCompiler` (`+Semantics`, `+Inspection`, `+Translation`) | Deterministic, no LLM. |
+| Compile a report into a plan | `SessionCompiler` — `SessionPlanCompiler` (`+Semantics`, `+Inspection`, `+Translation`) | Deterministic, no LLM. |
 | Plan / context / warning types | `StudioProtocol` — `StudioChatService.swift` (`StudioAuthoredTest`, `StudioTestContext`, `StudioToolOperation`, `StudioCompiledPlan`, `StudioPlanWarning`), `StudioTool.swift`, `StudioCodeExport.swift` | The wire format for `plan.json`. |
 | Emit source | `TestCodeGenerator` — `XCUITestEmitter`, `EspressoEmitter`, `ComposeEspressoEmitter`, `TestCodeEmitter.swift` (shared naming), `HelperBinder` | `MCPServer` does **not** depend on this module. |
-| MCP agent guidance | `MCPServer` — `MCPStdioServer.instructions`; `plugins/amoo/skills/driving-amoo/SKILL.md` | Kept in lock-step by `MCPInstructionsAlignmentTests` + `IOSSessionCodegenRegressionTests`. |
+| CLI agent guidance | `plugins/amoo/skills/driving-amoo/SKILL.md` | Covers authoring flows and exporting native tests. |
 
 ## Two tool vocabularies — do not conflate
 
-- **MCP-exposed tools** (what an agent calls, what `initialize` / skills / tool schemas name):
+- **Device-tool vocabulary** (what agents, flows, and tool schemas name):
   `assert_absent`, `start_session`, `end_session`, `swipe_in_direction`, `tap_element`, …
   Defined in `Sources/MCPServer/Tools/*.swift`, dispatched in `ToolExecutor+Dispatch.swift`.
 - **Compiled-plan vocabulary** (`StudioTool`, what `plan.json` / emitters / `StudioAutomationService`
   use): `assert_not_visible`, `assert_enabled`, `tap_element`, …
-  `SessionPlanCompiler.translate` maps MCP names onto these (`assert_absent` → `assert_not_visible`).
+  `SessionPlanCompiler.translate` maps device-tool names onto these (`assert_absent` → `assert_not_visible`).
 
 So `assert_not_visible` in an emitter or fixture is correct; agent-facing text must say
 `assert_absent`. Adding a tool means updating both sides plus every `switch StudioTool` (no
@@ -141,7 +138,6 @@ application step — never for a lifecycle call (those are `.notApplicable`, see
 - `Tests/MCPServerTests/SessionPlanCompilerTests.swift`, `SessionPlanCompilerSemanticsTests.swift`,
   `SessionPlanCompilerRetryTests.swift` — compiler behavior.
 - `Tests/MCPServerTests/SessionCodegenContextTests.swift` — MCP session/compile-time context.
-- `Tests/MCPServerTests/MCPInstructionsAlignmentTests.swift` — `initialize` text ↔ exposed tools.
 - `Tests/TestCodeGeneratorTests/*` — emitter output, naming, golden fixtures, real compilation.
 - `Tests/IntegrationTests/IOSSessionCodegenRegressionTests.swift` — the full record → compile →
   generate acceptance scenario, end to end.

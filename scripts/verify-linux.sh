@@ -2,7 +2,7 @@
 # Verify the Linux build of amoo inside the official Swift container.
 #
 # Mirrors the Linux job in .github/workflows/ci.yml: install protoc, build the
-# `amoo` product, then run the unit test suite. CLIQualityCoverageTests is skipped because its
+# host code and tests, then run the test suites. CLIQualityCoverageTests is skipped because its
 # Android preflight checks scan the real host for a JDK rather than going through the injected
 # process runner — a host tooling gap on a bare container, not a Linux-compatibility issue.
 #
@@ -31,6 +31,7 @@ done
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKDIR="/workspace"
+TEST_COMMANDS="swift test --build-path .build-linux --skip-build --disable-swift-testing && swift test --build-path .build-linux --skip-build --disable-xctest --skip CLIQualityCoverageTests"
 
 install_protoc() {
   echo "apt-get update -qq && apt-get install -y -qq protobuf-compiler python3 >/dev/null && export PROTOC_PATH=\$(which protoc) &&"
@@ -49,11 +50,8 @@ case "${SUBCOMMAND}" in
   build)
     run_in_container "swift --version && swift build --build-path .build-linux --product amoo"
     ;;
-  test)
-    run_in_container "swift --version && python3 -m unittest discover -s scripts/tests -v && swift test --build-path .build-linux --skip IntegrationTests --skip CLIQualityCoverageTests"
-    ;;
-  ci)
-    run_in_container "swift --version && swift build --build-path .build-linux --product amoo && python3 -m unittest discover -s scripts/tests -v && swift test --build-path .build-linux --skip IntegrationTests --skip CLIQualityCoverageTests"
+  test|ci)
+    run_in_container "swift --version && swift build --build-path .build-linux --build-tests && python3 -m unittest discover -s scripts/tests -v && ${TEST_COMMANDS}"
     ;;
   shell)
     docker run --rm -it \

@@ -157,7 +157,8 @@ public actor DriverToolExecutor: ToolExecutor {
         await recordIfNeeded(toolName: executionTool, arguments: executionArguments, result: result)
         await measureOperation(tool: toolName, arguments: arguments, result: result, started: start)
         // After recording, so the session's evidence keeps every field.
-        return Self.omittingDefaultTapFields(result, tool: toolName, arguments: arguments)
+        let response = Self.omittingDefaultTapFields(result, tool: toolName, arguments: arguments)
+        return Self.compactingIssueResponse(response, tool: toolName, arguments: arguments)
     }
 
     // swiftlint:enable multiline_arguments
@@ -362,21 +363,7 @@ public actor DriverToolExecutor: ToolExecutor {
     }
 
     nonisolated public static func parseEnvironment(_ raw: String?) -> [String: String] {
-        guard let raw, !raw.isEmpty else { return [:] }
-        let separator: Character = raw.contains("\n") ? "\n" : ","
-        var result: [String: String] = [:]
-        for pair in raw.split(separator: separator) {
-            let trimmed = pair.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else { continue }
-            if let equals = trimmed.firstIndex(of: "=") {
-                let key = String(trimmed[..<equals]).trimmingCharacters(in: .whitespaces)
-                let value = String(trimmed[trimmed.index(after: equals)...])
-                if !key.isEmpty {
-                    result[key] = value
-                }
-            }
-        }
-        return result
+        AppLaunchEnvironment.parse(raw)
     }
 }
 

@@ -113,10 +113,24 @@ final class FlowRuntimeAdoptionTests: XCTestCase {
         )
     }
 
-    func testDevicelessFlowFollowsTheCompanionsSimulator() async {
-        let owner = await flowSimulator(port: 22094) { port in port == 22094 ? "D5687BD6" : nil }
-        XCTAssertEqual(owner, "D5687BD6")
-        let unknown = await flowSimulator(port: 22087) { _ in nil }
-        XCTAssertNil(unknown)
+    func testDevicelessFlowFollowsTheCompanionsSimulator() async throws {
+        var flow = flow(port: 22094)
+        let port = try await flowCompanionPort(&flow, platform: .ios, overrides: .init()) { port in
+            port == 22094 ? "D5687BD6" : nil
+        }
+        XCTAssertEqual(port, 22094)
+        XCTAssertEqual(flow.deviceID, "D5687BD6")
+    }
+
+    func testFlowRefusesACompanionForAnotherSimulator() async throws {
+        let requested = "D5687BD6-6B26-49AE-AF56-A423984999AB"
+        let owner = "C342D46C-EF2D-4439-BCA0-3E0D5AB94785"
+        var flow = flow(device: requested, port: 22094)
+        do {
+            _ = try await flowCompanionPort(&flow, platform: .ios, overrides: .init()) { _ in owner }
+            XCTFail("Expected a companion mismatch")
+        } catch {
+            XCTAssertTrue(String(describing: error).contains(owner), "\(error)")
+        }
     }
 }

@@ -82,7 +82,8 @@ resolves from the flow's `"vars"`, then `--var name=value`, then the process env
 credentials do not enter source control. Argument values may be JSON strings, numbers or booleans.
 The runner stops at the first failed action or assertion and prints the verified result for every
 completed step; a step (or the whole flow) with `"on_error": "continue"`, or `--continue-on-error`,
-keeps going and the exit code is still 1 if anything failed. A step with `"optional": true` is
+keeps going and the exit code is still 1 if anything failed. `--continue-on-error` overrides step
+and flow settings. A step with `"optional": true` is
 reported when it fails but never stops the flow or fails the run; use it only for a step whose outcome
 does not matter to the check, never to make a failing check pass on some devices. `"repeat": N` runs a step N times. `scroll_to_element`, `tap_element`
 and `screenshot` steps already wait for the screen to settle, so a `wait_for` with `idle` after them only
@@ -129,7 +130,8 @@ changes nothing visible waits out the 800ms settle window; pass `expect_id`, `ex
 5000) and the call instead waits on the device for exactly that element and returns as soon as it
 shows (or, with `expect_absent`, is gone), reporting `expected_effect_met` and `expectation_status`.
 With `expect_absent`, the element is read before the tap; if it was already gone the status is
-`already_satisfied` and `expected_effect_met` is omitted, because waiting proves nothing. A companion that does not
+`already_satisfied` and `expected_effect_met` is omitted, because waiting proves nothing. In a flow,
+a missed or unreadable expectation fails the step. A companion that does not
 advertise `query.waitForElement.absent` is polled from the host instead. `check_effect` is skipped when an expectation is given.
 Pixel changes and app postconditions remain unverified; unchanged semantics do not prove identical screenshots.
 Occlusion is first inferred from accessibility frames and traversal order, which cannot see paint

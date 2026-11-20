@@ -141,6 +141,12 @@ final class ScreenshotCropTests: XCTestCase {
         XCTAssertTrue(result.content.contains("off-screen"), result.content)
     }
 
+    func testUnrepresentablePaddingReportsAnError() async throws {
+        let (result, fields) = try await capture(framesPerUnit: 1, ["id": "save_button", "padding": "1e100"])
+        XCTAssertTrue(result.isError)
+        XCTAssertEqual(fields["code"], .string("crop_unavailable"))
+    }
+
     func testNoSelectorKeepsTheWholeScreen() async throws {
         let (result, fields) = try await capture(framesPerUnit: 1, [:])
         XCTAssertFalse(result.isError, result.content)

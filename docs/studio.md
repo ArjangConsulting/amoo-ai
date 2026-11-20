@@ -136,8 +136,8 @@ resolved absolute path; installing a PATH link is optional and is not required f
 `agent.start` takes `{provider, messages, activeTest, deviceId, platform, appId, buildPath?,
 launchArguments?, maxSteps?}` and returns `{runId}`. `StudioAgentRun` then runs in this order:
 
-1. **Start a session.** It calls `start_session` on the session-backed `DriverToolExecutor` that
-   `amoo mcp serve` uses (`CLIStudioAgentSession`), so the run records a real session.
+1. **Start a session.** `CLIStudioAgentSession` calls `start_session` on its session-backed
+   `DriverToolExecutor`, which records the run.
 2. **Loop over model turns.** It streams turns from the provider through `StudioAgentModels`, which
    covers OpenAI and OpenAI-compatible Chat Completions, Anthropic Messages, and Ollama
    `/api/chat`, all with native tool calling. Each tool call runs in the session under the

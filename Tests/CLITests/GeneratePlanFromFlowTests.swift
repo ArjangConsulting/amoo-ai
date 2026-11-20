@@ -120,6 +120,23 @@ final class GeneratePlanFromFlowTests: XCTestCase {
         XCTAssertEqual(unknown.exitCode, 64)
     }
 
+    func testNativeAuditAssertionBlocksIncompleteExport() throws {
+        let test = try plan(from: """
+        {
+          "platform": "ios",
+          "steps": [
+            { "tool": "device_launch_app", "arguments": { "app_id": "com.example.app" } },
+            { "tool": "audit_accessibility_native", "arguments": { "app_id": "com.example.app" } },
+            { "tool": "audit_accessibility_native",
+              "arguments": { "app_id": "com.example.app", "fail_on_issues": true } }
+          ]
+        }
+        """)
+        let warnings = try XCTUnwrap(test.compiledPlan?.excludedWarnings)
+        XCTAssertEqual(warnings.map(\.toolName), ["audit_accessibility_native"])
+        XCTAssertEqual(warnings.map(\.actionIndex), [1])
+    }
+
     func testWritesPlanAndFlowIntoTheOutputDirectory() throws {
         let out = try makeScratchDirectory().url.appendingPathComponent("out").path
         let result = try runGeneratePlanCommand(options: GeneratePlanOptions(

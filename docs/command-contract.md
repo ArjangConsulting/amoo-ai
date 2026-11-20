@@ -4,7 +4,7 @@ This repo now treats public commands as a release contract.
 
 ## What Is Covered
 
-- MCP tools are declared in `Sources/MCPServer/Tools/*`.
+- Device tools are declared in `Sources/MCPServer/Tools/*`.
 - The shared command inventory lives in `Sources/CommandContract/CommandCoverageMatrix.swift`.
 - Every public tool must have:
   - a coverage-matrix entry
@@ -15,14 +15,14 @@ This repo now treats public commands as a release contract.
 
 ## Naming Rules
 
-- Assistant-facing tools are exposed through MCP and must use provider-neutral names.
+- Assistant-facing tools use provider-neutral names.
 - Tool names must not use the removed `ai_*` prefix.
 - Current canonical assistant tools are:
   - `describe_screen`
   - `suggest_test_actions`
   - `analyze_ai_testability`
   - `find_element_by_description`
-- The local MCP server is launched with `amoo mcp serve [--platform ios|android] [--port <port>] [--device <id>]`.
+- Start a runtime with `amoo env up` and call a tool with `amoo device --runtime-id <id> <tool>`.
 
 ## Blocking vs Informational
 
@@ -38,7 +38,7 @@ When adding a new public command:
 2. Add a `CommandCoverageMatrix` entry.
 3. Add or reuse a fixture screen/assertion path.
 4. Add at least one regression or e2e assertion.
-5. If the command is assistant-facing, keep it MCP-only and provider-neutral.
+5. Check the public schema with `amoo capabilities --tool <tool>`.
 
 ## Entry Points
 
@@ -46,7 +46,7 @@ When adding a new public command:
 - Android: `bash scripts/run-e2e-android.sh`
 - Both: `bash scripts/run-e2e-all.sh`
 
-## Adding a New MCP Tool
+## Adding a Device Tool
 
 Touch four files plus tests:
 
@@ -54,22 +54,18 @@ Touch four files plus tests:
    (`DeviceTools`, `ActionTools`, `QueryTools`, `AuditTools`, or `AssistantTools`).
    Set `name`, optional `title`, `description`, `properties`/`required` for inputs,
    and an `outputSchema` for any tool that returns structured content.
-2. **Route the call** in `Sources/MCPServer/ToolExecutor.swift` — add a `case` to
-   `DriverToolExecutor.execute(toolName:arguments:)` that dispatches to a private
-   `execute…()` helper. Return `.success(prose, structuredContent: try Value(report))`
-   when the tool has a declared output schema so MCP clients can validate against it.
+2. Add a dispatch case in `Sources/MCPServer/ToolExecutor+Dispatch.swift`. Return
+   `.success(prose, structuredContent: try Value(report))` when the tool has a declared output
+   schema so callers can validate against it.
 3. **Register the contract** in `Sources/CommandContract/CommandCoverageMatrix.swift`
-   with the right `channel` (`.mcp` for assistant tools, `.cli` for `amoo …`
+   with the right `channel` (`.mcp` for catalog tools, `.cli` for top-level `amoo …`
    commands), `kind`, `releaseTier`, fixture screen, and expected assertion.
 4. **Update tests**:
    - Tool name and schema assertions in `Tests/MCPServerTests/MCPServerTests.swift`
      (`testToolNamesAreExposed`, `testToolDefinitionsHaveSchemas`).
    - Driver-level execution test in the same file, using `MockDriver` or
      `AuditMockDriver` depending on what the tool touches.
-   - For end-to-end stdio coverage, extend
-     `testMCPStdioServeRespondsWithJSONRPCMessages` — it boots the real `amoo`
-     binary, exercises stateless `server/discover` + `tools/list` and the legacy
-     `initialize` flow, and is the canonical template for stdio assertions.
+   - Use `scripts/ci/cli-smoke.py` for device-free checks of the packaged binary.
 
 For assistant-facing tools, also add the prose formatter in
 `Sources/MCPServer/AssistantReports.swift` alongside the matching `Codable` report

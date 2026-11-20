@@ -37,12 +37,39 @@ final class SessionRelaunchCompilerTests: XCTestCase {
         XCTAssertEqual(android.studioTest.compiledPlan?.toolOperations?.map(\.tool), ["assert_visible"])
     }
 
-    private func compileLaunch(environment: String, platform: String = "ios") throws -> CompileSessionToPlanResult {
+    func testRelaunchUsesTheSameEnvironmentSyntaxAsTheLiveTool() throws {
+        let result = try compileLaunch(environment: "AUTOMATED=a,b\nSKIP=", initialEnvironment: [
+            "AUTOMATED": "a,b", "SKIP": "", "RESET": "1"
+        ])
+        XCTAssertEqual(result.studioTest.compiledPlan?.toolOperations?.first?.arguments["without_environment"], "RESET")
+    }
+
+    func testOmittedRelaunchEnvironmentDropsTheInitialKeys() throws {
+        let result = try compileLaunch(environment: nil)
+        XCTAssertEqual(
+            result.studioTest.compiledPlan?.toolOperations?.first?.arguments["without_environment"],
+            "AUTOMATED,RESET,SKIP"
+        )
+    }
+
+    func testOmittingInitialLaunchArgumentsChangesTheConfiguration() throws {
+        let result = try compileLaunch(environment: nil, initialArguments: ["-UITest"])
+        XCTAssertEqual(result.studioTest.compiledPlan?.excludedWarnings.count, 1)
+    }
+
+    private func compileLaunch(
+        environment: String?,
+        platform: String = "ios",
+        initialArguments: [String] = [],
+        initialEnvironment: [String: String] = ["AUTOMATED": "1", "SKIP": "1", "RESET": "1"]
+    ) throws -> CompileSessionToPlanResult {
         let now = Date()
+        var arguments = ["app_id": "com.example.app"]
+        arguments["environment"] = environment
         let actions: [SessionAction] = [
             .init(
                 timestamp: now, toolName: "device_launch_app",
-                arguments: ["app_id": "com.example.app", "environment": environment],
+                arguments: arguments,
                 result: "ok", isError: false
             ),
             .init(timestamp: now, toolName: "assert_visible", arguments: ["id": "habit"], result: "ok", isError: false)
@@ -51,7 +78,7 @@ final class SessionRelaunchCompilerTests: XCTestCase {
             sessionID: "session", appID: "com.example.app", deviceID: "device", platform: platform,
             startedAt: now, endedAt: now, durationSeconds: 1, actionCount: 2, errorCount: 0,
             isActive: false, actions: actions,
-            launchEnvironment: ["AUTOMATED": "1", "SKIP": "1", "RESET": "1"]
+            launchArguments: initialArguments, launchEnvironment: initialEnvironment
         )
         return try SessionPlanCompiler.compile(report: report, testName: "Persistence", testDescription: "")
     }

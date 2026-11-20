@@ -169,19 +169,18 @@ jobs:
 
       - name: Build executable and tests
         timeout-minutes: 10
-        run: swift build --build-tests --disable-index-store
+        run: swift build --build-tests
 
       - name: Test orchestration scripts
         run: python3 -m unittest discover -s scripts/tests -v
 
       - name: Test
         timeout-minutes: 5
-        # CLIQualityCoverageTests' Android preflight checks scan the real host for a JDK
-        # (AndroidJDK.discover()) rather than going through the injected process runner, so on a
-        # bare Linux runner without JDK 17-21 installed they fail regardless of platform-gating —
-        # not a Linux-compatibility issue, just a host tooling gap. Skipped here the same way
-        # ShipItSwifty skips its own macOS-only test targets on Linux.
-        run: swift test --disable-index-store --skip-build --skip IntegrationTests --skip CLIQualityCoverageTests
+        # Filter Swift Testing separately. A filter on Swift 6.4's XCTest run sends every selected
+        # test ID to each bundle, exceeding Linux's argument length limit. Live tests self-skip.
+        run: |
+          swift test --skip-build --disable-swift-testing
+          swift test --skip-build --disable-xctest --skip CLIQualityCoverageTests
 
       # Host builds no longer run the protobuf plugin (it compiled protoc from C++ source on every
       # clean build), so this is the one place that proves Sources/Protos/Generated matches

@@ -32,6 +32,8 @@ final class AgentSkipTests: XCTestCase {
         plain.clientsGiven = false
         XCTAssertEqual(runAgentUpdate(plain, assetsRoot: pluginRoot).exitCode, 0)
         XCTAssertFalse(FileManager.default.fileExists(atPath: claudeAmoo.path), "a later update keeps it out")
+        XCTAssertEqual(runAgentInstall(plain, assetsRoot: pluginRoot).exitCode, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: claudeAmoo.path), "a later install keeps it out")
         XCTAssertTrue(FileManager.default
             .fileExists(atPath: root.appendingPathComponent(".codex/agents/amoo.toml").path))
         XCTAssertTrue(FileManager.default.fileExists(

@@ -57,10 +57,9 @@ final class FlowReportTests: XCTestCase {
             "ok",
             structuredContent: .object(["expectation_status": .string("unverified")])
         )
-        XCTAssertFalse(
-            failingUnmetExpectation(inconclusive).isError,
-            "an expectation that could not be judged is not a failure"
-        )
+        let unverified = failingUnmetExpectation(inconclusive)
+        XCTAssertTrue(unverified.isError)
+        XCTAssertEqual(unverified.structuredContent?.objectValue?["failure_kind"], .string("expectation_unverified"))
     }
 
     func testWritesTheReportIntoTheOutputDirectory() async throws {
