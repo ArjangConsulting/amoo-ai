@@ -66,6 +66,9 @@ class UIAutomatorBridge {
         /** How long `setText` waits for a field to show the value it was given. */
         const val SET_TEXT_SETTLE_MS = 1_000L
 
+        /** How long one capture may spend inside a WebView's subtree before it stops descending. */
+        const val WEBVIEW_SUBTREE_BUDGET_MS = 1_500L
+
         const val LOG_TAG = "AmooCompanion"
 
         /** Matches any application package, used to force a full multi-window root walk. */
@@ -652,7 +655,11 @@ class UIAutomatorBridge {
         reference = reference,
         parentReference = parentReference,
         hierarchyPath = hierarchyPath,
-        attributes = attributes
+        attributes = if (childrenTruncated) {
+            attributes + ("childrenTruncated" to "webview subtree time budget; use webview_dom for its content")
+        } else {
+            attributes
+        }
     )
 
     private fun NodeRecord.visibleBounds(): FrameRect {
@@ -785,6 +792,9 @@ class UIAutomatorBridge {
         /** Set on a descendant whose label now speaks for its clickable owner, so a label selector
          *  resolves to the one control rather than to both it and its icon. */
         var labelMergedUp = false
+
+        /** Set on a WebView whose subtree the capture stopped walking at its time budget. */
+        var childrenTruncated = false
     }
 
     private fun currentElements(appId: String? = null): List<NodeRecord> {
@@ -820,7 +830,10 @@ class UIAutomatorBridge {
         // per query, indefinitely. Recycling here is free where it doesn't matter (33+) and
         // correct where it does — there is no on-device way to demonstrate the leak itself on
         // this project's API 35 test emulator, but the requirement is documented, not conditional.
+        // The app's own windows first, then system ones: the status bar sits on top in z-order, and
+        // walking it first filled a result page with SystemUI nodes before any app control.
         val windows = runCatching { automation.windows }.getOrNull().orEmpty()
+            .sortedBy { if (it.type == AccessibilityWindowInfo.TYPE_APPLICATION) 0 else 1 }
         val roots = windows.mapNotNull { it.root }
             .ifEmpty { listOfNotNull(automation.rootInActiveWindow) }
 
@@ -886,7 +899,8 @@ class UIAutomatorBridge {
         capture: String,
         deadline: Long,
         depth: Int,
-        into: MutableList<NodeRecord>
+        into: MutableList<NodeRecord>,
+        webViewDeadline: Long? = null
     ) {
         check(!io.grpc.Context.current().isCancelled) { "Hierarchy capture cancelled before completion" }
         // Each limit is named, with how far the walk got: only the time limit is worth retrying
@@ -901,10 +915,27 @@ class UIAutomatorBridge {
         val record = node.toRecord(nearestClickable, parent, path, capture)
         into.add(record)
         val ancestorForChildren = if (record.isClickable) record else nearestClickable
+        // A playing WebView rebuilds its accessibility tree every frame, and each child read waits on
+        // it: one capture stalled for over 12 seconds and every later query queued behind it. Its
+        // subtree gets a budget of its own; past it the walk stops descending and marks the WebView,
+        // whose content `webview_dom` / `webview_eval` read directly.
+        val subtreeDeadline = webViewDeadline ?: if (record.type.contains("WebView")) {
+            SystemClock.uptimeMillis() + WEBVIEW_SUBTREE_BUDGET_MS
+        } else {
+            null
+        }
         for (index in 0 until node.childCount) {
+            if (subtreeDeadline != null && SystemClock.uptimeMillis() >= subtreeDeadline) {
+                record.childrenTruncated = true
+                Log.w(LOG_TAG, "hierarchy_webview_truncated path=$path nodes=${into.size}")
+                break
+            }
             val child = node.getChild(index) ?: throw HierarchyChangedException()
             try {
-                collectRecords(child, ancestorForChildren, record, "$path/$index", capture, deadline, depth + 1, into)
+                collectRecords(
+                    child, ancestorForChildren, record, "$path/$index", capture, deadline, depth + 1, into,
+                    subtreeDeadline
+                )
             } finally {
                 child.recycleQuietly()
             }
