@@ -261,8 +261,11 @@ extension DriverToolExecutor {
             if let tooShort = Self.gestureDistanceError(tool: "scroll", distance: distance) {
                 return tooShort
             }
-            try await driver.scroll(direction: direction, distance: distance)
-            return .success("Scrolled \(dirStr) by \(distance)")
+            let (area, aboveKeyboard) = await scrollArea(
+                driver: driver, appID: queryScopeAppID(arguments: arguments, driver: driver)
+            )
+            try await scroll(direction, by: distance, within: aboveKeyboard ? area : nil, driver: driver)
+            return .success("Scrolled \(dirStr) by \(distance)" + (aboveKeyboard ? " above the keyboard" : ""))
 
         case "drag":
             return try await executeDrag(arguments: arguments, driver: driver)

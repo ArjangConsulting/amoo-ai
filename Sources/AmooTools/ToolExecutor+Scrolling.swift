@@ -51,7 +51,7 @@ extension DriverToolExecutor {
         let maxAttempts = min(max(arguments["max_attempts"].flatMap(Int.init) ?? 8, 1), 50)
         let distance = arguments["distance"].flatMap(Double.init)
         let appID = queryScopeAppID(arguments: arguments, driver: driver)
-        let viewport = await screenViewport(driver: driver)
+        let (viewport, aboveKeyboard) = await scrollArea(driver: driver, appID: appID)
 
         let initialDirection = direction
         var reversedAfter: Int?
@@ -61,9 +61,11 @@ extension DriverToolExecutor {
             let found = try await resolveElement(
                 selector: selector, driver: driver, appID: appID, pick: .first, missingIsNil: true
             )
+            var covered = false
             if let found, found.isVisible, found.isEnabled {
                 if await isCoveredOnScreen(found, driver: driver, appID: appID) {
                     coveredMatch = (found, attempt)
+                    covered = true
                 } else {
                     return scrollToElementSuccess(found, scrolls: attempt)
                 }
@@ -75,12 +77,13 @@ extension DriverToolExecutor {
                 before = await screenLayout(driver: driver, appID: appID)
             }
             let move = Self.nextScroll(
-                toward: found.flatMap { $0.isVisible ? nil : $0 },
+                // A covered match (under the keyboard) is aimed at the visible area like an off-screen one.
+                toward: found.flatMap { $0.isVisible && !covered ? nil : $0 },
                 paging: direction,
                 maximum: distance,
                 viewport: viewport
             )
-            try await driver.scroll(direction: move.direction, distance: move.distance)
+            try await scroll(move.direction, by: move.distance, within: aboveKeyboard ? viewport : nil, driver: driver)
             let after = await settledScreenLayout(driver: driver, appID: appID)
             if let before, let after, !after.contentMoved(since: before) {
                 guard reversedAfter == nil else {
@@ -96,6 +99,85 @@ extension DriverToolExecutor {
         let trail = Self.scrollTrail(from: initialDirection, reversedAfter: reversedAfter)
         return scrollToElementGaveUp(
             "element not on screen after \(maxAttempts) scroll(s)\(trail).", coveredMatch: coveredMatch
+        )
+    }
+
+    /// The software keyboard's frame while it is up, from its layout container in the hierarchy (iOS
+    /// names it `UIKeyboardLayout…` whatever the keyboard's language); nil when hidden or not exposed.
+    func keyboardFrame(driver: any PlatformDriver, appID: String?) async -> Rect? {
+        guard await (try? driver.isKeyboardVisible()) == true,
+              let root = await Self.withinBudget(milliseconds: 1500, {
+                  try? await driver.getViewHierarchy(appID: appID)
+              })
+        else { return nil }
+        var pending = [root]
+        var visited = 0
+        while let node = pending.popLast(), visited < 20000 {
+            visited += 1
+            if node.id.hasPrefix("UIKeyboardLayout") {
+                return node.frame ?? Self.union(node.children.compactMap(\.frame))
+            }
+            pending += node.children
+        }
+        return nil
+    }
+
+    /// Where scrolling happens: the screen, or with the keyboard up only the part above it, since a swipe
+    /// through the screen's centre lands on keys. `aboveKeyboard` says which.
+    func scrollArea(driver: any PlatformDriver, appID: String?) async -> (viewport: Rect?, aboveKeyboard: Bool) {
+        let screen = await screenViewport(driver: driver)
+        guard let keyboard = await keyboardFrame(driver: driver, appID: appID) else { return (screen, false) }
+        let area = Self.areaAbove(keyboard: keyboard, in: screen)
+        return (area, area != screen)
+    }
+
+    /// The part of `screen` above `keyboard`, or `screen` when there is no keyboard or too little room
+    /// above it to scroll in.
+    static func areaAbove(keyboard: Rect?, in screen: Rect?) -> Rect? {
+        guard let keyboard, let screen, keyboard.y > screen.y + minimumScrollArea else { return screen }
+        return Rect(x: screen.x, y: screen.y, width: screen.width, height: keyboard.y - screen.y)
+    }
+
+    /// The smallest height left above the keyboard that is still worth dragging in.
+    static let minimumScrollArea = 120.0
+
+    nonisolated static func union(_ frames: [Rect]) -> Rect? {
+        guard let first = frames.first else { return nil }
+        return frames.dropFirst().reduce(first) { box, frame in
+            let minX = min(box.x, frame.x)
+            let minY = min(box.y, frame.y)
+            let maxX = max(box.x + box.width, frame.x + frame.width)
+            let maxY = max(box.y + box.height, frame.y + frame.height)
+            return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        }
+    }
+
+    /// Scrolls like `driver.scroll`, or, given an `area` (the screen above the keyboard), drags through
+    /// that area's centre the way the companion's own scroll drags through the screen's.
+    func scroll(
+        _ direction: Direction,
+        by distance: Double,
+        within area: Rect?,
+        driver: any PlatformDriver
+    ) async throws {
+        guard let area else {
+            try await driver.scroll(direction: direction, distance: distance)
+            return
+        }
+        let vertical = direction == .up || direction == .down
+        let travel = min(distance, (vertical ? area.height : area.width) * 0.7)
+        let centre = area.centre
+        let (dx, dy): (Double, Double) = switch direction {
+        case .down: (0, -travel)
+        case .up: (0, travel)
+        case .right: (-travel, 0)
+        case .left: (travel, 0)
+        }
+        try await driver.drag(
+            from: Point(x: centre.x - dx / 2, y: centre.y - dy / 2),
+            to: Point(x: centre.x + dx / 2, y: centre.y + dy / 2),
+            duration: Duration(milliseconds: 400),
+            holdDuration: Duration(milliseconds: 50)
         )
     }
 
@@ -193,7 +275,15 @@ extension DriverToolExecutor {
         coveredMatch: (element: ElementInfo, scrolls: Int)?
     ) -> ToolResult {
         guard let coveredMatch else { return .error("scroll_to_element failed: \(reason)") }
-        return scrollToElementSuccess(coveredMatch.element, scrolls: coveredMatch.scrolls)
+        let element = coveredMatch.element
+        // Say it is covered: "on screen" alone read as visible, and assert_visible then disagreed.
+        return .success(
+            "Element [\(element.id)] \(element.label) is on screen after \(coveredMatch.scrolls) scroll(s) but covered"
+                + " at its tap point by another element or the keyboard; a tap may not reach it.",
+            structuredContent: .object([
+                "scrolls": .int(coveredMatch.scrolls), "element_id": .string(element.id), "covered": .bool(true)
+            ])
+        )
     }
 
     private func scrollToElementSuccess(_ element: ElementInfo, scrolls: Int) -> ToolResult {
