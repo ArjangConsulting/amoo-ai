@@ -209,6 +209,11 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public let harnessOwnsApp: Bool
     /// Expression returned by an override of `makeApplication()` before harness setup launches it.
     public let factoryOverride: String?
+    /// Recorded launch-environment key → the `makeApplication()` expression that sets it up, used
+    /// instead of `factoryOverride` when the flow launched with that key, e.g.
+    /// `{"APP_MOCK_SERVER_URL": "XCUIApplication().withMockServer()"}`. The chosen factory owns that
+    /// key, so the generated override does not assign it again.
+    public let factoryOverrides: [String: String]
     /// Wait helper name to call template; `{{element}}` and `{{timeout}}` are Swift expressions.
     public let waitBindings: [String: String]
     /// Timeout in milliseconds (or `default`) to repository-owned Swift expressions.
@@ -273,12 +278,14 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         repo: String? = nil,
         launchArguments: [String] = [],
         launchEnvironment: [String: String] = [:],
-        synchronousLifecycle: Bool = false
+        synchronousLifecycle: Bool = false,
+        factoryOverrides: [String: String] = [:]
     ) {
         self.targetPlatform = targetPlatform
         self.repo = repo
         self.launchArguments = launchArguments; self.launchEnvironment = launchEnvironment
         self.synchronousLifecycle = synchronousLifecycle
+        self.factoryOverrides = factoryOverrides
         self.imports = imports; self.baseClass = baseClass; self.appFactory = appFactory
         self.harnessLaunchesApp = harnessLaunchesApp; self.helpers = helpers
         self.selectorExpressions = selectorExpressions; self.idLookupTemplate = idLookupTemplate
@@ -294,7 +301,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         case imports, baseClass, appFactory, harnessLaunchesApp, helpers, selectorExpressions, idLookupTemplate
         case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
         case assertionBindings, relaunchHelper, targetPlatform, repo, launchArguments, launchEnvironment
-        case relaunchResetEnvironmentKeys, labelExpressions, synchronousLifecycle
+        case relaunchResetEnvironmentKeys, labelExpressions, synchronousLifecycle, factoryOverrides
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -324,6 +331,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         launchArguments = try container.decodeIfPresent([String].self, forKey: .launchArguments) ?? []
         launchEnvironment = try container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
         synchronousLifecycle = try container.decodeIfPresent(Bool.self, forKey: .synchronousLifecycle) ?? false
+        factoryOverrides = try container.decodeIfPresent([String: String].self, forKey: .factoryOverrides) ?? [:]
     }
 
     /// Omits the launch fields and the reset keys while they are empty, so contexts written before they existed
@@ -360,6 +368,9 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         }
         if synchronousLifecycle {
             try container.encode(synchronousLifecycle, forKey: .synchronousLifecycle)
+        }
+        if !factoryOverrides.isEmpty {
+            try container.encode(factoryOverrides, forKey: .factoryOverrides)
         }
     }
 

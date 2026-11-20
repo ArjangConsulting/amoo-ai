@@ -97,6 +97,32 @@ final class HarnessOwnershipTests: XCTestCase {
         XCTAssertThrowsError(try XCUITestEmitter().generate(test.replacingTestContext(invalid)))
     }
 
+    /// A flow launched against a mock server needs the harness's mock-server factory, not the default
+    /// one: generated from Exampleapp's context, the test ran against in-app fakes and failed.
+    func testALaunchKeyPicksItsFactoryAndOwnsThatKey() throws {
+        let context = StudioTestContext(
+            baseClass: "AppUITestCase", harnessLaunchesApp: true, harnessOwnsApp: true,
+            factoryOverride: "super.makeApplication()",
+            factoryOverrides: ["MOCK_SERVER_URL": "XCUIApplication().withMockServer()"]
+        )
+        func source(environment: [String: String]) throws -> String {
+            try XCUITestEmitter().generate(StudioAuthoredTest(
+                formatVersion: 1, name: "Mocked", description: "", platform: .ios, steps: [],
+                requirements: StudioTestRequirements(launchEnvironment: environment), testContext: context,
+                compiledPlan: .init(compiler: "test", compilerVersion: "1", toolOperations: [
+                    .init(id: "1", tool: "tap_element", arguments: ["id": "go"])
+                ])
+            )).source
+        }
+        let mocked = try source(environment: ["MOCK_SERVER_URL": "http://127.0.0.1:8090", "PROFILE": "clean"])
+        XCTAssertTrue(mocked.contains("let app = XCUIApplication().withMockServer()"), mocked)
+        XCTAssertFalse(mocked.contains("MOCK_SERVER_URL"), "the chosen factory owns its key")
+        XCTAssertTrue(mocked.contains("app.launchEnvironment[\"PROFILE\"] = \"clean\""), mocked)
+
+        let plain = try source(environment: ["PROFILE": "clean"])
+        XCTAssertTrue(plain.contains("let app = super.makeApplication()"), plain)
+    }
+
     func testLegacyContextRetainsEmitterOwnership() throws {
         let context = try JSONDecoder().decode(StudioTestContext.self, from: Data("{}".utf8))
         XCTAssertFalse(context.harnessOwnsApp)
