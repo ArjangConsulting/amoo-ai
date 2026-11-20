@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     /// The tapped element's state after the tap, as an observation (never a postcondition).

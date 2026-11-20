@@ -1,5 +1,4 @@
 import Foundation
-import MCP
 
 extension DriverToolExecutor {
     func runIdentity(arguments: [String: String]) -> String {

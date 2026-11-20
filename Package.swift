@@ -45,7 +45,6 @@ let package = Package(
         .package(url: "https://github.com/ShipItSwifty/cli-wrappers.git", branch: "main"),
         // Device, build, test, and inspection mechanisms shared with ShipItSwifty. Tracks main until 1.0.
         .package(url: "https://github.com/ShipItSwifty/mobile-kits.git", branch: "main"),
-        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.12.1"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
         // OpenTelemetry instrumentation API; AmooTelemetry provides the tracer and OTLP export.
         .package(url: "https://github.com/apple/swift-distributed-tracing.git", from: "1.7.4"),
@@ -164,7 +163,6 @@ let package = Package(
                 "SessionCompiler",
                 "StudioProtocol",
                 "WebInspector",
-                .product(name: "MCP", package: "swift-sdk"),
                 .product(name: "SwiftyTerminal", package: "SwiftyTerminal")
             ]
         ),

@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 /// `drag` and `pinch`: the gestures whose ends can each be an element or a point.
 extension DriverToolExecutor {

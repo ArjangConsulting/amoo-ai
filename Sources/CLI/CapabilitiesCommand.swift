@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 import MCPServer
 
 func runCapabilitiesCommand(_ arguments: [String], store: DeviceRuntimeStore = DeviceRuntimeStore()) -> CLIResult {

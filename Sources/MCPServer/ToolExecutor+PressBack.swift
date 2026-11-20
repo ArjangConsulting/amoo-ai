@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     /// Presses back and reports whether the app lost the foreground.

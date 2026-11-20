@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     func diagnoseConnectivityFailure(_ result: ToolResult, arguments: [String: String]) async -> ToolResult {

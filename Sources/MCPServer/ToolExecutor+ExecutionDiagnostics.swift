@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     func outcomeFields(_ original: ToolResult, tool: String) -> ToolResult {

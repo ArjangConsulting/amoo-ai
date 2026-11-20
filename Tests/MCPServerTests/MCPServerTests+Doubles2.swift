@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 @testable import MCPServer
 import TestSession
 import XCTest

@@ -1,7 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
-import MCP
 @testable import MCPServer
 @testable import SessionCompiler
 import TestSession

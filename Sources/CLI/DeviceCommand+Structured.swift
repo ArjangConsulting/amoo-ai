@@ -1,5 +1,5 @@
 import Foundation
-import MCP
+import MCPServer
 
 func parseStructuredDeviceArguments(_ source: String) throws -> [String: String] {
     let data: Data

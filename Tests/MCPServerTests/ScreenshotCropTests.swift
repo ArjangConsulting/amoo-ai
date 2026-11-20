@@ -3,7 +3,6 @@ import AmooCore
 import CoreGraphics
 import Foundation
 import ImageIO
-import MCP
 @testable import MCPServer
 import UniformTypeIdentifiers
 import XCTest

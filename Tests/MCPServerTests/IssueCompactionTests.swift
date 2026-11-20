@@ -1,4 +1,3 @@
-import MCP
 @testable import MCPServer
 import XCTest
 

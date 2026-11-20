@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 import WebInspector
 
 extension DriverToolExecutor {

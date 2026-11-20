@@ -1,5 +1,4 @@
 import Foundation
-import MCP
 import TestSession
 
 extension DriverToolExecutor {

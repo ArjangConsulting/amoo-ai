@@ -1,7 +1,6 @@
 // SwiftFormat compact wrapping conflicts with argument layout lint.
 // swiftlint:disable multiline_arguments
 import AuditEngine
-import MCP
 @testable import MCPServer
 import XCTest
 

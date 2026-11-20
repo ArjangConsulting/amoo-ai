@@ -1,7 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
-import MCP
 import TestSession
 
 enum VerificationTools {

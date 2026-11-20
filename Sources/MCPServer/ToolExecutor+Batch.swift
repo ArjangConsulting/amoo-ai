@@ -1,6 +1,5 @@
 // swiftlint:disable multiline_arguments
 import Foundation
-import MCP
 
 private struct BatchStep: Decodable {
     let tool: String

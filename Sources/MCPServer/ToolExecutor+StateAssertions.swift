@@ -1,6 +1,5 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     // swiftlint:disable:next function_body_length cyclomatic_complexity

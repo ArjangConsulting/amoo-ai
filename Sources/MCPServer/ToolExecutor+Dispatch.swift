@@ -4,7 +4,6 @@
 import AmooCore
 import AuditEngine
 import Foundation
-import MCP
 import TestSession
 
 extension DriverToolExecutor {

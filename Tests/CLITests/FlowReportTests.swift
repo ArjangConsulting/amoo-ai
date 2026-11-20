@@ -2,7 +2,6 @@
 import AmooCore
 @testable import CLI
 import Foundation
-import MCP
 import MCPServer
 import XCTest
 

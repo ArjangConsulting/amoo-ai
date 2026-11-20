@@ -1,6 +1,5 @@
 // swiftlint:disable multiline_arguments
 import Foundation
-import MCP
 
 public extension MCPServer {
     /// Validates an invocation without connecting to or changing a device.

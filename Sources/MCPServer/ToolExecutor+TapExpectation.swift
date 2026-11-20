@@ -1,6 +1,5 @@
 import AmooCore
 import AmooLogging
-import MCP
 import Tracing
 
 private let expectationLogger = AmooLogger.forType(TapExpectation.self)

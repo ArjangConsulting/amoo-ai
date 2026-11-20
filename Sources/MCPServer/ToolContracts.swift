@@ -1,6 +1,5 @@
 // swiftlint:disable multiline_arguments
 import Foundation
-import MCP
 
 /// Shared additions to the public tool contract; used by discovery and request validation.
 enum ToolContracts {

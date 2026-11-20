@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     /// Bounded device facts observed together after a display transition or capture.

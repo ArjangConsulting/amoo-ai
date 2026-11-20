@@ -1,4 +1,4 @@
-import MCP
+import MCPServer
 
 enum DeviceInvocationFlag: String, CaseIterable {
     case platform = "--platform"

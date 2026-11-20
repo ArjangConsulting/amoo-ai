@@ -1,6 +1,5 @@
 import AmooCore
 import AmooLogging
-import MCP
 
 extension DriverToolExecutor {
     func executeDeviceBoot(driver: any PlatformDriver, arguments: [String: String]) async throws -> ToolResult {

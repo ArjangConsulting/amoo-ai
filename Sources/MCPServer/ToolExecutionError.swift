@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 /// Stable machine-readable failure, without embedding device content or user input.
 struct ToolExecutionError: Error {
