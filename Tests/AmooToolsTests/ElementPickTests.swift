@@ -174,15 +174,14 @@ final class ElementPickTests: XCTestCase {
     func testPickArgumentsAreAdvertisedOnTheSelectorToolsOnly() {
         let definitions = Dictionary(uniqueKeysWithValues: ToolCatalog().toolDefinitions().map { ($0.name, $0) })
         let selectorTools = [
-            "find_elements", "tap_element", "assert_visible", "assert_enabled", "assert_absent", "assert_value"
+            "find_elements", "tap_element", "assert_visible", "assert_enabled", "assert_absent", "assert_value",
+            "set_text", "fill_field"
         ]
         for tool in selectorTools {
             XCTAssertNotNil(definitions[tool]?.properties["index"], tool)
             XCTAssertNotNil(definitions[tool]?.properties["first"], tool)
         }
-        for tool in ["set_text", "fill_field", "tap"] {
-            XCTAssertNil(definitions[tool]?.properties["index"], tool)
-        }
+        XCTAssertNil(definitions["tap"]?.properties["index"], "tap takes coordinates, not a selector")
     }
 
     // MARK: - recording -> plan

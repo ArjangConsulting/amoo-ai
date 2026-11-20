@@ -309,7 +309,8 @@ extension DriverToolExecutor {
                 selector: selector,
                 value: value,
                 driver: driver,
-                appID: queryScopeAppID(arguments: arguments, driver: driver)
+                appID: queryScopeAppID(arguments: arguments, driver: driver),
+                pick: ElementPick.parse(arguments)
             )
 
         // Navigation
@@ -629,7 +630,8 @@ extension DriverToolExecutor {
                 selector: selector,
                 value: value,
                 driver: driver,
-                appID: queryScopeAppID(arguments: arguments, driver: driver)
+                appID: queryScopeAppID(arguments: arguments, driver: driver),
+                pick: ElementPick.parse(arguments)
             )
 
         case "assert_visible":
