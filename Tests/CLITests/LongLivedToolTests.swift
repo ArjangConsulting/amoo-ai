@@ -28,4 +28,12 @@ final class LongLivedToolTests: XCTestCase {
         let tools = await CLIApp().run(args: ["--tools"]).output
         XCTAssertFalse(tools.contains("start_session"), tools)
     }
+
+    func testAFlowUsageErrorShowsTheFlowHelp() async {
+        let result = await CLIApp().run(args: ["flow", "x.amoo.json", "--json"])
+        XCTAssertEqual(result.exitCode, 64)
+        XCTAssertTrue(result.output.contains("Unexpected argument(s): --json."), result.output)
+        XCTAssertTrue(result.output.contains("Usage: amoo flow"), result.output)
+        XCTAssertFalse(result.output.contains("Usage: amoo env"), result.output)
+    }
 }

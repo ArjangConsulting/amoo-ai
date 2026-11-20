@@ -316,6 +316,9 @@ public struct CLIApp {
             try flags.finish()
             guard paths.count == 1 else { return CLIResult(output: renderFlowHelp(), exitCode: 64) }
             return await runFlowCommand(path: paths[0], overrides: overrides)
+        } catch let EnvCommandParseError.usage(message) {
+            // The shared parser's own description appends `amoo env`'s help, not flow's.
+            return CLIResult(output: message + "\n\n" + renderFlowHelp(), exitCode: 64)
         } catch {
             return CLIResult(output: "\(error)", exitCode: 64)
         }
