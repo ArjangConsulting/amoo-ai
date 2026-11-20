@@ -299,9 +299,7 @@ public struct ADBRunner: ADBRunning {
 
 private func processRunnerError(_ error: ShellError, command: String) -> Error {
     if case let .exitFailure(_, output) = error {
-        return ProcessRunnerError.nonZeroExit(
-            command: command, exitCode: output.exitCode, stderr: output.stderr
-        )
+        return ProcessRunnerError.failed(command: command, exitCode: output.exitCode, output: output.stderr)
     }
     return error
 }

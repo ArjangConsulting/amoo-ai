@@ -22,6 +22,34 @@ public enum ProcessRunnerError: Error, Sendable, Equatable {
     /// A device command (such as `adb … am force-stop`) did not answer in time: the device or its
     /// tool server stopped responding, which is not what the calling step was about.
     case deviceUnresponsive(operation: String, seconds: Int)
+    /// adb (or simctl) no longer sees the device: an emulator that exited or was killed, or a
+    /// disconnected phone. `output` is the tool's own message, for example
+    /// `adb: device 'emulator-5554' not found`.
+    case deviceDisconnected(command: String, output: String)
+
+    /// The tool message that means the device is gone, rather than that the command failed on it.
+    static func isDisconnectedDeviceOutput(_ output: String) -> Bool {
+        let text = output.lowercased()
+        return text.contains("no devices/emulators found")
+            || (text.contains("device '") && text.contains("' not found"))
+            || text.contains("error: device offline")
+            || text.contains("invalid device state: shutdown")
+    }
+
+    /// A failed command, classified as a vanished device when its output says so.
+    static func failed(command: String, exitCode: Int32, output: String) -> Self {
+        isDisconnectedDeviceOutput(output)
+            ? .deviceDisconnected(command: command, output: output)
+            : .nonZeroExit(command: command, exitCode: exitCode, stderr: output)
+    }
+
+    /// Whether the device, not the step, is the problem; tool replies show these in prose.
+    public var isDeviceFailure: Bool {
+        switch self {
+        case .deviceUnresponsive, .deviceDisconnected: true
+        default: false
+        }
+    }
 }
 
 extension ProcessRunnerError: LocalizedError {
@@ -43,6 +71,11 @@ extension ProcessRunnerError: LocalizedError {
             "The device did not respond: \(operation) did not finish within \(seconds)s. The simulator or"
                 + " emulator (or its simctl/adb) is unresponsive, not the app. Recover the runtime with"
                 + " `amoo env up --platform <p> --runtime-id <id>`; cold-boot an emulator whose adb stays unresponsive."
+        case let .deviceDisconnected(command, output):
+            "The device is gone: \(output.trimmingCharacters(in: .whitespacesAndNewlines)) (while running"
+                + " \(command)). The emulator or simulator exited or was disconnected; this is not an app failure."
+                + " Check `adb devices` or `xcrun simctl list devices booted`, then start it again with"
+                + " `amoo env up --platform <p> --device <id>` (or `--avd <name>`) and rerun the step."
         }
     }
 }

@@ -427,7 +427,9 @@ extension DriverToolExecutor {
     /// reported as that — a non-amoo test runner on the same device is the usual cause of an
     /// otherwise opaque "RPC timed out before completing".
     func failureMessage(toolName: String, error: any Error, arguments: [String: String]) async -> String {
-        let plain = "\(toolName) failed: \(error)"
+        // A vanished or unresponsive device reads as prose with its recovery, not as an enum dump.
+        let rendered = (error as? ProcessRunnerError)?.isDeviceFailure == true ? error.localizedDescription : "\(error)"
+        let plain = "\(toolName) failed: \(rendered)"
         let text = "\(error)".lowercased()
         guard text.contains("timed out") || text.contains("deadlineexceeded") || text.contains("deadline exceeded"),
               let identity = await failureDeviceIdentity(arguments: arguments),
