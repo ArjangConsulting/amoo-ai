@@ -30,10 +30,12 @@ build: swift-build companion-build
 swift-build:
 	swift build
 
+# Starting a device never compiles a companion, so both local binaries build the companions first:
+# whoever builds amoo from this checkout also leaves current companions for every session to install.
 # Rebuild the debug binary at .build/debug/amoo (what an amoo-debug MCP server runs) and print which
 # build it now is. Its `source:` line must equal the fingerprint printed last, or the binary was not
 # built from the current checkout (uncommitted changes included).
-debug-local:
+debug-local: companion-build
 	swift build --product amoo
 	.build/debug/amoo version
 	@echo "checkout: $$(git rev-parse HEAD) fingerprint $$(scripts/source-fingerprint.sh .)"
@@ -41,7 +43,7 @@ debug-local:
 # Rebuild the optimized binary at .build/release/amoo (the path an MCP client configured against a
 # checkout points at) and print which build it now is. A stale one lacks every tool added since it
 # was built, so run this after pulling.
-release-local:
+release-local: companion-build
 	swift build -c release --product amoo
 	.build/release/amoo version
 

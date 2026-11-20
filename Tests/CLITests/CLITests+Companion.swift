@@ -153,7 +153,7 @@ extension CLITests {
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
 
         #if os(macOS)
-        try await manager.install(config: config, force: true)
+        try await manager.build(config: config, force: true)
 
         let commands = await runner.recordedCommands()
 
@@ -176,7 +176,7 @@ extension CLITests {
         // `buildForTesting` never reaches the injected process runner on Linux — it fails fast
         // with `.unsupportedPlatform` instead, since XcodeGen/XcodeBuild aren't usable there.
         do {
-            try await manager.install(config: config, force: true)
+            try await manager.build(config: config, force: true)
             XCTFail("Expected unsupportedPlatform error")
         } catch let error as CompanionError {
             guard case .unsupportedPlatform = error else {
@@ -203,7 +203,7 @@ extension CLITests {
         )
 
         #if os(macOS)
-        try await manager.install(config: config, force: true)
+        try await manager.build(config: config, force: true)
         let commands = await runner.recordedCommands()
         XCTAssertEqual(
             commands[1],
@@ -229,7 +229,7 @@ extension CLITests {
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
 
         do {
-            try await manager.install(config: config, force: true)
+            try await manager.build(config: config, force: true)
             XCTFail("Expected xcodegen error")
         } catch let error as CompanionError {
             #if os(macOS)
@@ -259,7 +259,7 @@ extension CLITests {
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "SIM-123")
 
         do {
-            try await manager.install(config: config, force: true)
+            try await manager.build(config: config, force: true)
             XCTFail("Expected build failure")
         } catch let error as CompanionError {
             #if os(macOS)
@@ -318,7 +318,7 @@ extension CLITests {
         let config = CompanionConfig(companionDir: companionDir, deviceUDID: "booted")
 
         #if os(macOS)
-        try await manager.install(config: config, force: true)
+        try await manager.build(config: config, force: true)
 
         let commands = await runner.recordedCommands()
         let destinations = commands.flatMap { command -> [String] in

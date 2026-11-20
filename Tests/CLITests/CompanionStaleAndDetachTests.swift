@@ -51,8 +51,15 @@ final class CompanionStaleAndDetachTests: XCTestCase {
 
         let products = scratch.url.appending(path: "build/Build/Products")
         try FileManager.default.createDirectory(at: products, withIntermediateDirectories: true)
-        try Data().write(to: products.appending(path: "Amoo_iphonesimulator.xctestrun"))
-        XCTAssertFalse(manager.isBuildCurrent(config: config), "products exist but no fingerprint was recorded")
+        let run = products.appending(path: "Amoo_iphonesimulator.xctestrun")
+        try Data().write(to: run)
+        let past: [FileAttributeKey: Any] = [.modificationDate: Date(timeIntervalSince1970: 1)]
+        try FileManager.default.setAttributes(past, ofItemAtPath: run.path)
+        try Data("source".utf8).write(to: scratch.url.appending(path: "Recovery.entitlements"))
+        XCTAssertFalse(
+            manager.isBuildCurrent(config: config),
+            "products older than a source and without a recorded fingerprint are stale"
+        )
 
         try manager.writeSourceFingerprint(config: config)
         XCTAssertTrue(manager.isBuildCurrent(config: config))
@@ -80,8 +87,19 @@ final class CompanionStaleAndDetachTests: XCTestCase {
                 at: URL(fileURLWithPath: path).deletingLastPathComponent(), withIntermediateDirectories: true
             )
             try Data().write(to: URL(fileURLWithPath: path))
+            let past: [FileAttributeKey: Any] = [.modificationDate: Date(timeIntervalSince1970: 1)]
+            try FileManager.default.setAttributes(past, ofItemAtPath: path)
         }
-        XCTAssertFalse(manager.isBuildCurrent(config: config), "APKs exist but no fingerprint was recorded")
+        let source = scratch.url.appending(path: "app/src/main/Companion.kt")
+        try FileManager.default.createDirectory(
+            at: source.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("source".utf8).write(to: source)
+        XCTAssertFalse(
+            manager.isBuildCurrent(config: config),
+            "APKs older than a source and without a recorded fingerprint are stale"
+        )
         try manager.writeSourceFingerprint(config: config)
         XCTAssertTrue(manager.isBuildCurrent(config: config))
         var rebuild = config

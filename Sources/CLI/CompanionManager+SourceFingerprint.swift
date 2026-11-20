@@ -89,14 +89,42 @@ extension CompanionManager {
         (hash ^ UInt64(byte)) &* 1_099_511_628_211
     }
 
-    /// Whether the companion's sources moved on since it was built. Bundled products are exempt: a
-    /// release install cannot compile, so it reuses them as shipped.
+    /// Whether the build a start would launch is older than its sources: a local build whose recorded
+    /// fingerprint no longer matches and that predates the last source edit, or, in a source checkout,
+    /// prebuilt products packaged before the last source edit. A release install's prebuilt is never
+    /// stale; it ships with its sources.
     ///
-    /// `ensureRunning` rebuilds under this rule and `companion status` reports `stale` under it, so
-    /// the two can never disagree about whether the next start has to build.
+    /// `ensureRunning` warns under this rule and `companion status` reports `stale` under it. Neither
+    /// builds: that is `amoo companion build`.
     func sourcesChanged(config: CompanionConfig, bundled: Bool) -> Bool {
-        config.buildMode == .rebuild ||
-            (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config))
+        if config.buildMode == .rebuild {
+            return true
+        }
+        guard config.buildMode != .reuse else { return false }
+        guard bundled else {
+            // `make companion-build` records no fingerprint, so a build newer than every source
+            // edit is current even without one.
+            guard !sourceFingerprintMatches(config: config) else { return false }
+            let run = findXCTestRun(productsDir: config.companionDir + "/build/Build/Products", config: config)
+            guard let built = run.flatMap({ modificationDate(URL(fileURLWithPath: $0)) }) else { return true }
+            return (newestSourceModification(config: config) ?? .distantPast) > built
+        }
+        guard isSourceCheckout(companionDir: config.companionDir),
+              let run = findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config),
+              let packaged = modificationDate(URL(fileURLWithPath: run)),
+              let sources = newestSourceModification(config: config) else { return false }
+        return sources > packaged
+    }
+
+    /// The one-line warning for starting a companion older than its sources.
+    func staleNotice(config: CompanionConfig, bundled: Bool) -> String {
+        let products = companionProductsDirectory(config: config, bundled: bundled)
+        let built = findXCTestRun(productsDir: products, config: config)
+            .flatMap { modificationDate(URL(fileURLWithPath: $0)) }
+        let platform = config.isMac ? "macos" : "ios"
+        return staleCompanionNotice(
+            platform: platform, built: built, sources: newestSourceModification(config: config)
+        )
     }
 
     /// True when a start would launch the existing build as is: products exist and nothing that

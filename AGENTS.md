@@ -35,14 +35,21 @@ Every code contribution must pass `make lint` before it is committed or submitte
 it **after the final code edit**, even when formatting already ran — SwiftFormat and SwiftLint
 enforce different rules. Do not defer lint cleanup to CI or a release-prep pass.
 
-The companion apps are **not** covered by `swift build` — they build through Xcode and Gradle, so
-verify them separately after changing anything under `CompanionApps/`:
+The companion apps are **not** covered by `swift build` — they build through Xcode and Gradle.
+Starting a device (`env up`, `flow`, `device`, `start_session`) **never builds a companion**: it
+installs the newest existing build and only warns when that build is older than its sources (see
+[`docs/companion-startup.md`](docs/companion-startup.md)). So whoever changes `CompanionApps/`,
+`Protos/` or the shared sources `project.yml` compiles must rebuild the companion before committing,
+or every other session runs the old one. `make debug-local` / `make release-local` also build both
+companions. Verify them after changing anything under `CompanionApps/`:
 
 ```bash
 # xcodegen + xcodebuild build-for-testing
 make companion-ios-build
 # gradle assembleDebug assembleAndroidTest
 make companion-android-build
+# both; what other sessions' `env up` installs (`amoo companion build --platform <p>` does one)
+make companion-build
 ```
 
 ### Verifying the Linux build locally

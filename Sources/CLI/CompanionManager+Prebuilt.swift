@@ -8,6 +8,42 @@ import SwiftyTerminal
 extension CompanionManager: IOSCompanionManaging {}
 
 extension CompanionManager {
+    /// Checks that a companion build exists. iOS installs the bundle when it launches, so there is
+    /// nothing to copy ahead of time; building is `build(config:force:)`, never this.
+    func install(config: CompanionConfig, force _: Bool = false) async throws {
+        let productsDir = companionProductsDirectory(config: config)
+        guard findXCTestRun(productsDir: productsDir, config: config) != nil else {
+            throw CompanionError.buildFailed(Self.missingBuildMessage(config: config))
+        }
+        let bundled = hasBundledProducts(config: config)
+        if sourcesChanged(config: config, bundled: bundled) {
+            print(styled(staleNotice(config: config, bundled: bundled), .yellow))
+        }
+        print(styled("Companion already built.", .green) + styled(" `amoo companion build` rebuilds it.", .gray))
+        print(styled("This does not start it — run 'amoo companion start' to bring it up.", .gray))
+    }
+
+    /// `amoo companion build`: compiles the companion from its sources when no current build exists,
+    /// or always with `force`. The only route that compiles besides an explicit `build_mode=rebuild`.
+    func build(config: CompanionConfig, force: Bool = false) async throws {
+        let productsDir = config.companionDir + "/build/Build/Products"
+        if !force, findXCTestRun(productsDir: productsDir, config: config) != nil,
+           sourceFingerprintMatches(config: config) {
+            // Says "built", never "installed" or "running" — a previous build product on disk is
+            // all this proves. Reporting it as plain success is what made a dead companion look
+            // like a healthy one: nothing was on the device and nothing was listening on the port.
+            print(styled("Companion is up to date with its sources.", .green) + styled(" --force rebuilds.", .gray))
+            return
+        }
+        var rebuild = config
+        rebuild.buildMode = .rebuild
+        print("Building companion app (this may take a moment)...")
+        try await withSpinner("Building companion app") {
+            try await buildForTesting(config: rebuild)
+        }
+        print(styled("Companion built.", .green))
+    }
+
     /// Compiles the companion, records the `build` phase, and returns the new `.xctestrun`.
     func buildRecordingPhase(config: CompanionConfig) async throws -> String? {
         let phaseStart = ContinuousClock.now
@@ -36,6 +72,14 @@ extension CompanionManager {
         config.companionDir + "/prebuilt/\(config.productPlatform)/Products"
     }
 
+    /// The error for a start that found no companion build: starts never compile one.
+    static func missingBuildMessage(config: CompanionConfig) -> String {
+        let platform = config.isMac ? "macos" : "ios"
+        return "No built \(platform == "macos" ? "macOS" : "iOS") companion in \(config.companionDir)."
+            + " Starting a device never builds one; run `amoo companion build --platform \(platform)`"
+            + " (or `make companion-build` in an amoo checkout), then start again."
+    }
+
     /// Env vars `sign-prebuilt.py` needs to re-sign the unsigned release device products.
     static let deviceSigningEnvironmentKeys = [
         "AMOO_IOS_SIGNING_IDENTITY", "AMOO_IOS_HOST_PROFILE", "AMOO_IOS_RUNNER_PROFILE"
@@ -54,11 +98,6 @@ extension CompanionManager {
         guard config.buildMode != .rebuild, canSignBundledProducts(config: config),
               let bundled = findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config)
         else { return false }
-        // A checkout keeps a gitignored `prebuilt/` from its last packaging run; sources edited since
-        // make it stale, so auto builds from sources instead. Explicit reuse keeps release semantics.
-        if bundledProductsSkippedReason(config: config, bundled: bundled) != nil {
-            return false
-        }
         // A developer's freshly built companion must not be shadowed by an older distribution.
         // Explicit reuse keeps its release semantics; auto prefers newer local products.
         if config.buildMode == .auto,
@@ -71,17 +110,6 @@ extension CompanionManager {
             return false
         }
         return true
-    }
-
-    /// Why packaged products were passed over in auto mode, for the startup output; nil when they were not.
-    func bundledProductsSkippedReason(config: CompanionConfig, bundled: String? = nil) -> String? {
-        let packaged = bundled ?? findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config)
-        guard config.buildMode == .auto, isSourceCheckout(companionDir: config.companionDir),
-              let bundled = packaged,
-              let bundledDate = modificationDate(URL(fileURLWithPath: bundled)),
-              let sources = newestSourceModification(config: config), sources > bundledDate else { return nil }
-        return "Companion sources changed after the prebuilt companion was packaged"
-            + " (\(bundledDate.formatted(date: .abbreviated, time: .shortened))); using a build from sources."
     }
 
     func companionProductsDirectory(config: CompanionConfig, bundled: Bool? = nil) -> String {

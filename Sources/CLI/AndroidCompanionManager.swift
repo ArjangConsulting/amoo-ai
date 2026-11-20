@@ -184,27 +184,17 @@ final class AndroidCompanionManager: @unchecked Sendable {
 
     /// Builds + installs the companion APKs (no launch). Used by `amoo companion install --platform android`.
     func install(config: AndroidCompanionConfig, force: Bool = false) async throws {
-        // `--force` reinstalls bundled APKs; it only recompiles when there are none to install.
+        // Installs the newest existing APK pair; `--force` reinstalls it. Building is `build(config:)`.
         let (appApk, testApk) = apkPaths(
             companionDir: config.companionDir,
             useBundled: usesBundledAPKs(config: config)
         )
-        let needsBuild = config.buildMode == .rebuild || (force && !appApk.contains("/prebuilt/"))
-            || !FileManager.default.fileExists(atPath: appApk)
-            || !FileManager.default.fileExists(atPath: testApk)
-
-        if needsBuild, config.buildMode == .reuse {
-            throw AndroidCompanionError
-                .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
-        }
-        if needsBuild {
-            await StartupProgress.report("Building Android companion")
-            print("Building Android companion (this may take a moment)...")
-            try await withSpinner("Building Android companion") {
-                try await self.buildAPKs(config: config)
-            }
-        } else {
-            print(styled("Android companion already built.", .green) + styled(" Use --force to rebuild.", .gray))
+        if config.buildMode == .rebuild {
+            try await build(config: config, force: true)
+        } else if !FileManager.default.fileExists(atPath: appApk) || !FileManager.default.fileExists(atPath: testApk) {
+            throw AndroidCompanionError.buildFailed(Self.missingBuildMessage(config: config))
+        } else if isBuildStale(config: config) {
+            print(styled(staleNotice(config: config), .yellow))
         }
 
         await StartupProgress.report("Installing Android companion APKs")
@@ -223,12 +213,16 @@ final class AndroidCompanionManager: @unchecked Sendable {
         let phases = CompanionStartPhases.shared
         var phaseStart = ContinuousClock.now
         let bundled = usesBundledAPKs(config: config)
-        await announce(bundledAPKsSkippedReason(config: config))
-        let sourcesChanged = !config.buildPrepared &&
-            (config.buildMode == .rebuild ||
-                (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
-        let requiresReplacement = config.installPreparedBuild || sourcesChanged
-        phases.record("check", outcome: sourcesChanged ? "sources_changed" : "unchanged", since: phaseStart)
+        // Only an explicit rebuild compiles; a stale build is started anyway, with a warning.
+        let sourcesChanged = !config.buildPrepared && config.buildMode == .rebuild
+        let stale = !sourcesChanged && isBuildStale(config: config)
+        // A newer build than the one on the device (after `amoo companion build`) replaces a running one.
+        let newerBuild = await installedCompanionIsOutdated(config: config)
+        let requiresReplacement = config.installPreparedBuild || sourcesChanged || newerBuild
+        phases.record("check", outcome: sourcesChanged ? "rebuild" : stale ? "stale" : "current", since: phaseStart)
+        if stale {
+            await announce(staleNotice(config: config))
+        }
         if force {
             if tracked(serial: config.serial) == nil {
                 await clearStaleCompanion(config: config)
@@ -260,19 +254,15 @@ final class AndroidCompanionManager: @unchecked Sendable {
             companionDir: config.companionDir,
             useBundled: usesBundledAPKs(config: config)
         )
-        let needsBuild = (force && !bundled)
-            || sourcesChanged
-            || !FileManager.default.fileExists(atPath: appApk)
-            || !FileManager.default.fileExists(atPath: testApk)
-
-        if needsBuild, config.buildMode == .reuse {
-            throw AndroidCompanionError
-                .buildFailed("No cached Android companion; install prebuilt companions or use build_mode=auto once.")
+        let needsBuild = sourcesChanged
+        if !needsBuild,
+           !FileManager.default.fileExists(atPath: appApk) || !FileManager.default.fileExists(atPath: testApk) {
+            throw AndroidCompanionError.buildFailed(Self.missingBuildMessage(config: config))
         }
         phaseStart = .now
         if needsBuild {
             await StartupProgress.report("Building Android companion")
-            print("Android companion sources changed or no build exists. Building (this may take a moment)...")
+            print("Rebuilding the Android companion as requested (this may take a moment)...")
             try await withSpinner("Building Android companion") {
                 try await self.buildAPKs(config: config)
             }
