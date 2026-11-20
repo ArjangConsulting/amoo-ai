@@ -136,7 +136,7 @@ func parseAndroidVirtualDevices(output: String) -> [AndroidVirtualDevice] {
 
 /// Whether stdin is an interactive terminal rather than a pipe.
 ///
-/// `amoo mcp serve` and other headless invocations have stdin bound to a protocol
+/// `amoo studio serve` and other headless invocations have stdin bound to a protocol
 /// stream, not a keyboard — `readLine()` there either blocks forever waiting for
 /// input that will never come, or silently consumes bytes meant for the protocol.
 /// Every multi-candidate selection path must check this before prompting.

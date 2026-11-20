@@ -17,7 +17,7 @@ public extension CommandCoverageMatrix {
             )
         ]
 
-    /// Companion-lifecycle MCP tools (`amoo mcp serve` only). Split from `+MCP.swift` to keep that
+    /// Companion-lifecycle MCP tools (long-lived hosts only, `amoo studio serve`). Split from `+MCP.swift` to keep that
     /// file under the length limit.
     static let mcpCompanionCommands: [CommandCoverage] = [
         .init(

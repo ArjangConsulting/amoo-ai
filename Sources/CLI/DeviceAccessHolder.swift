@@ -10,7 +10,7 @@ import Glibc
 /// only identifies the holder, and an empty or unreadable one means an older amoo or another tool.
 struct DeviceAccessHolder: Codable, Equatable, Sendable {
     var pid: Int32
-    /// Executable and subcommand words only (`amoo mcp serve`); never option values.
+    /// Executable and subcommand words only (`amoo env up`); never option values.
     var command: String
     var acquiredAt: Date
 

@@ -563,7 +563,7 @@ package actor LiveCompanionRPCClient: CompanionRPCClient {
 
     /// Dialing eagerly at construction time crashes grpc-swift-2 when nothing is listening yet
     /// (Subchannel's connect-failure path aborts via a DiscardingTaskGroup dealloc-ordering bug).
-    /// `mcp serve` constructs this client before any companion process exists, so the connection
+    /// `amoo studio serve` constructs this client before any companion process exists, so the connection
     /// attempt must wait until the first real RPC, by which point a companion has been launched.
     private var connectedClient: Amoo_CompanionService.Client<HTTP2ClientTransport.Posix> {
         if connectionTask == nil {

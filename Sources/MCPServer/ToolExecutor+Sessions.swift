@@ -11,7 +11,7 @@ extension DriverToolExecutor {
 
     func executeStartSession(arguments: [String: String]) async throws -> ToolResult {
         guard sessionManager != nil else {
-            return .error(Self.noSessionsMessage)
+            return .error(MCPServer.longLivedOnlyMessage)
         }
         guard let appID = arguments["app_id"] else {
             return .error("Missing required argument: app_id")
@@ -413,7 +413,7 @@ extension DriverToolExecutor {
 
     func executeCompanionWarm(arguments: [String: String]) async throws -> ToolResult {
         guard let manager = sessionManager else {
-            return .error("Companion management requires `amoo mcp serve`.")
+            return .error(MCPServer.longLivedOnlyMessage)
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {

@@ -20,7 +20,7 @@ public enum DeviceTools {
                     type: "string",
                     description: "UDID/serial, device name, or the class hint 'simulator' / 'device'."
                         + " Resolved through the same selector start_session uses. Requires a server"
-                        + " started with `amoo mcp serve` (session management)."
+                        + " with session management (`amoo studio serve`)."
                 ),
                 "platform": .init(
                     type: "string",

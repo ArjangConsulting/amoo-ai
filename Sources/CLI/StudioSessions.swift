@@ -10,7 +10,7 @@ import StudioProtocol
 import TestSession
 
 /// Records Studio's sessions (agent runs and console recordings) through the same session-backed
-/// executor `amoo mcp serve` uses: `end_session` writes `plan.json` and `flow.json`, and the
+/// executor the device tools use: `end_session` writes `plan.json` and `flow.json`, and the
 /// recording feeds test generation exactly like an MCP client's session.
 actor CLIStudioSessions: StudioSessionDriving {
     private let iOSCompanionManager = CompanionManager()

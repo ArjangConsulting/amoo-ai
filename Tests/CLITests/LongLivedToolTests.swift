@@ -1,0 +1,31 @@
+@testable import CLI
+import MCPServer
+import XCTest
+
+/// `amoo device start_session` started nothing a later call could use, and the reply still pointed
+/// at `amoo mcp serve`. Session and warm-companion tools are hidden from the CLI catalog and refused
+/// with the CLI path instead.
+final class LongLivedToolTests: XCTestCase {
+    func testDeviceRefusesALongLivedToolWithTheCLIPath() async {
+        let options = DeviceCommandOptions(
+            platform: .ios,
+            port: 22087,
+            deviceID: "SIM",
+            tool: "start_session",
+            arguments: ["app_id": "com.example"],
+            json: true
+        )
+        let result = await runDeviceCommand(options: options)
+        XCTAssertNotEqual(result.exitCode, 0)
+        XCTAssertTrue(result.output.contains("amoo env up"), result.output)
+        XCTAssertFalse(result.output.contains("mcp serve"), result.output)
+    }
+
+    func testTheCLICatalogOmitsLongLivedTools() async {
+        let names = Set(MCPServer().cliToolDefinitions().map(\.name))
+        XCTAssertTrue(names.isDisjoint(with: MCPServer.longLivedOnlyTools))
+        XCTAssertTrue(names.contains("get_run_telemetry"), "works from one call; stays listed")
+        let tools = await CLIApp().run(args: ["--tools"]).output
+        XCTAssertFalse(tools.contains("start_session"), tools)
+    }
+}

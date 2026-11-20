@@ -59,7 +59,7 @@ public struct CLIApp {
         _ = AmooBuildInfo.current
         if args.isEmpty {
             // Bare `amoo` is the interactive REPL — but only at a terminal. A client that spawns it
-            // over a pipe (one that forgot `mcp serve`) would otherwise hang a process that picks
+            // over a pipe (an old MCP registration) would otherwise hang a process that picks
             // whatever simulator is booted and builds a companion on it; it gets help instead.
             guard isInteractiveTerminal() else {
                 return CLIResult(output: renderCLIHelp(), exitCode: 0)
@@ -81,7 +81,7 @@ public struct CLIApp {
         }
 
         if args.contains("--tools") {
-            return CLIResult(output: mcpServer.toolNames().joined(separator: ","), exitCode: 0)
+            return CLIResult(output: mcpServer.cliToolDefinitions().map(\.name).joined(separator: ","), exitCode: 0)
         }
 
         if let result = await dispatchSubcommand(args: args) {

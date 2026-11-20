@@ -32,6 +32,24 @@ public struct MCPServer: Sendable {
         definitions
     }
 
+    /// The tools one `amoo device` call can use: everything except those that keep state in a
+    /// long-lived process (sessions, warm companions), which only `amoo studio serve` provides.
+    public func cliToolDefinitions() -> [ToolDefinition] {
+        definitions.filter { !Self.longLivedOnlyTools.contains($0.name) }
+    }
+
+    /// Tools whose state outlives one call: a session, its report and checks, a warm companion.
+    public static let longLivedOnlyTools: Set<String> = [
+        "start_session", "end_session", "list_sessions", "get_session_report", "compile_session_to_plan",
+        "session_startup_status", "get_verification_report", "companion_warm", "companion_status"
+    ]
+
+    /// What a one-call CLI process says instead of running a long-lived-only tool.
+    public static let longLivedOnlyMessage = "This tool keeps state across calls, and `amoo device` runs one"
+        + " call per process. Lease a device with `amoo env up --json` (it starts and keeps the companion),"
+        + " drive it with `amoo device --runtime-id <id> <tool>`, and record a reusable sequence as a flow"
+        + " (`amoo flow`, `amoo generate plan --from-flow`)."
+
     public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
         guard profile.includes(toolName) else {
             return ToolExecutionError(

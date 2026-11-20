@@ -31,7 +31,7 @@ public struct StudioSessionSpec: Codable, Equatable, Sendable {
 }
 
 /// Recorded amoo sessions for Studio: agent runs and console recordings. Implemented by the CLI with
-/// the same session-backed executor `amoo mcp serve` uses, so `endSession` writes `plan.json` and
+/// the same session-backed executor the device tools use, so `endSession` writes `plan.json` and
 /// `flow.json` that test generation reads.
 public protocol StudioSessionDriving: Sendable {
     func startSession(_ spec: StudioSessionSpec) async throws -> String

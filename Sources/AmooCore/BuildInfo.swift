@@ -2,7 +2,7 @@ import Foundation
 
 /// Identity of the running amoo binary, captured once at process start.
 ///
-/// Long-lived `amoo mcp serve` processes keep executing the code they were started with; a
+/// Long-lived `amoo studio serve` processes keep executing the code they were started with; a
 /// rebuild replaces the file on disk but not the running image. Local builds all report the
 /// last release-stamped `AmooVersion`, so the version alone cannot tell a stale server from a
 /// fresh one. The binary hash and compiled source stamp identify the launched build.

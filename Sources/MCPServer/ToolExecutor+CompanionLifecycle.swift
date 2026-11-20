@@ -8,7 +8,7 @@ import TestSession
 extension DriverToolExecutor {
     func executeCompanionStatus(arguments: [String: String]) async throws -> ToolResult {
         guard let manager = sessionManager else {
-            return .error("Companion management requires `amoo mcp serve`.")
+            return .error(MCPServer.longLivedOnlyMessage)
         }
         if let sessionID = arguments["session_id"] {
             return await sessionHealth(sessionID: sessionID, manager: manager)
@@ -69,7 +69,7 @@ extension DriverToolExecutor {
 
     func executeResetCompanion(arguments: [String: String]) async throws -> ToolResult {
         guard let manager = sessionManager else {
-            return .error("Companion management requires `amoo mcp serve`.")
+            return .error(MCPServer.longLivedOnlyMessage)
         }
         let platformRaw = arguments["platform"] ?? defaultPlatform?.rawValue ?? "ios"
         guard let platform = Platform(rawValue: platformRaw.lowercased()) else {

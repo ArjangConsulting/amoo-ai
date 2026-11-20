@@ -86,7 +86,7 @@ public enum CommandCoverageMatrix {
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .environment,
-            expectedAssertion: "local MCP stdio server starts for AI clients"
+            expectedAssertion: "the removed MCP server command explains the CLI path and exits 64"
         )
     ]
 

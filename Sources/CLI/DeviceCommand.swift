@@ -104,7 +104,7 @@ Environment variables:
 
   Environment is fixed when a process starts, so a variable only reaches an app
   that is launched with it — relaunch (terminate + launch) to change one. The
-  equivalent tool argument, which MCP clients send, is comma-separated:
+  equivalent tool argument (flows, run_steps) is comma-separated:
 
     environment=UITEST=1,API_HOST=http://localhost:8080
 
@@ -128,7 +128,7 @@ Defaults:
 """
 
 func renderDeviceHelp() -> String {
-    let tools = MCPServer().toolDefinitions().sorted { $0.name < $1.name }.map { definition in
+    let tools = MCPServer().cliToolDefinitions().sorted { $0.name < $1.name }.map { definition in
         let arguments = definition.properties.keys.filter { $0 != "session_id" }.sorted().map { key in
             "[\(key)=<\(definition.properties[key]?.type ?? "string")>]"
         }.joined(separator: " ")

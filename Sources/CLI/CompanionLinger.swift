@@ -10,8 +10,9 @@ import Glibc
 
 /// A companion its server left running on purpose when it exited.
 ///
-/// Starting a companion is the slow part of a session, and every delegated run is its own
-/// `amoo mcp serve`. Stopping the companion with the server made each run pay that start again.
+/// Starting a companion is the slow part of a session, and every delegated run is its own process
+/// (`amoo env up`, `amoo studio serve`). Stopping the companion with the server made each run pay
+/// that start again.
 /// A server now leaves its simulator and emulator companions up for the idle window and records
 /// them here; a detached `amoo companion reap` stops one whose window ran out with nobody on it.
 struct CompanionLinger: Codable, Equatable, Sendable {
