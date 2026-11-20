@@ -392,8 +392,7 @@ class UIAutomatorBridge {
     }
 
     fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
-        val matches = uiObjectTree().mapNotNull { textTarget(it, resourceId, label, containsText) }
-        val candidates = preferResourceID(matches, resourceId, TextTarget::resourceName)
+        val candidates = textTargets(resourceId, label, containsText)
         val match = candidates.singleOrNull()
         if (match == null) {
             Log.w(LOG_TAG, "set_text no_single_target candidates=${candidates.size}")
@@ -1003,10 +1002,21 @@ class UIAutomatorBridge {
 
     private data class TextTarget(
         val handle: UiObject2,
-        val resourceName: String,
         val text: String,
         val secure: Boolean
     )
+
+    private fun textTargets(resourceId: String?, label: String?, containsText: String?): List<TextTarget> {
+        if (resourceId.isNullOrBlank()) {
+            return uiObjectTree().mapNotNull { textTarget(it, resourceId, label, containsText) }
+        }
+        val resourcePattern = Pattern.compile("(?:.*[:/])?${Pattern.quote(resourceId)}")
+        val direct = device.findObjects(By.res(resourcePattern))
+            .mapNotNull { textTarget(it, resourceId, label, containsText) }
+        return direct.ifEmpty {
+            device.findObjects(By.desc(resourceId)).mapNotNull { textTarget(it, resourceId, label, containsText) }
+        }
+    }
 
     /** Reads the selector fields and password state from one refresh of the writable node. */
     private fun textTarget(
@@ -1034,7 +1044,7 @@ class UIAutomatorBridge {
         ) {
             return null
         }
-        return TextTarget(element, resourceName, elementText, node.isPassword)
+        return TextTarget(element, elementText, node.isPassword)
     }
 
     private fun uiObjectTree(): List<UiObject2> {
