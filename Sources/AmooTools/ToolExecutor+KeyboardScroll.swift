@@ -26,14 +26,33 @@ extension DriverToolExecutor {
                 return (area, true)
             }
         }
-        // Still no keyboard in the tree: its keys keep stable identifiers whatever the language.
-        let keys = await Self.withinBudget(milliseconds: 1500) {
-            try? await driver.findElements(ElementSelector(id: "shift"), appID: appID)
-        } ?? []
-        guard let shift = keys.compactMap(\.frame).first, let screen else { return (screen, false) }
+        // Still no keyboard in the tree: its keys keep stable identifiers whatever the language. The
+        // first keyboard after a launch is still sliding in, so its shift key is read until it rests.
+        guard let shift = await restingShiftKey(driver: driver, appID: appID), let screen else {
+            return (screen, false)
+        }
         let top = shift.y - Self.keyboardHeightAboveShiftKey
         guard top - screen.y >= Self.minimumScrollArea else { return (screen, false) }
         return (Rect(x: screen.x, y: screen.y, width: screen.width, height: top - screen.y), true)
+    }
+
+    /// The keyboard's shift key once two reads 150 ms apart agree on its position, or nil.
+    private func restingShiftKey(driver: any PlatformDriver, appID: String?) async -> Rect? {
+        var previous: Rect?
+        for attempt in 0 ..< 8 {
+            if attempt > 0 {
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            let keys = await Self.withinBudget(milliseconds: 1500) {
+                try? await driver.findElements(ElementSelector(id: "shift"), appID: appID)
+            } ?? []
+            guard let frame = keys.compactMap(\.frame).first else { return nil }
+            if let previous, abs(previous.y - frame.y) < 1 {
+                return frame
+            }
+            previous = frame
+        }
+        return nil
     }
 
     /// How far a phone keyboard reaches above its shift key: two rows of keys and the suggestion bar.
