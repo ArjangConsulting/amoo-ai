@@ -71,7 +71,7 @@ final class CommandContractE2ETests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        if let run = testRun, !run.hasSucceeded, !run.hasBeenSkipped {
+        if let run = testRun, run.totalFailureCount > 0 {
             Self.hasFailedTest = true
         }
         try await super.tearDown()
