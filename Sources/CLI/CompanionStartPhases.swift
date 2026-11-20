@@ -31,6 +31,11 @@ final class CompanionStartPhases: Sendable {
     private let path: String?
     private let phases = Mutex<[CompanionStartPhase]>([])
 
+    /// Where `recordIdentity` writes, next to the phases; nil when nothing is recorded.
+    var identityPath: String? {
+        path.map { Self.identityPath(phasesPath: $0) }
+    }
+
     init(path: String?) {
         self.path = path.flatMap { $0.isEmpty ? nil : $0 }
     }

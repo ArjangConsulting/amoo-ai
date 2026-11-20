@@ -127,3 +127,56 @@ final class CompanionNoBuildStartTests: XCTestCase {
         XCTAssertTrue(manager.staleNotice(config: config).contains("amoo companion build --platform android"))
     }
 }
+
+/// `env up` says which companion build it used: source, build time, commit, staleness and, on
+/// Android, whether the device already held it.
+final class CompanionBuildIdentityTests: XCTestCase {
+    func testTheReportCarriesTheIdentityAndTheSummaryNamesIt() throws {
+        let identity = CompanionBuildIdentity(
+            source: "local",
+            path: "/c/app.apk",
+            builtAt: "2026-11-20T12:28:00Z",
+            sourceCommit: "402e1fb0123456789",
+            stale: true,
+            sha256: "aa",
+            installedSHA256: "bb"
+        )
+        let report = EnvCompanionReport(phases: [], buildIdentity: identity)
+        let json = try XCTUnwrap(String(bytes: JSONEncoder().encode(report), encoding: .utf8))
+        XCTAssertTrue(json.contains(#""build_identity""#), json)
+        XCTAssertTrue(json.contains(#""source_commit":"402e1fb0123456789""#), json)
+        XCTAssertTrue(json.contains(#""installed_sha256":"bb""#), json)
+        XCTAssertEqual(identity.alreadyInstalled, false)
+        XCTAssertTrue(identity.summary.contains("local build, built 2026-11-20T12:28:00Z, from 402e1fb01234"))
+        XCTAssertTrue(identity.summary.contains("older than its sources"))
+    }
+
+    func testTheSourceCommitIsReadFromTheBuildDirectory() throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        XCTAssertNil(CompanionSourceCommit.read(directory: scratch.url.path))
+        try Data("abc123-dirty\n".utf8).write(to: scratch.url.appending(path: CompanionSourceCommit.fileName))
+        XCTAssertEqual(CompanionSourceCommit.read(directory: scratch.url.path), "abc123-dirty")
+    }
+
+    func testAPrebuiltAndroidIdentityComesFromThePrebuiltDirectory() async throws {
+        let scratch = try TemporaryDirectory()
+        defer { try? scratch.remove() }
+        for name in ["app-debug.apk", "app-debug-androidTest.apk"] {
+            let url = scratch.url.appending(path: "prebuilt/\(name)")
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data(name.utf8).write(to: url)
+        }
+        try Data("feedbeef\n".utf8).write(to: scratch.url.appending(path: "prebuilt/source-commit"))
+        let manager = AndroidCompanionManager(processRunner: MockCLIProcessRunner(results: []))
+        let config = AndroidCompanionConfig(companionDir: scratch.url.path, serial: nil)
+        let identity = await manager.buildIdentity(config: config)
+        XCTAssertEqual(identity.source, "prebuilt")
+        XCTAssertEqual(identity.sourceCommit, "feedbeef")
+        XCTAssertNotNil(identity.sha256)
+        XCTAssertFalse(identity.stale, "no sources and no checkout: never stale")
+    }
+}

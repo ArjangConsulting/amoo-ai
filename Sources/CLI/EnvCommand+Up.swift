@@ -158,7 +158,10 @@ func milliseconds(since start: ContinuousClock.Instant) -> Int {
 private func readCompanionPhases(store: DeviceRuntimeStore, runtimeID: String) -> EnvCompanionReport? {
     let path = store.companionPhasesURL(runtimeID: runtimeID).path
     defer { try? FileManager.default.removeItem(atPath: path) }
-    return CompanionStartPhases.read(path: path).map(EnvCompanionReport.init(phases:))
+    defer { try? FileManager.default.removeItem(atPath: CompanionStartPhases.identityPath(phasesPath: path)) }
+    return CompanionStartPhases.read(path: path).map {
+        EnvCompanionReport(phases: $0, buildIdentity: CompanionStartPhases.readIdentity(phasesPath: path))
+    }
 }
 
 // MARK: - Device resolution

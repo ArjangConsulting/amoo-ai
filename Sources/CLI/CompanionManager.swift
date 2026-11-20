@@ -207,6 +207,16 @@ final class CompanionManager: @unchecked Sendable {
         guard let testrun = xctestrunPath else {
             throw CompanionError.buildFailed("No .xctestrun found after build.")
         }
+        phases.recordIdentity(CompanionBuildIdentity(
+            source: bundled ? "prebuilt" : "local",
+            path: testrun,
+            builtAt: CompanionBuildIdentity.timestamp(of: testrun),
+            sourceCommit: CompanionSourceCommit.read(
+                directory: bundled ? URL(fileURLWithPath: productsDir).deletingLastPathComponent().path
+                    : config.companionDir + "/build"
+            ),
+            stale: stale
+        ))
 
         phaseStart = .now
         try await simulatorReady
@@ -332,6 +342,7 @@ final class CompanionManager: @unchecked Sendable {
         }
         try await signSimulatorProducts(config: config)
         try writeSourceFingerprint(config: config, fingerprint: fingerprint)
+        CompanionSourceCommit.record(companionDir: config.companionDir, directory: config.companionDir + "/build")
         #else
         _ = config
         throw CompanionError.unsupportedPlatform
