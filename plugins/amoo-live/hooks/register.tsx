@@ -1,12 +1,38 @@
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import { beginAction, finishAction } from './actions'
+import { beginCall, finishCall } from './actions'
+import type { RuntimeLookup } from './actions'
+import { amooCalls, lastJSONObject } from './cli'
 import { closeMirror, createMirrorController, shutdownMirror, synchronizeMirror } from './mirror'
-import { amooToolName, PANE, selectedSession, statusLine, readView } from './model'
+import { addSession, PANE, selectedSession, sessionFromReport, statusLine, readView, updateView } from './model'
+import type { Input } from './model'
 import type { MirrorController } from './mirror'
 import { renderPane } from './pane'
 
-export { amooToolName, describeAction, fitImage, startedSession } from './model'
+export { amooCalls, lastJSONObject } from './cli'
+export { describeAction, fitImage, sessionFromReport } from './model'
+
+/** Reads one runtime from `amoo env list --json`; undefined when it is not listed or amoo fails. */
+function runtimeLookup($: EngineInterface, amooPath: string): RuntimeLookup {
+  return async (runtimeId) => {
+    try {
+      const child = $.process.spawn({ argv: [amooPath, 'env', 'list', '--json'] })
+      let stdout = ''
+      for (;;) {
+        const step = await child.next()
+        if (step.done) break
+        if (step.value.stream === 'stdout') stdout += step.value.text
+      }
+      const runtimes = lastJSONObject(stdout)?.runtimes
+      const entry = Array.isArray(runtimes)
+        ? runtimes.find((item: unknown) => (item as Input | null)?.runtime_id === runtimeId)
+        : undefined
+      return entry ? sessionFromReport(entry as Input) : undefined
+    } catch {
+      return undefined
+    }
+  }
+}
 
 function startTicker($: EngineInterface, mirror: MirrorController): Timer {
   return $.clock.every(1000, async () => {
@@ -63,7 +89,7 @@ export const register: Register = (on, options) => {
     return {
       text: current
         ? 'amoo live pane opened.'
-        : 'amoo live pane opened; it fills in once start_session runs.',
+        : 'amoo live pane opened; it fills in once the agent runs `amoo env up`.',
     }
   }).catch(() => ({ text: 'amoo live pane could not open.' }))
 
@@ -72,12 +98,22 @@ export const register: Register = (on, options) => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  on('tool.call', async ($, e, next) => {
-    const tool = amooToolName(String(e.tool))
-    if (!tool) return next(e)
-    const id = e.tool_use_id
-    await beginAction($, tool, e, id)
-    if (tool === 'start_session') {
+  // The agent drives amoo through Bash: `amoo env up`, `amoo device --runtime-id <id> <tool>`,
+  // `amoo flow`, `amoo env down`. A background run reports nothing to follow.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const calls = e.run_in_background ? [] : amooCalls(String(e.command ?? ''))
+    if (!calls.length) return next(e)
+    const lookup = runtimeLookup($, amooPath)
+    const known = new Set((await readView($)).sessions.map((item) => item.sessionId))
+    for (const call of calls) {
+      if (call.kind === 'up' || !call.runtimeId || known.has(call.runtimeId)) continue
+      known.add(call.runtimeId)
+      const found = await lookup(call.runtimeId)
+      if (found) await updateView($, (state) => addSession(state, found, false))
+    }
+    const ids = calls.map((_, index) => `${e.tool_use_id}#${index}`)
+    for (const [index, call] of calls.entries()) await beginCall($, call, ids[index]!)
+    if (calls.some((call) => call.kind === 'up')) {
       mirror.paneOpen = true
       try {
         const opened = await $.ui.open({ id: PANE, title: 'amoo live' })
@@ -95,10 +131,12 @@ export const register: Register = (on, options) => {
     try {
       ran = await next(e)
     } catch (error) {
-      await finishAction($, tool, e, id, { result: undefined, isError: true })
+      for (const [index, call] of calls.entries()) {
+        await finishCall($, call, ids[index]!, { result: undefined, isError: true }, lookup)
+      }
       throw error
     }
-    await finishAction($, tool, e, id, ran)
+    for (const [index, call] of calls.entries()) await finishCall($, call, ids[index]!, ran, lookup)
     $.ui.status(statusLine(selectedSession(await readView($))))
     await synchronizeMirror($, mirror)
     return ran

@@ -15,7 +15,22 @@ export const PANE = {
   },
 } as const
 
-export const STARTED_TEXT = 'Started session s-1 for com.example.app on ios device SIM-1.'
+/** A Bash call, as the agent makes it. */
+export function bash(command: string) {
+  return { tool: 'Bash', command } as const
+}
+
+/** What a Bash call returns: its output, which `--json` amoo commands end with a JSON object. */
+export function ran(stdout: string, isError = false) {
+  return { result: { stdout, stderr: '', interrupted: false }, text: stdout, ...(isError ? { isError: true } : {}) }
+}
+
+export function upOutput(runtimeId: string, appId: string, deviceId: string): string {
+  return JSON.stringify({ ok: true, runtime_id: runtimeId, platform: 'ios', device: { id: deviceId }, app: { id: appId } })
+}
+
+export const UP = 'amoo env up --platform ios --app-id com.example.app --json'
+export const STARTED = ran(upOutput('s-1', 'com.example.app', 'SIM-1'))
 
 export function mockUI(on: On, shown: () => boolean = () => true) {
   on('ui.panes', () => ({
