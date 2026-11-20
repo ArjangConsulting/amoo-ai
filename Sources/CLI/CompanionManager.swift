@@ -215,6 +215,7 @@ final class CompanionManager: @unchecked Sendable {
         let phases = CompanionStartPhases.shared
         var phaseStart = ContinuousClock.now
         let bundled = hasBundledProducts(config: config)
+        await announce(bundledProductsSkippedReason(config: config))
         let sourcesChanged = sourcesChanged(config: config, bundled: bundled)
         let own = tracked(deviceUDID: config.deviceUDID)
         phases.record("check", outcome: sourcesChanged ? "sources_changed" : "unchanged", since: phaseStart)
@@ -254,6 +255,7 @@ final class CompanionManager: @unchecked Sendable {
         if (force && !bundled) || sourcesChanged || xctestrunPath == nil {
             xctestrunPath = try await buildRecordingPhase(config: config)
         } else {
+            await announce(bundled ? "Using the prebuilt iOS companion from \(productsDir)." : nil)
             phases.record("build", outcome: bundled ? "prebuilt" : "cached", since: .now)
         }
 

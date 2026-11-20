@@ -1,16 +1,25 @@
 import Foundation
 
 extension AndroidCompanionManager {
-    func currentSourceFingerprint(config: AndroidCompanionConfig) -> String {
+    /// The files a companion build depends on, hashed by the fingerprint and dated by the prebuilt check.
+    func sourceLocations(config: AndroidCompanionConfig) -> [URL] {
         let root = URL(fileURLWithPath: config.companionDir)
-        let locations = [
+        return [
             root.appendingPathComponent("app/src", isDirectory: true),
             root.appendingPathComponent("app/build.gradle.kts"),
             root.appendingPathComponent("build.gradle.kts"),
             root.appendingPathComponent("settings.gradle.kts")
         ]
+    }
+
+    /// When a companion source file last changed, or nil when there are no sources.
+    func newestSourceModification(config: AndroidCompanionConfig) -> Date? {
+        sourceFiles(at: sourceLocations(config: config)).compactMap(modificationDate).max()
+    }
+
+    func currentSourceFingerprint(config: AndroidCompanionConfig) -> String {
         var hash: UInt64 = 14_695_981_039_346_656_037
-        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
+        for url in sourceFiles(at: sourceLocations(config: config)).sorted(by: { $0.path < $1.path }) {
             for byte in url.path.utf8 {
                 hash = fingerprint(hash, byte: byte)
             }

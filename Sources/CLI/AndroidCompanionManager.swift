@@ -223,6 +223,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
         let phases = CompanionStartPhases.shared
         var phaseStart = ContinuousClock.now
         let bundled = usesBundledAPKs(config: config)
+        await announce(bundledAPKsSkippedReason(config: config))
         let sourcesChanged = !config.buildPrepared &&
             (config.buildMode == .rebuild ||
                 (config.buildMode != .reuse && !bundled && !sourceFingerprintMatches(config: config)))
@@ -277,6 +278,7 @@ final class AndroidCompanionManager: @unchecked Sendable {
             }
             phases.record("build", outcome: "built", since: phaseStart)
         } else {
+            await announce(bundled ? bundledAPKsNotice(config: config) : nil)
             phases.record("build", outcome: bundled ? "prebuilt" : "cached", since: phaseStart)
         }
 

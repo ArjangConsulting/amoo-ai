@@ -54,6 +54,11 @@ extension CompanionManager {
         guard config.buildMode != .rebuild, canSignBundledProducts(config: config),
               let bundled = findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config)
         else { return false }
+        // A checkout keeps a gitignored `prebuilt/` from its last packaging run; sources edited since
+        // make it stale, so auto builds from sources instead. Explicit reuse keeps release semantics.
+        if bundledProductsSkippedReason(config: config, bundled: bundled) != nil {
+            return false
+        }
         // A developer's freshly built companion must not be shadowed by an older distribution.
         // Explicit reuse keeps its release semantics; auto prefers newer local products.
         if config.buildMode == .auto,
@@ -66,6 +71,17 @@ extension CompanionManager {
             return false
         }
         return true
+    }
+
+    /// Why packaged products were passed over in auto mode, for the startup output; nil when they were not.
+    func bundledProductsSkippedReason(config: CompanionConfig, bundled: String? = nil) -> String? {
+        let packaged = bundled ?? findXCTestRun(productsDir: bundledProductsDirectory(config: config), config: config)
+        guard config.buildMode == .auto, isSourceCheckout(companionDir: config.companionDir),
+              let bundled = packaged,
+              let bundledDate = modificationDate(URL(fileURLWithPath: bundled)),
+              let sources = newestSourceModification(config: config), sources > bundledDate else { return nil }
+        return "Companion sources changed after the prebuilt companion was packaged"
+            + " (\(bundledDate.formatted(date: .abbreviated, time: .shortened))); using a build from sources."
     }
 
     func companionProductsDirectory(config: CompanionConfig, bundled: Bool? = nil) -> String {

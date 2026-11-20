@@ -10,7 +10,13 @@ import XcodeGenKit
 /// Detects companion sources changing since the last build, so a stale runner is rebuilt rather
 /// than reused.
 extension CompanionManager {
-    func currentSourceFingerprint(config: CompanionConfig) -> String {
+    /// When a companion source file last changed, or nil when there are no sources.
+    func newestSourceModification(config: CompanionConfig) -> Date? {
+        sourceFiles(at: sourceLocations(config: config)).compactMap(modificationDate).max()
+    }
+
+    /// The files a companion build depends on, hashed by the fingerprint and dated by the prebuilt check.
+    func sourceLocations(config: CompanionConfig) -> [URL] {
         let root = URL(fileURLWithPath: config.companionDir)
         var locations = [
             root.appendingPathComponent("project.yml"),
@@ -24,8 +30,12 @@ extension CompanionManager {
         if config.isMac {
             locations.append(root.appendingPathComponent("MacHostApp", isDirectory: true))
         }
+        return locations
+    }
+
+    func currentSourceFingerprint(config: CompanionConfig) -> String {
         var hash: UInt64 = 14_695_981_039_346_656_037
-        for url in sourceFiles(at: locations).sorted(by: { $0.path < $1.path }) {
+        for url in sourceFiles(at: sourceLocations(config: config)).sorted(by: { $0.path < $1.path }) {
             for byte in url.path.utf8 {
                 hash = fingerprint(hash, byte: byte)
             }
