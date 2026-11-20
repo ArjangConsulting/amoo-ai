@@ -13,6 +13,8 @@ public struct StudioHealth: Codable, Equatable, Sendable {
     public let status: String
 }
 
+/// The reply to `mcp.status`. amoo runs no MCP server, so it reports `available: false` with no
+/// transport; the method stays so Studio builds that ask still get an answer they can decode.
 public struct StudioMCPStatus: Codable, Equatable, Sendable {
     public let available: Bool
     public let transport: String
@@ -221,7 +223,7 @@ public struct StudioService: Sendable {
         case "system.health":
             try encodeValue(StudioHealth(status: "ready"))
         case "mcp.status":
-            try encodeValue(StudioMCPStatus(available: true, transport: "stdio", arguments: ["mcp", "serve"]))
+            try encodeValue(StudioMCPStatus(available: false, transport: "none", arguments: []))
         default:
             nil
         }

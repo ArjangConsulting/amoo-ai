@@ -78,16 +78,16 @@ struct StudioProtocolTests {
         #expect(result["message"] as? String == "Ready to explore")
     }
 
-    @Test("MCP status reports the supported launch contract")
+    @Test("MCP status says amoo runs no MCP server")
     func mcpStatus() async throws {
         let request = Data(#"{"jsonrpc":"2.0","id":5,"method":"mcp.status","params":{}}"#.utf8)
         let response = await StudioService(workspace: StubWorkspace(), chat: StubChat()).handle(request)
         let object = try #require(JSONSerialization.jsonObject(with: response) as? [String: Any])
         let result = try #require(object["result"] as? [String: Any])
 
-        #expect(result["available"] as? Bool == true)
-        #expect(result["transport"] as? String == "stdio")
-        #expect(result["arguments"] as? [String] == ["mcp", "serve"])
+        #expect(result["available"] as? Bool == false)
+        #expect(result["transport"] as? String == "none")
+        #expect(result["arguments"] as? [String] == [])
     }
 }
 
