@@ -36,18 +36,18 @@ Entry points for compiling and exporting tests:
 
 | Stage | Module / file | Notes |
 | --- | --- | --- |
-| Record a tool call as a `SessionAction` | `MCPServer` — `ToolExecutor.recordIfNeeded` | Skips `controlPlaneTools`. Assigns `SessionAction.Intent` (`testStep` / `assertion` / `diagnostic` / `failedProbe` / `recovery`). Redacts secret args. Persists versioned diagnostic evidence for audits and traversal; speech retention is opt-in. |
+| Record a tool call as a `SessionAction` | `AmooTools` — `ToolExecutor.recordIfNeeded` | Skips `controlPlaneTools`. Assigns `SessionAction.Intent` (`testStep` / `assertion` / `diagnostic` / `failedProbe` / `recovery`). Redacts secret args. Persists versioned diagnostic evidence for audits and traversal; speech retention is opt-in. |
 | Session state + persistence | `TestSession` — `TestSession`, `SessionManager`, `SessionStore`, `SessionReport` | `report.json` date handling: `SessionReport.makeJSONEncoder()/makeJSONDecoder()` **only**. |
 | Compile a report into a plan | `SessionCompiler` — `SessionPlanCompiler` (`+Semantics`, `+Inspection`, `+Translation`) | Deterministic, no LLM. |
 | Plan / context / warning types | `StudioProtocol` — `StudioChatService.swift` (`StudioAuthoredTest`, `StudioTestContext`, `StudioToolOperation`, `StudioCompiledPlan`, `StudioPlanWarning`), `StudioTool.swift`, `StudioCodeExport.swift` | The wire format for `plan.json`. |
-| Emit source | `TestCodeGenerator` — `XCUITestEmitter`, `EspressoEmitter`, `ComposeEspressoEmitter`, `TestCodeEmitter.swift` (shared naming), `HelperBinder` | `MCPServer` does **not** depend on this module. |
+| Emit source | `TestCodeGenerator` — `XCUITestEmitter`, `EspressoEmitter`, `ComposeEspressoEmitter`, `TestCodeEmitter.swift` (shared naming), `HelperBinder` | `AmooTools` does **not** depend on this module. |
 | CLI agent guidance | `plugins/amoo/skills/driving-amoo/SKILL.md` | Covers authoring flows and exporting native tests. |
 
 ## Two tool vocabularies — do not conflate
 
 - **Device-tool vocabulary** (what agents, flows, and tool schemas name):
   `assert_absent`, `start_session`, `end_session`, `swipe_in_direction`, `tap_element`, …
-  Defined in `Sources/MCPServer/Tools/*.swift`, dispatched in `ToolExecutor+Dispatch.swift`.
+  Defined in `Sources/AmooTools/Tools/*.swift`, dispatched in `ToolExecutor+Dispatch.swift`.
 - **Compiled-plan vocabulary** (`StudioTool`, what `plan.json` / emitters / `StudioAutomationService`
   use): `assert_not_visible`, `assert_enabled`, `tap_element`, …
   `SessionPlanCompiler.translate` maps device-tool names onto these (`assert_absent` → `assert_not_visible`).
@@ -135,9 +135,9 @@ application step — never for a lifecycle call (those are `.notApplicable`, see
 
 ## Tests that lock this down
 
-- `Tests/MCPServerTests/SessionPlanCompilerTests.swift`, `SessionPlanCompilerSemanticsTests.swift`,
+- `Tests/AmooToolsTests/SessionPlanCompilerTests.swift`, `SessionPlanCompilerSemanticsTests.swift`,
   `SessionPlanCompilerRetryTests.swift` — compiler behavior.
-- `Tests/MCPServerTests/SessionCodegenContextTests.swift` — MCP session/compile-time context.
+- `Tests/AmooToolsTests/SessionCodegenContextTests.swift` — MCP session/compile-time context.
 - `Tests/TestCodeGeneratorTests/*` — emitter output, naming, golden fixtures, real compilation.
 - `Tests/IntegrationTests/IOSSessionCodegenRegressionTests.swift` — the full record → compile →
   generate acceptance scenario, end to end.

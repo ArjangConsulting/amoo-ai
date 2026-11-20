@@ -1,7 +1,7 @@
 import Foundation
 
 /// Bridges MCP `ToolDefinition` schemas to Ollama's tool-calling format.
-/// This file has no dependency on MCPServer — it works with a simple
+/// This file has no dependency on AmooTools — it works with a simple
 /// intermediate representation so the module stays lightweight.
 public enum ToolBridge {
     /// A single named, typed property within a `ToolSchema`.

@@ -4,7 +4,7 @@ This repo now treats public commands as a release contract.
 
 ## What Is Covered
 
-- Device tools are declared in `Sources/MCPServer/Tools/*`.
+- Device tools are declared in `Sources/AmooTools/Tools/*`.
 - The shared command inventory lives in `Sources/CommandContract/CommandCoverageMatrix.swift`.
 - Every public tool must have:
   - a coverage-matrix entry
@@ -50,23 +50,23 @@ When adding a new public command:
 
 Touch four files plus tests:
 
-1. **Declare the tool** in the appropriate group under `Sources/MCPServer/Tools/`
+1. **Declare the tool** in the appropriate group under `Sources/AmooTools/Tools/`
    (`DeviceTools`, `ActionTools`, `QueryTools`, `AuditTools`, or `AssistantTools`).
    Set `name`, optional `title`, `description`, `properties`/`required` for inputs,
    and an `outputSchema` for any tool that returns structured content.
-2. Add a dispatch case in `Sources/MCPServer/ToolExecutor+Dispatch.swift`. Return
+2. Add a dispatch case in `Sources/AmooTools/ToolExecutor+Dispatch.swift`. Return
    `.success(prose, structuredContent: try Value(report))` when the tool has a declared output
    schema so callers can validate against it.
 3. **Register the contract** in `Sources/CommandContract/CommandCoverageMatrix.swift`
    with the right `channel` (`.mcp` for catalog tools, `.cli` for top-level `amoo …`
    commands), `kind`, `releaseTier`, fixture screen, and expected assertion.
 4. **Update tests**:
-   - Tool name and schema assertions in `Tests/MCPServerTests/MCPServerTests.swift`
+   - Tool name and schema assertions in `Tests/AmooToolsTests/AmooToolsTests.swift`
      (`testToolNamesAreExposed`, `testToolDefinitionsHaveSchemas`).
    - Driver-level execution test in the same file, using `MockDriver` or
      `AuditMockDriver` depending on what the tool touches.
    - Use `scripts/ci/cli-smoke.py` for device-free checks of the packaged binary.
 
 For assistant-facing tools, also add the prose formatter in
-`Sources/MCPServer/AssistantReports.swift` alongside the matching `Codable` report
+`Sources/AmooTools/AssistantReports.swift` alongside the matching `Codable` report
 struct so structured content stays in sync with the declared `outputSchema`.

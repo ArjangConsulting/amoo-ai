@@ -57,10 +57,10 @@ CI's Linux job runs in `swift:6.4-noble`. After any change to platform-condition
 - Logic is deliberately split across `Foo.swift` + `Foo+Feature.swift` extension files to satisfy
   the `file_length` lint rule (`SessionPlanCompiler` → `.swift` / `+Semantics` / `+Inspection` /
   `+Translation`; `DriverToolExecutor` → `ToolExecutor.swift` + `ToolExecutor+*.swift`; likewise
-  `MCPServerTests+*`). **When hunting for behavior, grep the whole `Foo*` set, not just `Foo.swift`.**
-- `swift test --filter` on a class defined via `extension MCPServerTests { … }` needs the fully
+  `AmooToolsTests+*`). **When hunting for behavior, grep the whole `Foo*` set, not just `Foo.swift`.**
+- `swift test --filter` on a class defined via `extension AmooToolsTests { … }` needs the fully
   qualified `BundleName.ClassName/testMethodName`, e.g.
-  `swift test --filter 'MCPServerTests.MCPServerTests/testSessionTimeContextSurvivesEndSessionRecompile'`.
+  `swift test --filter 'AmooToolsTests.AmooToolsTests/testSessionTimeContextSurvivesEndSessionRecompile'`.
   The bare class name matches nothing.
 - Scratch files and directories come from `TemporaryDirectory` in
   [SwiftTestCommons](https://github.com/maniramezan/SwiftTestCommons). In `CLITests`, use

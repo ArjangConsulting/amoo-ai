@@ -1,6 +1,6 @@
+import AmooTools
 @testable import CLI
 import Foundation
-import MCPServer
 import XCTest
 
 /// Guards `amoo device --help` against drifting away from the MCP tool schemas it documents.
@@ -23,11 +23,11 @@ final class DeviceHelpDriftTests: XCTestCase {
     ]
 
     /// Arguments every listing may omit: `session_id` is bolted onto every driver-routed tool by
-    /// `MCPServer`, and `amoo device` has no session to route to.
+    /// `ToolCatalog`, and `amoo device` has no session to route to.
     private static let ignoredArguments: Set<String> = ["session_id"]
 
     func testEveryDocumentedArgumentMatchesATool() {
-        let defined = Set(MCPServer().toolDefinitions().map(\.name))
+        let defined = Set(ToolCatalog().toolDefinitions().map(\.name))
         for entry in Self.helpEntries() {
             XCTAssertTrue(
                 defined.contains(entry.tool),
@@ -37,7 +37,7 @@ final class DeviceHelpDriftTests: XCTestCase {
     }
 
     func testEveryToolArgumentIsDocumented() {
-        let definitions = MCPServer().toolDefinitions()
+        let definitions = ToolCatalog().toolDefinitions()
         let byName = Dictionary(uniqueKeysWithValues: definitions.map { ($0.name, $0) })
 
         for entry in Self.helpEntries() {
@@ -57,7 +57,7 @@ final class DeviceHelpDriftTests: XCTestCase {
     func testEveryToolIsListedOrExplicitlyOmitted() {
         let listed = Set(Self.helpEntries().map(\.tool))
         // Long-lived-only tools are not reachable through `amoo device`, which refuses them.
-        let missing = MCPServer().cliToolDefinitions()
+        let missing = ToolCatalog().cliToolDefinitions()
             .map(\.name)
             .filter { !listed.contains($0) && !Self.intentionallyOmitted.contains($0) }
             .sorted()

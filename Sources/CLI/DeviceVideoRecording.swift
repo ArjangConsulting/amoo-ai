@@ -1,8 +1,8 @@
 import AmooCore
 import AmooLogging
+import AmooTools
 import CompanionProtocol
 import Foundation
-import MCPServer
 
 private let videoRecordingLogger = AmooLogger.forType(DeviceVideoRecordingOptions.self)
 

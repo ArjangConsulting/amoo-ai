@@ -1,10 +1,10 @@
+import AmooTools
 import CommandContract
-import MCPServer
 import XCTest
 
 final class CommandContractTests: XCTestCase {
     func testCoverageMatrixMatchesPublicMCPToolCatalog() {
-        let server = MCPServer()
+        let server = ToolCatalog()
 
         XCTAssertEqual(
             Set(server.toolNames()),

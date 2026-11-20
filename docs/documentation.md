@@ -36,7 +36,7 @@ when you want it included:
 - AndroidDriver
 - ProcessRunner
 - GRPCService
-- MCPServer
+- AmooTools
 - AuditEngine
 - CommandContract
 - TestSession

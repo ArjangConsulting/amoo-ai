@@ -1,7 +1,7 @@
 import AmooCore
+import AmooTools
 import AuditEngine
 import Foundation
-import MCPServer
 import StudioProtocol
 import TestCodeGenerator
 #if canImport(Darwin)
@@ -29,7 +29,7 @@ public struct CLIApp {
         AmooVersion.current
     }
 
-    private let mcpServer: MCPServer
+    private let toolCatalog: ToolCatalog
     private let preflightChecker: any PreflightChecking
     private let auditRunner: any AuditRunning
     private let launchREPL: @Sendable ([String]) async -> Void
@@ -41,13 +41,13 @@ public struct CLIApp {
     /// - Parameter isInteractiveTerminal: whether stdin is a terminal. Bare `amoo` enters the REPL only
     ///   when it is, so a client that spawns `amoo` over a pipe gets help instead of a hung process.
     public init(
-        mcpServer: MCPServer = .init(),
+        toolCatalog: ToolCatalog = .init(),
         preflightChecker: any PreflightChecking = DefaultPreflightChecker(),
         auditRunner: any AuditRunning = DefaultAuditRunner(),
         launchREPL: (@Sendable ([String]) async -> Void)? = nil,
         isInteractiveTerminal: (@Sendable () -> Bool)? = nil
     ) {
-        self.mcpServer = mcpServer
+        self.toolCatalog = toolCatalog
         self.preflightChecker = preflightChecker
         self.auditRunner = auditRunner
         self.launchREPL = launchREPL ?? { await startREPLMode(args: $0) }
@@ -81,7 +81,7 @@ public struct CLIApp {
         }
 
         if args.contains("--tools") {
-            return CLIResult(output: mcpServer.cliToolDefinitions().map(\.name).joined(separator: ","), exitCode: 0)
+            return CLIResult(output: toolCatalog.cliToolDefinitions().map(\.name).joined(separator: ","), exitCode: 0)
         }
 
         if let result = await dispatchSubcommand(args: args) {

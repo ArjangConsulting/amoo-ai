@@ -1,6 +1,6 @@
+import AmooTools
 @testable import CLI
 import Foundation
-import MCPServer
 import StudioProtocol
 import XCTest
 

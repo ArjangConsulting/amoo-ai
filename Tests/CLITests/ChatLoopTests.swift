@@ -1,6 +1,6 @@
+import AmooTools
 @testable import CLI
 import Foundation
-import MCPServer
 @testable import OllamaClient
 import Testing
 #if canImport(FoundationNetworking)

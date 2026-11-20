@@ -1,6 +1,6 @@
 import AmooCore
+import AmooTools
 import Foundation
-import MCPServer
 import StudioProtocol
 
 // MARK: - Step execution

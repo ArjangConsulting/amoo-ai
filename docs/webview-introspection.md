@@ -75,5 +75,5 @@ judges each by its `{probe, pass, details}` result (see `amoo probe run --help`)
 | `Sources/WebInspector/PlatformWebInspecting.swift` | Platform → endpoint wiring (Android `adb`; iOS simulator socket or env opt-in). |
 | `Sources/WebInspector/WebKitInspectorConnection.swift` | Remote Inspector framing (binary plist), unix-socket channel, timeout-safe message queue. |
 | `Sources/WebInspector/WebKitWebInspectorClient.swift` | `WebInspectorClient` over the WebKit Remote Inspector (iOS Simulator). |
-| `Sources/MCPServer/Tools/WebViewTools.swift` | The two MCP tool definitions. |
-| `Sources/MCPServer/ToolExecutor+WebView.swift` | Handlers mapping tool args → `WebInspectorClient` → `ToolResult`. |
+| `Sources/AmooTools/Tools/WebViewTools.swift` | The two MCP tool definitions. |
+| `Sources/AmooTools/ToolExecutor+WebView.swift` | Handlers mapping tool args → `WebInspectorClient` → `ToolResult`. |

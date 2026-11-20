@@ -1,7 +1,7 @@
 import AmooCore
+import AmooTools
 @testable import CLI
 import Foundation
-import MCPServer
 import XCTest
 
 final class StructuredVerificationTests: XCTestCase {
@@ -15,7 +15,7 @@ final class StructuredVerificationTests: XCTestCase {
         XCTAssertEqual(options.arguments["label"], "Account settings")
         XCTAssertEqual(options.arguments["limit"], "2")
         XCTAssertEqual(options.runtimeID, "runtime-owned")
-        XCTAssertNil(MCPServer.validateArguments(tool: options.tool, arguments: options.arguments))
+        XCTAssertNil(ToolCatalog.validateArguments(tool: options.tool, arguments: options.arguments))
         let legacy = try parseDeviceCommandOptions(args: ["find_elements", "label=Account settings"]).get()
         XCTAssertEqual(legacy.arguments["label"], "Account settings")
     }

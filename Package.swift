@@ -20,7 +20,7 @@ let package = Package(
         .library(name: "AndroidDriver", targets: ["AndroidDriver"]),
         .library(name: "ProcessRunner", targets: ["ProcessRunner"]),
         .library(name: "GRPCService", targets: ["GRPCService"]),
-        .library(name: "MCPServer", targets: ["MCPServer"]),
+        .library(name: "AmooTools", targets: ["AmooTools"]),
         .library(name: "WebInspector", targets: ["WebInspector"]),
         .library(name: "AuditEngine", targets: ["AuditEngine"]),
         .library(name: "CommandContract", targets: ["CommandContract"]),
@@ -150,7 +150,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "MCPServer",
+            name: "AmooTools",
             dependencies: [
                 "AmooTelemetry",
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
@@ -175,7 +175,7 @@ let package = Package(
                 "CompanionProtocol",
                 "IOSDriver",
                 "AndroidDriver",
-                "MCPServer",
+                "AmooTools",
                 "OllamaClient",
                 "AuditEngine",
                 "ProcessRunner",
@@ -236,9 +236,9 @@ let package = Package(
         ),
         .testTarget(name: "GRPCServiceTests", dependencies: ["GRPCService"]),
         .testTarget(
-            name: "MCPServerTests",
+            name: "AmooToolsTests",
             dependencies: [
-                .product(name: "TestCommons", package: "SwiftTestCommons"), "MCPServer", "SessionCompiler",
+                .product(name: "TestCommons", package: "SwiftTestCommons"), "AmooTools", "SessionCompiler",
                 "ProcessRunner", "WebInspector", "TestCodeGenerator"
             ]
         ),
@@ -270,13 +270,13 @@ let package = Package(
                 .product(name: "TestCommons", package: "SwiftTestCommons"),
                 "CLI",
                 "OllamaClient",
-                "MCPServer",
+                "AmooTools",
                 .product(name: "SwiftyShell", package: "SwiftyShell"),
                 .product(name: "MobileCore", package: "mobile-kits"),
                 .product(name: "MobileDevices", package: "mobile-kits")
             ]
         ),
-        .testTarget(name: "CommandContractTests", dependencies: ["CommandContract", "MCPServer"]),
+        .testTarget(name: "CommandContractTests", dependencies: ["CommandContract", "AmooTools"]),
         .testTarget(
             name: "IntegrationTests",
             dependencies: [
@@ -284,7 +284,7 @@ let package = Package(
                 "IOSDriver",
                 "AndroidDriver",
                 "CompanionProtocol",
-                "MCPServer",
+                "AmooTools",
                 "ProcessRunner",
                 "CommandContract",
                 "TestSession",

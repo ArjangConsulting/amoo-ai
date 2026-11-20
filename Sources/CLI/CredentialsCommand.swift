@@ -1,5 +1,5 @@
+import AmooTools
 import Foundation
-import MCPServer
 import StudioProtocol
 import SwiftyTerminal
 

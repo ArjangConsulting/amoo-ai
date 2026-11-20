@@ -1,4 +1,4 @@
-import MCPServer
+import AmooTools
 import SwiftyTerminalLineEditor
 
 struct REPLCompletionCatalog {

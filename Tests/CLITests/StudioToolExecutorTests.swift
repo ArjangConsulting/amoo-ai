@@ -1,5 +1,5 @@
+import AmooTools
 @testable import CLI
-import MCPServer
 import StudioProtocol
 import Testing
 
@@ -85,7 +85,7 @@ struct StudioToolExecutorTests {
 
     @Test("Tool schemas publish exhaustive values as enum, open ones as examples, and safety hints")
     func toolSchemaHints() throws {
-        let definitions = Dictionary(uniqueKeysWithValues: MCPServer().toolDefinitions().map { ($0.name, $0) })
+        let definitions = Dictionary(uniqueKeysWithValues: ToolCatalog().toolDefinitions().map { ($0.name, $0) })
         let swipe = try #require(definitions["swipe_in_direction"])
         let key = try #require(definitions["press_key"])
         let uninstall = try #require(definitions["device_uninstall_app"])

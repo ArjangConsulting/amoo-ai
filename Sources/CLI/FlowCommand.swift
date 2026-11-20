@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MCPServer
 import StudioProtocol
 
 /// A reusable device flow: the JSON a checked-in `*.amoo.json` file holds.

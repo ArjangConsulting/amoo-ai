@@ -1,6 +1,6 @@
 import AmooCore
+import AmooTools
 import Foundation
-import MCPServer
 import MobileDevices
 
 /// Checks that answer without a companion: argument names, `device_boot device_hint=…`, and runtimes.
@@ -9,7 +9,7 @@ func devicePreflight(
     _ options: DeviceCommandOptions,
     discoverDevices: (Platform?, Bool) async throws -> [DeviceInfo] = discoverCommandDevices
 ) async -> CLIResult? {
-    if let invalid = MCPServer.validateArguments(tool: options.tool, arguments: options.arguments) {
+    if let invalid = ToolCatalog.validateArguments(tool: options.tool, arguments: options.arguments) {
         return deviceCommandResult(
             options: options, content: invalid.content, isError: true, structured: invalid.structuredContent
         )
@@ -39,9 +39,9 @@ func devicePreflight(
 /// Resolves the runtime's endpoint into `options`, then runs the preflight checks; a failure is the
 /// finished result to print.
 func prepareDeviceCommand(_ options: DeviceCommandOptions) async -> DeviceCommandPreparation {
-    if MCPServer.longLivedOnlyTools.contains(options.tool) {
+    if ToolCatalog.longLivedOnlyTools.contains(options.tool) {
         return .finished(deviceCommandResult(
-            options: options, content: MCPServer.longLivedOnlyMessage, isError: true, structured: nil
+            options: options, content: ToolCatalog.longLivedOnlyMessage, isError: true, structured: nil
         ))
     }
     switch options.applyingRuntime() {

@@ -1,8 +1,8 @@
 import AmooCore
+import AmooTools
 import AuditEngine
 @testable import CLI
 import Foundation
-import MCPServer
 import ProcessRunner
 import SwiftyShell
 import TestCommons

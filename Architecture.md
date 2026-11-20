@@ -95,8 +95,8 @@ amoo/
 │   │   ├── DeviceService.swift          #   gRPC service implementation
 │   │   └── ServiceConfig.swift          #   Server configuration
 │   │
-│   ├── MCPServer/                       # Module 7: tool executor behind `amoo device` / `amoo flow`
-│   │   ├── MCPServer.swift              #   tool catalog and dispatch (the name predates the CLI-only design)
+│   ├── AmooTools/                       # Module 7: tool executor behind `amoo device` / `amoo flow`
+│   │   ├── ToolCatalog.swift            #   tool catalog and dispatch
 │   │   └── Tools/                       #   tool definitions and argument schemas
 │   │       ├── DeviceTools.swift
 │   │       ├── ActionTools.swift

@@ -1,7 +1,8 @@
+import AmooTools
+
 // swiftlint:disable multiline_arguments
 @testable import CLI
 import Foundation
-import MCPServer
 import StudioProtocol
 import XCTest
 

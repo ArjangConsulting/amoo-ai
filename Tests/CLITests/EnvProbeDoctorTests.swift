@@ -1,7 +1,7 @@
 import AmooCore
+import AmooTools
 @testable import CLI
 import Foundation
-import MCPServer
 import XCTest
 
 final class EnvCommandParsingTests: XCTestCase {

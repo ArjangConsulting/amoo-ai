@@ -1,6 +1,6 @@
 import AmooCore
+import AmooTools
 import Foundation
-import MCPServer
 import OllamaClient
 import SwiftyTerminal
 import SwiftyTerminalLineEditor

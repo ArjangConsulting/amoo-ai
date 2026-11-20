@@ -1,5 +1,5 @@
+@testable import AmooTools
 import Foundation
-@testable import MCPServer
 import StudioProtocol
 import TestCodeGenerator
 import TestSession

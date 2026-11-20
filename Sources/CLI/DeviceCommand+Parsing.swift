@@ -1,6 +1,6 @@
 import AmooCore
+import AmooTools
 import Foundation
-import MCPServer
 
 private struct DeviceCommandFlags {
     var platform: Platform = .ios

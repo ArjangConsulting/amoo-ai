@@ -1,5 +1,5 @@
+import AmooTools
 import Foundation
-import MCPServer
 
 /// One JSON object per CLI call (`--json`): sorted keys, ISO-8601 dates, no pretty-printing, so a
 /// caller's context holds a single compact line.

@@ -1,5 +1,5 @@
+import AmooTools
 import Foundation
-import MCPServer
 import StudioProtocol
 
 /// Reports whether each field of a profile can be read, never the value.

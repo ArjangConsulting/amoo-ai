@@ -1,5 +1,5 @@
+import AmooTools
 @testable import CLI
-import MCPServer
 import XCTest
 
 /// `amoo device start_session` started nothing a later call could use, and the reply still pointed
@@ -22,8 +22,8 @@ final class LongLivedToolTests: XCTestCase {
     }
 
     func testTheCLICatalogOmitsLongLivedTools() async {
-        let names = Set(MCPServer().cliToolDefinitions().map(\.name))
-        XCTAssertTrue(names.isDisjoint(with: MCPServer.longLivedOnlyTools))
+        let names = Set(ToolCatalog().cliToolDefinitions().map(\.name))
+        XCTAssertTrue(names.isDisjoint(with: ToolCatalog.longLivedOnlyTools))
         XCTAssertTrue(names.contains("get_run_telemetry"), "works from one call; stays listed")
         let tools = await CLIApp().run(args: ["--tools"]).output
         XCTAssertFalse(tools.contains("start_session"), tools)

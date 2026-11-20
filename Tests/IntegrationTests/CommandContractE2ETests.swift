@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
 import IOSDriver
-import MCPServer
 import XCTest
 #if canImport(Darwin)
 import Darwin.C

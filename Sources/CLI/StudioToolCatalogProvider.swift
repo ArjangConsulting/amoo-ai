@@ -1,4 +1,4 @@
-import MCPServer
+import AmooTools
 import StudioProtocol
 
 /// Builds Studio's tool catalog from the MCP registry, so the console, the MCP server, and the
@@ -15,7 +15,7 @@ struct MCPStudioToolCatalog: StudioToolCatalogProviding {
 
     private let schemas: [StudioToolSchema]
 
-    init(definitions: [ToolDefinition] = MCPServer().toolDefinitions()) {
+    init(definitions: [ToolDefinition] = ToolCatalog().toolDefinitions()) {
         schemas = definitions.map(Self.schema)
     }
 
