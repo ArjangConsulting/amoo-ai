@@ -251,6 +251,14 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     /// async UI-test teardown traps declares this instead. A harness that owns the app attaches its own
     /// failure diagnostics, so no teardown override is emitted and its lifecycle may be nonisolated.
     public let synchronousLifecycle: Bool
+    /// Android: the `package` a generated Kotlin test declares, e.g. `com.example.app.generated`.
+    public let kotlinPackage: String?
+    /// Android: annotations placed on the generated test class, e.g. `@MockedUiTest`.
+    public let classAnnotations: [String]
+    /// Android: a base-class function that launches the app and runs the test body as its trailing
+    /// lambda, e.g. `launchApp`. The generated test calls `launchApp { … }` instead of building its own
+    /// launch intent, so the harness's launch configuration (mock server, onboarding) applies.
+    public let launchWrapper: String?
 
     public enum Idiom: String, Codable, Equatable, Sendable {
         case phone
@@ -279,8 +287,14 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         launchArguments: [String] = [],
         launchEnvironment: [String: String] = [:],
         synchronousLifecycle: Bool = false,
-        factoryOverrides: [String: String] = [:]
+        factoryOverrides: [String: String] = [:],
+        kotlinPackage: String? = nil,
+        classAnnotations: [String] = [],
+        launchWrapper: String? = nil
     ) {
+        self.kotlinPackage = kotlinPackage
+        self.classAnnotations = classAnnotations
+        self.launchWrapper = launchWrapper
         self.targetPlatform = targetPlatform
         self.repo = repo
         self.launchArguments = launchArguments; self.launchEnvironment = launchEnvironment
@@ -302,6 +316,7 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         case requiredIdiom, harnessOwnsApp, factoryOverride, waitBindings, timeoutExpressions
         case assertionBindings, relaunchHelper, targetPlatform, repo, launchArguments, launchEnvironment
         case relaunchResetEnvironmentKeys, labelExpressions, synchronousLifecycle, factoryOverrides
+        case kotlinPackage, classAnnotations, launchWrapper
     }
 
     /// `harnessLaunchesApp` was added after context files were already checked in. Absence decodes
@@ -332,6 +347,9 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         launchEnvironment = try container.decodeIfPresent([String: String].self, forKey: .launchEnvironment) ?? [:]
         synchronousLifecycle = try container.decodeIfPresent(Bool.self, forKey: .synchronousLifecycle) ?? false
         factoryOverrides = try container.decodeIfPresent([String: String].self, forKey: .factoryOverrides) ?? [:]
+        kotlinPackage = try container.decodeIfPresent(String.self, forKey: .kotlinPackage)
+        classAnnotations = try container.decodeIfPresent([String].self, forKey: .classAnnotations) ?? []
+        launchWrapper = try container.decodeIfPresent(String.self, forKey: .launchWrapper)
     }
 
     /// Omits the launch fields and the reset keys while they are empty, so contexts written before they existed
@@ -372,6 +390,11 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
         if !factoryOverrides.isEmpty {
             try container.encode(factoryOverrides, forKey: .factoryOverrides)
         }
+        try container.encodeIfPresent(kotlinPackage, forKey: .kotlinPackage)
+        if !classAnnotations.isEmpty {
+            try container.encode(classAnnotations, forKey: .classAnnotations)
+        }
+        try container.encodeIfPresent(launchWrapper, forKey: .launchWrapper)
     }
 
     public func helper(named name: String) -> Helper? {

@@ -88,6 +88,14 @@ command still overrides it.
   // is rejected — `assert_selected` requires {{selected}}.
   "assertionBindings": { "assert_selected": "expectSelected({{element}}, {{selected}})" },
 
+  // Android only. The generated Kotlin file's `package`, annotations on its class, and a base-class
+  // function that launches the app and runs the test body as its trailing lambda (`launchApp { … }`
+  // instead of the generated ActivityScenario launch, so the harness's mock/onboarding setup
+  // applies). With `harnessOwnsApp`, the base class also provides `composeTestRule`.
+  "kotlinPackage": "com.example.app.generated",
+  "classAnnotations": ["@MockedUiTest"],
+  "launchWrapper": "launchApp",
+
   // iOS only: "phone" or "pad". The generated test skips itself on the other device class
   // (`import UIKit` plus an `XCTSkipUnless` on the user interface idiom, before the launch), so
   // an iPhone recording does not tap controls an iPad layout does not have. Omit for no guard.
