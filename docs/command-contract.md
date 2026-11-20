@@ -58,7 +58,7 @@ Touch four files plus tests:
    `.success(prose, structuredContent: try Value(report))` when the tool has a declared output
    schema so callers can validate against it.
 3. **Register the contract** in `Sources/CommandContract/CommandCoverageMatrix.swift`
-   with the right `channel` (`.mcp` for catalog tools, `.cli` for top-level `amoo …`
+   with the right `channel` (`.tool` for catalog tools, `.cli` for top-level `amoo …`
    commands), `kind`, `releaseTier`, fixture screen, and expected assertion.
 4. **Update tests**:
    - Tool name and schema assertions in `Tests/AmooToolsTests/AmooToolsTests.swift`

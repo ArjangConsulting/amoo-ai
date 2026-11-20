@@ -2,11 +2,11 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    static let mcpBaseCommands: [CommandCoverage] = [
+    static let toolBaseCommands: [CommandCoverage] = [
         // Device lifecycle and app management
         .init(
             name: "device_boot",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -15,7 +15,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "device_shutdown",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -24,7 +24,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "device_install_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -33,7 +33,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "device_launch_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -42,7 +42,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "device_terminate_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -51,7 +51,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "device_uninstall_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -60,7 +60,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "set_permission",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -69,7 +69,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "set_location",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -78,7 +78,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "clear_location",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -87,7 +87,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "set_appearance",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -98,7 +98,7 @@ public extension CommandCoverageMatrix {
         // Actions
         .init(
             name: "tap",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -107,7 +107,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "double_tap",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -116,7 +116,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "long_press",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -125,7 +125,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "swipe",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -134,7 +134,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "swipe_in_direction",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -143,7 +143,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "scroll",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -152,7 +152,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "type_text",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -161,7 +161,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "clear_text",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -170,7 +170,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "press_back",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -179,7 +179,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "press_home",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -188,7 +188,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "open_url",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -197,7 +197,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "tap_element",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -208,7 +208,7 @@ public extension CommandCoverageMatrix {
         // Queries
         .init(
             name: "find_elements",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -217,7 +217,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "get_view_hierarchy",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -226,7 +226,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "get_screen_context",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -235,7 +235,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "take_screenshot",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -244,7 +244,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "is_keyboard_visible",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -254,7 +254,7 @@ public extension CommandCoverageMatrix {
 
         .init(
             name: "current_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -263,7 +263,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "set_target_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -274,7 +274,7 @@ public extension CommandCoverageMatrix {
         // Audit
         .init(
             name: "audit_app",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -283,7 +283,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "audit_accessibility",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -292,7 +292,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "audit_security",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -303,7 +303,7 @@ public extension CommandCoverageMatrix {
         // Assistant support
         .init(
             name: "describe_screen",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -312,46 +312,46 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "suggest_test_actions",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .details,
-            expectedAssertion: "MCP returns relevant fixture action suggestions"
+            expectedAssertion: "the tool returns relevant fixture action suggestions"
         ),
         .init(
             name: "analyze_ai_testability",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .details,
-            expectedAssertion: "MCP returns structured AI testability diagnostics and developer feedback"
+            expectedAssertion: "the tool returns structured AI testability diagnostics and developer feedback"
         ),
         .init(
             name: "highlight_a11y_issues",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .details,
-            expectedAssertion: "MCP returns annotated screenshot PNG with colored overlays on elements"
+            expectedAssertion: "the tool returns annotated screenshot PNG with colored overlays on elements"
                 + " that have accessibility issues"
         ),
         .init(
             name: "find_element_by_description",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .home,
-            expectedAssertion: "MCP resolves a natural-language description to fixture elements"
+            expectedAssertion: "the tool resolves a natural-language description to fixture elements"
         ),
 
         // Session management
         .init(
             name: "start_session",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -360,7 +360,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "end_session",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -369,7 +369,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "list_sessions",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -378,7 +378,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "get_session_report",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -387,7 +387,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "compile_session_to_plan",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -398,7 +398,7 @@ public extension CommandCoverageMatrix {
         // Device & app inventory
         .init(
             name: "list_devices",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -407,7 +407,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "list_apps",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .informational,
             platforms: allPlatforms,
@@ -418,25 +418,25 @@ public extension CommandCoverageMatrix {
         // Intent-level tools
         .init(
             name: "navigate_to",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .home,
-            expectedAssertion: "MCP taps a matching element and reports the new screen context"
+            expectedAssertion: "the tool taps a matching element and reports the new screen context"
         ),
         .init(
             name: "fill_field",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .textInput,
-            expectedAssertion: "MCP sets the text of a matching field via setText"
+            expectedAssertion: "the tool sets the text of a matching field via setText"
         ),
         .init(
             name: "set_text",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -445,16 +445,16 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "assert_visible",
-            channel: .mcp,
+            channel: .tool,
             kind: .ai,
             releaseTier: .informational,
             platforms: allPlatforms,
             fixtureScreen: .home,
-            expectedAssertion: "MCP polls for a matching element and returns a pass/fail result"
+            expectedAssertion: "the tool polls for a matching element and returns a pass/fail result"
         ),
         .init(
             name: "assert_enabled",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -463,7 +463,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "assert_absent",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -472,7 +472,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "assert_value",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
@@ -481,7 +481,7 @@ public extension CommandCoverageMatrix {
         ),
         .init(
             name: "assert_screen_changed",
-            channel: .mcp,
+            channel: .tool,
             kind: .deterministic,
             releaseTier: .blocking,
             platforms: allPlatforms,
