@@ -253,11 +253,17 @@ extension DriverToolExecutor {
         return ScreenLayout(elements.prefix(300))
     }
 
-    /// Hides the keyboard using one unambiguous, explicitly named dismissal button.
+    /// Hides the keyboard using one unambiguous, explicitly named dismissal button, or Back on Android.
     ///
     /// Return can submit a form, Escape can close a sheet, and a generic Done button can save it.
-    /// Swiping can dismiss the sheet too, so none of those are keyboard-dismissal fallbacks.
+    /// Swiping can dismiss the sheet too, so none of those are default fallbacks; `method=return`
+    /// opts in to the return key. Android's Back closes the keyboard first and nothing else while it
+    /// is shown, so it is safe there.
     func executeDismissKeyboard(arguments: [String: String], driver: any PlatformDriver) async throws -> ToolResult {
+        let method = arguments["method"] ?? "auto"
+        guard ["auto", "return"].contains(method) else {
+            throw ToolExecutionError(code: "invalid_argument", message: "method must be auto or return")
+        }
         guard try await driver.isKeyboardVisible() else {
             return .success("Keyboard was not visible", structuredContent: .object([
                 "dispatch_status": .string("not_dispatched"), "postcondition_verified": .bool(true)
@@ -274,11 +280,7 @@ extension DriverToolExecutor {
         }
         guard candidates.count == 1, let button = candidates.first,
               let point = button.hitPoint ?? button.frame?.centre else {
-            return .error(
-                "dismiss_keyboard failed: no unambiguous keyboard-dismiss control was found."
-                    + " No action was taken. Use tap_element with an explicit app control if you intend"
-                    + " to submit or close the form."
-            )
+            return try await dismissKeyboardWithoutAButton(method: method, driver: driver)
         }
         try await driver.tap(at: point)
         if await keyboardIsGone(driver) {
@@ -288,6 +290,48 @@ extension DriverToolExecutor {
             "dismiss_keyboard failed: the keyboard is still visible after tapping '\(button.label)'."
                 + " No further action was taken. Inspect the screen and use an explicit app control."
         )
+    }
+
+    /// No dedicated control: Back on Android, the return key when asked for, otherwise a refusal that
+    /// names both options.
+    private func dismissKeyboardWithoutAButton(method: String, driver: any PlatformDriver) async throws -> ToolResult {
+        let platform = try? await driver.deviceInfo().platform
+        let (action, description): (() async throws -> Void, String)
+        if method == "return" {
+            // A hardware Return left a SwiftUI search keyboard up; tapping the keyboard's own key closes it.
+            if let key = try await keyboardReturnKey(driver: driver), let point = key.hitPoint ?? key.frame?.centre {
+                (action, description) = ({ try await driver.tap(at: point) }, "the keyboard's '\(key.label)' key")
+            } else {
+                (action, description) = ({ try await driver.pressKey(.returnKey, modifiers: []) }, "the return key")
+            }
+        } else if platform == .android {
+            (action, description) = ({ try await driver.pressBack() }, "Back")
+        } else {
+            return .error(
+                "dismiss_keyboard failed: no unambiguous keyboard-dismiss control was found."
+                    + " No action was taken. If pressing the keyboard's return key is acceptable here (a search"
+                    + " field submits its query), call dismiss_keyboard method=return; otherwise use tap_element"
+                    + " with an explicit app control."
+            )
+        }
+        try await action()
+        if await keyboardIsGone(driver) {
+            return .success("Keyboard dismissed with \(description)")
+        }
+        return .error(
+            "dismiss_keyboard failed: the keyboard is still visible after \(description)."
+                + " No further action was taken. Inspect the screen and use an explicit app control."
+        )
+    }
+
+    /// The software keyboard's return key ("search", "go", "done"…). Keyboard keys report a capitalised
+    /// identifier and the same word in lower case as their label, which an app's own Done button does not.
+    private func keyboardReturnKey(driver: any PlatformDriver) async throws -> ElementInfo? {
+        let identifiers: Set = ["Return", "Search", "Go", "Done", "Next", "Send", "Join", "Route", "Continue"]
+        let keys = try await driver.findElements(ElementSelector()).filter {
+            identifiers.contains($0.id) && $0.label == $0.id.lowercased() && $0.isVisible
+        }
+        return keys.count == 1 ? keys.first : nil
     }
 
     private func keyboardIsGone(_ driver: any PlatformDriver) async -> Bool {
