@@ -237,6 +237,12 @@ applies the scope itself from the companion's view hierarchy — the parent must
 one element (several is `ambiguous_selector`, none matches nothing), only its descendants are
 candidates, and if the hierarchy cannot be read the call fails with `scope_unavailable` instead of
 quietly running unscoped.
+
+Android reports resource IDs as the app spells them and uses the content description as an ID
+when the node has no resource ID. When both a resource ID and a content-description alias match
+the same selector, amoo prefers the resource ID. Multiple matching resource IDs still require a
+more specific selector or an explicit pick.
+
 The same constraints reach `report.json`, `plan.json` and every emitter: XCUITest chains
 `.matching(identifier:)` and `NSPredicate` filters, Espresso uses `allOf(…)` with
 `isDescendantOfA(…)`, and Compose joins matchers with `and` and `hasAnyAncestor(…)`.

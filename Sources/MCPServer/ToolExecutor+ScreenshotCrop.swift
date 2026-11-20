@@ -15,8 +15,7 @@ extension DriverToolExecutor {
 
     /// Crops `data` to the element the call's selector names, when it names one.
     ///
-    /// `pixelsPerPoint` is the image's pixels per gesture point. Element frames come in the driver's
-    /// frame units (points on iOS, pixels on Android), so they are divided by `framesPerUnit` first.
+    /// Element frames and gestures share coordinates (points on iOS, native pixels on Android).
     /// The result reports where the crop sits in gesture points, so a position read off the cropped
     /// image still converts to a tap.
     func screenshotCrop(
@@ -51,15 +50,11 @@ extension DriverToolExecutor {
                 message: "take_screenshot could not crop to \(name): the driver reported no frame for it."
             )
         }
-        let framesPerUnit = await (try? driver.elementGeometry())?.framesPerUnit ?? 1
         let rawPadding = arguments["padding"].flatMap(Double.init) ?? Self.defaultCropPaddingPoints
+        let padding = max(0, rawPadding)
         guard rawPadding.isFinite,
-              let region = Self.screenshotPixelRegion(
-                  frame: frame, framesPerUnit: framesPerUnit, pixelsPerPoint: pixelsPerPoint, padding: max(
-                      0,
-                      rawPadding
-                  )
-              ), let crop = ScreenshotScaler.cropped(data, to: region, format: format)
+              let region = Self.screenshotPixelRegion(frame: frame, pixelsPerPoint: pixelsPerPoint, padding: padding),
+              let crop = ScreenshotScaler.cropped(data, to: region, format: format)
         else {
             throw ToolExecutionError(
                 code: "crop_unavailable",
@@ -70,6 +65,7 @@ extension DriverToolExecutor {
         let originX = Double(crop.region.x) / pixelsPerPoint
         let originY = Double(crop.region.y) / pixelsPerPoint
         let fields: [String: Value] = [
+            "byte_count": .int(crop.data.count),
             "crop_element": .string(name),
             "crop_origin_points": .object(["x": .double(originX), "y": .double(originY)]),
             "crop_pixels": .object([
@@ -84,12 +80,12 @@ extension DriverToolExecutor {
     }
 
     private static func screenshotPixelRegion(
-        frame: Rect, framesPerUnit: Double, pixelsPerPoint: Double, padding: Double
+        frame: Rect, pixelsPerPoint: Double, padding: Double
     ) -> PixelRegion? {
-        let x = (frame.x / framesPerUnit - padding) * pixelsPerPoint
-        let y = (frame.y / framesPerUnit - padding) * pixelsPerPoint
-        let width = (frame.width / framesPerUnit + padding * 2) * pixelsPerPoint
-        let height = (frame.height / framesPerUnit + padding * 2) * pixelsPerPoint
+        let x = (frame.x - padding) * pixelsPerPoint
+        let y = (frame.y - padding) * pixelsPerPoint
+        let width = (frame.width + padding * 2) * pixelsPerPoint
+        let height = (frame.height + padding * 2) * pixelsPerPoint
         guard let left = Int(exactly: x.rounded(.down)), let top = Int(exactly: y.rounded(.down)),
               let width = Int(exactly: width.rounded(.up)), width > 0,
               let height = Int(exactly: height.rounded(.up)), height > 0 else { return nil }

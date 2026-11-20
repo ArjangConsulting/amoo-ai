@@ -397,14 +397,17 @@ class UIAutomatorBridge {
         // but this one has to type into the node it finds. Its per-node property reads are the cost
         // documented on [NodeRecord], which is acceptable for a single text entry and not for a
         // query issued after every action.
-        val candidates = uiObjectTree().filter { uiMatches(it, resourceId, label, containsText) }
+        val matchingHandles = uiObjectTree().filter { uiMatches(it, resourceId, label, containsText) }
+        val candidates = preferResourceID(matchingHandles, resourceId) { element ->
+            runCatching { element.resourceName }.getOrNull().orEmpty()
+        }
         // Ambiguous selectors must not mutate an arbitrary node.
         val target = candidates.singleOrNull()
         if (target == null) {
             Log.w(LOG_TAG, "set_text no_single_target candidates=${candidates.size}")
             return false
         }
-        val secure = currentElements().filter { matches(it, resourceId, label, containsText) }
+        val secure = matchingElements(currentElements(), resourceId, label, containsText)
             .singleOrNull()?.isSecureTextEntry == true
         val before = target.text.orEmpty()
         target.click()
@@ -472,10 +475,7 @@ class UIAutomatorBridge {
         labeledOnly: Boolean = false
     ): List<ElementSnapshot> {
         return withCurrentElements(appId) { elements ->
-            scopedElements(elements, appId)
-                .filter { element ->
-                    matches(element, resourceId, text, containsText)
-                }
+            matchingElements(scopedElements(elements, appId), resourceId, text, containsText)
                 .map { it.toSnapshot() }
                 .filter { !labeledOnly || it.id.isNotBlank() || it.label.isNotBlank() }
         }
@@ -508,8 +508,7 @@ class UIAutomatorBridge {
         appId: String? = null
     ): ElementSnapshot? {
         return withCurrentElements(appId) { elements ->
-            val matches = scopedElements(elements, appId)
-                .filter { matches(it, resourceId, text, containsText) }
+            val matches = matchingElements(scopedElements(elements, appId), resourceId, text, containsText)
             if (matches.size != 1) return@withCurrentElements null
             matches.firstOrNull { it.isClickable }?.let { return@withCurrentElements it.toSnapshot() }
             matches.firstNotNullOfOrNull { it.clickableAncestor }
@@ -672,6 +671,27 @@ class UIAutomatorBridge {
         return FrameRect(visible.left, visible.top, visible.width(), visible.height())
     }
 
+    private fun matchingElements(
+        elements: List<NodeRecord>,
+        resourceId: String?,
+        text: String?,
+        containsText: String?
+    ): List<NodeRecord> = preferResourceID(
+        elements.filter { matches(it, resourceId, text, containsText) }, resourceId, NodeRecord::resourceName
+    )
+
+    private inline fun <T> preferResourceID(
+        matches: List<T>,
+        resourceId: String?,
+        resourceName: (T) -> String
+    ): List<T> {
+        if (resourceId.isNullOrBlank() || matches.size <= 1) return matches
+        return matches.filter {
+            val name = resourceName(it)
+            resourceId == name || resourceId == unqualifiedResourceID(name)
+        }.ifEmpty { matches }
+    }
+
     private fun matches(
         element: NodeRecord,
         resourceId: String?,
@@ -708,16 +728,11 @@ class UIAutomatorBridge {
         return true
     }
 
-    private fun normalizedElementID(resourceName: String, contentDescription: String): String {
-        if (contentDescription.isNotBlank()) {
-            return contentDescription
-        }
+    private fun normalizedElementID(resourceName: String, contentDescription: String): String =
+        unqualifiedResourceID(resourceName).ifBlank { contentDescription }
 
-        // Reported exactly as the app spells it, so one id works in app source, flows and generated
-        // tests. This used to turn `_` into `-`, which made `novalingo.auth.form.email_field`
-        // unreachable by its own name.
-        return resourceName.substringAfterLast(':', resourceName).substringAfterLast('/')
-    }
+    private fun unqualifiedResourceID(resourceName: String): String =
+        resourceName.substringAfterLast(':').substringAfterLast('/')
 
     /**
      * Queries operate on one complete immutable capture. Tree changes are retried during capture,
