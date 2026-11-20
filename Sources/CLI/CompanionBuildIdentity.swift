@@ -17,6 +17,8 @@ struct CompanionBuildIdentity: Codable, Equatable {
     /// The commit the build came from, with `-dirty` for uncommitted companion changes; nil when the
     /// build did not record one (`make companion-build`, or a distribution older than this field).
     var sourceCommit: String?
+    /// The source fingerprint amoo recorded when it built this (local builds); nil for packaged products.
+    var sourceFingerprint: String?
     /// Older than its sources: started anyway, see `docs/companion-startup.md`.
     var stale: Bool
     /// Android: SHA-256 of the test APK this start installs.
@@ -28,6 +30,7 @@ struct CompanionBuildIdentity: Codable, Equatable {
         case source, path, stale
         case builtAt = "built_at"
         case sourceCommit = "source_commit"
+        case sourceFingerprint = "source_fingerprint"
         case sha256
         case installedSHA256 = "installed_sha256"
     }
@@ -49,6 +52,16 @@ struct CompanionBuildIdentity: Codable, Equatable {
             parts.append("older than its sources (run `amoo companion build`)")
         }
         return "Companion: " + parts.joined(separator: ", ")
+    }
+
+    /// The value a subagent report copies as `companion_fingerprint`: the commit, else the recorded
+    /// source fingerprint, else the APK digest.
+    var fingerprint: String? {
+        sourceCommit ?? sourceFingerprint ?? sha256
+    }
+
+    static func recordedFingerprint(at path: String) -> String? {
+        (try? String(contentsOfFile: path, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
 
     static func timestamp(of path: String) -> String? {

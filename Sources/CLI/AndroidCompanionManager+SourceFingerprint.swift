@@ -76,7 +76,7 @@ extension AndroidCompanionManager {
         )
     }
 
-    private func fingerprintPath(config: AndroidCompanionConfig) -> String {
+    func fingerprintPath(config: AndroidCompanionConfig) -> String {
         config.companionDir + "/app/build/.amoo-source-fingerprint"
     }
 }

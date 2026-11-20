@@ -61,6 +61,8 @@ extension AndroidCompanionManager {
             path: paths.test,
             builtAt: CompanionBuildIdentity.timestamp(of: paths.test),
             sourceCommit: CompanionSourceCommit.read(directory: commitDirectory),
+            sourceFingerprint: bundled ? nil
+                : CompanionBuildIdentity.recordedFingerprint(at: fingerprintPath(config: config)),
             stale: isBuildStale(config: config),
             sha256: sha256Hex(ofRegularFile: paths.test),
             installedSHA256: deviceInstallState(config: config).installed["com.amoo.companion.test"]
