@@ -26,11 +26,11 @@ final class ScreenshotCropTests: XCTestCase {
 
         func takeScreenshot(_: ScreenshotRequestOptions) async throws -> ScreenshotData {
             let geometry = ScreenSize(
-                widthPoints: 100,
-                heightPoints: 200,
+                widthPoints: 100 * framesPerUnit,
+                heightPoints: 200 * framesPerUnit,
                 widthPixels: 300,
                 heightPixels: 600,
-                scale: 3
+                scale: 3 / framesPerUnit
             )
             return try ScreenshotData(bytes: Self.png(width: 300, height: 600), density: 3, geometry: geometry)
         }
@@ -115,10 +115,11 @@ final class ScreenshotCropTests: XCTestCase {
         let saved = try XCTUnwrap(fields["saved_path"]?.stringValue)
         let data = try Data(contentsOf: URL(fileURLWithPath: saved))
         XCTAssertEqual(ScreenshotScaler.dimensions(data)?.width, 66)
+        XCTAssertEqual(fields["byte_count"]?.intValue, data.count)
         XCTAssertTrue(result.content.contains("cropped to save_button"), result.content)
     }
 
-    func testPixelFramesAreConvertedBeforeCropping() async throws {
+    func testAndroidPixelFramesScaleOnceAndReportNativeGestureCoordinates() async throws {
         let (result, fields) = try await capture(framesPerUnit: 3, ["id": "save_button", "padding": "0"])
         XCTAssertFalse(result.isError, result.content)
         XCTAssertEqual(fields["width_pixels"]?.intValue, 50)
@@ -126,6 +127,9 @@ final class ScreenshotCropTests: XCTestCase {
         let pixels = try XCTUnwrap(fields["crop_pixels"]?.objectValue)
         XCTAssertEqual(pixels["x"]?.intValue, 20)
         XCTAssertEqual(pixels["y"]?.intValue, 40)
+        let origin = try XCTUnwrap(fields["crop_origin_points"]?.objectValue)
+        XCTAssertEqual(origin["x"]?.doubleValue, 60)
+        XCTAssertEqual(origin["y"]?.doubleValue, 120)
     }
 
     func testAMissingElementFailsInsteadOfReturningTheWholeScreen() async throws {

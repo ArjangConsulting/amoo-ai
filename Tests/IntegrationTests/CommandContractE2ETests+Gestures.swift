@@ -187,6 +187,31 @@ extension CommandContractE2ETests {
         }
     }
 
+    func testAndroidResourceIDPrefersTheTaggedControlOverItsDescriptionAlias() async throws {
+        guard Self.platform == .android else { throw XCTSkip("Compose exposes the duplicate description alias") }
+        let (server, _) = try makeServerWithDriver()
+        let home = await resetFixtureApp(on: server)
+        guard !home.isError else { return XCTFail(home.content) }
+
+        let tap = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-open-text"])
+        XCTAssertFalse(tap.isError, tap.content)
+        let ready = await server.execute(toolName: "assert_visible", arguments: ["id": "fixture-text-input"])
+        XCTAssertFalse(ready.isError, ready.content)
+
+        for value in ["original text", "replacement text"] {
+            let set = await server.execute(
+                toolName: "set_text",
+                arguments: ["id": "fixture-text-input", "value": value]
+            )
+            XCTAssertFalse(set.isError, set.content)
+        }
+        let echo = await server.execute(
+            toolName: "assert_visible",
+            arguments: ["id": "fixture-text-echo", "contains_text": "Echo: replacement text"]
+        )
+        XCTAssertFalse(echo.isError, echo.content)
+    }
+
     func testGestureCommands() async throws {
         let (server, driver) = try makeServerWithDriver()
         let gestureReady = await openFixtureScreen(
