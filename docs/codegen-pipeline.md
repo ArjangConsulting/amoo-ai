@@ -119,8 +119,8 @@ Three cooperating layers — a change in the wrong one is silently overridden:
 
 ## Generated-test context
 
-`StudioTestContext` (in the plan's `testContext`, or via `--context`, or via MCP
-`context_path` / `context_json` persisted on the session) supplies the host app's base class, app
+`StudioTestContext` (in the plan's `testContext`, or via `--context`, or via a Studio
+session's `context_path` / `context_json`) supplies the host app's base class, app
 factory, launch behavior, imports, reusable helpers, and id catalog. Generation never guesses:
 a helper is emitted only for an operation whose planner bound it; a selector is rewritten only for
 an id listed in `selectorExpressions`. Full schema: [`test-context.md`](test-context.md).
@@ -137,7 +137,7 @@ application step — never for a lifecycle call (those are `.notApplicable`, see
 
 - `Tests/AmooToolsTests/SessionPlanCompilerTests.swift`, `SessionPlanCompilerSemanticsTests.swift`,
   `SessionPlanCompilerRetryTests.swift` — compiler behavior.
-- `Tests/AmooToolsTests/SessionCodegenContextTests.swift` — MCP session/compile-time context.
+- `Tests/AmooToolsTests/SessionCodegenContextTests.swift` — session/compile-time context.
 - `Tests/TestCodeGeneratorTests/*` — emitter output, naming, golden fixtures, real compilation.
 - `Tests/IntegrationTests/IOSSessionCodegenRegressionTests.swift` — the full record → compile →
   generate acceptance scenario, end to end.

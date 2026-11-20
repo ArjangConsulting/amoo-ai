@@ -1,7 +1,7 @@
 # AI-driven verification
 
-Amoo uses the same typed tool catalog for MCP discovery, CLI argument validation, CLI tool help,
-and machine-readable schema queries. Discover once per binary/runtime, then query individual
+Amoo uses one typed tool catalog for CLI argument validation, CLI tool help, and machine-readable
+schema queries. Discover once per binary/runtime, then query individual
 contracts as needed:
 
 ```sh
@@ -10,7 +10,7 @@ amoo capabilities --tool find_elements
 amoo capabilities --runtime-id <runtime>
 ```
 
-The equivalent MCP tool is `get_capabilities`, with optional `tool`, `platform`, and `session_id`.
+`amoo device get_capabilities` answers the same queries as a tool call, with optional `tool` and `platform`.
 Discovery does not boot, install, launch, or acquire a device. It reports the binary version,
 binary identity, invocation options, assertion support, and an optional runtime identity. CLI
 runtime state is labeled `state_source=stored`; use `device_health` or scoped doctor for live health.
@@ -21,7 +21,7 @@ observed assertion mismatches have distinct result fields.
 
 ## Structured invocation
 
-Use typed MCP tools directly. CLI callers can pass argv without a shell, or save arguments as JSON:
+Pass arguments as `key=value` argv without a shell, or save them as JSON:
 
 ```json
 {"label":"Account settings","limit":12,"response_mode":"compact"}
@@ -38,7 +38,7 @@ invocation sources, nulls, unknown keys, invalid values and missing required arg
 Machine errors identify `argument`, give an `example`, and report `dispatch_status=not_dispatched`.
 All batch steps are validated before the first mutation. Runtime ownership remains mandatory.
 
-`amoo device --help` renders tool signatures from the installed MCP definitions rather than a
+`amoo device --help` renders tool signatures from the installed tool definitions rather than a
 second hand-maintained argument list. `--runtime-id` and `AMOO_RUNTIME_ID` are the supported CLI
 ownership credentials. The historical `--lease` spelling is rejected.
 
@@ -69,8 +69,8 @@ amoo env up --platform ios --runtime-id <runtime> --app <App.app> --app-id <id> 
 Recovery preserves the runtime ID, endpoint, device and app data, and reports `recovered` and
 `recovery_ms`. Only the verified companion belonging to that runtime is stopped. Active device
 locks and other owners still prevent recovery. Failed stop/start/preparation retains ownership
-for diagnosis or retry. MCP session IDs remain process-owned; forced MCP closure/reset remains
-the recovery path for an unusable managed session.
+for diagnosis or retry. A runtime the companion cannot recover from is released with `amoo env down` and
+leased again with `amoo env up`.
 
 ## Required coverage
 
@@ -131,8 +131,8 @@ byte counts and scaling status (`applied_on_device`, `applied`, `not_requested`,
 Unavailable scaling keeps the original image and says so. Screen tokens support semantic change assertions; hierarchy deltas
 are not advertised. Pixel review and model choice remain agent guidance.
 
-Metrics count serialized executor MCP result payload bytes, including base64 for inline images,
-excluding JSON-RPC envelopes and server catalog annotations. `clientCalls` counts external calls; `operations` counts executed device
+Metrics count serialized tool result payload bytes (text, structured content and base64 for
+inline images). `clientCalls` counts external calls; `operations` counts executed device
 operations, including individual batch steps. Raw inline image bytes and saved image bytes are
 separate, and image dimensions are measured per capture. Setup and app recovery operations use
 monotonic milliseconds. A verification-report response contains metrics through preceding calls;

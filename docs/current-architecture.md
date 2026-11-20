@@ -5,10 +5,10 @@ it is not a support certification. `Package.swift` is the source of truth for de
 
 ```mermaid
 flowchart TD
-  AI[Local AI client] --> MCP[MCPServer: stdio and tool contracts]
-  CLI[CLI: setup, device commands, export] --> MCP
-  MCP --> Sessions[TestSession: lifecycle, recording, persistence]
-  MCP --> Drivers[IOSDriver / AndroidDriver]
+  AI[AI agent or script] --> CLI[CLI: env, device, flow, generate]
+  CLI --> Tools[AmooTools: tool catalog and executor]
+  Tools --> Sessions[TestSession: recording, persistence]
+  Tools --> Drivers[IOSDriver / AndroidDriver]
   Drivers --> Protocol[CompanionProtocol: live gRPC client]
   Protocol --> Companion[iOS XCUITest / Android UIAutomator companions]
   Drivers --> Host[ProcessRunner: simctl, devicectl, adb]
@@ -23,15 +23,14 @@ defines the shared wire contract. Host tools own installation, booting and USB f
 companions own UI access and gestures. `GRPCService` exposes the service adapter. `AuditEngine`
 evaluates explicit screen evidence; `WebInspector` handles inspectable WebViews.
 
-`SessionCompiler` is independent of the MCP transport. MCP re-exports it for existing source
-clients, while the CLI imports it directly. The plan model currently remains in `StudioProtocol`;
+`SessionCompiler` is independent of the tool executor. `AmooTools` re-exports it for existing
+source clients, while the CLI imports it directly. The plan model currently remains in `StudioProtocol`;
 extracting a separate plan model would be a later public API migration.
 
 ## Ownership and concurrency
 
-The MCP reader accepts bounded newline-delimited frames. `MCPRequestRuntime` tracks at most 64
-request tasks, accepts cancellation and serializes complete response writes. A device queue
-serializes device operations; independent device keys can execute concurrently. Lifecycle setup
+Each `amoo device` call is one process; `amoo env up` leases the device and keeps its companion
+running between calls. A device queue serializes device operations; independent device keys can execute concurrently. Lifecycle setup
 uses `DeviceAccessRegistry` for process-local ownership and kernel-backed `DeviceAccessLock`
 for exclusive control across Amoo processes. `DeviceRuntimeStore` separately tracks companion
 lifecycle and saved runtime credentials. See [Device runtimes](device-runtimes.md).

@@ -13,7 +13,7 @@ check then degrades to eyeballing a screenshot.
 | `webview_eval expression=<js> [bundle_id] [all_frames] [timeout_ms]` | Evaluates a JS expression in the inspectable WebView and returns the result **JSON-serialized** (`42`, `"hidden"`, `{"x":1}`), plus which webview/frame it ran in and whether it threw. Enough to assert on `document.querySelector(...)`, `getComputedStyle(...).overflow`, a video's `currentTime`, element visibility. |
 | `webview_dom [bundle_id] [mode=html\|a11y] [max_bytes]` | Returns each inspectable WebView's DOM — full `document.documentElement.outerHTML` (`mode=html`, default) or a trimmed `{tag, role, aria, text, bbox, hidden}` tree (`mode=a11y`). |
 
-Both are exposed on the CLI (`amoo device webview_eval …`) and MCP (`webview_eval`), scoped by
+Both are exposed through `amoo device webview_eval …` and flows, scoped by
 bundle id like the other element tools.
 
 ## Why this is a host-side transport, not a companion RPC
@@ -75,5 +75,5 @@ judges each by its `{probe, pass, details}` result (see `amoo probe run --help`)
 | `Sources/WebInspector/PlatformWebInspecting.swift` | Platform → endpoint wiring (Android `adb`; iOS simulator socket or env opt-in). |
 | `Sources/WebInspector/WebKitInspectorConnection.swift` | Remote Inspector framing (binary plist), unix-socket channel, timeout-safe message queue. |
 | `Sources/WebInspector/WebKitWebInspectorClient.swift` | `WebInspectorClient` over the WebKit Remote Inspector (iOS Simulator). |
-| `Sources/AmooTools/Tools/WebViewTools.swift` | The two MCP tool definitions. |
+| `Sources/AmooTools/Tools/WebViewTools.swift` | The two tool definitions. |
 | `Sources/AmooTools/ToolExecutor+WebView.swift` | Handlers mapping tool args → `WebInspectorClient` → `ToolResult`. |

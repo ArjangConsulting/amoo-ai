@@ -125,8 +125,9 @@ clears the file after releasing its reservations. Explicit `--out` paths are sti
 
 ## Recording
 
-CLI runtimes cannot be adopted by MCP sessions. Run `init down`, then MCP `start_session` per device
-with `device_hint`, `app_id` and the app's `build_path`; only `end_session` exports the report/plan.
+Drive each prepared device with `amoo device --runtime-id <id>` and save reusable steps as a flow.
+Run it with `amoo flow <file.amoo.json> --runtime-id <id>`; once it passes,
+`amoo generate plan --from-flow <file.amoo.json>` and `amoo generate test` turn it into a test.
 
 ## AI client setup (skills and subagents)
 
@@ -269,16 +270,16 @@ The framework choice is retained in the managed AGENTS.md block. Headless caller
 `--framework native|react-native|flutter|kmp`; dry-run JSON and its equivalent command include it.
 This is project guidance, not permission to start Metro, build an app, or install a saved artifact.
 
-CLI generation and MCP recording share the `amoo.md` profile loader. Discovery walks upward from
+CLI generation and Studio recording share the `amoo.md` profile loader. Discovery walks upward from
 the process working directory and selects the nearest profile, respecting its target platform.
 For another repository, explicitly pass `--context /repo/amoo.md` to generation or
-`context_path=/repo/amoo.md` to MCP `start_session`. Explicit context overrides discovery;
+`context_path=/repo/amoo.md` to a Studio session. Explicit context overrides discovery;
 `generate test` retains context already embedded in a plan. Markdown profiles support LF and CRLF.
 Discovery inspects Swift UI tests and Kotlin/Java instrumentation sources under androidTest and
 androidInstrumentedTest, excluding build outputs and dependencies. Android evidence includes framework,
 base-class, rule, launch, helper, identifier and timeout declarations. A unique no-argument base without
 lifecycle/rule conflicts can be bound automatically; uncertain bindings remain for review.
-Mixed repositories get separate amoo-context blocks tagged targetPlatform ios/android. CLI and MCP
+Mixed repositories get separate amoo-context blocks tagged targetPlatform ios/android. CLI and Studio
 select the matching block, including explicit profile paths, and reject ambiguous or mismatched contexts.
 
 Usage errors and manifest-read failures honor `--json` with a single version-1 error document.

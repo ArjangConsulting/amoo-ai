@@ -3,7 +3,7 @@
 Amoo Studio lives in the standalone
 [`maniramezan/amoo-studio`](https://github.com/maniramezan/amoo-studio) repository. It is a pure
 Compose Multiplatform desktop client and does not implement device control,
-MCP tools, sessions, or model-provider logic. The application launches the Swift `amoo` executable
+device tools, sessions, or model-provider logic. The application launches the Swift `amoo` executable
 as a supervised child process and renders its structured state.
 
 ## Process boundary
@@ -27,7 +27,7 @@ failures keep the request `id` and use `-32602` for invalid params and `-32603` 
 | `rpc.notifications` | Amoo may push notifications on the protocol stream |
 | `tests.progress` | Asynchronous test runs push `tests.progress` with the `tests.status` shape on every change |
 | `device.stream` | `amoo device stream` is available for live device views; its `started` event carries `schema` |
-| `tools.catalog` | `tools.catalog` returns the console and plan vocabulary built from the MCP registry |
+| `tools.catalog` | `tools.catalog` returns the console and plan vocabulary built from the tool catalog |
 | `repl.complete` | `repl.complete` completes a console line, including elements on a connected device's screen |
 | `repl.validate` | `repl.validate` returns diagnostics for a console line |
 | `agent.runs` | `agent.start`, `agent.events`, `agent.approve`, `agent.continue`, and `agent.cancel` run provider-backed agents, pushing `agent.event` |
@@ -36,17 +36,17 @@ failures keep the request `id` and use `-32602` for invalid params and `-32603` 
 | `repl.structuredResults` | `repl.execute` runs any console tool and returns `isError`, `tool`, `structuredContent`, and `artifacts` |
 
 The catalog capabilities are advertised only when `amoo studio serve` is assembled with a
-`StudioToolCatalogProviding`, which the CLI builds from `MCPServer().toolDefinitions()`.
+`StudioToolCatalogProviding`, which the CLI builds from `ToolCatalog().toolDefinitions()`.
 
 - **Tool schemas.** Each `tools.catalog` entry carries:
   - `name`, `title`, `description` and `category`;
-  - `readOnly` and `destructive`, the MCP annotations;
+  - `readOnly` and `destructive`, the tool's safety hints;
   - `replSupported`, which is false for session and companion lifecycle tools, since Studio runs those itself;
   - `planTool`, the plan vocabulary name (`assert_absent` records as `assert_not_visible`);
   - typed `arguments` with `values` and `valuesAreExhaustive`. `session_id` is hidden because the
     console routes by the selected device.
-- **Value hints.** `ToolCatalogMetadata` in MCPServer keeps the value hints and annotations in one
-  table. Exhaustive value sets are published in MCP schemas as `enum`, and open sets as `examples`.
+- **Value hints.** `ToolCatalogMetadata` in AmooTools keeps the value hints and annotations in one
+  table. Exhaustive value sets are published in argument schemas as `enum`, and open sets as `examples`.
 - **The console grammar.** `StudioReplGrammar` is pure and shared by completion, validation and
   execution. Built-in commands match by words. Tool calls take `name=value` words, with quotes
   anywhere in a word. A bare value fills the next missing required argument.
@@ -68,7 +68,7 @@ The catalog capabilities are advertised only when `amoo studio serve` is assembl
   now carries.
 - **Platform.** `repl.execute` accepts an optional `platform` for the selected device. Older Studio
   builds omit it, and the active test's platform is used instead.
-- **Plan vocabulary.** Plan names the MCP executor does not implement run as the tools the session
+- **Plan vocabulary.** Plan names the tool executor does not implement run as the tools the session
   compiler records them from:
 
   | Plan tool | Runs as |
@@ -83,7 +83,7 @@ Methods, with the capability that enables each one when it differs from the meth
 | --- | --- |
 | `system.handshake` | Product version, protocol version, and capability identifiers |
 | `system.health` | Current service status (capability `health`) |
-| `mcp.status` | MCP readiness, transport, and launch arguments |
+| `mcp.status` | Always `available: false`: amoo runs no MCP server (kept for older Studio builds) |
 | `devices.list` | Running and available simulators, emulators, and devices |
 | `devices.start` | Boot a selected simulator or emulator |
 | `devices.create` | Create a simulator or emulator through the typed process layer |

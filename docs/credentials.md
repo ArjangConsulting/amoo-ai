@@ -29,10 +29,9 @@ defines it and deletes the Keychain items amoo created for it (those named `amoo
 `<profile>.<field>`); it never deletes an item a hand-written profile points at elsewhere. Replacing a
 profile with `add` likewise deletes the Keychain items the old profile used and the new one does not.
 
-**Environment variables** are read from the amoo process at sign-in. For MCP, put them in the `env` of
-your AI client's amoo server configuration, which the agent's own shell does not see. For `amoo device`,
-export them in the shell that runs it; an agent sharing that shell could print them, so prefer the MCP
-server's env, or plain text for accounts that are safe to share.
+**Environment variables** are read from the amoo process at sign-in: export them in the shell that runs
+`amoo device` or `amoo flow`. An agent sharing that shell could print them, so prefer the Keychain, or
+plain text for accounts that are safe to share.
 
 **Keychain approval.** Items amoo saves trust the amoo binary, so agents read them without a prompt. A
 rebuilt binary (a local debug build) has a new signature: macOS asks again, and an agent's read reports
@@ -41,7 +40,7 @@ choose **Always Allow**. Environment variables and plain text never need approva
 
 ## `amoo.config.json`
 
-Found by walking up from the working directory (the MCP server's, or the shell's for `amoo device`)
+Found by walking up from the working directory (the shell's, for `amoo device` and `amoo flow`)
 to the repository root, like `amoo.md`. A project without one behaves exactly as before.
 
 Configs layer the way nested `AGENTS.md` files do. Every `amoo.config.json` on the way up applies, and
@@ -110,15 +109,11 @@ config's `screenshots` section replaces an outer one.
 ## Using a credential
 
 ```text
-# MCP
-fill_field session_id=<id> id=login.name     credential=mock-user#login
-fill_field session_id=<id> id=login.password credential=mock-user#password
-
-# CLI: --runtime-id carries the launch between amoo device calls
-amoo device --platform android --device emulator-5554 --runtime-id <rt> \
+# --runtime-id carries the launch between amoo device calls
+amoo device --runtime-id <rt> \
   device_launch_app app_id=com.example.app.qa environment=FIREBASE_AUTH_EMULATOR_HOST=10.0.2.2:9099
-amoo device --platform android --device emulator-5554 --runtime-id <rt> \
-  fill_field id=login.password credential=mock-user#password
+amoo device --runtime-id <rt> fill_field id=login.name     credential=mock-user#login
+amoo device --runtime-id <rt> fill_field id=login.password credential=mock-user#password
 ```
 
 `credential` is accepted by `fill_field`, `set_text` and `type_text` (and inside `run_steps`), and
