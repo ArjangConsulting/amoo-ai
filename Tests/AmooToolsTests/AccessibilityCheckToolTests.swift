@@ -109,6 +109,28 @@ final class AccessibilityCheckToolTests: XCTestCase {
         XCTAssertTrue(typo.content.contains("not an opted-in check"), typo.content)
     }
 
+    func testAnExcludedConfigurationIsSkippedWithoutChangingItsSetting() async throws {
+        let driver = SettingsDriver()
+        let policy = configured([.contrast], [.darkMode, .largeText])
+        let result = await executor(driver, policy: policy).execute(
+            toolName: "check_accessibility",
+            arguments: ["app_id": "com.example.app", "settle_ms": "0", "exclude_configurations": "large_text"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let report = try report(result)
+        XCTAssertEqual(report.passes.map(\.configuration), ["default", "dark_mode"])
+        XCTAssertEqual(report.exclusions.configurations, ["large_text"])
+        let writes = await driver.writes
+        XCTAssertFalse(writes.contains { $0.hasPrefix("text_size") }, "\(writes)")
+        XCTAssertTrue(result.content.contains("configurations large_text"), result.content)
+
+        let typo = await executor(driver, policy: policy).execute(
+            toolName: "check_accessibility",
+            arguments: ["app_id": "com.example.app", "exclude_configurations": "increase_contrast"]
+        )
+        XCTAssertTrue(typo.isError)
+    }
+
     func testChecksAndroidCannotRunAreListedAsUnsupported() async throws {
         let driver = SettingsDriver(platform: .android)
         let result = await executor(driver, policy: configured([.names, .traits]))

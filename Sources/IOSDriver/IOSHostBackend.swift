@@ -55,14 +55,14 @@ public extension IOSHostBackend {
     func displaySetting(device _: String, setting: DisplaySetting) async throws -> String {
         throw AmooError.unsupportedCapability(
             key: "config.\(setting.rawValue)",
-            reason: "Reading \(setting.rawValue) requires an iOS simulator; devicectl cannot report it."
+            reason: "This device cannot report its \(setting.rawValue) setting."
         )
     }
 
     func setDisplaySetting(device _: String, setting: DisplaySetting, value _: String) async throws -> String {
         throw AmooError.unsupportedCapability(
             key: "config.\(setting.rawValue)",
-            reason: "Changing \(setting.rawValue) with read-back requires an iOS simulator."
+            reason: "This device cannot change its \(setting.rawValue) setting."
         )
     }
 }

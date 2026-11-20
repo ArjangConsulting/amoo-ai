@@ -6,16 +6,49 @@ import ProcessRunner
 import XCTest
 
 final class PhysicalDeviceHostBackendTests: XCTestCase {
-    func testDisplaySettingsAreUnsupportedBecauseDevicectlCannotReadThem() async {
+    func testReadsDisplaySettingsFromDevicectlAppearanceInfo() async throws {
         let backend = PhysicalDeviceHostBackend(devicectl: MockDeviceCtlRunner())
-        do {
-            _ = try await backend.displaySetting(device: "phone", setting: .appearance)
-            XCTFail("devicectl cannot read appearance, so a check must not change it")
-        } catch let AmooError.unsupportedCapability(key, _) {
-            XCTAssertEqual(key, "config.appearance")
-        } catch {
-            XCTFail("Unexpected \(error)")
-        }
+        let style = try await backend.displaySetting(device: "phone", setting: .appearance)
+        XCTAssertEqual(style, "light")
+        let size = try await backend.displaySetting(device: "phone", setting: .textSize)
+        XCTAssertEqual(size, "large", "devicectl's \"Large\" uses simctl's spelling")
+        let contrast = try await backend.displaySetting(device: "phone", setting: .increaseContrast)
+        XCTAssertEqual(contrast, "disabled")
+    }
+
+    func testLargestTextTurnsOnLargerSizesAndRestoringPutsTheToggleBack() async throws {
+        let devicectl = MockDeviceCtlRunner()
+        let backend = PhysicalDeviceHostBackend(devicectl: devicectl)
+        _ = try await backend.displaySetting(device: "phone", setting: .textSize)
+        let largest = try await backend.setDisplaySetting(
+            device: "phone", setting: .textSize, value: "accessibility-extra-extra-extra-large"
+        )
+        XCTAssertEqual(largest, "accessibility-extra-extra-extra-large")
+        let restored = try await backend.setDisplaySetting(device: "phone", setting: .textSize, value: "large")
+        XCTAssertEqual(restored, "large")
+        let options = await devicectl.appearanceOptions()
+        XCTAssertEqual(options, [
+            ["--text-size", "accessibility-extra-extra-extra-large", "--larger-accessibility-sizes", "on"],
+            ["--text-size", "large", "--larger-accessibility-sizes", "off"]
+        ])
+    }
+
+    func testDarkModeAndContrastUseDevicectlFlags() async throws {
+        let devicectl = MockDeviceCtlRunner()
+        let backend = PhysicalDeviceHostBackend(devicectl: devicectl)
+        let dark = try await backend.setDisplaySetting(device: "phone", setting: .appearance, value: "dark")
+        XCTAssertEqual(dark, "dark")
+        let contrast = try await backend.setDisplaySetting(
+            device: "phone", setting: .increaseContrast, value: "enabled"
+        )
+        XCTAssertEqual(contrast, "enabled")
+        let options = await devicectl.appearanceOptions()
+        XCTAssertEqual(options, [["--mode", "dark"], ["--increase-contrast", "on"]])
+    }
+
+    func testAnOlderDevicectlWithoutAppearanceInfoIsUnsupported() {
+        XCTAssertNil(PhysicalDeviceHostBackend.parseAppearance(json: "not json"))
+        XCTAssertNil(PhysicalDeviceHostBackend.parseAppearance(json: #"{"info": {}}"#))
     }
 
     func testAppLifecycleUsesPhysicalDeviceAndReinstallDoesNotUninstall() async throws {
@@ -229,6 +262,37 @@ final class PhysicalDeviceHostBackendTests: XCTestCase {
 // MARK: - Test Doubles
 
 private actor MockDeviceCtlRunner: DeviceCtlRunning {
+    /// Backs `device info appearance` / `device settings appearance` like the device does.
+    private var appearance: [String: Any] = [
+        "userInterfaceStyle": "light", "textSize": "Large",
+        "increaseContrast": false, "largerAccessibilitySizesEnabled": false
+    ]
+    private var _appearanceOptions: [[String]] = []
+
+    func appearanceOptions() -> [[String]] {
+        _appearanceOptions
+    }
+
+    func appearanceSettings(device _: String) async throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: ["result": appearance])
+        return String(bytes: data, encoding: .utf8) ?? "{}"
+    }
+
+    func setAppearanceSettings(device _: String, options: [String]) async throws {
+        _appearanceOptions.append(options)
+        var pairs = options[...]
+        while let flag = pairs.popFirst(), let value = pairs.popFirst() {
+            switch flag {
+            case "--mode": appearance["userInterfaceStyle"] = value
+            case "--increase-contrast": appearance["increaseContrast"] = value == "on"
+            case "--larger-accessibility-sizes": appearance["largerAccessibilitySizesEnabled"] = value == "on"
+            case "--text-size":
+                appearance["textSize"] = value.split(separator: "-").map(\.capitalized).joined(separator: " ")
+            default: break
+            }
+        }
+    }
+
     private var _calls: [String] = []
     private var _recordingStarts: [(device: String, outputPath: String)] = []
     private var _devicesJSON = "{}"

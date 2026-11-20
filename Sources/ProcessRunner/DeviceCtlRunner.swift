@@ -43,6 +43,20 @@ public protocol DeviceCtlRunning: Sendable {
     func clearLocation(device: String) async throws
     func setAppearance(device: String, appearance: Appearance) async throws
     func openURL(device: String, url: String) async throws
+    /// `devicectl device info appearance` as JSON: interface style, text size, increased contrast.
+    func appearanceSettings(device: String) async throws -> String
+    /// `devicectl device settings appearance` with `options` such as `--mode dark` or `--text-size large`.
+    func setAppearanceSettings(device: String, options: [String]) async throws
+}
+
+public extension DeviceCtlRunning {
+    func appearanceSettings(device: String) async throws -> String {
+        try await run(["device", "info", "appearance", "--device", device, "--json-output", "-"]).stdout
+    }
+
+    func setAppearanceSettings(device: String, options: [String]) async throws {
+        try await run(["device", "settings", "appearance", "--device", device] + options)
+    }
 }
 
 public struct DeviceCtlRunner: DeviceCtlRunning {
@@ -189,6 +203,18 @@ public struct DeviceCtlRunner: DeviceCtlRunning {
 
     public func setAppearance(device: String, appearance: Appearance) async throws {
         try await execute(DeviceCtl(context: context).appearance(appearance == .dark ? .dark : .light, device: device))
+    }
+
+    /// Bounded like the other queries: an unreachable paired device can make devicectl hang.
+    public func appearanceSettings(device: String) async throws -> String {
+        try await run(
+            ["device", "info", "appearance", "--device", device, "--json-output", "-"],
+            timeoutSeconds: 20
+        ).stdout
+    }
+
+    public func setAppearanceSettings(device: String, options: [String]) async throws {
+        try await run(["device", "settings", "appearance", "--device", device] + options, timeoutSeconds: 20)
     }
 
     /// Opens a URL by launching the app registered for it with a payload URL.

@@ -24,6 +24,8 @@ struct AccessibilityCheckPass: Codable, Equatable {
 struct AccessibilityCheckExclusions: Codable, Equatable {
     /// Whole checks skipped for this call.
     var checks: [String]
+    /// Opted-in configurations (`dark_mode`, …) whose pass is skipped for this call.
+    var configurations: [String] = []
     /// Per check, the element ids (or exact labels) whose issues are not counted.
     var elements: [String: [String]]
     var reason: String?
@@ -31,7 +33,26 @@ struct AccessibilityCheckExclusions: Codable, Equatable {
     static let none = Self(checks: [], elements: [:], reason: nil)
 
     var isEmpty: Bool {
-        checks.isEmpty && elements.isEmpty
+        checks.isEmpty && elements.isEmpty && configurations.isEmpty
+    }
+
+    /// Parses `exclude_configurations=dark_mode,large_text`; each must be an opted-in configuration.
+    static func parseConfigurations(
+        _ raw: String?,
+        optedIn: [AccessibilityCheckPolicy.Configuration]
+    ) throws -> [String] {
+        let known = Set(optedIn.map(\.rawValue))
+        return try (raw ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }.map { name in
+                guard known.contains(name) else {
+                    throw ToolExecutionError(
+                        code: "invalid_argument",
+                        message: "exclude_configurations names '\(name)', which is not an opted-in configuration"
+                            + " (opted in: \(known.sorted().joined(separator: ", ")))."
+                    )
+                }
+                return name
+            }
     }
 
     /// Parses `exclude_checks=contrast,target_size` and `exclude_elements=contrast:footer.text,names:Close`.
@@ -168,11 +189,14 @@ extension DriverToolExecutor {
             )
         }
         let settleMilliseconds = try settleArgument(arguments["settle_ms"])
-        let exclusions = try AccessibilityCheckExclusions.parse(
+        var exclusions = try AccessibilityCheckExclusions.parse(
             checks: arguments["exclude_checks"],
             elements: arguments["exclude_elements"],
             reason: arguments["exclude_reason"],
             optedIn: policy.enabledChecks
+        )
+        exclusions.configurations = try AccessibilityCheckExclusions.parseConfigurations(
+            arguments["exclude_configurations"], optedIn: policy.enabledConfigurations
         )
         if let id = arguments["session_id"], let session = await sessionManager?.session(id), session.appID != appID {
             throw ToolExecutionError(code: "wrong_app", message: "Check target must match the session's app identity")
@@ -190,7 +214,7 @@ extension DriverToolExecutor {
             }
             categories += mapped.filter { !categories.contains($0) }
         }
-        let configurations = policy.enabledConfigurations
+        let configurations = policy.enabledConfigurations.filter { !exclusions.configurations.contains($0.rawValue) }
         let touched = configurations.map(\.setting)
         Self.checkLogger.info(
             "Starting accessibility check",
@@ -419,7 +443,11 @@ extension DriverToolExecutor {
         }
         if !report.exclusions.isEmpty {
             let excludedChecks = report.exclusions.checks
-            let checks = excludedChecks.isEmpty ? [] : ["checks " + excludedChecks.joined(separator: ",")]
+            let excludedConfigurations = report.exclusions.configurations
+            var checks = excludedChecks.isEmpty ? [] : ["checks " + excludedChecks.joined(separator: ",")]
+            if !excludedConfigurations.isEmpty {
+                checks.append("configurations " + excludedConfigurations.joined(separator: ","))
+            }
             let elements = report.exclusions.elements.sorted { $0.key < $1.key }
                 .map { "\($0.key): \($0.value.joined(separator: "; "))" }
             lines.append(
