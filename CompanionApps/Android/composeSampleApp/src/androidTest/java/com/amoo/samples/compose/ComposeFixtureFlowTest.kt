@@ -44,11 +44,11 @@ class ComposeFixtureFlowTest {
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
         ActivityScenario.launch<Activity>(launchIntent).use {
-            composeTestRule.onNode(hasTestTag("fixture_home_title")).assertIsDisplayed()
-            composeTestRule.onNode(hasTestTag("fixture_home_title")).assertTextEquals("Compose Fixture Home")
-            composeTestRule.onNode(hasTestTag("fixture_open_details")).assertIsEnabled()
-            composeTestRule.onNode(hasTestTag("fixture_open_details")).assertIsDisplayed().performClick()
-            composeTestRule.onNode(hasTestTag("fixture_detail_row_0")).assertIsDisplayed()
+            composeTestRule.onNode(hasTestTag("fixture-home-title")).assertIsDisplayed()
+            composeTestRule.onNode(hasTestTag("fixture-home-title")).assertTextEquals("Compose Fixture Home")
+            composeTestRule.onNode(hasTestTag("fixture-open-details")).assertIsEnabled()
+            composeTestRule.onNode(hasTestTag("fixture-open-details")).assertIsDisplayed().performClick()
+            composeTestRule.onNode(hasTestTag("fixture-detail-row-0")).assertIsDisplayed()
         }
     }
 }

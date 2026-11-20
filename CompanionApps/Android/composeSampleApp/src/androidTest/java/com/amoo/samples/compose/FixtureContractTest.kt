@@ -29,44 +29,44 @@ class FixtureContractTest {
     @Test
     fun detailsCanScrollToTailAndReturnHome() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNode(hasTestTag("fixture_disabled_action")).assertIsNotEnabled()
-            compose.onNode(hasTestTag("fixture_open_details")).performClick()
-            compose.onNode(hasTestTag("fixture_detail_row_0")).assertIsDisplayed()
-            compose.onNode(hasTestTag("fixture_details_tail")).performScrollTo().assertIsDisplayed()
-            compose.onNode(hasTestTag("fixture_details_back")).performScrollTo().performClick()
-            compose.onNode(hasTestTag("fixture_home_title")).assertIsDisplayed()
+            compose.onNode(hasTestTag("fixture-disabled-action")).assertIsNotEnabled()
+            compose.onNode(hasTestTag("fixture-open-details")).performClick()
+            compose.onNode(hasTestTag("fixture-detail-row-0")).assertIsDisplayed()
+            compose.onNode(hasTestTag("fixture-details-tail")).performScrollTo().assertIsDisplayed()
+            compose.onNode(hasTestTag("fixture-details-back")).performScrollTo().performClick()
+            compose.onNode(hasTestTag("fixture-home-title")).assertIsDisplayed()
         }
     }
 
     @Test
     fun detailsHasABackControlAtTheTopThatNeedsNoScroll() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNode(hasTestTag("fixture_open_details")).performClick()
-            compose.onNode(hasTestTag("fixture_details_back_top")).assertIsDisplayed().performClick()
-            compose.onNode(hasTestTag("fixture_home_title")).assertIsDisplayed()
+            compose.onNode(hasTestTag("fixture-open-details")).performClick()
+            compose.onNode(hasTestTag("fixture-details-back-top")).assertIsDisplayed().performClick()
+            compose.onNode(hasTestTag("fixture-home-title")).assertIsDisplayed()
         }
     }
 
     @Test
     fun textInputEchoesEditsAndClears() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNode(hasTestTag("fixture_open_text")).performClick()
+            compose.onNode(hasTestTag("fixture-open-text")).performClick()
             compose.onNode(hasText("Hello from the fixture app")).assertIsDisplayed()
-            compose.onNode(hasTestTag("fixture_text_input")).performTextInput("contract text")
-            compose.onNode(hasTestTag("fixture_text_echo")).assertTextEquals("Echo: contract text")
-            compose.onNode(hasTestTag("fixture_text_input")).performTextReplacement("")
-            compose.onNode(hasTestTag("fixture_text_echo")).assertTextEquals("Echo: ")
+            compose.onNode(hasTestTag("fixture-text-input")).performTextInput("contract text")
+            compose.onNode(hasTestTag("fixture-text-echo")).assertTextEquals("Echo: contract text")
+            compose.onNode(hasTestTag("fixture-text-input")).performTextReplacement("")
+            compose.onNode(hasTestTag("fixture-text-echo")).assertTextEquals("Echo: ")
         }
     }
 
     @Test
     fun gesturePadRespondsToTaps() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNode(hasTestTag("fixture_open_gesture")).performClick()
+            compose.onNode(hasTestTag("fixture-open-gesture")).performClick()
             compose.onNode(hasText("Gesture Pad")).assertIsDisplayed().performClick()
-            compose.onNode(hasTestTag("fixture_tap_count")).assertTextEquals("Tap count: 1")
-            compose.onNode(hasTestTag("fixture_gesture_pad")).performClick()
-            compose.onNode(hasTestTag("fixture_tap_count")).assertTextEquals("Tap count: 2")
+            compose.onNode(hasTestTag("fixture-tap-count")).assertTextEquals("Tap count: 1")
+            compose.onNode(hasTestTag("fixture-gesture-pad")).performClick()
+            compose.onNode(hasTestTag("fixture-tap-count")).assertTextEquals("Tap count: 2")
         }
     }
 
@@ -80,7 +80,7 @@ class FixtureContractTest {
         assertEquals(context.packageName, intent.resolveActivity(context.packageManager)?.packageName)
         ActivityScenario.launch<MainActivity>(intent).use {
             compose.onNode(hasText(url)).assertIsDisplayed()
-            compose.onNode(hasTestTag("fixture_home_title")).assertIsDisplayed()
+            compose.onNode(hasTestTag("fixture-home-title")).assertIsDisplayed()
         }
     }
 }
