@@ -98,6 +98,7 @@ public struct AgentRunReport: Codable, Sendable {
             errors.append("Assertion \(assertion.check) requires 1...8 evidence references")
         }
         errors += evidenceErrors(requested: requested)
+        errors += Self.provenanceDigestErrors(provenance)
         if status == "pass" || verdict == "pass" {
             if provenanceKeys.contains(where: {
                 let value = provenance[$0]?.lowercased() ?? "unknown"
@@ -145,6 +146,27 @@ public struct AgentRunReport: Codable, Sendable {
 }
 
 public extension AgentRunReport {
+    /// Digest-valued provenance holds a digest, or says it is unknown/unavailable: never a description
+    /// of how one might be computed. Checked on every report, not only passing ones.
+    static func provenanceDigestErrors(_ provenance: [String: String]) -> [String] {
+        func isPlaceholder(_ value: String) -> Bool {
+            let lowered = value.lowercased()
+            return lowered == "unknown" || lowered.hasPrefix("unavailable")
+        }
+        var errors: [String] = []
+        if let host = provenance["host_sha256"], !isSHA256(host), !isPlaceholder(host) {
+            errors.append("host_sha256 must be the SHA-256 from `amoo version --json`, or unknown")
+        }
+        if let companion = provenance["companion_fingerprint"], !isPlaceholder(companion),
+           companion.range(of: "^[0-9a-f]{7,64}(-dirty)?$", options: .regularExpression) == nil {
+            errors.append(
+                "companion_fingerprint must be a source commit or digest from env up's companion.build_identity,"
+                    + " or unknown"
+            )
+        }
+        return errors
+    }
+
     /// Derived independently of the agent's submitted overall status.
     var verificationStatus: String {
         if assertions.contains(where: { $0.outcome == "fail" }) {

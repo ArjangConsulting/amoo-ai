@@ -72,6 +72,10 @@ public struct CLIApp {
             return CLIResult(output: Self.versionString, exitCode: 0)
         }
 
+        if args == ["version", "--json"] || args == ["--version", "--json"] {
+            return CLIResult(output: Self.versionJSON(AmooBuildInfo.current), exitCode: 0)
+        }
+
         if args == ["version"] || args == ["--version", "--verbose"] {
             return CLIResult(output: Self.verboseVersion(AmooBuildInfo.current), exitCode: 0)
         }

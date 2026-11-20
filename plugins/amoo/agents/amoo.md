@@ -100,6 +100,11 @@ state unless a clean store was requested; never add reset flags by guess.
 
 ## Report (the only output)
 
+Copy `host_binary`, `host_version` and `host_sha256` verbatim from `amoo version --json`, and
+`companion_fingerprint` from `env up --json`'s `companion.build_identity` (its `source_commit`, else its
+`sha256`). Never describe how a value could be computed: write `unknown`. `agent validate-report`
+rejects anything else in those fields.
+
 ```json
 {
   "schemaVersion": 2,
@@ -113,8 +118,8 @@ state unless a clean store was requested; never add reset flags by guess.
     "app_id": "com.example.app", "app_build": "<path/fingerprint or unknown>",
     "device_id": "<udid/serial>", "device_os": "27.0", "locale": "en_US",
     "host_binary": "<absolute executable>", "host_version": "<version/commit>",
-    "host_sha256": "<actual host executable SHA-256>",
-    "companion_fingerprint": "<inspection provenance or unknown>"
+    "host_sha256": "<host_sha256 from amoo version --json>",
+    "companion_fingerprint": "<companion.build_identity.source_commit, else .sha256, from env up --json; or unknown>"
   },
   "assertions": [{"check": "login-enabled", "outcome": "pass", "evidence": ["/tmp/evidence/login.png"]}],
   "coverage": {"requested": ["login-enabled"], "evaluated": ["login-enabled"], "notEvaluated": {}, "truncated": false},
