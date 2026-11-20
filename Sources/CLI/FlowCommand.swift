@@ -278,8 +278,6 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         flow.deviceID = overrides.deviceID ?? flow.deviceID
         flow.port = overrides.port ?? flow.port
         try adoptPresentedRuntime(&flow, overrides: overrides)
-        let access = try acquireRuntimeDeviceAccess(deviceID: flow.deviceID, runtimeID: overrides.runtimeID)
-        defer { access?.release() }
         guard let platform = Platform(rawValue: flow.platform.lowercased()) else {
             return FlowOutcome(output: "Unknown flow platform '\(flow.platform)'.", exitCode: 64)
         }
@@ -288,6 +286,8 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         }
 
         let port = try await flowCompanionPort(&flow, platform: platform, overrides: overrides)
+        let access = try acquireRuntimeDeviceAccess(deviceID: flow.deviceID, runtimeID: overrides.runtimeID)
+        defer { access?.release() }
         let companion = try GRPCCompanionClient.makeLive(
             connection: CompanionConnection(host: "127.0.0.1", port: port)
         )
@@ -297,9 +297,6 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         var context = FlowRunContext(flow: flow, overrides: overrides)
         let screenshotPolicy = ScreenshotPolicy.resolve(from: fileURL.deletingLastPathComponent())
         context.screenshotPolicy = screenshotPolicy
-        if overrides.continueOnError {
-            flow.onError = .continue
-        }
         let executor = DriverToolExecutor(
             driver: driver,
             credentialResolver: CredentialResolver(store: KeychainCredentialStore()),

@@ -52,24 +52,19 @@ extension DriverToolExecutor {
             )
         }
         let framesPerUnit = await (try? driver.elementGeometry())?.framesPerUnit ?? 1
-        let padding = max(0, arguments["padding"].flatMap(Double.init) ?? Self.defaultCropPaddingPoints)
-        let pointRegion = (
-            x: frame.x / framesPerUnit - padding,
-            y: frame.y / framesPerUnit - padding,
-            width: frame.width / framesPerUnit + padding * 2,
-            height: frame.height / framesPerUnit + padding * 2
-        )
-        let requested = PixelRegion(
-            x: Int((pointRegion.x * pixelsPerPoint).rounded(.down)),
-            y: Int((pointRegion.y * pixelsPerPoint).rounded(.down)),
-            width: Int((pointRegion.width * pixelsPerPoint).rounded(.up)),
-            height: Int((pointRegion.height * pixelsPerPoint).rounded(.up))
-        )
-        guard let crop = ScreenshotScaler.cropped(data, to: requested, format: format) else {
+        let rawPadding = arguments["padding"].flatMap(Double.init) ?? Self.defaultCropPaddingPoints
+        guard rawPadding.isFinite,
+              let region = Self.screenshotPixelRegion(
+                  frame: frame, framesPerUnit: framesPerUnit, pixelsPerPoint: pixelsPerPoint, padding: max(
+                      0,
+                      rawPadding
+                  )
+              ), let crop = ScreenshotScaler.cropped(data, to: region, format: format)
+        else {
             throw ToolExecutionError(
                 code: "crop_unavailable",
-                message: "take_screenshot could not crop to \(name): the element is off-screen or this host"
-                    + " cannot decode the image. Scroll it into view, or capture the whole screen."
+                message: "take_screenshot could not crop to \(name): the crop is off-screen, its geometry is invalid,"
+                    + " or this host cannot decode the image. Scroll it into view, or capture the whole screen."
             )
         }
         let originX = Double(crop.region.x) / pixelsPerPoint
@@ -86,5 +81,18 @@ extension DriverToolExecutor {
             + " (\(geometryNumber(originX)) + x / \(pixelsPerPoint.formatted()),"
             + " \(geometryNumber(originY)) + y / \(pixelsPerPoint.formatted())) in gesture points"
         return ScreenshotCrop(data: crop.data, fields: fields, note: note)
+    }
+
+    private static func screenshotPixelRegion(
+        frame: Rect, framesPerUnit: Double, pixelsPerPoint: Double, padding: Double
+    ) -> PixelRegion? {
+        let x = (frame.x / framesPerUnit - padding) * pixelsPerPoint
+        let y = (frame.y / framesPerUnit - padding) * pixelsPerPoint
+        let width = (frame.width / framesPerUnit + padding * 2) * pixelsPerPoint
+        let height = (frame.height / framesPerUnit + padding * 2) * pixelsPerPoint
+        guard let left = Int(exactly: x.rounded(.down)), let top = Int(exactly: y.rounded(.down)),
+              let width = Int(exactly: width.rounded(.up)), width > 0,
+              let height = Int(exactly: height.rounded(.up)), height > 0 else { return nil }
+        return PixelRegion(x: left, y: top, width: width, height: height)
     }
 }

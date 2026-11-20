@@ -1,7 +1,9 @@
 """The CLI benchmark parses flow output and usage reports, and compares runs against a baseline."""
 import importlib.util
 import pathlib
+import subprocess
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     'cli_bench', pathlib.Path(__file__).resolve().parents[1] / 'bench' / 'cli-bench.py')
@@ -41,6 +43,12 @@ class FlowOutputTests(unittest.TestCase):
 
     def test_step_without_detail(self):
         self.assertEqual(bench.parse_flow_output('✓ 4. health-access-dark')[0]['detail'], '')
+
+    def test_nonzero_exit_fails_even_when_every_printed_step_passed(self):
+        completed = subprocess.CompletedProcess(['amoo'], 1, '✓ 1. Login: ready', 'Report write failed')
+        steps, failure = bench.flow_outcome(completed, 1)
+        self.assertTrue(steps[0]['passed'])
+        self.assertEqual(failure, 'run 1: amoo exited 1: Report write failed')
 
 
 class VarTests(unittest.TestCase):
@@ -103,6 +111,17 @@ class ContentionTests(unittest.TestCase):
         summary = bench.summarize_scenario('s', [run(True, []), contended, run(True, [])], usage)
         self.assertEqual((summary['passed'], summary['runs'], summary['contended_runs']), (2, 2, 1))
         self.assertEqual(summary['first_failures'], [])
+
+    def test_all_contended_runs_do_not_count_as_a_passing_benchmark(self):
+        manifest = {'device': 'test', 'scenarios': [{'name': 'scenario'}]}
+        contended = dict(run(False, []), contended=['xcodebuild test (pid 1)'])
+        summary = bench.summarize_scenario('scenario', [contended], bench.summarize_usage({}))
+        with patch.object(bench, 'load_manifest', return_value=manifest), \
+                patch.object(bench, 'device_conflicts', return_value=[]), \
+                patch.object(bench, 'run_scenario', return_value=summary), \
+                patch.object(bench.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'test')), \
+                patch('builtins.print'):
+            self.assertEqual(bench.main(['run', '--manifest', 'fixture', '--work-dir', '/unused']), 1)
 
 
 class BaselineTests(unittest.TestCase):

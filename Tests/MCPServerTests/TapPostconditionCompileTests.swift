@@ -35,10 +35,11 @@ final class TapPostconditionCompileTests: XCTestCase {
     }
 
     func testExpectAbsentCompilesToAnAbsenceAssertion() throws {
-        let result = try compile([tap(["id": "close", "expect_id": "sheet", "expect_absent": "true"])])
-        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
-        XCTAssertEqual(operations.map(\.tool).last.map { $0 != "tap_element" }, true, "\(operations.map(\.tool))")
-        XCTAssertEqual(operations.count, 2)
+        for value in ["true", "TRUE", "1", "yes"] {
+            let result = try compile([tap(["id": "close", "expect_id": "sheet", "expect_absent": value])])
+            let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+            XCTAssertEqual(operations.map(\.tool), ["tap_element", "assert_not_visible"])
+        }
     }
 
     func testTapWithoutExpectationIsUnchanged() throws {

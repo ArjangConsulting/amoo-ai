@@ -50,6 +50,23 @@ def parse_flow_output(text):
     return steps
 
 
+def flow_outcome(completed, attempt):
+    steps = parse_flow_output(completed.stdout + '\n' + completed.stderr)
+    failed = next((step for step in steps if not step['passed']), None)
+    if failed:
+        failure = f"run {attempt} step {failed['index']} {failed['name']}: {failed['detail'][:160]}"
+    elif completed.returncode:
+        detail = (completed.stderr or completed.stdout).strip().splitlines()
+        failure = f'run {attempt}: amoo exited {completed.returncode}'
+        if detail:
+            failure += f': {detail[-1][:160]}'
+    elif not steps:
+        failure = f'run {attempt}: amoo reported no flow steps'
+    else:
+        failure = None
+    return steps, failure
+
+
 def summarize_usage(report):
     """Totals across tools from `amoo usage report --json`, split by surface."""
     tools = report.get('tools', [])
@@ -247,20 +264,18 @@ def run_scenario(amoo, manifest, scenario, runs, work_dir):
             completed = subprocess.run(args, capture_output=True, text=True, env=env, check=False)
             wall = time.monotonic() - started
             contention += device_conflicts(amoo, manifest['device'], runtime['runtime_id'])
-            steps = parse_flow_output(completed.stdout + '\n' + completed.stderr)
-            failed = next((s for s in steps if not s['passed']), None)
+            steps, failure = flow_outcome(completed, attempt)
             results.append({
                 'attempt': attempt,
                 'load1': round(os.getloadavg()[0], 1),
                 'contended': sorted(set(contention)),
-                'passed': failed is None and bool(steps),
+                'passed': failure is None,
                 'amoo_exit': completed.returncode,
                 'optional_failures': [s['name'] for s in steps if not s['passed'] and s['optional']],
                 'wall_s': wall,
                 'stdout_bytes': len(completed.stdout.encode()),
                 'steps': steps,
-                'first_failure': f"run {attempt} step {failed['index']} {failed['name']}: {failed['detail'][:160]}"
-                if failed else None,
+                'first_failure': failure,
             })
             note = ' (contended: another test used the device)' if contention else ''
             print(f"  {scenario['name']} run {attempt}: {'pass' if results[-1]['passed'] else 'FAIL'}{note} "
@@ -302,6 +317,10 @@ def load_manifest(path):
 
 def command_run(args):
     manifest = load_manifest(args.manifest)
+    selected = [s for s in manifest['scenarios'] if not args.scenario or s['name'] in args.scenario]
+    if args.runs < 1 or not selected:
+        print('A benchmark needs a positive --runs count and at least one selected scenario.', file=sys.stderr)
+        return 2
     conflicts = device_conflicts(args.amoo, manifest['device'])
     if conflicts and not args.ignore_conflicts:
         print('Device is not free; results would measure contention, not amoo:', file=sys.stderr)
@@ -310,7 +329,6 @@ def command_run(args):
         print('Pick another device in the manifest or pass --ignore-conflicts.', file=sys.stderr)
         return 2
     work_dir = args.work_dir or tempfile.mkdtemp(prefix='amoo-cli-bench-')
-    selected = [s for s in manifest['scenarios'] if not args.scenario or s['name'] in args.scenario]
     result = {
         'schema': 1,
         'amoo': subprocess.run([args.amoo, 'version'], capture_output=True, text=True, check=False).stdout.strip(),
@@ -325,7 +343,7 @@ def command_run(args):
     if args.baseline:
         print('\nAgainst baseline:')
         print(format_changes(compare(result, json.loads(pathlib.Path(args.baseline).read_text()))))
-    return 0 if all(s['passed'] == s['runs'] for s in result['scenarios']) else 1
+    return 0 if all(s['runs'] > 0 and s['passed'] == s['runs'] for s in result['scenarios']) else 1
 
 
 def command_env(args):

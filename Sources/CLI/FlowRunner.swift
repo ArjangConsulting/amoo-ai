@@ -25,7 +25,7 @@ struct FlowRunContext: Sendable {
     var variables: [String: String]
     var environment: [String: String]
     var outputDirectory: URL?
-    var defaultOnError: TestFlow.OnError
+    var continueOnError: Bool
     /// The project's `screenshots` defaults, from the `amoo.config.json` above the flow file.
     var screenshotPolicy = ScreenshotPolicy.standard
     /// Time source for waits, injectable so tests do not sleep.
@@ -35,12 +35,12 @@ struct FlowRunContext: Sendable {
         variables: [String: String] = [:],
         environment: [String: String] = ProcessInfo.processInfo.environment,
         outputDirectory: URL? = nil,
-        defaultOnError: TestFlow.OnError = .stop
+        continueOnError: Bool = false
     ) {
         self.variables = variables
         self.environment = environment
         self.outputDirectory = outputDirectory
-        self.defaultOnError = defaultOnError
+        self.continueOnError = continueOnError
     }
 }
 
@@ -117,7 +117,7 @@ func runFlowSteps(
     for (index, original) in flow.steps.enumerated() {
         let step = withoutRedundantEffectCheck(original, next: flow.steps.dropFirst(index + 1).first)
         let label = step.name ?? step.tool
-        let policy = step.onError ?? flow.onError
+        let policy = context.continueOnError ? .continue : step.onError ?? flow.onError
         for repetition in 0 ..< max(1, step.repeatCount ?? 1) {
             let suffix = (step.repeatCount ?? 1) > 1 ? " [\(repetition + 1)/\(step.repeatCount ?? 1)]" : ""
             let started = ContinuousClock.now
@@ -153,17 +153,23 @@ func runFlowSteps(
     return result
 }
 
-/// `outcome` as a failure when it is a tap whose `expect_*` was not met.
+/// `outcome` as a failure when the flow could not verify the tap's postcondition.
 ///
 /// `tap_element` reports an unmet expectation without failing, because the tap was dispatched and a
 /// caller that retried an error could tap a toggle back. A flow has no such caller: the expectation
 /// is its postcondition, and passing the step let a flow go on to fail one step later with a
 /// misleading "no element matched".
 func failingUnmetExpectation(_ outcome: ToolResult) -> ToolResult {
-    guard !outcome.isError, var fields = outcome.structuredContent?.objectValue,
-          fields["expected_effect_met"] == .bool(false)
-    else { return outcome }
-    fields["failure_kind"] = .string("expectation_not_met")
+    guard !outcome.isError, var fields = outcome.structuredContent?.objectValue else { return outcome }
+    let failureKind: String
+    if fields["expected_effect_met"] == .bool(false) {
+        failureKind = "expectation_not_met"
+    } else if fields["expectation_status"] == .string("unverified") {
+        failureKind = "expectation_unverified"
+    } else {
+        return outcome
+    }
+    fields["failure_kind"] = .string(failureKind)
     return ToolResult(content: outcome.content, isError: true, structuredContent: .object(fields))
 }
 
@@ -212,7 +218,7 @@ private func runFlowStep(
 
 private func runFlowWait(_ arguments: [String: String], context: FlowRunContext) async -> ToolResult {
     let milliseconds = arguments["duration_ms"].flatMap(Int.init)
-        ?? arguments["seconds"].flatMap(Double.init).map { Int($0 * 1000) }
+        ?? arguments["seconds"].flatMap(Double.init).flatMap { Int(exactly: ($0 * 1000).rounded(.towardZero)) }
     guard let milliseconds, (0 ... 600_000).contains(milliseconds) else {
         return .error("wait needs duration_ms (0-600000) or seconds.")
     }
@@ -226,16 +232,22 @@ private func runFlowWaitFor(
     context: FlowRunContext
 ) async -> ToolResult {
     let timeoutMS = arguments["timeout_ms"].flatMap(Int.init) ?? 10000
-    if arguments["idle"].flatMap(boolFlowArgument) == true {
+    if boolFlowArgument(arguments["idle"]) == true {
         let stableMS = arguments["stable_ms"].flatMap(Int.init) ?? 500
         return await waitForIdleScreen(timeoutMS: timeoutMS, stableMS: stableMS, executor: executor, context: context)
     }
     guard arguments["id"] != nil || arguments["label"] != nil || arguments["contains_text"] != nil else {
         return .error("wait_for needs id, label or contains_text, or idle=true.")
     }
+    return await executor.execute(toolName: "assert_visible", arguments: flowWaitAssertionArguments(arguments))
+}
+
+func flowWaitAssertionArguments(_ arguments: [String: String]) -> [String: String] {
     var forwarded = arguments
-    forwarded["timeout_ms"] = String(timeoutMS)
-    return await executor.execute(toolName: "assert_visible", arguments: forwarded)
+    forwarded["idle"] = nil
+    forwarded["stable_ms"] = nil
+    forwarded["timeout_ms"] = String(arguments["timeout_ms"].flatMap(Int.init) ?? 10000)
+    return forwarded
 }
 
 /// Polls the screen summary until it stops changing for `stableMS`, so a screenshot is not taken
@@ -304,8 +316,8 @@ func flowFileStem(_ raw: String) -> String {
     return collapsed.isEmpty ? "screen" : String(collapsed.prefix(60))
 }
 
-private func boolFlowArgument(_ raw: String) -> Bool? {
-    switch raw.lowercased() {
+func boolFlowArgument(_ raw: String?) -> Bool? {
+    switch raw?.lowercased() {
     case "true", "1", "yes": true
     case "false", "0", "no": false
     default: nil

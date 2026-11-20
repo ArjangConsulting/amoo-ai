@@ -23,13 +23,13 @@ final class TapExpectationErrorTests: XCTestCase {
     }
 }
 
-extension TapExpectationErrorTests {
+extension TapChecksTests {
     /// "Not observed" could not tell an element that never appeared from one that appeared with a
     /// different label; the nearest match by id now says which.
     func testUnmetExpectationNamesTheSameIdWithItsActualLabel() async {
         let driver = TapCheckDriver(
-            target: TapChecksTests.addButton,
-            hierarchy: TapChecksTests().screen(),
+            target: Self.addButton,
+            hierarchy: screen(),
             waitTimesOut: true
         )
         let result = await DriverToolExecutor(driver: driver).execute(
@@ -47,12 +47,12 @@ extension TapExpectationErrorTests {
     }
 }
 
-extension TapExpectationErrorTests {
+extension TapChecksTests {
     /// With nothing similar in the capture, the note names the usual causes instead of leaving a probe to find them.
     func testUnmetExpectationWithNothingSimilarSuggestsWhereItCouldBe() async {
         let driver = TapCheckDriver(
-            target: TapChecksTests.addButton,
-            hierarchy: TapChecksTests().screen(),
+            target: Self.addButton,
+            hierarchy: screen(),
             waitTimesOut: true,
             missingIDs: ["sheet"]
         )

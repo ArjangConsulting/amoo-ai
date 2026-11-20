@@ -140,6 +140,20 @@ final class FlowRunnerTests: XCTestCase {
         XCTAssertEqual(result.failed, 1)
     }
 
+    func testContinueOnErrorFlagOverridesAnExplicitStepStop() async {
+        var context = context()
+        context.continueOnError = true
+        let result = await runFlowSteps(
+            flow([.init(tool: "tap_element", onError: .stop), .init(tool: "press_back")]),
+            executor: RecordingExecutor(failing: ["tap_element"]),
+            context: context
+        )
+
+        XCTAssertEqual(result.passed, 1)
+        XCTAssertEqual(result.failed, 1)
+        XCTAssertFalse(result.stopped)
+    }
+
     func testRepeatRunsAStepThatManyTimes() async {
         let executor = RecordingExecutor()
         let result = await runFlowSteps(
@@ -220,6 +234,14 @@ final class FlowRunnerTests: XCTestCase {
         XCTAssertEqual(result.failed, 1)
     }
 
+    func testWaitRejectsUnrepresentableSeconds() async {
+        let steps = ["nan", "inf", "1e40"].map {
+            TestFlow.Step(tool: "wait", arguments: ["seconds": $0], onError: .continue)
+        }
+        let result = await runFlowSteps(flow(steps), executor: RecordingExecutor(), context: context())
+        XCTAssertEqual(result.failed, steps.count)
+    }
+
     func testScreenshotIsNumberedByStepAndNamedFromTheStep() async throws {
         let scratch = try makeScratchDirectory()
         let executor = RecordingExecutor()
@@ -279,6 +301,9 @@ final class FlowRunnerTests: XCTestCase {
         XCTAssertNil(flowStepForPlan(.init(tool: "screenshot")))
         XCTAssertNil(flowStepForPlan(.init(tool: "wait_for", arguments: ["idle": "true"])))
         XCTAssertEqual(flowStepForPlan(.init(tool: "wait_for", arguments: ["id": "x"]))?.tool, "assert_visible")
+        let explicitSelector = flowStepForPlan(.init(tool: "wait_for", arguments: ["idle": "false", "id": "x"]))
+        XCTAssertEqual(explicitSelector?.tool, "assert_visible")
+        XCTAssertEqual(explicitSelector?.arguments, ["id": "x", "timeout_ms": "10000"])
         XCTAssertEqual(flowStepForPlan(.init(tool: "tap_element", arguments: ["id": "x"]))?.tool, "tap_element")
     }
 

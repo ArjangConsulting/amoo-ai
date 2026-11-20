@@ -6,11 +6,10 @@ import StudioProtocol
 import TestSession
 
 /// `amoo generate plan` — recompile a recorded session's `report.json`, or compile a hand-authored
-/// `*.amoo.json` flow, into a `plan.json` (and `flow.json`) without going back through
-/// `amoo mcp serve`.
+/// `*.amoo.json` flow, into `plan.json` and `flow.json` offline.
 ///
 /// This is the offline replay path for a recorded scenario: the same deterministic
-/// `SessionPlanCompiler` the MCP `compile_session_to_plan` tool runs, so control-plane calls are
+/// `SessionPlanCompiler` the session-backed executor runs, so control-plane calls are
 /// dropped, element-scoped gestures keep their row identity, and identically-labelled elements get
 /// role-distinguished names. Feed the result straight to `amoo generate test --plan`.
 func renderGeneratePlanHelp() -> String {
@@ -20,11 +19,8 @@ func renderGeneratePlanHelp() -> String {
                               [--context <amoo.md|test-context.json>]
                               [--test-name <name>] [--test-description <text>]
 
-      Compiles a session into plan.json / flow.json using the same compiler as the MCP
-      `compile_session_to_plan` tool. Prints the plan JSON to stdout when --out is omitted.
-      The MCP `end_session` tool already writes plan.json on close; this is the offline path for
-      re-running that compile against a saved report.json, or for authoring a plan by hand with
-      no recorded session at all.
+      Compiles a session report or an authored flow into plan.json and flow.json.
+      Prints the plan JSON to stdout when --out is omitted.
 
       --report            Path to the recorded session report.json.
       --from-flow         Path to a hand-written flow (the same *.amoo.json `amoo flow` runs) to
@@ -171,7 +167,7 @@ func sessionReport(fromFlow flow: TestFlow, name: String) -> SessionReport {
             arguments: arguments,
             result: "authored in \(name)",
             isError: false,
-            intent: flowIntent(forTool: tool)
+            intent: flowIntent(forTool: tool, arguments: arguments)
         ))
     }
     return SessionReport(
@@ -197,8 +193,8 @@ func flowStepForPlan(_ step: TestFlow.Step) -> (tool: String, arguments: [String
     case FlowPseudoTool.wait, FlowPseudoTool.screenshot:
         return nil
     case FlowPseudoTool.waitFor:
-        guard step.arguments["idle"] == nil else { return nil }
-        return ("assert_visible", step.arguments)
+        guard boolFlowArgument(step.arguments["idle"]) != true else { return nil }
+        return ("assert_visible", flowWaitAssertionArguments(step.arguments))
     default:
         return (step.tool, step.arguments)
     }
@@ -209,8 +205,9 @@ private let flowStepSpacingSeconds = 5.0
 
 /// Mirrors how the recorder classifies a live call: queries are diagnostics, `assert_*` are
 /// assertions, everything else is a step to reproduce.
-private func flowIntent(forTool tool: String) -> SessionAction.Intent {
-    if tool.hasPrefix("assert_") {
+private func flowIntent(forTool tool: String, arguments: [String: String]) -> SessionAction.Intent {
+    if tool.hasPrefix("assert_")
+        || (tool == "audit_accessibility_native" && boolFlowArgument(arguments["fail_on_issues"]) == true) {
         return .assertion
     }
     let queries: Set = [

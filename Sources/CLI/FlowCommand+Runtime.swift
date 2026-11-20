@@ -41,26 +41,16 @@ func adoptPresentedRuntime(
     )
 }
 
-/// The simulator an iOS flow without a device drives: the one the companion on `port` runs in.
-///
-/// simctl's `booted` is ambiguous once several simulators are booted, so an install or launch
-/// could land on a different simulator from the one the companion's gestures reach. Following the
-/// companion keeps both on one device, the same way `amoo device` does. `nil` keeps `booted`, for
-/// a lone simulator whose companion cannot be identified.
-func flowSimulator(
-    port: Int,
+/// The companion port a flow connects to, settling an iOS flow's device on the companion's
+/// simulator when nothing named one.
+func flowCompanionPort(
+    _ flow: inout TestFlow,
+    platform: Platform,
+    overrides: FlowOverrides,
     resolveCompanionDevice: @Sendable (Int) async -> String? = { port in
         await companionSimulatorUDID(port: port, processRunner: SystemProcessRunner())
     }
-) async -> String? {
-    let owner = await resolveCompanionDevice(port)
-    logger.debug("Flow device follows companion", context: "port=\(port) owner=\(owner ?? "unknown")")
-    return owner
-}
-
-/// The companion port a flow connects to, settling an iOS flow's device on the companion's
-/// simulator when nothing named one.
-func flowCompanionPort(_ flow: inout TestFlow, platform: Platform, overrides: FlowOverrides) async throws -> Int {
+) async throws -> Int {
     let port: Int = if platform == .android {
         try await resolveAndroidCompanionPort(deviceID: flow.deviceID, explicitPort: flow.port)
     } else if let explicit = flow.port {
@@ -70,8 +60,15 @@ func flowCompanionPort(_ flow: inout TestFlow, platform: Platform, overrides: Fl
     } else {
         CompanionConfig.defaultPort
     }
-    if platform == .ios, flow.deviceID == nil || flow.deviceID == "booted" {
-        flow.deviceID = await flowSimulator(port: port) ?? flow.deviceID
+    if platform == .ios {
+        let requested = flow.deviceID ?? "booted"
+        let owner = await resolveCompanionDevice(port)
+        if case let .otherDevice(other) = CompanionOwnership(requested: requested, owner: owner) {
+            throw CompanionError.launchFailed(companionMismatchMessage(port: port, requested: requested, owner: other))
+        }
+        if requested == "booted", let owner {
+            flow.deviceID = owner
+        }
     }
     return port
 }
@@ -162,7 +159,7 @@ extension FlowRunContext {
         self.init(
             variables: variables,
             outputDirectory: overrides.outputDirectory.map { URL(fileURLWithPath: $0) },
-            defaultOnError: overrides.continueOnError ? .continue : flow.onError
+            continueOnError: overrides.continueOnError
         )
     }
 }

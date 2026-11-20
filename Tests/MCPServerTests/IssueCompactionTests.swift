@@ -56,4 +56,19 @@ final class IssueCompactionTests: XCTestCase {
         let report: Value = .object(["issues": .array([issue("Only")])])
         XCTAssertEqual(DriverToolExecutor.compactingIssues(report), report)
     }
+
+    func testFullAuditResponseKeepsAllIssueFields() {
+        let report: Value = .object(["issues": .array([issue("Title"), issue("Subtitle")])])
+        let result = ToolResult.success("2 issue(s)", structuredContent: report)
+        let full = DriverToolExecutor.compactingIssueResponse(
+            result, tool: "audit_accessibility_native", arguments: ["response_mode": "full"]
+        )
+        XCTAssertEqual(full.structuredContent, report)
+        let compact = DriverToolExecutor.compactingIssueResponse(
+            result,
+            tool: "audit_accessibility_native",
+            arguments: [:]
+        )
+        XCTAssertEqual(compact.structuredContent, DriverToolExecutor.compactingIssues(report))
+    }
 }

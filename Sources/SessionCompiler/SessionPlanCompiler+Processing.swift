@@ -150,25 +150,16 @@ extension SessionPlanCompiler {
 
     /// The environment keys a successful launch of the session app leaves out of the session's own
     /// launch, or `nil` when it is not a relaunch of that configuration: different arguments, a key
-    /// with a different value, or one the session never set. A launch without overrides drops none.
+    /// with a different value, or one the session never set.
     static func relaunchingLaunch(_ launch: SessionAction, appID: String, session: SessionLaunch) -> [String]? {
         let allowed: Set = ["app_id", "session_id", "device_id", "timeout_ms", "launch_args", "environment"]
         guard !appID.isEmpty, launch.toolName == "device_launch_app", !launch.isError,
               launch.intent == .testStep, launch.arguments["app_id"] == appID,
               Set(launch.arguments.keys).isSubset(of: allowed)
         else { return nil }
-        if let raw = launch.arguments["launch_args"],
-           raw.split(separator: ",").map(String.init) != session.arguments {
-            return nil
-        }
-        guard let raw = launch.arguments["environment"] else { return [] }
-        let environment = Dictionary(
-            raw.split(separator: ",").compactMap { pair -> (String, String)? in
-                let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
-                return parts.count == 2 ? (parts[0], parts[1]) : nil
-            },
-            uniquingKeysWith: { _, last in last }
-        )
+        let arguments = launch.arguments["launch_args"].map { $0.split(separator: ",").map(String.init) } ?? []
+        guard arguments == session.arguments else { return nil }
+        let environment = AppLaunchEnvironment.parse(launch.arguments["environment"])
         guard environment.allSatisfy({ session.environment[$0.key] == $0.value }) else { return nil }
         return session.environment.keys.filter { environment[$0] == nil }.sorted()
     }
@@ -191,14 +182,14 @@ extension SessionPlanCompiler {
         if let timeout = action.arguments["expect_timeout_ms"] {
             arguments["timeout_ms"] = timeout
         }
-        let absent = action.arguments["expect_absent"] == "true"
+        let absent = ["true", "1", "yes"].contains(action.arguments["expect_absent"]?.lowercased() ?? "")
         return SessionAction(
             timestamp: action.timestamp,
             toolName: absent ? "assert_absent" : "assert_visible",
             arguments: arguments,
             result: "",
             isError: false,
-            intent: .testStep
+            intent: .assertion
         )
     }
 }

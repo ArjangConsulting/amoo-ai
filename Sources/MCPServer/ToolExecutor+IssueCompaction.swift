@@ -1,6 +1,19 @@
 import MCP
 
 extension DriverToolExecutor {
+    static func compactingIssueResponse(
+        _ original: ToolResult,
+        tool: String,
+        arguments: [String: String]
+    ) -> ToolResult {
+        guard ["audit_accessibility_native", "test_voiceover", "test_talkback", "assert_talkback_speech"]
+            .contains(tool),
+            arguments["response_mode"] != "full", let report = original.structuredContent else { return original }
+        var response = original
+        response.structuredContent = compactingIssues(report)
+        return response
+    }
+
     /// `report` with each issue's repeated provenance written once.
     ///
     /// Every native audit issue carried the same six `semantics.attributes` strings, a `fullFrame`

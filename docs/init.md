@@ -173,7 +173,7 @@ installs nothing. `--json` and skills cannot be combined in `init` (one JSON doc
 
 ## Orchestrator / multi-repo layouts
 
-Run `amoo init`, `amoo agent install`, and `amoo mcp serve` from the orchestrator root when iOS and
+Run `amoo init`, `amoo agent install`, and `amoo env up` from the orchestrator root when iOS and
 Android live in submodules such as `iOS/` and `Android/`. Agent files belong in the repository that
 drives the device. Running init in a submodule would also dirty that submodule's `.gitignore` with
 the private runtime manifest entry.
@@ -189,13 +189,14 @@ orchestrator's the way a nested `AGENTS.md` does: both apply and the inner file 
 conflict. Objects merge key by key, arrays are replaced, and credential profiles merge by name. See
 [`test-context.md`](test-context.md) and [`credentials.md`](credentials.md).
 
-Configure a separate MCP server per platform using `amoo mcp serve --platform ios` and
-`amoo mcp serve --platform android`, both with the orchestrator as their working directory.
+Start a separate runtime per platform with `amoo env up --platform ios` and
+`amoo env up --platform android` from the orchestrator root. Pass the corresponding `--runtime-id`
+to `amoo device` and `amoo flow`.
 Generated tests need explicit destinations: use `generate test --out iOS/<UITests>` or
 `generate test --out Android/app/src/androidTest/...`; generation does not discover host targets.
 
 Headless init handles one platform per run; the guided **Both** choice handles both. Android app ID
-and Gradle discovery are not implemented, so pass `app_id` when starting a session.
+and Gradle discovery are not implemented, so pass `--app-id` when starting the Android runtime.
 
 Pass `--repo <dir>` with `--platform` to name the platform's repository below the root, for example
 `amoo init --platform ios --device <udid> --repo iOS --save`. Run it once per platform. A React Native

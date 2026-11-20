@@ -243,4 +243,13 @@ final class RepeatedWaitCollapseTests: XCTestCase {
         """
         XCTAssertEqual(XCUITestEmitter.collapsingRepeatedWaits(body), body)
     }
+
+    func testALongerWaitOrDifferentHelperIsKept() {
+        let body = """
+                waitForHittability(a, named: "a", timeout: 5.0)
+                waitForHittability(a, named: "a", timeout: 15.0)
+                TestCommonsXCUI.waitForHittability(a, named: "a", timeout: 5.0)
+        """
+        XCTAssertEqual(XCUITestEmitter.collapsingRepeatedWaits(body), body)
+    }
 }

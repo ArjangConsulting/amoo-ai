@@ -65,4 +65,4 @@ those stronger checks are not implemented by current-screen inspection.
 automatic retries. Companion cancellation can lag host deadlines. Measure actual AI calls and
 input/output/image tokens in the intended client before claiming cost savings. See
 [benchmarking](benchmarking.md), [current architecture](current-architecture.md),
-[support matrix](support-matrix.md) and [MCP usage](mcp-server.md).
+[support matrix](support-matrix.md) and [device tools](device-tools.md).

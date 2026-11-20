@@ -108,7 +108,7 @@ extension DriverToolExecutor {
             isError: report.executionStatus != "succeeded" || ["failed", "unknown"].contains(report.cleanupStatus)
                 || (toolName == "assert_talkback_speech" && report.verdict != "pass")
                 || (failOnIssues && report.verdict != "pass"),
-            structuredContent: Self.compactingIssues(Value(report)),
+            structuredContent: Value(report),
             image: highlight
         )
     }
@@ -157,7 +157,9 @@ extension DriverToolExecutor {
             target.append("id \(id)")
         }
         if let frame = issue.frame {
-            target.append("at (\(Int(frame.x)), \(Int(frame.y)), \(Int(frame.width))x\(Int(frame.height)))")
+            let origin = "\(geometryNumber(frame.x)), \(geometryNumber(frame.y))"
+            let size = "\(geometryNumber(frame.width))x\(geometryNumber(frame.height))"
+            target.append("at (\(origin), \(size))")
         }
         return target.isEmpty ? "unnamed element" : target.joined(separator: " ")
     }

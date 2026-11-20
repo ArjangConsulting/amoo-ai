@@ -50,16 +50,9 @@ extension XCUITestEmitter {
             if trimmed.isEmpty {
                 continue
             }
-            // A context may bind the waits to its own helpers (`TestCommonsXCUI.waitForHittability(`),
-            // so any adjacent repeat of a wait call collapses, not only the generated helpers' names.
-            let isWait = trimmed.contains("waitForHittability(") || trimmed.contains("waitForExistence(")
-            if isWait, kept.last == line {
-                continue
-            }
-            // A tap expectation's wait followed by the next tap's own wait on the same element differ
-            // only in timeout; the first one already proved it, with the longer, explicit timeout.
-            if isWait, let previous = kept.last, let target = waitTarget(trimmed),
-               waitTarget(previous.trimmingCharacters(in: .whitespaces)) == target {
+            if let previous = kept.last, let wait = waitCall(trimmed),
+               let priorWait = waitCall(previous.trimmingCharacters(in: .whitespaces)),
+               priorWait.arguments == wait.arguments, previous == line || priorWait.seconds >= wait.seconds {
                 continue
             }
             kept.append(line)
@@ -67,16 +60,18 @@ extension XCUITestEmitter {
         return kept.joined(separator: "\n")
     }
 
-    /// The wait helper a line calls and the element it waits on: `waitForHittability(row, …)` →
-    /// `("waitForHittability", "row")`.
-    static func waitTarget(_ line: String) -> String? {
-        for helper in ["waitForHittability(", "waitForExistence("] {
-            guard let call = line.range(of: helper) else { continue }
-            let rest = line[call.upperBound...]
-            let element = rest.prefix { $0 != "," && $0 != ")" }.trimmingCharacters(in: .whitespaces)
-            return element.isEmpty ? nil : helper + element
+    private static func waitCall(_ line: String) -> (arguments: Substring, seconds: Double)? {
+        guard let open = line.firstIndex(of: "("), line.last == ")",
+              let timeout = line.range(of: ", timeout: ", options: .backwards), open < timeout.lowerBound else {
+            return nil
         }
-        return nil
+        let helper = line[..<open].split(separator: ".").last
+        guard helper == "waitForHittability" || helper == "waitForExistence",
+              line[..<open].allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }) else {
+            return nil
+        }
+        let value = line[timeout.upperBound...].dropLast()
+        return (line[..<timeout.lowerBound], Double(value) ?? .nan)
     }
 
     static func launchConfiguration(for test: StudioAuthoredTest) -> String {
