@@ -315,7 +315,10 @@ extension DriverToolExecutor {
         }
         try await driver.tap(at: point)
         if await keyboardIsGone(driver) {
-            return .success("Keyboard dismissed with the '\(button.label)' button")
+            return .success(
+                "Keyboard dismissed with the '\(button.label)' button",
+                structuredContent: Self.keyboardGone
+            )
         }
         return .error(
             "dismiss_keyboard failed: the keyboard is still visible after tapping '\(button.label)'."
@@ -347,7 +350,7 @@ extension DriverToolExecutor {
         }
         try await action()
         if await keyboardIsGone(driver) {
-            return .success("Keyboard dismissed with \(description)")
+            return .success("Keyboard dismissed with \(description)", structuredContent: Self.keyboardGone)
         }
         return .error(
             "dismiss_keyboard failed: the keyboard is still visible after \(description)."
@@ -364,6 +367,13 @@ extension DriverToolExecutor {
         }
         return keys.count == 1 ? keys.first : nil
     }
+
+    /// The keyboard was read back as hidden, so the dismissal is confirmed, not merely dispatched.
+    static let keyboardGone: Value = .object([
+        "dispatch_status": .string("completed"),
+        "outcome_status": .string("target_state_confirmed"),
+        "postcondition_verified": .bool(true)
+    ])
 
     private func keyboardIsGone(_ driver: any PlatformDriver) async -> Bool {
         for _ in 0 ..< 3 {

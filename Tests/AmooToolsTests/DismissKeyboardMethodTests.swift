@@ -20,6 +20,7 @@ final class DismissKeyboardMethodTests: XCTestCase {
         XCTAssertFalse(result.isError, result.content)
         let actions = await driver.actions
         XCTAssertEqual(actions, ["tap 383.0,856.0"], "the 'search' key, not the app's Done button")
+        XCTAssertEqual(result.structuredContent?.objectValue?["postcondition_verified"], .bool(true))
     }
 
     func testAndroidUsesBackWithoutAnOptIn() async {
