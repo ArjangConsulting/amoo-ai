@@ -15,9 +15,9 @@ extension CLITests {
         let runner = MockCLIProcessRunner(results: [
             .failure(ShellError.commandNotFound("xcodegen"))
         ])
-        let result = await runIOSCompanionInstall(
+        let result = await runCompanionBuild(
             options: CompanionCommandOptions(
-                action: .install,
+                action: .build,
                 platform: .ios,
                 deviceID: "SIM-123",
                 companionDir: companionDir,
@@ -42,9 +42,9 @@ extension CLITests {
         let runner = MockCLIProcessRunner(results: [
             .success(.init(exitCode: 1, stdout: "gradle failed", stderr: ""))
         ])
-        let result = await runAndroidCompanionInstall(
+        let result = await runCompanionBuild(
             options: CompanionCommandOptions(
-                action: .install,
+                action: .build,
                 platform: .android,
                 deviceID: "booted",
                 companionDir: companionDir,

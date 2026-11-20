@@ -39,6 +39,8 @@ struct CompanionCommandOptions {
 }
 
 enum CompanionAction {
+    /// Compile the companion from its sources: the only command that builds one. Starts never do.
+    case build
     case install
     case start
     /// Build + install the companion test bundle now (the slow, minutes-long part) without
@@ -75,12 +77,23 @@ enum CompanionCommandParseError: Error, CustomStringConvertible {
     }
 }
 
+// One help literal; splitting it would only scatter the usage text.
+// swiftlint:disable:next function_body_length
 func renderCompanionHelp() -> String {
     """
     Usage: amoo companion <action> [options]
 
     Actions:
-      install    Build and install the companion app on a device/simulator
+      build      Compile the companion from its sources. Nothing else builds it: env up, flow,
+                 device and start only install the newest existing build, and warn when it is
+                 older than its sources. Skips an up-to-date build unless --force.
+                 Options:
+                   --platform ios|android|macos  Target platform (default: ios)
+                   --device <id>           iOS: simulator whose destination to build for (default: booted)
+                   --companion-dir <path>  Override companion app directory
+                   --force                 Rebuild even when the build is current
+
+      install    Install the newest existing companion build on a device/simulator
                  Options:
                    --platform ios|android|macos  Target platform (default: ios)
                    --device <id>           Simulator UDID or ADB serial (default: booted)
@@ -88,9 +101,9 @@ func renderCompanionHelp() -> String {
                                            android 22088). One companion serves one device, so a
                                            second simulator needs its own port.
                    --companion-dir <path>  Override companion app directory
-                   --force                 Force rebuild even if already built
+                   --force                 Reinstall even when the device holds this build
 
-      start      Build/install if needed, then run the companion and wait until it is
+      start      Install the newest existing build if needed, then run the companion and wait until it is
                  reachable, so `amoo device <tool>` can be used directly
                  Options:
                    --platform ios|android|macos  Target platform (default: ios)
@@ -98,7 +111,7 @@ func renderCompanionHelp() -> String {
                    --app <bundle-id>       App under test, bound as the gesture target
                    --port <port>           Port to listen on; pass the same to 'amoo device --port'
                    --companion-dir <path>  Override companion app directory
-                   --force                 Rebuild before starting
+                   --force                 Restart and reinstall before starting
                    --detach                Start the companion in the background and return once
                                            it is ready, printing its pid, port and log path.
                                            Stop it later with `kill <pid>`. Without it, start
@@ -109,13 +122,13 @@ func renderCompanionHelp() -> String {
                                            a slow first start looks identical to a hang.
                                            Also settable via AMOO_COMPANION_READY_TIMEOUT.
 
-      warm       Build + install the companion bundle now — the slow, minutes-long part —
-                 without holding a process open. Run it as step 0 (background it with '&'),
-                 poll 'companion status', then 'companion start'. Same --platform / --device
-                 / --port / --companion-dir / --force options as install.
+      warm       Install the existing companion bundle now without holding a process open.
+                 Run it as step 0 (background it with '&'), poll 'companion status', then
+                 'companion start'. Same --platform / --device / --port / --companion-dir /
+                 --force options as install.
 
       status     Print one line: 'ready' (a companion is listening), 'built' (bundle ready,
-                 not launched), 'stale' (built, but sources changed so the next start rebuilds),
+                 not launched), 'stale' (built, but older than its sources: run 'companion build'),
                  'building' / 'launching' (a warm is in progress), 'failed', or 'not_started'.
                  Non-blocking. Exit code 0 = usable, 2 = in progress, 1 = needs action.
                  Same --platform / --device / --port / --companion-dir options.
@@ -239,21 +252,11 @@ func parseCompanionCommandOptions(
     }
     remaining.removeFirst()
 
-    let action: CompanionAction
-    switch actionStr {
-    case "install":
-        action = .install
-    case "start":
-        action = .start
-    case "warm":
-        action = .warm
-    case "status":
-        action = .status
-    case "list":
-        action = .list
-    case "stop":
-        action = .stop
-    default:
+    let actions: [String: CompanionAction] = [
+        "build": .build, "install": .install, "start": .start, "warm": .warm,
+        "status": .status, "list": .list, "stop": .stop
+    ]
+    guard let action = actions[actionStr] else {
         return .failure(.unknownAction(actionStr))
     }
 
@@ -282,13 +285,15 @@ func parseCompanionCommandOptions(
 // MARK: - Execution
 
 // A flat (action × platform) dispatch — four two-line cases, no branching logic worth extracting.
-// swiftlint:disable:next cyclomatic_complexity
+// swiftlint:disable:next cyclomatic_complexity function_body_length
 func runCompanionCommand(
     options: CompanionCommandOptions,
     processRunner: any ProcessRunner = SystemProcessRunner(),
     currentDirectory: String = FileManager.default.currentDirectoryPath
 ) async -> CLIResult {
     switch options.action {
+    case .build:
+        await runCompanionBuild(options: options, processRunner: processRunner, currentDirectory: currentDirectory)
     case .install:
         switch options.platform {
         case .ios:
@@ -434,57 +439,6 @@ func runAndroidCompanionStart(
         return CLIResult(output: error.description, exitCode: 1)
     } catch {
         return CLIResult(output: "Android companion start failed: \(error)", exitCode: 1)
-    }
-}
-
-// MARK: - iOS Install
-
-func runIOSCompanionInstall(
-    options: CompanionCommandOptions,
-    processRunner: any ProcessRunner = SystemProcessRunner()
-) async -> CLIResult {
-    let config = CompanionConfig(
-        port: options.port ?? CompanionConfig.defaultPort,
-        companionDir: options.companionDir,
-        deviceUDID: options.deviceID
-    )
-    let manager = CompanionManager(processRunner: processRunner)
-
-    do {
-        try await manager.install(config: config, force: options.force)
-        return CLIResult(output: "", exitCode: 0)
-    } catch let error as CompanionError {
-        return CLIResult(output: error.description, exitCode: 1)
-    } catch {
-        return CLIResult(output: "Companion install failed: \(error)", exitCode: 1)
-    }
-}
-
-// MARK: - Android Install
-
-func runAndroidCompanionInstall(
-    options: CompanionCommandOptions,
-    processRunner: any ProcessRunner = SystemProcessRunner(),
-    currentDirectory: String = FileManager.default.currentDirectoryPath
-) async -> CLIResult {
-    let companionDir =
-        options.companionDir
-            ?? AndroidCompanionConfig.defaultCompanionDir(currentDirectoryPath: currentDirectory)
-
-    let config = AndroidCompanionConfig(
-        port: options.port ?? AndroidCompanionConfig.defaultPort,
-        companionDir: companionDir,
-        serial: options.deviceID
-    )
-    let manager = AndroidCompanionManager(processRunner: processRunner)
-
-    do {
-        try await manager.install(config: config, force: options.force)
-        return CLIResult(output: "", exitCode: 0)
-    } catch let error as AndroidCompanionError {
-        return CLIResult(output: error.description, exitCode: 1)
-    } catch {
-        return CLIResult(output: "Android companion install failed: \(error)", exitCode: 1)
     }
 }
 

@@ -17,8 +17,8 @@ sudo automationmodetool enable-automationmode-without-authentication
 The Mac must be unlocked while a session runs: behind the lock screen no app window can be seen or
 driven, so a session refuses to launch the app while the screen is locked.
 
-Release installs ship a prebuilt companion (`CompanionApps/iOS/prebuilt/macosx`); a source checkout
-builds it on first use.
+Release installs ship a prebuilt companion (`CompanionApps/iOS/prebuilt/macosx`). In a source
+checkout, build it with `amoo companion build --platform macos`; starting a session never builds it.
 
 ## Using it
 

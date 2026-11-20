@@ -12,32 +12,52 @@ extension AndroidCompanionManager {
               FileManager.default.fileExists(atPath: paths.app),
               FileManager.default.fileExists(atPath: paths.test)
         else { return false }
-        return config.buildMode == .reuse
-            || paths.app.contains("/prebuilt/")
-            || sourceFingerprintMatches(config: config)
+        return !isBuildStale(config: config)
     }
 
-    /// Builds APKs independently of emulator boot; returns whether the products need reinstalling.
+    /// Checks for an existing build independently of emulator boot, and compiles only for an explicit
+    /// `build_mode=rebuild`. Returns whether the products need reinstalling.
     @discardableResult
     func prepareBuild(config: AndroidCompanionConfig) async throws -> Bool {
         let paths = apkPaths(companionDir: config.companionDir, useBundled: usesBundledAPKs(config: config))
-        let exists = FileManager.default.fileExists(atPath: paths.app)
-            && FileManager.default.fileExists(atPath: paths.test)
-        if config.buildMode == .reuse {
-            guard exists else {
-                throw AndroidCompanionError.buildFailed("No cached Android companion; use build_mode=auto once.")
-            }
-            await StartupProgress.report("Reusing Android companion build")
-            return false
+        if config.buildMode == .rebuild {
+            await StartupProgress.report("Rebuilding Android companion in parallel with emulator preparation")
+            try await buildAPKs(config: config)
+            await StartupProgress.report("Android companion build complete; waiting for emulator preparation")
+            return true
         }
-        if isBuildCurrent(config: config) {
-            await StartupProgress.report("Reusing Android companion build")
-            return false
+        guard FileManager.default.fileExists(atPath: paths.app), FileManager.default.fileExists(atPath: paths.test)
+        else {
+            throw AndroidCompanionError.buildFailed(Self.missingBuildMessage(config: config))
         }
-        await StartupProgress.report("Building Android companion in parallel with emulator preparation")
+        await StartupProgress.report("Reusing Android companion build")
+        return false
+    }
+
+    /// `amoo companion build`: compiles the APKs from sources when no current local build exists, or
+    /// always with `force`. The only route that compiles besides an explicit `build_mode=rebuild`.
+    func build(config: AndroidCompanionConfig, force: Bool = false) async throws {
+        let local = apkPaths(companionDir: config.companionDir, useBundled: false)
+        let manager = FileManager.default
+        if !force, manager.fileExists(atPath: local.app), manager.fileExists(atPath: local.test),
+           sourceFingerprintMatches(config: config) {
+            print("Android companion is up to date with its sources. --force rebuilds.")
+            return
+        }
+        await StartupProgress.report("Building Android companion")
+        print("Building Android companion (this may take a moment)...")
         try await buildAPKs(config: config)
-        await StartupProgress.report("Android companion build complete; waiting for emulator preparation")
-        return true
+        print("Android companion built.")
+    }
+
+    /// Whether the device holds a different companion than the APKs a start would install, so a
+    /// running companion is replaced after `amoo companion build`. Unknown install state is not outdated.
+    func installedCompanionIsOutdated(config: AndroidCompanionConfig) async -> Bool {
+        let paths = apkPaths(companionDir: config.companionDir, useBundled: usesBundledAPKs(config: config))
+        guard let expected = sha256Hex(ofRegularFile: paths.test),
+              let installed = await deviceInstallState(config: config).installed["com.amoo.companion.test"]
+        else { return false }
+        return installed != expected
     }
 }
 

@@ -13,14 +13,34 @@ as `cached` or `reused`) and how long each step took (`timings_ms`); the compani
 `session_startup_status`: recent stages, elapsed time, and whether it is pending, ready or failed.
 Relay that to the user; do not start a second runtime while the first is still starting.
 
-## Build modes
+## Starting never builds
 
-- `auto` (default): use release-bundled companion products. In a source checkout without bundled
-  products, build when products are missing or sources changed.
-- `reuse`: use bundled or cached products, ignoring source changes. Never compile. Missing products
-  produce an actionable error.
-- `rebuild`: compile the companion from source even when products exist. This mode requires the
-  normal development toolchain and a writable source checkout.
+Starting a device (`env up`, `flow`, `device`, `companion start`, `start_session`) never compiles a
+companion. It installs the newest build that already exists, either the local build or the packaged
+`prebuilt/` products. When none exists it fails at once and names the command that builds one.
+
+When that build is older than its sources, the start goes ahead and prints one warning with both
+dates. `env up --json` then reports the `check` phase as `stale` (`current` otherwise), and `build`
+is `prebuilt` or `cached`. A local build counts as stale when its recorded source fingerprint no
+longer matches and a source file is newer than the build. In a source checkout, packaged `prebuilt/`
+products are stale when a source file is newer than they are. A release install's prebuilt ships
+with its sources and is never reported stale.
+
+Compiling is explicit:
+
+- `amoo companion build --platform ios|android|macos` builds from the sources. It skips a build that
+  is already current unless `--force`. The next start installs the result, replacing an older
+  companion running on an Android device.
+- `make companion-build` builds both, and so do `make debug-local` and `make release-local`. Whoever
+  builds amoo from a checkout therefore leaves current companions for every session to install.
+- `start_session` with `build_mode: "rebuild"` compiles before launching.
+
+Build modes for `start_session`:
+
+- `auto` (default): newest existing build, local or packaged. Warn when stale.
+- `reuse`: prefer packaged products and never report them stale.
+- `rebuild`: compile from source first. This needs the development toolchain and a writable source
+  checkout.
 
 For example:
 
@@ -33,9 +53,8 @@ For example:
 }
 ```
 
-Simulator boot and companion compilation run concurrently, joining before companion launch.
-Android APK preparation runs concurrently with emulator selection/boot and joins before APK
-installation. An existing companion API is reused when compatible with the selected device.
+With `build_mode: "rebuild"`, simulator boot and companion compilation run concurrently and join
+before companion launch; Android APK preparation runs concurrently with emulator selection/boot. An existing companion API is reused when compatible with the selected device.
 Amoo does not compile the app under test; `build_path` supplies an already built `.app` or `.apk`.
 
 ## Physical iOS devices

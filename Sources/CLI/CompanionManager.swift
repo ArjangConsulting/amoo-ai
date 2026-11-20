@@ -149,63 +149,9 @@ final class CompanionManager: @unchecked Sendable {
         )
     }
 
-    /// Builds (installs) the companion test bundle without launching it.
-    func install(config: CompanionConfig, force: Bool = false) async throws {
-        let productsDir = companionProductsDirectory(config: config)
-        if !force,
-           findXCTestRun(productsDir: productsDir, config: config) != nil,
-           hasBundledProducts(config: config) || sourceFingerprintMatches(config: config) {
-            // Says "built", never "installed" or "running" — a previous build product on disk is
-            // all this proves. Reporting it as plain success is what made a dead companion look
-            // like a healthy one: nothing was on the device and nothing was listening on the port.
-            print(
-                styled("Companion already built.", .green)
-                    + styled(" Use --force to rebuild.", .gray)
-            )
-            print(
-                styled(
-                    "This does not start it — run 'amoo companion start' to bring it up.",
-                    .gray
-                )
-            )
-            return
-        }
-        print("Building companion app (this may take a moment)...")
-        try await withSpinner("Building companion app") {
-            try await buildForTesting(config: config)
-        }
-        print(styled("Companion installed successfully.", .green))
-    }
-
-    /// Shuts down any running companion, then installs (using pre-built if available) and starts fresh.
-    func reinstallAndStart(config: CompanionConfig) async throws {
-        await shutdown()
-        print("Rebuilding companion app (this may take a moment)...")
-        try await withSpinner("Building companion app") {
-            try await buildForTesting(config: config)
-        }
-
-        let productsDir = config.companionDir + "/build/Build/Products"
-        let xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
-        guard let testrun = xctestrunPath else {
-            throw CompanionError.buildFailed("No .xctestrun found after build.")
-        }
-
-        print("Installing and starting companion on port \(config.port)...")
-        try await launchCompanion(xctestrunPath: testrun, config: config)
-        await StartupProgress.report("Waiting for iOS companion API")
-        try await withSpinner("Waiting for companion on port \(config.port)") {
-            try await waitUntilReachable(
-                host: config.host,
-                port: config.port,
-                timeoutSeconds: config.readyTimeoutSeconds
-            )
-        }
-        print(styled("Companion ready.", .bold, .green))
-    }
-
     // swiftlint:disable function_body_length - one linear startup lifecycle, timed phase by phase.
-    /// Ensures the companion is running. Builds and launches it if necessary.
+    /// Ensures the companion is running, launching the newest existing build. It never compiles one
+    /// unless the caller asked for `build_mode=rebuild`: building belongs to `amoo companion build`.
     func ensureRunning(config: CompanionConfig, force: Bool = false) async throws {
         if force {
             await shutdown(deviceUDID: config.deviceUDID)
@@ -215,10 +161,14 @@ final class CompanionManager: @unchecked Sendable {
         let phases = CompanionStartPhases.shared
         var phaseStart = ContinuousClock.now
         let bundled = hasBundledProducts(config: config)
-        await announce(bundledProductsSkippedReason(config: config))
-        let sourcesChanged = sourcesChanged(config: config, bundled: bundled)
+        // Only an explicit rebuild compiles or replaces a running companion; staleness only warns.
+        let sourcesChanged = config.buildMode == .rebuild
+        let stale = !sourcesChanged && self.sourcesChanged(config: config, bundled: bundled)
         let own = tracked(deviceUDID: config.deviceUDID)
-        phases.record("check", outcome: sourcesChanged ? "sources_changed" : "unchanged", since: phaseStart)
+        phases.record("check", outcome: sourcesChanged ? "rebuild" : stale ? "stale" : "current", since: phaseStart)
+        if stale {
+            await announce(staleNotice(config: config, bundled: bundled))
+        }
         if config.isPhysicalDevice, own?.config == config, !force, !sourcesChanged {
             print("Companion already running on physical device \(config.deviceUDID).")
             return
@@ -243,16 +193,11 @@ final class CompanionManager: @unchecked Sendable {
         let productsDir = companionProductsDirectory(config: config, bundled: bundled)
         var xctestrunPath = findXCTestRun(productsDir: productsDir, config: config)
 
-        if config.buildMode == .reuse, xctestrunPath == nil {
-            throw CompanionError
-                .buildFailed(
-                    "No cached iOS companion. Install an amoo distribution with prebuilt companions, "
-                        + "or use build_mode=auto once."
-                )
+        if !sourcesChanged, xctestrunPath == nil {
+            throw CompanionError.buildFailed(Self.missingBuildMessage(config: config))
         }
-        // `force` restarts and reinstalls; it only recompiles when there are no bundled products
-        // to reinstall (a release install cannot compile in its read-only prefix).
-        if (force && !bundled) || sourcesChanged || xctestrunPath == nil {
+        // `force` restarts and reinstalls; only an explicit rebuild compiles.
+        if sourcesChanged {
             xctestrunPath = try await buildRecordingPhase(config: config)
         } else {
             await announce(bundled ? "Using the prebuilt iOS companion from \(productsDir)." : nil)
