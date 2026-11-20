@@ -1,8 +1,8 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
+import AmooTools
 @testable import CLI
 import Foundation
-import MCPServer
 import XCTest
 
 /// A failed flow step printed "see last observed state" and the state went nowhere, so every

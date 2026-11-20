@@ -41,7 +41,7 @@ TARGETS=(
   AndroidDriver
   ProcessRunner
   GRPCService
-  MCPServer
+  AmooTools
   AuditEngine
   CommandContract
   TestSession

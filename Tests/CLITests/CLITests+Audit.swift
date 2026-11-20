@@ -1,8 +1,8 @@
 import AmooCore
+import AmooTools
 import AuditEngine
 @testable import CLI
 import Foundation
-import MCPServer
 import ProcessRunner
 import SwiftyShell
 import TestCommons
@@ -237,7 +237,7 @@ extension CLITests {
     }
 
     func testREPLBuiltinToolsIsHandledWithoutDispatch() async {
-        let definitions = MCPServer().toolDefinitions()
+        let definitions = ToolCatalog().toolDefinitions()
         let result = await test_handleBuiltin("tools", toolDefinitions: definitions)
 
         XCTAssertEqual(result, "handled")

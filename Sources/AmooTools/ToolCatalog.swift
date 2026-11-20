@@ -1,0 +1,172 @@
+// swiftlint:disable multiline_arguments
+import AmooCore
+import AuditEngine
+import GRPCService
+import TestSession
+
+public struct ToolCatalog: Sendable {
+    private let profile: ToolProfile
+    private let definitions: [ToolDefinition]
+    private let deviceService: DeviceService
+    private let executor: (any ToolExecutor)?
+    public let sessionManager: SessionManager?
+
+    public init(
+        deviceService: DeviceService = .init(),
+        executor: (any ToolExecutor)? = nil,
+        sessionManager: SessionManager? = nil,
+        profile: ToolProfile = .all
+    ) {
+        self.profile = profile
+        definitions = Self.makeDefinitions(profile: profile)
+        self.deviceService = deviceService
+        self.executor = executor
+        self.sessionManager = sessionManager
+    }
+
+    public func toolNames() -> [String] {
+        definitions.map(\.name)
+    }
+
+    public func toolDefinitions() -> [ToolDefinition] {
+        definitions
+    }
+
+    /// The tools one `amoo device` call can use: everything except those that keep state in a
+    /// long-lived process (sessions, warm companions), which only `amoo studio serve` provides.
+    public func cliToolDefinitions() -> [ToolDefinition] {
+        definitions.filter { !Self.longLivedOnlyTools.contains($0.name) }
+    }
+
+    /// Tools whose state outlives one call: a session, its report and checks, a warm companion.
+    public static let longLivedOnlyTools: Set<String> = [
+        "start_session", "end_session", "list_sessions", "get_session_report", "compile_session_to_plan",
+        "session_startup_status", "get_verification_report", "companion_warm", "companion_status"
+    ]
+
+    /// What a one-call CLI process says instead of running a long-lived-only tool.
+    public static let longLivedOnlyMessage = "This tool keeps state across calls, and `amoo device` runs one"
+        + " call per process. Lease a device with `amoo env up --json` (it starts and keeps the companion),"
+        + " drive it with `amoo device --runtime-id <id> <tool>`, and record a reusable sequence as a flow"
+        + " (`amoo flow`, `amoo generate plan --from-flow`)."
+
+    public func execute(toolName: String, arguments: [String: String]) async -> ToolResult {
+        guard profile.includes(toolName) else {
+            return ToolExecutionError(
+                code: "tool_profile_unavailable", message: "Tool is not available in this catalog profile.",
+                extra: ["catalog_profile": .string(profile.rawValue)]
+            ).result
+        }
+        guard let executor else {
+            return .error("No tool executor configured. Connect a device driver first.")
+        }
+        var result = await executor.execute(toolName: toolName, arguments: arguments)
+        if toolName == "get_capabilities", var fields = result.structuredContent?.objectValue {
+            fields["catalog_profile"] = .string(profile.rawValue)
+            if let tool = arguments["tool"] {
+                fields["available_in_profile"] = .bool(profile.includes(tool))
+            }
+            result.structuredContent = .object(fields)
+        }
+        return result
+    }
+
+    public func health() -> String {
+        deviceService.health()
+    }
+
+    private static func makeDefinitions(profile: ToolProfile) -> [ToolDefinition] {
+        // All driver-routed tools advertise an optional session_id so MCP
+        // clients that honor schema (additionalProperties: false) can route
+        // calls to a specific session created by start_session.
+        let driverRouted = (
+            DeviceTools.definitions.map { $0.categorized(.device) }
+                + ActionTools.definitions.map { $0.categorized(.action) }
+                + GestureTools.definitions.map { $0.categorized(.action) }
+                + QueryTools.definitions.map { $0.categorized(.query) }
+                + AuditTools.definitions.map { $0.categorized(.audit) }
+                + AssistantTools.definitions.map { $0.categorized(.assistant) }
+        ).map { $0.allowingSessionID() }
+
+        return (driverRouted
+            + SessionTools.definitions.map { $0.categorized(.session) }
+            + CompanionTools.definitions.map { $0.categorized(.companion) }
+            + WebViewTools.definitions.map { $0.categorized(.webView).allowingSessionID() }
+            + IntentTools.definitions.map { $0.categorized(.intent).allowingSessionID() }
+            + BatchTools.definitions.map { $0.categorized(.batch) }
+            + CapabilityDiscovery.definitions.map { $0.categorized(.query) }
+            + VerificationTools.definitions.map { $0.categorized(.session) })
+            .map(ToolContracts.enrich)
+            .map(ToolCatalogMetadata.apply)
+            .filter { profile.includes($0.name) }
+    }
+}
+
+extension ToolDefinition {
+    /// Returns a copy of the definition with `session_id` added as an optional
+    /// property. Driver-routed tools opt in to this so AI clients can scope
+    /// calls to a session created by `start_session`.
+    func allowingSessionID() -> ToolDefinition {
+        var copy = self
+        copy.properties["session_id"] = ToolInputProperty(
+            type: "string",
+            description: "Session id from start_session; routes and records this call"
+        )
+        if [
+            "find_elements",
+            "tap_element",
+            "set_text",
+            "fill_field",
+            "assert_visible",
+            "assert_enabled",
+            "assert_absent",
+            "assert_value",
+            "assert_selected", "assert_checked", "assert_state_description"
+        ].contains(name) {
+            copy.properties["parent_id"] = .init(
+                type: "string",
+                description: "Restrict to descendants of this identifier"
+            )
+        }
+        // `set_text` / `fill_field` are left out: the device-side write cannot take the pick.
+        if [
+            "find_elements",
+            "tap_element",
+            "swipe_in_direction",
+            "assert_visible",
+            "assert_enabled",
+            "assert_absent",
+            "assert_value",
+            "assert_selected", "assert_checked", "assert_state_description"
+        ].contains(name) {
+            copy.properties["index"] = .init(
+                type: "string",
+                description: "0-based index among elements matching the selector, in the order the device"
+                    + " reports them. For duplicates the selector cannot tell apart (an iPadOS tab bar that"
+                    + " exposes each tab twice). Generated XCUITest uses .element(boundBy:). Not combinable"
+                    + " with first."
+            )
+            copy.properties["first"] = .init(
+                type: "string",
+                description: "true picks the first match when several elements match. Generated XCUITest"
+                    + " uses .firstMatch. Not combinable with index."
+            )
+        }
+        if ["type_text", "set_text", "fill_field", "assert_value", "assert_state_description", "assert_talkback_speech"]
+            .contains(name) {
+            copy.properties["record_value"] = .init(
+                type: "string", description: "fixture records non-sensitive test data; default secret redacts it"
+            )
+        }
+        if DriverToolExecutor.credentialValueKey(name) != nil {
+            copy.properties["credential"] = .init(
+                type: "string",
+                description: "Sign-in value by reference, '<profile>#<field>' from amoo.config.json. amoo resolves"
+                    + " it, never returns it, and refuses a secret outside a secure field. Replaces text/value."
+            )
+        }
+        return copy
+    }
+}
+
+// swiftlint:enable multiline_arguments

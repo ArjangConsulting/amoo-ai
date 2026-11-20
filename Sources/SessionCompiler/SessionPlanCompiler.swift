@@ -5,7 +5,7 @@ import TestSession
 
 /// A step recorded in a `.amoo.json` flow file, runnable via `amoo flow` with no translation.
 /// Mirrors `TestFlow.Step` in `Sources/CLI/FlowCommand.swift` — kept separate (rather than
-/// shared) because `TestFlow` lives in the `CLI` executable target, which `MCPServer` cannot
+/// shared) because `TestFlow` lives in the `CLI` executable target, which `AmooTools` cannot
 /// depend on. Field names/order match exactly so a `CompiledSessionFlow` round-trips through
 /// the same JSON shape `amoo flow` expects.
 public struct CompiledSessionFlow: Codable, Equatable, Sendable {

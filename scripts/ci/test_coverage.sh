@@ -169,7 +169,7 @@ driver_cov = aggregate([
     "/Sources/CompanionProtocol/",
     "/Sources/ProcessRunner/",
     "/Sources/GRPCService/",
-    "/Sources/MCPServer/",
+    "/Sources/AmooTools/",
     "/Sources/SessionCompiler/",
 ])
 

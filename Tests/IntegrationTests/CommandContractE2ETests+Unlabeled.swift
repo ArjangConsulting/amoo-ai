@@ -1,8 +1,8 @@
 import AmooCore
+import AmooTools
 import CommandContract
 import CompanionProtocol
 import IOSDriver
-import MCPServer
 import XCTest
 
 /// The unlabeled-element path, end to end against a real companion.
@@ -77,7 +77,7 @@ extension CommandContractE2ETests {
         "fixture-unlabeled-dismiss-count"
     }
 
-    private func openUnlabeledFixture(on server: MCPServer) async throws {
+    private func openUnlabeledFixture(on server: ToolCatalog) async throws {
         guard Self.platform == .ios else {
             throw XCTSkip(
                 "The unlabeled fixture screen exists only in the iOS host app. The filtering this"

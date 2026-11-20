@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
 import IOSDriver
-import MCPServer
 import TestCommons
 import XCTest
 #if canImport(Darwin)
@@ -11,7 +11,7 @@ import Darwin.C
 #endif
 
 extension CommandContractE2ETests {
-    func resetFixtureApp(on server: MCPServer) async -> ToolResult {
+    func resetFixtureApp(on server: ToolCatalog) async -> ToolResult {
         _ = await server.execute(toolName: "device_terminate_app", arguments: ["app_id": Self.fixtureAppID])
         let launch = await server.execute(
             toolName: "device_launch_app",
@@ -51,7 +51,7 @@ extension CommandContractE2ETests {
     }
 
     func waitForElement(
-        on server: MCPServer,
+        on server: ToolCatalog,
         id: String? = nil,
         label: String? = nil,
         containsText: String? = nil,
@@ -122,7 +122,7 @@ extension CommandContractE2ETests {
     }
 
     func openFixtureScreen(
-        on server: MCPServer,
+        on server: ToolCatalog,
         launcherID: String,
         launcherLabel: String,
         readyID: String? = nil,
@@ -188,7 +188,7 @@ extension CommandContractE2ETests {
     }
 
     struct FixtureLauncherContext {
-        let server: MCPServer
+        let server: ToolCatalog
         let launcherID: String
         let effectiveLauncherLabel: String
         let readyID: String?
@@ -258,7 +258,7 @@ extension CommandContractE2ETests {
     /// A fresh iOS installation can require system confirmation before delivering a custom URL.
     /// App-scoped queries cannot see that modal, and relaunching the fixture does not dismiss it.
     func acceptDeepLinkConfirmationIfPresent(
-        on server: MCPServer,
+        on server: ToolCatalog,
         driver: any PlatformDriver,
         url: String
     ) async throws {

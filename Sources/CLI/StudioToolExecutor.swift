@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MCPServer
 import StudioProtocol
 
 enum StudioToolExecutorError: Error, CustomStringConvertible {

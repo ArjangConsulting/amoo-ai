@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CommandContract
 import CompanionProtocol
 import IOSDriver
-import MCPServer
 import XCTest
 #if canImport(Darwin)
 import Darwin.C
@@ -361,14 +361,14 @@ extension CommandContractE2ETests {
         }
     }
 
-    func makeServer() throws -> MCPServer {
+    func makeServer() throws -> ToolCatalog {
         let driver = try currentDriver()
-        return MCPServer(executor: DriverToolExecutor(driver: driver))
+        return ToolCatalog(executor: DriverToolExecutor(driver: driver))
     }
 
-    func makeServerWithDriver() throws -> (MCPServer, any PlatformDriver) {
+    func makeServerWithDriver() throws -> (ToolCatalog, any PlatformDriver) {
         let driver = try currentDriver()
-        let server = MCPServer(executor: DriverToolExecutor(driver: driver))
+        let server = ToolCatalog(executor: DriverToolExecutor(driver: driver))
         return (server, driver)
     }
 

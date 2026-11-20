@@ -1,4 +1,4 @@
-import MCPServer
+import AmooTools
 
 /// Rejects argument keys the tool does not declare, naming the ones it does.
 ///
@@ -7,7 +7,7 @@ import MCPServer
 /// reads like a real answer. `nil` when the call is fine or amoo has no schema for the tool (the
 /// executor reports unknown tools itself).
 func unknownArgumentMessage(tool: String, arguments: [String: String]) -> String? {
-    guard let definition = MCPServer().toolDefinitions().first(where: { $0.name == tool }) else {
+    guard let definition = ToolCatalog().toolDefinitions().first(where: { $0.name == tool }) else {
         return nil
     }
     let unknown = Set(arguments.keys).subtracting(definition.properties.keys).sorted()

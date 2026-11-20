@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MCPServer
 import SwiftyTerminal
 import SwiftyTerminalLineEditor
 #if canImport(Darwin)
@@ -73,8 +73,8 @@ private func runXCUITestREPL(
 
     let driver = makeDriver(companion)
     let executor = DriverToolExecutor(driver: driver)
-    let mcpServer = MCPServer()
-    let toolDefinitions = mcpServer.toolDefinitions()
+    let toolCatalog = ToolCatalog()
+    let toolDefinitions = toolCatalog.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")
@@ -109,8 +109,8 @@ private func runAndroidREPL(
         serial: serial.isEmpty ? nil : serial
     )
     let executor = DriverToolExecutor(driver: driver)
-    let mcpServer = MCPServer()
-    let toolDefinitions = mcpServer.toolDefinitions()
+    let toolCatalog = ToolCatalog()
+    let toolDefinitions = toolCatalog.toolDefinitions()
     REPLCompletionCatalog(toolDefinitions: toolDefinitions).install()
 
     print("")

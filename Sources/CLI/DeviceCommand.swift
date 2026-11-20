@@ -1,8 +1,8 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CompanionProtocol
 import IOSDriver
-import MCPServer
 import ProcessRunner
 import SwiftyTerminal
 
@@ -128,7 +128,7 @@ Defaults:
 """
 
 func renderDeviceHelp() -> String {
-    let tools = MCPServer().cliToolDefinitions().sorted { $0.name < $1.name }.map { definition in
+    let tools = ToolCatalog().cliToolDefinitions().sorted { $0.name < $1.name }.map { definition in
         let arguments = definition.properties.keys.filter { $0 != "session_id" }.sorted().map { key in
             "[\(key)=<\(definition.properties[key]?.type ?? "string")>]"
         }.joined(separator: " ")

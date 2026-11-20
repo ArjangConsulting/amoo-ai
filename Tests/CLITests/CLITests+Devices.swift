@@ -1,7 +1,7 @@
+import AmooTools
 import AuditEngine
 @testable import CLI
 import Foundation
-import MCPServer
 import ProcessRunner
 import SwiftyShell
 import XCTest
@@ -194,7 +194,7 @@ extension CLITests {
     }
 
     func testREPLCompletionCatalogIncludesTapElementTool() {
-        let catalog = REPLCompletionCatalog(toolDefinitions: MCPServer().toolDefinitions())
+        let catalog = REPLCompletionCatalog(toolDefinitions: ToolCatalog().toolDefinitions())
         XCTAssertTrue(catalog.rootCandidates.contains("tap_element"))
         // session_id is auto-injected on every driver-routed tool so MCP
         // clients can scope the call to a specific start_session result.

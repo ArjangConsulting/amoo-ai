@@ -1,6 +1,6 @@
 import AmooLogging
+import AmooTools
 import Foundation
-import MCPServer
 import TestSession
 
 private let logger = AmooLogger.forType(DeviceRuntime.self)

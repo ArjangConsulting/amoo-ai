@@ -1,9 +1,9 @@
 import AmooCore
+import AmooTools
 import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MCPServer
 import OllamaClient
 import ProcessRunner
 import SwiftyTerminal
@@ -185,7 +185,7 @@ func runChatCommand(options: ChatCommandOptions) async -> CLIResult {
         sessionManager: sessionManager,
         foreignBuildDetector: ForeignBuildDetector()
     )
-    let server = MCPServer(executor: executor, sessionManager: sessionManager)
+    let server = ToolCatalog(executor: executor, sessionManager: sessionManager)
 
     let systemPrompt = """
     You are an AI assistant for mobile app testing using the amoo framework.
