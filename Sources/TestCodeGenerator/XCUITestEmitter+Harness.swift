@@ -99,10 +99,14 @@ extension XCUITestEmitter {
                 source = source.replacingOccurrences(of: "final class ", with: "@MainActor\nfinal class ")
             }
         }
-        if let expression = context.factoryOverride,
+        let keyed = context.factoryOverrides.keys.sorted()
+            .first { requirements?.launchEnvironment[$0] != nil }
+        if let expression = keyed.flatMap({ context.factoryOverrides[$0] }) ?? context.factoryOverride,
            let insertion = source.range(of: "    override func setUp") {
             source.insert(
-                contentsOf: Self.factoryOverrideSource(expression, context: context, requirements: requirements),
+                contentsOf: Self.factoryOverrideSource(
+                    expression, context: context, requirements: requirements, ownedKey: keyed
+                ),
                 at: insertion.lowerBound
             )
         }
@@ -124,7 +128,8 @@ extension XCUITestEmitter {
     static func factoryOverrideSource(
         _ expression: String,
         context: StudioTestContext,
-        requirements: StudioTestRequirements?
+        requirements: StudioTestRequirements?,
+        ownedKey: String? = nil
     ) -> String {
         var configuration: [String] = []
         if context.harnessLaunchesApp, let requirements {
@@ -132,7 +137,7 @@ extension XCUITestEmitter {
                 let joined = requirements.launchArguments.map(literal).joined(separator: ", ")
                 configuration.append("        app.launchArguments += [\(joined)]")
             }
-            for (key, value) in requirements.launchEnvironment.sorted(by: { $0.key < $1.key }) {
+            for (key, value) in requirements.launchEnvironment.sorted(by: { $0.key < $1.key }) where key != ownedKey {
                 configuration.append("        app.launchEnvironment[\(literal(key))] = \(literal(value))")
             }
         }

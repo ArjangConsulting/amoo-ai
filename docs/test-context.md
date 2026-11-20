@@ -40,6 +40,11 @@ command still overrides it.
   // generated `makeApplication()` override instead, since the harness launches what it returns.
   "harnessLaunchesApp": true,
 
+  // Recorded launch-environment key -> the makeApplication() expression to use when the flow
+  // launched with it, instead of factoryOverride. The chosen factory owns that key, so the
+  // generated override does not assign it again.
+  "factoryOverrides": { "APP_MOCK_SERVER_URL": "XCUIApplication().withMockServer()" },
+
   // true to override the base class's synchronous setUpWithError (and tearDownWithError, unless
   // `harnessOwnsApp`, whose harness attaches its own failure diagnostics) instead of XCTest's async
   // setUp() / tearDown(), the default for a custom base class. Declare it when the harness's async
