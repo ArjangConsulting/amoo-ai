@@ -392,24 +392,16 @@ class UIAutomatorBridge {
     }
 
     fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
-        device.waitForIdle(2000)
-        // The only path that still needs live [UiObject2] handles: the others just read the tree,
-        // but this one has to type into the node it finds. Its per-node property reads are the cost
-        // documented on [NodeRecord], which is acceptable for a single text entry and not for a
-        // query issued after every action.
-        val matchingHandles = uiObjectTree().filter { uiMatches(it, resourceId, label, containsText) }
-        val candidates = preferResourceID(matchingHandles, resourceId) { element ->
-            runCatching { element.resourceName }.getOrNull().orEmpty()
-        }
-        // Ambiguous selectors must not mutate an arbitrary node.
-        val target = candidates.singleOrNull()
-        if (target == null) {
+        val matches = uiObjectTree().mapNotNull { textTarget(it, resourceId, label, containsText) }
+        val candidates = preferResourceID(matches, resourceId, TextTarget::resourceName)
+        val match = candidates.singleOrNull()
+        if (match == null) {
             Log.w(LOG_TAG, "set_text no_single_target candidates=${candidates.size}")
             return false
         }
-        val secure = matchingElements(currentElements(), resourceId, label, containsText)
-            .singleOrNull()?.isSecureTextEntry == true
-        val before = target.text.orEmpty()
+        val target = match.handle
+        val secure = match.secure
+        val before = match.text
         target.click()
         target.text = value
         // A Compose field shows the new value on its next recomposition, so the first read can
@@ -1009,32 +1001,40 @@ class UIAutomatorBridge {
         )
     }
 
-    /** [matches] over a live handle. Only [setText] needs this; see the note there. */
-    private fun uiMatches(
+    private data class TextTarget(
+        val handle: UiObject2,
+        val resourceName: String,
+        val text: String,
+        val secure: Boolean
+    )
+
+    /** Reads the selector fields and password state from one refresh of the writable node. */
+    private fun textTarget(
         element: UiObject2,
         resourceId: String?,
         text: String?,
         containsText: String?
-    ): Boolean {
-        val elementText = runCatching { element.text?.toString() }.getOrNull().orEmpty()
-        val contentDescription = runCatching { element.contentDescription?.toString() }.getOrNull().orEmpty()
-        val resourceName = runCatching { element.resourceName }.getOrNull().orEmpty()
+    ): TextTarget? {
+        val node = runCatching { element.accessibilityNodeInfo }.getOrNull() ?: return null
+        val elementText = node.text?.toString().orEmpty()
+        val contentDescription = node.contentDescription?.toString().orEmpty()
+        val resourceName = node.viewIdResourceName.orEmpty()
         val normalizedID = normalizedElementID(resourceName, contentDescription)
 
         if (resourceId != null && resourceId != normalizedID &&
             resourceId != contentDescription && resourceId != resourceName
         ) {
-            return false
+            return null
         }
         if (text != null && text != elementText && text != contentDescription) {
-            return false
+            return null
         }
         if (containsText != null && !elementText.contains(containsText) &&
             !contentDescription.contains(containsText)
         ) {
-            return false
+            return null
         }
-        return true
+        return TextTarget(element, resourceName, elementText, node.isPassword)
     }
 
     private fun uiObjectTree(): List<UiObject2> {
