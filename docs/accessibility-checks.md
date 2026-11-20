@@ -59,12 +59,17 @@ reason. It is never reported as passed.
 | `large_text` | Text size → largest | `simctl ui content_size accessibility-extra-extra-extra-large` | `settings put system font_scale 2.0` |
 | `increase_contrast` | Increased contrast on | `simctl ui increase_contrast` | `settings secure high_text_contrast_enabled` |
 
+On a physical iPhone the same settings go through `devicectl device info appearance` (read) and
+`devicectl device settings appearance` (`--mode`, `--text-size`, `--increase-contrast`). The largest
+text sizes also need Larger Accessibility Sizes switched on; the check turns it on for the `large_text`
+pass and puts it back as it was. These commands need a current Xcode; with an older `devicectl` the
+configurations are reported as not evaluated and the device is left unchanged.
+
 ## What a call does
 
 1. It reads the original value of every setting the opted-in configurations change. If a setting
    cannot be read, that configuration is not evaluated and nothing is changed, because the original
-   could not be put back. Physical iOS devices fall in this case, since `devicectl` cannot read these
-   settings.
+   could not be put back.
 2. It runs the **default** pass with every touched setting at its default (light, standard text,
    contrast off), so the baseline does not depend on how the device was left.
 3. It runs one more pass per opted-in configuration, with only that setting changed. After each
@@ -92,10 +97,11 @@ checked. They affect only that call and never change the project's list:
 | Argument | Effect |
 | --- | --- |
 | `exclude_checks=contrast,target_size` | Skips those opted-in checks. They are reported under `exclusions`, not as passed. |
+| `exclude_configurations=large_text` | Skips those opted-in configurations' passes, without changing their settings. Reported under `exclusions`. |
 | `exclude_elements=contrast:footer.legal,names:Close` | Leaves out issues of that check on that element id or exact label. The issues stay in the pass's `excludedIssues`. |
 | `exclude_reason=...` | Records why, in the report and the reply. |
 
-You can only exclude a check that the project opted in to. Naming any other check is rejected, so a
+You can only exclude a check or configuration that the project opted in to. Naming any other check is rejected, so a
 typo cannot hide a different check.
 
 ## Recording and generated tests

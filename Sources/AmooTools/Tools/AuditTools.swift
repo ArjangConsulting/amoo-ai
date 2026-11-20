@@ -25,6 +25,11 @@ public enum AuditTools {
                     description: "Comma-separated opted-in checks to skip for this call only,"
                         + " e.g. contrast,target_size. Reported as excluded, never as passed."
                 ),
+                "exclude_configurations": .init(
+                    type: "string",
+                    description: "Comma-separated opted-in configurations to skip for this call only,"
+                        + " e.g. large_text. Reported as excluded, never as passed."
+                ),
                 "exclude_elements": .init(
                     type: "string",
                     description: "Comma-separated <check>:<element id or exact label> pairs whose issues are not"

@@ -11,6 +11,9 @@ import ProcessRunner
 /// permission state.
 public struct PhysicalDeviceHostBackend: IOSHostBackend {
     private let devicectl: any DeviceCtlRunning
+    /// Larger Accessibility Sizes as first read per device, so restoring a standard text size also
+    /// puts that toggle back instead of leaving it switched on.
+    private let largerSizesBaseline = LargerAccessibilitySizesBaseline()
 
     public init(devicectl: any DeviceCtlRunning = DeviceCtlRunner()) {
         self.devicectl = devicectl
@@ -179,5 +182,83 @@ package extension PhysicalDeviceHostBackend {
             let version = app["version"] as? String
             return AppInfo(appID: bundleID, name: name, version: version)
         }
+    }
+
+    // MARK: - Display settings
+
+    public func displaySetting(device: String, setting: DisplaySetting) async throws -> String {
+        let json = try await devicectl.appearanceSettings(device: device)
+        guard let settings = Self.parseAppearance(json: json) else {
+            throw AmooError.unsupportedCapability(
+                key: "config.\(setting.rawValue)",
+                reason: "devicectl did not report the device's appearance settings; update Xcode."
+            )
+        }
+        await largerSizesBaseline.record(settings.largerSizes, for: device)
+        guard let value = settings.values[setting] else {
+            throw AmooError.unsupportedCapability(
+                key: "config.\(setting.rawValue)", reason: "devicectl did not report \(setting.rawValue)."
+            )
+        }
+        return value
+    }
+
+    public func setDisplaySetting(device: String, setting: DisplaySetting, value: String) async throws -> String {
+        guard let canonical = setting.canonicalValue(value, for: .ios) else {
+            throw AmooError.commandFailed(
+                command: "devicectl device settings appearance", output: "'\(value)' is not a value iOS accepts."
+            )
+        }
+        let largerSizesWereOn = await largerSizesBaseline.value(for: device) == true
+        let options: [String] = switch setting {
+        case .appearance:
+            ["--mode", canonical]
+        case .increaseContrast:
+            ["--increase-contrast", canonical == "enabled" ? "on" : "off"]
+        case .textSize:
+            // Accessibility sizes need Larger Accessibility Sizes on; a standard size gets the
+            // toggle back as it was first read.
+            ["--text-size", canonical, "--larger-accessibility-sizes"] + [
+                canonical.hasPrefix("accessibility-") || largerSizesWereOn ? "on" : "off"
+            ]
+        }
+        try await devicectl.setAppearanceSettings(device: device, options: options)
+        return try await displaySetting(device: device, setting: setting)
+    }
+
+    /// Parses `devicectl device info appearance --json-output -`. Text sizes arrive as display names
+    /// ("Accessibility Extra Large") and become the content-size spelling simctl also uses.
+    static func parseAppearance(json: String) -> (values: [DisplaySetting: String], largerSizes: Bool?)? {
+        guard let data = json.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let result = root["result"] as? [String: Any] else { return nil }
+        var values: [DisplaySetting: String] = [:]
+        if let style = (result["userInterfaceStyle"] as? String)?.lowercased(), ["light", "dark"].contains(style) {
+            values[.appearance] = style
+        }
+        if let size = result["textSize"] as? String {
+            let spelled = size.lowercased().split(separator: " ").joined(separator: "-")
+            if DisplaySetting.iosTextSizes.contains(spelled) {
+                values[.textSize] = spelled
+            }
+        }
+        if let contrast = result["increaseContrast"] as? Bool {
+            values[.increaseContrast] = contrast ? "enabled" : "disabled"
+        }
+        return (values, result["largerAccessibilitySizesEnabled"] as? Bool)
+    }
+}
+
+/// The first Larger Accessibility Sizes value read per device.
+private actor LargerAccessibilitySizesBaseline {
+    private var values: [String: Bool] = [:]
+
+    func record(_ value: Bool?, for device: String) {
+        guard let value, values[device] == nil else { return }
+        values[device] = value
+    }
+
+    func value(for device: String) -> Bool? {
+        values[device]
     }
 }
