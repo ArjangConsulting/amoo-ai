@@ -11,9 +11,7 @@ func translatingMobileKitErrors<Result>(_ body: () async throws -> Result) async
     do {
         return try await body()
     } catch let MobileKitError.commandFailed(command, exitCode, output) {
-        throw ProcessRunnerError.nonZeroExit(
-            command: command.joined(separator: " "), exitCode: exitCode, stderr: output
-        )
+        throw ProcessRunnerError.failed(command: command.joined(separator: " "), exitCode: exitCode, output: output)
     } catch let MobileKitError.timedOut(operation, seconds) {
         throw ProcessRunnerError.deviceUnresponsive(operation: operation, seconds: Int(seconds))
     }
