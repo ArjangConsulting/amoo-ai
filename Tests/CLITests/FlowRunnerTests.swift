@@ -326,3 +326,13 @@ final class FlowRunnerTests: XCTestCase {
 }
 
 // swiftlint:enable multiline_arguments
+
+final class FlowSystemDialogSwitchTests: XCTestCase {
+    func testAFlowCanAnswerSystemDialogsForEveryStep() throws {
+        let json = #"{"platform": "ios", "dismiss_system_dialogs": true, "steps": [{"tool": "current_app"}]}"#
+        let flow = try JSONDecoder().decode(TestFlow.self, from: Data(json.utf8))
+        XCTAssertTrue(flow.dismissSystemDialogs)
+        let plain = try JSONDecoder().decode(TestFlow.self, from: Data(#"{"platform": "ios", "steps": []}"#.utf8))
+        XCTAssertFalse(plain.dismissSystemDialogs)
+    }
+}

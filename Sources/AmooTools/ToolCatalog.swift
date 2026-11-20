@@ -112,6 +112,7 @@ extension ToolDefinition {
             type: "string",
             description: "Session id from start_session; routes and records this call"
         )
+        copy = copy.allowingSystemDialogDismissal()
         if [
             "find_elements",
             "tap_element",
@@ -170,3 +171,18 @@ extension ToolDefinition {
 }
 
 // swiftlint:enable multiline_arguments
+
+extension ToolDefinition {
+    /// Adds `dismiss_system_dialogs` to the steps a system dialog in front can make fail.
+    func allowingSystemDialogDismissal() -> ToolDefinition {
+        guard DriverToolExecutor.dialogSensitiveTools.union(["device_launch_app"]).contains(name) else { return self }
+        var copy = self
+        copy.properties["dismiss_system_dialogs"] = .init(
+            type: "boolean",
+            description: "If the step fails behind a system dialog (another app's \"isn't responding\", iOS"
+                + " \"Save Password?\"), press its harmless button (Wait, Not Now, Cancel) and retry once."
+                + " Never answers the target app's own ANR. Default false; a flow can set it for every step"
+        )
+        return copy
+    }
+}

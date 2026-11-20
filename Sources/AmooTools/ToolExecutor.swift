@@ -46,6 +46,9 @@ public actor DriverToolExecutor: ToolExecutor {
     /// The project's opted-in accessibility checks, read per call like `screenshotPolicy`. Defaults to
     /// `notConfigured`, so `check_accessibility` refuses until a project opts in.
     let accessibilityPolicy: @Sendable () -> AccessibilityCheckResolution
+    /// `dismiss_system_dialogs` for calls that do not say: a flow's top-level switch sets it.
+    var dismissSystemDialogsByDefault = false
+
     /// Every secret this executor has resolved, scrubbed from every later result it returns.
     var credentialRedactor = ArtifactRedactor()
     /// The last app amoo launched per session id (`default` without one), for the credential gate.
@@ -135,6 +138,9 @@ public actor DriverToolExecutor: ToolExecutor {
             result = try await CredentialDispatch.$fieldClass.withValue(credentialClass) {
                 try await self.dispatch(toolName: dispatchTool, arguments: dispatchArguments)
             }
+            result = try await retryingPastSystemDialog(
+                result, tool: dispatchTool, arguments: dispatchArguments, credentialClass: credentialClass
+            )
             noteLaunch(toolName: executionTool, arguments: executionArguments, result: result)
         } catch let error as ToolExecutionError {
             result = error.result
@@ -153,6 +159,7 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         result = await diagnoseConnectivityFailure(result, arguments: executionArguments)
         result = await diagnoseSelectorMiss(result, tool: executionTool, arguments: executionArguments)
+        result = await diagnoseBlockingDialog(result, tool: executionTool, arguments: executionArguments)
         result = outcomeFields(result, tool: executionTool)
         if !credentialRedactor.isEmpty {
             result = result.redacted(using: credentialRedactor)

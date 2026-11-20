@@ -335,6 +335,16 @@ one JSON speech expectation per move. Both restore original service/TTS settings
 is silent and does not verify audible output or touch gestures. See
 [provider requirements and limits](accessibility-and-voiceover.md#android-native-and-talkback-providers).
 
+### System dialogs in front of the app
+
+When an element step fails while a system dialog holds the screen (Android's "<app> isn't responding",
+an iOS system alert or sheet such as "Save Password?"), the failure names it: `blocking_dialog` holds its
+title and buttons. `dismiss_system_dialogs=true` on the step, or `"dismiss_system_dialogs": true` at the
+top of a flow for every step, lets amoo press the dialog's harmless button (Wait, Not Now, Cancel) and run
+the step once more; the result carries `dismissed_dialog`. It never presses Save, Allow, OK or Close app,
+and never answers the target app's own "isn't responding", which is judged by a distinctive part of its
+package id in the title: that hang is a finding.
+
 `device_health [app_id=...]` independently probes device transport and companion RPC under bounded
 deadlines. Optional app checks report foreground identity and semantic readiness separately from
 render readiness. Transport failures remain environment failures, not app assertion failures.
