@@ -8,7 +8,7 @@ public actor SessionManager {
     private let store: (any SessionStore)?
     private var sessions: [String: TestSession] = [:]
     /// Reports loaded from disk for sessions this process never held live — the
-    /// path that lets history outlive an `amoo mcp serve` restart.
+    /// path that lets history outlive an `amoo studio serve` restart.
     private var closedReports: [String: SessionReport] = [:]
     /// Recorded-but-not-yet-written action counts and last flush times, per session.
     private var unflushedActions: [String: Int] = [:]

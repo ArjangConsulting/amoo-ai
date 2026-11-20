@@ -14,7 +14,7 @@ public protocol ToolExecutor: Sendable {
 
 public actor DriverToolExecutor: ToolExecutor {
     /// The default driver used when a tool call does not specify a `session_id`.
-    /// Kept for backward compatibility with the original `amoo mcp serve` flow.
+    /// Kept for backward compatibility with the original single-device flow.
     let runTelemetry: RunTelemetryStore
     let telemetryRunID: String
     var sessionRuns: [String: String] = [:]
@@ -29,20 +29,20 @@ public actor DriverToolExecutor: ToolExecutor {
     let sessionManager: SessionManager?
     /// Probes for a concurrent `xcodebuild`/`xctest` that amoo did not start, so `start_session`
     /// and `device_install_app` can warn the caller that an install may race or be killed.
-    /// Defaults to `.disabled` so unit tests stay hermetic; `amoo mcp serve` / `amoo device`
+    /// Defaults to `.disabled` so unit tests stay hermetic; `amoo studio serve` / `amoo device`
     /// pass a live one.
     let foreignBuildDetector: ForeignBuildDetector
     /// Resolves a WebView debugging client for `webview_eval` / `webview_dom`. Defaults to
     /// `UnconfiguredWebInspector` so those tools report "not configured" rather than guess a
-    /// transport; `amoo mcp serve` / `amoo device` pass a live resolver.
+    /// transport; `amoo studio serve` / `amoo device` pass a live resolver.
     let webInspector: any WebInspecting
-    /// The platform this executor was started for (`amoo mcp serve --platform`). Tools that take
+    /// The platform this executor was started for (`--platform`). Tools that take
     /// an optional `platform` argument fall back to it rather than to iOS.
     let defaultPlatform: Platform?
     /// Resolves `credential` references; the default finds `amoo.config.json` and has no keychain.
     let credentialResolver: CredentialResolver
     /// The project's screenshot defaults, read at capture time so an edit to `amoo.config.json` applies
-    /// to the next capture. Defaults to `standard`; `amoo mcp serve` / `amoo device` read the project config.
+    /// to the next capture. Defaults to `standard`; `amoo studio serve` / `amoo device` read the project config.
     let screenshotPolicy: @Sendable () -> ScreenshotPolicy
     /// Every secret this executor has resolved, scrubbed from every later result it returns.
     var credentialRedactor = ArtifactRedactor()

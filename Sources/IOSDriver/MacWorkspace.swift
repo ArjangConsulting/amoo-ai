@@ -90,7 +90,7 @@ public struct SystemMacWorkspace: MacWorkspace {
     }
 
     /// Polls the running instances rather than `NSRunningApplication.isTerminated`, which AppKit
-    /// updates on the main run loop, one a command-line host such as `amoo mcp serve` never runs.
+    /// updates on the main run loop, one a command-line host such as `amoo device` never runs.
     /// Launching before the old instance is gone attached to the dying process and left no window.
     private static func waitUntilGone(_ bundleID: String, seconds: Double) async throws -> Bool {
         let deadline = Date().addingTimeInterval(seconds)

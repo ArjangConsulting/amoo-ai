@@ -8,7 +8,7 @@ public enum CapabilityDiscovery {
         name: "get_capabilities",
         description: "Compact binary, invocation and assertion discovery without booting a device."
             + " Query tool=<name> for its exact argument schema; platform for provider support;"
-            + " session_id for runtime identity. Prefer typed MCP calls and run_steps over shell strings.",
+            + " session_id for runtime identity. Prefer run_steps over separate calls for known sequences.",
         properties: [
             "tool": .init(type: "string", description: "Return only this tool's installed schema"),
             "platform": .init(type: "string", description: "ios, android or macos"),
@@ -23,12 +23,16 @@ public enum CapabilityDiscovery {
                 throw ToolExecutionError(code: "unknown_tool", message: "Unknown tool. Query get_capabilities first.")
             }
             fields["tool"] = .string(tool)
+            if MCPServer.longLivedOnlyTools.contains(tool) {
+                fields["cli"] = .string(MCPServer.longLivedOnlyMessage)
+            }
             fields["arguments"] = definition.inputSchemaValue()
             fields["read_only"] = .bool(definition.readOnly == true)
         } else {
             fields["invocation"] = .object([
-                "preferred": .string("typed MCP tools"),
-                "cli": .string("amoo device --runtime-id <id> --json <tool> --arguments-json @arguments.json"),
+                "preferred": .string("amoo device --runtime-id <id> --json <tool> --arguments-json @arguments.json"),
+                "lease": .string("amoo env up --platform <p> --json; amoo env down --runtime-id <id>"),
+                "flow": .string("amoo flow <file.amoo.json> --runtime-id <id> --output-dir <dir>"),
                 "runtime_flag": .string("--runtime-id"), "runtime_environment": .string("AMOO_RUNTIME_ID"),
                 "schema_query": .string("amoo capabilities --tool <name>"),
                 "batch": .string("run_steps: up to 20 steps; continue_on_error for independent checks")
@@ -37,7 +41,7 @@ public enum CapabilityDiscovery {
                 "query": .string("find_elements: scoped selectors, limit, offset, response_mode=compact"),
                 "incremental": .string("get_screen_context screen_token; assert_screen_changed from_token"),
                 "screenshot": .string("take_screenshot: scale, output, return_image=false"),
-                "coverage": .string("start_session checks; assertions check_id; get_verification_report"),
+                "coverage": .string("assertions with timeout_ms; tap_element expect_*; flow report.json"),
                 "profiles": .array(ToolProfile.allCases.map { .string($0.rawValue) })
             ])
             fields["binary"] = .object([

@@ -40,6 +40,11 @@ func devicePreflight(
 /// Resolves the runtime's endpoint into `options`, then runs the preflight checks; a failure is the
 /// finished result to print.
 func prepareDeviceCommand(_ options: DeviceCommandOptions) async -> DeviceCommandPreparation {
+    if MCPServer.longLivedOnlyTools.contains(options.tool) {
+        return .finished(deviceCommandResult(
+            options: options, content: MCPServer.longLivedOnlyMessage, isError: true, structured: nil
+        ))
+    }
     switch options.applyingRuntime() {
     case let .failure(error):
         return .finished(deviceAccessRefusal(options: options, error: error))

@@ -354,7 +354,7 @@ func runCompanionCommand(
 
 /// Brings the companion up and leaves it running.
 ///
-/// Without this, the only ways to start a companion were `mcp serve` + `start_session`, `chat`, and
+/// Without this, the only ways to start a companion were a session server + `start_session`, `chat`, and
 /// the REPL — so anyone driving `amoo device <tool>` straight from a shell got a bare
 /// "Connection refused" on port 22087 with nothing telling them what to run.
 func runIOSCompanionStart(

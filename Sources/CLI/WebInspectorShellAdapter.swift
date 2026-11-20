@@ -16,7 +16,7 @@ struct WebInspectorShellAdapter: WebInspectorShell {
     }
 }
 
-/// The live resolver used by `amoo device` and `amoo mcp serve`.
+/// The live resolver used by `amoo device` and `amoo studio serve`.
 func makeWebInspecting(processRunner: any ProcessRunner) -> any WebInspecting {
     PlatformWebInspecting(shell: WebInspectorShellAdapter(processRunner: processRunner))
 }

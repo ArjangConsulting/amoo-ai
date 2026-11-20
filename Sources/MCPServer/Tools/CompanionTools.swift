@@ -1,5 +1,5 @@
 /// Companion lifecycle tools, exposed only when the server runs with session management
-/// (`amoo mcp serve`). They let an agent move the minutes-long first-start build off the
+/// (`amoo studio serve`). They let an agent move the minutes-long first-start build off the
 /// critical path instead of paying it inside the first `start_session`.
 public enum CompanionTools {
     public static let names = definitions.map(\.name)
@@ -11,8 +11,8 @@ public enum CompanionTools {
             description: "Start building + installing the companion test bundle in the background and"
                 + " return immediately. The build is the slow (minutes-long) part of the first"
                 + " start_session; running this as step 0 moves that wait off the critical path."
-                +
-                " Poll companion_status until built, then call start_session to launch it. Requires `amoo mcp serve`.",
+                + " Poll companion_status until built, then call start_session to launch it."
+                + " Requires a long-lived host (`amoo studio serve`).",
             properties: [
                 "platform": .init(type: "string", description: "'ios', 'android' or 'macos'. Defaults to 'ios'."),
                 "device_hint": .init(

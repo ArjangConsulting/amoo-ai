@@ -331,7 +331,7 @@ extension DriverToolExecutor {
         let returnImage = boolArgument(arguments["return_image"]) ?? policy.returnImage
         // Always saved, inline or not: the path costs a few tokens and the client reads the file only
         // when it needs pixels again, instead of carrying an image through every later turn. Scratch
-        // captures live in a per-session temp folder that `amoo mcp serve` prunes once stale.
+        // captures live in a per-session temp folder that the long-lived host prunes once stale.
         let output = arguments["output"].flatMap { $0.isEmpty ? nil : $0 }
             ?? Self.scratchScreenshotPath(sessionID: arguments["session_id"], format: actualFormat)
         if let output {

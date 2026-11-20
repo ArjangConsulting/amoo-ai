@@ -31,7 +31,7 @@ final class DeviceHelpDriftTests: XCTestCase {
         for entry in Self.helpEntries() {
             XCTAssertTrue(
                 defined.contains(entry.tool),
-                "amoo device --help lists '\(entry.tool)', which is not a registered MCP tool."
+                "amoo device --help lists '\(entry.tool)', which is not a registered tool."
             )
         }
     }
@@ -56,14 +56,15 @@ final class DeviceHelpDriftTests: XCTestCase {
 
     func testEveryToolIsListedOrExplicitlyOmitted() {
         let listed = Set(Self.helpEntries().map(\.tool))
-        let missing = MCPServer().toolDefinitions()
+        // Long-lived-only tools are not reachable through `amoo device`, which refuses them.
+        let missing = MCPServer().cliToolDefinitions()
             .map(\.name)
             .filter { !listed.contains($0) && !Self.intentionallyOmitted.contains($0) }
             .sorted()
 
         XCTAssertTrue(
             missing.isEmpty,
-            "New MCP tool(s) \(missing.joined(separator: ", ")) are reachable through `amoo device`"
+            "New tool(s) \(missing.joined(separator: ", ")) are reachable through `amoo device`"
                 + " but absent from its --help. List them, or add them to intentionallyOmitted."
         )
     }

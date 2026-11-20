@@ -138,7 +138,7 @@ private func parseDeviceToolArguments(_ remaining: [String]) -> Result<[String: 
     }
 
     // Newline-joined rather than comma-joined so a value may contain a comma; the parser accepts
-    // either separator, keeping the comma form MCP clients already send. The trailing newline is
+    // either separator, keeping the comma form flows and run_steps already send. The trailing newline is
     // load-bearing: it marks the string as newline-separated even when there is a single pair,
     // which is otherwise indistinguishable from a comma-separated one and would see a lone value
     // like `LOCALES=en,fr,de` split back apart.

@@ -21,7 +21,7 @@ extension SessionTools {
             "port": .init(
                 type: "string",
                 description: "Optional TCP port for this session's companion (1024-65535). Defaults to"
-                    + " the port `amoo mcp serve` was started with, else a stable per-device port, so"
+                    + " the port the host was started with, else a stable per-device port, so"
                     + " sessions on different simulators/emulators can run at once. Set it to move off"
                     + " a port another process holds."
             ),

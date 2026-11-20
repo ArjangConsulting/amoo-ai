@@ -76,7 +76,7 @@ extension CompanionManager {
 
 /// `xcodebuild` companion runners for `udid` whose parent is gone (reparented to launchd).
 ///
-/// An `amoo mcp serve` that was killed or crashed leaves its `xcodebuild test-without-building`
+/// An amoo host process that was killed or crashed leaves its `xcodebuild test-without-building`
 /// child running, and with it the runner app holding the port. A live owner is the runner's parent,
 /// so pid 1 as the parent is what tells an orphan from a companion another amoo is using.
 func parseOrphanedCompanionRunners(psOutput: String, udid: String) -> [Int32] {
