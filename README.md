@@ -78,9 +78,9 @@ amoo no longer runs an MCP server. If you registered one (`install-mcp.sh`, `cla
 from an older release), remove that entry: `amoo mcp serve` now only prints how to use the CLI.
 
 In Claude Code, the optional **`amoo-live`** mod (`claude plugin install amoo-live@amoo`) adds a
-live pane while an agent drives a device. It shows a mirror of the device (in Ghostty and kitty),
-per-session actions and progress, pause/resume/retry controls, recording health, ended-session
-artifacts, and toasts on failed assertions. It is experimental
+live pane while an agent drives a device with the CLI. It shows a mirror of the device (in Ghostty
+and kitty), per-device actions and progress, pause/resume/retry controls, the last flow's report,
+and toasts on failed assertions. It is experimental
 and Claude-only; see [amoo-live](docs/amoo-live.md).
 
 Run `amoo init` in a terminal for guided device setup. It prepares independent controlled simulators

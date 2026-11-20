@@ -1,15 +1,16 @@
 # amoo-live: a live device pane for Claude Code
 
 `plugins/amoo-live` is a Claude Code **mod**: a plugin whose TypeScript hooks module runs inside
-Claude Code. While an agent drives a device through the amoo MCP server, it shows:
+Claude Code. While an agent drives a device with the amoo CLI (`amoo env up`, `amoo device`,
+`amoo flow`, `amoo env down`, run through the Bash tool), it shows:
 
 - **A live mirror** of the device in a side pane, about 2 frames a second on simulators.
-- **Separate histories for each session**, with a device/session selector when several exist.
+- **Separate histories for each leased device**, with a selector when several exist.
 - **Pending and completed actions**, their elapsed time and ✓/✗ results, with typed text reduced to its length.
 - **Pause, resume and retry controls** for the mirror, plus frame age and measured capture rate.
-- **A status line** with the selected session's lifecycle and recording health.
-- **Ended-session artifacts**: action and warning counts, copyable plan/flow paths and artifact errors.
-- **Toasts** for a failed `assert_*` call or a `recording_health` of `failed` at `end_session`.
+- **A status line** with the selected device's app and state.
+- **The last flow's files**: copyable flow and `report.json` paths, kept after `amoo env down`.
+- **Toasts** for a failed `assert_*` call or a failed `amoo flow`.
 
 This implementation is **Claude Code only and experimental**. It is validated with Claude Code
 2.1.309; the underlying mods framework requires terminal version 2.1.287 or later. Other clients
@@ -18,8 +19,7 @@ see [OpenAI integration options](#openai-integration-options).
 
 ## Install
 
-Requires the `amoo` CLI and the amoo MCP server, either from the `amoo` plugin or configured
-yourself.
+Requires the `amoo` CLI. The mod reads the agent's Bash calls, so it needs no server.
 
 ```bash
 claude plugin marketplace add ArjangConsulting/amoo-ai
@@ -49,38 +49,45 @@ user settings are left alone. Released `amoo` builds (0.2.1 and earlier) do not 
 so use the debug variant until it ships. If the stream cannot start or exits, the pane shows its
 exit code and last output.
 
-The pane opens as `start_session` begins, so it can show a cold start before a session identifier
-exists. Unasked panes appear at terminals of 144 columns or wider, or 110 columns once the user
+The pane opens as `amoo env up` begins, so it can show a cold start before a runtime id exists. Unasked panes appear at terminals of 144 columns or wider, or 110 columns once the user
 has explicitly opened that pane. Below that Claude Code keeps it undrawn and the mod toasts a hint
 once per conversation. `/amoo-live` opens it at any width and runs immediately during an agent turn.
 The mirror starts after the terminal pane is drawn, so widening the terminal also works.
 
 ## Sessions and controls
 
-The mod follows tools from an MCP server named `amoo`, the amoo plugin's server, or a suffixed name
-such as `amoo-debug` or `amoo-release`, including calls a subagent makes. A server under any other
-name is not followed.
+The mod follows Bash commands that run amoo: `amoo`, a path ending in `/amoo` (such as
+`.build/debug/amoo` or `/opt/homebrew/bin/amoo`) or `swift run amoo`, alone or chained with `&&`,
+`;` or a pipe, including calls a subagent makes. A device is a **runtime**, keyed by its runtime id:
 
-Each action is routed by its explicit `session_id`; calls without one are not assigned to the
-selected session. Starting a session selects it. Buttons above the view select other devices and
-retain their own histories, recording health and artifacts. Ending a different session leaves the
-selected session's mirror alone. Older ended-session views are pruned as new sessions start;
-running sessions are retained.
+- `amoo env up` starts one and selects it, from its `--json` report or its `Runtime ID:` line.
+- `amoo device <tool>` adds an action to the runtime it names with `--runtime-id`, an
+  `AMOO_RUNTIME_ID=` prefix, or an `export AMOO_RUNTIME_ID=` earlier in the same command. A
+  `$VARIABLE` set earlier in the command is expanded; one the mod cannot see is not guessed at, so
+  the call is left unassigned.
+- `amoo flow <file>` adds one action and records the flow and its `report.json` path.
+- `amoo env down` ends the runtime.
+
+A runtime the agent leased before the pane saw it (an earlier conversation, another terminal) is
+looked up with `amoo env list --json` the first time a call names it. Background Bash runs are not
+followed. A `--json` call that is not piped is judged by its own `ok` field; otherwise the Bash exit
+status decides, which for a pipeline is its last command's. Discovery calls (`get_capabilities`,
+`get_run_telemetry`, `list_devices`) are not listed. Older ended views are pruned as new runtimes
+start; running ones are retained.
 
 **Pause mirror** stops capture without ending or changing the device session. **Resume mirror**
 starts capture again. An unexpected stream exit, including a signal or a successful exit, shows its
 reason and stays stopped across redraws. **Retry mirror** starts a fresh stream without requiring a
-new session. Closing and reopening the pane preserves a pause or failure; it does not silently
+new runtime. Closing and reopening the pane preserves a pause or failure; it does not silently
 retry. **Close pane** stops capture and hides the pane.
 
 Pending actions show elapsed time, then keep their completion duration and outcome. Failed or
 denied startups remain visible until the next startup. Typed values and raw tool error bodies are
 not stored in the pane's action history or assertion toasts.
 
-After `end_session`, the pane keeps the summary, recording health, generation warning count and
-artifact paths returned by amoo. Copy buttons put the plan or flow path on the selected surface's
-clipboard. Inspect any plan warnings before generating a test. The ended view never restarts
-capture; starting a new session is required to drive that app again.
+After `amoo env down`, the pane keeps the device's action history and the last flow's paths. Copy
+buttons put the flow or report path on the selected surface's clipboard. The ended view never
+restarts capture; drive that app again with a new `amoo env up`.
 
 ## The mirror
 
@@ -91,11 +98,11 @@ Frames come from `amoo device stream` (see `amoo device stream --help`). It is a
 loop:
 
 - It uses simctl, devicectl or adb, never the companion.
-- It takes no device lease and records nothing into the session, so the generated plan is unchanged.
+- It takes no device lease and records nothing into a flow report, so generated tests are unchanged.
 - It writes `frame-0.png` … `frame-3.png` atomically and prints one JSON line per frame.
 
-The mod spawns one stream for the selected running session while a terminal pane is visible. It
-stops on `end_session`, pause, switching devices, closing the pane or ending the conversation.
+The mod spawns one stream for the selected running device while a terminal pane is visible. It
+stops on `amoo env down`, pause, switching devices, closing the pane or ending the conversation.
 Visibility is checked each second, so switching to another pane or shrinking below the placement
 floor stops unused capture too. Desktop, VS Code and mobile text views do not start capture.
 Replaced streams cannot write frames or errors into the new view. Temporary frame references are
@@ -120,7 +127,8 @@ make amoo-live-debug ARGS=--debug    # load the mod with the checkout's amoo and
 ```
 
 - **Hooks entry point:** `hooks/register.tsx`.
-- **Session state and action tracking:** `hooks/model.ts`, `hooks/actions.ts`.
+- **Reading amoo calls out of a Bash command:** `hooks/cli.ts`.
+- **Device state and action tracking:** `hooks/model.ts`, `hooks/actions.ts`.
 - **Capture ownership and cleanup:** `hooks/mirror.ts`.
 - **Pane rendering and controls:** `hooks/pane.tsx`.
 - **`$.state` contract:** `types/index.d.ts`.
@@ -145,14 +153,14 @@ bridge and `tools/call`. Keep existing tools useful without UI. Add
 only after the portable UI works, and detect supported capabilities rather than assuming every
 host renders it. Extension availability varies by surface and plan.
 
-This needs additional server and artifact-delivery work. The current amoo MCP transport exposes
-tools but does not implement `resources/list` or `resources/read`, and the terminal's local PNG
-paths are not an image transport for an iframe. Reuse host capture and session/artifact contracts;
+This needs a server and artifact delivery that amoo does not have: it runs no MCP server (a
+separate package could add one), and the terminal's local PNG paths are not an image transport for
+an iframe. Reuse host capture and session/artifact contracts;
 keep observation frames out of the recorded test pipeline. Do not expose companion ports as a
 web UI transport.
 
-[Codex lifecycle hooks](https://learn.chatgpt.com/docs/hooks) can observe MCP tool inputs and results
-with `PostToolUse`, and perform cleanup with session lifecycle events. The documented hooks do not
+[Codex lifecycle hooks](https://learn.chatgpt.com/docs/hooks) can observe tool inputs and results,
+including shell commands, with `PostToolUse`, and perform cleanup with session lifecycle events. The documented hooks do not
 provide Claude's `ui.render` API. Keep any future hook adapter separate from `plugins/amoo/hooks/`
 so Gemini cannot accidentally load it. Plugin hooks require explicit user trust and are currently
 supported for manually installed Codex desktop plugins, not public-directory submissions; see

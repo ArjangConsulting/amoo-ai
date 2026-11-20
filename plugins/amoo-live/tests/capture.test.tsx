@@ -1,13 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
-import { COMMAND, mockUI, PANE, STARTED_TEXT } from './fixtures'
+import { COMMAND, mockUI, PANE, STARTED, bash, UP } from './fixtures'
 import type { AmooLiveView } from '../types'
 
 test('capture started after rendering applies fragmented frames outside the render dispatch', async ($, on) => {
   const clock = mockUI(on)
   const received: unknown[] = []
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
+  on('tool.call', () => (STARTED))
   on('state.set', (_, e, next) => {
     const state = e.value as AmooLiveView
     const frame = state.sessions?.find((item) => item.sessionId === 's-1')?.frame
@@ -22,7 +22,7 @@ test('capture started after rendering applies fragmented frames outside the rend
     }
     return { value: { code: 0, signal: null } }
   })
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
+  await $.tool.call(bash(UP))
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await clock.advance(0)
   expect(received).toContainEqual(
@@ -43,12 +43,12 @@ test('pause gates an already queued capture and resume starts it once', async ($
   const clock = mockUI(on)
   let spawned = 0
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
+  on('tool.call', () => (STARTED))
   on('process.spawn', async function* () {
     spawned += 1
     return { value: { code: 64, signal: null } }
   })
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
+  await $.tool.call(bash(UP))
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'capture' })
   await clock.advance(0)
@@ -66,12 +66,12 @@ test('closing the pane gates queued renders until the user explicitly reopens it
   let spawned = 0
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
-  on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
+  on('tool.call', () => (STARTED))
   on('process.spawn', async function* () {
     spawned += 1
     return { value: { code: 64, signal: null } }
   })
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
+  await $.tool.call(bash(UP))
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'close-pane' })
   await ui.redraw()
@@ -89,12 +89,12 @@ test('a hidden pane gates capture until a visible terminal render', async ($, on
   const clock = mockUI(on, () => shown)
   let spawned = 0
   on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow' } }))
-  on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
+  on('tool.call', () => (STARTED))
   on('process.spawn', async function* () {
     spawned += 1
     return { value: { code: 64, signal: null } }
   })
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
+  await $.tool.call(bash(UP))
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await clock.advance(0)
   expect(spawned).toBe(0)

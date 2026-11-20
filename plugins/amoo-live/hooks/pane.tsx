@@ -27,12 +27,7 @@ export async function renderPane(
   const bodyRows = e.props.scroll?.bodyRows ?? e.viewport?.rows ?? 24
   const listed = current?.actions.slice(-Math.min(8, Math.max(3, Math.floor(bodyRows / 5)))) ?? []
   const selectorRows = state.sessions.length > 1 ? state.sessions.length : 0
-  const artifactRows =
-    2 * Number(Boolean(current?.planPath)) +
-    2 * Number(Boolean(current?.flowPath)) +
-    Number(Boolean(current?.artifactError)) +
-    Number(current?.actionCount !== undefined) +
-    Number(Boolean(current?.warningCount))
+  const artifactRows = 2 * Number(Boolean(current?.flowPath)) + 2 * Number(Boolean(current?.reportPath))
   const imageRows = Math.max(
     1,
     bodyRows - listed.length - selectorRows - artifactRows - state.startups.length - 7,
@@ -103,7 +98,7 @@ export async function renderPane(
           {current.platform} · {clip(current.appId, Math.max(8, columns - 20))}
         </Text>
       ) : (
-        <Text dimColor>No amoo session yet. The pane follows the next start_session.</Text>
+        <Text dimColor>No amoo session yet. The pane follows the next `amoo env up`.</Text>
       )}
       {current && <Text dimColor>{clip(current.deviceId, columns)}</Text>}
       {current && (
@@ -115,7 +110,6 @@ export async function renderPane(
               : current.mirrorState === 'failed'
                 ? 'Mirror failed'
                 : 'Running'}
-          {current.recordingHealth ? ` · rec ${current.recordingHealth}` : ''}
         </Text>
       )}
       {current?.phase === 'running' && e.surface === 'terminal' && (
@@ -168,20 +162,6 @@ export async function renderPane(
               : ''}
         </Text>
       ))}
-      {current?.actionCount !== undefined && (
-        <Text>
-          {current.actionCount} recorded action(s)
-          {current.warningCount !== undefined ? ` · ${current.warningCount} generation warning(s)` : ''}
-        </Text>
-      )}
-      {current?.planPath && (
-        <Button
-          key="copy-plan"
-          label="Copy plan path"
-          onPress={() => $.ui.copy({ text: current.planPath!, surface: e.surface })}
-        />
-      )}
-      {current?.planPath && <Text dimColor>{current.planPath}</Text>}
       {current?.flowPath && (
         <Button
           key="copy-flow"
@@ -190,10 +170,14 @@ export async function renderPane(
         />
       )}
       {current?.flowPath && <Text dimColor>{current.flowPath}</Text>}
-      {current?.warningCount !== undefined && current.warningCount > 0 && (
-        <Text color="yellow">Inspect plan warnings before generating a test.</Text>
+      {current?.reportPath && (
+        <Button
+          key="copy-report"
+          label="Copy report path"
+          onPress={() => $.ui.copy({ text: current.reportPath!, surface: e.surface })}
+        />
       )}
-      {current?.artifactError && <Text color="red">Artifacts: {clip(current.artifactError, 200)}</Text>}
+      {current?.reportPath && <Text dimColor>{current.reportPath}</Text>}
       <Button
         key="close-pane"
         label="Close pane"

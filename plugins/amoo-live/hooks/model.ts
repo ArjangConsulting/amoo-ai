@@ -20,51 +20,28 @@ export function updateView($: EngineInterface, change: (state: AmooLiveView) => 
   return update($, view, change)
 }
 
-// Matches the server as `amoo`, as the amoo plugin's, and under a suffixed name such as `amoo-debug`
-// or `amoo-release`, which subagents that carry their own amoo server use.
-const AMOO_TOOL = /^mcp__(?:plugin_amoo_)?amoo(?:-[a-z0-9]+)*__([a-z_]+)$/
-const STARTED = /Started session (\S+) for (\S+) on (ios|android) device (\S+?)\.(?:\s|$)/
-
-export function amooToolName(tool: string): string | undefined {
-  return AMOO_TOOL.exec(tool)?.[1]
-}
-
 export function text(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-export function structured(result: unknown): Input | undefined {
-  if (result === null || typeof result !== 'object') return undefined
-  const content = (result as { structuredContent?: unknown }).structuredContent
-  return content !== null && typeof content === 'object' ? (content as Input) : undefined
 }
 
 export function clip(value: string, length = 32): string {
   return value.length > length ? `${value.slice(0, Math.max(0, length - 1))}…` : value
 }
 
-/** The session start_session reports, with a text fallback for clients that drop structured content. */
-export function startedSession(result: unknown, resultText: string | undefined): AmooLiveSession | undefined {
-  const fields = structured(result)
-  const platform = text(fields?.platform)
-  if (
-    fields &&
-    text(fields.session_id) &&
-    text(fields.device_id) &&
-    (platform === 'ios' || platform === 'android')
-  ) {
-    return {
-      sessionId: String(fields.session_id),
-      appId: text(fields.app_id) ?? '',
-      deviceId: String(fields.device_id),
-      platform,
-      recordingHealth: text(fields.recording_health),
-    }
-  }
-  const [, sessionId, appId, matchedPlatform, deviceId] = (resultText && STARTED.exec(resultText)) || []
-  if (!sessionId || !appId || !deviceId || (matchedPlatform !== 'ios' && matchedPlatform !== 'android'))
-    return undefined
-  return { sessionId, appId, platform: matchedPlatform, deviceId }
+/**
+ * The session an `amoo env up --json` report or an `amoo env list --json` entry describes, keyed
+ * by its runtime id: the `--runtime-id` every later `amoo device` and `amoo env down` call names.
+ */
+export function sessionFromReport(report: Input, appId?: string): AmooLiveSession | undefined {
+  const runtimeId = text(report.runtime_id)
+  const platform = text(report.platform)
+  const device = report.device
+  const deviceId =
+    text(device) ?? (device !== null && typeof device === 'object' ? text((device as Input).id) : undefined)
+  if (!runtimeId || !deviceId || (platform !== 'ios' && platform !== 'android')) return undefined
+  const app = report.app
+  const reportedApp = app !== null && typeof app === 'object' ? text((app as Input).id) : undefined
+  return { sessionId: runtimeId, appId: reportedApp ?? appId ?? text(report.name) ?? deviceId, deviceId, platform }
 }
 
 /** One line for the pane; typed values are represented only by their length. */
@@ -109,12 +86,13 @@ export function changeSession(
   }))
 }
 
-export function addSession(state: AmooLiveView, current: AmooLiveSession): AmooLiveView {
+/** Adds a session; one the agent just started is selected, one found mid-run only when none is. */
+export function addSession(state: AmooLiveView, current: AmooLiveSession, select = true): AmooLiveView {
   const retained = state.sessions.filter((item) => item.sessionId !== current.sessionId)
   const oldEnded = retained.filter((item) => item.phase === 'ended').slice(0, -19)
   return {
     ...state,
-    selectedId: current.sessionId,
+    selectedId: select || !state.selectedId ? current.sessionId : state.selectedId,
     sessions: [
       ...retained.filter((item) => !oldEnded.includes(item)),
       {
@@ -140,8 +118,7 @@ export function statusLine(current: AmooLiveSessionView | undefined): string | u
         : current.mirrorState === 'failed'
           ? 'mirror failed'
           : 'running'
-  const health = current.recordingHealth ? ` · rec ${current.recordingHealth}` : ''
-  return `amoo · ${current.platform} · ${clip(current.appId, 40)} · ${phase}${health}`
+  return `amoo · ${current.platform} · ${clip(current.appId, 40)} · ${phase}`
 }
 
 export function duration(milliseconds: number): string {

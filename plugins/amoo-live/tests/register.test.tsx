@@ -1,17 +1,35 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { amooToolName, describeAction, fitImage, startedSession } from '../hooks/register'
+import { amooCalls, describeAction, fitImage, lastJSONObject, sessionFromReport } from '../hooks/register'
 
-import { mockUI, PANE, STARTED_TEXT } from './fixtures'
+import { mockUI, PANE, STARTED, bash, ran, UP } from './fixtures'
 
-test('recognises amoo tools from a configured server and from the amoo plugin', () => {
-  expect(amooToolName('mcp__amoo__tap_element')).toBe('tap_element')
-  expect(amooToolName('mcp__plugin_amoo_amoo__start_session')).toBe('start_session')
-  expect(amooToolName('mcp__amoo-debug__start_session')).toBe('start_session')
-  expect(amooToolName('mcp__amoo-release__end_session')).toBe('end_session')
-  expect(amooToolName('mcp__other__tap_element')).toBeUndefined()
-  expect(amooToolName('mcp__amoom__tap_element')).toBeUndefined()
-  expect(amooToolName('Bash')).toBeUndefined()
+test('follows amoo however the agent invokes it, and nothing else', () => {
+  expect(amooCalls('amoo device --runtime-id r-1 --json tap_element label="Sign in"')).toEqual([
+    { kind: 'device', runtimeId: 'r-1', tool: 'tap_element', input: { label: 'Sign in' }, json: true, piped: false },
+  ])
+  const debug = amooCalls("/repo/.build/debug/amoo device --json --runtime-id=r-2 find_elements id=row | python3 -c 'x'")
+  expect(debug).toEqual([{ kind: 'device', runtimeId: 'r-2', tool: 'find_elements', input: { id: 'row' }, json: true, piped: true }])
+  expect(amooCalls('AMOO_RUNTIME_ID=r-3 amoo device --json press_back')[0]).toMatchObject({ runtimeId: 'r-3' })
+  expect(amooCalls('export AMOO_RUNTIME_ID=r-4; amoo device swipe_in_direction direction=up')[0]).toMatchObject({
+    runtimeId: 'r-4',
+    input: { direction: 'up' },
+  })
+  expect(amooCalls('R=r-5 && amoo device --runtime-id "$R" --arguments-json \'{"text":"x"}\' type_text')[0]).toMatchObject({
+    runtimeId: 'r-5',
+    input: { text: 'x' },
+  })
+  expect(amooCalls('amoo device --runtime-id "$UNSET" tap_element id=a')[0]).toMatchObject({ runtimeId: undefined })
+  expect(amooCalls('amoo env up --platform android --app-id com.x --json && amoo env down --runtime-id r-6')).toEqual([
+    { kind: 'up', platform: 'android', appId: 'com.x', device: undefined, json: true, piped: false },
+    { kind: 'down', runtimeId: 'r-6', json: false, piped: false },
+  ])
+  expect(amooCalls('amoo flow flows/login.amoo.json --runtime-id r-7 --output-dir /tmp/out')).toEqual([
+    { kind: 'flow', runtimeId: 'r-7', file: 'flows/login.amoo.json', outputDir: '/tmp/out', piped: false },
+  ])
+  expect(amooCalls('amoo device stream --platform ios')).toEqual([])
+  expect(amooCalls('amoo env list --json; amoo capabilities --tool tap_element; echo amoo device x')).toEqual([])
+  expect(amooCalls('git commit -m "amoo device tap"; grep amoo README.md')).toEqual([])
 })
 
 test('never shows typed text, only its length', () => {
@@ -24,33 +42,19 @@ test('never shows typed text, only its length', () => {
   expect(describeAction('open_url', { url: 'https://example.com/?token=abc' })).toBe('open_url')
 })
 
-test('reads the started session from structured content, else from the text', () => {
-  const structured = startedSession(
-    {
-      structuredContent: {
-        session_id: 's-2',
-        app_id: 'com.example',
-        device_id: 'emulator-5554',
-        platform: 'android',
-        recording_health: 'pending',
-      },
-    },
-    undefined,
-  )
-  expect(structured).toEqual({
-    sessionId: 's-2',
-    appId: 'com.example',
-    deviceId: 'emulator-5554',
-    platform: 'android',
-    recordingHealth: 'pending',
-  })
-  expect(startedSession(undefined, STARTED_TEXT)).toEqual({
-    sessionId: 's-1',
-    appId: 'com.example.app',
+test('reads a runtime from env up and env list reports, and the JSON a command ends with', () => {
+  expect(
+    sessionFromReport({ ok: true, runtime_id: 'r-1', platform: 'android', device: { id: 'emulator-5554' }, app: { id: 'com.example' } }),
+  ).toEqual({ sessionId: 'r-1', appId: 'com.example', deviceId: 'emulator-5554', platform: 'android' })
+  expect(sessionFromReport({ runtime_id: 'r-2', platform: 'ios', device: 'SIM-2', name: 'iPhone 17' })).toEqual({
+    sessionId: 'r-2',
+    appId: 'iPhone 17',
+    deviceId: 'SIM-2',
     platform: 'ios',
-    deviceId: 'SIM-1',
   })
-  expect(startedSession(undefined, 'start_session failed: no device')).toBeUndefined()
+  expect(sessionFromReport({ ok: false, error: 'no device' })).toBeUndefined()
+  expect(lastJSONObject('Building…\n{"ok":true,"runtime_id":"r-1"}\n')).toEqual({ ok: true, runtime_id: 'r-1' })
+  expect(lastJSONObject('no json here')).toBeUndefined()
 })
 
 test('fits a portrait frame into the pane without stretching it', () => {
@@ -70,15 +74,14 @@ test('the pane follows a session and lists its actions, on every surface', async
   const clock = mockUI(on)
   on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow' } }))
   on('tool.call', (_, e) => {
-    if (e.tool === 'mcp__amoo__start_session') return { result: {}, text: STARTED_TEXT }
-    if (e.tool === 'mcp__amoo__assert_visible')
-      return { isError: true, result: undefined, text: 'Assertion failed after 2000ms.' }
-    return { result: {}, text: 'ok' }
+    if (String(e.command).includes('env up')) return STARTED
+    if (String(e.command).includes('assert_visible')) return ran('{"ok":false,"content":"Assertion failed."}', true)
+    return ran('{"ok":true}')
   })
 
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
-  await $.tool.call({ tool: 'mcp__amoo__type_text', session_id: 's-1', text: 'hunter2' })
-  await $.tool.call({ tool: 'mcp__amoo__assert_visible', session_id: 's-1', label: 'Welcome' })
+  await $.tool.call(bash(UP))
+  await $.tool.call(bash('amoo device --runtime-id s-1 --json type_text text=hunter2'))
+  await $.tool.call(bash("amoo device --runtime-id s-1 --json assert_visible label='Welcome'"))
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
@@ -102,7 +105,7 @@ test('a pane hidden by a narrow terminal says so and starts the mirror once it i
   const spawned: string[][] = []
   const toasts: string[] = []
   on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow: 100 < 144 columns' } }))
-  on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
+  on('tool.call', () => (STARTED))
   on('ui.status', () => ({ value: undefined }))
   on('ui.toast', (_, e) => {
     toasts.push(String((e as { text?: unknown }).text ?? ''))
@@ -113,7 +116,7 @@ test('a pane hidden by a narrow terminal says so and starts the mirror once it i
     return { value: { code: 0, signal: null } }
   })
 
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
+  await $.tool.call(bash(UP))
   expect(spawned).toHaveLength(0)
   expect(toasts.some((text) => text.includes('/amoo-live'))).toBe(true)
 
@@ -127,13 +130,13 @@ test('a pane hidden by a narrow terminal says so and starts the mirror once it i
 test('the pane says why the mirror stopped when the stream exits on its own', async ($, on) => {
   const clock = mockUI(on)
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('tool.call', () => ({ result: {}, text: STARTED_TEXT }))
+  on('tool.call', () => (STARTED))
   on('process.spawn', async function* () {
     yield { stream: 'stdout' as const, text: "Unknown tool 'stream'.\n" }
     return { value: { code: 64, signal: null } }
   })
 
-  await $.tool.call({ tool: 'mcp__amoo__start_session', app_id: 'com.example.app' })
+  await $.tool.call(bash(UP))
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })

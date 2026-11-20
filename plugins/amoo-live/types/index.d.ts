@@ -1,13 +1,12 @@
-/** The amoo session the agent drives, from its `start_session` result. */
+/** A device the agent leased with `amoo env up`; `sessionId` is its runtime id. */
 export type AmooLiveSession = {
   sessionId: string
   appId: string
   deviceId: string
   platform: 'ios' | 'android'
-  recordingHealth?: string
 }
 
-/** One amoo tool call, as the pane lists it. Typed text is never kept. */
+/** One `amoo device` tool call or `amoo flow` run, as the pane lists it. Typed text is never kept. */
 export type AmooLiveAction = {
   id: string
   tool: string
@@ -27,7 +26,7 @@ export type AmooLiveFrame = {
   elapsedMs?: number
 }
 
-/** A session's presentation state, including artifacts retained after it ends. */
+/** A session's presentation state, including the last flow's files, retained after it ends. */
 export type AmooLiveSessionView = AmooLiveSession & {
   phase: 'running' | 'ended'
   paused: boolean
@@ -35,14 +34,11 @@ export type AmooLiveSessionView = AmooLiveSession & {
   mirrorError: string | null
   frame: AmooLiveFrame | null
   actions: AmooLiveAction[]
-  actionCount?: number
-  planPath?: string
   flowPath?: string
-  warningCount?: number
-  artifactError?: string
+  reportPath?: string
 }
 
-/** A startup shown before start_session has resolved to a session identifier. */
+/** An `amoo env up` shown before it has resolved to a runtime id. */
 export type AmooLiveStartup = {
   id: string
   appId: string

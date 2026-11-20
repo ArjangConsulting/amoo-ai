@@ -1,7 +1,7 @@
 {
   "name": "amoo-live",
   "version": "0.2.0",
-  "description": "Claude Code only, experimental: a live device pane with per-session progress, pause/resume/retry controls, recording health, artifacts and failed-assertion toasts. Requires the amoo CLI and MCP server.",
+  "description": "Claude Code only, experimental: a live device pane that follows the amoo CLI calls an agent makes: per-device actions, pause/resume/retry controls, flow report paths and failed-assertion toasts. Requires the amoo CLI.",
   "author": { "name": "Arjang Consulting" },
   "homepage": "https://github.com/ArjangConsulting/amoo-ai",
   "repository": "https://github.com/ArjangConsulting/amoo-ai",
