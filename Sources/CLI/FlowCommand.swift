@@ -23,6 +23,9 @@ struct TestFlow: Codable, Equatable {
     var vars: [String: String]
     var onError: OnError
     var steps: [Step]
+    /// `dismiss_system_dialogs` for every step that does not set it: answer another app's dialog in
+    /// front with its harmless button and retry the step once.
+    var dismissSystemDialogs = false
 
     init(
         platform: String,
@@ -47,6 +50,7 @@ struct TestFlow: Codable, Equatable {
         case vars
         case onError = "on_error"
         case steps
+        case dismissSystemDialogs = "dismiss_system_dialogs"
     }
 
     init(from decoder: any Decoder) throws {
@@ -58,6 +62,7 @@ struct TestFlow: Codable, Equatable {
         vars = scalars.mapValues(\.text)
         onError = try container.decodeIfPresent(OnError.self, forKey: .onError) ?? .stop
         steps = try container.decode([Step].self, forKey: .steps)
+        dismissSystemDialogs = try container.decodeIfPresent(Bool.self, forKey: .dismissSystemDialogs) ?? false
     }
 }
 
@@ -304,6 +309,7 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
             accessibilityPolicy: { AccessibilityCheckResolution.resolve(from: fileURL.deletingLastPathComponent()) },
             runTelemetry: .persistent()
         )
+        await executor.setDismissSystemDialogsByDefault(flow.dismissSystemDialogs)
         let started = ContinuousClock.now
         let result = await runFlowSteps(flow, executor: executor, context: context)
 
