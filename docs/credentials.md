@@ -86,6 +86,11 @@ outer one. `amoo config validate` lists every file it layered. Schema:
 `amoo config validate [--path <file>] [--json]` checks the file without reading any value;
 `amoo credentials add` writes it for you.
 
+### Accessibility checks
+
+The `accessibility` section lists the checks `check_accessibility` runs and the configurations it
+repeats them in; `amoo init` asks for them. See [accessibility checks](accessibility-checks.md).
+
 ### Screenshot defaults
 
 The same file holds the project's screenshot defaults, which `amoo init` asks for (or sets from

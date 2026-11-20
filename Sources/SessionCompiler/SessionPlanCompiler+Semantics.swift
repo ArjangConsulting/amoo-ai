@@ -27,6 +27,15 @@ extension SessionPlanCompiler {
         if action.toolName == "audit_accessibility_native", action.intent == .assertion {
             return unsupportedAuditAssertion(index: index, action: action)
         }
+        if action.toolName == "check_accessibility" {
+            return SessionPlanWarning(
+                kind: .excluded,
+                actionIndex: index,
+                toolName: action.toolName,
+                reason: "check_accessibility changes display settings and runs the project's opted-in native"
+                    + " audits; generated tests do not reproduce it yet. Run it from the flow."
+            )
+        }
         return nil
     }
 

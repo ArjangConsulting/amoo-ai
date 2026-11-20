@@ -44,4 +44,25 @@ public protocol IOSHostBackend: Sendable {
     func clearLocation(device: String) async throws
     func setAppearance(device: String, appearance: Appearance) async throws
     func openURL(device: String, url: String) async throws
+    /// The device's current value for `setting`. Only a backend that can read a setting may change it
+    /// on behalf of a check, because the check has to put the original back.
+    func displaySetting(device: String, setting: DisplaySetting) async throws -> String
+    /// Changes `setting` and returns the value the device reports afterwards.
+    func setDisplaySetting(device: String, setting: DisplaySetting, value: String) async throws -> String
+}
+
+public extension IOSHostBackend {
+    func displaySetting(device _: String, setting: DisplaySetting) async throws -> String {
+        throw AmooError.unsupportedCapability(
+            key: "config.\(setting.rawValue)",
+            reason: "Reading \(setting.rawValue) requires an iOS simulator; devicectl cannot report it."
+        )
+    }
+
+    func setDisplaySetting(device _: String, setting: DisplaySetting, value _: String) async throws -> String {
+        throw AmooError.unsupportedCapability(
+            key: "config.\(setting.rawValue)",
+            reason: "Changing \(setting.rawValue) with read-back requires an iOS simulator."
+        )
+    }
 }

@@ -382,6 +382,14 @@ public actor IOSDriver: PlatformDriver {
         try await backend.setAppearance(device: deviceID, appearance: appearance)
     }
 
+    public func displaySetting(_ setting: DisplaySetting) async throws -> String {
+        try await backend.displaySetting(device: deviceID, setting: setting)
+    }
+
+    public func setDisplaySetting(_ setting: DisplaySetting, to value: String) async throws -> String {
+        try await backend.setDisplaySetting(device: deviceID, setting: setting, value: value)
+    }
+
     // MARK: - AI Context (delegate to companion)
 
     public func getScreenContext() async throws -> ScreenContext {

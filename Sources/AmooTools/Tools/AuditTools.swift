@@ -12,6 +12,49 @@ public enum AuditTools {
 
     public static let definitions: [ToolDefinition] = [
         ToolDefinition(
+            name: "check_accessibility",
+            description: "Run the accessibility checks this project opted in to (the `accessibility` section of"
+                + " amoo.config.json, set by `amoo init`) on the current screen: once at default display settings,"
+                + " then again in each opted-in configuration (dark_mode, large_text, increase_contrast)."
+                + " Restores every setting it changed. Fails unless every check this platform can run passed."
+                + " Refuses when the project opted in to nothing. Not whole-app conformance.",
+            properties: [
+                "app_id": .init(type: "string", description: "Foreground app bundle ID or package"),
+                "exclude_checks": .init(
+                    type: "string",
+                    description: "Comma-separated opted-in checks to skip for this call only,"
+                        + " e.g. contrast,target_size. Reported as excluded, never as passed."
+                ),
+                "exclude_elements": .init(
+                    type: "string",
+                    description: "Comma-separated <check>:<element id or exact label> pairs whose issues are not"
+                        + " counted for this call (false positives, accepted issues); they stay in the report."
+                ),
+                "exclude_reason": .init(
+                    type: "string",
+                    description: "Why the exclusions apply; recorded in the report"
+                ),
+                "settle_ms": .init(
+                    type: "integer",
+                    description: "Wait after each setting change before auditing, 0...10000; default 1500"
+                )
+            ],
+            required: ["app_id"],
+            outputSchema: .init(
+                properties: [
+                    "executionStatus": .init(type: "string", description: "succeeded or failed"),
+                    "verdict": .init(type: "string", description: "pass, fail or notAssessed"),
+                    "cleanupStatus": .init(type: "string", description: "restored, failed or notRequired"),
+                    "optedInChecks": .init(type: "array", description: "Checks from amoo.config.json"),
+                    "optedInConfigurations": .init(type: "array", description: "Configurations from amoo.config.json"),
+                    "unsupportedChecks": .init(type: "object", description: "Opted-in checks this platform cannot run"),
+                    "exclusions": .init(type: "object", description: "What this call left out, and why"),
+                    "passes": .init(type: "array", description: "One entry per configuration with settings and issues")
+                ],
+                required: ["executionStatus", "verdict", "cleanupStatus", "passes"]
+            )
+        ),
+        ToolDefinition(
             name: "assert_accessibility_journey",
             description: "Run an authored accessibility journey on iOS 27 in one continuous VoiceOver lifetime."
                 + " Checks exported name/role/state, bounded speech order and focus recovery after targeted gestures."

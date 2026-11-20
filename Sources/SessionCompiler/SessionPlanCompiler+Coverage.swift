@@ -14,7 +14,7 @@ extension SessionPlanCompiler {
         "assert_talkback_speech", "assert_visible", "assert_absent", "assert_enabled", "assert_value",
         "assert_selected",
         "assert_checked", "assert_state_description",
-        "assert_screen_changed", "assert_accessibility_journey"
+        "assert_screen_changed", "assert_accessibility_journey", "check_accessibility"
     ]
 
     /// Selector fields a recorded call can carry, in the order they are reported.

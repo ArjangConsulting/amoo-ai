@@ -106,6 +106,40 @@ public struct SimulatorHostBackend: IOSHostBackend {
     public func openURL(device: String, url: String) async throws {
         try await simctl.openURL(device: device, url: url)
     }
+
+    public func displaySetting(device: String, setting: DisplaySetting) async throws -> String {
+        let result = try await simctl.run(["ui", device, setting.simctlOption])
+        let value = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        // `simctl ui` prints `unsupported` or `unknown` instead of failing when it cannot tell.
+        guard setting.canonicalValue(value, for: .ios) != nil else {
+            throw AmooError.unsupportedCapability(
+                key: "config.\(setting.rawValue)",
+                reason: "The simulator reports its \(setting.rawValue) as '\(value)'."
+            )
+        }
+        return value
+    }
+
+    public func setDisplaySetting(device: String, setting: DisplaySetting, value: String) async throws -> String {
+        guard let canonical = setting.canonicalValue(value, for: .ios) else {
+            throw AmooError.commandFailed(
+                command: "simctl ui \(setting.simctlOption)", output: "'\(value)' is not a value iOS accepts."
+            )
+        }
+        try await simctl.run(["ui", device, setting.simctlOption, canonical])
+        return try await displaySetting(device: device, setting: setting)
+    }
+}
+
+private extension DisplaySetting {
+    /// The `simctl ui <device> <option>` name.
+    var simctlOption: String {
+        switch self {
+        case .appearance: "appearance"
+        case .textSize: "content_size"
+        case .increaseContrast: "increase_contrast"
+        }
+    }
 }
 
 // MARK: - Parsing Helpers

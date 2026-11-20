@@ -301,6 +301,7 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
             driver: driver,
             credentialResolver: CredentialResolver(store: KeychainCredentialStore()),
             screenshotPolicy: { screenshotPolicy },
+            accessibilityPolicy: { AccessibilityCheckResolution.resolve(from: fileURL.deletingLastPathComponent()) },
             runTelemetry: .persistent()
         )
         let started = ContinuousClock.now

@@ -17,8 +17,18 @@ actor MockSimctlRunner: SimctlRunning {
     private var _appListOutput = "[]"
     private var _openURLCalls: [String] = []
 
+    /// Backs `simctl ui <device> <option> [value]` like the simulator: a write is what a read returns.
+    private var uiOptions: [String: String] = ["appearance": "light", "content_size": "large"]
+
     func run(_ arguments: [String]) async throws -> ProcessResult {
-        ProcessResult(exitCode: 0, stdout: arguments.joined(separator: " "), stderr: "")
+        if arguments.first == "ui", arguments.count >= 3 {
+            if arguments.count == 4 {
+                uiOptions[arguments[2]] = arguments[3]
+                return ProcessResult(exitCode: 0, stdout: "", stderr: "")
+            }
+            return ProcessResult(exitCode: 0, stdout: (uiOptions[arguments[2]] ?? "unsupported") + "\n", stderr: "")
+        }
+        return ProcessResult(exitCode: 0, stdout: arguments.joined(separator: " "), stderr: "")
     }
 
     func bootStatus(device: String) async throws {
