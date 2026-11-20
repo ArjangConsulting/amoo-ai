@@ -128,9 +128,9 @@ extension ToolDefinition {
                 description: "Restrict to descendants of this identifier"
             )
         }
-        // `set_text` / `fill_field` are left out: the device-side write cannot take the pick.
         if [
             "find_elements",
+            "set_text", "fill_field",
             "tap_element",
             "swipe_in_direction",
             "assert_visible",
