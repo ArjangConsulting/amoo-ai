@@ -1,13 +1,6 @@
 /// Attribute keys amoo writes on spans. Standard OpenTelemetry semantic conventions are used where
-/// they exist (MCP, GenAI tool execution, RPC, errors); amoo-specific measurements use `amoo.*`.
+/// they exist (GenAI tool execution, RPC, errors); amoo-specific measurements use `amoo.*`.
 public enum TelemetryAttribute {
-    // MCP semantic conventions.
-    public static let mcpMethodName = "mcp.method.name"
-    public static let mcpSessionID = "mcp.session.id"
-    public static let mcpProtocolVersion = "mcp.protocol.version"
-    public static let jsonRPCRequestID = "jsonrpc.request.id"
-    public static let networkTransport = "network.transport"
-
     // GenAI tool execution.
     public static let genAIOperationName = "gen_ai.operation.name"
     public static let genAIToolName = "gen_ai.tool.name"
