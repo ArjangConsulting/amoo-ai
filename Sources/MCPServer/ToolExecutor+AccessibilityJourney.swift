@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 
 extension DriverToolExecutor {
     func executeAccessibilityJourney(

@@ -1,5 +1,4 @@
 import Foundation
-import MCP
 import TestSession
 
 public struct ToolInputProperty: Sendable, Equatable {
@@ -53,7 +52,7 @@ public struct ToolDefinition: Sendable {
     public var category: ToolCategory?
     /// MCP `readOnlyHint`: the tool observes the device and app without changing them.
     public var readOnly: Bool?
-    /// MCP `destructiveHint`: the tool may destroy app or device state irreversibly.
+    /// The tool may destroy app or device state irreversibly.
     public var destructive: Bool?
 
     public init(
@@ -72,22 +71,7 @@ public struct ToolDefinition: Sendable {
         self.outputSchema = outputSchema
     }
 
-    public func mcpTool() -> MCP.Tool {
-        MCP.Tool(
-            name: name,
-            title: title,
-            description: description,
-            inputSchema: inputSchemaValue(),
-            annotations: .init(
-                readOnlyHint: readOnly,
-                // MCP defines destructiveHint only for tools that are not read-only.
-                destructiveHint: readOnly == true ? nil : destructive
-            ),
-            outputSchema: outputSchemaValue()
-        )
-    }
-
-    /// The argument schema shared by MCP and installed-binary discovery.
+    /// The argument schema `amoo capabilities --tool` reports and argument validation enforces.
     public func inputSchemaValue() -> Value {
         guard !properties.isEmpty else {
             return .object([
@@ -107,7 +91,7 @@ public struct ToolDefinition: Sendable {
     /// Output objects stay open. A schema-validating client rejects the whole result of a successful
     /// call over one undeclared field, so a closed output schema turns every added diagnostic field
     /// into an outage; arguments stay closed because a misspelled one must not be silently ignored.
-    private func outputSchemaValue() -> Value? {
+    public func outputSchemaValue() -> Value? {
         guard let outputSchema else { return nil }
         return .object([
             "type": .string("object"),
@@ -202,20 +186,20 @@ public struct ToolResult: Sendable, Equatable {
         Self(content: content, isError: true)
     }
 
-    public func mcpResult() -> CallTool.Result {
-        var items: [Tool.Content] = [.text(text: content, annotations: nil, _meta: nil)]
+    /// The size of this result as one JSON reply (text, image and structured content), the figure
+    /// efficiency telemetry compares across response modes.
+    public func wireByteCount() -> Int {
+        var items: [Value] = [.object(["type": "text", "text": .string(content)])]
         if let image {
-            items.append(.image(
-                data: image.data.base64EncodedString(),
-                mimeType: image.mimeType,
-                annotations: nil,
-                _meta: nil
-            ))
+            items.append(.object([
+                "type": "image", "data": .string(image.data.base64EncodedString()), "mimeType": .string(image.mimeType)
+            ]))
         }
-        return CallTool.Result(
-            content: items,
-            structuredContent: structuredContent,
-            isError: isError
-        )
+        var reply: [String: Value] = ["content": .array(items)]
+        reply["structuredContent"] = structuredContent
+        if isError {
+            reply["isError"] = true
+        }
+        return (try? JSONEncoder().encode(Value.object(reply)).count) ?? 0
     }
 }

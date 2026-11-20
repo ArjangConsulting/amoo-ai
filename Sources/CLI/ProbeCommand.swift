@@ -1,6 +1,6 @@
 import AmooCore
 import Foundation
-import MCP
+import MCPServer
 import ProcessRunner
 import WebInspector
 

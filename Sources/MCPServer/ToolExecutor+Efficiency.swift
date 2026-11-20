@@ -1,7 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooTelemetry
 import Foundation
-import MCP
 import Tracing
 
 extension DriverToolExecutor {
@@ -41,8 +40,8 @@ extension DriverToolExecutor {
             sessionID: arguments["session_id"] ?? result.structuredContent?.objectValue?["session_id"]?.stringValue,
             metrics: [
                 "elapsed_ms": Self.elapsedMilliseconds(since: started),
-                "wire_response_bytes": (try? JSONEncoder().encode(result.mcpResult()).count) ?? 0,
-                "text_payload_bytes": (try? JSONEncoder().encode(textResult.mcpResult()).count) ?? 0,
+                "wire_response_bytes": result.wireByteCount(),
+                "text_payload_bytes": textResult.wireByteCount(),
                 "image_bytes": result.image?.data.count ?? 0,
                 "image_pixels": result.image == nil ? 0 : Self.imagePixels(result)
             ]
@@ -72,9 +71,9 @@ extension DriverToolExecutor {
                 attributes[TelemetryAttribute.sessionID] = session
             }
             attributes[TelemetryAttribute.responseMode] = arguments["response_mode"] ?? "default"
-            attributes[TelemetryAttribute.responseBytes] = (try? JSONEncoder().encode(result.mcpResult()).count) ?? 0
+            attributes[TelemetryAttribute.responseBytes] = result.wireByteCount()
             attributes[TelemetryAttribute.responseTextBytes] =
-                (try? JSONEncoder().encode(textResult.mcpResult()).count) ?? 0
+                textResult.wireByteCount()
             attributes[TelemetryAttribute.observedElements] = result.observedElements.count
             let inline = result.image != nil
             attributes[TelemetryAttribute.imageInline] = inline
@@ -257,7 +256,7 @@ extension DriverToolExecutor {
         let id = arguments["session_id"] ?? result.structuredContent?.objectValue?["session_id"]?.stringValue
         guard let id, let session = await sessionManager?.session(id) else { return }
         await session.recordClientResponse(
-            bytes: (try? JSONEncoder().encode(result.mcpResult()).count) ?? 0,
+            bytes: result.wireByteCount(),
             imageBytes: result.image?.data.count ?? 0, dimensions: nil
         )
         if tool == "start_session" {

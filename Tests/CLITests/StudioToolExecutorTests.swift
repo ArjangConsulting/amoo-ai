@@ -83,20 +83,20 @@ struct StudioToolExecutorTests {
         #expect(tools.values.allSatisfy { $0.category != "other" })
     }
 
-    @Test("MCP schemas publish exhaustive values as enum, open ones as examples, and annotations")
-    func mcpSchemaHints() throws {
+    @Test("Tool schemas publish exhaustive values as enum, open ones as examples, and safety hints")
+    func toolSchemaHints() throws {
         let definitions = Dictionary(uniqueKeysWithValues: MCPServer().toolDefinitions().map { ($0.name, $0) })
-        let swipe = try #require(definitions["swipe_in_direction"]).mcpTool()
-        let key = try #require(definitions["press_key"]).mcpTool()
-        let uninstall = try #require(definitions["device_uninstall_app"]).mcpTool()
-        let find = try #require(definitions["find_elements"]).mcpTool()
+        let swipe = try #require(definitions["swipe_in_direction"])
+        let key = try #require(definitions["press_key"])
+        let uninstall = try #require(definitions["device_uninstall_app"])
+        let find = try #require(definitions["find_elements"])
 
-        #expect(swipe.inputSchema.description.contains("enum"))
-        let keyProperty = try #require(key.inputSchema.objectValue?["properties"]?.objectValue?["key"]?.objectValue)
+        #expect(swipe.inputSchemaValue().description.contains("enum"))
+        let keySchema = key.inputSchemaValue()
+        let keyProperty = try #require(keySchema.objectValue?["properties"]?.objectValue?["key"]?.objectValue)
         #expect(keyProperty["examples"] != nil)
         #expect(keyProperty["enum"] == nil)
-        #expect(uninstall.annotations.destructiveHint == true)
-        #expect(find.annotations.readOnlyHint == true)
-        #expect(find.annotations.destructiveHint == nil)
+        #expect(uninstall.destructive == true)
+        #expect(find.readOnly == true)
     }
 }

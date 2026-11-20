@@ -1,7 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
-import MCP
 import TestSession
 
 /// Validated pagination shared by query tools. Cursors must be reused with the same query.

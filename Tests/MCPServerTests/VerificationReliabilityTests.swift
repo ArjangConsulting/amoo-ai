@@ -1,7 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
-import MCP
 @testable import MCPServer
 import TestCommons
 import TestSession
@@ -284,8 +283,8 @@ final class VerificationReliabilityTests: XCTestCase {
             "limit": "60", "response_mode": "compact"
         ])
         let byDefault = await executor.execute(toolName: "find_elements", arguments: ["limit": "60"])
-        let fullBytes = try JSONEncoder().encode(full.mcpResult()).count
-        let compactBytes = try JSONEncoder().encode(compact.mcpResult()).count
+        let fullBytes = full.wireByteCount()
+        let compactBytes = compact.wireByteCount()
         XCTAssertLessThan(compactBytes, fullBytes / 2)
         // Structured rows (what Claude Code hands the model) are compact by default; only
         // response_mode=compact also shortens the text summary.

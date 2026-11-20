@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 
 /// A screenshot cut down to one element, so a visual question about a button costs that button's
 /// pixels instead of a full screen's.

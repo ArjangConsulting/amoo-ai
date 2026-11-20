@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 @testable import MCPServer
 import TestCommons
 import TestSession
@@ -85,16 +84,17 @@ final class MCPServerTests: XCTestCase {
             required: ["x", "y"]
         )
 
-        let tool = definition.mcpTool()
+        let tool = definition
+        let inputSchema = tool.inputSchemaValue()
 
         XCTAssertEqual(tool.name, "tap")
         XCTAssertEqual(tool.title, "Tap")
         XCTAssertEqual(tool.description, "Tap a coordinate.")
-        XCTAssertTrue(tool.inputSchema.description.contains("additionalProperties"))
-        XCTAssertTrue(tool.inputSchema.description.contains("false"))
-        XCTAssertTrue(tool.inputSchema.description.contains("x"))
-        XCTAssertTrue(tool.inputSchema.description.contains("y"))
-        XCTAssertNil(tool.outputSchema)
+        XCTAssertTrue(inputSchema.description.contains("additionalProperties"))
+        XCTAssertTrue(inputSchema.description.contains("false"))
+        XCTAssertTrue(inputSchema.description.contains("x"))
+        XCTAssertTrue(inputSchema.description.contains("y"))
+        XCTAssertNil(tool.outputSchemaValue())
     }
 
     func testMCPToolConversionIncludesOutputSchema() throws {
@@ -110,11 +110,11 @@ final class MCPServerTests: XCTestCase {
             )
         )
 
-        let tool = definition.mcpTool()
+        let inputSchema = definition.inputSchemaValue()
 
-        XCTAssertTrue(tool.inputSchema.description.contains("additionalProperties"))
-        XCTAssertTrue(tool.inputSchema.description.contains("false"))
-        let outputSchema = try XCTUnwrap(tool.outputSchema)
+        XCTAssertTrue(inputSchema.description.contains("additionalProperties"))
+        XCTAssertTrue(inputSchema.description.contains("false"))
+        let outputSchema = try XCTUnwrap(definition.outputSchemaValue())
         XCTAssertTrue(outputSchema.description.contains("confidence"))
         XCTAssertTrue(outputSchema.description.contains("suggestedActions"))
         // Arguments are closed; results stay open so an added field cannot fail a validating client.
@@ -148,8 +148,7 @@ final class MCPServerTests: XCTestCase {
             )
         )
 
-        let tool = definition.mcpTool()
-        let outputSchema = try XCTUnwrap(tool.outputSchema)
+        let outputSchema = try XCTUnwrap(definition.outputSchemaValue())
         let description = outputSchema.description
         XCTAssertTrue(description.contains("items"))
         XCTAssertTrue(description.contains("priority"))
@@ -157,20 +156,13 @@ final class MCPServerTests: XCTestCase {
         XCTAssertTrue(description.contains("string"))
     }
 
-    func testToolResultMCPResultPreservesContentErrorAndStructuredContent() throws {
-        let structured: Value = .object([
-            "confidence": .string("medium"),
-            "suggestedActions": .array([.string("Tap Submit")])
-        ])
+    func testWireByteCountCoversTextAndStructuredContent() {
+        let structured: Value = .object(["suggestedActions": .array([.string("Tap Submit")])])
+        let plain = ToolResult(content: "Suggested actions")
+        let full = ToolResult(content: "Suggested actions", isError: true, structuredContent: structured)
 
-        let result = ToolResult(content: "Suggested actions", isError: true, structuredContent: structured).mcpResult()
-
-        XCTAssertEqual(result.isError, true)
-        XCTAssertEqual(result.structuredContent, structured)
-        guard case let .text(text, _, _) = try XCTUnwrap(result.content.first) else {
-            return XCTFail("Expected text content")
-        }
-        XCTAssertEqual(text, "Suggested actions")
+        XCTAssertGreaterThan(plain.wireByteCount(), "Suggested actions".utf8.count)
+        XCTAssertGreaterThan(full.wireByteCount(), plain.wireByteCount())
     }
 
     func testHealthPassThrough() {

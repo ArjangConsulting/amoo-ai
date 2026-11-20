@@ -1,6 +1,5 @@
 import AmooCore
 import AmooLogging
-import MCP
 
 private let logger = AmooLogger.forType(BlockingSystemDialog.self)
 

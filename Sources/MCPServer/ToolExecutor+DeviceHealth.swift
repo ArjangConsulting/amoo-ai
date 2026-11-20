@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     func executeDeviceHealth(driver: any PlatformDriver, arguments: [String: String]) async throws -> ToolResult {

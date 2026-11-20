@@ -1,7 +1,6 @@
 // Compact fixtures preserve nested evidence/redaction expectations together.
 import AmooCore
 import Foundation
-import MCP
 @testable import MCPServer
 import SessionCompiler
 import TestCommons

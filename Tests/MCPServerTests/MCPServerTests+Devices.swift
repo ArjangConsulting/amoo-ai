@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 @testable import MCPServer
 import TestCommons
 import TestSession
@@ -365,9 +364,8 @@ extension MCPServerTests {
         XCTAssertEqual(fields["format"]?.stringValue, "png")
         XCTAssertEqual(fields["byte_count"]?.intValue, 1)
 
-        // The MCP result should carry both a text and an image content item.
-        let mcp = result.mcpResult()
-        XCTAssertEqual(mcp.content.count, 2)
+        // The reply carries the image alongside the text.
+        XCTAssertGreaterThan(result.wireByteCount(), ToolResult(content: result.content).wireByteCount())
     }
 
     /// A capture right after a tap used to catch a sheet mid-dismiss; the default settle step

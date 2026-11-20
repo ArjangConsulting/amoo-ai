@@ -1,7 +1,6 @@
 // swiftlint:disable multiline_arguments
 import AmooCore
 import Foundation
-import MCP
 
 private struct RankedCandidate {
     let index: Int

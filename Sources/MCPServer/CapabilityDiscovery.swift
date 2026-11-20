@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 
 /// Queryable contracts compiled into the running binary, shared by CLI and MCP discovery.
 public enum CapabilityDiscovery {
@@ -27,6 +26,9 @@ public enum CapabilityDiscovery {
                 fields["cli"] = .string(MCPServer.longLivedOnlyMessage)
             }
             fields["arguments"] = definition.inputSchemaValue()
+            if let result = definition.outputSchemaValue() {
+                fields["result"] = result
+            }
             fields["read_only"] = .bool(definition.readOnly == true)
         } else {
             fields["invocation"] = .object([

@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 import Tracing
 
 /// Decides, from one hierarchy snapshot, whether a tap at `point` would land on `target`.

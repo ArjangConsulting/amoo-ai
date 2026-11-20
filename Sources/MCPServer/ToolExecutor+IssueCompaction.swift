@@ -1,5 +1,3 @@
-import MCP
-
 extension DriverToolExecutor {
     static func compactingIssueResponse(
         _ original: ToolResult,

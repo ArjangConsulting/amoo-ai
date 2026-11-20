@@ -1,7 +1,6 @@
 import AmooCore
 import AuditEngine
 import Foundation
-import MCP
 import ProcessRunner
 import StudioProtocol
 import SwiftyTerminal

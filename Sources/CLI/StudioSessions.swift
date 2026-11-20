@@ -3,7 +3,6 @@ import AndroidDriver
 import CompanionProtocol
 import Foundation
 import IOSDriver
-import MCP
 import MCPServer
 import ProcessRunner
 import StudioProtocol

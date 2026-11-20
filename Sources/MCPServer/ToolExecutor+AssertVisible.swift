@@ -1,5 +1,4 @@
 import AmooCore
-import MCP
 
 extension DriverToolExecutor {
     /// A read that ran out of time rather than one that cannot succeed: a capture past the

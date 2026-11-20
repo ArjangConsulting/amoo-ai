@@ -1,6 +1,5 @@
 import AmooCore
 import Foundation
-import MCP
 
 /// `assert_selected`: the element exists and its selected state equals `expected`.
 ///
