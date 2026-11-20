@@ -215,6 +215,8 @@ final class CompanionManager: @unchecked Sendable {
                 directory: bundled ? URL(fileURLWithPath: productsDir).deletingLastPathComponent().path
                     : config.companionDir + "/build"
             ),
+            sourceFingerprint: bundled ? nil
+                : CompanionBuildIdentity.recordedFingerprint(at: fingerprintPath(config: config)),
             stale: stale
         ))
 
