@@ -141,10 +141,17 @@ public enum ActionTools {
         ToolDefinition(
             name: "dismiss_keyboard",
             description: "Hide the on-screen keyboard using an unambiguous button labeled Hide keyboard or"
-                + " Dismiss keyboard. Fails without acting when no dedicated dismissal control is available."
-                + " Never sends Return/Escape, taps Done, or swipes: those can submit forms or close sheets."
-                + " Use tap_element with an explicit app control when that action is intended.",
-            properties: [:]
+                + " Dismiss keyboard; on Android, Back, which only closes the keyboard while it is shown."
+                + " Otherwise fails without acting unless method=return. By default it never sends"
+                + " Return/Escape, taps Done, or swipes: those can submit forms or close sheets.",
+            properties: [
+                "method": .init(
+                    type: "string",
+                    description: "auto (default): a dedicated control, or Back on Android. return: press the"
+                        + " keyboard's return key (\"search\", \"go\", \"done\"…) when submitting is acceptable,"
+                        + " for example a search field with no other way to close the keyboard"
+                )
+            ]
         ),
         ToolDefinition(
             name: "type_text",

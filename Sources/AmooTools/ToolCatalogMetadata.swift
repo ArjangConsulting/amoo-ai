@@ -45,6 +45,7 @@ enum ToolCatalogMetadata {
         .init(tools: ["take_screenshot"], property: "format", values: ["png", "jpeg", "jpg"], exhaustive: true),
         .init(tools: ["start_session"], property: "build_mode", values: ["auto", "reuse", "rebuild"], exhaustive: true),
         .init(tools: ["set_appearance"], property: "appearance", values: ["light", "dark"], exhaustive: true),
+        .init(tools: ["dismiss_keyboard"], property: "method", values: ["auto", "return"], exhaustive: true),
         .init(
             tools: ["set_posture"],
             property: "posture",
