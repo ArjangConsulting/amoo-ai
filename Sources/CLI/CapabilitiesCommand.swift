@@ -2,7 +2,28 @@ import AmooCore
 import AmooTools
 import Foundation
 
+func renderCapabilitiesHelp() -> String {
+    """
+    Usage: amoo capabilities [--tool <name>] [--command device] [--platform ios|android|macos]
+                             [--runtime-id <id>] [--json]
+
+    Print installed tool schemas, assertion support and runtime identity as JSON, without a device.
+
+      --tool <name>         One tool's argument and result schema
+      --command device      The `amoo device` invocation flags
+      --platform <p>        Assertion support on ios, android or macos
+      --runtime-id <id>     Include a leased runtime's identity (from `amoo env up`)
+      --json                Accepted for symmetry; output is always JSON
+
+    Example:
+      amoo capabilities --tool record_video --platform ios
+    """
+}
+
 func runCapabilitiesCommand(_ arguments: [String], store: DeviceRuntimeStore = DeviceRuntimeStore()) -> CLIResult {
+    if arguments.first == "help" || arguments.contains("--help") || arguments.contains("-h") {
+        return CLIResult(output: renderCapabilitiesHelp(), exitCode: 0)
+    }
     do {
         var flags = EnvFlagReader(arguments)
         let tool = try flags.value("--tool")
@@ -10,7 +31,14 @@ func runCapabilitiesCommand(_ arguments: [String], store: DeviceRuntimeStore = D
         let rawPlatform = try flags.value("--platform")
         let runtimeID = try flags.value("--runtime-id")
         _ = flags.take("--json")
-        try flags.finish()
+        do {
+            try flags.finish()
+        } catch let EnvCommandParseError.usage(message) {
+            throw EnvCommandParseError.usage(
+                message + " Accepted: --tool, --command, --platform, --runtime-id, --json."
+                    + " See `amoo capabilities --help`."
+            )
+        }
         let runtime = runtimeID.flatMap { store.runtime(id: $0) }
         if let runtimeID, runtime == nil {
             throw DeviceAccessError.unknownRuntime(runtimeID)
