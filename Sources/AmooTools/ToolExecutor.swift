@@ -53,6 +53,8 @@ public actor DriverToolExecutor: ToolExecutor {
     var credentialRedactor = ArtifactRedactor()
     /// The last app amoo launched per session id (`default` without one), for the credential gate.
     var credentialLaunches: [String: CredentialLaunch] = [:]
+    /// `start_recording` calls not yet stopped, by session id (`default` without one).
+    var activeRecordings: [String: ActiveToolRecording] = [:]
 
     public init(
         driver: any PlatformDriver,
@@ -276,8 +278,8 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         if [
             "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
-            "take_screenshot", "take_screenshot_metadata", "record_video", "current_app", "list_devices",
-            "list_apps"
+            "take_screenshot", "take_screenshot_metadata", "record_video", "start_recording", "stop_recording",
+            "current_app", "list_devices", "list_apps"
         ].contains(toolName) {
             return .diagnostic
         }

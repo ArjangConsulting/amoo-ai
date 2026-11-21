@@ -13,6 +13,16 @@ public extension CommandCoverageMatrix {
             expectedAssertion: "a non-empty native video is saved to output"
         ),
         .init(
+            name: "start_recording", channel: .tool, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .home,
+            expectedAssertion: "a native recording starts and survives the calling process"
+        ),
+        .init(
+            name: "stop_recording", channel: .tool, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .home,
+            expectedAssertion: "the running recording is saved with its recorded length"
+        ),
+        .init(
             name: "get_capabilities", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .environment,
             expectedAssertion: "installed schemas, binary identity and provider assertion support are queryable"

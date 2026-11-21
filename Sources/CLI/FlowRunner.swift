@@ -73,6 +73,8 @@ struct FlowRunResult: Equatable {
     var optionalFailed = 0
     /// Whether the run ended early on a failed step with `on_error: stop`.
     var stopped = false
+    /// Videos saved by `--record-video` or a `start_recording` step left running at the end.
+    var recordings: [String] = []
 
     var succeeded: Bool {
         failed == 0

@@ -84,8 +84,9 @@ public enum QueryTools {
             name: "record_video",
             description: "Record the device screen natively for duration_seconds, then save it to output (an .mp4)."
                 + " iOS simulators use simctl io recordVideo, Android uses screenrecord; macOS is unsupported."
-                + " The call blocks for the duration: to capture a transition, start it in the background"
-                + " and drive the app from a second call on the same runtime.",
+                + " The call blocks for the duration; to record while driving the app, use start_recording"
+                + " and stop_recording. recorded_seconds is the clip's real length: the encoder starts about"
+                + " a second after the call does.",
             properties: [
                 "duration_seconds": .init(
                     type: "number",
@@ -97,6 +98,30 @@ public enum QueryTools {
                 )
             ],
             required: ["output"]
+        ),
+        ToolDefinition(
+            name: "start_recording",
+            description: "Start a native screen recording that keeps running across calls until stop_recording."
+                + " Drive the app in between, then stop_recording saves it to output. Stops by itself after"
+                + " max_seconds. One recording per device; `amoo env down` stops one left running.",
+            properties: [
+                "output": .init(
+                    type: "string",
+                    description: "File path to save the video to (~ is expanded). Must not exist yet."
+                ),
+                "max_seconds": .init(
+                    type: "number",
+                    description: "Safety limit, 1 to 600 seconds (Android: 180, screenrecord's own limit)."
+                        + " Defaults to 300 (Android: 180)."
+                )
+            ],
+            required: ["output"]
+        ),
+        ToolDefinition(
+            name: "stop_recording",
+            description: "Stop the recording start_recording began and save it. Reports saved_path, byte_count,"
+                + " recorded_seconds and stopped_by (stop_recording, or max_seconds when it had already ended).",
+            properties: [:]
         ),
         ToolDefinition(
             name: "take_screenshot",

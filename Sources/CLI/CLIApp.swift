@@ -239,6 +239,10 @@ public struct CLIApp {
     }
 
     private func handleDeviceCommand(remaining: [String]) async -> CLIResult {
+        // Internal: the detached process `start_recording` leaves holding a native recording.
+        if remaining.first == "record-daemon" {
+            return await runRecordDaemon(arguments: Array(remaining.dropFirst()))
+        }
         if remaining.first == "stream" {
             let streamArgs = Array(remaining.dropFirst())
             if isHelpRequest(streamArgs) {
@@ -308,6 +312,10 @@ public struct CLIApp {
             )
             overrides.outputDirectory = try flags.value("--output-dir")
             overrides.continueOnError = flags.take("--continue-on-error")
+            overrides.recordVideo = flags.take("--record-video")
+            if overrides.recordVideo, overrides.outputDirectory == nil {
+                throw EnvCommandParseError.usage("--record-video saves <output-dir>/recording.mp4; pass --output-dir.")
+            }
             try overrides.devices = flowDeviceTargets(from: flags.value("--devices"))
             while let assignment = try flags.value("--var") {
                 guard let equals = assignment.firstIndex(of: "="), equals != assignment.startIndex else {
@@ -321,7 +329,6 @@ public struct CLIApp {
             guard paths.count == 1 else { return CLIResult(output: renderFlowHelp(), exitCode: 64) }
             return await runFlowCommand(path: paths[0], overrides: overrides)
         } catch let EnvCommandParseError.usage(message) {
-            // The shared parser's own description appends `amoo env`'s help, not flow's.
             return CLIResult(output: message + "\n\n" + renderFlowHelp(), exitCode: 64)
         } catch {
             return CLIResult(output: "\(error)", exitCode: 64)

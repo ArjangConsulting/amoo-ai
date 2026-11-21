@@ -81,6 +81,10 @@ func runEnvDown(
     }
     defer { access.release() }
 
+    await stopLeftoverRecording(
+        deviceID: runtime.deviceID,
+        store: DetachedRecordingStore(runtimeDirectory: store.directory)
+    )
     if let failure = await stopCompanions(runtime, options: options, dependencies: dependencies, report: &report) {
         report.error = failure
         return finish(1)

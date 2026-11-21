@@ -1,5 +1,6 @@
 import AmooCore
 import AmooLogging
+import AmooTools
 import Foundation
 import ProcessRunner
 
@@ -87,6 +88,7 @@ struct FlowReport: Encodable {
     var stopped: Bool
     var elapsedMilliseconds: Int
     var steps: [FlowStepRecord]
+    var recordings: [String]
 
     init(
         flow: String,
@@ -106,6 +108,7 @@ struct FlowReport: Encodable {
         stopped = result.stopped
         self.elapsedMilliseconds = elapsedMilliseconds
         steps = result.steps
+        recordings = result.recordings
     }
 
     init(flow path: String, platform: Platform, flow: TestFlow, port: Int, result: FlowRunResult) {
@@ -120,7 +123,7 @@ struct FlowReport: Encodable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case flow, platform, port, passed, failed, stopped, steps
+        case flow, platform, port, passed, failed, stopped, steps, recordings
         case deviceID = "device_id"
         case amooCommit = "amoo_commit"
         case optionalFailed = "optional_failed"
@@ -151,15 +154,51 @@ func writeFlowReport(_ report: FlowReport, to directory: URL) -> String {
 }
 
 extension FlowRunContext {
-    /// The context for one run of `flow`: its `vars`, the device as `${device}`, then `--var`.
+    /// The context for one run of `flow`: its `vars`, the device as `${device}`, `--output-dir` as
+    /// `${output_dir}`, then `--var`.
     init(flow: TestFlow, overrides: FlowOverrides) {
         var variables = flow.vars
         variables["device"] = flow.deviceID ?? "booted"
+        variables["output_dir"] = overrides.outputDirectory
         variables.merge(overrides.variables) { _, override in override }
         self.init(
             variables: variables,
             outputDirectory: overrides.outputDirectory.map { URL(fileURLWithPath: $0) },
             continueOnError: overrides.continueOnError
         )
+    }
+}
+
+// MARK: - --record-video
+
+/// Starts `--record-video`'s recording; `nil` when not asked for, else the start's result.
+func startFlowRecording(
+    overrides: FlowOverrides,
+    context: FlowRunContext,
+    executor: DriverToolExecutor
+) async -> ToolResult? {
+    guard overrides.recordVideo, let directory = context.outputDirectory else { return nil }
+    let output = directory.appending(path: "recording.mp4")
+    // amoo's own artifact name in the run's output directory, replaced on a rerun like its screenshots.
+    try? FileManager.default.removeItem(at: output)
+    return await executor.execute(toolName: "start_recording", arguments: ["output": output.path])
+}
+
+/// Saves every recording still running and reports it; a recording that failed fails the run.
+func finishFlowRecordings(start: ToolResult?, executor: DriverToolExecutor, into result: inout FlowRunResult) async {
+    if let start, start.isError {
+        result.failed += 1
+        result.lines.append("✗ --record-video: \(start.content)")
+    }
+    for outcome in await executor.stopActiveRecordings() {
+        switch outcome {
+        case let .success(saved):
+            result.recordings.append(saved.path)
+            let length = saved.recordedSeconds.map { String(format: " (%.1fs)", $0) } ?? ""
+            result.lines.append("● Video saved to \(saved.path)\(length)")
+        case let .failure(error):
+            result.failed += 1
+            result.lines.append("✗ Recording was not saved: \(error)")
+        }
     }
 }

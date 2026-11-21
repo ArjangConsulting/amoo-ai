@@ -118,9 +118,13 @@ Live frames:
   `amoo device stream --help`.
 
 Native video:
-  amoo device --platform android --runtime-id <id> record_video output=<path.mp4> duration_seconds=5
-  Records for 1–60 seconds using the device encoder. Run gestures in another CLI call using the
-  same runtime while it records. Frame rate depends on the device; use this for animation evidence.
+  amoo device --runtime-id <id> start_recording output=<path.mp4> [max_seconds=300]
+  ...drive the app with other `amoo device --runtime-id <id>` calls...
+  amoo device --runtime-id <id> stop_recording
+  The recording runs in a background recorder until stop_recording, max_seconds (Android: at most
+  180, screenrecord's limit) or `amoo env down`. For a fixed clip, record_video output=<path.mp4>
+  duration_seconds=5 blocks for 1–60 seconds. Results report recorded_seconds, the clip's real
+  length: the encoder starts about a second after the call. `amoo flow --record-video` records a run.
 
 Defaults:
   platform=ios
@@ -181,6 +185,11 @@ func runDeviceCommand(
         return deviceAccessRefusal(options: options, error: error)
     }
     defer { access?.release() }
+
+    // One call per process cannot hold a recording, so these hand it to a detached recorder.
+    if ["start_recording", "stop_recording"].contains(options.tool) {
+        return await runDetachedRecordingTool(options: options)
+    }
 
     let connection = CompanionConnection(host: "127.0.0.1", port: options.port)
 

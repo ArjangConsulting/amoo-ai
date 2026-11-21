@@ -60,7 +60,7 @@ final class DeviceRecordVideoPreflightTests: XCTestCase {
         let named = renderDeviceHelp().split(separator: "\n").compactMap { line in
             line.firstMatch(of: example).map { String($0.output.1) }
         }.filter { $0 != "stream" }
-        XCTAssertTrue(named.contains("record_video"), "\(named)")
+        XCTAssertTrue(named.contains("start_recording"), "\(named)")
         for tool in named {
             XCTAssertTrue(catalog.contains(tool), "`amoo device \(tool)` is documented but not in the catalog")
         }

@@ -160,7 +160,7 @@ func renderFlowHelp() -> String {
     """
     Usage: amoo flow <path.amoo.json> [--device <id>] [--port <n>] [--runtime-id <id>]
                      [--devices <id[:port],...>] [--output-dir <dir>] [--var name=value]...
-                     [--continue-on-error]
+                     [--continue-on-error] [--record-video]
 
     Runs a checked-in sequence against one persistent driver connection. Argument values may
     reference ${name}: the flow's "vars", then --var overrides, then the environment, so credentials
@@ -175,7 +175,11 @@ func renderFlowHelp() -> String {
       {"tool": "wait_for", "arguments": {"id": "home.title", "timeout_ms": 10000}}
       {"tool": "wait_for", "arguments": {"idle": true, "stable_ms": 500}}   first frame / end of animation
       {"tool": "screenshot", "name": "home"}      saved as <output-dir>/NN-home.png
+      {"tool": "start_recording", "arguments": {"output": "${output_dir}/tap.mp4"}} ... stop_recording
     A step may also set "repeat": N to run N times.
+
+    --record-video records the whole run, natively, to <output-dir>/recording.mp4 (per device with
+    --devices). Android's screenrecord stops at 180 seconds; iOS at 300.
 
     --device / --port override the file's device_id / port, so one checked-in flow runs against
     whatever `amoo env up` controlled; --runtime-id (or AMOO_RUNTIME_ID) proves the runtime is yours.
@@ -195,6 +199,8 @@ struct FlowOverrides: Equatable {
     var outputDirectory: String?
     var variables: [String: String] = [:]
     var continueOnError = false
+    /// `--record-video`: record the whole run to `<output-dir>/recording.mp4`.
+    var recordVideo = false
     /// `--devices`: run on each of these instead of the single `--device`.
     var devices: [FlowDeviceTarget] = []
 }
@@ -311,7 +317,9 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         )
         await executor.setDismissSystemDialogsByDefault(flow.dismissSystemDialogs)
         let started = ContinuousClock.now
-        let result = await runFlowSteps(flow, executor: executor, context: context)
+        let recordingStart = await startFlowRecording(overrides: overrides, context: context, executor: executor)
+        var result = await runFlowSteps(flow, executor: executor, context: context)
+        await finishFlowRecordings(start: recordingStart, executor: executor, into: &result)
 
         await companion.shutdown()
         openCompanion = nil
