@@ -3,9 +3,15 @@ import AmooCore
 import Foundation
 
 public extension CommandCoverageMatrix {
-    /// Scrolling and keyboard helpers, plus the selected-state assertion. Split from `+Tools.swift` to keep that file
+    /// Scrolling and keyboard helpers, native video, plus the selected-state assertion. Split from `+Tools.swift` to
+    /// keep that file
     /// under the length limit.
     static let toolInteractionCommands: [CommandCoverage] = [
+        .init(
+            name: "record_video", channel: .tool, kind: .deterministic, releaseTier: .informational,
+            platforms: allPlatforms, fixtureScreen: .home,
+            expectedAssertion: "a non-empty native video is saved to output"
+        ),
         .init(
             name: "get_capabilities", channel: .tool, kind: .deterministic, releaseTier: .informational,
             platforms: allPlatforms, fixtureScreen: .environment,

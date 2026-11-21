@@ -191,9 +191,6 @@ func runDeviceCommand(
     }
 
     let driver = await makeDeviceCommandDriver(options, companion: companion)
-    if options.tool == "record_video" {
-        return await runDeviceVideoCommand(options: options, driver: driver, companion: companion)
-    }
     let executor = makeDeviceToolExecutor(options, driver: driver)
 
     // The WebView tools need to know which platform's debug bridge to use; `--platform` is a

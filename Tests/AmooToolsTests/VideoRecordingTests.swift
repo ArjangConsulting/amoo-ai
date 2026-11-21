@@ -1,5 +1,5 @@
 import AmooCore
-@testable import CLI
+@testable import AmooTools
 import Foundation
 import XCTest
 
@@ -21,16 +21,16 @@ private actor VideoRecordingLog {
     }
 }
 
-final class DeviceVideoRecordingTests: XCTestCase {
+final class VideoRecordingTests: XCTestCase {
     func testRequiresBoundedFiniteDurationAndOutput() throws {
         for duration in ["0", "-1", "61", "nan", "inf", "invalid"] {
-            XCTAssertThrowsError(try DeviceVideoRecordingOptions(arguments: [
+            XCTAssertThrowsError(try VideoRecordingOptions(arguments: [
                 "duration_seconds": duration,
                 "output": "/tmp/clip.mp4"
             ]))
         }
-        XCTAssertThrowsError(try DeviceVideoRecordingOptions(arguments: [:]))
-        let options = try DeviceVideoRecordingOptions(arguments: ["output": "/tmp/clip.mp4"])
+        XCTAssertThrowsError(try VideoRecordingOptions(arguments: [:]))
+        let options = try VideoRecordingOptions(arguments: ["output": "/tmp/clip.mp4"])
         XCTAssertEqual(options.duration, 5)
         XCTAssertEqual(options.output.path, "/tmp/clip.mp4")
     }

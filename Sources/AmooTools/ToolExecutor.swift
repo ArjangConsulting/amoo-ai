@@ -93,7 +93,9 @@ public actor DriverToolExecutor: ToolExecutor {
             }
             return await executeOrdered(toolName: toolName, arguments: arguments)
         }
-        if Self.controlPlaneTools.contains(toolName), toolName != "end_session" {
+        // The host records video (simctl, screenrecord) without the companion, so `record_video` must
+        // not hold the device queue: the steps it is meant to capture run while it waits.
+        if (Self.controlPlaneTools.contains(toolName) && toolName != "end_session") || toolName == "record_video" {
             return await executeOrdered(toolName: toolName, arguments: arguments)
         }
         let key: String
@@ -274,7 +276,8 @@ public actor DriverToolExecutor: ToolExecutor {
         }
         if [
             "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
-            "take_screenshot", "take_screenshot_metadata", "current_app", "list_devices", "list_apps"
+            "take_screenshot", "take_screenshot_metadata", "record_video", "current_app", "list_devices",
+            "list_apps"
         ].contains(toolName) {
             return .diagnostic
         }
