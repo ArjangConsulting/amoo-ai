@@ -383,10 +383,19 @@ actor MockDriver: PlatformDriver {
     }
 
     func startRecording() async throws -> RecordingSession {
-        RecordingSession(id: "rec", deviceID: "mock")
+        calls.append("recording:start")
+        return RecordingSession(id: "rec", deviceID: "mock")
     }
 
     func stopRecording(_: RecordingSession) async throws {}
+
+    /// Writes a five-second MP4 header, as a recorder's temporary file would hold.
+    func stopRecording(sessionID: String) async throws -> String {
+        calls.append("recording:stop:\(sessionID)")
+        let path = NSTemporaryDirectory() + "mock-recording-\(UUID().uuidString).mp4"
+        try VideoFixture.mp4(seconds: 5).write(to: URL(fileURLWithPath: path))
+        return path
+    }
 
     func setPermission(_ change: PermissionChange) async throws {
         calls.append("permission:\(change.appID):\(change.permission)")
