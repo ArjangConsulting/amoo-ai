@@ -52,7 +52,11 @@ final class ComposeHarnessExportTests: XCTestCase {
         ))
         let source = try ComposeEspressoEmitter().generate(test).source
         XCTAssertTrue(source.hasPrefix("package com.example.generated\n\n"), source)
-        XCTAssertTrue(source.contains("@MockedUiTest\n@RunWith(AndroidJUnit4::class)\nclass "), source)
+        XCTAssertTrue(source.contains("@MockedUiTest\nclass "), source)
+        XCTAssertFalse(source.contains("RunWith"), "the base class's runner is inherited")
+        let imports = source.split(separator: "\n").filter { $0.hasPrefix("import ") }
+        XCTAssertEqual(imports, imports.sorted(), "context imports sort into the block")
+        XCTAssertTrue(source.contains("import com.example.support.AppUiTest\nimport org.junit."), source)
         XCTAssertTrue(source.contains(": AppUiTest() {\n    @Test"), source)
         XCTAssertFalse(source.contains("createEmptyComposeRule"), "the base class owns the rule")
         XCTAssertTrue(source.contains("        launchApp {\n"), source)

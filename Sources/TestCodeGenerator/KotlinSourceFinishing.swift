@@ -22,6 +22,33 @@ enum KotlinSourceFinishing {
         return kept.joined(separator: "\n")
     }
 
+    /// Sorts the import block the way ktlint's default `import-ordering` does: plain imports in ASCII
+    /// order, then `java`, `javax` and `kotlin`, then aliased imports, with no blank lines between them.
+    /// Emitters concatenate fixed, body-driven and context imports, which would otherwise interleave.
+    static func sortedImports(_ source: String) -> String {
+        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard let first = lines.firstIndex(where: { $0.hasPrefix("import ") }),
+              let last = lines.lastIndex(where: { $0.hasPrefix("import ") })
+        else { return source }
+        let block = lines[first ... last]
+        guard block.allSatisfy({ $0.hasPrefix("import ") || $0.trimmingCharacters(in: .whitespaces).isEmpty })
+        else { return source }
+        let imports = Array(Set(block.filter { $0.hasPrefix("import ") })).sorted { lhs, rhs in
+            let left = importRank(lhs)
+            let right = importRank(rhs)
+            return left == right ? lhs < rhs : left < right
+        }
+        return (lines[..<first] + imports + lines[(last + 1)...]).joined(separator: "\n")
+    }
+
+    private static func importRank(_ line: String) -> Int {
+        if line.contains(" as ") {
+            return 2
+        }
+        let path = line.dropFirst("import ".count)
+        return ["java.", "javax.", "kotlin."].contains { path.hasPrefix($0) } ? 1 : 0
+    }
+
     /// Removes a wait for a node that the statement just before it already found or asserted: the
     /// recorder pairs every step with a readiness wait, so consecutive steps on one node repeated it.
     static func withoutRepeatedWaits(_ lines: [String]) -> [String] {

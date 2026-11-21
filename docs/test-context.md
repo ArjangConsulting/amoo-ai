@@ -91,7 +91,9 @@ command still overrides it.
   // Android only. The generated Kotlin file's `package`, annotations on its class, and a base-class
   // function that launches the app and runs the test body as its trailing lambda (`launchApp { … }`
   // instead of the generated ActivityScenario launch, so the harness's mock/onboarding setup
-  // applies). With `harnessOwnsApp`, the base class also provides `composeTestRule`.
+  // applies). With `harnessOwnsApp`, the base class also provides `composeTestRule`. A Compose test
+  // with a `baseClass`, or with a `@RunWith` in `classAnnotations`, gets no
+  // `@RunWith(AndroidJUnit4::class)` of its own: JUnit inherits the base class's runner.
   "kotlinPackage": "com.example.app.generated",
   "classAnnotations": ["@MockedUiTest"],
   "launchWrapper": "launchApp",
