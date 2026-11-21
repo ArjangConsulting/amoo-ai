@@ -212,7 +212,7 @@ private func flowIntent(forTool tool: String, arguments: [String: String]) -> Se
     }
     let queries: Set = [
         "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
-        "take_screenshot", "current_app", "list_devices", "list_apps"
+        "take_screenshot", "record_video", "current_app", "list_devices", "list_apps"
     ]
     return queries.contains(tool) ? .diagnostic : .testStep
 }

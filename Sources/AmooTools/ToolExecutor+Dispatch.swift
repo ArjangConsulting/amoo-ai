@@ -441,6 +441,9 @@ extension DriverToolExecutor {
         case "take_screenshot":
             return try await executeTakeScreenshot(driver: driver, arguments: arguments)
 
+        case "record_video":
+            return try await executeRecordVideo(driver: driver, arguments: arguments)
+
         case "is_keyboard_visible":
             let visible = try await driver.isKeyboardVisible()
             return .success(visible ? "true" : "false")

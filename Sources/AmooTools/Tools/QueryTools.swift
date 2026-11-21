@@ -81,6 +81,24 @@ public enum QueryTools {
             )
         ),
         ToolDefinition(
+            name: "record_video",
+            description: "Record the device screen natively for duration_seconds, then save it to output (an .mp4)."
+                + " iOS simulators use simctl io recordVideo, Android uses screenrecord; macOS is unsupported."
+                + " The call blocks for the duration: to capture a transition, start it in the background"
+                + " and drive the app from a second call on the same runtime.",
+            properties: [
+                "duration_seconds": .init(
+                    type: "number",
+                    description: "Seconds to record, 1 to 60. Defaults to 5."
+                ),
+                "output": .init(
+                    type: "string",
+                    description: "File path to save the video to (~ is expanded). Must not exist yet."
+                )
+            ],
+            required: ["output"]
+        ),
+        ToolDefinition(
             name: "take_screenshot",
             description: "Capture a screenshot of the current screen and save it to a file (saved_path)."
                 + " By default no image is returned: read the file only when you need pixels."

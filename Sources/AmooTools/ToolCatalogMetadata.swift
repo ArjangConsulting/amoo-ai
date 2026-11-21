@@ -86,6 +86,7 @@ enum ToolCatalogMetadata {
     /// later action depends on.
     private static let readOnlyTools: Set<String> = [
         "device_health", "find_elements", "get_view_hierarchy", "get_screen_context", "take_screenshot",
+        "record_video",
         "is_keyboard_visible", "current_app", "describe_screen", "suggest_test_actions",
         "analyze_ai_testability", "find_element_by_description", "assert_visible", "assert_enabled",
         "assert_absent", "assert_value", "assert_selected", "assert_checked", "assert_state_description",
