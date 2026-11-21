@@ -61,7 +61,8 @@ Usage: amoo device [--platform ios|android|macos] [--port <port>] [--device <id>
 
   --runtime-id <id>   Runtime from `amoo env up` (or AMOO_RUNTIME_ID). Devices controlled by another
                  session are refused.
-  --json         Print {"tool","ok","content","structured"} as one JSON object.
+  --json         Print {"tool","ok","content","structured"} as one JSON object on stdout. Logs go to
+                 stderr, so don't merge them (2>&1) into what a JSON parser reads.
   --arguments-json  Read a JSON argument object, preserving multiword selectors without shell splitting.
   Schema: amoo capabilities --tool <tool>
 
