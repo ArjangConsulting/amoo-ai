@@ -50,12 +50,14 @@ struct EnvDownOptions: Equatable {
     var json = false
 }
 
+/// A bad command line. Shared by every command that reads flags with `EnvFlagReader`, so its
+/// description is the message alone; each command appends its own usage text.
 enum EnvCommandParseError: Error, CustomStringConvertible, Equatable {
     case usage(String)
 
     var description: String {
         switch self {
-        case let .usage(message): message + "\n\n" + renderEnvHelp()
+        case let .usage(message): message
         }
     }
 }

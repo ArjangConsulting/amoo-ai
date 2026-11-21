@@ -227,7 +227,7 @@ func handleEnvCommand(remaining: [String]) async -> CLIResult {
     }
     switch parseEnvCommand(args: remaining) {
     case let .failure(error):
-        return CLIResult(output: error.description, exitCode: 64)
+        return CLIResult(output: error.description + "\n\n" + renderEnvHelp(), exitCode: 64)
     case let .success(.up(options)):
         return await runEnvUp(options)
     case let .success(.down(options)):
