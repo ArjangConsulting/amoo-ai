@@ -15,9 +15,19 @@ struct BlockingSystemDialog: Equatable {
     /// The button `dismiss_system_dialogs` presses: one that only closes the dialog (Android's Wait,
     /// iOS's Not Now or Cancel). nil when the dialog offers none, so it is never answered.
     var harmlessButton: ElementInfo?
+    /// Whether the system drew it. Android's dialogs always are; on iOS an app's own alert has the same
+    /// element types as Apple's sheets, so only a title in `appleSystemPromptTitles` counts, and only
+    /// those are ever answered: cancelling the app's "Discard changes?" would hide a behaviour change.
+    var isSystemPrompt = true
 
     /// Buttons that close a dialog without changing anything: never Save, Allow, Close app or OK.
     static let harmlessLabels: Set = ["wait", "not now", "cancel", "dismiss", "no thanks", "don't save"]
+
+    /// Lowercased title prefixes of the Apple prompts that interrupt a run over the app.
+    static let appleSystemPromptTitles = [
+        "save password", "save this password", "would you like to save this password", "update password",
+        "update saved password", "sign in to apple account"
+    ]
 
     /// Android's own package, frontmost while one of its dialogs is up.
     static let androidSystemPackage = "android"
@@ -35,8 +45,8 @@ struct BlockingSystemDialog: Equatable {
         )
     }
 
-    /// An iOS system alert or sheet in front ("Save Password?" with Not Now and Save), with the buttons
-    /// inside its frame.
+    /// An iOS alert or sheet in front ("Save Password?" with Not Now and Save), with the buttons inside
+    /// its frame. It may be the app's own; `isSystemPrompt` says whether Apple's.
     static func findIOS(in elements: [ElementInfo]) -> Self? {
         guard let sheet = elements.first(where: {
             ($0.type == .sheet || $0.type == .alert) && $0.isVisible
@@ -52,8 +62,14 @@ struct BlockingSystemDialog: Equatable {
         return Self(
             title: sheet.label,
             actions: buttons.map(\.label),
-            harmlessButton: buttons.first { harmlessLabels.contains($0.label.lowercased()) }
+            harmlessButton: buttons.first { harmlessLabels.contains($0.label.lowercased()) },
+            isSystemPrompt: isAppleSystemPrompt(sheet.label)
         )
+    }
+
+    static func isAppleSystemPrompt(_ title: String) -> Bool {
+        let title = title.trimmingCharacters(in: .whitespaces).lowercased()
+        return appleSystemPromptTitles.contains { title.hasPrefix($0) }
     }
 
     /// Whether this is the target app's own "isn't responding" dialog, judged by a distinctive part of
@@ -68,7 +84,11 @@ struct BlockingSystemDialog: Equatable {
     }
 
     var value: Value {
-        .object(["title": .string(title), "actions": .array(actions.map(Value.string))])
+        .object([
+            "title": .string(title),
+            "actions": .array(actions.map(Value.string)),
+            "system": .bool(isSystemPrompt)
+        ])
     }
 
     var shortDescription: String {
@@ -163,8 +183,11 @@ extension DriverToolExecutor {
         logger.info("Failed step met a system dialog", context: "tool=\(tool)")
         fields["blocking_dialog"] = dialog.value
         var result = original
-        result.content += "\nA system dialog is in front: \(dialog.shortDescription). Answer it with tap_element,"
+        result.content += dialog.isSystemPrompt
+            ? "\nA system dialog is in front: \(dialog.shortDescription). Answer it with tap_element,"
             + " or pass dismiss_system_dialogs=true to let amoo press its harmless button and retry."
+            : "\nA dialog is in front: \(dialog.shortDescription). It is not a known system prompt, so"
+            + " dismiss_system_dialogs leaves it: answer it with tap_element if the flow expects it."
         result.structuredContent = .object(fields)
         return result
     }
@@ -177,6 +200,7 @@ extension DriverToolExecutor {
               let dialog = await Self.withinBudget(milliseconds: 2000, {
                   await self.frontSystemDialog(driver: driver, arguments: arguments)
               }),
+              dialog.isSystemPrompt,
               let button = dialog.harmlessButton, let point = button.hitPoint ?? button.frame?.centre
         else { return nil }
         var target = arguments["app_id"]

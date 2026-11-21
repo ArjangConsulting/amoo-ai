@@ -28,6 +28,26 @@ final class SystemDialogDismissalTests: XCTestCase {
         XCTAssertNotNil(result.structuredContent?.objectValue?["dismissed_dialog"])
     }
 
+    func testTheAppsOwnAlertIsNamedButNeverAnswered() async {
+        let driver = DialogDriver(platform: .ios, dialog: .appAlert)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "assert_visible",
+            arguments: ["id": "account.sign_out", "timeout_ms": "200", "dismiss_system_dialogs": "true"]
+        )
+        XCTAssertTrue(result.isError, "cancelling the app's alert would hide a behaviour change")
+        XCTAssertTrue(result.content.contains(#"A dialog is in front: "Discard changes?""#), result.content)
+        XCTAssertEqual(result.structuredContent?.objectValue?["blocking_dialog"]?.objectValue?["system"], .bool(false))
+        let taps = await driver.taps
+        XCTAssertTrue(taps.isEmpty)
+    }
+
+    func testOnlyKnownAppleTitlesAreSystemPrompts() {
+        XCTAssertTrue(BlockingSystemDialog.isAppleSystemPrompt("Save Password?"))
+        XCTAssertTrue(BlockingSystemDialog.isAppleSystemPrompt("Update Password?"))
+        XCTAssertFalse(BlockingSystemDialog.isAppleSystemPrompt("Discard changes?"))
+        XCTAssertFalse(BlockingSystemDialog.isAppleSystemPrompt("Delete password?"))
+    }
+
     func testAnotherAppsANRIsWaitedOutButTheTargetsOwnIsNot() async {
         let foreign = DialogDriver(platform: .android, dialog: .anr("Pixel Launcher isn't responding"))
         let answered = await DriverToolExecutor(driver: foreign).execute(
@@ -58,7 +78,7 @@ final class SystemDialogDismissalTests: XCTestCase {
 
 /// A device showing one system dialog over a screen whose `account.sign_out` appears once it is answered.
 actor DialogDriver: PlatformDriver {
-    enum Dialog { case savePassword, anr(String) }
+    enum Dialog { case savePassword, appAlert, anr(String) }
 
     private let platform: Platform
     private var dialog: Dialog?
@@ -86,6 +106,12 @@ actor DialogDriver: PlatformDriver {
                 Self.element("", "Save Password?", .sheet, Rect(x: 0, y: 500, width: 440, height: 456)),
                 Self.element("", "Not Now", .button, Rect(x: 20, y: 880, width: 180, height: 50)),
                 Self.element("", "Save", .button, Rect(x: 240, y: 880, width: 180, height: 50))
+            ]
+        case .appAlert:
+            all = [
+                Self.element("", "Discard changes?", .alert, Rect(x: 60, y: 380, width: 320, height: 200)),
+                Self.element("", "Cancel", .button, Rect(x: 60, y: 520, width: 160, height: 50)),
+                Self.element("", "Discard", .button, Rect(x: 220, y: 520, width: 160, height: 50))
             ]
         case let .anr(title):
             all = [
