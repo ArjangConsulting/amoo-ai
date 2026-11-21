@@ -337,13 +337,16 @@ is silent and does not verify audible output or touch gestures. See
 
 ### System dialogs in front of the app
 
-When an element step fails while a system dialog holds the screen (Android's "<app> isn't responding",
-an iOS system alert or sheet such as "Save Password?"), the failure names it: `blocking_dialog` holds its
-title and buttons. `dismiss_system_dialogs=true` on the step, or `"dismiss_system_dialogs": true` at the
-top of a flow for every step, lets amoo press the dialog's harmless button (Wait, Not Now, Cancel) and run
-the step once more; the result carries `dismissed_dialog`. It never presses Save, Allow, OK or Close app,
-and never answers the target app's own "isn't responding", which is judged by a distinctive part of its
-package id in the title: that hang is a finding.
+When an element step fails while a dialog holds the screen (Android's "<app> isn't responding", an iOS
+alert or sheet such as "Save Password?"), the failure names it: `blocking_dialog` holds its title,
+buttons and `system`. On iOS an app's own alert looks the same as Apple's sheets, so only a known Apple
+prompt title (Save Password, Update Password, Sign In to Apple Account) has `system: true`; any other
+alert is reported as "a dialog in front" and is never answered. `dismiss_system_dialogs=true` on the
+step, or `"dismiss_system_dialogs": true` at the top of a flow for every step, lets amoo press a system
+dialog's harmless button (Wait, Not Now, Cancel) and run the step once more; the result carries
+`dismissed_dialog`. It never presses Save, Allow, OK or Close app, and never answers the target app's
+own "isn't responding", which is judged by a distinctive part of its package id in the title: that hang
+is a finding.
 
 `device_health [app_id=...]` independently probes device transport and companion RPC under bounded
 deadlines. Optional app checks report foreground identity and semantic readiness separately from

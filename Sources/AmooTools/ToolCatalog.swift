@@ -181,7 +181,8 @@ extension ToolDefinition {
             type: "boolean",
             description: "If the step fails behind a system dialog (another app's \"isn't responding\", iOS"
                 + " \"Save Password?\"), press its harmless button (Wait, Not Now, Cancel) and retry once."
-                + " Never answers the target app's own ANR. Default false; a flow can set it for every step"
+                + " Never answers the target app's own ANR or alerts; on iOS only known Apple prompts."
+                + " Default false; a flow can set it for every step"
         )
         return copy
     }
