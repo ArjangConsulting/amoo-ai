@@ -148,7 +148,7 @@ func runFlowSteps(
         return await runFlowStepSequence(flow, executor: executor, context: context)
     }
     do {
-        try await extensions.start(steps: flow.steps, variables: context.variables)
+        try await extensions.start(prefixes: flow.extensionPrefixes, steps: flow.steps, variables: context.variables)
     } catch {
         var result = FlowRunResult()
         result.failed = 1
@@ -161,17 +161,20 @@ func runFlowSteps(
     return result
 }
 
-/// `step` with an extension's launch environment joined to a launch step's, under any key the
-/// flow sets itself, so the app under test reaches what the extension set up for this run.
+/// A launch step's resolved `arguments` with an extension's launch environment joined beneath any
+/// key the flow sets itself, so the app under test reaches what the extension set up for this run.
+/// It runs after `${name}` resolution: an `environment` written as `${launch_env}` is only a list
+/// of keys once resolved.
 func applyingFlowExtensionLaunchEnvironment(
     _ launchEnvironment: [String: String],
-    to step: TestFlow.Step
-) -> TestFlow.Step {
-    guard !launchEnvironment.isEmpty, flowLaunchTools.contains(step.tool) else { return step }
-    var lowered = step
-    let explicit = AppLaunchEnvironment.parse(step.arguments["environment"])
+    toTool tool: String,
+    arguments: [String: String]
+) -> [String: String] {
+    guard !launchEnvironment.isEmpty, flowLaunchTools.contains(tool) else { return arguments }
+    var lowered = arguments
+    let explicit = AppLaunchEnvironment.parse(arguments["environment"])
     let environment = launchEnvironment.merging(explicit) { _, flow in flow }
-    lowered.arguments["environment"] = environment.sorted { $0.key < $1.key }
+    lowered["environment"] = environment.sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: "\n")
     return lowered
 }
@@ -283,13 +286,12 @@ private func runFlowStep(
     executor: any ToolExecutor,
     context: FlowRunContext
 ) async -> ToolResult {
-    var step = step
     var variables = context.variables
+    var extensionEnvironment: [String: String] = [:]
     if let extensions = context.extensions {
         let extensionVariables = await extensions.variables
-        let extensionEnvironment = await extensions.launchEnvironment
+        extensionEnvironment = await extensions.launchEnvironment
         variables.merge(extensionVariables) { _, fromExtension in fromExtension }
-        step = applyingFlowExtensionLaunchEnvironment(extensionEnvironment, to: step)
     }
     let resolve = { (value: String) throws -> String in
         try interpolateFlowVariables(in: value, variables: variables, environment: context.environment)
@@ -308,7 +310,9 @@ private func runFlowStep(
     }
     let arguments: [String: String]
     do {
-        arguments = try step.arguments.mapValues(resolve)
+        arguments = try applyingFlowExtensionLaunchEnvironment(
+            extensionEnvironment, toTool: step.tool, arguments: step.arguments.mapValues(resolve)
+        )
     } catch {
         return .error("\(error)")
     }

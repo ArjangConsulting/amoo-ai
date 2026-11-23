@@ -26,6 +26,9 @@ struct TestFlow: Codable, Equatable {
     /// `dismiss_system_dialogs` for every step that does not set it: answer another app's dialog in
     /// front with its harmless button and retry the step once.
     var dismissSystemDialogs = false
+    /// Flow extensions to start for the run even when no step uses their prefix: one that only
+    /// contributes launch environment (a mock-server session) has no step of its own to name.
+    var extensions: [String] = []
 
     init(
         platform: String,
@@ -51,6 +54,7 @@ struct TestFlow: Codable, Equatable {
         case onError = "on_error"
         case steps
         case dismissSystemDialogs = "dismiss_system_dialogs"
+        case extensions
     }
 
     init(from decoder: any Decoder) throws {
@@ -63,6 +67,24 @@ struct TestFlow: Codable, Equatable {
         onError = try container.decodeIfPresent(OnError.self, forKey: .onError) ?? .stop
         steps = try container.decode([Step].self, forKey: .steps)
         dismissSystemDialogs = try container.decodeIfPresent(Bool.self, forKey: .dismissSystemDialogs) ?? false
+        extensions = try container.decodeIfPresent([String].self, forKey: .extensions) ?? []
+        for prefix in extensions where FlowExtensionTool(toolName: "\(prefix).step") == nil {
+            throw DecodingError.dataCorruptedError(
+                forKey: .extensions,
+                in: container,
+                debugDescription: "'\(prefix)' is not an extension prefix: lowercase letters, digits and _."
+            )
+        }
+    }
+
+    /// Every extension the run starts, in order of first mention: declared ones, then step prefixes.
+    var extensionPrefixes: [String] {
+        var prefixes: [String] = []
+        for prefix in extensions + steps.compactMap({ FlowExtensionTool(toolName: $0.tool)?.prefix })
+            where !prefixes.contains(prefix) {
+            prefixes.append(prefix)
+        }
+        return prefixes
     }
 }
 
@@ -196,7 +218,8 @@ func renderFlowHelp() -> String {
 
     Extension steps: a tool named prefix.step (e.g. "moq.select_variant") runs through the program
     amoo-ext-<prefix>, found in AMOO_EXTENSION_PATH, then PATH. It is started before the first step
-    and ended after the last, and may add launch environment and variables. See docs/flow-extensions.md.
+    and ended after the last, and may add launch environment and variables. A top-level
+    "extensions": ["moq"] starts one the steps do not name. See docs/flow-extensions.md.
 
     --record-video records the whole run, natively, to <output-dir>/recording.mp4 (per device with
     --devices). Android's screenrecord stops at 180 seconds; iOS at 300.
@@ -369,7 +392,7 @@ private func flowExtensionSession(
     platform: Platform,
     overrides: FlowOverrides
 ) -> FlowExtensionSession? {
-    guard flow.steps.contains(where: { FlowExtensionTool(toolName: $0.tool) != nil }) else { return nil }
+    guard !flow.extensionPrefixes.isEmpty else { return nil }
     return FlowExtensionSession(
         invoker: ProcessFlowExtensionInvoker(),
         run: FlowExtensionRun(

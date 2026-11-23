@@ -189,6 +189,49 @@ final class FlowExtensionTests: XCTestCase {
         XCTAssertTrue(result.lines[0].contains("protocol 2"), result.lines[0])
     }
 
+    func testALaunchEnvironmentWrittenAsAVariableKeepsTheFlowsKeys() async throws {
+        let invoker = FakeInvoker()
+        let executor = RecordingExecutor()
+        let flow = try decodeFlow("""
+        { "platform": "ios", "vars": { "launch_env": "MOQ_BASE_URL=http://flow,X=1" }, "steps": [
+          { "tool": "device_launch_app", "arguments": { "app_id": "com.app", "environment": "${launch_env}" } },
+          { "tool": "moq.select_variant" } ] }
+        """)
+        var context = context(invoker)
+        context.variables = flow.vars
+
+        let result = await runFlowSteps(flow, executor: executor, context: context)
+
+        XCTAssertTrue(result.succeeded, result.lines.joined(separator: "\n"))
+        let launch = await executor.calls[0]
+        let environment = AppLaunchEnvironment.parse(launch.arguments["environment"])
+        XCTAssertEqual(environment, ["MOQ_BASE_URL": "http://flow", "MOQ_SESSION_ID": "s-1", "X": "1"])
+    }
+
+    func testADeclaredExtensionStartsWithoutAStepOfItsOwn() async throws {
+        let invoker = FakeInvoker()
+        let executor = RecordingExecutor()
+        let flow = try decodeFlow("""
+        { "platform": "ios", "extensions": ["moq"], "steps": [
+          { "tool": "device_launch_app", "arguments": { "app_id": "com.app" } } ] }
+        """)
+
+        let result = await runFlowSteps(flow, executor: executor, context: context(invoker))
+
+        XCTAssertTrue(result.succeeded, result.lines.joined(separator: "\n"))
+        let verbs = await invoker.calls.map(\.verb)
+        XCTAssertEqual(verbs, ["describe", "flow_start", "flow_end"])
+        let launch = await executor.calls[0]
+        XCTAssertEqual(AppLaunchEnvironment.parse(launch.arguments["environment"])["MOQ_SESSION_ID"], "s-1")
+        XCTAssertEqual(flow.extensionPrefixes, ["moq"])
+    }
+
+    func testADeclaredExtensionMustBeAPrefixName() {
+        XCTAssertThrowsError(try decodeFlow("""
+        { "platform": "ios", "extensions": ["Moq.x"], "steps": [ { "tool": "press_back" } ] }
+        """))
+    }
+
     // MARK: - process invoker
 
     func testTheProcessInvokerFindsTheProgramOnTheExtensionPathAndSendsTheRequest() async throws {

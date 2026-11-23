@@ -148,15 +148,11 @@ actor FlowExtensionSession {
 
     static let defaultTimeout = Swift.Duration.seconds(60)
 
-    /// Describes and starts every extension `steps` use, in order of first use. Throws on the first
-    /// one that is missing, speaks another protocol, does not offer a step, or fails to start; the
-    /// ones already started are ended first.
-    func start(steps: [FlowStep], variables flowVariables: [String: String]) async throws {
+    /// Describes and starts each of `prefixes`: the flow's declared extensions and those its `steps`
+    /// use. Throws on the first one that is missing, speaks another protocol, does not offer a step,
+    /// or fails to start; the ones already started are ended first.
+    func start(prefixes: [String], steps: [FlowStep], variables flowVariables: [String: String]) async throws {
         let tools = steps.compactMap { FlowExtensionTool(toolName: $0.tool) }
-        var prefixes: [String] = []
-        for tool in tools where !prefixes.contains(tool.prefix) {
-            prefixes.append(tool.prefix)
-        }
         do {
             for prefix in prefixes {
                 let offered = try await describe(prefix: prefix)
