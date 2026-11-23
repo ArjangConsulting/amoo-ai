@@ -206,6 +206,36 @@ extension CommandContractE2ETests {
         }
     }
 
+    /// Compose's usual icon button puts the test tag on the clickable button and the description on
+    /// its child icon. A tap's `expect_label` and an
+    /// id-plus-label selector both have to resolve to the button, the way TalkBack announces it and
+    /// XCUITest merges it on iOS.
+    func testIconButtonAnswersToItsIconsLabel() async throws {
+        try XCTSkipUnless(Self.platform == .android, "iOS reports the merged label on the button itself.")
+        let (server, _) = try makeServerWithDriver()
+        let ready = await openFixtureScreen(
+            on: server,
+            launcherID: "fixture-open-text",
+            launcherLabel: "Open Text Input",
+            readyID: "fixture-play-pause"
+        )
+        guard !ready.isError else { return XCTFail(ready.content) }
+
+        for label in ["Pause", "Play"] {
+            let tap = await server.execute(
+                toolName: "tap_element",
+                arguments: ["id": "fixture-play-pause", "expect_label": label, "expect_timeout_ms": "5000"]
+            )
+            XCTAssertFalse(tap.isError, tap.content)
+            XCTAssertEqual(tap.structuredContent?.objectValue?["expected_effect_met"], .bool(true), tap.content)
+            let merged = await server.execute(
+                toolName: "assert_visible",
+                arguments: ["id": "fixture-play-pause", "label": label, "timeout_ms": "5000"]
+            )
+            XCTAssertFalse(merged.isError, merged.content)
+        }
+    }
+
     func testAndroidResourceIDPrefersTheTaggedControlOverItsDescriptionAlias() async throws {
         guard Self.platform == .android else { throw XCTSkip("Compose exposes the duplicate description alias") }
         let (server, _) = try makeServerWithDriver()

@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -190,6 +192,7 @@ private fun DetailsScreen(onBack: () -> Unit) {
 @Composable
 private fun TextInputScreen(onBack: () -> Unit) {
     var value by remember { mutableStateOf("") }
+    var playing by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.padding(16.dp)) {
         Text(
@@ -210,6 +213,19 @@ private fun TextInputScreen(onBack: () -> Unit) {
                 .testTag("fixture-text-echo")
                 .semantics { contentDescription = "fixture-text-echo" }
         )
+        // The usual icon button: the test tag is on the clickable button and the description on
+        // its child, so amoo has to merge the child's label into the control it belongs to.
+        IconButton(
+            onClick = { playing = !playing },
+            modifier = Modifier.testTag("fixture-play-pause")
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(Color.DarkGray)
+                    .semantics { contentDescription = if (playing) "Pause" else "Play" }
+            )
+        }
         Button(
             onClick = onBack,
             modifier = Modifier
