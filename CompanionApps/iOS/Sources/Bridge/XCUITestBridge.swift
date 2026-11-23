@@ -891,52 +891,74 @@ final class XCUITestBridge: @unchecked Sendable {
         candidateBundleIDs: [String]
     ) async -> SetTextOutcome {
         defer { invalidateSnapshotCache() }
-        guard await tapElement(
+        // The lookup's snapshot already holds the field's frame, text and placeholder. When the
+        // selector names the text input itself, one tap focuses it with the caret where the deletes
+        // need it: at the end of existing text. A tap at the centre, then a snapshot of the field,
+        // then a second tap at its end took about half of a one-second set_text.
+        let matches = findElements(
             id: id,
             label: label,
             containsText: containsText,
             bundleID: bundleID,
-            candidateBundleIDs: candidateBundleIDs
-        ) else { return .fieldNotFound }
+            candidateBundleIDs: candidateBundleIDs,
+            labeledOnly: true
+        )
+        guard matches.count == 1, let target = matches.first else { return .fieldNotFound }
+        let frame = target.frame.standardized
+        guard !frame.isNull, !frame.isEmpty else { return .fieldNotFound }
+        lastTappedElementID = target.id.isEmpty ? nil : target.id
+        lastTappedElementLabel = target.label.isEmpty ? nil : target.label
+        let isTextInput = target.type == "textField" || target.type == "secureTextField"
+        let knownBefore = isTextInput ? (target.value == target.placeholder ? "" : target.value) : nil
+        let tapAtEnd = !(knownBefore?.isEmpty ?? true)
+        await tapWithoutCacheInvalidation(x: tapAtEnd ? frame.maxX - 8 : frame.midX, y: frame.midY)
         // `typeText`/`clearText` no-op when nothing resolves as a text input. Without this check
         // a tap that landed on a static label would still report the field as filled.
         guard let textInput = resolvedTextInput() else { return .fieldNotFound }
-        let before = enteredText(of: textInput)
-        // The tap that found the field focused it, so an empty field takes the text straight away.
-        // Resolving the field and tapping it again for the clear and again for the typing, each
-        // through a public query that waits for the app to idle, made one set_text about 4 seconds.
-        // Text already there needs the caret moved to its end before it is deleted.
+        let isSecure: Bool
+        let before: String
+        let fieldFrame: CGRect
+        if let knownBefore {
+            isSecure = target.isSecureTextEntry || target.type == "secureTextField"
+            before = knownBefore
+            fieldFrame = frame
+        } else {
+            // The selector named something that focuses a field rather than the field itself.
+            guard let field = try? textInput.snapshot() else { return .fieldNotFound }
+            isSecure = field.elementType == .secureTextField
+            before = enteredText(value: field.value, placeholder: field.placeholderValue)
+            fieldFrame = field.frame
+            if !before.isEmpty {
+                await placeCaretAtEnd(frame: fieldFrame, of: textInput)
+            }
+        }
         // Deletes and text go in one typeText call: each call has a fixed round trip of its own, which
         // made a one-character value into a prefilled field slower than eleven into an empty one.
         let keyboard = gestureTarget()
         let delete = XCUIKeyboardKey.delete.rawValue
-        if !before.isEmpty {
-            await placeCaretAtEnd(of: textInput)
-        }
         keyboard.typeText(String(repeating: delete, count: before.count) + text)
-        var after = (textInput.value as? String) ?? ""
-        if textInput.elementType != .secureTextField, after != text {
+        var after = currentText(of: textInput)
+        if !isSecure, after != text {
             // The clear deletes as many characters as the field read back, from the caret. When the
             // caret sat left of the existing text, or the field reformats what it holds, that left
             // some of it behind and the new text landed beside it ("0" + "8" → "08"). One retry
             // that over-deletes — extra deletes on an empty field are harmless — settles it.
-            await placeCaretAtEnd(of: textInput)
+            await placeCaretAtEnd(frame: fieldFrame, of: textInput)
             keyboard.typeText(String(repeating: delete, count: max(after.count, before.count) + 4) + text)
-            after = (textInput.value as? String) ?? ""
+            after = currentText(of: textInput)
         }
         // A secure field reports a mask rather than what was typed, so an exact match is not
         // always available — but the content still has to have moved off what was there before.
-        let accepted = after == text ||
-            (textInput.elementType == .secureTextField && !text.isEmpty && !after.isEmpty && after != before)
+        let accepted = after == text || (isSecure && !text.isEmpty && !after.isEmpty && after != before)
         return accepted ? .set : .valueNotAccepted
     }
 
-    /// Taps just inside the trailing edge of `field`, so deletes start from the end of its text.
-    /// Through the synthesized tap `tap_element` uses: the public coordinate tap waited for the app
-    /// to go idle first, which made a one-character `set_text` into a prefilled field take longer
-    /// than an eleven-character one into an empty field.
-    private func placeCaretAtEnd(of field: XCUIElement) async {
-        let frame = field.frame.standardized
+    /// Taps just inside the trailing edge of a field at `frame`, so deletes start from the end of its
+    /// text. Through the synthesized tap `tap_element` uses: the public coordinate tap waited for the
+    /// app to go idle first, which made a one-character `set_text` into a prefilled field take
+    /// longer than an eleven-character one into an empty field.
+    private func placeCaretAtEnd(frame: CGRect, of field: XCUIElement) async {
+        let frame = frame.standardized
         guard !frame.isNull, !frame.isEmpty else {
             focusForTextEntry(field)
             return
@@ -944,11 +966,16 @@ final class XCUITestBridge: @unchecked Sendable {
         await tapWithoutCacheInvalidation(x: frame.maxX - 8, y: frame.midY)
     }
 
-    /// What the user has typed into `field`: XCUITest reports an empty field's placeholder as its
-    /// value, which is not text to delete.
-    private func enteredText(of field: XCUIElement) -> String {
-        let value = (field.value as? String) ?? ""
-        return value == field.placeholderValue ? "" : value
+    /// What the user has typed: XCUITest reports an empty field's placeholder as its value, which
+    /// is not text to delete.
+    private func enteredText(value: Any?, placeholder: String?) -> String {
+        let value = (value as? String) ?? ""
+        return value == placeholder ? "" : value
+    }
+
+    /// The field's value from one fresh snapshot.
+    private func currentText(of field: XCUIElement) -> String {
+        ((try? field.snapshot())?.value as? String) ?? ""
     }
 
     // MARK: - Navigation

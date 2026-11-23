@@ -395,7 +395,9 @@ class UIAutomatorBridge {
     }
 
     fun setText(resourceId: String?, label: String?, containsText: String?, value: String): Boolean {
+        val started = SystemClock.uptimeMillis()
         val candidates = textTargets(resourceId, label, containsText)
+        val found = SystemClock.uptimeMillis()
         val match = candidates.singleOrNull()
         if (match == null) {
             Log.w(LOG_TAG, "set_text no_single_target candidates=${candidates.size}")
@@ -405,7 +407,9 @@ class UIAutomatorBridge {
         val secure = match.secure
         val before = match.text
         target.click()
+        val clicked = SystemClock.uptimeMillis()
         target.text = value
+        val written = SystemClock.uptimeMillis()
         // A Compose field shows the new value on its next recomposition, so the first read can
         // still return the old text; give it a moment before calling the entry rejected.
         val deadline = SystemClock.uptimeMillis() + SET_TEXT_SETTLE_MS
@@ -415,11 +419,14 @@ class UIAutomatorBridge {
             after = runCatching { target.text.orEmpty() }.getOrDefault("")
         }
         val accepted = setTextAccepted(value, before, after, secure)
-        // Lengths only: the value may be a secret.
+        val verified = SystemClock.uptimeMillis()
+        // Lengths and timings only: the value may be a secret.
         Log.i(
             LOG_TAG,
             "set_text accepted=$accepted secure=$secure class=${runCatching { target.className }.getOrNull()} " +
-                "valueLength=${value.length} beforeLength=${before.length} afterLength=${after.length}"
+                "valueLength=${value.length} beforeLength=${before.length} afterLength=${after.length} " +
+                "find_ms=${found - started} click_ms=${clicked - found} write_ms=${written - clicked} " +
+                "verify_ms=${verified - written}"
         )
         return accepted
     }
