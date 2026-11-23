@@ -98,7 +98,7 @@ final class HarnessOwnershipTests: XCTestCase {
     }
 
     /// A flow launched against a mock server needs the harness's mock-server factory, not the default
-    /// one: generated from Exampleapp's context, the test ran against in-app fakes and failed.
+    /// one: generated from an app's context, the test ran against in-app fakes and failed.
     func testALaunchKeyPicksItsFactoryAndOwnsThatKey() throws {
         let context = StudioTestContext(
             baseClass: "AppUITestCase", harnessLaunchesApp: true, harnessOwnsApp: true,

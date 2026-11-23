@@ -21,7 +21,7 @@ final class InitRepoDetectionTests: InitTestCase {
 
     private func orchestrator(_ extra: [String] = []) throws -> URL {
         let root = try makeScratchDirectory().url
-        try touch(root, ["iOS/Exampleapp.xcodeproj/", "Android/settings.gradle.kts", "web-player/package.json"] + extra)
+        try touch(root, ["iOS/ExampleApp.xcodeproj/", "Android/settings.gradle.kts", "web-player/package.json"] + extra)
         return root
     }
 
