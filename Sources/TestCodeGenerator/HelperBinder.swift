@@ -25,23 +25,9 @@ public enum HelperBinder {
         }
         guard bound != operations else { return test }
 
-        let reboundPlan = StudioCompiledPlan(
-            compiler: plan.compiler,
-            compilerVersion: plan.compilerVersion,
-            operations: plan.operations ?? [],
-            toolOperations: bound,
-            warnings: plan.warnings
-        )
-        return StudioAuthoredTest(
-            formatVersion: test.formatVersion,
-            name: test.name,
-            description: test.description,
-            platform: test.platform,
-            steps: test.steps,
-            requirements: test.requirements,
-            testContext: test.testContext,
-            compiledPlan: reboundPlan
-        )
+        var rebound = test.attachingExtensionCode(test.extensionCode ?? StudioExtensionCode(), operations: bound)
+        rebound.extensionCode = test.extensionCode
+        return rebound
     }
 
     /// Verbs that identify a helper as an implementation of a given Studio tool. Matched against the

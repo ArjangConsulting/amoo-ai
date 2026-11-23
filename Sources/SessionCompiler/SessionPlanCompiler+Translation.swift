@@ -5,6 +5,20 @@ import TestSession
 /// `SessionPlanCompiler` to keep that type's body reviewable — these are mechanical
 /// translations, one function per tool, with no shared state.
 extension SessionPlanCompiler {
+    /// A flow extension's step (`prefix.step`) is code only its extension can write: it stays in the
+    /// plan as written, and `amoo generate test` asks the extension for it. `nil` for any other tool.
+    static func extensionStep(index: Int, action: SessionAction) -> ProcessedAction? {
+        guard StudioExtensionCode.isExtensionTool(action.toolName) else { return nil }
+        let stepID = "step-\(index)"
+        let operation = StudioToolOperation(id: stepID, tool: action.toolName, arguments: action.arguments)
+        let step = StudioAuthoredTest.Step(
+            id: stepID,
+            instruction: "Run \(action.toolName)",
+            expected: "\(action.toolName) succeeds"
+        )
+        return ProcessedAction(operation: operation, step: step, warnings: [])
+    }
+
     /// MCP tool names that map 1:1 onto a Studio tool with no argument remapping needed.
     ///
     /// `scroll` is listed separately from `swipe_in_direction` on purpose, even though its

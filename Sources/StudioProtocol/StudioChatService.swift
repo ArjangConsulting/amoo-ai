@@ -90,6 +90,9 @@ public struct StudioAuthoredTest: Codable, Sendable {
     /// App-owned test harness and helper metadata approved for generated tests to use.
     public let testContext: StudioTestContext?
     public let compiledPlan: StudioCompiledPlan?
+    /// Code flow extensions supplied for this test, attached by `amoo generate test` just before
+    /// emitting; never part of a plan written to disk.
+    public var extensionCode: StudioExtensionCode?
     public init(
         formatVersion: Int,
         name: String,
@@ -133,8 +136,44 @@ public struct StudioAuthoredTest: Codable, Sendable {
         )
     }
 
+    /// This test with `code` attached and its compiled plan's operations replaced by `operations`.
+    public func attachingExtensionCode(_ code: StudioExtensionCode, operations: [StudioToolOperation]) -> Self {
+        var copy = Self(
+            formatVersion: formatVersion,
+            name: name,
+            description: description,
+            platform: platform,
+            steps: steps,
+            requirements: requirements,
+            testContext: testContext,
+            compiledPlan: compiledPlan?.replacingToolOperations(operations)
+        )
+        copy.extensionCode = code
+        return copy
+    }
+
+    /// This test with its compiled plan naming `prefixes` as the flow extensions it needs, even when
+    /// no operation uses them.
+    public func declaringExtensions(_ prefixes: [String]) -> Self {
+        guard let compiledPlan, !prefixes.isEmpty else { return self }
+        var plan = compiledPlan
+        plan.extensions = prefixes
+        var copy = Self(
+            formatVersion: formatVersion,
+            name: name,
+            description: description,
+            platform: platform,
+            steps: steps,
+            requirements: requirements,
+            testContext: testContext,
+            compiledPlan: plan
+        )
+        copy.extensionCode = extensionCode
+        return copy
+    }
+
     public func replacingTestContext(_ testContext: StudioTestContext) -> Self {
-        Self(
+        var copy = Self(
             formatVersion: formatVersion,
             name: name,
             description: description,
@@ -144,10 +183,12 @@ public struct StudioAuthoredTest: Codable, Sendable {
             testContext: testContext,
             compiledPlan: compiledPlan
         )
+        copy.extensionCode = extensionCode
+        return copy
     }
 
     public func replacingName(_ name: String) -> Self {
-        Self(
+        var copy = Self(
             formatVersion: formatVersion,
             name: name,
             description: description,
@@ -157,6 +198,8 @@ public struct StudioAuthoredTest: Codable, Sendable {
             testContext: testContext,
             compiledPlan: compiledPlan
         )
+        copy.extensionCode = extensionCode
+        return copy
     }
 }
 
@@ -566,6 +609,34 @@ public struct StudioCompiledPlan: Codable, Equatable, Sendable {
     /// Actions that did not compile cleanly. `nil` on plans written before this field existed —
     /// absence means "unknown", not "none".
     public let warnings: [StudioPlanWarning]?
+    /// Flow extensions the test needs (`amoo-ext-<prefix>`), including ones a flow declared without
+    /// using a step of theirs. `nil` on plans without any.
+    public var extensions: [String]?
+
+    /// Every extension the test needs: declared ones, then the prefixes its operations use.
+    public var extensionPrefixes: [String] {
+        var prefixes = extensions ?? []
+        for operation in toolOperations ?? [] where StudioExtensionCode.isExtensionTool(operation.tool) {
+            let prefix = String(operation.tool.prefix { $0 != "." })
+            if !prefixes.contains(prefix) {
+                prefixes.append(prefix)
+            }
+        }
+        return prefixes
+    }
+
+    /// The same plan with `operations` in place of its tool operations.
+    public func replacingToolOperations(_ operations: [StudioToolOperation]) -> Self {
+        var plan = Self(
+            compiler: compiler,
+            compilerVersion: compilerVersion,
+            operations: self.operations ?? [],
+            toolOperations: operations,
+            warnings: warnings
+        )
+        plan.extensions = extensions
+        return plan
+    }
 
     /// Actions dropped because the vocabulary has no equivalent — the subset of `warnings` that
     /// makes generated code incomplete rather than merely imprecise.

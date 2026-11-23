@@ -155,26 +155,45 @@ public func runGenerateTestCommand(
     options: GenerateTestOptions,
     emitters: StudioCodeEmitters
 ) throws -> CLIResult {
+    try runGenerateTestCommand(options: options, emitters: emitters, extensionEmitter: ProcessFlowExtensionEmitter())
+}
+
+func runGenerateTestCommand(
+    options: GenerateTestOptions,
+    emitters: StudioCodeEmitters,
+    extensionEmitter: any FlowExtensionEmitting
+) throws -> CLIResult {
     let data = try Data(contentsOf: URL(fileURLWithPath: options.planPath))
     let decodedTest = try JSONDecoder().decode(StudioAuthoredTest.self, from: data)
     let pipeline = StudioTestGenerationPipeline(emitters: emitters)
-    let test = try pipeline.prepare(
+    let prepared = try pipeline.prepare(
         decodedTest,
         contextPath: options.contextPath,
         discoveryDirectory: URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
         testName: options.testName
     )
     let emitter: any StudioCodeEmitting
+    let test: StudioAuthoredTest
     do {
-        emitter = try pipeline.emitter(for: test, toolkit: options.uiToolkit)
+        emitter = try pipeline.emitter(for: prepared, toolkit: options.uiToolkit)
         // A plan can record steps that never made it into toolOperations, or carry redacted values.
         // Generating anyway would produce a test that fails for reasons that point nowhere near the
         // real cause, so stop unless the caller explicitly accepts a partial test.
-        try pipeline.checkCompleteness(test, allowIncomplete: options.allowIncomplete)
+        try pipeline.checkCompleteness(prepared, allowIncomplete: options.allowIncomplete)
+        // Flow extension steps are code only their extension can write.
+        let toolkit = options.uiToolkit ?? prepared.requirements?.uiToolkit ?? .view
+        test = try attachingExtensionCode(
+            to: prepared,
+            framework: extensionFramework(platform: prepared.platform, toolkit: toolkit),
+            allowIncomplete: options.allowIncomplete,
+            emitter: extensionEmitter
+        )
     } catch let error as StudioGenerationError {
         if case .noEmitter = error {
             return CLIResult(output: error.description, exitCode: 64)
         }
+        return CLIResult(output: error.description, exitCode: 65)
+    } catch let error as ExtensionCodeError {
         return CLIResult(output: error.description, exitCode: 65)
     }
 

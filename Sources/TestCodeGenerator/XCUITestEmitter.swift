@@ -41,7 +41,9 @@ public struct XCUITestEmitter: StudioCodeEmitting {
             )
         }
         let body = Self.collapsingRepeatedWaits(statements.joined(separator: "\n"))
-        let contextImports = TestHelperRendering.imports(for: test.testContext)
+        let extensionCode = test.extensionCode ?? StudioExtensionCode()
+        let imports = TestHelperRendering.imports(for: test.testContext)
+        let contextImports = (imports + extensionCode.imports.filter { !imports.contains($0) })
             .map { "import \($0)" }
             .joined(separator: "\n")
         // The emitter launches unless the context declares that the harness already does. Naming a
@@ -64,8 +66,21 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         // own `setUpWithError` / `tearDownWithError` keep running untouched. A plain `XCTestCase`
         // base overrides the synchronous pair directly, as before.
         let customBase = baseClass != "XCTestCase" && test.testContext?.synchronousLifecycle != true
-        let setUpBody = "        continueAfterFailure = false\(idiomGuard)\(launch)"
-        let lifecycle = Self.lifecycleSource(customBase: customBase, context: test.testContext, setUpBody: setUpBody)
+        try Self.checkExtensionLifecycle(extensionCode, asyncLifecycle: customBase, context: test.testContext)
+        // Extension setup runs before the launch, so the app starts against what it set up.
+        let extensionSetUp = extensionCode.setUp.map { "\n        \($0)" }.joined()
+        let setUpBody = "        continueAfterFailure = false\(idiomGuard)\(extensionSetUp)\(launch)"
+        let lifecycle = Self.lifecycleSource(
+            customBase: customBase,
+            context: test.testContext,
+            setUpBody: setUpBody,
+            tearDownLines: extensionCode.tearDown
+        )
+        let members = extensionCode.members
+            .map { member in member.split(separator: "\n", omittingEmptySubsequences: false).map { "    \($0)" } }
+            .map { $0.joined(separator: "\n") + "\n" }
+            .joined()
+        let testEffects = extensionCode.requiresAsync ? "async throws" : "throws"
         // Only a test that asserts selection carries the wait for it.
         let selectionHelper = body.contains("waitForSelection(") ? Self.selectionHelper : ""
 
@@ -77,7 +92,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         @MainActor
         final class \(className): \(baseClass) {
             private let defaultTimeout: TimeInterval = 5
-            private lazy var app = \(appFactory)
+        \(members)    private lazy var app = \(appFactory)
 
             \(lifecycle)
 
@@ -128,7 +143,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
 
         \(Self.inputHelpers(for: target))
 
-        \(selectionHelper)    func \(methodName)() throws {
+        \(selectionHelper)    func \(methodName)() \(testEffects) {
         \(body)
             }
         }
@@ -201,6 +216,9 @@ public struct XCUITestEmitter: StudioCodeEmitting {
         lookups: inout [String: String],
         target: Target = .ios
     ) throws -> String {
+        if let lines = StudioExtensionCode.lines(of: operation) {
+            return lines.map { "\(indent)\($0)" }.joined(separator: "\n")
+        }
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
         }

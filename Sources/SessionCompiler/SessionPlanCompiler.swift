@@ -247,6 +247,9 @@ public enum SessionPlanCompiler {
             )
         }
 
+        if let processed = extensionStep(index: index, action: action) {
+            return processed
+        }
         guard let translated = translate(toolName: action.toolName, arguments: action.arguments) else {
             if queryOnlyTools.contains(action.toolName) {
                 return processInspection(index: index, action: action, next: next, transient: transient)

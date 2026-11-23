@@ -88,9 +88,16 @@ extension XCUITestEmitter {
     }
 
     /// The setUp / tearDown overrides for the generated class; see `generate` for why a custom base
-    /// class gets the async pair by default.
-    static func lifecycleSource(customBase: Bool, context: StudioTestContext?, setUpBody: String) -> String {
-        customBase
+    /// class gets the async pair by default. `tearDownLines` (from flow extensions) run after the
+    /// failure attachments, which still need the app as the test left it.
+    static func lifecycleSource(
+        customBase: Bool,
+        context: StudioTestContext?,
+        setUpBody: String,
+        tearDownLines: [String] = []
+    ) -> String {
+        let extensionTearDown = tearDownLines.map { "\n        \($0)" }.joined()
+        return customBase
             ? """
             override func setUp() async throws {
                     try await super.setUp()
@@ -98,7 +105,7 @@ extension XCUITestEmitter {
                 }
 
                 override func tearDown() async throws {
-            \(failureAttachments)
+            \(failureAttachments)\(extensionTearDown)
                     try await super.tearDown()
                 }
             """
@@ -118,9 +125,33 @@ extension XCUITestEmitter {
                 }
 
                 override func tearDownWithError() throws {
-            \(failureAttachments)
+            \(failureAttachments)\(extensionTearDown)
                     try super.tearDownWithError()
                 }
             """
+    }
+
+    /// Refuses extension code the generated lifecycle cannot hold, rather than dropping it: `async`
+    /// setup or teardown in XCTest's synchronous pair, or teardown where the harness owns teardown.
+    static func checkExtensionLifecycle(
+        _ code: StudioExtensionCode,
+        asyncLifecycle: Bool,
+        context: StudioTestContext?
+    ) throws {
+        if code.requiresAsync, !asyncLifecycle, !(code.setUp.isEmpty && code.tearDown.isEmpty) {
+            throw TestCodeGeneratorError.unsupportedOnTarget(
+                tool: StudioExtensionCode.operationTool,
+                target: "XCUITest synchronous setUpWithError/tearDownWithError",
+                reason: "a flow extension's setup or teardown needs async; set synchronousLifecycle to false"
+                    + " with a custom base class, or have the extension emit blocking calls"
+            )
+        }
+        if !code.tearDown.isEmpty, context?.synchronousLifecycle == true, context?.harnessOwnsApp == true {
+            throw TestCodeGeneratorError.unsupportedOnTarget(
+                tool: StudioExtensionCode.operationTool,
+                target: "a harness that owns the app and its teardown",
+                reason: "a flow extension's teardown has no tearDown override to run in; let the harness do it"
+            )
+        }
     }
 }

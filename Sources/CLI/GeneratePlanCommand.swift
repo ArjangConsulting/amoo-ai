@@ -149,6 +149,11 @@ func sessionReport(fromFlow flow: TestFlow, name: String) -> SessionReport {
     let steps = flow.steps.flatMap { step in
         var resolved = step
         resolved.arguments = step.arguments.mapValues { resolvingFlowVariables(in: $0, from: flow.vars) }
+        if let written = step.extensionArguments {
+            // The extension that writes this step's code reads its arguments as JSON, as `amoo flow` sent them.
+            let arguments = Value.object(written).mappingStrings { resolvingFlowVariables(in: $0, from: flow.vars) }
+            resolved.arguments = [StudioExtensionCode.argumentsJSONArgument: arguments.jsonText]
+        }
         return Array(repeating: resolved, count: max(1, step.repeatCount ?? 1))
     }
     var launched = false
@@ -226,6 +231,7 @@ private func flowIntent(forTool tool: String, arguments: [String: String]) -> Se
 
 func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
     let report: SessionReport
+    var declaredExtensions: [String] = []
     if let flowPath = options.flowPath {
         let flowURL = URL(fileURLWithPath: (flowPath as NSString).expandingTildeInPath)
         let flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: flowURL))
@@ -236,6 +242,7 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
             return CLIResult(output: "Unknown flow platform '\(flow.platform)'.", exitCode: 64)
         }
         report = sessionReport(fromFlow: flow, name: flowURL.deletingPathExtension().lastPathComponent)
+        declaredExtensions = flow.extensions
     } else if let reportPath = options.reportPath {
         let reportURL = URL(fileURLWithPath: (reportPath as NSString).expandingTildeInPath)
         report = try SessionReport.makeJSONDecoder().decode(
@@ -257,15 +264,15 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
             platform: result.studioTest.platform
         )
     } ?? RepositoryTestProfile.discover(platform: result.studioTest.platform)
-    if let context {
-        result = CompileSessionToPlanResult(
-            testFlow: result.testFlow,
-            studioTest: result.studioTest.replacingTestContext(context),
-            warnings: result.warnings,
-            retryRunObservations: result.retryRunObservations,
-            retryTapIntervalSeconds: result.retryTapIntervalSeconds
-        )
-    }
+    var studioTest = context.map { result.studioTest.replacingTestContext($0) } ?? result.studioTest
+    studioTest = studioTest.declaringExtensions(declaredExtensions)
+    result = CompileSessionToPlanResult(
+        testFlow: result.testFlow,
+        studioTest: studioTest,
+        warnings: result.warnings,
+        retryRunObservations: result.retryRunObservations,
+        retryTapIntervalSeconds: result.retryTapIntervalSeconds
+    )
 
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

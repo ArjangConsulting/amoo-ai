@@ -125,6 +125,17 @@ factory, launch behavior, imports, reusable helpers, and id catalog. Generation 
 a helper is emitted only for an operation whose planner bound it; a selector is rewritten only for
 an id listed in `selectorExpressions`. Full schema: [`test-context.md`](test-context.md).
 
+## Flow extension steps
+
+A flow step named `prefix.step` belongs to an outside `amoo-ext-<prefix>` program
+([flow extensions](flow-extensions.md)). The compiler keeps it as an operation with that tool and an
+`arguments_json` argument, never excluding it. `generate test` calls the extension's `emit` verb
+(`Sources/CLI/GenerateExtensionCode.swift`), replaces each such operation with an `extension_code`
+operation carrying its lines, and attaches imports, members, setup, teardown and `requires` as
+`StudioAuthoredTest.extensionCode`. Each emitter's `statement` prints `extension_code` lines as they are;
+XCUITest places setup and teardown in its lifecycle overrides, and the Kotlin emitters add `@Before` /
+`@After` through `KotlinSourceFinishing.applyingExtensionCode`.
+
 ## The `--allow-incomplete` gate
 
 `amoo generate test` refuses to emit when `compiledPlan` has `excluded` warnings (a recorded step

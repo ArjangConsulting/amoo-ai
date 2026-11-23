@@ -1,7 +1,57 @@
 import Foundation
+import StudioProtocol
 
 /// Final passes over a generated Kotlin test file.
 enum KotlinSourceFinishing {
+    /// `source` with flow extensions' imports after the last import, and their members plus an
+    /// `@Before` / `@After` pair for setup and teardown at the top of the class body. The test
+    /// function launches the app itself, so `@Before` runs before the launch, and `@After` runs even
+    /// when an assertion failed. JUnit test functions cannot suspend, so `async` code is refused.
+    static func applyingExtensionCode(_ code: StudioExtensionCode?, to source: String) throws -> String {
+        guard let code else { return source }
+        if code.requiresAsync {
+            throw TestCodeGeneratorError.unsupportedOnTarget(
+                tool: StudioExtensionCode.operationTool,
+                target: "a Kotlin JUnit test",
+                reason: "a flow extension's code needs async, and a JUnit test function cannot suspend;"
+                    + " have the extension emit blocking calls"
+            )
+        }
+        var lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var imports = code.imports.map { "import \($0)" }
+        if !code.setUp.isEmpty {
+            imports.append("import org.junit.Before")
+        }
+        if !code.tearDown.isEmpty {
+            imports.append("import org.junit.After")
+        }
+        imports = imports.filter { !lines.contains($0) }
+        if let last = lines.lastIndex(where: { $0.hasPrefix("import ") }) {
+            lines.insert(contentsOf: imports, at: last + 1)
+        }
+        var body: [String] = code.members.flatMap { member in
+            member.split(separator: "\n", omittingEmptySubsequences: false).map { "    \($0)" } + [""]
+        }
+        if !code.setUp.isEmpty {
+            body += ["    @Before", "    fun setUpFlowExtensions() {"] + code.setUp.map { "        \($0)" } + [
+                "    }",
+                ""
+            ]
+        }
+        if !code.tearDown.isEmpty {
+            body += ["    @After", "    fun tearDownFlowExtensions() {"] + code.tearDown.map { "        \($0)" }
+                + ["    }", ""]
+        }
+        if !body.isEmpty, let header = lines.firstIndex(where: isClassHeader) {
+            lines.insert(contentsOf: body, at: header + 1)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func isClassHeader(_ line: String) -> Bool {
+        line.hasSuffix("{") && (line.hasPrefix("class ") || line.contains(" class ")) && !line.hasPrefix(" ")
+    }
+
     /// Drops every `import a.b.Name` whose `Name` the file never uses. Emitters list the imports any of
     /// their statements could need; a test whose source set lacks one of those libraries (no
     /// espresso-core in a Compose-only `androidTest`) must not fail to compile over an import it does

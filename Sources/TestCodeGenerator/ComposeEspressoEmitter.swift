@@ -142,9 +142,10 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         }
         """
         let packageLine = context?.kotlinPackage.map { "package \($0)\n\n" } ?? ""
+        let finished = try KotlinSourceFinishing.applyingExtensionCode(test.extensionCode, to: source)
         return StudioTestExportResult(
             fileName: "\(className).kt",
-            source: packageLine + KotlinSourceFinishing.sortedImports(KotlinSourceFinishing.prunedImports(source))
+            source: packageLine + KotlinSourceFinishing.sortedImports(KotlinSourceFinishing.prunedImports(finished))
                 // A harness-owned rule leaves the class body's first line empty.
                 .replacingOccurrences(of: " {\n\n    @Test", with: " {\n    @Test")
         )
@@ -218,6 +219,9 @@ public struct ComposeEspressoEmitter: StudioCodeEmitting {
         context: StudioTestContext?,
         useTestCommons: Bool = false
     ) throws -> String {
+        if let lines = StudioExtensionCode.lines(of: operation) {
+            return lines.map { "\(indent)\($0)" }.joined(separator: "\n")
+        }
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
         }

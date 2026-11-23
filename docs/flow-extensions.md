@@ -69,7 +69,32 @@ Every reply has `protocol: 1`; a reply with another version is rejected. Any rep
 `amoo flow --devices` runs one flow per device, so each device gets its own `run.id`, `flow_start` and
 `flow_end`: an extension that opens a resource per run (a mock-server session) keeps parallel devices apart.
 
-Test generation does not yet ask extensions for code; a planned `emit` verb will. Until then
-`generate plan --from-flow` leaves extension steps out of the compiled plan with a warning, and `generate test`
-refuses that plan as incomplete unless `--allow-incomplete` is passed, so a mock step is never silently
-missing from a generated test.
+## Generated tests: `emit`
+
+`amoo generate plan --from-flow` keeps an extension step in the plan as written: its tool stays
+`prefix.step`, and its arguments are kept as the flow's JSON (`${name}` references to the flow's
+`vars` resolved). The plan also lists the extensions the flow declared. `amoo generate test` then asks
+each extension for its code, which amoo places and indents:
+
+| Request field | Value |
+| --- | --- |
+| `protocol`, `verb` | `1`, `"emit"` |
+| `framework` | `xcuitest`, `espresso` or `compose` |
+| `platform` | `ios`, `macos` or `android` |
+| `phase` | `setup` and `teardown` once per extension, then `step` for each of its steps in order |
+| `test_context` | the app's [test context](test-context.md), or `null`; an app whose base class already opens what the extension would (a mock session in `appFactory`) can emit nothing for setup |
+| `step` | for `step` only: `{tool, arguments}`, `tool` without the prefix |
+
+The reply needs `protocol: 1` and may carry:
+
+| Field | Placement |
+| --- | --- |
+| `imports` | Module (Swift) or fully qualified (Kotlin) imports, deduplicated. |
+| `members` | Declarations on the test class. |
+| `lines` | The phase's statements. XCUITest: `setup` before `app.launch()` in `setUp`, `teardown` after the failure attachments in `tearDown`. Espresso and Compose: an `@Before` and an `@After` method. `step`: where the step was in the flow. |
+| `requires` | `"throws"` and/or `"async"`: what the test function needs. `async` makes an XCUITest method `async throws`; it is refused for setup or teardown in XCTest's synchronous lifecycle and for Kotlin, whose JUnit tests cannot suspend. |
+
+A reply with nothing but `protocol` emits nothing. `ok: false` with a `message` means the extension
+cannot express that part in this framework: generation stops and names it, as it does for a step
+with no equivalent, unless `--allow-incomplete` is passed, which puts a failing statement there.
+A missing extension, a non-zero exit or a reply that is not JSON stops generation.

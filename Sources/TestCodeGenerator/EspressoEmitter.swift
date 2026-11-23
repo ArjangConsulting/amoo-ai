@@ -118,7 +118,10 @@ public struct EspressoEmitter: StudioCodeEmitting {
             }
         }
         """
-        return StudioTestExportResult(fileName: "\(className).kt", source: source)
+        return try StudioTestExportResult(
+            fileName: "\(className).kt",
+            source: KotlinSourceFinishing.applyingExtensionCode(test.extensionCode, to: source)
+        )
     }
 
     static let indent = "        "
@@ -229,6 +232,9 @@ public struct EspressoEmitter: StudioCodeEmitting {
         context: StudioTestContext?,
         useTestCommons: Bool = false
     ) throws -> String {
+        if let lines = StudioExtensionCode.lines(of: operation) {
+            return lines.map { "\(indent)\($0)" }.joined(separator: "\n")
+        }
         if let helper = try TestHelperRendering.call(for: operation, context: context, literal: literal) {
             return "\(indent)\(helper)"
         }
