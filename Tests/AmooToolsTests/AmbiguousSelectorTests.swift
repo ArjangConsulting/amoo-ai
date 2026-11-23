@@ -39,6 +39,48 @@ final class AmbiguousSelectorTests: XCTestCase {
         }
     }
 
+    func testAControlAndItsOwnLabelTextResolveToTheControl() async throws {
+        let executor = DriverToolExecutor(driver: MockDriver())
+        let button = ElementInfo(
+            id: "", label: "Explain", type: .button, frame: Rect(x: 20, y: 300, width: 120, height: 44)
+        )
+        let text = ElementInfo(
+            id: "", label: "Explain", type: .staticText, frame: Rect(x: 40, y: 310, width: 60, height: 22)
+        )
+
+        let resolved = try await executor.uniqueElement([button, text])
+
+        XCTAssertEqual(resolved, button)
+    }
+
+    func testTwoControlsWithTheSameLabelStayAmbiguous() async throws {
+        let executor = DriverToolExecutor(driver: MockDriver())
+        let first = ElementInfo(
+            id: "",
+            label: "Explain",
+            type: .button,
+            frame: Rect(x: 0, y: 0, width: 100, height: 40)
+        )
+        let second = ElementInfo(
+            id: "",
+            label: "Explain",
+            type: .button,
+            frame: Rect(x: 0, y: 60, width: 100, height: 40)
+        )
+        let outside = ElementInfo(
+            id: "", label: "Explain", type: .staticText, frame: Rect(x: 0, y: 200, width: 60, height: 20)
+        )
+
+        for elements in [[first, second], [first, outside]] {
+            do {
+                _ = try await executor.uniqueElement(elements)
+                XCTFail("Expected ambiguous selector for \(elements)")
+            } catch let error as ToolExecutionError {
+                XCTAssertEqual(error.result.structuredContent?.objectValue?["code"], .string("ambiguous_selector"))
+            }
+        }
+    }
+
     func testLargeAmbiguousResultsAreBoundedAndAllowMissingGeometry() async throws {
         let executor = DriverToolExecutor(driver: MockDriver())
         let elements = (0 ..< 12).map { ElementInfo(id: "item-\($0)", label: "Item") }

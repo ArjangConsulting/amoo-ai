@@ -26,7 +26,18 @@ extension DriverToolExecutor {
     /// nothing to disambiguate with. `find_elements` already resolved id/type/frame for every
     /// candidate to get here, so surface it: a real id lets the caller retry precisely, and a
     /// frame lets it tap a specific, already-computed point instead of eyeballing a screenshot.
+    ///
+    /// A control and the static text inside it that only repeats its label (an iOS button
+    /// "Explain" and its own "Explain" text) are one thing on screen, so they resolve to the
+    /// control. Generated XCUITest agrees: a label match takes `.firstMatch`, and the control comes
+    /// before its own text in tree order.
     func uniqueElement(_ elements: [ElementInfo]) throws -> ElementInfo? {
+        if elements.count > 1 {
+            let controls = Self.removingNoise(elements)
+            if controls.count == 1 {
+                return controls[0]
+            }
+        }
         guard elements.count <= 1 else {
             let candidates = Array(elements.prefix(8))
             let summary = candidates.map { element -> String in
