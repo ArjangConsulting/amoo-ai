@@ -182,6 +182,30 @@ extension CommandContractE2ETests {
         }
     }
 
+    /// A SwiftUI `Toggle` in a `Form` reports one switch as wide as its row, so tapping its centre
+    /// lands on the label and leaves it unchanged; `tap_element` has to reach the control itself.
+    func testTapElementFlipsAFormToggle() async throws {
+        try XCTSkipUnless(Self.platform == .ios, "The Android fixture has no row-wide switch.")
+        let (server, _) = try makeServerWithDriver()
+        let ready = await openFixtureScreen(
+            on: server,
+            launcherID: "fixture-open-text",
+            launcherLabel: "Open Text Input",
+            readyID: "fixture-switch"
+        )
+        guard !ready.isError else { return XCTFail(ready.content) }
+
+        for state in ["Switch on", "Switch off"] {
+            let tap = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-switch"])
+            XCTAssertFalse(tap.isError, tap.content)
+            let flipped = await server.execute(
+                toolName: "assert_visible",
+                arguments: ["id": "fixture-switch-state", "label": state, "timeout_ms": "5000"]
+            )
+            XCTAssertFalse(flipped.isError, flipped.content)
+        }
+    }
+
     func testAndroidResourceIDPrefersTheTaggedControlOverItsDescriptionAlias() async throws {
         guard Self.platform == .android else { throw XCTSkip("Compose exposes the duplicate description alias") }
         let (server, _) = try makeServerWithDriver()

@@ -1249,7 +1249,7 @@ final class XCUITestBridge: @unchecked Sendable {
             isSecureTextEntry: snapshot.elementType == .secureTextField,
             type: snapshot.elementType.amooTypeName,
             frame: frame,
-            hitPoint: interactionPoint(
+            hitPoint: switchControlPoint(snapshot, viewport: viewport) ?? interactionPoint(
                 frame: frame,
                 visibleFrame: visibleFrame,
                 viewport: viewport
@@ -1371,6 +1371,50 @@ final class XCUITestBridge: @unchecked Sendable {
     /// Returns a point inside the on-screen portion of an element. A frame's geometric centre
     /// can be clipped outside a scroll view or covered by screen bounds, making it a poor fallback
     /// for elements that cannot be addressed by an accessibility selector.
+    /// Where to tap a switch that spans a whole row, or `nil` for any other element.
+    ///
+    /// A SwiftUI `Toggle` in a `Form` or `List` reports one switch element as wide as its row, label
+    /// included, so its centre lands on the label and the tap does not flip it. The control is the
+    /// inner switch when XCUITest reports one; otherwise it sits at the edge opposite the label, which
+    /// is the trailing edge in a left-to-right layout and the leading edge in a right-to-left one.
+    private func switchControlPoint(_ snapshot: XCUIElementSnapshot, viewport: CGRect) -> CGPoint? {
+        guard snapshot.elementType == .switch else { return nil }
+        let frame = snapshot.frame.standardized
+        guard frame.width > Self.switchRowMinimumWidth else { return nil }
+        if let inner = Self.firstDescendant(of: snapshot, where: {
+            $0.elementType == .switch && $0.frame.width < frame.width / 2
+        }) {
+            return interactionPoint(frame: inner.frame, visibleFrame: nil, viewport: viewport)
+        }
+        let label = Self.firstDescendant(of: snapshot) { $0.elementType == .staticText && !$0.frame.isEmpty }
+        let labelLeads = label.map { $0.frame.midX <= frame.midX } ?? true
+        let x = labelLeads ? frame.maxX - Self.switchControlInset : frame.minX + Self.switchControlInset
+        return CGPoint(x: x, y: frame.midY)
+    }
+
+    private static func firstDescendant(
+        of snapshot: XCUIElementSnapshot,
+        depth: Int = 0,
+        where matches: (XCUIElementSnapshot) -> Bool
+    ) -> XCUIElementSnapshot? {
+        guard depth < switchSearchDepth else { return nil }
+        for child in snapshot.children {
+            if matches(child) {
+                return child
+            }
+            if let found = firstDescendant(of: child, depth: depth + 1, where: matches) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    /// Wider than a bare `UISwitch` (51 pt) with room to spare: a switch this wide includes its row.
+    private static let switchRowMinimumWidth: CGFloat = 100
+    /// From a row's edge to the centre of its switch: the row's content margin plus half the control.
+    private static let switchControlInset: CGFloat = 40
+    private static let switchSearchDepth = 3
+
     private func interactionPoint(frame: CGRect, visibleFrame: CGRect?, viewport: CGRect) -> CGPoint {
         let preferred = (visibleFrame ?? frame).standardized.intersection(viewport.standardized)
         if !preferred.isNull, !preferred.isEmpty {
@@ -1655,7 +1699,8 @@ final class XCUITestBridge: @unchecked Sendable {
             value: (snapshot.value as? String) ?? "",
             type: snapshot.elementType.amooTypeName,
             frame: snapshot.frame,
-            hitPoint: interactionPoint(frame: snapshot.frame, visibleFrame: visibleFrame, viewport: viewport),
+            hitPoint: switchControlPoint(snapshot, viewport: viewport)
+                ?? interactionPoint(frame: snapshot.frame, visibleFrame: visibleFrame, viewport: viewport),
             isEnabled: snapshot.isEnabled,
             isSecureTextEntry: snapshot.elementType == .secureTextField,
             isVisible: isSnapshotVisible(

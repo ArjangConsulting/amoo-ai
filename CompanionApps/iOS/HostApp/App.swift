@@ -174,6 +174,7 @@ private struct FixtureDetailsView: View {
 
 private struct FixtureTextInputView: View {
     @Binding var textValue: String
+    @State private var switchOn = false
 
     var body: some View {
         Form {
@@ -185,6 +186,16 @@ private struct FixtureTextInputView: View {
 
                 Text(textValue)
                     .accessibilityIdentifier("fixture-text-value")
+            }
+
+            // A Form Toggle's switch element spans the whole row; tapping its centre lands on the
+            // label, so this checks that a tap reaches the control.
+            Section("Switch") {
+                Toggle("Fixture Switch", isOn: $switchOn)
+                    .accessibilityIdentifier("fixture-switch")
+
+                Text(switchOn ? "Switch on" : "Switch off")
+                    .accessibilityIdentifier("fixture-switch-state")
             }
         }
         .navigationTitle("Text Input")
