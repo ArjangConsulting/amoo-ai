@@ -29,6 +29,8 @@ struct FlowRunContext: Sendable {
     var screenshotPolicy = ScreenshotPolicy.standard
     /// Time source for waits, injectable so tests do not sleep.
     var sleep: @Sendable (Swift.Duration) async -> Void = { try? await Task.sleep(for: $0) }
+    /// The flow extensions this run uses (`prefix.step` tools); `nil` when the flow uses none.
+    var extensions: FlowExtensionSession?
 
     init(
         variables: [String: String] = [:],
@@ -110,6 +112,46 @@ func interpolateFlowVariables(
 /// Runs `flow.steps` against `executor`, honouring `on_error`, `repeat`, variables and the
 /// flow-only steps in ``FlowPseudoTool``.
 func runFlowSteps(
+    _ flow: TestFlow,
+    executor: any ToolExecutor,
+    context: FlowRunContext
+) async -> FlowRunResult {
+    guard let extensions = context.extensions else {
+        return await runFlowStepSequence(flow, executor: executor, context: context)
+    }
+    do {
+        try await extensions.start(steps: flow.steps, variables: context.variables)
+    } catch {
+        var result = FlowRunResult()
+        result.failed = 1
+        result.stopped = true
+        result.lines.append("✗ Flow extensions did not start: \(error)")
+        return result
+    }
+    let result = await runFlowStepSequence(flow, executor: executor, context: context)
+    await extensions.end(passed: result.succeeded)
+    return result
+}
+
+/// `step` with an extension's launch environment joined to a launch step's, under any key the
+/// flow sets itself, so the app under test reaches what the extension set up for this run.
+func applyingFlowExtensionLaunchEnvironment(
+    _ launchEnvironment: [String: String],
+    to step: TestFlow.Step
+) -> TestFlow.Step {
+    guard !launchEnvironment.isEmpty, flowLaunchTools.contains(step.tool) else { return step }
+    var lowered = step
+    let explicit = AppLaunchEnvironment.parse(step.arguments["environment"])
+    let environment = launchEnvironment.merging(explicit) { _, flow in flow }
+    lowered.arguments["environment"] = environment.sorted { $0.key < $1.key }
+        .map { "\($0.key)=\($0.value)" }.joined(separator: "\n")
+    return lowered
+}
+
+/// The steps that launch the app, so an extension's launch environment reaches every launch.
+let flowLaunchTools: Set = ["start_session", "device_launch_app"]
+
+private func runFlowStepSequence(
     _ flow: TestFlow,
     executor: any ToolExecutor,
     context: FlowRunContext
@@ -197,11 +239,32 @@ private func runFlowStep(
     executor: any ToolExecutor,
     context: FlowRunContext
 ) async -> ToolResult {
+    var step = step
+    var variables = context.variables
+    if let extensions = context.extensions {
+        let extensionVariables = await extensions.variables
+        let extensionEnvironment = await extensions.launchEnvironment
+        variables.merge(extensionVariables) { _, fromExtension in fromExtension }
+        step = applyingFlowExtensionLaunchEnvironment(extensionEnvironment, to: step)
+    }
+    let resolve = { (value: String) throws -> String in
+        try interpolateFlowVariables(in: value, variables: variables, environment: context.environment)
+    }
+    if let tool = FlowExtensionTool(toolName: step.tool) {
+        guard let extensions = context.extensions else {
+            return .error("\(step.tool) needs the \(tool.executableName) flow extension, which this run did not start.")
+        }
+        let written = step.extensionArguments ?? step.arguments.mapValues(Value.string)
+        do {
+            let arguments = try Value.object(written).mappingStrings(resolve)
+            return await extensions.runStep(tool, name: step.name, number: number, arguments: arguments)
+        } catch {
+            return .error("\(error)")
+        }
+    }
     let arguments: [String: String]
     do {
-        arguments = try step.arguments.mapValues {
-            try interpolateFlowVariables(in: $0, variables: context.variables, environment: context.environment)
-        }
+        arguments = try step.arguments.mapValues(resolve)
     } catch {
         return .error("\(error)")
     }

@@ -78,6 +78,9 @@ struct FlowStep: Codable, Equatable {
     /// A step whose outcome does not matter to the check: its failure is reported and the flow
     /// continues, but it does not fail the run. Never a way to make a failing check pass.
     var optional: Bool
+    /// The arguments as written, for a step owned by a flow extension (`prefix.step`), whose
+    /// arguments may be JSON objects and arrays. `arguments` then holds each value's text form.
+    var extensionArguments: [String: Value]?
 
     init(
         name: String? = nil,
@@ -85,11 +88,13 @@ struct FlowStep: Codable, Equatable {
         arguments: [String: String] = [:],
         onError: TestFlow.OnError? = nil,
         repeatCount: Int? = nil,
-        optional: Bool = false
+        optional: Bool = false,
+        extensionArguments: [String: Value]? = nil
     ) {
         self.name = name
         self.tool = tool
-        self.arguments = arguments
+        self.arguments = extensionArguments?.mapValues { $0.stringValue ?? $0.jsonText } ?? arguments
+        self.extensionArguments = extensionArguments
         self.onError = onError
         self.repeatCount = repeatCount
         self.optional = optional
@@ -102,13 +107,20 @@ struct FlowStep: Codable, Equatable {
     }
 
     /// Arguments may be written as JSON numbers and booleans (`"timeout_ms": 5000`,
-    /// `"first": true`); the tools take strings, so they are normalized here once.
+    /// `"first": true`); the tools take strings, so they are normalized here once. An extension
+    /// step keeps its arguments as written as well, objects and arrays included.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         tool = try container.decode(String.self, forKey: .tool)
-        let scalars = try container.decodeIfPresent([String: FlowScalar].self, forKey: .arguments) ?? [:]
-        arguments = scalars.mapValues(\.text)
+        if FlowExtensionTool(toolName: tool) != nil {
+            let values = try container.decodeIfPresent([String: Value].self, forKey: .arguments) ?? [:]
+            extensionArguments = values
+            arguments = values.mapValues { $0.stringValue ?? $0.jsonText }
+        } else {
+            let scalars = try container.decodeIfPresent([String: FlowScalar].self, forKey: .arguments) ?? [:]
+            arguments = scalars.mapValues(\.text)
+        }
         onError = try container.decodeIfPresent(TestFlow.OnError.self, forKey: .onError)
         repeatCount = try container.decodeIfPresent(Int.self, forKey: .repeatCount)
         optional = try container.decodeIfPresent(Bool.self, forKey: .optional) ?? false
@@ -119,7 +131,11 @@ struct FlowStep: Codable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(name, forKey: .name)
         try container.encode(tool, forKey: .tool)
-        try container.encode(arguments, forKey: .arguments)
+        if let extensionArguments {
+            try container.encode(extensionArguments, forKey: .arguments)
+        } else {
+            try container.encode(arguments, forKey: .arguments)
+        }
         try container.encodeIfPresent(onError, forKey: .onError)
         try container.encodeIfPresent(repeatCount, forKey: .repeatCount)
         if optional {
@@ -177,6 +193,10 @@ func renderFlowHelp() -> String {
       {"tool": "screenshot", "name": "home"}      saved as <output-dir>/NN-home.png
       {"tool": "start_recording", "arguments": {"output": "${output_dir}/tap.mp4"}} ... stop_recording
     A step may also set "repeat": N to run N times.
+
+    Extension steps: a tool named prefix.step (e.g. "moq.select_variant") runs through the program
+    amoo-ext-<prefix>, found in AMOO_EXTENSION_PATH, then PATH. It is started before the first step
+    and ended after the last, and may add launch environment and variables. See docs/flow-extensions.md.
 
     --record-video records the whole run, natively, to <output-dir>/recording.mp4 (per device with
     --devices). Android's screenrecord stops at 180 seconds; iOS at 300.
@@ -306,6 +326,7 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         let driver = await makeFlowDriver(platform: platform, deviceID: flow.deviceID, companion: companion)
 
         var context = FlowRunContext(flow: flow, overrides: overrides)
+        context.extensions = flowExtensionSession(for: flow, at: fileURL, platform: platform, overrides: overrides)
         let screenshotPolicy = ScreenshotPolicy.resolve(from: fileURL.deletingLastPathComponent())
         context.screenshotPolicy = screenshotPolicy
         let executor = DriverToolExecutor(
@@ -339,6 +360,26 @@ private func runFlowOnce(path: String, overrides: FlowOverrides) async -> FlowOu
         }
         return FlowOutcome(output: "Flow failed: \(error)", exitCode: 1, failed: 1)
     }
+}
+
+/// A session for the extensions `flow` uses, or `nil` when it uses none.
+private func flowExtensionSession(
+    for flow: TestFlow,
+    at fileURL: URL,
+    platform: Platform,
+    overrides: FlowOverrides
+) -> FlowExtensionSession? {
+    guard flow.steps.contains(where: { FlowExtensionTool(toolName: $0.tool) != nil }) else { return nil }
+    return FlowExtensionSession(
+        invoker: ProcessFlowExtensionInvoker(),
+        run: FlowExtensionRun(
+            id: UUID().uuidString,
+            flowPath: fileURL.path,
+            outputDirectory: overrides.outputDirectory,
+            platform: platform.rawValue,
+            deviceID: flow.deviceID
+        )
+    )
 }
 
 private func makeFlowDriver(

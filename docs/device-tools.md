@@ -88,7 +88,9 @@ reported when it fails but never stops the flow or fails the run; use it only fo
 does not matter to the check, never to make a failing check pass on some devices. `"repeat": N` runs a step N times. `scroll_to_element`, `tap_element`
 and `screenshot` steps already wait for the screen to settle, so a `wait_for` with `idle` after them only
 adds calls; a `tap_element` whose next step is an assertion or `wait_for` skips its own after-tap read.
-See [`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format.
+See [`Examples/sign-in.amoo.json`](../Examples/sign-in.amoo.json) for the format. A tool named
+`prefix.step` is run by an outside `amoo-ext-<prefix>` program, such as a mock-server bridge; see
+[Flow extensions](flow-extensions.md).
 
 Flow-only steps cover what used to need a shell loop:
 
