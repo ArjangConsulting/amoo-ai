@@ -6,15 +6,12 @@ class Amoo < Formula
   desc "AI-driven mobile testing framework for iOS and Android"
   homepage "https://github.com/ArjangConsulting/amoo-ai"
   license "MIT"
-  version "VERSION_PLACEHOLDER"
 
-  on_macos do
-    url "https://github.com/ArjangConsulting/amoo-ai/releases/download/#{version}/amoo-#{version}-macos-universal.tar.gz"
+  if OS.mac?
+    url "https://github.com/ArjangConsulting/amoo-ai/releases/download/VERSION_PLACEHOLDER/amoo-VERSION_PLACEHOLDER-macos-universal.tar.gz"
     sha256 "MACOS_SHA256_PLACEHOLDER"
-  end
-
-  on_linux do
-    url "https://github.com/ArjangConsulting/amoo-ai/releases/download/#{version}/amoo-#{version}-linux-static.tar.gz"
+  elsif OS.linux?
+    url "https://github.com/ArjangConsulting/amoo-ai/releases/download/VERSION_PLACEHOLDER/amoo-VERSION_PLACEHOLDER-linux-static.tar.gz"
     sha256 "LINUX_SHA256_PLACEHOLDER"
   end
 
