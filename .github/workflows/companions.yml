@@ -157,6 +157,8 @@ jobs:
           key: spm-companion-xcode-${{ steps.keys.outputs.project }}
       - run: make companion-ios-protos
       - run: swift build --product amoo
+      - name: Build macOS companion
+        run: .build/debug/amoo companion build --platform macos
       # Drives Calculator on the runner's own desktop. macOS refuses UI automation until Automation
       # Mode may start without a password prompt, which needs passwordless sudo on the runner. The
       # runner's screen is small enough that the Dock covers Calculator's bottom row, so hide it.

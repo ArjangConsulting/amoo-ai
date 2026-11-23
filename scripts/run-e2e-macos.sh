@@ -2,8 +2,9 @@
 # Smoke test for `--platform macos`: drives Calculator on this Mac's desktop through the macOS
 # companion. Calculator has no documents, so nothing is left behind on a developer machine.
 #
-# It checks the whole path a session depends on: the preflight, building and starting the companion,
-# launching an app, identifying the foreground app, a screenshot, taps, and reading a value back.
+# Build the companion first with `amoo companion build --platform macos`.
+# The smoke runs preflight, starts the companion, launches Calculator, checks the foreground app,
+# captures a screenshot, taps the keys, and reads the result.
 #
 # Usage:
 #   scripts/run-e2e-macos.sh [--amoo <path>] [--enable-automation-mode] [--hide-dock]
@@ -97,9 +98,20 @@ visible_frame() {
 
 # Prints "centerX centerY width height" for the single element matching `id=<key>`.
 element_frame() {
-  local output
-  output="$(device find_elements "id=$1")" || return 1
-  sed -n 's/.*hitPoint: (\(-\{0,1\}[0-9][0-9]*\),\(-\{0,1\}[0-9][0-9]*\)) pts \([0-9][0-9]*\)x\([0-9][0-9]*\).*/\1 \2 \3 \4/p' <<<"$output" | head -n 1
+  local output frame attempt
+  for attempt in 1 2 3; do
+    output="$(device find_elements "id=$1")" || return 1
+    frame="$(sed -n 's/.*hitPoint: (\(-\{0,1\}[0-9][0-9]*\),\(-\{0,1\}[0-9][0-9]*\)) pts \([0-9][0-9]*\)x\([0-9][0-9]*\).*/\1 \2 \3 \4/p' <<<"$output" | head -n 1)"
+    if [[ -n "$frame" ]]; then
+      printf '%s\n' "$frame"
+      return 0
+    fi
+    if [[ "$attempt" -lt 3 ]]; then
+      sleep 1
+    fi
+  done
+  printf '%s\n' "$output" >&2
+  return 1
 }
 
 # Fails unless every key lies inside the visible frame, so a covered key is reported as such
@@ -208,7 +220,9 @@ if [[ "$HIDE_DOCK" -eq 1 ]]; then
 fi
 
 step "Start the macOS companion"
-start_output="$("$AMOO" companion start --platform macos --device mac --app "$APP_ID" --port "$PORT" --detach)"
+if ! start_output="$("$AMOO" companion start --platform macos --device mac --app "$APP_ID" --port "$PORT" --detach 2>&1)"; then
+  fail "$start_output"
+fi
 echo "$start_output"
 COMPANION_PID="$(sed -n 's/.*(pid \([0-9][0-9]*\)).*/\1/p' <<<"$start_output" | head -n 1)"
 [[ -n "$COMPANION_PID" ]] || fail "the companion did not report a pid"
