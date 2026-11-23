@@ -64,7 +64,13 @@ Every reply has `protocol: 1`; a reply with another version is rejected. Any rep
 | `describe` | Once per run, before anything else, for each extension the flow declares or a step uses | — | `steps`: the step names it offers (strings, or `{name}` objects). A flow step it does not list fails the run before any step runs. |
 | `flow_start` | Once per run, before the first step | `vars`: the flow's variables | `ok`. `false` fails the run before any step runs. |
 | `step` | For each of its steps | `step: {tool, name?, number, arguments}`; `tool` is the part after the dot | `ok`, `message` (the step's line in the output), `result` (any JSON, saved in `report.json`) |
-| `flow_end` | After the last step, whenever `flow_start` succeeded | `passed`: whether the run passed | `ok`. A failure is logged and does not change the run's result. |
+| `flow_end` | After the last step, whenever `flow_start` succeeded | `passed`: whether the run passed; `app_terminated`: whether amoo ended every app the run launched first | `ok`. A failure is logged and does not change the run's result. |
+
+An app the run launched keeps running after the last step, and keeps calling with whatever the
+extension set up for the run, such as a mock-server session `flow_end` is about to release. A flow that
+sets `"terminate_app_at_end": true` has amoo end every app it launched (`device_launch_app`,
+`start_session`) after the last step, including when a step failed and stopped the run, and only then
+call `flow_end`, with `app_terminated: true` when each of them ended.
 
 `amoo flow --devices` runs one flow per device, so each device gets its own `run.id`, `flow_start` and
 `flow_end`: an extension that opens a resource per run (a mock-server session) keeps parallel devices apart.

@@ -232,6 +232,46 @@ final class FlowExtensionTests: XCTestCase {
         """))
     }
 
+    func testTheAppEndsBeforeTheExtensionEndsEvenWhenAStepFailed() async throws {
+        for failing in [Set<String>(), ["assert_request"]] {
+            let invoker = FakeInvoker(failingSteps: failing)
+            let executor = RecordingExecutor()
+            let flow = try decodeFlow("""
+            { "platform": "ios", "terminate_app_at_end": true, "steps": [
+              { "tool": "device_launch_app", "arguments": { "app_id": "com.example.app" } },
+              { "tool": "moq.assert_request" }, { "tool": "press_back" } ] }
+            """)
+
+            let result = await runFlowSteps(flow, executor: executor, context: context(invoker))
+
+            let calls = await executor.calls
+            XCTAssertEqual(calls.last?.tool, "device_terminate_app", "\(failing)")
+            XCTAssertEqual(calls.last?.arguments["app_id"], "com.example.app")
+            let end = await invoker.calls.last
+            XCTAssertEqual(end?.verb, "flow_end")
+            XCTAssertEqual(end?.request.objectValue?["app_terminated"], .bool(true))
+            XCTAssertEqual(end?.request.objectValue?["passed"], .bool(failing.isEmpty))
+            XCTAssertEqual(result.succeeded, failing.isEmpty)
+        }
+    }
+
+    func testWithoutTheOptionNothingIsEndedAndTheExtensionIsTold() async throws {
+        let invoker = FakeInvoker()
+        let executor = RecordingExecutor()
+        let flow = try decodeFlow("""
+        { "platform": "ios", "steps": [
+          { "tool": "device_launch_app", "arguments": { "app_id": "com.example.app" } },
+          { "tool": "moq.select_variant" } ] }
+        """)
+
+        _ = await runFlowSteps(flow, executor: executor, context: context(invoker))
+
+        let tools = await executor.calls.map(\.tool)
+        XCTAssertFalse(tools.contains("device_terminate_app"))
+        let end = await invoker.calls.last
+        XCTAssertEqual(end?.request.objectValue?["app_terminated"], .bool(false))
+    }
+
     // MARK: - process invoker
 
     func testTheProcessInvokerFindsTheProgramOnTheExtensionPathAndSendsTheRequest() async throws {

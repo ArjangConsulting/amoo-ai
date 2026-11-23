@@ -29,6 +29,10 @@ struct TestFlow: Codable, Equatable {
     /// Flow extensions to start for the run even when no step uses their prefix: one that only
     /// contributes launch environment (a mock-server session) has no step of its own to name.
     var extensions: [String] = []
+    /// End every app the run launched after its last step, failed or not, and before extensions'
+    /// `flow_end`: an app left running keeps calling with what the run set up (a released
+    /// mock-server session), which a shared server then attributes to another run.
+    var terminateAppAtEnd = false
 
     init(
         platform: String,
@@ -55,6 +59,7 @@ struct TestFlow: Codable, Equatable {
         case steps
         case dismissSystemDialogs = "dismiss_system_dialogs"
         case extensions
+        case terminateAppAtEnd = "terminate_app_at_end"
     }
 
     init(from decoder: any Decoder) throws {
@@ -68,6 +73,7 @@ struct TestFlow: Codable, Equatable {
         steps = try container.decode([Step].self, forKey: .steps)
         dismissSystemDialogs = try container.decodeIfPresent(Bool.self, forKey: .dismissSystemDialogs) ?? false
         extensions = try container.decodeIfPresent([String].self, forKey: .extensions) ?? []
+        terminateAppAtEnd = try container.decodeIfPresent(Bool.self, forKey: .terminateAppAtEnd) ?? false
         for prefix in extensions where FlowExtensionTool(toolName: "\(prefix).step") == nil {
             throw DecodingError.dataCorruptedError(
                 forKey: .extensions,
@@ -220,6 +226,8 @@ func renderFlowHelp() -> String {
     amoo-ext-<prefix>, found in AMOO_EXTENSION_PATH, then PATH. It is started before the first step
     and ended after the last, and may add launch environment and variables. A top-level
     "extensions": ["moq"] starts one the steps do not name. See docs/flow-extensions.md.
+    A top-level "terminate_app_at_end": true ends every app the run launched after the last step,
+    even on a failed run, before extensions end.
 
     --record-video records the whole run, natively, to <output-dir>/recording.mp4 (per device with
     --devices). Android's screenrecord stops at 180 seconds; iOS at 300.

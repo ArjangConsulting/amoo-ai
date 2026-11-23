@@ -31,6 +31,8 @@ struct FlowRunContext: Sendable {
     var sleep: @Sendable (Swift.Duration) async -> Void = { try? await Task.sleep(for: $0) }
     /// The flow extensions this run uses (`prefix.step` tools); `nil` when the flow uses none.
     var extensions: FlowExtensionSession?
+    /// The apps this run launched, for `terminate_app_at_end`.
+    var launchedApps = FlowLaunchedApps()
 
     init(
         variables: [String: String] = [:],
@@ -145,7 +147,11 @@ func runFlowSteps(
     context: FlowRunContext
 ) async -> FlowRunResult {
     guard let extensions = context.extensions else {
-        return await runFlowStepSequence(flow, executor: executor, context: context)
+        var result = await runFlowStepSequence(flow, executor: executor, context: context)
+        if flow.terminateAppAtEnd {
+            _ = await terminateLaunchedApps(executor: executor, context: context, into: &result)
+        }
+        return result
     }
     do {
         try await extensions.start(prefixes: flow.extensionPrefixes, steps: flow.steps, variables: context.variables)
@@ -156,9 +162,44 @@ func runFlowSteps(
         result.lines.append("✗ Flow extensions did not start: \(error)")
         return result
     }
-    let result = await runFlowStepSequence(flow, executor: executor, context: context)
-    await extensions.end(passed: result.succeeded)
+    var result = await runFlowStepSequence(flow, executor: executor, context: context)
+    let terminated = flow.terminateAppAtEnd
+        ? await terminateLaunchedApps(executor: executor, context: context, into: &result)
+        : false
+    await extensions.end(passed: result.succeeded, appTerminated: terminated)
     return result
+}
+
+/// The apps a flow run launched, in launch order.
+actor FlowLaunchedApps {
+    private(set) var appIDs: [String] = []
+
+    func record(_ appID: String) {
+        if !appIDs.contains(appID) {
+            appIDs.append(appID)
+        }
+    }
+}
+
+/// Ends every app the run launched, newest first, and reports each. Whether all of them ended: an
+/// extension learns it from `flow_end`'s `app_terminated`. A run that launched nothing ended nothing.
+private func terminateLaunchedApps(
+    executor: any ToolExecutor,
+    context: FlowRunContext,
+    into result: inout FlowRunResult
+) async -> Bool {
+    let appIDs = await context.launchedApps.appIDs
+    var allEnded = !appIDs.isEmpty
+    for appID in appIDs.reversed() {
+        let outcome = await executor.execute(toolName: "device_terminate_app", arguments: ["app_id": appID])
+        if outcome.isError {
+            allEnded = false
+            result.lines.append("– terminate_app_at_end: \(appID) did not end: \(outcome.content)")
+        } else {
+            result.lines.append("• terminate_app_at_end: ended \(appID)")
+        }
+    }
+    return allEnded
 }
 
 /// A launch step's resolved `arguments` with an extension's launch environment joined beneath any
@@ -324,7 +365,11 @@ private func runFlowStep(
     case FlowPseudoTool.screenshot:
         return await runFlowScreenshot(arguments, name: step.name, number: number, executor: executor, context: context)
     default:
-        return await executor.execute(toolName: step.tool, arguments: arguments)
+        let outcome = await executor.execute(toolName: step.tool, arguments: arguments)
+        if flowLaunchTools.contains(step.tool), !outcome.isError, let appID = arguments["app_id"], !appID.isEmpty {
+            await context.launchedApps.record(appID)
+        }
+        return outcome
     }
 }
 
