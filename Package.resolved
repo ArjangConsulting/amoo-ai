@@ -1,5 +1,5 @@
 {
-  "originHash" : "cdf9668110bec0a6a6171c4bf7460687be5f8212946ff58b6552b33d882d5aff",
+  "originHash" : "d7c69205e8e9828530a15ba6fc6968a9266c33f50ab3cce1c0cbe3c625e7c588",
   "pins" : [
     {
       "identity" : "cli-wrappers",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/grpc/grpc-swift-nio-transport.git",
       "state" : {
-        "revision" : "71c5da80432b10e87778928b309808fa89ad1911",
-        "version" : "2.12.0"
+        "revision" : "e4c5f1d866bd7194b23e79c389b34a776a07babf",
+        "version" : "2.13.1"
       }
     },
     {
@@ -159,8 +159,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "e3da04078777e6a1b72ce19981fbd6539b0847d8",
-        "version" : "1.17.0"
+        "revision" : "c7413d967b97aae67c46452bf7645bdb7b200e8e",
+        "version" : "1.17.2"
       }
     },
     {
@@ -267,8 +267,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maniramezan/SwiftTestCommons.git",
       "state" : {
-        "revision" : "3420590635e3c3bf869116679177051406d3b3a8",
-        "version" : "0.4.2"
+        "revision" : "efe30d0f3a5165e2906d435bbcc5748852a62c25",
+        "version" : "0.5.0"
       }
     },
     {

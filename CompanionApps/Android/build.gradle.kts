@@ -1,5 +1,5 @@
 plugins {
-    id("com.android.application") version "9.5.1" apply false
+    id("com.android.application") version "9.5.2" apply false
     id("com.google.protobuf") version "0.10.1" apply false
     // Compose compiler for :composeSampleApp. Must track the Kotlin version AGP's built-in Kotlin
     // uses, since the Compose compiler plugin is versioned in lockstep with Kotlin.
