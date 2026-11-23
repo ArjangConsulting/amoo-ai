@@ -80,6 +80,7 @@ func renderEnvHelp() -> String {
          [--compile verify|speed-profile|speed]     Android: compile the app after installing it
              [--owner <label>] [--ttl <minutes>] [--ready-timeout <secs>] [--json]
              Later calls can use --runtime-id <id> or AMOO_RUNTIME_ID.
+             --ttl is the lease (default 60); each call on the runtime renews it by that much.
 
       down   --device <id> | --runtime-id <id> [--shutdown] [--force] [--json]
              Stops the companion and removes its runtime record, including stale records.

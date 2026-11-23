@@ -56,6 +56,39 @@ final class DeviceRuntimeTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(store.runtime(id: runtime.id)).expiresAt, runtime.expiresAt)
     }
 
+    /// Regression: `env up --ttl 240` built the only store with that TTL; a flow or device command
+    /// renewed through a default store and cut the lease back to an hour.
+    func testRenewalFromAnotherCommandKeepsTheLeaseTheRuntimeStartedWith() throws {
+        let fourHours: TimeInterval = 4 * 60 * 60
+        let envUp = DeviceRuntimeStore.temporary(ttl: fourHours)
+        let started = Date()
+        let runtime = try envUp.start(platform: .ios, deviceID: "SIM-1", owner: nil, now: started)
+        let command = DeviceRuntimeStore(directory: envUp.directory)
+
+        let renewed = try command.refresh(runtime, now: started.addingTimeInterval(60))
+
+        XCTAssertEqual(renewed.leaseSeconds, fourHours)
+        XCTAssertEqual(
+            renewed.expiresAt.timeIntervalSince(started),
+            fourHours + 60,
+            accuracy: 1
+        )
+        XCTAssertNoThrow(try enforceDeviceAccess(deviceID: "SIM-1", runtime: runtime.id, store: command))
+        let stored = try XCTUnwrap(command.runtime(id: runtime.id))
+        XCTAssertGreaterThan(stored.expiresAt, Date().addingTimeInterval(fourHours - 60))
+    }
+
+    func testARecordWithoutALeaseRenewsByTheStoreTTL() throws {
+        let store = DeviceRuntimeStore.temporary(ttl: 600)
+        var runtime = try store.start(platform: .android, deviceID: "emulator-5554", owner: nil)
+        runtime.leaseSeconds = nil
+        let now = Date()
+
+        let renewed = try store.refresh(runtime, now: now)
+
+        XCTAssertEqual(renewed.expiresAt.timeIntervalSince(now), 600, accuracy: 1)
+    }
+
     func testExpiredRuntimesFreeTheDevice() throws {
         let store = DeviceRuntimeStore.temporary(ttl: 60)
         let past = Date().addingTimeInterval(-3600)

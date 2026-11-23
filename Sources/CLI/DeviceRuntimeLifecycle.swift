@@ -41,6 +41,8 @@ func reuseDeviceRuntime(
         return report
     }
     report.runtimeID = runtime.id
+    // An explicit --ttl on a reuse sets a new lease; without one the runtime keeps its own.
+    runtime.leaseSeconds = options.ttlMinutes.map { Double($0) * 60 } ?? runtime.leaseSeconds
     lifecycleLogger.info("Reusing runtime", context: "action=reuse runtime=\(runtime.id) device=\(runtime.deviceID)")
     guard runtime.amooPlatform == options.platform,
           options.deviceID == nil || options.deviceID == runtime.deviceID,

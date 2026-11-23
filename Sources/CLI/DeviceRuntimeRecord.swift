@@ -23,6 +23,10 @@ struct DeviceRuntime: Codable, Equatable, Sendable {
     var owner: String?
     var createdAt: Date
     var expiresAt: Date
+    /// The lease length the runtime was started with (`env up --ttl`). Every renewal pushes
+    /// `expiresAt` out by this much, whichever command renews it. `nil` on records written before
+    /// it was stored; those renew by the renewing store's TTL.
+    var leaseSeconds: TimeInterval?
     var state: DeviceRuntimeState = .starting
 
     init(
@@ -36,7 +40,8 @@ struct DeviceRuntime: Codable, Equatable, Sendable {
         appID: String? = nil,
         owner: String? = nil,
         createdAt: Date,
-        expiresAt: Date
+        expiresAt: Date,
+        leaseSeconds: TimeInterval? = nil
     ) {
         self.id = id
         self.platform = platform
@@ -49,6 +54,7 @@ struct DeviceRuntime: Codable, Equatable, Sendable {
         self.owner = owner
         self.createdAt = createdAt
         self.expiresAt = expiresAt
+        self.leaseSeconds = leaseSeconds
     }
 
     func isExpired(at now: Date = Date()) -> Bool {

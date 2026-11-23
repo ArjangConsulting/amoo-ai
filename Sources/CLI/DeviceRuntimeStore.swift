@@ -113,15 +113,17 @@ struct DeviceRuntimeStore: Sendable {
             companionPID: companionPID,
             owner: owner,
             createdAt: created,
-            expiresAt: Self.storedPrecision(now.addingTimeInterval(ttl))
+            expiresAt: Self.storedPrecision(now.addingTimeInterval(ttl)),
+            leaseSeconds: ttl
         )
         try publish(runtime)
         logger.info("Started runtime", context: "device=\(deviceID) runtime=\(runtime.id)")
         return runtime
     }
 
-    /// Persists changes to an owned runtime and pushes its expiry out by one TTL. Refuses to
-    /// overwrite a runtime someone else now holds.
+    /// Persists changes to an owned runtime and pushes its expiry out by the runtime's own lease
+    /// (this store's TTL only for a record that has none). Refuses to overwrite a runtime someone
+    /// else now holds.
     @discardableResult
     func refresh(_ runtime: DeviceRuntime, now: Date = Date()) throws -> DeviceRuntime {
         let mutation = try DeviceAccessLock(deviceID: runtime.deviceID, store: self, runtimeRecord: true)
@@ -130,7 +132,7 @@ struct DeviceRuntimeStore: Sendable {
             throw MobileKitError.notFound("Runtime \(runtime.id) on \(runtime.deviceID) no longer exists")
         }
         var renewed = runtime
-        renewed.expiresAt = Self.storedPrecision(now.addingTimeInterval(ttl))
+        renewed.expiresAt = Self.storedPrecision(now.addingTimeInterval(runtime.leaseSeconds ?? ttl))
         try replace(renewed)
         return renewed
     }

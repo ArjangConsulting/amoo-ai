@@ -424,6 +424,10 @@ Installing over an existing app preserves its data. To start clean, `device_unin
 `amoo env list --json` shows each runtime's owner, `expires_at` and `expired`. Listings are advisory;
 `env up` checks ownership again.
 
+A runtime holds its device for the `env up --ttl <minutes>` lease (60 by default). Every `device` or
+`flow` call on the runtime renews it by that same lease; `env up --runtime-id <id> --ttl <minutes>`
+sets a new one.
+
 Explicit assertions accept `precondition=true`. A mismatch records `preconditionFailed`, which
 leaves that requirement incomplete and derives blocked/partial coverage. A passing setup assertion
 alone does not complete a requirement. A later behavior assertion supplies its actual verdict.
