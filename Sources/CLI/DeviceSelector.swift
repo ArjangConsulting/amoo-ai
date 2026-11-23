@@ -143,9 +143,16 @@ struct ConsoleDeviceSelectionPrompter: DeviceSelectionPrompting {
 
 struct DeviceSelector {
     private let processRunner: any ProcessRunner
+    /// Where CoreSimulator keeps one directory per simulator, named by its UDID.
+    private let simulatorDevicesDirectory: URL
 
-    init(processRunner: any ProcessRunner = SystemProcessRunner()) {
+    init(
+        processRunner: any ProcessRunner = SystemProcessRunner(),
+        simulatorDevicesDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: "Library/Developer/CoreSimulator/Devices")
+    ) {
         self.processRunner = processRunner
+        self.simulatorDevicesDirectory = simulatorDevicesDirectory
     }
 
     func selectDevice(hint: String? = nil) async throws -> BootedDevice {
@@ -196,11 +203,22 @@ struct DeviceSelector {
     }
 
     /// Whether `deviceID` names a connected physical device rather than a simulator.
+    ///
+    /// A simulator's UDID has its own CoreSimulator directory, so that is checked first: listing
+    /// physical devices runs `devicectl`, about half a second, and `amoo device` asks on every call.
     func isPhysicalDevice(deviceID: String) async -> Bool {
-        guard deviceID != "booted" else { return false }
+        guard deviceID != "booted", !isSimulatorUDID(deviceID) else { return false }
         return await listPhysicalDevices().contains {
             $0.udid == deviceID || $0.name.lowercased() == deviceID.lowercased()
         }
+    }
+
+    /// Whether `deviceID` is the UDID of a simulator on this Mac.
+    func isSimulatorUDID(_ deviceID: String) -> Bool {
+        guard let udid = UUID(uuidString: deviceID) else { return false }
+        var isDirectory: ObjCBool = false
+        let path = simulatorDevicesDirectory.appending(path: udid.uuidString).path
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
     func listAvailableSimulators() async -> [IOSSimulatorDevice] {
