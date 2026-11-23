@@ -279,7 +279,7 @@ public actor DriverToolExecutor: ToolExecutor {
         if [
             "find_elements", "get_view_hierarchy", "get_screen_context", "describe_screen",
             "take_screenshot", "take_screenshot_metadata", "record_video", "start_recording", "stop_recording",
-            "current_app", "list_devices", "list_apps"
+            "current_app", "list_devices", "list_apps", "device_pull_app_file"
         ].contains(toolName) {
             return .diagnostic
         }

@@ -109,6 +109,10 @@ public actor IOSDriver: PlatformDriver {
         try await backend.listApps(device: deviceID)
     }
 
+    public func pullAppFile(_ request: AppFileRequest) async throws -> PulledAppFile {
+        try await backend.pullAppFile(device: deviceID, request: request)
+    }
+
     /// A first attempt at this scoped `getViewHierarchy` to `appID` to sidestep `currentApp()`'s
     /// flaky frontmost detection (see `verifyLaunch`) — that caused a companion hang and was
     /// reverted: `XCUIApplication(bundleIdentifier:).snapshot()` does not fail fast on a

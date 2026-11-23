@@ -147,6 +147,9 @@ extension DriverToolExecutor {
             try await driver.terminateApp(appID: appID)
             return .success("App terminated: \(appID)")
 
+        case "device_pull_app_file":
+            return try await executePullAppFile(driver: driver, arguments: arguments)
+
         case "device_uninstall_app":
             guard let appID = arguments["app_id"] else {
                 return .error("Missing required argument: app_id")

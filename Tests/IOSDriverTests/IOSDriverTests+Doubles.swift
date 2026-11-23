@@ -20,7 +20,20 @@ actor MockSimctlRunner: SimctlRunning {
     /// Backs `simctl ui <device> <option> [value]` like the simulator: a write is what a read returns.
     private var uiOptions: [String: String] = ["appearance": "light", "content_size": "large"]
 
+    /// Answers `simctl get_app_container`; nil fails it as for an app that is not installed.
+    private var dataContainer: String?
+
+    func setDataContainer(_ path: String?) {
+        dataContainer = path
+    }
+
     func run(_ arguments: [String]) async throws -> ProcessResult {
+        if arguments.first == "get_app_container" {
+            guard let dataContainer else {
+                throw ProcessRunnerError.nonZeroExit(command: "simctl", exitCode: 2, stderr: "No such app")
+            }
+            return ProcessResult(exitCode: 0, stdout: dataContainer + "\n", stderr: "")
+        }
         if arguments.first == "ui", arguments.count >= 3 {
             if arguments.count == 4 {
                 uiOptions[arguments[2]] = arguments[3]

@@ -65,6 +65,38 @@ public struct SimulatorHostBackend: IOSHostBackend {
         return Self.parseAppList(plistOutput: output)
     }
 
+    /// Reads the app's data container straight from the host's file system, which works for any
+    /// build installed on the simulator.
+    public func pullAppFile(device: String, request: AppFileRequest) async throws -> PulledAppFile {
+        guard request.container == .data else {
+            throw AmooError.unsupportedCapability(
+                key: "app.files.\(request.container.rawValue)",
+                reason: "iOS apps have no \(request.container.rawValue) storage; use container 'data'."
+            )
+        }
+        let result: ProcessResult
+        do {
+            result = try await simctl.run(["get_app_container", device, request.appID, "data"])
+        } catch {
+            throw AppFileError.unreadable(
+                devicePath: "\(request.appID) data:\(request.path)",
+                reason: "simctl found no data container for \(request.appID); is it installed? (\(error))"
+            )
+        }
+        let root = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = URL(fileURLWithPath: root).appending(path: request.path)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: source.path, isDirectory: &isDirectory) else {
+            throw AppFileError.notFound(devicePath: source.path)
+        }
+        guard !isDirectory.boolValue else {
+            throw AppFileError.unreadable(devicePath: source.path, reason: "it is a directory, not a file")
+        }
+        try request.prepareDestination()
+        try FileManager.default.copyItem(at: source, to: request.destination)
+        return try request.pulled(devicePath: source.path)
+    }
+
     // MARK: - Capture
 
     public func screenshot(device: String, format: ImageFormat) async throws -> ScreenshotData {

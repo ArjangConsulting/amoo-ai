@@ -60,7 +60,7 @@ public protocol DeviceDriver: Sendable {
 
 // MARK: - App Management
 
-public protocol AppManagement: AppLaunchReporting, Sendable {
+public protocol AppManagement: AppLaunchReporting, AppFileTransfer, Sendable {
     func installApp(path: String) async throws
     func launchApp(appID: String, arguments: [String], environment: [String: String]) async throws
     func terminateApp(appID: String) async throws

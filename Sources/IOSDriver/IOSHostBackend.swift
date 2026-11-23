@@ -28,6 +28,8 @@ public protocol IOSHostBackend: Sendable {
     func terminateApp(device: String, appID: String) async throws
     func uninstallApp(device: String, appID: String) async throws
     func listApps(device: String) async throws -> [AppInfo]
+    /// Copies a file out of an installed app's storage to the host.
+    func pullAppFile(device: String, request: AppFileRequest) async throws -> PulledAppFile
 
     // Capture
     func screenshot(device: String, format: ImageFormat) async throws -> ScreenshotData
@@ -52,6 +54,13 @@ public protocol IOSHostBackend: Sendable {
 }
 
 public extension IOSHostBackend {
+    func pullAppFile(device _: String, request _: AppFileRequest) async throws -> PulledAppFile {
+        throw AmooError.unsupportedCapability(
+            key: "app.files",
+            reason: "This device cannot copy files out of an app's storage."
+        )
+    }
+
     func displaySetting(device _: String, setting: DisplaySetting) async throws -> String {
         throw AmooError.unsupportedCapability(
             key: "config.\(setting.rawValue)",

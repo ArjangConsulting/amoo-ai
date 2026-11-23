@@ -189,6 +189,36 @@ amoo shots diff baseline/ shots/ --out diffs/  # per-file same / CHANGED / MISSI
 fails a file when more than `--threshold` (0.1%) of its pixels changed; `--out` writes a red overlay
 of each failing file. Both need CoreGraphics, so they run on macOS only.
 
+## Files from the app's storage
+
+`device_pull_app_file` copies a file the app wrote into its own storage to the host: a network
+capture from an in-app recorder, a log, a database. It is evidence, so it never becomes a step in a
+generated test.
+
+```json
+{ "tool": "device_pull_app_file",
+  "arguments": { "app_id": "com.example.app", "path": "Documents/session.har", "timeout_ms": "10000" } }
+```
+
+`path` is relative to the container's root. An absolute path or one that leaves the container with
+`..` is refused. Directories are not copied.
+
+| Device | `container: data` (default) | `container: external` |
+| --- | --- | --- |
+| iOS simulator | the data container (`Documents`, `Library`, `tmp`), from the host, any build | — |
+| iOS device | the data container through `devicectl device copy from`, development-signed builds only (App Store and TestFlight builds fail with a message saying so) | — |
+| Android | `/data/data/<package>` through `run-as`, debuggable builds only | `/sdcard/Android/data/<package>` through `adb pull`, any build |
+
+`output` is the local file to write. In a flow it defaults to the run's `--output-dir` under the
+file's own name, and a relative `output` is placed there. Outside a flow it is relative to the
+current directory. An older copy is replaced. The result, which a flow keeps in `report.json`, holds
+`device_path`, `output` and `bytes`.
+
+A missing file fails the step with `file_not_found` and the path it resolved to. An app that
+writes the file asynchronously gets `timeout_ms`, which polls until the file appears. A container
+the host cannot read (a release build on Android, an App Store build on a device, an app that is
+not installed) fails at once with `file_unreadable` and the reason.
+
 ## Generating tests from a flow
 
 Author the sequence as a flow, then compile and generate:

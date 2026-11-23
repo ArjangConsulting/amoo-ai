@@ -50,6 +50,15 @@ public extension CommandCoverageMatrix {
             expectedAssertion: "fixture app is no longer foregrounded"
         ),
         .init(
+            name: "device_pull_app_file",
+            channel: .tool,
+            kind: .deterministic,
+            releaseTier: .informational,
+            platforms: allPlatforms,
+            fixtureScreen: .environment,
+            expectedAssertion: "a file the fixture app wrote is copied to the host with its size"
+        ),
+        .init(
             name: "device_uninstall_app",
             channel: .tool,
             kind: .deterministic,
@@ -414,7 +423,6 @@ public extension CommandCoverageMatrix {
             fixtureScreen: .environment,
             expectedAssertion: "installed apps are listed for the active device"
         ),
-
         // Intent-level tools
         .init(
             name: "navigate_to",

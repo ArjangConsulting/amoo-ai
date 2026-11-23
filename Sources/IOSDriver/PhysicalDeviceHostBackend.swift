@@ -72,6 +72,45 @@ public struct PhysicalDeviceHostBackend: IOSHostBackend {
         return Self.parseAppList(json: json)
     }
 
+    /// Copies from the app's data container with `devicectl device copy from`. iOS exposes that
+    /// container only for development-signed builds, not App Store or TestFlight ones.
+    public func pullAppFile(device: String, request: AppFileRequest) async throws -> PulledAppFile {
+        guard request.container == .data else {
+            throw AmooError.unsupportedCapability(
+                key: "app.files.\(request.container.rawValue)",
+                reason: "iOS apps have no \(request.container.rawValue) storage; use container 'data'."
+            )
+        }
+        let devicePath = "\(request.appID) data:\(request.path)"
+        try request.prepareDestination()
+        let output: String
+        do {
+            let result = try await devicectl.run([
+                "device", "copy", "from", "--device", device,
+                "--domain-type", "appDataContainer", "--domain-identifier", request.appID,
+                "--source", request.path, "--destination", request.destination.path
+            ])
+            guard result.exitCode != 0 else { return try request.pulled(devicePath: devicePath) }
+            output = result.stderr + result.stdout
+        } catch let ProcessRunnerError.nonZeroExit(_, _, stderr) {
+            output = stderr
+        }
+        throw Self.appFileError(output: output, devicePath: devicePath)
+    }
+
+    static func appFileError(output: String, devicePath: String) -> AppFileError {
+        let lowered = output.lowercased()
+        if ["no such file", "doesn’t exist", "doesn't exist", "does not exist"].contains(where: lowered.contains) {
+            return .notFound(devicePath: devicePath)
+        }
+        return .unreadable(
+            devicePath: devicePath,
+            reason: "devicectl could not read the app's data container. iOS exposes it only for"
+                + " development-signed builds, not App Store or TestFlight ones. devicectl said: "
+                + output.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
     // MARK: - Capture
 
     public func screenshot(device: String, format _: ImageFormat) async throws -> ScreenshotData {

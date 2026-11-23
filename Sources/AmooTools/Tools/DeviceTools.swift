@@ -117,6 +117,7 @@ public enum DeviceTools {
             ],
             required: ["app_id"]
         ),
+        pullAppFile,
         ToolDefinition(
             name: "set_permission",
             description: "Grant or revoke an app permission (e.g. camera, location, notifications)",

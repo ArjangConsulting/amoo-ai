@@ -365,7 +365,10 @@ private func runFlowStep(
     case FlowPseudoTool.screenshot:
         return await runFlowScreenshot(arguments, name: step.name, number: number, executor: executor, context: context)
     default:
-        let outcome = await executor.execute(toolName: step.tool, arguments: arguments)
+        let outcome = await executor.execute(
+            toolName: step.tool,
+            arguments: flowOutputArguments(arguments, tool: step.tool, outputDirectory: context.outputDirectory)
+        )
         if flowLaunchTools.contains(step.tool), !outcome.isError, let appID = arguments["app_id"], !appID.isEmpty {
             await context.launchedApps.record(appID)
         }
