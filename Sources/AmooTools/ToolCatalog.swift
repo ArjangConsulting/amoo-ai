@@ -180,7 +180,8 @@ extension ToolDefinition {
         copy.properties["dismiss_system_dialogs"] = .init(
             type: "boolean",
             description: "If the step fails behind a system dialog (another app's \"isn't responding\", iOS"
-                + " \"Save Password?\"), press its harmless button (Wait, Not Now, Cancel) and retry once."
+                + " \"Save Password?\"), press its harmless button (Wait, Not Now, Cancel) and retry once. A tap that"
+                + " already landed is not repeated: its unmet expect_* is checked again instead."
                 + " Never answers the target app's own ANR or alerts; on iOS only known Apple prompts."
                 + " Default false; a flow can set it for every step"
         )

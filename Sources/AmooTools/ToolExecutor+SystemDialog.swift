@@ -137,7 +137,10 @@ extension DriverToolExecutor {
         arguments: [String: String],
         credentialClass: CredentialField.Class?
     ) async throws -> ToolResult {
+        // A gesture that already landed is never sent again: tapping a sign-in button twice is a
+        // different test. Its own expectation answers the prompt and looks again instead.
         guard result.isError, Self.dialogSensitiveTools.union(["device_launch_app"]).contains(tool),
+              result.structuredContent?.objectValue?["dispatch_status"] != .string("completed"),
               let answered = await dismissSystemDialog(arguments: arguments) else { return result }
         var retried = try await CredentialDispatch.$fieldClass.withValue(credentialClass) {
             try await self.dispatch(toolName: tool, arguments: arguments)
@@ -172,8 +175,9 @@ extension DriverToolExecutor {
     /// failure instead of in a screenshot taken afterwards.
     func diagnoseBlockingDialog(_ original: ToolResult, tool: String, arguments: [String: String]) async -> ToolResult {
         var fields = original.structuredContent?.objectValue ?? [:]
+        let failed = original.isError || fields["expected_effect_met"] == .bool(false)
         // A device or channel failure is not a dialog in front, and asking the device again only waits.
-        guard original.isError, Self.dialogSensitiveTools.contains(tool), fields["blocking_dialog"] == nil,
+        guard failed, Self.dialogSensitiveTools.contains(tool), fields["blocking_dialog"] == nil,
               fields["failure_scope"] == nil, fields["code"] != .string("deadline_exceeded"),
               let driver = try? await resolveDriver(arguments: arguments),
               let dialog = await Self.withinBudget(milliseconds: 2000, {
@@ -183,13 +187,40 @@ extension DriverToolExecutor {
         logger.info("Failed step met a system dialog", context: "tool=\(tool)")
         fields["blocking_dialog"] = dialog.value
         var result = original
-        result.content += dialog.isSystemPrompt
-            ? "\nA system dialog is in front: \(dialog.shortDescription). Answer it with tap_element,"
-            + " or pass dismiss_system_dialogs=true to let amoo press its harmless button and retry."
-            : "\nA dialog is in front: \(dialog.shortDescription). It is not a known system prompt, so"
-            + " dismiss_system_dialogs leaves it: answer it with tap_element if the flow expects it."
+        result.content += await blockingDialogHint(dialog, arguments: arguments, driver: driver)
         result.structuredContent = .object(fields)
         return result
+    }
+
+    /// What to do about `dialog`, which is still in front: never suggests the switch the call already has.
+    private func blockingDialogHint(
+        _ dialog: BlockingSystemDialog,
+        arguments: [String: String],
+        driver: any PlatformDriver
+    ) async -> String {
+        guard dialog.isSystemPrompt else {
+            return "\nA dialog is in front: \(dialog.shortDescription). It is not a known system prompt, so"
+                + " dismiss_system_dialogs leaves it: answer it with tap_element if the flow expects it."
+        }
+        let front = "\nA system dialog is in front: \(dialog.shortDescription)."
+        guard boolArgument(arguments["dismiss_system_dialogs"]) ?? dismissSystemDialogsByDefault else {
+            return front + " Answer it with tap_element, or pass dismiss_system_dialogs=true to let amoo press"
+                + " its harmless button and retry."
+        }
+        guard let button = dialog.harmlessButton else {
+            return front + " dismiss_system_dialogs is on, but it has no button that only closes it"
+                + " (Not Now, Cancel, Wait): answer it with tap_element."
+        }
+        var target = arguments["app_id"]
+        if target == nil {
+            target = try? await driver.currentApp().targetBundleID
+        }
+        if dialog.belongs(to: target) {
+            return front + " dismiss_system_dialogs is on, but its title names the target app, so amoo"
+                + " leaves it as a finding."
+        }
+        return front + " dismiss_system_dialogs is on, but it was still in front after amoo pressed"
+            + " \(button.label). Answer it with tap_element after a wait_for idle=true."
     }
 
     /// With `dismiss_system_dialogs=true`, presses the harmless button of a system dialog in front of the
@@ -211,15 +242,40 @@ extension DriverToolExecutor {
             logger.info("Left the target app's own dialog unanswered", context: "title_length=\(dialog.title.count)")
             return nil
         }
-        do {
-            try await driver.tap(at: point)
-        } catch {
-            logger.error("Could not answer a system dialog", error: error, context: "button=\(button.label)")
-            return nil
+        // A sheet still sliding in drops the press, so it is pressed once more if it stays.
+        for attempt in 1 ... 2 {
+            do {
+                try await driver.tap(at: point)
+            } catch {
+                logger.error("Could not answer a system dialog", error: error, context: "button=\(button.label)")
+                return nil
+            }
+            if await systemDialogClosed(dialog, driver: driver, arguments: arguments) {
+                logger.info("Answered a system dialog", context: "button=\(button.label) attempt=\(attempt)")
+                return dialog
+            }
+            logger.info("System dialog still in front after a press", context: "attempt=\(attempt)")
         }
-        logger.info("Answered a system dialog", context: "button=\(button.label)")
-        try? await Task.sleep(for: .milliseconds(500))
-        return dialog
+        return nil
+    }
+
+    /// Whether `dialog` has left the front within about two seconds of a press.
+    private func systemDialogClosed(
+        _ dialog: BlockingSystemDialog,
+        driver: any PlatformDriver,
+        arguments: [String: String]
+    ) async -> Bool {
+        let deadline = ContinuousClock.now + .milliseconds(2000)
+        repeat {
+            try? await Task.sleep(for: .milliseconds(250))
+            let front = await Self.withinBudget(milliseconds: 1500) {
+                await self.frontSystemDialog(driver: driver, arguments: arguments)
+            }
+            if front?.title != dialog.title {
+                return true
+            }
+        } while ContinuousClock.now < deadline
+        return false
     }
 
     /// Why a launch did not reach the foreground, naming a system dialog or a stopped companion

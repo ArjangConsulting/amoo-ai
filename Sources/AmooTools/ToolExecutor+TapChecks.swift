@@ -382,6 +382,8 @@ extension DriverToolExecutor {
         var expectation: TapExpectation?
         /// For an absence expectation: whether the element was on screen before the tap.
         var expectationPresentBeforeTap: Bool?
+        /// The call's arguments, for `dismiss_system_dialogs`.
+        var arguments: [String: String] = [:]
     }
 
     /// `foreground_bundle_id` / `foreground_changed`, and a note when another app took over. Uses

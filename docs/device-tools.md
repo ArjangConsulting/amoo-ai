@@ -376,8 +376,11 @@ prompt title (Save Password, Update Password, Sign In to Apple Account) has `sys
 alert is reported as "a dialog in front" and is never answered. `dismiss_system_dialogs=true` on the
 step, or `"dismiss_system_dialogs": true` at the top of a flow for every step, lets amoo press a system
 dialog's harmless button (Wait, Not Now, Cancel) and run the step once more; the result carries
-`dismissed_dialog`. It never presses Save, Allow, OK or Close app, and never answers the target app's
-own "isn't responding", which is judged by a distinctive part of its package id in the title: that hang
+`dismissed_dialog`. The press is checked: a sheet still sliding in can drop it, so amoo presses once more
+if the dialog stays. A gesture that already landed is never sent again. When a `tap_element`'s
+expectation is not met because a prompt came up over the result ("Save Password?" after a sign-in),
+amoo answers the prompt and checks the expectation again for up to 5 seconds. It never presses Save,
+Allow, OK or Close app, and never answers the target app's own "isn't responding", which is judged by a distinctive part of its package id in the title: that hang
 is a finding.
 
 `device_health [app_id=...]` independently probes device transport and companion RPC under bounded

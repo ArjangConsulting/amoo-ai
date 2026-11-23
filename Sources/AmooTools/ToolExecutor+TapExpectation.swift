@@ -86,6 +86,9 @@ extension DriverToolExecutor {
         return found.map { !$0.isEmpty }
     }
 
+    /// How long an expectation is checked again after a system prompt over it was answered.
+    static let recheckMilliseconds = 5000
+
     /// The result fields and note for a tap's expectation.
     func expectationOutcome(
         _ context: TapOutcomeContext,
@@ -93,14 +96,29 @@ extension DriverToolExecutor {
         driver: any PlatformDriver
     ) async -> (fields: [String: Value], note: String) {
         var waitError: String?
-        let status = await awaitExpectation(
+        var status = await awaitExpectation(
             expectation, presentBeforeTap: context.expectationPresentBeforeTap, driver: driver
         ) { waitError = $0 }
-        var fields: [String: Value] = ["expectation_status": .string(status.rawValue)]
+        var fields: [String: Value] = [:]
+        var answeredNote = ""
+        // A system prompt that came up over the tap's result ("Save Password?" after a sign-in) hides
+        // it. With dismissal on, answer the prompt and look again; the tap itself already landed and
+        // is never repeated.
+        if status == .notMet, let answered = await dismissSystemDialog(arguments: context.arguments) {
+            fields["dismissed_dialog"] = answered.value
+            answeredNote = " (Answered the system dialog \(answered.shortDescription) and checked again;"
+                + " the tap was not repeated.)"
+            var recheck = expectation
+            recheck.timeoutMilliseconds = min(expectation.timeoutMilliseconds, Self.recheckMilliseconds)
+            status = await awaitExpectation(
+                recheck, presentBeforeTap: context.expectationPresentBeforeTap, driver: driver
+            ) { waitError = $0 }
+        }
+        fields["expectation_status"] = .string(status.rawValue)
         if let met = status.effectMet {
             fields["expected_effect_met"] = .bool(met)
         }
-        var note = expectationNote(status, expectation)
+        var note = expectationNote(status, expectation) + answeredNote
         if status == .notMet {
             if let nearest = await nearestCandidate(for: expectation, driver: driver) {
                 fields["expectation_nearest"] = .string(nearest)

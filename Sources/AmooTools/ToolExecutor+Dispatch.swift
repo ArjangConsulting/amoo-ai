@@ -403,7 +403,8 @@ extension DriverToolExecutor {
                     hittabilityChecked: preflight.hittabilityChecked,
                     dismissedBlock: preflight.dismissedBlock,
                     expectation: expectation,
-                    expectationPresentBeforeTap: presentBeforeTap
+                    expectationPresentBeforeTap: presentBeforeTap,
+                    arguments: arguments
                 ),
                 driver: driver
             )

@@ -68,6 +68,33 @@ final class SystemDialogDismissalTests: XCTestCase {
         XCTAssertTrue(ownTaps.isEmpty, "the target app's own hang is a finding")
     }
 
+    func testAPressDroppedWhileTheSheetAppearsIsMadeAgain() async {
+        let driver = DialogDriver(platform: .ios, dialog: .savePassword, droppedPresses: 1)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "assert_visible",
+            arguments: ["id": "account.sign_out", "timeout_ms": "200", "dismiss_system_dialogs": "true"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let taps = await driver.taps
+        XCTAssertEqual(taps, ["Not Now", "Not Now"])
+    }
+
+    func testTheHintNeverSuggestsTheSwitchTheCallAlreadyHas() async {
+        let driver = DialogDriver(platform: .ios, dialog: .savePassword, droppedPresses: 10)
+        let executor = DriverToolExecutor(driver: driver)
+        await executor.setDismissSystemDialogsByDefault(true)
+        let result = await executor.execute(
+            toolName: "assert_visible", arguments: ["id": "account.sign_out", "timeout_ms": "200"]
+        )
+        XCTAssertTrue(result.isError)
+        XCTAssertTrue(
+            result.content
+                .contains("dismiss_system_dialogs is on, but it was still in front after amoo pressed Not Now"),
+            result.content
+        )
+        XCTAssertFalse(result.content.contains("pass dismiss_system_dialogs=true"), result.content)
+    }
+
     func testOwnershipIgnoresGenericPackageSegments() {
         let dialog = BlockingSystemDialog(title: "Android System isn't responding", actions: [])
         XCTAssertFalse(dialog.belongs(to: "com.exampleapp.android.qa"))
@@ -83,10 +110,13 @@ actor DialogDriver: PlatformDriver {
     private let platform: Platform
     private var dialog: Dialog?
     private(set) var taps: [String] = []
+    /// Presses the dialog ignores, as a sheet still sliding in does.
+    private var droppedPresses: Int
 
-    init(platform: Platform, dialog: Dialog) {
+    init(platform: Platform, dialog: Dialog, droppedPresses: Int = 0) {
         self.platform = platform
         self.dialog = dialog
+        self.droppedPresses = droppedPresses
     }
 
     func deviceInfo() async throws -> DeviceInfo {
@@ -136,6 +166,10 @@ actor DialogDriver: PlatformDriver {
                 && (frame.y ... frame.y + frame.height).contains(point.y)
         }.map(\.label)
         taps += labels
+        guard droppedPresses == 0 else {
+            droppedPresses -= 1
+            return
+        }
         dialog = nil
     }
 }
