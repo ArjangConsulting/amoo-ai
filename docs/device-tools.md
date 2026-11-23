@@ -98,7 +98,7 @@ Flow-only steps cover what used to need a shell loop:
 | --- | --- | --- |
 | `wait` | `duration_ms` or `seconds` | Pauses. |
 | `wait_for` | `id`/`label`/`contains_text`, `timeout_ms` (default 10000) | Waits for the element (an `assert_visible` with a timeout). |
-| `wait_for` | `idle: true`, `stable_ms` (500), `timeout_ms` | Waits until the screen stops changing — first frame after a launch, end of a rotation. |
+| `wait_for` | `idle: true`, `stable_ms` (500), `timeout_ms` | Waits until the screen stops changing — first frame after a launch, end of a rotation, a dialog still animating in (the system can drop a tap made during that animation). |
 | `screenshot` | `name` (optional) | Saves `<--output-dir>/NN-<name>.png`, numbered by step. |
 
 One flow can run on several devices at once: `amoo flow f.amoo.json --devices UDID1:22111,UDID2:22112
