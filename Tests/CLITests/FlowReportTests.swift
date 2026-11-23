@@ -38,6 +38,19 @@ final class FlowReportTests: XCTestCase {
         XCTAssertEqual(result.steps.last?.result?.objectValue?["failure_kind"], .string("assertion_mismatch"))
     }
 
+    func testEachStepCarriesItsWallClockStartAndEnd() async throws {
+        let before = Date().timeIntervalSince1970
+        let result = await run([.init(tool: "tap_element"), .init(tool: "dismiss_keyboard")])
+        let after = Date().timeIntervalSince1970
+
+        let times = result.steps.map { ($0.startedAt ?? 0, $0.endedAt ?? 0) }
+        XCTAssertTrue(times.allSatisfy { before <= $0.0 && $0.0 <= $0.1 && $0.1 <= after }, "\(times)")
+        XCTAssertLessThanOrEqual(times[0].1, times[1].0)
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(result.steps[0])) as? [String: Any]
+        XCTAssertNotNil(encoded?["started_at"] as? Double)
+        XCTAssertNotNil(encoded?["ended_at"] as? Double)
+    }
+
     /// A tap whose expected element never showed passed its step, and the flow failed one step
     /// later with a misleading "no element matched".
     func testATapWhoseExpectationWasNotMetFailsTheStep() {

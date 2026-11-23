@@ -111,14 +111,20 @@ func parseGeneratePlanOptions(args: [String]) throws -> GeneratePlanOptions {
     )
 }
 
-/// `value` with each `${name}` that `variables` defines replaced; other references are kept as written.
-func resolvingFlowVariables(in value: String, from variables: [String: String]) -> String {
+/// `value` with each `${name}` that `variables` defines replaced, including references inside a
+/// variable's own value; other references, and a variable that refers back to itself, are kept as
+/// written.
+func resolvingFlowVariables(in value: String, from variables: [String: String], resolving: [String] = []) -> String {
     var output = ""
     var rest = Substring(value)
     while let open = rest.range(of: "${"), let close = rest[open.upperBound...].firstIndex(of: "}") {
         let name = String(rest[open.upperBound ..< close])
         output += rest[..<open.lowerBound]
-        output += variables[name] ?? String(rest[open.lowerBound ... close])
+        if let variable = variables[name], !resolving.contains(name) {
+            output += resolvingFlowVariables(in: variable, from: variables, resolving: resolving + [name])
+        } else {
+            output += String(rest[open.lowerBound ... close])
+        }
         rest = rest[rest.index(after: close)...]
     }
     return output + rest

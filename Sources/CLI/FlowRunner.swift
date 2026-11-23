@@ -55,6 +55,10 @@ struct FlowStepRecord: Encodable, Equatable {
     /// `passed`, `failed` or `optional_failed`.
     var status: String
     var elapsedMilliseconds: Int
+    /// Wall-clock start and end, Unix seconds with fractions, so a step lines up with records kept
+    /// elsewhere: a mock server's request history, backend logs.
+    var startedAt: Double?
+    var endedAt: Double?
     var message: String
     /// The tool's structured result: for a failed assertion, its `failure_kind` and last observed state.
     var result: Value?
@@ -62,6 +66,8 @@ struct FlowStepRecord: Encodable, Equatable {
     enum CodingKeys: String, CodingKey {
         case number, name, tool, repetition, status, message, result
         case elapsedMilliseconds = "elapsed_ms"
+        case startedAt = "started_at"
+        case endedAt = "ended_at"
     }
 }
 
@@ -85,10 +91,23 @@ struct FlowRunResult: Equatable {
 
 /// Replaces each `${name}` in `value`, looking in `variables` and then the environment. A name found
 /// in neither is an error, so a typo does not silently type the literal text `${name}`.
+///
+/// A variable's own value may refer to other variables (`"env": "SESSION=${session}"` with
+/// `--var session=…`), and those are resolved too: a literal `${…}` reaching the app is never
+/// intended. Environment values are taken as written, since a secret may contain `${`.
 func interpolateFlowVariables(
     in value: String,
     variables: [String: String],
     environment: [String: String]
+) throws -> String {
+    try interpolateFlowVariables(in: value, variables: variables, environment: environment, resolving: [])
+}
+
+private func interpolateFlowVariables(
+    in value: String,
+    variables: [String: String],
+    environment: [String: String],
+    resolving: [String]
 ) throws -> String {
     var output = ""
     var rest = Substring(value)
@@ -99,10 +118,19 @@ func interpolateFlowVariables(
             return output
         }
         let name = String(rest[open.upperBound ..< close])
-        guard let resolved = variables[name] ?? environment[name] else {
+        if let variable = variables[name] {
+            guard !resolving.contains(name) else {
+                let chain = (resolving + [name]).map { "${\($0)}" }.joined(separator: " -> ")
+                throw AmooError.commandFailed(command: "flow", output: "Variable refers to itself: \(chain)")
+            }
+            output += try interpolateFlowVariables(
+                in: variable, variables: variables, environment: environment, resolving: resolving + [name]
+            )
+        } else if let resolved = environment[name] {
+            output += resolved
+        } else {
             throw AmooError.commandFailed(command: "flow", output: "Missing variable or environment value: \(name)")
         }
-        output += resolved
         rest = rest[rest.index(after: close)...]
     }
     output += rest
@@ -164,9 +192,11 @@ private func runFlowStepSequence(
         for repetition in 0 ..< max(1, step.repeatCount ?? 1) {
             let suffix = (step.repeatCount ?? 1) > 1 ? " [\(repetition + 1)/\(step.repeatCount ?? 1)]" : ""
             let started = ContinuousClock.now
+            let startedAt = Date().timeIntervalSince1970
             let outcome = await failingUnmetExpectation(
                 runFlowStep(step, number: index + 1, executor: executor, context: context)
             )
+            let endedAt = Date().timeIntervalSince1970
             result.steps.append(FlowStepRecord(
                 number: index + 1,
                 name: label,
@@ -174,12 +204,15 @@ private func runFlowStepSequence(
                 repetition: (step.repeatCount ?? 1) > 1 ? repetition + 1 : nil,
                 status: !outcome.isError ? "passed" : step.optional ? "optional_failed" : "failed",
                 elapsedMilliseconds: milliseconds(since: started),
+                startedAt: startedAt,
+                endedAt: endedAt,
                 message: outcome.content,
                 result: outcome.structuredContent
             ))
             if outcome.isError, step.optional {
                 result.optionalFailed += 1
-                result.lines.append("– \(index + 1). \(label)\(suffix) (optional): \(outcome.content)")
+                let reason = optionalFailureLine(outcome.content, reported: context.outputDirectory != nil)
+                result.lines.append("– \(index + 1). \(label)\(suffix) (optional): \(reason)")
             } else if outcome.isError {
                 result.failed += 1
                 result.lines.append("✗ \(index + 1). \(label)\(suffix): \(outcome.content)")
@@ -194,6 +227,17 @@ private func runFlowStepSequence(
         }
     }
     return result
+}
+
+/// The first line of an optional step's failure. Its outcome does not matter to the check, so a
+/// multi-line message (an adb stack trace) stays in `report.json` instead of the run's output.
+func optionalFailureLine(_ message: String, reported: Bool) -> String {
+    let lines = message.split(whereSeparator: \.isNewline)
+    guard let first = lines.first, lines.count > 1 else { return message }
+    let more = lines.count - 1
+    return reported
+        ? "\(first) (\(more) more line(s) in report.json)"
+        : "\(first) (\(more) more line(s); --output-dir keeps them in report.json)"
 }
 
 /// `outcome` as a failure when the flow could not verify the tap's postcondition.
