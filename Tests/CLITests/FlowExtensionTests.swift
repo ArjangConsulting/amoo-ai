@@ -250,6 +250,7 @@ final class FlowExtensionTests: XCTestCase {
             let end = await invoker.calls.last
             XCTAssertEqual(end?.verb, "flow_end")
             XCTAssertEqual(end?.request.objectValue?["app_terminated"], .bool(true))
+            XCTAssertEqual(end?.request.objectValue?["apps_launched"], .int(1))
             XCTAssertEqual(end?.request.objectValue?["passed"], .bool(failing.isEmpty))
             XCTAssertEqual(result.succeeded, failing.isEmpty)
         }
@@ -270,6 +271,20 @@ final class FlowExtensionTests: XCTestCase {
         XCTAssertFalse(tools.contains("device_terminate_app"))
         let end = await invoker.calls.last
         XCTAssertEqual(end?.request.objectValue?["app_terminated"], .bool(false))
+        XCTAssertEqual(end?.request.objectValue?["apps_launched"], .int(1))
+    }
+
+    func testAFlowThatLaunchedNothingTellsTheExtensionSo() async throws {
+        let invoker = FakeInvoker()
+        let flow = try decodeFlow("""
+        { "platform": "ios", "terminate_app_at_end": true, "steps": [ { "tool": "moq.select_variant" } ] }
+        """)
+
+        _ = await runFlowSteps(flow, executor: RecordingExecutor(), context: context(invoker))
+
+        let end = await invoker.calls.last?.request.objectValue
+        XCTAssertEqual(end?["apps_launched"], .int(0))
+        XCTAssertEqual(end?["app_terminated"], .bool(false))
     }
 
     // MARK: - process invoker

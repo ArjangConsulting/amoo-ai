@@ -166,7 +166,8 @@ func runFlowSteps(
     let terminated = flow.terminateAppAtEnd
         ? await terminateLaunchedApps(executor: executor, context: context, into: &result)
         : false
-    await extensions.end(passed: result.succeeded, appTerminated: terminated)
+    let launched = await context.launchedApps.appIDs.count
+    await extensions.end(passed: result.succeeded, appsLaunched: launched, appTerminated: terminated)
     return result
 }
 

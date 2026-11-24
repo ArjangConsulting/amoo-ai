@@ -219,11 +219,13 @@ actor FlowExtensionSession {
 
     /// Ends every started extension, newest first. An extension that fails to end is logged, not
     /// reported as a step: the run's result is already decided.
-    func end(passed: Bool, appTerminated: Bool = false) async {
+    func end(passed: Bool, appsLaunched: Int = 0, appTerminated: Bool = false) async {
         while let prefix = started.popLast() {
             do {
                 let reply = try await call(prefix: prefix, verb: "flow_end", fields: [
-                    "passed": .bool(passed), "app_terminated": .bool(appTerminated)
+                    "passed": .bool(passed),
+                    "apps_launched": .int(appsLaunched),
+                    "app_terminated": .bool(appTerminated)
                 ])
                 try requireOK(reply, prefix: prefix, verb: "flow_end")
             } catch {
