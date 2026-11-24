@@ -23,7 +23,8 @@ These are deliberate. Check this list before asking for one of them.
   including when a system prompt hides its result: `dismiss_system_dialogs` answers the prompt and
   checks the expectation again instead.
 - **Wait for animations unasked.** A dialog or sheet that is still animating in can drop a tap.
-  Run `wait_for idle=true` before tapping it.
+  Let it settle before tapping it: in a flow, a `wait_for` step with `idle: true`; from `amoo device`,
+  `take_screenshot settle_timeout_ms=1500 return_image=false`, which returns once two frames match.
 
 ## Prerequisites
 

@@ -57,7 +57,8 @@ the outcome. A check of the form "X appears when Y" also asserts X is absent bef
 confirm the block ("may not receive"), and the target is drawn on top (an overlay or floating button),
 retry with `check_hittable=false` and assert the result.
 A tap on a dialog or sheet that was just presented can be dropped while it animates in, and the
-dispatch still reports success: run `wait_for idle=true` first, then tap with `expect_absent=true`.
+dispatch still reports success. Let it settle first (a flow's `wait_for` step with `idle: true`; from
+`amoo device`, `take_screenshot settle_timeout_ms=1500 return_image=false`), then tap with `expect_absent=true`.
 
 Screenshots save to `saved_path` with return_image=false by default, sized by the project's
 `screenshots.scale`; pass `id`/`label` to crop to one control. Never navigate by screenshot; view an
