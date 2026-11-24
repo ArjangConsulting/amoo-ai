@@ -38,6 +38,12 @@ invocation sources, nulls, unknown keys, invalid values and missing required arg
 Machine errors identify `argument`, give an `example`, and report `dispatch_status=not_dispatched`.
 All batch steps are validated before the first mutation. Runtime ownership remains mandatory.
 
+A gesture's `dispatch_status` says whether it reached the device: `completed`, `not_dispatched` (a
+failure before anything was sent, such as `tap_element` failing to read its target, so a retry is
+safe) or `unknown` (the gesture may have landed; inspect the screen before retrying). `tap_element`
+retries a read that raced a hierarchy still changing (Android's "Accessibility hierarchy changed
+during capture") until its `timeout_ms`, 5 seconds by default.
+
 `amoo device --help` renders tool signatures from the installed tool definitions rather than a
 second hand-maintained argument list. `--runtime-id` and `AMOO_RUNTIME_ID` are the supported CLI
 ownership credentials. The historical `--lease` spelling is rejected.

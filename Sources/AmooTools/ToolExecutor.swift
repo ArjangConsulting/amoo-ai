@@ -156,7 +156,7 @@ public actor DriverToolExecutor: ToolExecutor {
         } catch is CancellationError {
             result = ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
         } catch {
-            let failure = await ToolResult.error(failureMessage(toolName: toolName, error: error, arguments: arguments))
+            let failure = await failureResult(toolName: toolName, error: error, arguments: arguments)
             result = executionFailureDiagnostics(
                 failure, tool: executionTool, started: start, dispatchStarted: dispatchStarted
             )

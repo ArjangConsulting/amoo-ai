@@ -41,6 +41,8 @@ extension DriverToolExecutor {
         let milliseconds = Int(duration.seconds * 1000 + duration.attoseconds / 1_000_000_000_000_000)
         var fields = result.structuredContent?.objectValue ?? [:]
         let readOnly = ToolCatalogMetadata.isReadOnly(tool)
+        // A failure raised before the gesture was sent says so itself.
+        let dispatchStarted = dispatchStarted && fields["dispatch_status"] != .string("not_dispatched")
         fields["elapsed_ms"] = .int(milliseconds)
         fields["dispatch_status"] =
             .string(readOnly ? "not_applicable" : dispatchStarted ? "unknown" : "not_dispatched")

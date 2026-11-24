@@ -1,4 +1,3 @@
-// swiftlint:disable multiline_arguments
 // The dispatcher is intentionally exhaustive so the public tool catalog has one routing point.
 // swiftlint:disable file_length
 import AmooCore
@@ -340,39 +339,25 @@ extension DriverToolExecutor {
             }
             let appID = queryScopeAppID(arguments: arguments, driver: driver)
             let pick = try ElementPick.parse(arguments)
-            guard let matched = try await resolveTapTarget(
-                selector, pick: pick, arguments: arguments, driver: driver, appID: appID
-            ) else {
-                throw ToolExecutionError(
-                    code: "element_not_found", message: "tap_element failed: no element matched the selector",
-                    extra: ["dispatch_status": .string("not_dispatched"), "failure_kind": .string("selector_miss")]
-                )
-            }
-            guard matched.isVisible, matched.isEnabled else {
-                return .error("tap_element failed: matched element is not visible and enabled")
-            }
             let expectation = try TapExpectation.parse(arguments)
             var checks = tapChecks(arguments: arguments)
             if expectation != nil {
                 checks.effect = .off
             }
-            // Independent of the preflight hierarchy read, so it overlaps it instead of adding a round trip.
-            async let foregroundRead = try? await driver.currentApp().bundleID
-            let preflight = try await tapPreflight(
-                matched: matched,
-                point: matched.hitPoint ?? matched.frame.map(\.centre),
-                checks: checks,
-                driver: driver,
-                appID: appID
-            )
-            if let refusal = preflight.refusal {
-                return refusal
+            let request = TapRequest(selector: selector, pick: pick, checks: checks, arguments: arguments, appID: appID)
+            let prepared = try await beforeGesture {
+                try await preparedTap(request, driver: driver)
             }
-            let settled = try await settledElement(matched, hierarchy: preflight.hierarchy) {
-                try await resolveElement(selector: selector, driver: driver, appID: appID, pick: pick)
+            let settled: ElementInfo
+            let preflight: TapPreflight
+            let foregroundBefore: String?
+            switch prepared {
+            case let .refused(refusal):
+                return refusal
+            case let .ready(matched, check, foreground):
+                (settled, preflight, foregroundBefore) = (matched, check, foreground)
             }
             let tapPoint = settled.hitPoint ?? settled.frame.map(\.centre)
-            let foregroundBefore = await foregroundRead
             var presentBeforeTap: Bool?
             if let expectation {
                 presentBeforeTap = await expectationPresentBeforeTap(expectation, driver: driver, appID: appID)
@@ -729,5 +714,3 @@ extension DriverToolExecutor {
 
     // swiftlint:enable cyclomatic_complexity function_body_length
 }
-
-// swiftlint:enable multiline_arguments
