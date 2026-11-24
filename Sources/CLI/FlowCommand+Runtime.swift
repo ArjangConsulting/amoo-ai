@@ -89,6 +89,8 @@ struct FlowReport: Encodable {
     var elapsedMilliseconds: Int
     var steps: [FlowStepRecord]
     var recordings: [String]
+    /// `nil` when no extension said anything at `flow_end`, so the key is left out.
+    var teardown: [FlowTeardownNote]?
 
     init(
         flow: String,
@@ -109,6 +111,7 @@ struct FlowReport: Encodable {
         self.elapsedMilliseconds = elapsedMilliseconds
         steps = result.steps
         recordings = result.recordings
+        teardown = result.teardown.isEmpty ? nil : result.teardown
     }
 
     init(flow path: String, platform: Platform, flow: TestFlow, port: Int, result: FlowRunResult) {
@@ -123,7 +126,7 @@ struct FlowReport: Encodable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case flow, platform, port, passed, failed, stopped, steps, recordings
+        case flow, platform, port, passed, failed, stopped, steps, recordings, teardown
         case deviceID = "device_id"
         case amooCommit = "amoo_commit"
         case optionalFailed = "optional_failed"

@@ -13,15 +13,18 @@ final class FlowExtensionTests: XCTestCase {
         private let steps: [String]
         private let failingSteps: Set<String>
         private let protocolVersion: Int
+        private let endReply: Value
 
         init(
             steps: [String] = ["select_variant", "assert_request"],
             failingSteps: Set<String> = [],
-            protocolVersion: Int = 1
+            protocolVersion: Int = 1,
+            endReply: Value = .object(["protocol": .int(1), "ok": .bool(true)])
         ) {
             self.steps = steps
             self.failingSteps = failingSteps
             self.protocolVersion = protocolVersion
+            self.endReply = endReply
         }
 
         func invoke(prefix _: String, verb: String, request: Value, timeout _: Swift.Duration) async throws -> Value {
@@ -48,6 +51,8 @@ final class FlowExtensionTests: XCTestCase {
                     "message": .string(failed ? "\(tool) mismatch" : "\(tool) done"),
                     "result": .object(["seen": fields["state"] ?? .null])
                 ])
+            case "flow_end":
+                return endReply
             default:
                 return .object(["protocol": .int(1), "ok": .bool(true)])
             }
@@ -285,6 +290,39 @@ final class FlowExtensionTests: XCTestCase {
         let end = await invoker.calls.last?.request.objectValue
         XCTAssertEqual(end?["apps_launched"], .int(0))
         XCTAssertEqual(end?["app_terminated"], .bool(false))
+    }
+
+    func testATeardownProblemIsShownAsAWarningAndKeepsTheResult() async throws {
+        let invoker = FakeInvoker(endReply: .object([
+            "protocol": .int(1), "ok": .bool(false), "message": .string("2 expected requests never arrived")
+        ]))
+        let flow = try decodeFlow("""
+        { "platform": "ios", "steps": [ { "tool": "moq.select_variant" } ] }
+        """)
+
+        let result = await runFlowSteps(flow, executor: RecordingExecutor(), context: context(invoker))
+
+        XCTAssertTrue(result.succeeded)
+        XCTAssertEqual(result.teardown, [
+            FlowTeardownNote(extension: "moq", ok: false, message: "2 expected requests never arrived")
+        ])
+        XCTAssertEqual(result.lines.last, "⚠ flow_end moq teardown warning: 2 expected requests never arrived")
+    }
+
+    func testATeardownMessageIsShownAndASilentEndAddsNothing() async throws {
+        let flow = try decodeFlow("""
+        { "platform": "ios", "steps": [ { "tool": "moq.select_variant" } ] }
+        """)
+        let chatty = FakeInvoker(endReply: .object([
+            "protocol": .int(1), "ok": .bool(true), "message": .string("released session s-1")
+        ]))
+
+        let said = await runFlowSteps(flow, executor: RecordingExecutor(), context: context(chatty))
+        let silent = await runFlowSteps(flow, executor: RecordingExecutor(), context: context(FakeInvoker()))
+
+        XCTAssertEqual(said.lines.last, "• flow_end moq: released session s-1")
+        XCTAssertEqual(silent.teardown, [])
+        XCTAssertFalse(silent.lines.contains { $0.contains("flow_end") })
     }
 
     // MARK: - process invoker

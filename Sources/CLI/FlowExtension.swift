@@ -133,6 +133,18 @@ struct FlowExtensionRun: Sendable, Equatable {
 /// The extensions one flow run uses: their opaque state, and the launch environment and variables
 /// they contributed. Each extension is described and started before the first step and ended after
 /// the last one, so it can open and release per-run resources such as a mock-server session.
+/// What an extension said when the run ended: a note when `ok`, a teardown warning otherwise.
+/// Neither changes the run's pass/fail result.
+struct FlowTeardownNote: Encodable, Equatable {
+    var `extension`: String
+    var ok: Bool
+    var message: String
+
+    var line: String {
+        ok ? "• flow_end \(`extension`): \(message)" : "⚠ flow_end \(`extension`) teardown warning: \(message)"
+    }
+}
+
 actor FlowExtensionSession {
     private let invoker: any FlowExtensionInvoking
     private let run: FlowExtensionRun
@@ -217,9 +229,11 @@ actor FlowExtensionSession {
         }
     }
 
-    /// Ends every started extension, newest first. An extension that fails to end is logged, not
-    /// reported as a step: the run's result is already decided.
-    func end(passed: Bool, appsLaunched: Int = 0, appTerminated: Bool = false) async {
+    /// Ends every started extension, newest first, and returns what each said. A failed end is a
+    /// teardown warning, not a failed step: the run's result is already decided and was sent to the
+    /// extension as `passed`.
+    func end(passed: Bool, appsLaunched: Int = 0, appTerminated: Bool = false) async -> [FlowTeardownNote] {
+        var notes: [FlowTeardownNote] = []
         while let prefix = started.popLast() {
             do {
                 let reply = try await call(prefix: prefix, verb: "flow_end", fields: [
@@ -227,11 +241,31 @@ actor FlowExtensionSession {
                     "apps_launched": .int(appsLaunched),
                     "app_terminated": .bool(appTerminated)
                 ])
-                try requireOK(reply, prefix: prefix, verb: "flow_end")
+                let fields = reply.objectValue ?? [:]
+                let ok = fields["ok"]?.boolValue == true
+                let message = fields["message"]?.stringValue
+                if !ok {
+                    let failure = FlowExtensionError.failed(
+                        executable: "amoo-ext-\(prefix)",
+                        verb: "flow_end",
+                        exitCode: 0,
+                        stderr: message ?? "no message"
+                    )
+                    logger.error(
+                        "Extension reported a teardown problem",
+                        error: failure,
+                        context: "action=flow_end prefix=\(prefix)"
+                    )
+                }
+                if !ok || message?.isEmpty == false {
+                    notes.append(FlowTeardownNote(extension: prefix, ok: ok, message: message ?? "no message"))
+                }
             } catch {
                 logger.error("Extension did not end cleanly", error: error, context: "action=flow_end prefix=\(prefix)")
+                notes.append(FlowTeardownNote(extension: prefix, ok: false, message: "\(error)"))
             }
         }
+        return notes
     }
 
     private func call(

@@ -85,6 +85,8 @@ struct FlowRunResult: Equatable {
     var stopped = false
     /// Videos saved by `--record-video` or a `start_recording` step left running at the end.
     var recordings: [String] = []
+    /// What each extension said at `flow_end`. Reported only: it never changes `succeeded`.
+    var teardown: [FlowTeardownNote] = []
 
     var succeeded: Bool {
         failed == 0
@@ -167,7 +169,8 @@ func runFlowSteps(
         ? await terminateLaunchedApps(executor: executor, context: context, into: &result)
         : false
     let launched = await context.launchedApps.appIDs.count
-    await extensions.end(passed: result.succeeded, appsLaunched: launched, appTerminated: terminated)
+    result.teardown = await extensions.end(passed: result.succeeded, appsLaunched: launched, appTerminated: terminated)
+    result.lines += result.teardown.map(\.line)
     return result
 }
 

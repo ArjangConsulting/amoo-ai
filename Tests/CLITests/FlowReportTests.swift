@@ -91,6 +91,25 @@ final class FlowReportTests: XCTestCase {
         XCTAssertEqual(json["failed"] as? Int, 1)
         XCTAssertEqual(json["device_id"] as? String, "SIM")
         XCTAssertEqual((json["steps"] as? [[String: Any]])?.count, 2)
+        XCTAssertNil(json["teardown"], "left out when no extension said anything")
+    }
+
+    func testTheReportCarriesTeardownWarnings() throws {
+        var result = FlowRunResult()
+        result.passed = 1
+        result.teardown = [FlowTeardownNote(extension: "moq", ok: false, message: "session leaked")]
+        let report = FlowReport(
+            flow: "/flows/a.amoo.json", platform: "ios", deviceID: "SIM", port: 22093, result: result,
+            elapsedMilliseconds: 1
+        )
+
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any])
+
+        XCTAssertEqual(json["failed"] as? Int, 0)
+        let teardown = try XCTUnwrap(json["teardown"] as? [[String: Any]])
+        XCTAssertEqual(teardown.first?["extension"] as? String, "moq")
+        XCTAssertEqual(teardown.first?["ok"] as? Bool, false)
+        XCTAssertEqual(teardown.first?["message"] as? String, "session leaked")
     }
 }
 
