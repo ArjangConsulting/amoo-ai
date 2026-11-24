@@ -43,6 +43,23 @@ final class SlowCaptureAssertionTests: XCTestCase {
         XCTAssertFalse(result.isError, result.content)
     }
 
+    /// An Android capture that raced a tree still changing (text streaming in) failed a 30s
+    /// `assert_visible` after 465ms. The next capture usually completes, so it is retried too.
+    func testACaptureThatRacedAChangingTreeIsRetried() async {
+        let driver = SlowCaptureDriver(
+            failures: 3,
+            error: AmooError.commandFailed(
+                command: "findElements", output: "unknown: \"Accessibility hierarchy changed during capture\""
+            )
+        )
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "assert_visible", arguments: ["id": "home.top_bar", "timeout_ms": "5000"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let reads = await driver.reads
+        XCTAssertEqual(reads, 4)
+    }
+
     func testStructuralLimitIsNotRetried() async {
         let driver = SlowCaptureDriver(
             failures: .max,

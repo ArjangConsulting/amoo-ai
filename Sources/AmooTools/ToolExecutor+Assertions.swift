@@ -178,7 +178,7 @@ extension DriverToolExecutor {
         let started = ContinuousClock.now
         var lastMatch: ElementInfo?
         var reads = 0
-        var lastSlowCapture: String?
+        var lastTransientCapture: String?
         repeat {
             if Task.isCancelled {
                 return ToolExecutionError(code: "cancelled", message: "Operation cancelled.").result
@@ -199,8 +199,8 @@ extension DriverToolExecutor {
                 // The timeout landed while a later poll was in flight. Earlier polls completed and
                 // did not match, so this is a mismatch, not a device that stopped answering.
                 break
-            } catch where Self.isSlowCapture(error) && ContinuousClock.now < deadline {
-                lastSlowCapture = await Self.pauseAfterSlowCapture(error, deadline: deadline)
+            } catch where Self.isTransientCapture(error) && ContinuousClock.now < deadline {
+                lastTransientCapture = await Self.pauseAfterTransientCapture(error, deadline: deadline)
                 continue
             } catch {
                 return assertionFailure(
@@ -233,7 +233,7 @@ extension DriverToolExecutor {
 
         return assertionFailure(
             kind: kind, arguments: arguments, lastMatch: lastMatch, reads: reads,
-            started: started, observationError: reads == 0 ? lastSlowCapture : nil
+            started: started, observationError: reads == 0 ? lastTransientCapture : nil
         )
     }
 

@@ -1,12 +1,14 @@
 import AmooCore
 
 extension DriverToolExecutor {
-    /// A read that ran out of time rather than one that cannot succeed: a capture past the
-    /// companion's walk limit, or a query RPC past its deadline. The depth and node limits are
-    /// properties of the tree, so they are not retried.
-    static func isSlowCapture(_ error: any Error) -> Bool {
+    /// A read that failed because of the moment it ran, not one that cannot succeed: a capture past
+    /// the companion's walk limit, a query RPC past its deadline, or an Android capture that raced a
+    /// tree still changing (text streaming in) after the companion's own quick retries. The depth and
+    /// node limits are properties of the tree, so they are not retried.
+    static func isTransientCapture(_ error: any Error) -> Bool {
         let text = String(describing: error)
-        if text.contains("RPC timed out before completing") {
+        if text.contains("RPC timed out before completing")
+            || text.contains("Accessibility hierarchy changed during capture") {
             return true
         }
         return text.contains("Hierarchy capture incomplete")
@@ -17,7 +19,7 @@ extension DriverToolExecutor {
     ///
     /// An animating screen (an endless shimmer) can slow one capture past the companion's walk
     /// limit while the next one completes, so the caller's `timeout_ms` decides when to stop.
-    static func pauseAfterSlowCapture(_ error: any Error, deadline: ContinuousClock.Instant) async -> String {
+    static func pauseAfterTransientCapture(_ error: any Error, deadline: ContinuousClock.Instant) async -> String {
         try? await Task.sleep(until: min(deadline, .now + .milliseconds(200)), clock: .continuous)
         return String(describing: error)
     }
