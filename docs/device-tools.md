@@ -6,6 +6,25 @@ receipts, required coverage and measured execution are in [AI-driven verificatio
 amoo is a CLI. It does not run an AI provider: an agent (or a person, or a script) leases a device and
 calls tools, and amoo answers each call with one JSON object.
 
+## What amoo does not do
+
+These are deliberate. Check this list before asking for one of them.
+
+- **Choose between matches.** A selector that matches several elements fails with `ambiguous_selector`
+  and lists each candidate's id and tap point. amoo never merges matches or picks the one that looks
+  right, even when they share an id, label and frame. Name the one you mean (`id`, `parent_id`,
+  `index`, `first=true`), or give the app's controls distinct accessibility ids. The only exception is
+  a control and the text inside it that repeats its label, which are one thing on screen and resolve
+  to the control.
+- **Judge whether a tap did what you meant.** amoo knows where it tapped, not what you intended.
+  State the outcome with `expect_id`, `expect_label` or `expect_contains_text` (`expect_absent=true`
+  for something that should close). A flow step fails when that outcome doesn't happen.
+- **Repeat a gesture that was delivered.** A tap or swipe the device accepted is never sent again,
+  including when a system prompt hides its result: `dismiss_system_dialogs` answers the prompt and
+  checks the expectation again instead.
+- **Wait for animations unasked.** A dialog or sheet that is still animating in can drop a tap.
+  Run `wait_for idle=true` before tapping it.
+
 ## Prerequisites
 
 ```bash
