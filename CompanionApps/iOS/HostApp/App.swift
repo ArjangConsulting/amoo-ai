@@ -9,6 +9,7 @@ private enum FixtureRoute: Hashable {
     case deepLink
     case confirmation
     case unlabeled
+    case signIn
     case accessibility(String)
 }
 
@@ -54,6 +55,8 @@ struct CompanionHostApp: App {
                         FixtureAccessibilityView(seed: seed)
                     case .unlabeled:
                         FixtureUnlabeledView(dismissCount: $unlabeledDismissCount)
+                    case .signIn:
+                        FixtureSignInView()
                     }
                 }
                 .toolbar {
@@ -138,6 +141,8 @@ private struct FixtureHomeView: View {
                     .accessibilityIdentifier("fixture-open-confirmation")
                 NavigationLink("Open Unlabeled", value: FixtureRoute.unlabeled)
                     .accessibilityIdentifier("fixture-open-unlabeled")
+                NavigationLink("Open Sign In", value: FixtureRoute.signIn)
+                    .accessibilityIdentifier("fixture-open-sign-in")
             }
 
             Section("Gesture Summary") {

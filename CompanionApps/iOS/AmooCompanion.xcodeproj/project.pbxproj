@@ -98,6 +98,7 @@
 		EB64C360EC6B7BF359D37A4D /* AccessibilityJourney+Validation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3752B47900F3856371FF7E /* AccessibilityJourney+Validation.swift */; };
 		F33C1829970EF8CA8BC74BA8 /* actions.grpc.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A1508A030BAAEB83AFCA5F /* actions.grpc.swift */; };
 		F5B7050215FA18ECA293ADDC /* AccessibilityJourneyRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1E9DA91D9EC8DF0BDEC7D /* AccessibilityJourneyRunner.swift */; };
+		FCB3BCCAFC3DC656992EBB54 /* FixtureSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA4D44BA91D441E819679E2 /* FixtureSignInView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -167,6 +168,7 @@
 		F59CDE0E75AC789D3288B4C5 /* AmooCompanion.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AmooCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F9CE7CCB4CD474B7C638685D /* ScrollDirection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollDirection.swift; sourceTree = "<group>"; };
 		FB3752B47900F3856371FF7E /* AccessibilityJourney+Validation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityJourney+Validation.swift"; sourceTree = "<group>"; };
+		FCA4D44BA91D441E819679E2 /* FixtureSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureSignInView.swift; sourceTree = "<group>"; };
 		FF496450692A1DC45AC1DC3E /* AccessibilityJourneyRunner+Transition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccessibilityJourneyRunner+Transition.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -322,6 +324,7 @@
 			children = (
 				E8B9D05C655C9C42998B250B /* App.swift */,
 				32FFA7943F2FB2B136E9039E /* FixtureAccessibilityView.swift */,
+				FCA4D44BA91D441E819679E2 /* FixtureSignInView.swift */,
 				B2E2340A9910EEA5694D42D0 /* Info.plist */,
 			);
 			path = HostApp;
@@ -532,6 +535,7 @@
 			files = (
 				85FFEF37543D15C0A3C01FEF /* App.swift in Sources */,
 				5EE534CD74C54DC3160588FB /* FixtureAccessibilityView.swift in Sources */,
+				FCB3BCCAFC3DC656992EBB54 /* FixtureSignInView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
