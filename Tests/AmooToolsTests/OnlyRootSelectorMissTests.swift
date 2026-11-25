@@ -14,7 +14,7 @@ final class OnlyRootSelectorMissTests: XCTestCase {
         XCTAssertTrue(result.isError)
         XCTAssertEqual(result.structuredContent?.objectValue?["only_root_element"], .bool(true), result.content)
         XCTAssertTrue(result.content.contains("only the application element ('ExampleApp')"), result.content)
-        XCTAssertTrue(result.content.contains("--disable-password-autofill"), result.content)
+        XCTAssertTrue(result.content.contains("dismiss_system_dialogs=true"), result.content)
     }
 
     func testAMissOnAScreenWithControlsIsAPlainMiss() async {
@@ -30,6 +30,9 @@ final class OnlyRootSelectorMissTests: XCTestCase {
     func testOneControlIsNotTheRoot() {
         XCTAssertTrue(DriverToolExecutor.isOnlyTheRoot([]))
         XCTAssertTrue(DriverToolExecutor.isOnlyTheRoot([Self.root]))
+        let container = ElementInfo(id: "", label: "", type: .other)
+        XCTAssertTrue(DriverToolExecutor.isOnlyTheRoot([Self.root, container]), "iOS 27 adds an unnamed container")
+        XCTAssertFalse(DriverToolExecutor.isOnlyTheRoot([Self.root, ElementInfo(id: "", label: "Home", type: .other)]))
         XCTAssertFalse(DriverToolExecutor.isOnlyTheRoot([ElementInfo(id: "ok", label: "OK", type: .button)]))
     }
 }

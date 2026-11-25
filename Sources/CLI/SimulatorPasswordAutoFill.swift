@@ -6,11 +6,10 @@ import Foundation
 /// simulator's user settings (`restrictedBool.allowPasswordAutoFill`).
 ///
 /// With AutoFill on, a simulator where a password was once typed by a UI test offers "Save
-/// Password?" after every later sign-in. Once that sheet has settled, the accessibility tree shows
-/// only the application, so nothing can find or answer it, and a sign-in flow passes or fails by the
-/// simulator's history. iOS reads the file only while booting, so it is written while the simulator
-/// is shut down. The key is iOS's own, not a documented interface, and may move in a later release;
-/// a file without it is left unchanged and reported.
+/// Password?" after every later sign-in; `dismiss_system_dialogs` answers it. This opt-in is for runs
+/// that want the prompt never to come up. iOS reads the file only while booting, so it is written
+/// while the simulator is shut down. The key is iOS's own, not a documented interface, and may move
+/// in a later release; a file without it is left unchanged and reported.
 enum SimulatorPasswordAutoFill {
     /// What `env up --disable-password-autofill` did, reported as `password_autofill`.
     enum Outcome: String, Codable, Equatable {

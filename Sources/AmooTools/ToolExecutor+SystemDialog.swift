@@ -29,6 +29,11 @@ struct BlockingSystemDialog: Equatable {
         "update saved password", "sign in to apple account"
     ]
 
+    /// iOS processes that draw a system sheet over the app: Safari's view service draws "Save
+    /// Password?" and "Update Password?" in a remote view that is not part of SpringBoard's tree. When
+    /// the link that shows the sheet inside the app's tree drops, only a read of its host finds it.
+    static let iosSheetHosts = ["com.apple.SafariViewService"]
+
     /// Android's own package, frontmost while one of its dialogs is up.
     static let androidSystemPackage = "android"
     /// The amoo companion's app, frontmost when its instrumentation has stopped.
@@ -113,7 +118,12 @@ extension DriverToolExecutor {
     }
 
     /// The system dialog in front on either platform: Android's `android` package dialogs, or an iOS
-    /// system alert or sheet. One query; nil when none is up.
+    /// system alert or sheet. nil when none is up.
+    ///
+    /// On iOS the app's tree usually shows a sheet another process draws over it, through a link the
+    /// system keeps between the two. When that link drops (after the app was deactivated and
+    /// reactivated, say), the sheet stays on screen while the app's tree holds only the application
+    /// element, so a read that finds no dialog there reads each process in `iosSheetHosts`.
     func frontSystemDialog(driver: any PlatformDriver, arguments: [String: String]) async -> BlockingSystemDialog? {
         guard let platform = await knownPlatform(driver: driver, arguments: arguments) else { return nil }
         if platform == .android {
@@ -121,7 +131,18 @@ extension DriverToolExecutor {
             return await blockingSystemDialog(frontmost: frontmost, driver: driver)
         }
         let elements = await (try? driver.findElements(ElementSelector())) ?? []
-        return BlockingSystemDialog.findIOS(in: elements)
+        if let dialog = BlockingSystemDialog.findIOS(in: elements) {
+            return dialog
+        }
+        for host in BlockingSystemDialog.iosSheetHosts {
+            logger.debug("Looking for a system sheet in its host process", context: "host=\(host)")
+            let hosted = await (try? driver.findElements(ElementSelector(), appID: host)) ?? []
+            if let dialog = BlockingSystemDialog.findIOS(in: hosted) {
+                logger.info("Found a system sheet in its host process", context: "host=\(host)")
+                return dialog
+            }
+        }
+        return nil
     }
 
     /// Sets `dismiss_system_dialogs` for calls that do not pass it; `amoo flow` applies the flow's switch.

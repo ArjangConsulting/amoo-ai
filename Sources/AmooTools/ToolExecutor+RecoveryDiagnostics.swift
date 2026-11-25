@@ -51,7 +51,7 @@ extension DriverToolExecutor {
         }) {
             if arguments["parent_id"] == nil, Self.isOnlyTheRoot(candidates) {
                 fields["only_root_element"] = .bool(true)
-                rootNote = Self.onlyRootNote(candidates.first)
+                rootNote = Self.onlyRootNote(candidates)
             }
             fields["available_controls"] = .array(
                 Self.nearbyCandidates(candidates, arguments: arguments).map(Self.availableControl)
@@ -84,19 +84,27 @@ extension DriverToolExecutor {
         return .object(control)
     }
 
-    /// Whether a whole-screen read found nothing but the root: no element, or one that is not a
-    /// control. A sheet another process draws over the app ("Save Password?" on iOS, once settled)
-    /// leaves just the application element, and reporting that as a plain selector miss hid why.
+    /// Whether a whole-screen read found nothing but the root: at most one named element, and it not
+    /// a control, besides unnamed containers. A sheet another process draws over the app ("Save
+    /// Password?" on iOS) can leave just the application element and an unnamed full-screen container,
+    /// and reporting that as a plain selector miss hid why.
     static func isOnlyTheRoot(_ elements: [ElementInfo]) -> Bool {
-        guard elements.count <= 1 else { return false }
-        return elements.first.map { $0.type == nil || $0.type == .other } ?? true
+        let named = elements.filter { !isUnnamedContainer($0) }
+        guard named.count <= 1 else { return false }
+        return named.first.map { $0.type == nil || $0.type == .other } ?? true
     }
 
-    static func onlyRootNote(_ root: ElementInfo?) -> String {
+    private static func isUnnamedContainer(_ element: ElementInfo) -> Bool {
+        element.id.isEmpty && element.label.trimmingCharacters(in: .whitespaces).isEmpty
+            && (element.type == nil || element.type == .other)
+    }
+
+    static func onlyRootNote(_ elements: [ElementInfo]) -> String {
+        let root = elements.first { !isUnnamedContainer($0) }
         let name = root.map { $0.label.isEmpty ? $0.id : $0.label }.map { " ('\($0)')" } ?? ""
         return "The accessibility tree holds only the application element\(name), so something it cannot show"
-            + " may cover the app: on iOS, a system sheet such as \"Save Password?\" after a sign-in."
-            + " On a simulator, `amoo env up --disable-password-autofill` keeps that one from coming up."
+            + " may cover the app, such as a system sheet another process draws (iOS \"Save Password?\" after a"
+            + " sign-in). dismiss_system_dialogs=true finds and answers such a prompt in the process that draws it."
     }
 
     static func nearbyCandidates(_ candidates: [ElementInfo], arguments: [String: String]) -> [ElementInfo] {

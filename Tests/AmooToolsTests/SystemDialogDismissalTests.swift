@@ -28,6 +28,38 @@ final class SystemDialogDismissalTests: XCTestCase {
         XCTAssertNotNil(result.structuredContent?.objectValue?["dismissed_dialog"])
     }
 
+    /// Once the link that shows the sheet inside the app's tree drops, the app's tree is the application
+    /// element and an unnamed container; only a read of Safari's view service, which draws it, finds it.
+    func testASheetOnlyItsHostProcessShowsIsNamedAndAnswered() async {
+        let named = await DriverToolExecutor(driver: DialogDriver(platform: .ios, dialog: .savePassword, hosted: true))
+            .execute(toolName: "assert_visible", arguments: ["id": "account.sign_out", "timeout_ms": "200"])
+        XCTAssertTrue(named.content.contains(#""Save Password?" (Not Now, Save)"#), named.content)
+
+        let driver = DialogDriver(platform: .ios, dialog: .savePassword, hosted: true)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "assert_visible",
+            arguments: ["id": "account.sign_out", "timeout_ms": "200", "dismiss_system_dialogs": "true"]
+        )
+        XCTAssertFalse(result.isError, result.content)
+        let taps = await driver.taps
+        XCTAssertEqual(taps, ["Not Now"])
+        let hostReads = await driver.hostReads
+        XCTAssertGreaterThan(hostReads, 0)
+        XCTAssertEqual(BlockingSystemDialog.iosSheetHosts, [DialogDriver.sheetHost])
+    }
+
+    func testAScreenWithoutASheetAnywhereIsAPlainMiss() async {
+        let driver = DialogDriver(platform: .ios, dialog: nil)
+        let result = await DriverToolExecutor(driver: driver).execute(
+            toolName: "assert_visible",
+            arguments: ["id": "account.missing", "timeout_ms": "200", "dismiss_system_dialogs": "true"]
+        )
+        XCTAssertTrue(result.isError)
+        XCTAssertNil(result.structuredContent?.objectValue?["blocking_dialog"])
+        let taps = await driver.taps
+        XCTAssertTrue(taps.isEmpty)
+    }
+
     func testTheAppsOwnAlertIsNamedButNeverAnswered() async {
         let driver = DialogDriver(platform: .ios, dialog: .appAlert)
         let result = await DriverToolExecutor(driver: driver).execute(
@@ -107,16 +139,38 @@ final class SystemDialogDismissalTests: XCTestCase {
 actor DialogDriver: PlatformDriver {
     enum Dialog { case savePassword, appAlert, anr(String) }
 
+    static let sheetHost = "com.apple.SafariViewService"
+
     private let platform: Platform
     private var dialog: Dialog?
     private(set) var taps: [String] = []
     /// Presses the dialog ignores, as a sheet still sliding in does.
     private var droppedPresses: Int
+    /// The sheet shows only in a read of `sheetHost`; the app's tree is the application element alone.
+    private let hosted: Bool
+    private(set) var hostReads = 0
 
-    init(platform: Platform, dialog: Dialog, droppedPresses: Int = 0) {
+    init(platform: Platform, dialog: Dialog?, droppedPresses: Int = 0, hosted: Bool = false) {
         self.platform = platform
         self.dialog = dialog
         self.droppedPresses = droppedPresses
+        self.hosted = hosted
+    }
+
+    func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+        try await findElements(selector, appID: nil)
+    }
+
+    func findElements(_ selector: ElementSelector, appID: String?) async throws -> [ElementInfo] {
+        guard hosted, dialog != nil else { return screen(selector) }
+        guard appID == Self.sheetHost else {
+            return [
+                Self.element("", "ExampleApp", .other, Rect(x: 0, y: 0, width: 440, height: 956)),
+                Self.element("", "", .other, Rect(x: 0, y: 0, width: 440, height: 956))
+            ].filter { element in selector.id.map { $0 == element.id } ?? true }
+        }
+        hostReads += 1
+        return screen(selector)
     }
 
     func deviceInfo() async throws -> DeviceInfo {
@@ -128,7 +182,8 @@ actor DialogDriver: PlatformDriver {
         return CurrentApp(bundleID: front, targetBundleID: "com.exampleapp.android.qa")
     }
 
-    func findElements(_ selector: ElementSelector) async throws -> [ElementInfo] {
+    /// Everything on screen, the dialog included.
+    private func screen(_ selector: ElementSelector) -> [ElementInfo] {
         var all: [ElementInfo] = []
         switch dialog {
         case .savePassword:
@@ -160,7 +215,7 @@ actor DialogDriver: PlatformDriver {
     }
 
     func tap(at point: Point) async throws {
-        let labels = try await findElements(ElementSelector()).filter { element in
+        let labels = screen(ElementSelector()).filter { element in
             guard let frame = element.frame, element.type == .button else { return false }
             return (frame.x ... frame.x + frame.width).contains(point.x)
                 && (frame.y ... frame.y + frame.height).contains(point.y)

@@ -409,19 +409,26 @@ amoo answers the prompt and checks the expectation again for up to 5 seconds. It
 Allow, OK or Close app, and never answers the target app's own "isn't responding", which is judged by a distinctive part of its package id in the title: that hang
 is a finding.
 
-Once iOS's "Save Password?" sheet has fully settled, the accessibility tree shows only the application
-element, so nothing can name or answer it. A step that misses behind it says so: the failure carries
-`only_root_element: true` and a note instead of a plain selector miss. A simulator where a UI test once
-typed into a password field offers the sheet after every later sign-in, so a sign-in flow, and the test
-generated from it, would pass or fail by the simulator's history. `amoo env up --platform ios
---disable-password-autofill` turns password AutoFill off before booting the simulator, through the
-`allowPasswordAutoFill` restriction in the simulator's user settings, and reports `password_autofill`
-on the device: `disabled`, `already_off`, `left_on` or `unsupported`. iOS reads that setting only at
-boot, so a simulator that is already running is left on (`left_on`, with the `simctl shutdown` to run
-first), and one that has never booted is booted once to create its settings. The setting stays on the
-simulator. The key is iOS's own rather than a documented interface; `unsupported` means this iOS
-version has no such restriction and nothing was changed. The first sign-in after the change can still
-show the sheet once.
+iOS draws "Save Password?" and "Update Password?" in Safari's view service
+(`com.apple.SafariViewService`), over the app, not in SpringBoard. The app's tree usually shows the
+sheet through a link the system keeps between the two processes. When that link drops (after the app
+was deactivated and reactivated, for example), the sheet stays on screen while the app's tree holds
+only the application element. A step that finds no dialog in the app's tree then reads the
+sheet's host process, so `blocking_dialog` still names the sheet and `dismiss_system_dialogs` still
+answers it with Not Now. A miss whose screen read finds only the application element also says so
+(`only_root_element: true`).
+
+A simulator where a UI test once typed into a password field offers the sheet after every later
+sign-in. Answering it is the default. A team that wants the prompt never to come up can opt in with
+`amoo env up --platform ios --disable-password-autofill`, which turns password AutoFill off before
+booting the simulator, through the `allowPasswordAutoFill` restriction in the simulator's user
+settings. Its outcome is reported as `password_autofill` on the device: `disabled`, `already_off`,
+`left_on` or `unsupported`. That changes the device from what users have, so it fits runs that do
+not test sign-in behaviour. iOS reads the setting only at boot, so a simulator that is already
+running is left on (`left_on`, with the `simctl shutdown` to run first), and one that has never
+booted is booted once to create its settings. The setting stays on the simulator. The key is iOS's
+own rather than a documented interface; `unsupported` means this iOS version has no such restriction
+and nothing was changed.
 
 `device_health [app_id=...]` independently probes device transport and companion RPC under bounded
 deadlines. Optional app checks report foreground identity and semantic readiness separately from
