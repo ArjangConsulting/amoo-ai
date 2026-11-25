@@ -290,8 +290,8 @@ public struct StudioTestContext: Codable, Equatable, Sendable {
     public let launchEnvironment: [String: String]
     /// `true` to override the base class's synchronous `setUpWithError` (and, unless the harness owns
     /// the app, `tearDownWithError`) rather than XCTest's async `setUp()` / `tearDown()`. The async
-    /// pair is the default for a custom base class because it is main-actor isolated; a harness whose
-    /// async UI-test teardown traps declares this instead. A harness that owns the app attaches its own
+    /// pair is the default because it is main-actor isolated; a harness whose async UI-test teardown
+    /// traps declares this instead. A harness that owns the app attaches its own
     /// failure diagnostics, so no teardown override is emitted and its lifecycle may be nonisolated.
     public let synchronousLifecycle: Bool
     /// Android: the `package` a generated Kotlin test declares, e.g. `com.example.app.generated`.

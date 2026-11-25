@@ -87,17 +87,17 @@ extension XCUITestEmitter {
         return lines.isEmpty ? "" : lines.joined(separator: "\n") + "\n"
     }
 
-    /// The setUp / tearDown overrides for the generated class; see `generate` for why a custom base
-    /// class gets the async pair by default. `tearDownLines` (from flow extensions) run after the
-    /// failure attachments, which still need the app as the test left it.
+    /// The setUp / tearDown overrides for the generated class; see `generate` for why the async pair
+    /// is the default. `tearDownLines` (from flow extensions) run after the failure attachments,
+    /// which still need the app as the test left it.
     static func lifecycleSource(
-        customBase: Bool,
+        asyncLifecycle: Bool,
         context: StudioTestContext?,
         setUpBody: String,
         tearDownLines: [String] = []
     ) -> String {
         let extensionTearDown = tearDownLines.map { "\n        \($0)" }.joined()
-        return customBase
+        return asyncLifecycle
             ? """
             override func setUp() async throws {
                     try await super.setUp()

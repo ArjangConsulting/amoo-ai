@@ -44,10 +44,14 @@ final class SwiftConcurrencyCompileTests: XCTestCase {
 
     // MARK: - Default scaffold
 
+    /// Without a warning, too: overriding XCTest's nonisolated `setUpWithError` / `tearDownWithError`
+    /// drew "main actor-isolated property 'app' can not be referenced from a nonisolated context" for
+    /// every use of `app` in them, which compiles today and is an error in a stricter target.
     func testDefaultScaffoldCompilesUnderSwift6() throws {
         let source = try generate()
         XCTAssertTrue(source.contains("@MainActor\nfinal class ConcurrencyFlowTest: XCTestCase {"), source)
-        try CompileVerification.verifySwiftCompiles(source, swiftVersion: 6)
+        XCTAssertTrue(source.contains("override func setUp() async throws"), source)
+        try CompileVerification.verifySwiftCompiles(source, swiftVersion: 6, extraArguments: ["-warnings-as-errors"])
     }
 
     func testDefaultScaffoldCompilesUnderCompleteStrictConcurrencyInSwift5Mode() throws {

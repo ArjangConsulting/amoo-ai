@@ -7,13 +7,13 @@ final class _2FALoginTest: XCTestCase {
     private let defaultTimeout: TimeInterval = 5
     private lazy var app = XCUIApplication()
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    override func setUp() async throws {
+        try await super.setUp()
         continueAfterFailure = false
         app.launch()
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         if testRun?.failureCount ?? 0 > 0 {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "Failure screenshot"
@@ -25,7 +25,7 @@ final class _2FALoginTest: XCTestCase {
             hierarchy.lifetime = .keepAlways
             add(hierarchy)
         }
-        try super.tearDownWithError()
+        try await super.tearDown()
     }
 
     private func waitForExistence(

@@ -47,7 +47,7 @@ command still overrides it.
 
   // true to override the base class's synchronous setUpWithError (and tearDownWithError, unless
   // `harnessOwnsApp`, whose harness attaches its own failure diagnostics) instead of XCTest's async
-  // setUp() / tearDown(), the default for a custom base class. Declare it when the harness's async
+  // setUp() / tearDown(), the default. Declare it when the harness's async
   // UI-test teardown traps.
   "synchronousLifecycle": true,
 
@@ -155,10 +155,10 @@ pass those at `start_session`.
 ## Generated isolation
 
 The generated class is `@MainActor` (see
-[the pipeline notes](codegen-pipeline.md#generated-xcuitest-isolation)). For a custom `baseClass`
-the setup and teardown work lives in the main-actor `setUp() async throws` / `tearDown() async
-throws` hooks, so a base class that is not main-actor isolated still compiles under Swift 6 and its
-own `setUpWithError` / `tearDownWithError` run untouched. `amoo init --save` records the UI-test target's Swift
+[the pipeline notes](codegen-pipeline.md#generated-xcuitest-isolation)). The setup and teardown work
+lives in the main-actor `setUp() async throws` / `tearDown() async throws` hooks, so the class
+compiles without isolation warnings under Swift 6, and a custom base class's own `setUpWithError` /
+`tearDownWithError` run untouched. `amoo init --save` records the UI-test target's Swift
 language mode and whether the discovered base class is isolated, so a reviewer can see which case
 applies.
 
@@ -223,8 +223,7 @@ The complete, byte-exact output is the checked-in golden
 
 Points the emitter guarantees for this context:
 
-- the class is `@MainActor`, and because the base class is custom the setup and teardown use the async
-  `setUp()` / `tearDown()` hooks (a plain `XCTestCase` base overrides `setUpWithError` / `tearDownWithError`).
+- the class is `@MainActor`, and the setup and teardown use the async `setUp()` / `tearDown()` hooks.
 - `import MyUITestSupport` is added (helper-level `imports` would be merged in too).
 - the class subclasses `MyAppUITestCase`, not `XCTestCase`.
 - `harnessLaunchesApp: true` suppresses the emitter's own `app.launch()` — exactly once; omit the

@@ -192,14 +192,15 @@ raw `swipe` (a mouse drag) into `swipe_in_direction` (a wheel scroll).
 `XCUIApplication` and `XCUIElement` are main-actor isolated, so the generated class is
 `@MainActor` — otherwise a Swift 6 UI-test target rejects `private lazy var app = XCUIApplication()`
 ("main actor-isolated default value in a nonisolated context") and the `\.isHittable` /
-`\.isSelected` key paths. A custom `baseClass` whose lifecycle methods are not isolated would make
-a generated `setUpWithError` override nonisolated too (an override inherits the isolation of what it
-overrides) and its body could not touch `app`; wrapping it in `MainActor.assumeIsolated` is rejected
-as "sending 'self' risks causing data races". So for any base other than `XCTestCase` the setup and
-teardown work lives in XCTest's main-actor `setUp() async throws` / `tearDown() async throws`, which
-run after / before the synchronous pair and leave the base class's own `setUpWithError` /
-`tearDownWithError` untouched. No `@unchecked Sendable`, no `nonisolated(unsafe)`, no
-concurrency-checking opt-outs. `SwiftConcurrencyCompileTests` compiles the output to SIL (region
+`\.isSelected` key paths. XCTest's synchronous `setUpWithError` / `tearDownWithError` are
+nonisolated, and an override inherits the isolation of what it overrides, so a generated override
+that touches `app` draws "main actor-isolated property 'app' can not be referenced from a
+nonisolated context" under Swift 6; wrapping it in `MainActor.assumeIsolated` is rejected as
+"sending 'self' risks causing data races". So the setup and teardown work lives in XCTest's
+main-actor `setUp() async throws` / `tearDown() async throws`, for a plain `XCTestCase` and a custom
+`baseClass` alike, and a base class's own `setUpWithError` / `tearDownWithError` run untouched. Only
+a context that declares `synchronousLifecycle` gets the synchronous pair. No `@unchecked Sendable`,
+no `nonisolated(unsafe)`, no concurrency-checking opt-outs. `SwiftConcurrencyCompileTests` compiles the output to SIL (region
 isolation is diagnosed there, so `-typecheck` is not enough) under `-swift-version 6` and
 `-strict-concurrency=complete` (set
 `AMOO_COMPILE_DEVELOPER_DIR` to repeat it with another Xcode) and proves the two original errors

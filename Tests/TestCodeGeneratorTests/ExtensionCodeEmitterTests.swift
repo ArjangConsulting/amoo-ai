@@ -5,13 +5,19 @@ import XCTest
 
 /// Where each emitter puts code that flow extensions supplied, and that the result compiles.
 final class ExtensionCodeEmitterTests: XCTestCase {
-    private func makeTest(platform: Platform, code: StudioExtensionCode, step: [String]) -> StudioAuthoredTest {
+    private func makeTest(
+        platform: Platform,
+        code: StudioExtensionCode,
+        step: [String],
+        context: StudioTestContext? = nil
+    ) -> StudioAuthoredTest {
         var test = StudioAuthoredTest(
             formatVersion: 1,
             name: "Mocked Refresh",
             description: "",
             platform: platform,
             steps: [.init(id: "step-1", instruction: "Refresh", expected: "Refreshed")],
+            testContext: context,
             compiledPlan: .init(compiler: "session-compiler", compilerVersion: "1", toolOperations: [
                 .init(id: "op-1", tool: StudioExtensionCode.operationTool, arguments: [
                     StudioExtensionCode.codeArgument: step.joined(separator: "\n")
@@ -72,10 +78,21 @@ final class ExtensionCodeEmitterTests: XCTestCase {
         try CompileVerification.verifySwiftCompiles(source)
     }
 
+    func testXCUITestRunsAsyncSetupInTheAsyncLifecycle() throws {
+        let code = StudioExtensionCode(
+            members: ["private func open() async throws {}"], setUp: ["try await open()"], requiresAsync: true
+        )
+        let source = try XCUITestEmitter().generate(makeTest(platform: .ios, code: code, step: [])).source
+
+        XCTAssertTrue(source.contains("override func setUp() async throws {"), source)
+        try CompileVerification.verifySwiftCompiles(source, swiftVersion: 6)
+    }
+
     func testXCUITestRefusesAsyncSetupInASynchronousLifecycle() {
         let code = StudioExtensionCode(setUp: ["try await open()"], requiresAsync: true)
+        let test = makeTest(platform: .ios, code: code, step: [], context: .init(synchronousLifecycle: true))
 
-        XCTAssertThrowsError(try XCUITestEmitter().generate(makeTest(platform: .ios, code: code, step: []))) { error in
+        XCTAssertThrowsError(try XCUITestEmitter().generate(test)) { error in
             guard case .unsupportedOnTarget = error as? TestCodeGeneratorError else {
                 return XCTFail("\(error)")
             }

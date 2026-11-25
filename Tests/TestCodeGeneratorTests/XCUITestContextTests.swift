@@ -151,8 +151,8 @@ final class XCUITestContextTests: XCTestCase {
         XCTAssertTrue(result.source.contains("try await super.tearDown()"))
 
         let plain = try XCUITestEmitter().generate(makeTest(context: .init()))
-        XCTAssertTrue(plain.source.contains("try super.setUpWithError()"))
-        XCTAssertTrue(plain.source.contains("try super.tearDownWithError()"))
+        XCTAssertTrue(plain.source.contains("try await super.setUp()"))
+        XCTAssertTrue(plain.source.contains("try await super.tearDown()"))
     }
 
     func testXCUITestEmitterStillLaunchesWhenABaseClassIsNamedButDoesNotLaunch() throws {

@@ -57,21 +57,20 @@ public struct XCUITestEmitter: StudioCodeEmitting {
                 ? "" : "\n\(launchConfiguration)        app.launch()"
 
         let (idiomImport, idiomGuard) = Self.idiomGuard(for: test.testContext)
-        // A custom base class may declare its own lifecycle methods without actor isolation, and an
-        // override inherits the isolation of the method it overrides, not of this class: a
-        // `setUpWithError` override would then touch `app` from a nonisolated context, and wrapping
-        // the body in `MainActor.assumeIsolated` is rejected as "sending 'self'". XCTest's async
-        // `setUp()` / `tearDown()` are main-actor isolated and run after / before the synchronous
-        // pair, so for a custom base the setup and teardown work lives there and the base class's
-        // own `setUpWithError` / `tearDownWithError` keep running untouched. A plain `XCTestCase`
-        // base overrides the synchronous pair directly, as before.
-        let customBase = baseClass != "XCTestCase" && test.testContext?.synchronousLifecycle != true
-        try Self.checkExtensionLifecycle(extensionCode, asyncLifecycle: customBase, context: test.testContext)
+        // XCTest's synchronous `setUpWithError` / `tearDownWithError` are nonisolated, and an override
+        // inherits the isolation of the method it overrides, not of this `@MainActor` class: it would
+        // touch `app` from a nonisolated context (a warning in Swift 6 mode), and wrapping the body
+        // in `MainActor.assumeIsolated` is rejected as "sending 'self'". XCTest's async `setUp()` /
+        // `tearDown()` are main-actor isolated, so the setup and teardown work lives there, and a
+        // custom base class's own synchronous pair keeps running untouched. A context that declares
+        // `synchronousLifecycle` (a harness whose async teardown traps) gets the synchronous pair.
+        let asyncLifecycle = test.testContext?.synchronousLifecycle != true
+        try Self.checkExtensionLifecycle(extensionCode, asyncLifecycle: asyncLifecycle, context: test.testContext)
         // Extension setup runs before the launch, so the app starts against what it set up.
         let extensionSetUp = extensionCode.setUp.map { "\n        \($0)" }.joined()
         let setUpBody = "        continueAfterFailure = false\(idiomGuard)\(extensionSetUp)\(launch)"
         let lifecycle = Self.lifecycleSource(
-            customBase: customBase,
+            asyncLifecycle: asyncLifecycle,
             context: test.testContext,
             setUpBody: setUpBody,
             tearDownLines: extensionCode.tearDown
