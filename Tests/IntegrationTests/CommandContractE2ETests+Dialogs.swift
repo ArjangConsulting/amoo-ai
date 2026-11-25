@@ -52,13 +52,12 @@ extension CommandContractE2ETests {
         }
     }
 
-    /// The sign-in launcher is the home list's last row, inside the touch area of the floating
-    /// bottom toolbar, which takes a tap there even though the row is drawn above it. Scrolling the
-    /// list up first puts the row clear of the toolbar.
+    /// The sign-in launcher is the home list's last row, which the list cuts off at its bottom edge
+    /// on smaller screens, so it is scrolled into view first.
     private func openSignInFixture(on server: ToolCatalog) async -> ToolResult {
         let home = await resetFixtureApp(on: server)
         guard !home.isError else { return home }
-        let scroll = await server.execute(toolName: "scroll", arguments: ["direction": "down"])
+        let scroll = await server.execute(toolName: "scroll_to_element", arguments: ["id": "fixture-open-sign-in"])
         guard !scroll.isError else { return scroll }
         let open = await server.execute(
             toolName: "tap_element",

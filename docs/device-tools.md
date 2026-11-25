@@ -25,6 +25,12 @@ These are deliberate. Check this list before asking for one of them.
 - **Wait for animations unasked.** A dialog or sheet that is still animating in can drop a tap.
   Let it settle before tapping it: in a flow, a `wait_for` step with `idle: true`; from `amoo device`,
   `take_screenshot settle_timeout_ms=1500 return_image=false`, which returns once two frames match.
+- **Know what a system bar's touch area covers.** iOS's floating bottom toolbar takes touches a little
+  above what it draws, and the accessibility tree does not report that area. A row resting just above
+  the toolbar can pass `scroll_to_element` and `check_hittable=true` while the tap goes to the
+  toolbar. amoo does not guess that area's size. State the outcome with `expect_*` so a swallowed tap
+  fails the step, and keep tappable content clear of the bar in the app (a list that stops above the
+  toolbar rather than scrolling under it).
 
 ## Prerequisites
 

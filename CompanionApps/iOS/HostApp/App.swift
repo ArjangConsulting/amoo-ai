@@ -110,6 +110,28 @@ private struct FixtureHomeView: View {
     @Binding var doubleTapCount: Int
     @Binding var longPressState: String
 
+    /// Clear space between the list and the bottom toolbar. The floating toolbar takes touches a little
+    /// above what it draws, so a row resting there would look tappable but never get the tap.
+    private static let toolbarClearance: CGFloat = 16
+
+    var body: some View {
+        // The list stops above the toolbar instead of scrolling under it, so no row rests in the
+        // toolbar's touch area on any screen size.
+        VStack(spacing: 0) {
+            FixtureHomeList(tapCount: tapCount, doubleTapCount: doubleTapCount, longPressState: longPressState)
+            Color.clear
+                .frame(height: Self.toolbarClearance)
+                .accessibilityHidden(true)
+        }
+        .navigationTitle("Fixture")
+    }
+}
+
+private struct FixtureHomeList: View {
+    let tapCount: Int
+    let doubleTapCount: Int
+    let longPressState: String
+
     var body: some View {
         List {
             Section {
@@ -154,7 +176,6 @@ private struct FixtureHomeView: View {
                     .accessibilityIdentifier("fixture-long-press-status")
             }
         }
-        .navigationTitle("Fixture")
     }
 }
 
