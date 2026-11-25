@@ -99,14 +99,19 @@ func extensionFramework(platform: Platform, toolkit: UIToolkit) -> String {
 /// An extension that answers `ok: false` cannot express that part in this framework. Without
 /// `allowIncomplete` that refuses the whole test, as an uncompiled step does; with it, a failing
 /// statement takes the step's place so the gap fails loudly at run time.
+///
+/// Each request carries `vars`: the flow's, as the plan recorded them, then `variables` (the
+/// command's `--var`), the same set `amoo flow` sends at `flow_start`.
 func attachingExtensionCode(
     to test: StudioAuthoredTest,
     framework: String,
     allowIncomplete: Bool,
+    variables: [String: String] = [:],
     emitter: any FlowExtensionEmitting
 ) throws -> StudioAuthoredTest {
     guard let plan = test.compiledPlan, !plan.extensionPrefixes.isEmpty else { return test }
     let context = try test.testContext.map { try Value($0) } ?? .null
+    let vars = Value.object((plan.vars ?? [:]).merging(variables) { _, override in override }.mapValues(Value.string))
     var code = StudioExtensionCode()
     var teardowns: [[String]] = []
     var refusals: [String] = []
@@ -114,7 +119,8 @@ func attachingExtensionCode(
     func ask(_ prefix: String, phase: String, step: Value? = nil) throws -> [String]? {
         var request: [String: Value] = [
             "protocol": .int(flowExtensionProtocolVersion), "verb": .string("emit"), "framework": .string(framework),
-            "platform": .string(test.platform.rawValue), "phase": .string(phase), "test_context": context
+            "platform": .string(test.platform.rawValue), "phase": .string(phase), "test_context": context,
+            "vars": vars
         ]
         request["step"] = step
         let reply = try emitter.emit(prefix: prefix, request: .object(request)).objectValue ?? [:]

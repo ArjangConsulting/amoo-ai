@@ -86,8 +86,9 @@ failed step.
 
 `amoo generate plan --from-flow` keeps an extension step in the plan as written: its tool stays
 `prefix.step`, and its arguments are kept as the flow's JSON (`${name}` references to the flow's
-`vars` resolved). The plan also lists the extensions the flow declared. `amoo generate test` then asks
-each extension for its code, which amoo places and indents:
+`vars` resolved). The plan also lists the extensions the flow declared and, when it uses any, keeps
+the flow's `vars` as written. `amoo generate test` then asks each extension for its code, which amoo
+places and indents:
 
 | Request field | Value |
 | --- | --- |
@@ -96,6 +97,7 @@ each extension for its code, which amoo places and indents:
 | `platform` | `ios`, `macos` or `android` |
 | `phase` | `setup` and `teardown` once per extension, then `step` for each of its steps in order |
 | `test_context` | the app's [test context](test-context.md), or `null`; an app whose base class already opens what the extension would (a mock session in `appFactory`) can emit nothing for setup |
+| `vars` | the flow's `vars` as written, then `amoo generate test --var name=value` overrides: what `flow_start` got from `amoo flow`, so an extension finds its config the same way at both. `{}` for a plan compiled from a report |
 | `step` | for `step` only: `{tool, arguments}`, `tool` without the prefix |
 
 The reply needs `protocol: 1` and may carry:

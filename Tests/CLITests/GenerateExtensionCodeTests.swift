@@ -163,6 +163,50 @@ final class GenerateExtensionCodeTests: XCTestCase {
         XCTAssertTrue(result.output.contains("import org.junit.Before"), result.output)
     }
 
+    /// An extension that finds its config through a flow variable at `flow_start` gets the same
+    /// variables at `emit`: the flow's as written, then `--var`.
+    func testEveryEmitRequestCarriesTheFlowVarsWithVarOverrides() throws {
+        let emitter = FakeEmitter()
+        let path = try plan(fromFlow: flow.replacingOccurrences(
+            of: #""vars": { "user": "uid-7" }"#,
+            with: #""vars": { "user": "uid-7", "server": "${MOCK_HOST}", "mode": "record" }"#
+        ))
+        var options = try parseGenerateTestOptions(args: ["--plan", path, "--var", "mode=replay", "--var", "extra=a=b"])
+        XCTAssertEqual(options.variables, ["mode": "replay", "extra": "a=b"])
+        options.outputDirectory = nil
+
+        let result = try runGenerateTestCommand(options: options, emitters: emitters, extensionEmitter: emitter)
+
+        XCTAssertEqual(result.exitCode, 0, result.output)
+        let expected: Value = .object([
+            "user": .string("uid-7"), "server": .string("${MOCK_HOST}"),
+            "mode": .string("replay"), "extra": .string("a=b")
+        ])
+        XCTAssertFalse(emitter.requests.isEmpty)
+        for (prefix, request) in emitter.requests {
+            XCTAssertEqual(request["vars"], expected, "\(prefix) \(request["phase"] ?? .null)")
+        }
+    }
+
+    func testAVarWithoutANameIsRefused() {
+        XCTAssertThrowsError(try parseGenerateTestOptions(args: ["--plan", "p.json", "--var", "=x"])) { error in
+            XCTAssertEqual("\(error)", "--var expects name=value, got '=x'.")
+        }
+    }
+
+    func testAPlanKeepsVarsOnlyWhenAnExtensionWouldReadThem() throws {
+        func vars(_ json: String) throws -> [String: String]? {
+            let path = try plan(fromFlow: json)
+            let data = try Data(contentsOf: URL(fileURLWithPath: path))
+            return try JSONDecoder().decode(StudioAuthoredTest.self, from: data).compiledPlan?.vars
+        }
+        XCTAssertEqual(try vars(flow), ["user": "uid-7"])
+        XCTAssertNil(try vars("""
+        { "platform": "ios", "vars": { "password": "${PASSWORD}" },
+          "steps": [ { "tool": "set_text", "arguments": { "id": "a", "value": "${password}" } } ] }
+        """))
+    }
+
     func testAPlanWithoutExtensionsNeverAsks() throws {
         let emitter = FakeEmitter()
         let path = try plan(fromFlow: """

@@ -8,6 +8,7 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
     case missingValue(flag: String)
     case unexpectedArgument(String)
     case invalidValue(flag: String, value: String, allowed: [String])
+    case invalidAssignment(flag: String, value: String)
 
     public var description: String {
         switch self {
@@ -19,6 +20,8 @@ public enum GenerateCommandParseError: Error, CustomStringConvertible {
             "Unexpected argument '\(arg)'."
         case let .invalidValue(flag, value, allowed):
             "Invalid value '\(value)' for \(flag). Expected one of: \(allowed.joined(separator: ", "))."
+        case let .invalidAssignment(flag, value):
+            "\(flag) expects name=value, got '\(value)'."
         }
     }
 }
@@ -28,6 +31,7 @@ func renderGenerateHelp() -> String {
     Usage: amoo generate test --plan <path-to-authored-test.json> [--out <directory>]
                              [--context <amoo.md|test-context.json>]
                              [--ui-toolkit <view|compose>] [--test-name <name>] [--allow-incomplete]
+                             [--var name=value]...
 
       Emits a skeleton test. Review the compiled-plan warnings and finalize it against your
       project's conventions — identifier catalog, naming, test tier, dropped assertions — before
@@ -41,6 +45,8 @@ func renderGenerateHelp() -> String {
       --test-name         Override the recorded/semantic test name; sanitized for generated code.
       --allow-incomplete  Generate even though the plan records steps that could not be compiled.
                           Without this, generation stops rather than emitting a test missing steps.
+      --var               Override one of the plan's flow `vars` for flow extensions' `emit`, as
+                          `amoo flow --var` does for `flow_start`. Repeatable.
 
     To get a plan without recording a session, see `amoo generate plan --help`
     (`--report` recompiles a recorded report.json; `--from-flow` compiles a hand-written flow).
@@ -54,6 +60,8 @@ public struct GenerateTestOptions: Sendable, Equatable {
     public var uiToolkit: UIToolkit?
     public var contextPath: String?
     public var testName: String?
+    /// `--var` overrides of the plan's flow `vars`, sent to flow extensions' `emit`.
+    public var variables: [String: String] = [:]
 
     public init(
         planPath: String,
@@ -88,7 +96,7 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
 
     let parsed = try parseGenerateArguments(args)
     guard let planPath = parsed.planPath else { throw GenerateCommandParseError.missingValue(flag: "--plan") }
-    return GenerateTestOptions(
+    var options = GenerateTestOptions(
         planPath: planPath,
         outputDirectory: parsed.outputDirectory,
         allowIncomplete: parsed.allowIncomplete,
@@ -96,6 +104,8 @@ public func parseGenerateTestOptions(args: [String]) throws -> GenerateTestOptio
         contextPath: parsed.contextPath,
         testName: parsed.testName
     )
+    options.variables = parsed.variables
+    return options
 }
 
 private struct ParsedGenerateArguments {
@@ -105,8 +115,18 @@ private struct ParsedGenerateArguments {
     var uiToolkit: UIToolkit?
     var contextPath: String?
     var testName: String?
+    var variables: [String: String] = [:]
 }
 
+/// `name=value` split at the first `=`; the value may itself contain `=`.
+private func parseAssignment(flag: String, value: String) throws -> (name: String, value: String) {
+    guard let equals = value.firstIndex(of: "="), equals != value.startIndex else {
+        throw GenerateCommandParseError.invalidAssignment(flag: flag, value: value)
+    }
+    return (String(value[..<equals]), String(value[value.index(after: equals)...]))
+}
+
+// swiftlint:disable:next cyclomatic_complexity - one flat case per flag.
 private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateArguments {
     var planPath: String?
     var outputDirectory: String?
@@ -114,6 +134,7 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
     var uiToolkit: UIToolkit?
     var contextPath: String?
     var testName: String?
+    var variables: [String: String] = [:]
     var index = 0
 
     while index < args.count {
@@ -136,6 +157,9 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
         case "--ui-toolkit": uiToolkit = try parseUIToolkit(flag: flag, value: value)
         case "--context": contextPath = value
         case "--test-name": testName = value
+        case "--var":
+            let (name, assigned) = try parseAssignment(flag: flag, value: value)
+            variables[name] = assigned
         default: throw GenerateCommandParseError.unexpectedArgument(flag)
         }
         index += 2
@@ -147,7 +171,8 @@ private func parseGenerateArguments(_ args: [String]) throws -> ParsedGenerateAr
         allowIncomplete: allowIncomplete,
         uiToolkit: uiToolkit,
         contextPath: contextPath,
-        testName: testName
+        testName: testName,
+        variables: variables
     )
 }
 
@@ -186,6 +211,7 @@ func runGenerateTestCommand(
             to: prepared,
             framework: extensionFramework(platform: prepared.platform, toolkit: toolkit),
             allowIncomplete: options.allowIncomplete,
+            variables: options.variables,
             emitter: extensionEmitter
         )
     } catch let error as StudioGenerationError {

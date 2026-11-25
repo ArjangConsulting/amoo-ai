@@ -231,7 +231,7 @@ private func flowIntent(forTool tool: String, arguments: [String: String]) -> Se
 
 func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
     let report: SessionReport
-    var declaredExtensions: [String] = []
+    var sourceFlow: TestFlow?
     if let flowPath = options.flowPath {
         let flowURL = URL(fileURLWithPath: (flowPath as NSString).expandingTildeInPath)
         let flow = try JSONDecoder().decode(TestFlow.self, from: Data(contentsOf: flowURL))
@@ -242,7 +242,7 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
             return CLIResult(output: "Unknown flow platform '\(flow.platform)'.", exitCode: 64)
         }
         report = sessionReport(fromFlow: flow, name: flowURL.deletingPathExtension().lastPathComponent)
-        declaredExtensions = flow.extensions
+        sourceFlow = flow
     } else if let reportPath = options.reportPath {
         let reportURL = URL(fileURLWithPath: (reportPath as NSString).expandingTildeInPath)
         report = try SessionReport.makeJSONDecoder().decode(
@@ -265,7 +265,7 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
         )
     } ?? RepositoryTestProfile.discover(platform: result.studioTest.platform)
     var studioTest = context.map { result.studioTest.replacingTestContext($0) } ?? result.studioTest
-    studioTest = studioTest.declaringExtensions(declaredExtensions)
+    studioTest = studioTest.declaringExtensions(sourceFlow?.extensions ?? [], vars: sourceFlow?.vars ?? [:])
     result = CompileSessionToPlanResult(
         testFlow: result.testFlow,
         studioTest: studioTest,

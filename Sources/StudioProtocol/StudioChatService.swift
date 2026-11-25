@@ -153,11 +153,17 @@ public struct StudioAuthoredTest: Codable, Sendable {
     }
 
     /// This test with its compiled plan naming `prefixes` as the flow extensions it needs, even when
-    /// no operation uses them.
-    public func declaringExtensions(_ prefixes: [String]) -> Self {
-        guard let compiledPlan, !prefixes.isEmpty else { return self }
-        var plan = compiledPlan
-        plan.extensions = prefixes
+    /// no operation uses them, and carrying the flow's `vars` for those extensions. A plan that uses
+    /// no extension keeps no variables: nothing would read them.
+    public func declaringExtensions(_ prefixes: [String], vars: [String: String] = [:]) -> Self {
+        guard var plan = compiledPlan else { return self }
+        if !prefixes.isEmpty {
+            plan.extensions = prefixes
+        }
+        if !vars.isEmpty, !plan.extensionPrefixes.isEmpty {
+            plan.vars = vars
+        }
+        guard plan != compiledPlan else { return self }
         var copy = Self(
             formatVersion: formatVersion,
             name: name,
@@ -612,6 +618,9 @@ public struct StudioCompiledPlan: Codable, Equatable, Sendable {
     /// Flow extensions the test needs (`amoo-ext-<prefix>`), including ones a flow declared without
     /// using a step of theirs. `nil` on plans without any.
     public var extensions: [String]?
+    /// The flow's `vars` as the flow file writes them (a `${name}` reference stays one), which flow
+    /// extensions get at `emit` as they did at `flow_start`. `nil` on plans that use no extension.
+    public var vars: [String: String]?
 
     /// Every extension the test needs: declared ones, then the prefixes its operations use.
     public var extensionPrefixes: [String] {
@@ -635,6 +644,7 @@ public struct StudioCompiledPlan: Codable, Equatable, Sendable {
             warnings: warnings
         )
         plan.extensions = extensions
+        plan.vars = vars
         return plan
     }
 
