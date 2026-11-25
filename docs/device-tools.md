@@ -419,7 +419,9 @@ answers it with Not Now. A miss whose screen read finds only the application ele
 (`only_root_element: true`).
 
 A simulator where a UI test once typed into a password field offers the sheet after every later
-sign-in. Answering it is the default. A team that wants the prompt never to come up can opt in with
+sign-in. Answering it is the default, and a test generated from a flow that sets
+`dismiss_system_dialogs` answers it the same way (see
+[the pipeline notes](codegen-pipeline.md#system-prompts-in-generated-tests)). A team that wants the prompt never to come up can opt in with
 `amoo env up --platform ios --disable-password-autofill`, which turns password AutoFill off before
 booting the simulator, through the `allowPasswordAutoFill` restriction in the simulator's user
 settings. Its outcome is reported as `password_autofill` on the device: `disabled`, `already_off`,

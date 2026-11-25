@@ -164,6 +164,17 @@ public struct StudioAuthoredTest: Codable, Sendable {
             plan.vars = vars
         }
         guard plan != compiledPlan else { return self }
+        return replacingCompiledPlan(plan)
+    }
+
+    /// This test with its plan recording that the flow asked for system prompts to be answered.
+    public func answeringSystemDialogs(_ answer: Bool) -> Self {
+        guard answer, var plan = compiledPlan, plan.dismissSystemDialogs != true else { return self }
+        plan.dismissSystemDialogs = true
+        return replacingCompiledPlan(plan)
+    }
+
+    private func replacingCompiledPlan(_ plan: StudioCompiledPlan) -> Self {
         var copy = Self(
             formatVersion: formatVersion,
             name: name,
@@ -621,6 +632,9 @@ public struct StudioCompiledPlan: Codable, Equatable, Sendable {
     /// The flow's `vars` as the flow file writes them (a `${name}` reference stays one), which flow
     /// extensions get at `emit` as they did at `flow_start`. `nil` on plans that use no extension.
     public var vars: [String: String]?
+    /// The flow asked amoo to answer a system prompt over the app (`dismiss_system_dialogs`), so the
+    /// generated test answers one too. `nil` when it did not.
+    public var dismissSystemDialogs: Bool?
 
     /// Every extension the test needs: declared ones, then the prefixes its operations use.
     public var extensionPrefixes: [String] {
@@ -645,6 +659,7 @@ public struct StudioCompiledPlan: Codable, Equatable, Sendable {
         )
         plan.extensions = extensions
         plan.vars = vars
+        plan.dismissSystemDialogs = dismissSystemDialogs
         return plan
     }
 

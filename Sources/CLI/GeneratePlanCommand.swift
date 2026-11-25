@@ -229,6 +229,20 @@ private func flowIntent(forTool tool: String, arguments: [String: String]) -> Se
     return queries.contains(tool) ? .diagnostic : .testStep
 }
 
+/// `test` with what the flow (or recording) asked for beyond its steps: the extensions it declared
+/// and their `vars`, and whether system prompts are answered (the flow's top-level
+/// `dismiss_system_dialogs`, or the argument on any step).
+private func declaringFlowOptions(
+    _ test: StudioAuthoredTest,
+    flow: TestFlow?,
+    report: SessionReport
+) -> StudioAuthoredTest {
+    let answers = flow?.dismissSystemDialogs == true || report.actions.contains { action in
+        ["true", "1", "yes"].contains(action.arguments["dismiss_system_dialogs"]?.lowercased() ?? "")
+    }
+    return test.declaringExtensions(flow?.extensions ?? [], vars: flow?.vars ?? [:]).answeringSystemDialogs(answers)
+}
+
 func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
     let report: SessionReport
     var sourceFlow: TestFlow?
@@ -265,7 +279,7 @@ func runGeneratePlanCommand(options: GeneratePlanOptions) throws -> CLIResult {
         )
     } ?? RepositoryTestProfile.discover(platform: result.studioTest.platform)
     var studioTest = context.map { result.studioTest.replacingTestContext($0) } ?? result.studioTest
-    studioTest = studioTest.declaringExtensions(sourceFlow?.extensions ?? [], vars: sourceFlow?.vars ?? [:])
+    studioTest = declaringFlowOptions(studioTest, flow: sourceFlow, report: report)
     result = CompileSessionToPlanResult(
         testFlow: result.testFlow,
         studioTest: studioTest,

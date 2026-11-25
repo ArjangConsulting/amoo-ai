@@ -81,6 +81,18 @@ That applies only to the derived check; the tap's own target, and an explicit `a
 as strict as written. The assertion-quality review counts it, so a flow that ends on such a tap gets
 no "final mutation has no following semantic assertion" warning.
 
+## System prompts in generated tests
+
+A flow that sets `dismiss_system_dialogs` (at the top, or on any step) records
+`dismissSystemDialogs: true` in the plan. The generated iOS test then answers an Apple password
+prompt the way amoo does: a private `answerSystemPasswordPrompt()` looks for a sheet or alert titled
+like "Save Password?" in the app and in Safari's view service (`com.apple.SafariViewService`, which
+draws it) and presses Not Now or Cancel, never Save. The `waitForExistence` / `waitForHittability` /
+`waitForAbsence` helpers call it when they time out and wait once more, as amoo answers a prompt
+behind a failed step and runs it again; with TestCommonsXCUI helpers, a wait that answers comes
+first. A test whose flow did not ask is unchanged, and waits bound to the app's own helpers
+(`waitBindings`) are the app's to handle. Android tests do not answer dialogs yet.
+
 ## Diagnostic audit and speech evidence
 
 `audit_app`, `audit_security`, `audit_accessibility`, `audit_accessibility_native` and

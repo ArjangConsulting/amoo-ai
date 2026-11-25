@@ -200,6 +200,7 @@ public struct XCUITestEmitter: StudioCodeEmitting {
            let helpers = source.range(of: "    private func replaceText(") {
             source.insert(contentsOf: Self.scrollToElementHelper, at: helpers.lowerBound)
         }
+        source = Self.answeringSystemPrompts(source, test: test)
         source = Self.applyingHarness(to: source, context: test.testContext, requirements: test.requirements)
         return StudioTestExportResult(fileName: "\(className).swift", source: source + "\n")
     }
