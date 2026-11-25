@@ -169,6 +169,11 @@ extension SessionPlanCompiler {
     /// A tap with an expectation waits on the device for that element, so it is the tap's
     /// postcondition. Compiling only the tap dropped it: a flow written the recommended way, with
     /// `expect_*` instead of a separate assertion, generated a test that tapped and checked nothing.
+    ///
+    /// The device accepts any matching element as the expectation met (or, for `expect_absent`, none
+    /// left), so the assertion carries `first`: a generated lookup that needs exactly one match would
+    /// fail where the flow passed, as when iOS reports each button of an alert twice. It only checks
+    /// what appeared; which element a gesture acts on is never picked this way.
     static func tapPostcondition(_ action: SessionAction) -> SessionAction? {
         guard action.toolName == "tap_element", !action.isError else { return nil }
         let selectorKeys = ["id", "label", "contains_text"]
@@ -179,6 +184,7 @@ extension SessionPlanCompiler {
             }
         }
         guard !arguments.isEmpty else { return nil }
+        arguments["first"] = "true"
         if let timeout = action.arguments["expect_timeout_ms"] {
             arguments["timeout_ms"] = timeout
         }

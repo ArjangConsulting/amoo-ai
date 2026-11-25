@@ -74,8 +74,12 @@ A recorded `compile_session_to_plan` still carries a useful `test_name` / `test_
 `tap_element` with `expect_id` / `expect_label` / `expect_contains_text` waits on the device for that
 element, so `SessionPlanCompiler.tapPostcondition` compiles it as a second operation after the tap:
 `assert_visible`, or `assert_absent` with `expect_absent=true`, carrying `expect_timeout_ms` as
-`timeout_ms`. The assertion-quality review counts it, so a flow that ends on such a tap gets no
-"final mutation has no following semantic assertion" warning.
+`timeout_ms`. The assertion carries `first=true`: the device took any matching element as the
+expectation met (or none left as absent), so the generated lookup takes the first match instead of
+needing exactly one, which failed where the flow passed when iOS reported an alert's button twice.
+That applies only to the derived check; the tap's own target, and an explicit `assert_visible`, stay
+as strict as written. The assertion-quality review counts it, so a flow that ends on such a tap gets
+no "final mutation has no following semantic assertion" warning.
 
 ## Diagnostic audit and speech evidence
 

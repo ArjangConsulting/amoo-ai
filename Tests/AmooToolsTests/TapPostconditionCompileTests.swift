@@ -1,6 +1,7 @@
 // swiftlint:disable multiline_arguments
 import Foundation
 @testable import SessionCompiler
+import TestCodeGenerator
 import TestSession
 import XCTest
 
@@ -40,6 +41,26 @@ final class TapPostconditionCompileTests: XCTestCase {
             let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
             XCTAssertEqual(operations.map(\.tool), ["tap_element", "assert_not_visible"])
         }
+    }
+
+    /// iOS reports each button of an alert twice with the same id. The device took either as the
+    /// expectation met, and the generated check needed exactly one match, so the test failed where the
+    /// flow passed.
+    func testTheGeneratedCheckAcceptsAnyMatchAsTheDeviceDid() throws {
+        let result = try compile([
+            tap(["id": "submit", "expect_id": "alert.continue"]),
+            tap(["id": "alert.continue", "first": "true", "expect_id": "alert.continue", "expect_absent": "true"])
+        ])
+        let operations = try XCTUnwrap(result.studioTest.compiledPlan?.toolOperations)
+        XCTAssertEqual(operations.map(\.tool), ["tap_element", "assert_visible", "tap_element", "assert_not_visible"])
+        XCTAssertEqual(operations[1].arguments["first"], "true")
+        XCTAssertEqual(operations[3].arguments["first"], "true")
+        XCTAssertNil(operations[0].arguments["first"], "the tap's own target is never picked for the caller")
+
+        let source = try XCUITestEmitter().generate(result.studioTest).source
+        XCTAssertTrue(source.contains(".matching(identifier: \"alert.continue\").firstMatch"), source)
+        XCTAssertFalse(source.contains("[\"alert.continue\"]"), "no lookup that needs exactly one match\n\(source)")
+        XCTAssertTrue(source.contains("app.descendants(matching: .any)[\"submit\"]"), source)
     }
 
     func testTapWithoutExpectationIsUnchanged() throws {
