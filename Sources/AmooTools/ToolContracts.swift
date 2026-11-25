@@ -77,6 +77,10 @@ enum ToolContracts {
                 fields["foreground_app_id"] = .init(type: "string", description: "Observed foreground app")
                 fields["target_app_id"] = .init(type: "string", description: "Bound inspection target")
                 fields["selector_hint"] = .init(type: "string", description: "Accessible text granularity guidance")
+                fields["only_root_element"] = .init(
+                    type: "boolean",
+                    description: "The tree held only the application element; something outside it may cover the app"
+                )
                 fields["available_controls"] = .init(
                     type: "array",
                     description: "Up to eight nearby accessible candidates, with roles"

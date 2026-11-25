@@ -32,6 +32,8 @@ struct EnvUpOptions: Equatable {
     var launch = false
     /// Android recovery: start the named offline AVD without loading or saving snapshots.
     var coldBoot = false
+    /// iOS: turn password AutoFill off on the simulator before booting it.
+    var disablePasswordAutoFill = false
     /// Android: the `cmd package compile` mode to run after installing `--app`.
     var compile: String?
     var owner: String?
@@ -74,6 +76,8 @@ func renderEnvHelp() -> String {
              [--avd <name>]
              [--cold-boot]                            Android: bypass snapshots; preserves app data
              [--runtime <iOS-27.0>] [--model <name>]
+             [--disable-password-autofill]            iOS: no "Save Password?" after a sign-in; set
+                                                      before booting, kept on the simulator
              [--runtime-id <id>]                      reuse an owned, running runtime
              [--port <n>]                             default: first free 22093+
              [--app <path.apk|path.app>] [--app-id <id>] [--launch]
@@ -131,6 +135,7 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
     options.appID = try flags.value("--app-id")
     options.launch = flags.take("--launch")
     options.coldBoot = flags.take("--cold-boot")
+    options.disablePasswordAutoFill = flags.take("--disable-password-autofill")
     options.compile = try flags.value("--compile")
     options.owner = try flags.value("--owner")
     options.ttlMinutes = try flags.int("--ttl")
@@ -150,6 +155,10 @@ private func parseEnvUp(_ flags: inout EnvFlagReader) throws -> EnvUpOptions {
        platform != .android || options.avd == nil || options.deviceID != nil || options.runtimeID != nil {
         throw EnvCommandParseError
             .usage("--cold-boot needs an Android --avd and cannot reuse --device or --runtime-id.")
+    }
+    if options.disablePasswordAutoFill, platform != .ios || options.runtimeID != nil {
+        throw EnvCommandParseError
+            .usage("--disable-password-autofill is for an iOS simulator env up boots, not a reused --runtime-id.")
     }
     return options
 }

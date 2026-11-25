@@ -6,10 +6,13 @@ struct EnvDeviceReport: Codable, Equatable {
     var os: String?
     var avd: String?
     var bootedByEnv: Bool
+    /// What `--disable-password-autofill` did; absent without it.
+    var passwordAutoFill: SimulatorPasswordAutoFill.Outcome?
 
     enum CodingKeys: String, CodingKey {
         case id, name, os, avd
         case bootedByEnv = "booted_by_env"
+        case passwordAutoFill = "password_autofill"
     }
 }
 
@@ -118,6 +121,9 @@ struct EnvUpReport: Codable {
         }
         if let app {
             lines.append("App \(app.id ?? app.path ?? "?"): installed=\(app.installed) launched=\(app.launched)")
+        }
+        if let autoFill = device.passwordAutoFill {
+            lines.append(autoFill.summary(udid: device.id))
         }
         return lines.joined(separator: "\n")
     }

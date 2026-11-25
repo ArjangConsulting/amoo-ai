@@ -25,6 +25,7 @@ extension DriverToolExecutor {
             || (tool == "find_elements" && fields["total"] == .int(0) && !scoped)
         guard missing || empty, let driver = try? await resolveDriver(arguments: arguments) else { return original }
         let deadline = ContinuousClock.now + .seconds(2)
+        var rootNote: String?
         fields["observation_status"] = .string(empty ? "empty_observation" : "selector_miss")
         fields["navigation_status"] = .string("unassessed")
         fields["recovery"] = .array([
@@ -48,19 +49,13 @@ extension DriverToolExecutor {
                 }), driver: driver, appID: self.queryScopeAppID(arguments: arguments, driver: driver)
             )
         }) {
-            fields["available_controls"] = .array(Self.nearbyCandidates(candidates, arguments: arguments).map {
-                var control: [String: Value] = [
-                    "id": .string($0.id), "label": .string(String($0.label.prefix(120))),
-                    "role": .string($0.type?.rawValue ?? "unknown"), "enabled": .bool($0.isEnabled),
-                    // Ready to retry with: the stable id when there is one, otherwise the exact label.
-                    "selector": .object($0.id.isEmpty ? ["label": .string($0.label)] : ["id": .string($0.id)])
-                ]
-                if let point = $0.hitPoint ?? $0.frame?.centre {
-                    control["x"] = .double((point.x * 10).rounded() / 10)
-                    control["y"] = .double((point.y * 10).rounded() / 10)
-                }
-                return .object(control)
-            })
+            if arguments["parent_id"] == nil, Self.isOnlyTheRoot(candidates) {
+                fields["only_root_element"] = .bool(true)
+                rootNote = Self.onlyRootNote(candidates.first)
+            }
+            fields["available_controls"] = .array(
+                Self.nearbyCandidates(candidates, arguments: arguments).map(Self.availableControl)
+            )
         }
         if missing {
             fields["selector_hint"] = .string(
@@ -69,7 +64,39 @@ extension DriverToolExecutor {
         }
         var result = original
         result.structuredContent = .object(fields)
+        if let rootNote {
+            result.content += "\n\(rootNote)"
+        }
         return result
+    }
+
+    private static func availableControl(_ element: ElementInfo) -> Value {
+        var control: [String: Value] = [
+            "id": .string(element.id), "label": .string(String(element.label.prefix(120))),
+            "role": .string(element.type?.rawValue ?? "unknown"), "enabled": .bool(element.isEnabled),
+            // Ready to retry with: the stable id when there is one, otherwise the exact label.
+            "selector": .object(element.id.isEmpty ? ["label": .string(element.label)] : ["id": .string(element.id)])
+        ]
+        if let point = element.hitPoint ?? element.frame?.centre {
+            control["x"] = .double((point.x * 10).rounded() / 10)
+            control["y"] = .double((point.y * 10).rounded() / 10)
+        }
+        return .object(control)
+    }
+
+    /// Whether a whole-screen read found nothing but the root: no element, or one that is not a
+    /// control. A sheet another process draws over the app ("Save Password?" on iOS, once settled)
+    /// leaves just the application element, and reporting that as a plain selector miss hid why.
+    static func isOnlyTheRoot(_ elements: [ElementInfo]) -> Bool {
+        guard elements.count <= 1 else { return false }
+        return elements.first.map { $0.type == nil || $0.type == .other } ?? true
+    }
+
+    static func onlyRootNote(_ root: ElementInfo?) -> String {
+        let name = root.map { $0.label.isEmpty ? $0.id : $0.label }.map { " ('\($0)')" } ?? ""
+        return "The accessibility tree holds only the application element\(name), so something it cannot show"
+            + " may cover the app: on iOS, a system sheet such as \"Save Password?\" after a sign-in."
+            + " On a simulator, `amoo env up --disable-password-autofill` keeps that one from coming up."
     }
 
     static func nearbyCandidates(_ candidates: [ElementInfo], arguments: [String: String]) -> [ElementInfo] {
