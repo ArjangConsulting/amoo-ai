@@ -63,7 +63,7 @@ protobuf {
     }
     plugins {
         create("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.85.1"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.86.0"
         }
         create("grpckt") {
             artifact = "io.grpc:protoc-gen-grpc-kotlin:1.5.0:jdk8@jar"
@@ -90,15 +90,15 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test:runner:1.5.2")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.1")
-    androidTestCompileOnly("com.google.auto.value:auto-value-annotations:1.11.0")
+    androidTestCompileOnly("com.google.auto.value:auto-value-annotations:1.11.1")
     androidTestImplementation("com.google.android.apps.common.testing.accessibility.framework:accessibility-test-framework:4.1.1") {
         exclude(group = "com.google.protobuf", module = "protobuf-javalite")
     }
 
     // gRPC for instrumentation tests
-    androidTestImplementation("io.grpc:grpc-netty:1.85.1")
-    androidTestImplementation("io.grpc:grpc-protobuf:1.85.1")
-    androidTestImplementation("io.grpc:grpc-stub:1.85.1")
+    androidTestImplementation("io.grpc:grpc-netty:1.86.0")
+    androidTestImplementation("io.grpc:grpc-protobuf:1.86.0")
+    androidTestImplementation("io.grpc:grpc-stub:1.86.0")
     androidTestImplementation("io.grpc:grpc-kotlin-stub:1.5.0")
     androidTestImplementation("com.google.protobuf:protobuf-kotlin:4.36.2")
     androidTestImplementation("javax.annotation:javax.annotation-api:1.3.2")
