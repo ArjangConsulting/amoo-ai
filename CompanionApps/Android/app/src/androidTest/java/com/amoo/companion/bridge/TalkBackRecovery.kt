@@ -2,6 +2,7 @@ package com.amoo.companion.bridge
 
 import android.app.UiAutomation
 import android.content.Context
+import android.content.pm.PackageManager
 import android.provider.Settings
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityManager
@@ -17,6 +18,11 @@ class TalkBackRecovery {
     private val journalFile = File(context.noBackupFilesDir, "amoo-talkback-recovery.json")
     private val keys = listOf("enabled_accessibility_services", "accessibility_enabled", "tts_default_synth")
 
+    companion object {
+        const val NOTIFICATION_PERMISSION = "android.permission.POST_NOTIFICATIONS"
+        val TALKBACK_PACKAGES = setOf("com.google.android.marvin.talkback", "com.samsung.android.accessibility.talkback")
+    }
+
     fun recoverPending(): Map<String, String> {
         if (!journalFile.exists()) return emptyMap()
         return restore(JSONObject(journalFile.readText()))
@@ -26,12 +32,25 @@ class TalkBackRecovery {
         check(!journalFile.exists()) { "Pending TalkBack recovery must complete before another traversal" }
         val original = JSONObject().put("token", token).put("component", component)
         keys.forEach { original.put(it, Settings.Secure.getString(context.contentResolver, it) ?: JSONObject.NULL) }
-        val temporary = File(journalFile.path + ".tmp")
-        temporary.writeText(original.toString())
-        check(temporary.renameTo(journalFile)) { "Could not persist TalkBack recovery journal" }
+        persistJournal(original)
         val marker = JSONObject().put("token", token).put("uid", uid)
-        File(context.filesDir, "amoo-speech-capture.json").writeText(marker.toString())
+        File(context.noBackupFilesDir, "amoo-speech-capture.json").writeText(marker.toString())
         return original
+    }
+
+    fun notePendingPermissionGrant(original: JSONObject, packageName: String): Boolean {
+        require(packageName in TALKBACK_PACKAGES) { "Permission bookkeeping is scoped to known TalkBack packages" }
+        val alreadyGranted = context.packageManager.checkPermission(NOTIFICATION_PERMISSION, packageName) == PackageManager.PERMISSION_GRANTED
+        if (alreadyGranted) return false
+        original.put("permission_package", packageName)
+        persistJournal(original)
+        return true
+    }
+
+    private fun persistJournal(contents: JSONObject) {
+        val temporary = File(journalFile.path + ".tmp")
+        temporary.writeText(contents.toString())
+        check(temporary.renameTo(journalFile)) { "Could not persist TalkBack recovery journal" }
     }
 
     fun enableCapture(original: JSONObject) {
@@ -52,12 +71,13 @@ class TalkBackRecovery {
             .orEmpty().split(':').filter { it.isNotBlank() && it != component }
         put("enabled_accessibility_services", services.joinToString(":"))
         waitForService(component, enabled = false)
+        val evidence = mutableMapOf<String, String>()
+        revokePendingPermissionGrant(original, evidence)
         put("tts_default_synth", value(original, "tts_default_synth"))
         put("enabled_accessibility_services", value(original, "enabled_accessibility_services"))
         put("accessibility_enabled", value(original, "accessibility_enabled"))
         val wasEnabled = value(original, "enabled_accessibility_services").orEmpty().split(':').contains(component)
         waitForService(component, enabled = wasEnabled)
-        val evidence = mutableMapOf<String, String>()
         var matched = true
         keys.forEach {
             val actual = Settings.Secure.getString(context.contentResolver, it)
@@ -67,11 +87,29 @@ class TalkBackRecovery {
             matched = matched && actual == expected
         }
         check(matched) { "TalkBack restoration verification did not match original settings" }
+        File(context.noBackupFilesDir, "amoo-speech-capture.json").delete()
+        File(context.noBackupFilesDir, "amoo-speech-${original.getString("token")}.jsonl").delete()
+        // A capture started by an older companion wrote these under filesDir; remove them best effort.
         File(context.filesDir, "amoo-speech-capture.json").delete()
         File(context.filesDir, "amoo-speech-${original.getString("token")}.jsonl").delete()
-        check(journalFile.delete()) { "Settings restored but recovery journal could not be cleared" }
+        if (evidence["permission_restoration_status"] != "pending") {
+            check(journalFile.delete()) { "Settings restored but recovery journal could not be cleared" }
+        }
         evidence["restoration_status"] = "restored"
         return evidence
+    }
+
+    private fun revokePendingPermissionGrant(original: JSONObject, evidence: MutableMap<String, String>) {
+        if (!original.has("permission_package")) return
+        val packageName = original.getString("permission_package")
+        val granted = context.packageManager.checkPermission(NOTIFICATION_PERMISSION, packageName) == PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            evidence["permission_restoration_status"] = "not_granted"
+            return
+        }
+        val outcome = runCatching { automation.revokeRuntimePermission(packageName, NOTIFICATION_PERMISSION) }
+        val stillGranted = context.packageManager.checkPermission(NOTIFICATION_PERMISSION, packageName) == PackageManager.PERMISSION_GRANTED
+        evidence["permission_restoration_status"] = if (outcome.isSuccess && !stillGranted) "revoked" else "pending"
     }
 
     private fun value(original: JSONObject, key: String): String? =

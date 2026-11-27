@@ -51,7 +51,7 @@ class FixtureContractTest {
     fun textInputEchoesEditsAndClears() {
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.onNode(hasTestTag("fixture-open-text")).performClick()
-            compose.onNode(hasText("Hello from the fixture app")).assertIsDisplayed()
+            compose.onNode(hasText("Fixture text input")).assertIsDisplayed()
             compose.onNode(hasTestTag("fixture-text-input")).performTextInput("contract text")
             compose.onNode(hasTestTag("fixture-text-echo")).assertTextEquals("Echo: contract text")
             compose.onNode(hasTestTag("fixture-text-input")).performTextReplacement("")

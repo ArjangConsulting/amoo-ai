@@ -76,5 +76,14 @@ with Developer Mode enabled, and the existing USB tunnel tooling are still requi
 
 `scripts/package-companions.sh` builds simulator products for arm64 and x86_64, device products for
 arm64, and Android APKs. Simulator products receive ad hoc signatures. The products' `.xctestrun`
-paths are validated after relocation. Release CI transfers a tar archive to preserve executable
+paths are validated after relocation.
+
+Android packaging builds the Release app and instrumentation APKs with R8 and signs both with the
+same Android test key. The packaged APKs use the existing `app-debug*.apk` filenames expected by
+the CLI and Homebrew tap. The instrumentation APK contains the gRPC server and generated protobuf
+code. Its shrinker rules preserve the runner entry point that the CLI invokes by class name. The
+app APK preserves the shared Kotlin standard library's binary interface for the instrumentation
+runner.
+
+Release CI transfers a tar archive to preserve executable
 permissions and symbolic links, and includes the products in the macOS/Linux distributions.

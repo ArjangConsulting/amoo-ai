@@ -225,7 +225,9 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('CompanionApps/Android/**/*.gradle.kts', 'CompanionApps/Android/gradle.properties', 'CompanionApps/Android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
       - run: make companion-android-build
+      - run: scripts/package-companions.sh android
       - run: make sample-app-compose-build
+      - run: make companion-android-lint
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -238,8 +240,10 @@ jobs:
           disable-animations: true
           script: |
             make sample-app-compose-test
-            (cd CompanionApps/Android && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.amoo.companion.bridge.HierarchyCaptureTests)
-            bash -o pipefail -c 'scripts/run-e2e-android.sh 2>&1 | tee smoke-android.log'
+            (cd CompanionApps/Android && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.amoo.companion.bridge.HierarchyCaptureTests,com.amoo.companion.bridge.NativeContrastTests)
+            adb install -r CompanionApps/Android/prebuilt/app-debug.apk
+            adb install -r CompanionApps/Android/prebuilt/app-debug-androidTest.apk
+            bash -o pipefail -c 'scripts/run-e2e-android.sh --skip-build 2>&1 | tee smoke-android.log'
       - uses: actions/upload-artifact@v7
         if: always()
         with:

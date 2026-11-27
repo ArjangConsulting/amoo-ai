@@ -35,7 +35,7 @@ class SpeechCaptureEngine : TextToSpeechService() {
 
     override fun onSynthesizeText(request: SynthesisRequest, callback: SynthesisCallback) {
         try {
-            val markerFile = File(filesDir, "amoo-speech-capture.json")
+            val markerFile = File(noBackupFilesDir, "amoo-speech-capture.json")
             if (!markerFile.exists()) {
                 callback.error()
                 return
@@ -48,7 +48,7 @@ class SpeechCaptureEngine : TextToSpeechService() {
             }
             val token = marker.getString("token")
             require(token.matches(Regex("[a-zA-Z0-9-]+")))
-            val output = File(filesDir, "amoo-speech-$token.jsonl")
+            val output = File(noBackupFilesDir, "amoo-speech-$token.jsonl")
             if (output.length() > 262144) {
                 callback.error()
                 return

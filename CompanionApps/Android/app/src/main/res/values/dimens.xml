@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="fixture_screen_padding">16dp</dimen>
+    <dimen name="fixture_screen_padding_bottom">24dp</dimen>
+    <dimen name="fixture_section_label_top">12dp</dimen>
+    <dimen name="fixture_section_label_bottom">8dp</dimen>
+    <dimen name="fixture_body_bottom">8dp</dimen>
+    <dimen name="fixture_gesture_pad_horizontal">8dp</dimen>
+    <dimen name="fixture_gesture_pad_vertical">48dp</dimen>
+    <dimen name="fixture_field_bottom_margin">8dp</dimen>
+</resources>

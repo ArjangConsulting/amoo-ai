@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <queries>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
@@ -7,11 +8,21 @@
     </queries>
     <application
         android:label="AmooCompanion"
+        android:theme="@style/Theme.AmooFixture"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true">
+        <!--
+            TalkBack binds to a TTS engine from its own UID through the TTS_SERVICE intent, so the
+            service must stay exported without a permission; onSynthesizeText rejects every request
+            unless a capture marker exists and the caller UID matches it.
+        -->
         <service
             android:name=".accessibility.SpeechCaptureEngine"
             android:label="Amoo speech capture (test only)"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="ExportedService">
             <intent-filter>
                 <action android:name="android.intent.action.TTS_SERVICE" />
                 <category android:name="android.intent.category.DEFAULT" />

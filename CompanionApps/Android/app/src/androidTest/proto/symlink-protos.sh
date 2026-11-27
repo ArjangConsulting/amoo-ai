@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Copy proto files from the shared Protos/ directory into the Android proto source set.
-# Gradle's protobuf plugin expects protos in src/main/proto/.
+# Gradle's protobuf plugin reads the companion's protos from src/androidTest/proto/.
 #
 # Run from the Android project root:
-#   ./app/src/main/proto/symlink-protos.sh
+#   ./app/src/androidTest/proto/symlink-protos.sh
 
 set -euo pipefail
 

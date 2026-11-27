@@ -44,8 +44,15 @@ if [[ "${1:-all}" != android ]]; then
   python3 "$root/scripts/validate-companion-products.py" "$target/Products"
   git -C "$root" rev-parse HEAD >"$target/source-commit"
 fi
-make -C "$root" companion-android-build
-mkdir -p "$root/CompanionApps/Android/prebuilt"
-cp "$root/CompanionApps/Android/app/build/outputs/apk/debug/app-debug.apk" "$root/CompanionApps/Android/prebuilt/"
-cp "$root/CompanionApps/Android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk" "$root/CompanionApps/Android/prebuilt/"
-git -C "$root" rev-parse HEAD >"$root/CompanionApps/Android/prebuilt/source-commit"
+android="$root/CompanionApps/Android"
+jdk="$("$root/scripts/android-jdk.sh")"
+if [[ -z "$jdk" ]]; then
+  echo 'No supported JDK found for building the Android companion.' >&2
+  exit 1
+fi
+(cd "$android" && JAVA_HOME="$jdk" ./gradlew -PamooReleaseCompanion :app:assembleRelease :app:assembleReleaseAndroidTest)
+mkdir -p "$android/prebuilt"
+cp "$android/app/build/outputs/apk/release/app-release.apk" "$android/prebuilt/app-debug.apk"
+cp "$android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk" \
+  "$android/prebuilt/app-debug-androidTest.apk"
+git -C "$root" rev-parse HEAD >"$android/prebuilt/source-commit"

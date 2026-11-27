@@ -19,6 +19,7 @@ import com.google.android.apps.common.testing.accessibility.framework.checks.Tou
 import com.google.android.apps.common.testing.accessibility.framework.uielement.AccessibilityHierarchyAndroid
 import com.google.android.apps.common.testing.accessibility.framework.uielement.ViewHierarchyElement
 import com.google.android.apps.common.testing.accessibility.framework.utils.contrast.BitmapImage
+import org.json.JSONArray
 import java.util.Locale
 import java.util.UUID
 
@@ -51,7 +52,20 @@ class NativeAccessibilityInspector(private val bridge: UIAutomatorBridge) {
                             result.putNotEvaluatedReasons(category, "No qualified Android ATF check for this category")
                             continue
                         }
-                        val findings = check.runCheckOnHierarchy(hierarchy, null, parameters)
+                        val findings = check.runCheckOnHierarchy(hierarchy, null, parameters).let { providerFindings ->
+                            if (check !is TextContrastCheck) return@let providerFindings
+                            kotlin.check(!isCancelled()) { "Native audit cancelled before contrast measurement" }
+                            val measurements = AtfContrastMeasurements.capture(check, hierarchy, parameters)
+                            if (measurements.size > 512) result.truncated = true
+                            result.putProvenance("contrast_measurements_json", JSONArray(
+                                measurements.entries.take(512).map { (element, measurement) ->
+                                    measurement.toJson(elementReference(capture, element), element)
+                                }
+                            ).toString())
+                            providerFindings.filterNot {
+                                insufficientData(check, it) && AtfContrastMeasurements.hasFallbackMeasurement(it, measurements)
+                            }
+                        }
                         val missing = findings.filter { insufficientData(check, it) }
                         if (missing.isEmpty()) {
                             result.addEvaluatedChecks(category)
@@ -111,7 +125,7 @@ class NativeAccessibilityInspector(private val bridge: UIAutomatorBridge) {
         val element = finding.element
         val info = ElementInfo.newBuilder()
         val semantics = ElementSemantics.newBuilder()
-            .setReference("$capture:atf:${element?.condensedUniqueId ?: "unavailable"}")
+            .setReference(elementReference(capture, element))
             .putAttributes("provider", "androidNativeATF")
             .putAttributes("providerVersion", "4.1.1")
             .putAttributes("coordinateUnit", "pixels")
@@ -156,6 +170,9 @@ class NativeAccessibilityInspector(private val bridge: UIAutomatorBridge) {
             .setDetails("${finding.sourceCheckClass?.simpleName}: resultId=${finding.resultId}, type=${finding.type}")
             .setElement(info).build()
     }
+
+    private fun elementReference(capture: String, element: ViewHierarchyElement?): String =
+        "$capture:atf:${element?.condensedUniqueId ?: "unavailable"}"
 
     private fun path(element: ViewHierarchyElement): String {
         val identifiers = mutableListOf<String>()

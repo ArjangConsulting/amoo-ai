@@ -22,13 +22,11 @@ object AccessibilityFixture {
             id = R.id.fixture_audit_title
             text = "Accessibility fixture"
             textSize = 24f
-            setTextColor(Color.BLACK)
         })
         parent.addView(CheckBox(activity).apply {
             minimumHeight = size(48)
             id = R.id.fixture_audit_checked
             text = "Receive updates"
-            setTextColor(Color.BLACK)
             state(this, "Notifications off")
             setOnCheckedChangeListener { _, checked -> state(this, if (checked) "Notifications on" else "Notifications off") }
         })
@@ -50,14 +48,18 @@ object AccessibilityFixture {
         val status = TextView(activity).apply {
             id = R.id.fixture_audit_status
             text = "No message sent"
-            setTextColor(Color.BLACK)
+            val colors = activity.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+            try {
+                colors.getColorStateList(0)?.let(::setTextColor)
+            } finally {
+                colors.recycle()
+            }
         }
         val message = EditText(activity).apply {
             minimumHeight = size(48)
             id = R.id.fixture_audit_message
             hint = "Message"
             if (defects) contentDescription = "Message"
-            setTextColor(Color.BLACK)
             isSingleLine = true
         }
         parent.addView(message)

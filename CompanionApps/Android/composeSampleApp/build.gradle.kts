@@ -43,7 +43,7 @@ dependencies {
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.activity:activity-compose:1.12.3")
+    implementation("androidx.activity:activity-compose:1.13.0")
 
     // This source set is the run target for BOTH emitters' output, so it carries Espresso (for
     // EspressoEmitter) and compose-ui-test (for ComposeEspressoEmitter). Neither emitter had

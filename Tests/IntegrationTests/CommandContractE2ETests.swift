@@ -34,7 +34,7 @@ final class CommandContractE2ETests: XCTestCase {
 
     static var fixtureAppID: String {
         ProcessInfo.processInfo
-            .environment["E2E_APP_ID"] ?? (platform == .ios ? "com.amoo.companion" : "com.amoo.companion")
+            .environment["E2E_APP_ID"] ?? (platform == .ios ? "com.amoo.companion" : "com.amoo.samples.compose")
     }
 
     /// Set once any test in this run has failed. Only consulted when `AMOO_E2E_FAIL_FAST=1`.

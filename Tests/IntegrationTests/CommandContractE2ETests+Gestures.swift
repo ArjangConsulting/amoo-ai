@@ -116,16 +116,7 @@ extension CommandContractE2ETests {
         guard !textReady.isError else { return XCTFail(textReady.content) }
 
         let focusInput = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-text-input"])
-        let androidFocusInput = await server.execute(
-            toolName: "tap_element",
-            arguments: ["label": "Hello from the fixture app"]
-        )
-        switch Self.platform {
-        case .ios:
-            XCTAssertFalse(focusInput.isError, focusInput.content)
-        case .android:
-            XCTAssertFalse(androidFocusInput.isError, androidFocusInput.content)
-        }
+        XCTAssertFalse(focusInput.isError, focusInput.content)
 
         let clearExistingText = await server.execute(toolName: "clear_text", arguments: [:])
         XCTAssertFalse(clearExistingText.isError, clearExistingText.content)
@@ -242,22 +233,21 @@ extension CommandContractE2ETests {
         let home = await resetFixtureApp(on: server)
         guard !home.isError else { return XCTFail(home.content) }
 
-        let tap = await server.execute(toolName: "tap_element", arguments: ["id": "fixture-open-text"])
-        XCTAssertFalse(tap.isError, tap.content)
-        let ready = await server.execute(toolName: "assert_visible", arguments: ["id": "fixture-text-input"])
+        let openURL = await server.execute(toolName: "open_url", arguments: ["url": "amoo-compose://selector-alias"])
+        XCTAssertFalse(openURL.isError, openURL.content)
+        let ready = await server.execute(toolName: "assert_visible", arguments: ["id": "fixture-text-input-alias"])
         XCTAssertFalse(ready.isError, ready.content)
 
         for value in ["original text", "replacement text"] {
             let set = await server.execute(
                 toolName: "set_text",
-                arguments: ["id": "fixture-text-input", "value": value]
+                arguments: ["id": "fixture-text-input-alias", "value": value]
             )
             XCTAssertFalse(set.isError, set.content)
         }
-        let echo = await server.execute(
-            toolName: "assert_visible",
-            arguments: ["id": "fixture-text-echo", "contains_text": "Echo: replacement text"]
-        )
+        let echo = await server.execute(toolName: "assert_visible", arguments: [
+            "id": "fixture-text-input-alias-echo", "contains_text": "Alias echo: replacement text"
+        ])
         XCTAssertFalse(echo.isError, echo.content)
     }
 

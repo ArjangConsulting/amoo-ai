@@ -602,8 +602,12 @@ an ADB failure and do not automatically restart devices or change accessibility-
 accessibility hierarchy. Android defaults are `sufficientElementDescription`, `hitRegion`,
 `contrast`, `duplicateSpeakableText`, and `editableContentDescription`. iOS-only categories
 remain unevaluated on Android. Provider ERROR, WARNING and insufficient-data results stay
-separate; warnings or incomplete coverage cannot produce a clean pass. Contrast uses the
-captured bitmap where available and retains ATF's missing-rendering-data limitations.
+separate. Warnings or incomplete coverage prevent a clean pass. The
+`contrast_measurements_json` provenance field records the foreground color, background color,
+ratio, and evidence source for each measured element. A second ATF pass uses a threshold
+above the maximum possible ratio to collect measurements. The standard ATF pass supplies the
+findings and severity. A screenshot estimate can fill a missing rendering color when ATF
+identifies both colors. Uniform, clipped, and obscured regions can remain unevaluated.
 
 ATF findings include capture references, hierarchy paths, pixel bounds and provider result
 IDs/types. Touch-target metadata retains clipping, clickable-ancestor, touch-delegate and
@@ -615,8 +619,9 @@ system bars.
 
 `test_talkback` observes actual accessibility focus and synthesis requests from the installed
 TalkBack UID. It temporarily selects Amoo's silent capture TTS engine and uses a temporary
-uinput keyboard with TalkBack's default Alt+Ctrl+Left first-item command, followed by the requested
-Alt+Left/Right navigation and optional Alt+Enter activation. Initial observed focus is retained in provenance.
+uinput keyboard. It tries the first-item command with Alt, then tries the Action key (Meta) if
+Alt produces no app-owned focus. The reported modifier is used for navigation and optional
+activation. Initial observed focus is retained in provenance.
 This route requires Android 12+ and a device that permits the shell uinput command. Missing input
 support, a custom keymap, first-run permission prompts, or absent focus/speech evidence remain
 unsupported or unevaluated. Ordinary UiAutomator-injected swipes bypass the accessibility input
@@ -630,7 +635,8 @@ app postcondition. Standalone generated export rejects the speech assertion inst
 Raw speech is excluded from session persistence unless `record_speech=true` is explicit.
 
 A durable journal preserves exact original accessibility-service, accessibility-enabled and
-TTS-engine settings. Restoration runs after success and failure, and pending recovery runs before
+TTS-engine settings. It also records any temporary TalkBack notification permission grant so it
+can restore the original denied state. Restoration runs after success and failure, and pending recovery runs before
 a restarted companion accepts requests. The temporary keyboard disappears when its pipe closes.
 An interrupted client cannot infer restoration from its own timeout; reconnect and inspect recovery
 evidence. First-run TalkBack permissions must be resolved before traversal; the provider does not

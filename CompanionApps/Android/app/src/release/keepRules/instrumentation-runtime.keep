@@ -1,0 +1,23 @@
+# The tested app supplies the Kotlin runtime. Keep the linkable APIs in the
+# packages that the release instrumentation APK references.
+-keep class kotlin.* { public protected *; }
+-keep class kotlin.annotation.* { public protected *; }
+-keep class kotlin.collections.* { public protected *; }
+-keep class kotlin.comparisons.* { public protected *; }
+-keep class kotlin.concurrent.* { public protected *; }
+-keep class kotlin.coroutines.* { public protected *; }
+-keep class kotlin.coroutines.intrinsics.* { public protected *; }
+-keep class kotlin.coroutines.jvm.internal.* { public protected *; }
+-keep class kotlin.enums.* { public protected *; }
+-keep class kotlin.io.* { public protected *; }
+-keep class kotlin.jdk7.* { public protected *; }
+-keep class kotlin.jvm.* { public protected *; }
+-keep class kotlin.jvm.functions.* { public protected *; }
+-keep class kotlin.jvm.internal.* { public protected *; }
+-keep class kotlin.jvm.internal.markers.* { public protected *; }
+-keep class kotlin.math.* { public protected *; }
+-keep class kotlin.ranges.* { public protected *; }
+-keep class kotlin.reflect.* { public protected *; }
+-keep class kotlin.sequences.* { public protected *; }
+-keep class kotlin.text.* { public protected *; }
+-keep class kotlin.time.* { public protected *; }

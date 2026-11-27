@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: format lint check test coverage ci build swift-build plugin mod-check amoo-live amoo-live-debug verify-linux protos protos-check companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
+.PHONY: format lint check test coverage ci build swift-build plugin mod-check amoo-live amoo-live-debug verify-linux protos protos-check companion-ios-project companion-ios-protos companion-ios-build companion-android-build companion-build sample-app-compose-build companion-android-lint sample-app-compose-test sample-apps-build e2e-ios e2e-android e2e-all docs
 
 format:
 	./scripts/ci/format.sh
@@ -123,6 +123,15 @@ sample-app-compose-build:
 		exit 1; \
 	fi; \
 	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :composeSampleApp:assembleDebug :composeSampleApp:assembleAndroidTest
+
+companion-android-lint:
+	@JDK="$$(./scripts/android-jdk.sh)"; \
+	if [ -z "$$JDK" ]; then \
+		echo "No JDK 17-26 found. Gradle 9.5 cannot run outside that range."; \
+		echo "Install with: brew install --cask temurin@21"; \
+		exit 1; \
+	fi; \
+	cd CompanionApps/Android && JAVA_HOME="$$JDK" ./gradlew :app:lintDebug :composeSampleApp:lintDebug
 
 sample-app-compose-test:
 	@JDK="$$(./scripts/android-jdk.sh)"; \

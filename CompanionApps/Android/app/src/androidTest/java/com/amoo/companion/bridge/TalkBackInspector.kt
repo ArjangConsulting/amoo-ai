@@ -48,7 +48,7 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
         val manager = context.getSystemService(AccessibilityManager::class.java)
         val talkBack = manager.installedAccessibilityServiceList.firstOrNull {
             it.resolveInfo.serviceInfo.name.endsWith(".TalkBackService") &&
-                it.resolveInfo.serviceInfo.packageName in setOf("com.google.android.marvin.talkback", "com.samsung.android.accessibility.talkback")
+                it.resolveInfo.serviceInfo.packageName in TalkBackRecovery.TALKBACK_PACKAGES
         } ?: return result.setError("A supported TalkBack installation is required; no settings were changed").build()
         if (bridge.currentPackageName() != request.appId) {
             return result.setError("Requested app must be foreground before TalkBack starts").build()
@@ -62,7 +62,9 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
         try {
             recovery.recoverPending()
             input = TalkBackInput(automation)
-            result.putProvenance("input_route", "temporary uinput keyboard; TalkBack default Alt+Left/Right and Alt+Enter shortcuts")
+            result.putProvenance("input_route",
+                "temporary uinput keyboard; tries TalkBack Classic keymap (Alt+Left/Right, Alt+Enter), " +
+                    "then Enhanced keymap (Meta+Left/Right, Meta+Enter)")
             result.addLimitations("Keyboard traversal only; touch gestures and custom keyboard mappings are not qualified.")
             original = recovery.begin(token, service.applicationInfo.uid, component)
             result.status = "executionError"
@@ -71,21 +73,37 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
             result.putProvenance("screen_reader_version", context.packageManager.getPackageInfo(service.packageName, 0).versionName.orEmpty())
             result.putProvenance("speech_source", "TalkBack UID ${service.applicationInfo.uid}; TextToSpeechService.onSynthesizeText")
             result.putProvenance("capture_engine", context.packageName)
-            grantTalkBackNotifications(service.packageName, result)
+            grantTalkBackNotifications(service.packageName, original, recovery, result)
             recovery.enableCapture(original)
             awaitCaptureReady(token, request.appId)
             check(bridge.currentPackageName() == request.appId) { "TalkBack changed foreground; target traversal withheld" }
             awaitSpeech(token, 0)
-            input.first()
-            SystemClock.sleep(300)
-            awaitSpeech(token, utterances(token).size)
-            val initialFocus = focus()
-            check(initialFocus != null && initialFocus.packageName == request.appId) {
-                "Initial app-owned TalkBack focus unavailable; foreground app is ${bridge.currentPackageName()}, " +
-                    "TalkBack focus is in ${initialFocus?.packageName ?: "no window"}, expected ${request.appId}"
+            val modifierCandidates = listOf("Alt" to TalkBackInput.KEY_LEFTALT, "Meta" to TalkBackInput.KEY_LEFTMETA)
+            var resolvedFocus: Focus? = null
+            var resolvedModifier: String? = null
+            var lastFocus: Focus? = null
+            for ((modifierName, keyCode) in modifierCandidates) {
+                input.useModifier(keyCode)
+                input.first()
+                SystemClock.sleep(300)
+                awaitSpeech(token, utterances(token).size)
+                lastFocus = focus()
+                if (lastFocus != null && lastFocus.packageName == request.appId) {
+                    resolvedFocus = lastFocus
+                    resolvedModifier = modifierName
+                    break
+                }
+            }
+            val initialFocus = resolvedFocus
+            check(initialFocus != null) {
+                "Initial app-owned TalkBack focus unavailable with Alt or Meta modifiers; foreground app is ${bridge.currentPackageName()}, " +
+                    "TalkBack focus is in ${lastFocus?.packageName ?: "no window"}, expected ${request.appId}"
             }
             result.putProvenance("initial_focus", initialFocus.description())
-            result.putProvenance("initial_navigation", "Alt+Ctrl+Left sent before requested moves; default keymap first-item command")
+            result.putProvenance("talkback_modifier_key", resolvedModifier.orEmpty())
+            result.putProvenance("initial_navigation",
+                "$resolvedModifier+Ctrl+Left sent before requested moves; tried Alt (Classic keymap) then Meta " +
+                    "(Enhanced keymap, default since TalkBack 16.2) first-item command")
             var offset = utterances(token).size
             var assertionFailed = false
             for (index in 0 until request.steps) {
@@ -144,7 +162,11 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
             }
             if (original != null) {
                 try {
-                    result.putAllProvenance(recovery.restore(original))
+                    val evidence = recovery.restore(original)
+                    result.putAllProvenance(evidence)
+                    if (evidence["permission_restoration_status"] == "pending") {
+                        result.cleanupError = "TalkBack notification permission grant could not be revoked; it remains granted pending the next inspection"
+                    }
                 } catch (error: Exception) {
                     result.cleanupError = "TalkBack restoration failed: ${error.javaClass.simpleName}: ${error.message}"
                     result.putProvenance("restoration_status", "failed")
@@ -181,11 +203,21 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
      * TalkBack's first start posts a notification-permission prompt that takes the foreground and steals
      * focus from the target app. Granting the permission up front keeps the prompt from appearing.
      */
-    private fun grantTalkBackNotifications(talkBackPackage: String, result: AccessibilityInspectionResponse.Builder) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val outcome = runCatching {
-            automation.grantRuntimePermission(talkBackPackage, "android.permission.POST_NOTIFICATIONS")
+    private fun grantTalkBackNotifications(
+        talkBackPackage: String,
+        original: JSONObject,
+        recovery: TalkBackRecovery,
+        result: AccessibilityInspectionResponse.Builder,
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            result.putProvenance("talkback_notification_grant", "unsupported: platform < 33")
+            return
         }
+        if (!recovery.notePendingPermissionGrant(original, talkBackPackage)) {
+            result.putProvenance("talkback_notification_grant", "already_granted")
+            return
+        }
+        val outcome = runCatching { automation.grantRuntimePermission(talkBackPackage, TalkBackRecovery.NOTIFICATION_PERMISSION) }
         result.putProvenance("talkback_notification_grant", if (outcome.isSuccess) "granted" else "unavailable: ${outcome.exceptionOrNull()?.javaClass?.simpleName}")
     }
 
@@ -218,7 +250,7 @@ class TalkBackInspector(private val bridge: UIAutomatorBridge) {
     }
 
     private fun utterances(token: String): List<String> {
-        val file = File(context.filesDir, "amoo-speech-$token.jsonl")
+        val file = File(context.noBackupFilesDir, "amoo-speech-$token.jsonl")
         if (!file.exists()) return emptyList()
         val text = file.readText()
         return text.substringBeforeLast('\n', "").lineSequence().filter { it.isNotBlank() }

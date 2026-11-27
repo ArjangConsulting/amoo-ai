@@ -2,10 +2,12 @@ package com.amoo.companion
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -40,11 +42,48 @@ class MainActivity : Activity() {
     private var longPressState = "idle"
     private var deepLinkValue = defaultDeepLinkValue
     private var lastTapTimestamp = 0L
+    private val primaryForegroundColor: ColorStateList? by lazy {
+        val attributes = obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+        try {
+            attributes.getColorStateList(0)
+        } finally {
+            attributes.recycle()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleIntent(intent)
+        if (savedInstanceState == null) {
+            handleIntent(intent)
+        } else {
+            restoreState(savedInstanceState)
+        }
         renderCurrentScreen()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putStringArrayList(STATE_SCREEN_STACK, ArrayList(screenStack.map { it.name }))
+        outState.putString(STATE_TEXT_VALUE, textValue)
+        outState.putInt(STATE_TAP_COUNT, tapCount)
+        outState.putInt(STATE_DOUBLE_TAP_COUNT, doubleTapCount)
+        outState.putString(STATE_LONG_PRESS, longPressState)
+        outState.putString(STATE_DEEP_LINK, deepLinkValue)
+    }
+
+    private fun restoreState(state: Bundle) {
+        val restoredStack = state.getStringArrayList(STATE_SCREEN_STACK)
+            .orEmpty()
+            .mapNotNull { name -> FixtureScreen.entries.firstOrNull { it.name == name } }
+        if (restoredStack.isNotEmpty()) {
+            screenStack.clear()
+            screenStack += restoredStack
+        }
+        textValue = state.getString(STATE_TEXT_VALUE, defaultTextValue)
+        tapCount = state.getInt(STATE_TAP_COUNT)
+        doubleTapCount = state.getInt(STATE_DOUBLE_TAP_COUNT)
+        longPressState = state.getString(STATE_LONG_PRESS, "idle")
+        deepLinkValue = state.getString(STATE_DEEP_LINK, defaultDeepLinkValue)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -142,12 +181,16 @@ class MainActivity : Activity() {
     }
 
     private fun renderCurrentScreen() {
-        val root = ScrollView(this).apply {
-            setBackgroundColor(Color.WHITE)
-        }
+        val root = ScrollView(this)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 72)
+            val horizontal = resources.getDimensionPixelSize(R.dimen.fixture_screen_padding)
+            setPadding(
+                horizontal,
+                horizontal,
+                horizontal,
+                resources.getDimensionPixelSize(R.dimen.fixture_screen_padding_bottom),
+            )
         }
 
         when (screenStack.last()) {
@@ -168,42 +211,48 @@ class MainActivity : Activity() {
     }
 
     private fun renderHome(parent: LinearLayout) {
-        parent.addView(titleView("Fixture Home", "fixture-home-title"))
-        parent.addView(bodyView("Home screen ready for contract tests", "fixture-home-screen"))
+        parent.addView(titleView("Fixture Home", R.id.fixture_home_title))
+        parent.addView(bodyView("Home screen ready for contract tests", R.id.fixture_home_screen))
 
         parent.addView(sectionLabel("Launch Targets"))
-        parent.addView(navButton("Open Details", "fixture-open-details") { navigateTo(FixtureScreen.DETAILS) })
-        parent.addView(navButton("Open Text Input", "fixture-open-text") { navigateTo(FixtureScreen.TEXT) })
-        parent.addView(navButton("Open Gesture Lab", "fixture-open-gesture") { navigateTo(FixtureScreen.GESTURE) })
-        parent.addView(navButton("Open Permissions", "fixture-open-permissions") { navigateTo(FixtureScreen.PERMISSIONS) })
-        parent.addView(navButton("Open Appearance", "fixture-open-appearance") { navigateTo(FixtureScreen.APPEARANCE) })
-        parent.addView(navButton("Open Deep Link", "fixture-open-deeplink") { navigateTo(FixtureScreen.DEEP_LINK) })
-        parent.addView(navButton("Open Confirmation", "fixture-open-confirmation") { navigateTo(FixtureScreen.CONFIRMATION) })
+        parent.addView(navButton("Open Details", R.id.fixture_open_details) { navigateTo(FixtureScreen.DETAILS) })
+        parent.addView(navButton("Open Text Input", R.id.fixture_open_text) { navigateTo(FixtureScreen.TEXT) })
+        parent.addView(navButton("Open Gesture Lab", R.id.fixture_open_gesture) { navigateTo(FixtureScreen.GESTURE) })
+        parent.addView(navButton("Open Permissions", R.id.fixture_open_permissions) { navigateTo(FixtureScreen.PERMISSIONS) })
+        parent.addView(navButton("Open Appearance", R.id.fixture_open_appearance) { navigateTo(FixtureScreen.APPEARANCE) })
+        parent.addView(navButton("Open Deep Link", R.id.fixture_open_deeplink) { navigateTo(FixtureScreen.DEEP_LINK) })
+        parent.addView(navButton("Open Confirmation", R.id.fixture_open_confirmation) { navigateTo(FixtureScreen.CONFIRMATION) })
 
         parent.addView(sectionLabel("Gesture Summary"))
-        parent.addView(bodyView("Tap count: $tapCount", "fixture-tap-count"))
-        parent.addView(bodyView("Double tap count: $doubleTapCount", "fixture-double-tap-count"))
-        parent.addView(bodyView("Long press: $longPressState", "fixture-long-press-status"))
+        parent.addView(bodyView("Tap count: $tapCount", R.id.fixture_tap_count))
+        parent.addView(bodyView("Double tap count: $doubleTapCount", R.id.fixture_double_tap_count))
+        parent.addView(bodyView("Long press: $longPressState", R.id.fixture_long_press_status))
     }
 
     private fun renderDetails(parent: LinearLayout) {
-        parent.addView(titleView("Details", "fixture-details-screen"))
+        parent.addView(titleView("Details", R.id.fixture_details_screen))
         for (index in 0 until 30) {
-            parent.addView(bodyView("Fixture row $index", "fixture-detail-row-$index"))
+            parent.addView(bodyView("Fixture row $index", detailRowIDs[index]))
         }
-        parent.addView(bodyView("Details tail marker", "fixture-details-tail"))
+        parent.addView(bodyView("Details tail marker", R.id.fixture_details_tail))
     }
 
     private fun renderText(parent: LinearLayout) {
-        parent.addView(titleView("Text Input", "fixture-text-screen"))
+        parent.addView(titleView("Text Input", R.id.fixture_text_screen))
 
-        val textValueLabel = bodyView("Current text: $textValue", "fixture-text-value")
+        val textValueLabel = bodyView("Current text: $textValue", R.id.fixture_text_value)
+
+        val inputLabel = TextView(this).apply {
+            text = "Fixture Input"
+            id = R.id.fixture_text_input_label
+            labelFor = R.id.fixture_text_input
+            primaryForegroundColor?.let(::setTextColor)
+        }
 
         val input = EditText(this).apply {
             hint = "Fixture Input"
             setText(textValue)
-            contentDescription = "fixture-text-input"
-            applyFixtureID(this, "fixture-text-input")
+            id = R.id.fixture_text_input
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
@@ -214,23 +263,28 @@ class MainActivity : Activity() {
             })
         }
 
+        parent.addView(inputLabel)
         parent.addView(input, matchWidthParams())
         parent.addView(textValueLabel)
     }
 
     private fun renderGesture(parent: LinearLayout) {
-        parent.addView(titleView("Gesture Lab", "fixture-gesture-screen"))
+        parent.addView(titleView("Gesture Lab", R.id.fixture_gesture_screen))
 
         val pad = TextView(this).apply {
             text = "Gesture Pad"
             textSize = 24f
             gravity = Gravity.CENTER
             setTypeface(typeface, Typeface.BOLD)
-            setBackgroundColor(Color.parseColor("#F97316"))
+            id = R.id.fixture_gesture_pad
+            setBackgroundColor(getColor(R.color.fixture_gesture_pad))
             setTextColor(Color.WHITE)
-            contentDescription = "fixture-gesture-pad"
-            applyFixtureID(this, "fixture-gesture-pad")
-            setPadding(24, 120, 24, 120)
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.fixture_gesture_pad_horizontal),
+                resources.getDimensionPixelSize(R.dimen.fixture_gesture_pad_vertical),
+                resources.getDimensionPixelSize(R.dimen.fixture_gesture_pad_horizontal),
+                resources.getDimensionPixelSize(R.dimen.fixture_gesture_pad_vertical),
+            )
             setOnClickListener {
                 val now = System.currentTimeMillis()
                 tapCount += 1
@@ -247,85 +301,80 @@ class MainActivity : Activity() {
             }
         }
         parent.addView(pad, matchWidthParams())
-        parent.addView(bodyView("Scroll target", "fixture-gesture-scroll-target"))
+        parent.addView(bodyView("Scroll target", R.id.fixture_gesture_scroll_target))
         for (index in 0 until 10) {
-            parent.addView(bodyView("Gesture item $index", "fixture-gesture-item-$index"))
+            parent.addView(bodyView("Gesture item $index", gestureItemIDs[index]))
         }
     }
 
     private fun renderPermissions(parent: LinearLayout) {
-        parent.addView(titleView("Permissions Screen", "fixture-permissions-screen"))
-        parent.addView(bodyView("Use host commands to grant camera, notifications, or location.", "fixture-permissions-message"))
+        parent.addView(titleView("Permissions Screen", R.id.fixture_permissions_screen))
+        parent.addView(bodyView("Use host commands to grant camera, notifications, or location.", R.id.fixture_permissions_message))
     }
 
     private fun renderAppearance(parent: LinearLayout) {
-        parent.addView(titleView("Appearance Screen", "fixture-appearance-screen"))
-        parent.addView(bodyView(currentAppearance(), "fixture-appearance-value"))
+        parent.addView(titleView("Appearance Screen", R.id.fixture_appearance_screen))
+        parent.addView(bodyView(currentAppearance(), R.id.fixture_appearance_value))
     }
 
     private fun renderDeepLink(parent: LinearLayout) {
-        parent.addView(titleView("Deep Link Screen", "fixture-deeplink-screen"))
-        parent.addView(bodyView(deepLinkValue, "fixture-deeplink-value"))
+        parent.addView(titleView("Deep Link Screen", R.id.fixture_deeplink_screen))
+        parent.addView(bodyView(deepLinkValue, R.id.fixture_deeplink_value))
     }
 
     private fun renderConfirmation(parent: LinearLayout) {
-        parent.addView(titleView("Confirmation Screen", "fixture-confirmation-screen"))
-        parent.addView(bodyView("The fixture app reached its confirmation state.", "fixture-confirmation-message"))
+        parent.addView(titleView("Confirmation Screen", R.id.fixture_confirmation_screen))
+        parent.addView(bodyView("The fixture app reached its confirmation state.", R.id.fixture_confirmation_message))
     }
 
     private fun sectionLabel(text: String): TextView {
         return TextView(this).apply {
             this.text = text
             textSize = 18f
+            primaryForegroundColor?.let(::setTextColor)
             setTypeface(typeface, Typeface.BOLD)
-            setPadding(0, 32, 0, 16)
+            setPadding(
+                0,
+                resources.getDimensionPixelSize(R.dimen.fixture_section_label_top),
+                0,
+                resources.getDimensionPixelSize(R.dimen.fixture_section_label_bottom),
+            )
+            markAsHeading(this)
         }
     }
 
-    private fun titleView(text: String, id: String): TextView {
+    private fun titleView(text: String, id: Int): TextView {
         return TextView(this).apply {
             this.text = text
             textSize = 30f
+            primaryForegroundColor?.let(::setTextColor)
             setTypeface(typeface, Typeface.BOLD)
-            contentDescription = id
-            applyFixtureID(this, id)
+            this.id = id
+            markAsHeading(this)
         }
     }
 
-    private fun bodyView(text: String, id: String): TextView {
+    private fun bodyView(text: String, id: Int): TextView {
         return TextView(this).apply {
             this.text = text
             textSize = 18f
-            setPadding(0, 0, 0, 16)
-            contentDescription = id
-            applyFixtureID(this, id)
+            primaryForegroundColor?.let(::setTextColor)
+            setPadding(0, 0, 0, resources.getDimensionPixelSize(R.dimen.fixture_body_bottom))
+            this.id = id
         }
     }
 
-    private fun navButton(label: String, id: String, onClick: () -> Unit): Button {
+    private fun navButton(label: String, id: Int, onClick: () -> Unit): Button {
         return Button(this).apply {
             text = label
-            contentDescription = id
-            applyFixtureID(this, id)
+            this.id = id
             setOnClickListener { onClick() }
         }
     }
 
-    private fun applyFixtureID(view: View, id: String) {
-        val viewID = when (id) {
-            "fixture-home-title" -> R.id.fixture_home_title
-            "fixture-open-details" -> R.id.fixture_open_details
-            "fixture-open-text" -> R.id.fixture_open_text
-            "fixture-open-gesture" -> R.id.fixture_open_gesture
-            "fixture-detail-row-0" -> R.id.fixture_detail_row_0
-            "fixture-details-tail" -> R.id.fixture_details_tail
-            "fixture-text-input" -> R.id.fixture_text_input
-            "fixture-gesture-pad" -> R.id.fixture_gesture_pad
-            else -> View.NO_ID
-        }
-
-        if (viewID != View.NO_ID) {
-            view.id = viewID
+    private fun markAsHeading(view: View) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            view.isAccessibilityHeading = true
         }
     }
 
@@ -342,7 +391,62 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply {
-            bottomMargin = 16
+            bottomMargin = resources.getDimensionPixelSize(R.dimen.fixture_field_bottom_margin)
         }
+    }
+
+    private companion object {
+        const val STATE_SCREEN_STACK = "screen_stack"
+        const val STATE_TEXT_VALUE = "text_value"
+        const val STATE_TAP_COUNT = "tap_count"
+        const val STATE_DOUBLE_TAP_COUNT = "double_tap_count"
+        const val STATE_LONG_PRESS = "long_press_state"
+        const val STATE_DEEP_LINK = "deep_link_value"
+
+        val detailRowIDs = intArrayOf(
+            R.id.fixture_detail_row_0,
+            R.id.fixture_detail_row_1,
+            R.id.fixture_detail_row_2,
+            R.id.fixture_detail_row_3,
+            R.id.fixture_detail_row_4,
+            R.id.fixture_detail_row_5,
+            R.id.fixture_detail_row_6,
+            R.id.fixture_detail_row_7,
+            R.id.fixture_detail_row_8,
+            R.id.fixture_detail_row_9,
+            R.id.fixture_detail_row_10,
+            R.id.fixture_detail_row_11,
+            R.id.fixture_detail_row_12,
+            R.id.fixture_detail_row_13,
+            R.id.fixture_detail_row_14,
+            R.id.fixture_detail_row_15,
+            R.id.fixture_detail_row_16,
+            R.id.fixture_detail_row_17,
+            R.id.fixture_detail_row_18,
+            R.id.fixture_detail_row_19,
+            R.id.fixture_detail_row_20,
+            R.id.fixture_detail_row_21,
+            R.id.fixture_detail_row_22,
+            R.id.fixture_detail_row_23,
+            R.id.fixture_detail_row_24,
+            R.id.fixture_detail_row_25,
+            R.id.fixture_detail_row_26,
+            R.id.fixture_detail_row_27,
+            R.id.fixture_detail_row_28,
+            R.id.fixture_detail_row_29,
+        )
+
+        val gestureItemIDs = intArrayOf(
+            R.id.fixture_gesture_item_0,
+            R.id.fixture_gesture_item_1,
+            R.id.fixture_gesture_item_2,
+            R.id.fixture_gesture_item_3,
+            R.id.fixture_gesture_item_4,
+            R.id.fixture_gesture_item_5,
+            R.id.fixture_gesture_item_6,
+            R.id.fixture_gesture_item_7,
+            R.id.fixture_gesture_item_8,
+            R.id.fixture_gesture_item_9,
+        )
     }
 }
